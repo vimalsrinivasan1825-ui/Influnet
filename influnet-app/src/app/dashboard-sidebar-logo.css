@@ -1,0 +1,109 @@
+/* Hide React bundle logo — CSS ::before shows the correct asset */
+
+aside.w-56 > div.flex.items-center.justify-between > img[alt="Influnet"],
+
+aside.w-16 > div.flex.items-center.justify-between > img[alt="Influnet"],
+
+aside.infl-sidebar-hover > div.flex.items-center.justify-between > img[alt="Influnet"] {
+
+  display: none !important;
+
+  visibility: hidden !important;
+
+  width: 0 !important;
+
+  height: 0 !important;
+
+  max-width: 0 !important;
+
+  max-height: 0 !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  border: 0 !important;
+
+  position: absolute !important;
+
+  pointer-events: none !important;
+
+  opacity: 0 !important;
+
+}
+
+
+
+aside.w-56 > div.flex.items-center.justify-between,
+
+aside.w-16 > div.flex.items-center.justify-between,
+
+aside.infl-sidebar-hover > div.flex.items-center.justify-between,
+
+aside.infl-sidebar--expanded > div.flex.items-center.justify-between,
+
+aside.infl-sidebar--collapsed > div.flex.items-center.justify-between {
+
+  min-height: 2.5rem;
+
+  align-items: center;
+
+  overflow: hidden;
+
+}
+
+
+
+/* ── Full wordmark (expanded) ── */
+
+aside.w-56:not(.infl-sidebar-hover--compact) > div.flex.items-center.justify-between::before,
+
+aside.infl-sidebar-hover:not(.infl-sidebar-hover--compact) > div.flex.items-center.justify-between::before,
+
+aside.infl-sidebar--expanded > div.flex.items-center.justify-between::before {
+
+  content: "";
+
+  display: block;
+
+  width: 8.75rem;
+
+  height: 2.5rem;
+
+  flex-shrink: 0;
+
+  margin-right: 0.25rem;
+
+  background: url("/Asset/Influnet-LOGO/black-logo.png") no-repeat left center / contain;
+
+}
+
+
+
+/* ── Icon only (collapsed / compact hover) ── */
+
+aside.w-16 > div.flex.items-center.justify-between::before,
+
+aside.infl-sidebar--collapsed > div.flex.items-center.justify-between::before,
+
+aside.infl-sidebar-hover.infl-sidebar-hover--compact > div.flex.items-center.justify-between::before {
+
+  content: "";
+
+  display: block;
+
+  width: 2rem !important;
+
+  height: 2rem !important;
+
+  max-width: 2rem !important;
+
+  flex-shrink: 0;
+
+  margin-right: 0 !important;
+
+  background: url("/Asset/Influnet-LOGO/Black-Icon.png") no-repeat center / contain !important;
+
+}
+
+

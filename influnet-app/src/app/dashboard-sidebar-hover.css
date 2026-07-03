@@ -1,0 +1,63 @@
+/* ── Sidebar: always expanded with labels visible ── */
+
+.infl-app-shell > aside.infl-sidebar-hover,
+.infl-app-shell .infl-sidebar-zone > aside.infl-sidebar-hover {
+  flex-shrink: 0 !important;
+  width: 16rem !important;
+  min-width: 16rem !important;
+  max-width: 16rem !important;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-shadow: 4px 0 20px rgba(15, 23, 42, 0.06);
+}
+
+.infl-app-shell > aside.infl-sidebar-hover > div.flex.items-center.justify-between > button,
+.infl-app-shell .infl-sidebar-zone > aside.infl-sidebar-hover > div.flex.items-center.justify-between > button {
+  display: none !important;
+}
+
+.infl-app-shell > aside.infl-sidebar-hover [data-infl-sidebar-role-pill],
+.infl-app-shell .infl-sidebar-zone > aside.infl-sidebar-hover [data-infl-sidebar-role-pill] {
+  max-height: 4rem;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.infl-app-shell > aside.infl-sidebar-hover .infl-sidebar-nav-label,
+.infl-app-shell > aside.infl-sidebar-hover nav button > .infl-conn-nav-label,
+.infl-app-shell .infl-sidebar-zone > aside.infl-sidebar-hover .infl-sidebar-nav-label,
+.infl-app-shell .infl-sidebar-zone > aside.infl-sidebar-hover nav button > .infl-conn-nav-label {
+  opacity: 1;
+  width: auto;
+  max-width: none;
+  overflow: visible;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.infl-app-shell > aside.infl-sidebar-hover nav button .infl-nav-icon-badge,
+.infl-app-shell .infl-sidebar-zone > aside.infl-sidebar-hover nav button .infl-nav-icon-badge {
+  position: absolute !important;
+  top: -0.35rem !important;
+  right: -0.4rem !important;
+  left: auto !important;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Main column — natural flex; no margin-left offset */
+.infl-app-shell > .flex-1.flex.flex-col.min-w-0 {
+  flex: 1 1 0%;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  margin-left: 0;
+}
+
+/* Legacy wrapper artifacts must not consume layout space */
+.infl-app-shell > .infl-sidebar-spacer,
+.infl-app-shell > .infl-sidebar-zone {
+  display: none !important;
+}

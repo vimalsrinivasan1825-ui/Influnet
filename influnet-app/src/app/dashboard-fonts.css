@@ -1,0 +1,266 @@
+/* Plus Jakarta Sans — business & influencer dashboards */
+:root {
+  --infl-dashboard-font: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+}
+
+body.infl-business-dashboard,
+body.infl-influencer-dashboard {
+  font-family: var(--infl-dashboard-font);
+}
+
+body.infl-business-dashboard #root,
+body.infl-influencer-dashboard #root {
+  font-family: var(--infl-dashboard-font);
+}
+
+body.infl-business-dashboard #influnet-business-dashboard-mount,
+body.infl-influencer-dashboard #influnet-influencer-dashboard-mount,
+body.infl-business-dashboard #influnet-profile-edit-root,
+body.infl-influencer-dashboard #influnet-profile-edit-root,
+body.infl-business-dashboard #influnet-settings-mount,
+body.infl-influencer-dashboard #influnet-settings-mount,
+body.infl-business-dashboard #influnet-connections-mount,
+body.infl-influencer-dashboard #influnet-connections-mount,
+body.infl-business-dashboard #infl-profile-completion-overlay,
+body.infl-influencer-dashboard #infl-profile-completion-overlay,
+body.infl-business-dashboard [class*="infl-msgs"],
+body.infl-influencer-dashboard [class*="infl-msgs"],
+body.infl-business-messages-view [class*="infl-msgs"],
+body.infl-influencer-messages-view [class*="infl-msgs"] {
+  font-family: var(--infl-dashboard-font);
+}
+
+/* Sidebar nav — slightly bolder labels for readability */
+body.infl-business-dashboard .flex.h-screen aside button,
+body.infl-influencer-dashboard .flex.h-screen aside button {
+  font-weight: 600 !important;
+  color: #374151 !important;
+}
+
+body.infl-business-dashboard .flex.h-screen aside button span,
+body.infl-influencer-dashboard .flex.h-screen aside button span {
+  font-weight: inherit !important;
+  color: inherit !important;
+}
+
+body.infl-business-dashboard .flex.h-screen aside nav button.bg-violet-100 {
+  font-weight: 700 !important;
+  color: #ee3e96 !important;
+  background: rgba(238, 62, 150, 0.1) !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(238, 62, 150, 0.14) !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav button.bg-violet-100 {
+  font-weight: 700 !important;
+  color: #ee3e96 !important;
+  background: rgba(238, 62, 150, 0.1) !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(238, 62, 150, 0.14) !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav button.bg-violet-100 .text-violet-600,
+body.infl-influencer-dashboard .flex.h-screen aside nav button.bg-violet-100 svg {
+  color: #ee3e96 !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen > .flex-1.flex.flex-col.min-w-0 > header button.bg-violet-600 {
+  background: #ee3e96 !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen > .flex-1.flex.flex-col.min-w-0 > header button.bg-violet-600:hover {
+  background: #d63384 !important;
+}
+
+/* Prevent horizontal scrollbar in sidebar nav (overflow from badges / bold labels) */
+body.infl-business-dashboard .flex.h-screen aside,
+body.infl-influencer-dashboard .flex.h-screen aside {
+  overflow-x: hidden !important;
+  min-width: 14rem;
+  flex-shrink: 0 !important;
+}
+
+body.infl-business-dashboard .flex.h-screen aside nav,
+body.infl-influencer-dashboard .flex.h-screen aside nav {
+  overflow-x: hidden !important;
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.infl-business-dashboard .flex.h-screen aside nav button,
+body.infl-influencer-dashboard .flex.h-screen aside nav button {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav button {
+  border-radius: 12px !important;
+}
+
+body.infl-business-dashboard .flex.h-screen aside nav button > span:not(.infl-sidebar-badge-host),
+body.infl-influencer-dashboard .flex.h-screen aside nav button > span:not(.infl-sidebar-badge-host) {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside .infl-sidebar-badge-host,
+body.infl-business-dashboard .flex.h-screen aside .infl-sidebar-badge-host {
+  flex-shrink: 0;
+  position: relative;
+  display: inline-flex;
+}
+
+.infl-nav-icon-badge {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.4rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.22rem;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav > button .infl-requests-nav-badge,
+body.infl-influencer-dashboard .flex.h-screen aside nav > button .infl-requests-nav-dot {
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+body.infl-influencer-dashboard .flex.h-screen aside,
+body.infl-business-dashboard .flex.h-screen aside {
+  --infl-side-gutter: 1rem;
+  --infl-side-nav-pad-y: 0.625rem;
+  --infl-side-nav-pad-x: 0.75rem;
+  --infl-side-icon-size: 1rem;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside > div.border-b.border-gray-100:not(:first-child),
+body.infl-business-dashboard .flex.h-screen aside > div.border-b.border-gray-100:not(:first-child) {
+  padding-left: var(--infl-side-gutter) !important;
+  padding-right: var(--infl-side-gutter) !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav,
+body.infl-business-dashboard .flex.h-screen aside nav {
+  padding-left: var(--infl-side-gutter) !important;
+  padding-right: var(--infl-side-gutter) !important;
+  box-sizing: border-box;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav > button,
+body.infl-influencer-dashboard .flex.h-screen aside > div.border-t.border-gray-100 > button,
+body.infl-business-dashboard .flex.h-screen aside nav > button,
+body.infl-business-dashboard .flex.h-screen aside > div.border-t.border-gray-100 > button {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0.125rem !important;
+  padding: var(--infl-side-nav-pad-y) var(--infl-side-nav-pad-x) !important;
+  gap: 0.75rem !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav > button.bg-violet-100,
+body.infl-influencer-dashboard .flex.h-screen aside > div.border-t.border-gray-100 > button.bg-violet-100,
+body.infl-business-dashboard .flex.h-screen aside nav > button.bg-violet-100,
+body.infl-business-dashboard .flex.h-screen aside > div.border-t.border-gray-100 > button.bg-violet-100 {
+  padding: var(--infl-side-nav-pad-y) var(--infl-side-nav-pad-x) !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav > button > span.relative.shrink-0,
+body.infl-business-dashboard .flex.h-screen aside nav > button > span.relative.shrink-0 {
+  width: var(--infl-side-icon-size) !important;
+  height: var(--infl-side-icon-size) !important;
+  flex: 0 0 var(--infl-side-icon-size) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav > button > span.relative.shrink-0 svg,
+body.infl-business-dashboard .flex.h-screen aside nav > button > span.relative.shrink-0 svg,
+body.infl-influencer-dashboard .flex.h-screen aside > div.border-t.border-gray-100 > button > svg,
+body.infl-business-dashboard .flex.h-screen aside > div.border-t.border-gray-100 > button > svg {
+  width: var(--infl-side-icon-size) !important;
+  height: var(--infl-side-icon-size) !important;
+  flex-shrink: 0 !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav > button > span.flex-1,
+body.infl-influencer-dashboard .flex.h-screen aside nav > button > span.infl-conn-nav-label,
+body.infl-influencer-dashboard .flex.h-screen aside > div.border-t.border-gray-100 > button > span,
+body.infl-business-dashboard .flex.h-screen aside nav > button > span.flex-1,
+body.infl-business-dashboard .flex.h-screen aside > div.border-t.border-gray-100 > button > span {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+}
+
+body.infl-influencer-dashboard .flex.h-screen aside nav > button .infl-requests-nav-badge,
+body.infl-influencer-dashboard .flex.h-screen aside nav > button .infl-requests-nav-dot {
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+
+/* Influencer dashboard — map React violet/teal accents to Influnet primary */
+body.infl-influencer-dashboard .text-violet-600 {
+  color: #ee3e96 !important;
+}
+
+body.infl-influencer-dashboard .text-violet-700,
+body.infl-influencer-dashboard .text-violet-800 {
+  color: #be185d !important;
+}
+
+body.infl-influencer-dashboard .bg-violet-600 {
+  background-color: #ee3e96 !important;
+}
+
+body.infl-influencer-dashboard .hover\:bg-violet-700:hover {
+  background-color: #d63384 !important;
+}
+
+body.infl-influencer-dashboard .bg-violet-100 {
+  background-color: rgba(238, 62, 150, 0.1) !important;
+}
+
+body.infl-influencer-dashboard .border-violet-200,
+body.infl-influencer-dashboard .border-violet-300 {
+  border-color: rgba(238, 62, 150, 0.22) !important;
+}
+
+body.infl-influencer-dashboard .ring-violet-200,
+body.infl-influencer-dashboard .ring-violet-500 {
+  --tw-ring-color: rgba(238, 62, 150, 0.35) !important;
+}
+
+body.infl-influencer-dashboard .from-violet-500,
+body.infl-influencer-dashboard .from-violet-600 {
+  --tw-gradient-from: #ee3e96 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(238 62 150 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+body.infl-influencer-dashboard .to-violet-600,
+body.infl-influencer-dashboard .to-violet-700 {
+  --tw-gradient-to: #f26e59 var(--tw-gradient-to-position) !important;
+}
+
