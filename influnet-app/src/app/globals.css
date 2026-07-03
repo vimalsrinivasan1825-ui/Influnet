@@ -89,3 +89,18 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+
+@keyframes orbit {
+  0% {
+    transform: rotate(0deg) translateY(calc(var(--radius) * 1px)) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateY(calc(var(--radius) * 1px)) rotate(-360deg);
+  }
+}
+
+.animate-orbit {
+  animation: orbit var(--duration, 20s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
