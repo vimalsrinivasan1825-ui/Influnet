@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { motion } from 'framer-motion';
 
 const NICHES = [
   'Fashion & Beauty',
@@ -145,50 +146,53 @@ export default function InfluencerSignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex items-center justify-center px-4 py-12">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#ee3e96]/8 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[#f26e59]/6 rounded-full blur-[100px]" />
+    <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 py-16 relative overflow-hidden font-sans">
+      {/* Ambient Glows */}
+      <div className="absolute inset-0 pointer-events-none select-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-pink-100/30 blur-[130px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-100/30 blur-[130px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-lg">
+      <div className="relative z-10 w-full max-w-[500px]">
+        {/* Header Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
             <img
               src="/influet_logo.png"
               alt="influnet"
-              className="h-9 w-auto flex-shrink-0"
+              className="h-10 w-auto flex-shrink-0 transition-transform group-hover:scale-105"
             />
-            <span className="text-2xl font-bold text-white tracking-tight">influnet</span>
+            <span className="text-2xl font-black text-gray-900 tracking-tight">influnet</span>
           </Link>
-          <h1 className="text-2xl font-bold text-white mb-2">Create your account</h1>
-          <p className="text-sm text-gray-400">Join as a Creator</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Create your account</h1>
+          <p className="text-gray-400 font-semibold">Join as a Creator</p>
         </div>
 
-        <div className="mb-8">
+        {/* Step Progression Bar */}
+        <div className="mb-8 px-4">
           <div className="flex items-center justify-between mb-3">
             {[1, 2, 3, 4].map((s) => (
               <div key={s} className="flex items-center gap-2">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black transition-all ${
                     s <= step
-                      ? 'bg-[#ee3e96] text-white shadow-lg shadow-[#ee3e96]/20'
-                      : 'bg-white/5 text-gray-500 border border-white/10'
+                      ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/15'
+                      : 'bg-gray-100 text-gray-400 border border-gray-200'
                   }`}
                 >
                   {s}
                 </div>
                 {s < 4 && (
                   <div
-                    className={`w-12 sm:w-20 h-0.5 rounded-full transition-all ${
-                      s < step ? 'bg-[#ee3e96]' : 'bg-white/10'
+                    className={`w-10 sm:w-16 h-0.5 rounded-full transition-all ${
+                      s < step ? 'bg-pink-500' : 'bg-gray-200'
                     }`}
                   />
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-xs text-gray-500">
+          <div className="flex justify-between text-[11px] font-black uppercase tracking-wider text-gray-400">
             <span>Account</span>
             <span>Profile</span>
             <span>Creator</span>
@@ -196,51 +200,52 @@ export default function InfluencerSignupPage() {
           </div>
         </div>
 
-        <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/[0.08] shadow-2xl">
+        {/* Premium Form Card */}
+        <div className="p-10 rounded-[2.5rem] bg-white border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.018)]">
           {error && (
-            <div className="mb-6 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 text-sm font-semibold text-red-600">
               {error}
             </div>
           )}
 
           {step === 1 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white mb-4">Account Details</h2>
+            <div className="space-y-5">
+              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Account Details</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">First Name</label>
-                  <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">First Name</label>
+                  <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Last Name</label>
-                  <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Last Name</label>
+                  <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Username</label>
-                <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="Choose a username" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Username</label>
+                <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="Choose username" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Email Address</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Phone (optional)</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Phone (optional)</label>
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Password</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
               </div>
             </div>
           )}
 
           {step === 2 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white mb-4">Profile Details</h2>
+            <div className="space-y-5">
+              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Profile Details</h2>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Gender</label>
-                <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full !bg-[#09090b] !border border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 rounded-xl px-4 py-3 h-12 transition-all outline-none">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Gender</label>
+                <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
                   <option value="">Select gender</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -250,12 +255,12 @@ export default function InfluencerSignupPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">City</label>
-                  <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Your city" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">City</label>
+                  <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Your city" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">State</label>
-                  <select value={state} onChange={(e) => setState(e.target.value)} className="w-full !bg-[#09090b] !border border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 rounded-xl px-4 py-3 h-12 transition-all outline-none">
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">State</label>
+                  <select value={state} onChange={(e) => setState(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
                     <option value="">Select state</option>
                     {INDIAN_STATES.map((s) => (
                       <option key={s} value={s}>{s}</option>
@@ -264,17 +269,17 @@ export default function InfluencerSignupPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Languages</label>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Languages</label>
                 <div className="flex flex-wrap gap-2">
                   {LANGUAGES.map((lang) => (
                     <button
                       key={lang}
                       type="button"
                       onClick={() => setLanguages(toggleArrayItem(languages, lang))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         languages.includes(lang)
-                          ? 'bg-[#ee3e96]/15 border-[#ee3e96]/30 text-[#ee3e96]'
-                          : 'bg-white/[0.03] border-white/10 text-gray-400 hover:border-white/20'
+                          ? 'bg-pink-50 border-pink-200 text-pink-600'
+                          : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-100/50'
                       }`}
                     >
                       {lang}
@@ -286,29 +291,29 @@ export default function InfluencerSignupPage() {
           )}
 
           {step === 3 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white mb-4">Creator Positioning</h2>
+            <div className="space-y-5">
+              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Creator Positioning</h2>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Primary Niche</label>
-                <select value={primaryNiche} onChange={(e) => setPrimaryNiche(e.target.value)} className="w-full !bg-[#09090b] !border border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 rounded-xl px-4 py-3 h-12 transition-all outline-none">
-                  <option value="">Select your primary niche</option>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Primary Niche</label>
+                <select value={primaryNiche} onChange={(e) => setPrimaryNiche(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
+                  <option value="">Select primary niche</option>
                   {NICHES.map((n) => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Secondary Niches (optional)</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Secondary Niches (optional)</label>
+                <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto p-1 border border-gray-100 rounded-xl bg-gray-50/30">
                   {NICHES.filter((n) => n !== primaryNiche).map((niche) => (
                     <button
                       key={niche}
                       type="button"
                       onClick={() => setSecondaryNiches(toggleArrayItem(secondaryNiches, niche))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                         secondaryNiches.includes(niche)
-                          ? 'bg-[#ee3e96]/15 border-[#ee3e96]/30 text-[#ee3e96]'
-                          : 'bg-white/[0.03] border-white/10 text-gray-400 hover:border-white/20'
+                          ? 'bg-pink-50 border-pink-200 text-pink-600'
+                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-100/50'
                       }`}
                     >
                       {niche}
@@ -317,47 +322,47 @@ export default function InfluencerSignupPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Bio</label>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Bio</label>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Tell brands about yourself..."
                   rows={3}
-                  className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 transition-all outline-none resize-none"
+                  className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 transition-all outline-none resize-none font-semibold text-base"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Instagram Handle</label>
-                <input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@username" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Instagram Handle</label>
+                <input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@username" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">YouTube (optional)</label>
-                  <input value={youtubeHandle} onChange={(e) => setYoutubeHandle(e.target.value)} placeholder="@channel" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">YouTube (optional)</label>
+                  <input value={youtubeHandle} onChange={(e) => setYoutubeHandle(e.target.value)} placeholder="@channel" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Twitter (optional)</label>
-                  <input value={twitterHandle} onChange={(e) => setTwitterHandle(e.target.value)} placeholder="@handle" className="w-full !bg-white/[0.03] !border-white/[0.08] !text-white focus:border-[#ee3e96] focus:ring-4 focus:ring-[#ee3e96]/15 placeholder-gray-500 rounded-xl px-4 py-3 h-12 transition-all outline-none" />
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Twitter (optional)</label>
+                  <input value={twitterHandle} onChange={(e) => setTwitterHandle(e.target.value)} placeholder="@handle" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
                 </div>
               </div>
             </div>
           )}
 
           {step === 4 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white mb-4">Collaboration Preferences</h2>
+            <div className="space-y-5">
+              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Collaboration Preferences</h2>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Content Types</label>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Content Types</label>
                 <div className="flex flex-wrap gap-2">
                   {COLLAB_TYPES.map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => setCollabTypes(toggleArrayItem(collabTypes, type))}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                      className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
                         collabTypes.includes(type)
-                          ? 'bg-[#ee3e96]/15 border-[#ee3e96]/30 text-[#ee3e96]'
-                          : 'bg-white/[0.03] border-white/10 text-gray-400 hover:border-white/20'
+                          ? 'bg-pink-50 border-pink-200 text-pink-600'
+                          : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-100/50'
                       }`}
                     >
                       {type}
@@ -366,23 +371,23 @@ export default function InfluencerSignupPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Price Range</label>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Price Range</label>
                 <div className="grid grid-cols-2 gap-3">
                   {PRICE_TIERS.map((tier) => (
                     <button
                       key={tier.value}
                       type="button"
                       onClick={() => setPriceRange(tier.value)}
-                      className={`p-4 rounded-xl text-left border transition-all ${
+                      className={`p-4 rounded-2xl text-left border transition-all cursor-pointer ${
                         priceRange === tier.value
-                          ? 'bg-[#ee3e96]/10 border-[#ee3e96]/30'
-                          : 'bg-white/[0.03] border-white/10 hover:border-white/20'
+                          ? 'bg-pink-50/40 border-pink-200/80'
+                          : 'bg-gray-50/50 border-gray-200 hover:border-gray-300 hover:bg-gray-100/20'
                       }`}
                     >
-                      <div className={`text-sm font-bold ${priceRange === tier.value ? 'text-[#ee3e96]' : 'text-white'}`}>
+                      <div className={`text-sm font-black ${priceRange === tier.value ? 'text-pink-600' : 'text-gray-900'}`}>
                         {tier.label}
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">{tier.range}</div>
+                      <div className="text-xs text-gray-400 font-bold mt-0.5">{tier.range}</div>
                     </button>
                   ))}
                 </div>
@@ -390,12 +395,13 @@ export default function InfluencerSignupPage() {
             </div>
           )}
 
+          {/* Navigation Controls */}
           <div className="flex gap-3 mt-8">
             {step > 1 && (
               <button
                 type="button"
                 onClick={() => setStep((step - 1) as Step)}
-                className="flex-1 h-12 rounded-xl text-sm font-semibold text-gray-300 border border-white/10 hover:bg-white/5 transition-all"
+                className="flex-1 h-13 rounded-2xl text-base font-black text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all cursor-pointer"
               >
                 Back
               </button>
@@ -405,8 +411,7 @@ export default function InfluencerSignupPage() {
                 type="button"
                 onClick={() => setStep((step + 1) as Step)}
                 disabled={!canProceed()}
-                className="flex-1 h-12 rounded-xl text-sm font-bold text-black bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 shadow-sm"
-                style={{ color: 'black' }}
+                className="flex-1 h-13 rounded-2xl text-base font-black text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center cursor-pointer"
               >
                 Continue
               </button>
@@ -415,8 +420,7 @@ export default function InfluencerSignupPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={isLoading || !canProceed()}
-                className="flex-1 h-12 rounded-xl text-sm font-bold text-black bg-white hover:bg-gray-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 shadow-sm"
-                style={{ color: 'black' }}
+                className="flex-1 h-13 rounded-2xl text-base font-black text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center cursor-pointer"
               >
                 {isLoading ? 'Creating account...' : 'Create Account'}
               </button>
@@ -424,15 +428,16 @@ export default function InfluencerSignupPage() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-sm text-gray-400">
+        {/* Footnotes */}
+        <p className="mt-8 text-center text-sm font-semibold text-gray-400">
           Already have an account?{' '}
-          <Link href="/login" className="text-[#ee3e96] hover:text-[#d6358a] font-semibold transition-colors">
+          <Link href="/login" className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors">
             Sign in
           </Link>
         </p>
-        <p className="mt-2 text-center text-sm text-gray-400">
+        <p className="mt-2 text-center text-sm font-semibold text-gray-400">
           Want to join as a business?{' '}
-          <Link href="/signup/business" className="text-[#ee3e96] hover:text-[#d6358a] font-semibold transition-colors">
+          <Link href="/signup/business" className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors">
             Sign up here
           </Link>
         </p>
