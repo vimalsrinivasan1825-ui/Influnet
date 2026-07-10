@@ -1,0 +1,31 @@
+import { NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase/server';
+import { ensureStreamUser } from '@/lib/stream';
+
+export async function POST() {
+  try {
+    const supabase = createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Fetch user profile for display name
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', user.id)
+      .single();
+
+    const name = (profile as { name?: string } | null)?.name || user.email?.split('@')[0] || 'User';
+
+    // Upsert user into Stream and get a token
+    const { token } = await ensureStreamUser(user.id, name);
+
+    return NextResponse.json({ token, userId: user.id, name });
+  } catch (err) {
+    console.error('[Stream Token] Error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
