@@ -67,25 +67,28 @@ export default function BusinessSignupPage() {
 
     try {
       const sb = createClient();
+      
+      const payload = {
+        name: fullName,
+        role: 'business_owner',
+        companyName,
+        phone,
+        businessType,
+        industry,
+        website,
+        city,
+        state,
+        registeredAddress,
+        gstNumber,
+        marketingBudget,
+        location: `${city}, ${state}`,
+      };
+
       const { data, error: authError } = await sb.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            name: fullName,
-            role: 'business_owner',
-            companyName,
-            phone,
-            businessType,
-            industry,
-            website,
-            city,
-            state,
-            registeredAddress,
-            gstNumber,
-            marketingBudget,
-            location: `${city}, ${state}`,
-          },
+          data: payload,
         },
       });
 
@@ -95,6 +98,22 @@ export default function BusinessSignupPage() {
       }
 
       if (data.session) {
+        // Register the profile in the database
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${data.session.access_token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const resData = await res.json();
+          setError(resData.error || 'Failed to create profile record');
+          return;
+        }
+
         localStorage.setItem('influnet_token', data.session.access_token);
         localStorage.setItem('influnet_refresh_token', data.session.refresh_token);
         router.push('/dashboard');

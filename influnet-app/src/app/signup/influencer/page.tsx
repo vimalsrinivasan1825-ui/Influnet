@@ -102,27 +102,31 @@ export default function InfluencerSignupPage() {
 
     try {
       const sb = createClient();
+      
+      const payload = {
+        name: `${firstName} ${lastName}`,
+        role: 'influencer',
+        username,
+        email,
+        phone,
+        gender,
+        city,
+        state,
+        languages,
+        niche: [primaryNiche, ...secondaryNiches],
+        bio,
+        instagramHandle,
+        youtubeHandle,
+        twitterHandle,
+        collabTypes,
+        priceRange,
+      };
+
       const { data, error: authError } = await sb.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            name: `${firstName} ${lastName}`,
-            role: 'influencer',
-            username,
-            phone,
-            gender,
-            city,
-            state,
-            languages,
-            niche: [primaryNiche, ...secondaryNiches],
-            bio,
-            instagramHandle,
-            youtubeHandle,
-            twitterHandle,
-            collabTypes,
-            priceRange,
-          },
+          data: payload,
         },
       });
 
@@ -132,6 +136,22 @@ export default function InfluencerSignupPage() {
       }
 
       if (data.session) {
+        // Register the profile in the database
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${data.session.access_token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const resData = await res.json();
+          setError(resData.error || 'Failed to create profile record');
+          return;
+        }
+
         localStorage.setItem('influnet_token', data.session.access_token);
         localStorage.setItem('influnet_refresh_token', data.session.refresh_token);
         router.push('/dashboard/influencer');

@@ -30,10 +30,25 @@ export default function LoginPage() {
         return;
       }
 
-      if (data.session) {
+      if (data.session && data.user) {
         localStorage.setItem('influnet_token', data.session.access_token);
         localStorage.setItem('influnet_refresh_token', data.session.refresh_token);
-        router.push('/dashboard');
+        
+        // Fetch user profile to determine role
+        const { data: profile, error: profileError } = await sb
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+          
+        const p = profile as any;
+        if (p?.role === 'influencer') {
+          router.push('/dashboard/influencer');
+        } else if (p?.role === 'admin') {
+          router.push('/dashboard/admin');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch {
       setError('An unexpected error occurred');
@@ -130,7 +145,7 @@ export default function LoginPage() {
         <p className="mt-8 text-center text-sm font-semibold text-gray-400">
           Don&apos;t have an account?{' '}
           <Link
-            href="/signup/influencer"
+            href="/signup"
             className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors"
           >
             Sign up

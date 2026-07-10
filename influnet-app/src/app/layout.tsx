@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
+import { Inter, Plus_Jakarta_Sans, Geist } from 'next/font/google';
 import './globals.css';
 import './business-dashboard-layout.css';
 import './influencer-dashboard-home.css';
@@ -9,6 +9,9 @@ import './dashboard-fonts.css';
 import './connections-workspace.css';
 import './projects-workspace.css';
 import './business-messages-standalone.css';
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const inter = Inter({
   variable: '--font-inter',
@@ -47,7 +50,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${plusJakarta.variable} h-full antialiased`}
+      className={cn("h-full", "antialiased", inter.variable, plusJakarta.variable, "font-sans", geist.variable)}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}

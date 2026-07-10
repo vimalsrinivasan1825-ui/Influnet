@@ -63,6 +63,54 @@ const NAV_ITEMS = [
   },
 ];
 
+const ADMIN_ITEMS = [
+  {
+    label: 'Admin Home',
+    href: '/dashboard/admin',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Approvals',
+    href: '/dashboard/admin/approvals',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Users',
+    href: '/dashboard/admin/users',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Projects',
+    href: '/dashboard/admin/projects',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Requests',
+    href: '/dashboard/admin/collabs',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+      </svg>
+    ),
+  },
+];
+
 const BOTTOM_ITEMS = [
   {
     label: 'Settings',
@@ -77,7 +125,7 @@ const BOTTOM_ITEMS = [
 ];
 
 interface DashboardSidebarProps {
-  role: 'business_owner' | 'influencer';
+  role: 'business_owner' | 'influencer' | 'admin';
   unreadMessages?: number;
   pendingRequests?: number;
 }
@@ -87,8 +135,7 @@ export default function DashboardSidebar({ role, unreadMessages = 0, pendingRequ
   const [collapsed, setCollapsed] = useState(false);
 
   const allItems = [
-    ...NAV_ITEMS,
-    ...(role === 'influencer' ? [] : []),
+    ...(role === 'admin' ? ADMIN_ITEMS : NAV_ITEMS),
   ];
 
   return (
@@ -121,9 +168,9 @@ export default function DashboardSidebar({ role, unreadMessages = 0, pendingRequ
 
       <div className="px-3 py-4">
         <div className={`px-2 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider ${
-          role === 'business_owner' ? 'text-[#ee3e96] bg-[#fdf2f8]' : 'text-[#f26e59] bg-[#fff7ed]'
+          role === 'business_owner' ? 'text-[#ee3e96] bg-[#fdf2f8]' : role === 'admin' ? 'text-[#6366f1] bg-[#eef2ff]' : 'text-[#f26e59] bg-[#fff7ed]'
         }`}>
-          {collapsed ? (role === 'business_owner' ? 'B' : 'C') : (role === 'business_owner' ? 'Business' : 'Creator')}
+          {collapsed ? (role === 'business_owner' ? 'B' : role === 'admin' ? 'A' : 'C') : (role === 'business_owner' ? 'Business' : role === 'admin' ? 'Admin' : 'Creator')}
         </div>
       </div>
 
@@ -131,8 +178,8 @@ export default function DashboardSidebar({ role, unreadMessages = 0, pendingRequ
         {allItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           const badgeCount =
-            item.badge === 'unread' ? unreadMessages :
-            item.badge === 'pending' ? pendingRequests : 0;
+            'badge' in item && item.badge === 'unread' ? unreadMessages :
+            'badge' in item && item.badge === 'pending' ? pendingRequests : 0;
 
           return (
             <Link

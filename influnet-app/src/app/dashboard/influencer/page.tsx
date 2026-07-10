@@ -2,264 +2,293 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { Send, MessageSquare, FolderGit2, DollarSign } from 'lucide-react';
+import { AreaChart, BarChart, StatCard } from '@/components/ui/chart';
+import type { ChartConfig } from '@/components/ui/chart';
 
 interface DashboardData {
   profile: {
-    username: string;
-    niche: string[];
-    is_verified: boolean;
-    headline: string | null;
-    avatar_url: string | null;
-    bio: string | null;
-    location: string | null;
+    name: string; username: string; niche: string[];
+    is_verified: boolean; headline: string | null;
+    avatar_url: string | null; bio: string | null; location: string | null;
   };
   stats: {
-    profile_views: number;
-    collab_requests: number;
-    active_discussions: number;
-    active_projects: number;
-    saved_by_businesses: number;
+    collab_requests: number; active_discussions: number;
+    active_projects: number; completed_projects: number;
+    total_earnings: number;
   };
-  trends: {
-    views_change: number;
-    requests_change: number;
-    discussions_change: number;
-    projects_change: number;
-    saved_change: number;
-  };
+  earnings_trend: { week: string; amount: number }[];
+  request_breakdown: { name: string; value: number; fill: string }[];
+  recent_collabs: {
+    id: string; name: string; amount: string;
+    status: string; sender_id: string;
+  }[] | null;
 }
+
+const statusBadge = (s: string) => {
+  if (s === 'In Progress') return { bg: '#eff6ff', color: '#1d4ed8' };
+  if (s === 'Completed') return { bg: '#f0fdf4', color: '#15803d' };
+  if (s === 'Declined') return { bg: '#fef2f2', color: '#dc2626' };
+  return { bg: '#fffbeb', color: '#d97706' };
+};
 
 export default function InfluencerDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    (async () => {
       try {
-        const res = await fetch('/api/influencer/dashboard');
-        if (res.ok) {
-          const json = await res.json();
-          setData(json);
+        const sb = createClient();
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.access_token) {
+          const res = await fetch('/api/influencer/dashboard', {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+          if (res.ok) setData(await res.json());
         }
-      } catch {
-        // Dashboard data unavailable
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    })();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="infl-idash">
-        <div className="infl-idash-layout">
-          <div className="infl-idash-main">
-            <div className="infl-idash-topbar">
-              <div className="infl-idash-topbar-title">
-                <div className="h-8 w-64 bg-gray-100 rounded-lg animate-pulse" />
-              </div>
-            </div>
-            <div className="infl-idash-kpi-grid">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="infl-idash-kpi-card">
-                  <div className="h-20 bg-gray-50 rounded animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafb' }}>
+      <div style={{ width: 32, height: 32, border: '3px solid #f1f5f9', borderTopColor: '#f26e59', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
 
-  const stats = data?.stats || {
-    profile_views: 0,
-    collab_requests: 0,
-    active_discussions: 0,
-    active_projects: 0,
-    saved_by_businesses: 0,
+  const p = data?.profile || { name: 'Creator', username: '', niche: [], is_verified: false, headline: null, avatar_url: null, bio: null, location: null };
+  const s = data?.stats || { collab_requests: 0, active_discussions: 0, active_projects: 0, completed_projects: 0, total_earnings: 0 };
+
+  // Chart configs
+  const earningsConfig: ChartConfig = {
+    amount: { label: 'Earnings', color: '#16a34a' },
   };
 
-  const trends = data?.trends || {
-    views_change: 0,
-    requests_change: 0,
-    discussions_change: 0,
-    projects_change: 0,
-    saved_change: 0,
+  const statusConfig: ChartConfig = {
+    Pending: { label: 'Pending', color: '#f59e0b' },
+    Active: { label: 'Active', color: '#2563eb' },
+    Completed: { label: 'Completed', color: '#16a34a' },
+    Declined: { label: 'Declined', color: '#dc2626' },
   };
 
   return (
-    <div className="infl-idash">
-      <div className="infl-idash-layout">
-        <div className="infl-idash-main">
-          {/* Top Bar */}
-          <div className="infl-idash-topbar">
-            <div className="infl-idash-topbar-title">
-              <h1>@{data?.profile?.username || 'your-username'}</h1>
-              <p>
-                {data?.profile?.is_verified && (
-                  <span style={{ color: '#ee3e96', fontWeight: 700, marginRight: '0.5rem' }}>✓ Verified</span>
-                )}
-                {data?.profile?.niche?.join(' · ')}
-                {data?.profile?.location && ` · ${data.profile.location}`}
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <Link href="/dashboard/settings" className="infl-bdash-btn infl-bdash-btn-primary">
-                Edit Profile
-              </Link>
-              <Link href={`/influnet/${data?.profile?.username || ''}`} className="infl-bdash-btn infl-bdash-btn-outline">
-                View Public Profile
-              </Link>
-            </div>
+    <div style={{
+      minHeight: 'calc(100vh - 56px)', padding: 20, background: '#fafafb',
+      fontFamily: '"Plus Jakarta Sans", Inter, sans-serif', color: '#0f172a',
+      display: 'flex', flexDirection: 'column', gap: 14
+    }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #f26e59, #ee3e96)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 900, fontSize: 16,
+            boxShadow: '0 4px 12px rgba(242,110,89,0.2)'
+          }}>
+            {p.name.charAt(0).toUpperCase()}
           </div>
-
-          {/* KPI Grid */}
-          <div className="infl-idash-kpi-grid">
-            <div className="infl-idash-kpi-card">
-              <div className="infl-idash-kpi-top">
-                <div className="infl-idash-kpi-icon infl-idash-kpi-icon--pink">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                </div>
-                <div className="infl-idash-kpi-value">{stats.profile_views}</div>
-              </div>
-              <div className="infl-idash-kpi-label">Profile Views</div>
-              {trends.views_change !== 0 && (
-                <div className={`infl-idash-kpi-trend ${trends.views_change > 0 ? 'infl-idash-kpi-trend--up' : 'infl-idash-kpi-trend--down'}`}>
-                  {trends.views_change > 0 ? '↑' : '↓'} {Math.abs(trends.views_change)}%
-                </div>
-              )}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <h1 style={{ margin: 0, fontSize: 17, fontWeight: 900, letterSpacing: '-0.01em' }}>{p.name}</h1>
+              {p.is_verified && <span style={{ fontSize: 9, background: '#fdf2f8', color: '#be185d', padding: '2px 6px', borderRadius: 5, fontWeight: 800 }}>✓ Verified</span>}
             </div>
-
-            <div className="infl-idash-kpi-card">
-              <div className="infl-idash-kpi-top">
-                <div className="infl-idash-kpi-icon infl-idash-kpi-icon--coral">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
-                </div>
-                <div className="infl-idash-kpi-value">{stats.collab_requests}</div>
-              </div>
-              <div className="infl-idash-kpi-label">Collab Requests</div>
-              {trends.requests_change !== 0 && (
-                <div className={`infl-idash-kpi-trend ${trends.requests_change > 0 ? 'infl-idash-kpi-trend--up' : 'infl-idash-kpi-trend--down'}`}>
-                  {trends.requests_change > 0 ? '↑' : '↓'} {Math.abs(trends.requests_change)}%
-                </div>
-              )}
-            </div>
-
-            <div className="infl-idash-kpi-card">
-              <div className="infl-idash-kpi-top">
-                <div className="infl-idash-kpi-icon infl-idash-kpi-icon--blue">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
-                </div>
-                <div className="infl-idash-kpi-value">{stats.active_discussions}</div>
-              </div>
-              <div className="infl-idash-kpi-label">Active Discussions</div>
-              {trends.discussions_change !== 0 && (
-                <div className={`infl-idash-kpi-trend ${trends.discussions_change > 0 ? 'infl-idash-kpi-trend--up' : 'infl-idash-kpi-trend--down'}`}>
-                  {trends.discussions_change > 0 ? '↑' : '↓'} {Math.abs(trends.discussions_change)}%
-                </div>
-              )}
-            </div>
-
-            <div className="infl-idash-kpi-card">
-              <div className="infl-idash-kpi-top">
-                <div className="infl-idash-kpi-icon infl-idash-kpi-icon--green">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"/></svg>
-                </div>
-                <div className="infl-idash-kpi-value">{stats.active_projects}</div>
-              </div>
-              <div className="infl-idash-kpi-label">Active Projects</div>
-              {trends.projects_change !== 0 && (
-                <div className={`infl-idash-kpi-trend ${trends.projects_change > 0 ? 'infl-idash-kpi-trend--up' : 'infl-idash-kpi-trend--down'}`}>
-                  {trends.projects_change > 0 ? '↑' : '↓'} {Math.abs(trends.projects_change)}%
-                </div>
-              )}
-            </div>
-
-            <div className="infl-idash-kpi-card">
-              <div className="infl-idash-kpi-top">
-                <div className="infl-idash-kpi-icon infl-idash-kpi-icon--purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"/></svg>
-                </div>
-                <div className="infl-idash-kpi-value">{stats.saved_by_businesses}</div>
-              </div>
-              <div className="infl-idash-kpi-label">Saved by Brands</div>
-              {trends.saved_change !== 0 && (
-                <div className={`infl-idash-kpi-trend ${trends.saved_change > 0 ? 'infl-idash-kpi-trend--up' : 'infl-idash-kpi-trend--down'}`}>
-                  {trends.saved_change > 0 ? '↑' : '↓'} {Math.abs(trends.saved_change)}%
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Bottom Section */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-            {/* About You */}
-            <div className="infl-bdash-card">
-              <div className="infl-bdash-card-head">
-                <h3>About You</h3>
-                <Link href="/dashboard/settings" className="infl-bdash-link">Edit</Link>
-              </div>
-              <div className="infl-bdash-prefs-block">
-                <div className="infl-bdash-prefs-label">Niche</div>
-                <div className="infl-bdash-tags">
-                  {(data?.profile?.niche || ['Creator']).map((n) => (
-                    <span key={n} className="infl-bdash-tag">{n}</span>
-                  ))}
-                </div>
-              </div>
-              {data?.profile?.bio && (
-                <div className="infl-bdash-prefs-block">
-                  <div className="infl-bdash-prefs-label">Bio</div>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>{data.profile.bio}</p>
-                </div>
-              )}
-              {data?.profile?.headline && (
-                <div className="infl-bdash-prefs-block">
-                  <div className="infl-bdash-prefs-label">Headline</div>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569' }}>{data.profile.headline}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="infl-bdash-card">
-              <div className="infl-bdash-card-head">
-                <h3>Quick Actions</h3>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                <Link href="/dashboard/requests" className="infl-bdash-creator-card" style={{ textDecoration: 'none' }}>
-                  <div className="infl-bdash-creator-avatar" style={{ background: '#fdf2f8', color: '#ee3e96' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
-                  </div>
-                  <div className="infl-bdash-creator-meta">
-                    <strong>View Requests</strong>
-                    <span>Review collaboration offers</span>
-                  </div>
-                </Link>
-                <Link href="/dashboard/messages" className="infl-bdash-creator-card" style={{ textDecoration: 'none' }}>
-                  <div className="infl-bdash-creator-avatar" style={{ background: '#fff7ed', color: '#f26e59' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
-                  </div>
-                  <div className="infl-bdash-creator-meta">
-                    <strong>Messages</strong>
-                    <span>Chat with brands</span>
-                  </div>
-                </Link>
-                <Link href="/dashboard/projects" className="infl-bdash-creator-card" style={{ textDecoration: 'none' }}>
-                  <div className="infl-bdash-creator-avatar" style={{ background: '#f3f4f6', color: '#64748b' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"/></svg>
-                  </div>
-                  <div className="infl-bdash-creator-meta">
-                    <strong>Projects</strong>
-                    <span>Track your campaigns</span>
-                  </div>
-                </Link>
-              </div>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+              @{p.username}{p.location ? ` · ${p.location}` : ''}
             </div>
           </div>
         </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link href="/dashboard/settings" style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
+            border: '1px solid #e2e8f0', background: '#fff', color: '#334155',
+            fontWeight: 700, borderRadius: 10, fontSize: 11, textDecoration: 'none'
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit Profile
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Metric Cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, flexShrink: 0 }}>
+        <StatCard label="Earnings" value={`₹${s.total_earnings.toLocaleString()}`} icon={<DollarSign size={16} />} bg="#fdf2f8" color="#db2777" />
+        <StatCard label="Active Projects" value={`${s.active_projects} running`} icon={<FolderGit2 size={16} />} bg="#f0fdf4" color="#16a34a" />
+        <StatCard label="Open Chats" value={`${s.active_discussions} open`} icon={<MessageSquare size={16} />} bg="#e0f2fe" color="#0369a1" />
+        <StatCard label="New Pitches" value={`${s.collab_requests} pending`} icon={<Send size={16} />} bg="#fffbeb" color="#d97706" />
+      </div>
+
+      {/* ── Charts Grid ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, flexShrink: 0 }}>
+
+        {/* Earnings Trend - Area Chart */}
+        <div style={{
+          background: '#fff', borderRadius: 18, border: '1px solid #f1f5f9',
+          padding: 18, display: 'flex', flexDirection: 'column'
+        }}>
+          <div style={{ marginBottom: 4 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#16a34a' }}>
+              Earnings Analysis
+            </div>
+            <h2 style={{ margin: '2px 0 0', fontSize: 14, fontWeight: 900 }}>
+              Weekly Earnings Trend
+            </h2>
+          </div>
+          <AreaChart
+            data={data?.earnings_trend || []}
+            config={earningsConfig}
+            xKey="week"
+            areas={[{ dataKey: 'amount', color: '#16a34a' }]}
+            height={200}
+          />
+        </div>
+
+        {/* Request Status - Bar Chart */}
+        <div style={{
+          background: '#fff', borderRadius: 18, border: '1px solid #f1f5f9',
+          padding: 18, display: 'flex', flexDirection: 'column'
+        }}>
+          <div style={{ marginBottom: 4 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#f26e59' }}>
+              Request Analysis
+            </div>
+            <h2 style={{ margin: '2px 0 0', fontSize: 14, fontWeight: 900 }}>
+              Collaboration Breakdown
+            </h2>
+          </div>
+          <BarChart
+            data={data?.request_breakdown || []}
+            config={statusConfig}
+            xKey="name"
+            bars={[
+              { dataKey: 'value', color: '#8884d8' }
+            ]}
+            height={200}
+          />
+        </div>
+
+      </div>
+
+      {/* ── Bio & Niches + Recent Collabs Grid ── */}
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 14 }}>
+
+        {/* Profile Info */}
+        <div style={{
+          background: '#fff', borderRadius: 18, border: '1px solid #f1f5f9',
+          padding: 18, display: 'flex', flexDirection: 'column', overflow: 'hidden'
+        }}>
+          <div style={{ marginBottom: 12, flexShrink: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#f26e59' }}>
+              Profile Snapshot
+            </div>
+            <h2 style={{ margin: '2px 0 0', fontSize: 14, fontWeight: 900 }}>
+              {p.name}
+            </h2>
+          </div>
+
+          {p.headline && (
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: '#475569', lineHeight: 1.5, flexShrink: 0 }}>
+              {p.headline}
+            </p>
+          )}
+
+          {/* Niches */}
+          {p.niche.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12, flexShrink: 0 }}>
+              {p.niche.map(n => (
+                <span key={n} style={{ fontSize: 10, background: '#fdf2f8', color: '#db2777', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>{n}</span>
+              ))}
+            </div>
+          )}
+
+          {/* Earnings summary card */}
+          <div style={{
+            padding: '12px 14px', background: '#fafafb',
+            borderRadius: 12, border: '1px solid #f1f5f9',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            flexShrink: 0, marginTop: 'auto'
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Total Earnings</span>
+            <span style={{ fontSize: 18, fontWeight: 900, color: '#16a34a' }}>₹{s.total_earnings.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Recent Collabs */}
+        <div style={{
+          background: '#fff', borderRadius: 18, border: '1px solid #f1f5f9',
+          padding: 18, display: 'flex', flexDirection: 'column', overflow: 'hidden'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexShrink: 0 }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }}>Activity</div>
+              <h2 style={{ margin: '2px 0 0', fontSize: 14, fontWeight: 900 }}>Recent Brand Collabs</h2>
+            </div>
+            <Link href="/dashboard/projects" style={{ fontSize: 11, fontWeight: 800, color: '#f26e59', textDecoration: 'none' }}>All →</Link>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {!data?.recent_collabs || data.recent_collabs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 20px', color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>
+                <p style={{ fontSize: 22, marginBottom: 6 }}>🎯</p>
+                <p>No brand collaborations yet</p>
+                <p style={{ fontSize: 11, marginTop: 2 }}>Complete your profile to get discovered.</p>
+              </div>
+            ) : (
+              data.recent_collabs.map((c, i) => {
+                const badge = statusBadge(c.status);
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 12px', borderRadius: 12, border: '1px solid #f8fafc',
+                    background: '#fafafb', gap: 10
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #f26e59, #ee3e96)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: '#fff', fontWeight: 900, fontSize: 11, flexShrink: 0
+                      }}>
+                        {c.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>{c.name}</div>
+                        <div style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8' }}>Brand</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>{c.amount}</div>
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: badge.bg, color: badge.color }}>
+                        {c.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Quick nav */}
+          <div style={{ marginTop: 10, display: 'flex', gap: 8, flexShrink: 0, borderTop: '1px solid #f1f5f9', paddingTop: 10 }}>
+            {[
+              { label: 'Requests', href: '/dashboard/requests', count: s.collab_requests, color: '#d97706', bg: '#fffbeb' },
+              { label: 'Chats', href: '/dashboard/messages', count: s.active_discussions, color: '#0369a1', bg: '#e0f2fe' },
+              { label: 'Projects', href: '/dashboard/projects', count: s.active_projects, color: '#16a34a', bg: '#f0fdf4' },
+            ].map((a, i) => (
+              <Link key={i} href={a.href} style={{ flex: 1, textAlign: 'center', padding: '8px', borderRadius: 10, background: a.bg, textDecoration: 'none' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: a.color, textTransform: 'uppercase' }}>{a.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: a.color }}>{a.count}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   );

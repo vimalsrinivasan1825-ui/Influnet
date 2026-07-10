@@ -60,7 +60,7 @@ export default function Header() {
               Log In
             </Link>
             <Link
-              href="/signup/influencer"
+              href="/signup"
               className="text-sm font-semibold text-black px-5 py-2.5 rounded-xl bg-white shadow-lg shadow-white/10 hover:shadow-white/20 hover:-translate-y-0.5 transition-all"
             >
               Get Started
@@ -114,7 +114,7 @@ export default function Header() {
                 Log In
               </Link>
               <Link
-                href="/signup/influencer"
+                href="/signup"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#ee3e96] to-[#f26e59] rounded-xl text-center"
               >

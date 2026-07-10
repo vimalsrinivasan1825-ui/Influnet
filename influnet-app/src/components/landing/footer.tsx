@@ -55,7 +55,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/signup/influencer" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                <Link href="/signup" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
                   Sign Up
                 </Link>
               </li>

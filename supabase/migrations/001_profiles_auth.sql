@@ -5,7 +5,7 @@
 -- Role enum (matches React: role "business_owner" | "influencer")
 -- ---------------------------------------------------------------------------
 DO $$ BEGIN
-  CREATE TYPE public.user_role AS ENUM ('business_owner', 'influencer');
+  CREATE TYPE public.user_role AS ENUM ('business_owner', 'influencer', 'admin');
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
