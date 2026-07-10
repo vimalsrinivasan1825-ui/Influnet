@@ -1,27 +1,19 @@
 import { NextResponse } from 'next/server';
+import { withAuth, jsonError } from '@/lib/api';
+import { ProjectUpdateSchema } from '@/lib/validators';
+import { z } from 'zod';
+
+const PatchProjectSchema = z.object({
+  id: z.string().uuid(),
+  action: z.enum(['request_cancellation', 'decline_cancellation', 'accept_cancellation']).optional(),
+}).merge(ProjectUpdateSchema);
 
 // GET all campaign projects for the authenticated user
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    console.log("[GET /api/projects] Auth header:", authHeader ? authHeader.substring(0, 30) + "..." : "null/missing");
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error("[GET /api/projects] getUser failed:", userError ? userError.message : "User is null");
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
 
     // Retrieve projects where caller is owner or counterparty
     const { data: projects, error } = await supabase
@@ -34,41 +26,34 @@ export async function GET(req: Request) {
       .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`)
       .order('updated_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) return jsonError(500, 'Database query error', error);
 
     return NextResponse.json({ projects });
   } catch (error: any) {
-    console.error("[GET /api/projects] Error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 
 // PATCH a project (advance stage / status)
 export async function PATCH(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return jsonError(400, 'Invalid JSON body');
     }
 
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const result = PatchProjectSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { id, current_stage, status, action } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
-    }
+    const { id, current_stage, status, action } = result.data;
 
     // Verify user is owner or counterparty of the project
     const { data: project, error: fetchErr } = await supabase
@@ -78,11 +63,11 @@ export async function PATCH(req: Request) {
       .single();
 
     if (fetchErr || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return jsonError(404, 'Project not found', fetchErr);
     }
 
     if (project.owner_user_id !== user.id && project.counterparty_user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return jsonError(403, 'Forbidden');
     }
 
     // Handle cancellation flow actions
@@ -93,7 +78,7 @@ export async function PATCH(req: Request) {
         .eq('id', id)
         .select()
         .single();
-      if (updateErr) throw updateErr;
+      if (updateErr) return jsonError(500, 'Failed to request cancellation', updateErr);
       return NextResponse.json({ project: updatedProject });
     }
 
@@ -104,16 +89,16 @@ export async function PATCH(req: Request) {
         .eq('id', id)
         .select()
         .single();
-      if (updateErr) throw updateErr;
+      if (updateErr) return jsonError(500, 'Failed to decline cancellation', updateErr);
       return NextResponse.json({ project: updatedProject });
     }
 
     if (action === 'accept_cancellation') {
       if (!project.cancel_requested_by) {
-        return NextResponse.json({ error: 'No active cancellation request found' }, { status: 400 });
+        return jsonError(400, 'No active cancellation request found');
       }
       if (project.cancel_requested_by === user.id) {
-        return NextResponse.json({ error: 'Cannot accept your own cancellation request' }, { status: 400 });
+        return jsonError(400, 'Cannot accept your own cancellation request');
       }
 
       // Perform deletion of the project
@@ -122,7 +107,7 @@ export async function PATCH(req: Request) {
         .delete()
         .eq('id', id);
 
-      if (deleteErr) throw deleteErr;
+      if (deleteErr) return jsonError(500, 'Failed to delete project', deleteErr);
       return NextResponse.json({ ok: true, deleted: true });
     }
 
@@ -139,11 +124,10 @@ export async function PATCH(req: Request) {
       .select()
       .single();
 
-    if (updateErr) throw updateErr;
+    if (updateErr) return jsonError(500, 'Failed to update project', updateErr);
 
     return NextResponse.json({ project: updatedProject });
   } catch (error: any) {
-    console.error("[PATCH /api/projects] Error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }

@@ -1,24 +1,23 @@
 import { NextResponse } from 'next/server';
+import { withAuth, jsonError } from '@/lib/api';
+import { z } from 'zod';
+
+const PatchProjectActionSchema = z.object({
+  action: z.enum(['advance', 'update_stage', 'update_project']),
+  stage_key: z.string().optional(),
+  updates: z.any().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  deliverables: z.string().optional(),
+});
 
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
     const { id } = await context.params;
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Fetch single project with participant profiles
     const { data: project, error } = await supabase
@@ -32,45 +31,49 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       .single();
 
     if (error) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return jsonError(404, 'Project not found', error);
     }
 
     // Verify user is participant
     if (project.owner_user_id !== user.id && project.counterparty_user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return jsonError(403, 'Forbidden');
     }
 
     // Fetch project assets if any
-    const { data: assets } = await supabase
+    const { data: assets, error: assetsErr } = await supabase
       .from('project_assets')
       .select('*')
       .eq('project_id', id)
       .order('created_at', { ascending: false });
 
+    if (assetsErr) {
+      return jsonError(500, 'Failed to fetch project assets', assetsErr);
+    }
+
     return NextResponse.json({ project, assets: assets || [] });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
     const { id } = await context.params;
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return jsonError(400, 'Invalid JSON body');
     }
 
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const result = PatchProjectActionSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
     // Verify user is participant
@@ -81,16 +84,16 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       .single();
 
     if (fetchErr || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return jsonError(404, 'Project not found', fetchErr);
     }
     if (project.owner_user_id !== user.id && project.counterparty_user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return jsonError(403, 'Forbidden');
     }
 
-    const body = await req.json();
+    const { action } = result.data;
 
     // 1) Advance to next stage
-    if (body.action === 'advance') {
+    if (action === 'advance') {
       const STAGES = [
         'collaboration_started', 'project_discussion', 'advance_payment',
         'content_planning', 'content_confirmation', 'shooting_in_progress',
@@ -99,7 +102,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       ];
       const currentIdx = STAGES.indexOf(project.current_stage);
       if (currentIdx === -1 || currentIdx >= STAGES.length - 1) {
-        return NextResponse.json({ error: 'Already at final stage' }, { status: 400 });
+        return jsonError(400, 'Already at final stage');
       }
 
       // Mark current stage as completed in stage_progress
@@ -129,15 +132,15 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .select()
         .single();
 
-      if (updateErr) throw updateErr;
+      if (updateErr) return jsonError(500, 'Failed to advance stage', updateErr);
       return NextResponse.json({ project: updated });
     }
 
     // 2) Update stage progress details (notes, meeting_link, deliverables)
-    if (body.action === 'update_stage') {
-      const { stage_key, updates } = body;
+    if (action === 'update_stage') {
+      const { stage_key, updates } = result.data;
       if (!stage_key || !updates) {
-        return NextResponse.json({ error: 'stage_key and updates required' }, { status: 400 });
+        return jsonError(400, 'stage_key and updates required');
       }
 
       const stageProgress = (project.stage_progress || {}) as Record<string, any>;
@@ -156,13 +159,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .select()
         .single();
 
-      if (updateErr) throw updateErr;
+      if (updateErr) return jsonError(500, 'Failed to update stage progress', updateErr);
       return NextResponse.json({ project: updated });
     }
 
     // 3) Update project title / description / deliverables
-    if (body.action === 'update_project') {
-      const { title, description, deliverables } = body;
+    if (action === 'update_project') {
+      const { title, description, deliverables } = result.data;
       const updateData: any = { updated_at: new Date().toISOString() };
       if (title !== undefined) updateData.title = title;
       if (description !== undefined) updateData.description = description;
@@ -175,12 +178,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .select()
         .single();
 
-      if (updateErr) throw updateErr;
+      if (updateErr) return jsonError(500, 'Failed to update project details', updateErr);
       return NextResponse.json({ project: updated });
     }
 
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+    return jsonError(400, 'Unknown action');
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
