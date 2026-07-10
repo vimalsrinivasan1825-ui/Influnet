@@ -172,8 +172,17 @@ This file tracks the current implementation state of each system module, issues 
 * **Always check `git ls-files` to confirm actual tracking state** before assuming a file is in history. The audit's concern about env files was accurate as a best practice, but the actual `.gitignore` already protected them.
 * **Commit in logical dependency order**: new deps (package.json) → types → lib utilities → API routes → pages → migrations → tests → CI. This way each commit is independently buildable.
 
+### Task 1.1: Fix Stream Chat Auth — COMPLETED (July 10, 2026)
+
+#### Scope
+* Refactored `/api/stream/token/route.ts` and `/api/stream/channel/route.ts` to read the `Authorization` header and authenticate via standard anon-key Supabase client instead of relying on the service-role client (`createServerClient()`).
+* Hardened `/api/stream/channel` to verify that both `user.id` and `otherUserId` are legitimate participants in `conversation_participants` for the requested `conversationId` (returning 403 or 400 otherwise).
+* Updated frontend fetches in `src/app/dashboard/messages/page.tsx` to actively grab the current Supabase session and pass `Authorization: Bearer <token>`.
+
+#### Broken & Resolved
+* **Stream Chat auth was returning 401**: The service role client in API routes didn't hold a user session, so `auth.getUser()` always failed. Switching to reading the `Authorization` header with the anon-key client fixed this.
+
 #### Next Target
-* **Task 1.1** — Fix Stream Chat authentication (messaging is currently dead). The `api/stream/token` and `api/stream/channel` routes need to read the Authorization header from the request, not use the service-role client.
 * **Task 1.2** — Remove Management-API raw SQL from `POST /api/conversations`, replace with migration 043 RPC.
 * **Task 1.3** — Atomic collab acceptance via migration 044 + delete the auto-heal from GET /api/projects.
 

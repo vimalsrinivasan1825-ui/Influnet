@@ -55,7 +55,16 @@ function useStreamConnect(userId: string | null) {
           await c.disconnectUser();
         }
 
-        const res = await fetch('/api/stream/token', { method: 'POST' });
+        const sb = createClient();
+        const { data: { session } } = await sb.auth.getSession();
+
+        const res = await fetch('/api/stream/token', { 
+          method: 'POST',
+          headers: { 
+            Authorization: `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json' 
+          }
+        });
         if (!res.ok) throw new Error('Failed to get Stream token');
         const data = await res.json();
 
@@ -154,10 +163,16 @@ function MessagesContent() {
 
     const channelId = `conv_${convId}`;
 
+    const sb = createClient();
+    const { data: { session } } = await sb.auth.getSession();
+
     // Ensure channel exists on server
     await fetch('/api/stream/channel', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        Authorization: `Bearer ${session?.access_token}`,
+        'Content-Type': 'application/json' 
+      },
       body: JSON.stringify({
         conversationId: convId,
         otherUserId,

@@ -48,6 +48,13 @@ Every AI session must strictly adhere to the following execution loop:
     3.  **Key Lessons**: Technical lessons learned (styling rules, database tips, API gotchas).
     4.  **Next Target**: Future steps for V1 development.
 
+### Step 4: Step-by-Step Commit & Handover Protocol
+*   **Branch Strategy**: All active development MUST happen on the **`dev` branch** locally. Do not push directly to `main`. (The pipeline is `dev` [local] → `staging` [Vercel/Railway] → `main` [Azure]).
+*   **Step-by-Step Execution**: Complete tasks one by one. Do not batch multiple tasks into a single giant implementation.
+*   **Post-Task Handoff**: After completing **every** step (task):
+    1.  **Commit it entirely** with a clear message.
+    2.  **Provide instructions** to the user explaining exactly what was done and what they should manually test/check on their side to confirm the fix/feature works.
+
 ---
 
 ## 3. Tech Stack Coding Rules

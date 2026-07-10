@@ -1,14 +1,24 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
 import { ensureStreamUser } from '@/lib/stream';
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const supabase = createServerClient();
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return Response.json({ error: 'Missing Authorization header' }, { status: 401 });
+    }
+
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Fetch user profile for display name
