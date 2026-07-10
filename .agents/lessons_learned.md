@@ -369,3 +369,32 @@ This file tracks the current implementation state of each system module, issues 
 * High 4 (Rate Limiting — needs Upstash credentials from user).
 * Medium 9 (N+1 query fix in conversations list).
 * Medium 8 (Sentry — needs DSN from user).
+
+### Core-Loop Hardening + E2E Harness — COMPLETED (July 11, 2026)
+
+#### Scope
+* **Medium 9 (N+1 in conversations list):** Replaced per-project profile/business/influencer queries in `api/conversations/route.ts` with one batched `profiles` query plus one query per role table, stitched in memory via Maps. Query count is now flat regardless of project count. Profile-fetch errors are surfaced as 500s instead of silently producing empty partners.
+* **Collab routes broken by PII lockdown:** Migration 048 revoked `SELECT` on `profiles.email` for the `authenticated` role, but `GET /api/collabs` and `GET /api/collabs/[id]` still embedded `email` in their profile selects → both returned 500 (the requests page was broken). No frontend consumer read those emails; removed the column from both embeds.
+* **Conversations-list messages embed:** was returning *every* message of *every* conversation while the UI renders only the last-message preview. Now ordered desc + `limit(1, { referencedTable: 'messages' })`.
+* **Messages GET cap:** `GET /api/conversations/[id]/messages` capped at the latest 200 (returned oldest-first).
+* **Profile PATCH robustness:** admin role crashed with a TypeError (`validatedData` undefined) → now a clean 403; base `name/phone/location` now come from the validated payload (`BusinessProfileUpdateSchema` gained the base fields).
+* **Notifications API robustness:** PATCH validates JSON + action with Zod (bad JSON / unknown action → 400); GET clamps `limit` to 1–100 and `offset` ≥ 0.
+* **E2E harness:** `apps/web/scripts/e2e-exercise.mjs` (`npm run test:e2e`) seeds temp users (business, 2 influencers, admin) via the management API, runs 43 checks across every core loop, and cleans up after itself. All 43 green against the dev stack.
+
+#### Broken & Resolved
+* **GoTrue rejects hand-seeded auth.users rows** with "Database error querying schema" if the token columns (`confirmation_token`, `recovery_token`, `email_change*`, `phone_change*`, `reauthentication_token`) are NULL — seed them as empty strings, and add a matching `auth.identities` row.
+* **Enum inserts through `UNION ALL` lose their type** — cast explicitly (`'business_owner'::public.user_role`).
+
+#### Key Lessons
+* **Column-level `GRANT SELECT (…)` breaks every existing embed that selects a revoked column.** After adding column grants, grep all PostgREST selects/embeds for the revoked columns (`email`, `phone`) — the failure mode is a 500 on a previously-working route.
+* Supabase JS embeds accept per-embed ordering/limits: `.order('created_at', { referencedTable: 'messages', ascending: false }).limit(1, { referencedTable: 'messages' })` — use this instead of fetching whole child tables for previews.
+* The E2E harness pattern (seed → exercise API → assert → SQL-verify → cleanup) catches integration breakage that unit tests and typecheck cannot (both were green while the requests page 500'd).
+
+#### Environment Issues Found (user action needed)
+* `SUPABASE_SERVICE_ROLE_KEY` in `apps/web/.env.local` holds a duplicate of the `sbp_` CLI token, not a real service-role key → all admin routes and the Stream webhook fail locally until the real `sb_secret_…` key is pasted in.
+* `ADMIN_CREDENTIALS.local.txt` is stale (`admin@influnet.com` → invalid_credentials).
+
+#### Next Target
+* High 4 (Rate limiting — needs Upstash credentials from user).
+* Medium 8 (Sentry — needs DSN from user).
+* Consider promoting the E2E harness into CI once a staging Supabase project exists.

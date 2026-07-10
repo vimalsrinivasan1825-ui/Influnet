@@ -806,6 +806,11 @@
       </thead>
       <tbody>
         <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-11</td>
+          <td><strong>Core-loop hardening + E2E harness</strong>: Fixed conversations-list N+1 (batched partner profile queries, Medium 9); fixed collab routes 500 caused by 048's PII column lockdown (email in profile embeds — requests page was broken); limited conversations-list messages embed to latest message; capped messages GET at 200; profile PATCH no longer crashes for admin role and validates base fields for businesses; notifications API validates JSON/action and clamps pagination. Added rerunnable 43-check core-loop E2E harness (<span class="mono">npm run test:e2e</span>) covering auth → discover → collab → accept → project → kanban → messaging → notifications → public RPCs → admin gating; all green</td>
+          <td>Performance · Collabs · Conversations · Profile · Notifications · Tests</td>
+        </tr>
+        <tr>
           <td class="mono" style="white-space:nowrap">2026-07-10</td>
           <td><strong>Pre-launch Security Fixes</strong>: Blocked privilege escalation (register_profile role guard — app layer + DB migration 049); fixed broken test suite (38 passing, 6 skipped); fixed notification summary wrong table/columns; fixed conversation DELETE (Management API → RLS-backed client delete + migration 050); added role gating on /dashboard; documented realtime publication scope</td>
           <td>Security · Auth · Tests · Notifications · Conversations · Dashboard</td>
