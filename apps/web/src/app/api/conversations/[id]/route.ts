@@ -1,39 +1,31 @@
 import { NextResponse } from 'next/server';
+import { withAuth, jsonError } from '@/lib/api';
 
 export async function DELETE(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
     const { id } = await context.params;
     // Validate UUID format to prevent SQL injection
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-      return NextResponse.json({ error: 'Invalid conversation ID format' }, { status: 400 });
-    }
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const authClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await authClient.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return jsonError(400, 'Invalid conversation ID format');
     }
 
     // Verify the user is a participant of this conversation
-    const { data: part } = await authClient
+    const { data: part, error: fetchErr } = await supabase
       .from('conversation_participants')
       .select('*')
       .eq('conversation_id', id)
       .eq('user_id', user.id)
       .maybeSingle();
 
+    if (fetchErr) {
+      return jsonError(500, 'Failed to fetch participant', fetchErr);
+    }
     if (!part) {
-      return NextResponse.json({ error: 'Forbidden — you are not a participant' }, { status: 403 });
+      return jsonError(403, 'Forbidden — you are not a participant');
     }
 
     // Use management API to delete conversation and related data
@@ -67,6 +59,6 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
     await runSql(sql);
     return NextResponse.json({ ok: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }

@@ -1,29 +1,16 @@
 import { NextResponse } from 'next/server';
+import { withAuth, jsonError } from '@/lib/api';
+import { z } from 'zod';
+
+const PostConversationSchema = z.object({
+  other_user_id: z.string().uuid(),
+});
 
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
 
     // A user can be part of many conversations. We query conversation_participants
     const { data: participants, error } = await supabase
@@ -31,7 +18,7 @@ export async function GET(req: Request) {
       .select('conversation_id')
       .eq('user_id', user.id);
 
-    if (error) throw error;
+    if (error) return jsonError(500, 'Failed to fetch conversation participants', error);
     const conversationIds = participants.map((p: any) => p.conversation_id);
 
     let conversations: any[] = [];
@@ -49,13 +36,13 @@ export async function GET(req: Request) {
         .in('id', conversationIds)
         .order('updated_at', { ascending: false });
 
-      if (convError) throw convError;
+      if (convError) return jsonError(500, 'Failed to fetch conversations', convError);
       conversations = convData || [];
     }
 
     // Also fetch active projects that may not have a conversation
     // This lets users start conversations from project partners
-    const { data: projects } = await supabase
+    const { data: projects, error: projectsError } = await supabase
       .from('campaign_projects')
       .select(`
         id, title, description, budget, status, current_stage, conversation_id,
@@ -63,6 +50,8 @@ export async function GET(req: Request) {
       `)
       .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`)
       .order('created_at', { ascending: false });
+
+    if (projectsError) return jsonError(500, 'Failed to fetch projects', projectsError);
 
     // Enrich projects with partner profile info
     const enrichedProjects = await Promise.all((projects || []).map(async (p: any) => {
@@ -103,49 +92,42 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ conversations, projects: enrichedProjects });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return jsonError(400, 'Invalid JSON body');
     }
 
-    // Verify the user using the auth header
-    const { createClient } = await import('@supabase/supabase-js');
-    const authClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await authClient.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const result = PostConversationSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { other_user_id } = body;
-    if (!other_user_id) {
-      return NextResponse.json({ error: 'other_user_id is required' }, { status: 400 });
-    }
+    const { other_user_id } = result.data;
 
     // Call the RPC function to atomically get or create the conversation
-    const { data: convId, error: rpcError } = await authClient.rpc('get_or_create_conversation', {
+    const { data: convId, error: rpcError } = await supabase.rpc('get_or_create_conversation', {
       user1_id: user.id,
       user2_id: other_user_id
     });
 
     if (rpcError || !convId) {
-      console.error('[POST /api/conversations] RPC Error:', rpcError);
-      throw new Error(rpcError?.message || 'Failed to create conversation');
+      return jsonError(500, 'Failed to create conversation', rpcError);
     }
 
     return NextResponse.json({ conversation: { id: convId } });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
