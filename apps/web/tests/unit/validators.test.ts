@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   LoginSchema,
   RegisterSchema,
+  RegisterProfileSchema,
   CollabRequestSchema,
   ProjectCreateSchema,
   MessageSchema,
@@ -90,11 +91,62 @@ describe('RegisterSchema', () => {
   });
 });
 
+describe('RegisterProfileSchema', () => {
+  it('accepts valid influencer profile payload (no email/password)', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Test Creator',
+      role: 'influencer',
+      username: 'testcreator',
+      niche: ['Fashion'],
+      bio: 'A test creator',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts valid business profile payload (no email/password)', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Test Business',
+      role: 'business_owner',
+      companyName: 'Test Corp',
+      industry: 'Tech',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects role=admin — privilege escalation blocked', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Hacker',
+      role: 'admin',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing name', () => {
+    const result = RegisterProfileSchema.safeParse({
+      role: 'influencer',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('passes through unknown fields (preserves RPC data)', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Creator',
+      role: 'influencer',
+      someUnknownRpcField: 'value',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as any).someUnknownRpcField).toBe('value');
+    }
+  });
+});
+
+// Schema uses snake_case: to_user_id, project_title, project_description, message, budget
 describe('CollabRequestSchema', () => {
   it('accepts valid request with budget', () => {
     const result = CollabRequestSchema.safeParse({
-      toUserId: '550e8400-e29b-41d4-a716-446655440000',
-      message: 'Let\'s collaborate!',
+      to_user_id: '550e8400-e29b-41d4-a716-446655440000',
+      message: "Let's collaborate!",
       budget: 5000,
     });
     expect(result.success).toBe(true);
@@ -102,44 +154,45 @@ describe('CollabRequestSchema', () => {
 
   it('accepts request without optional fields', () => {
     const result = CollabRequestSchema.safeParse({
-      toUserId: '550e8400-e29b-41d4-a716-446655440000',
+      to_user_id: '550e8400-e29b-41d4-a716-446655440000',
     });
     expect(result.success).toBe(true);
   });
 
   it('rejects invalid UUID', () => {
     const result = CollabRequestSchema.safeParse({
-      toUserId: 'not-a-uuid',
+      to_user_id: 'not-a-uuid',
     });
     expect(result.success).toBe(false);
   });
 
   it('rejects negative budget', () => {
     const result = CollabRequestSchema.safeParse({
-      toUserId: '550e8400-e29b-41d4-a716-446655440000',
+      to_user_id: '550e8400-e29b-41d4-a716-446655440000',
       budget: -100,
     });
     expect(result.success).toBe(false);
   });
 });
 
+// Schema uses snake_case: counterparty_user_id, content_types, duration_days
 describe('ProjectCreateSchema', () => {
   it('accepts valid project', () => {
     const result = ProjectCreateSchema.safeParse({
-      counterpartyUserId: '550e8400-e29b-41d4-a716-446655440000',
+      counterparty_user_id: '550e8400-e29b-41d4-a716-446655440000',
       name: 'Instagram Campaign',
       budget: 10000,
-      durationDays: 30,
-      contentTypes: ['Reel', 'Story'],
+      duration_days: 30,
+      content_types: ['Reel', 'Story'],
     });
     expect(result.success).toBe(true);
   });
 
   it('rejects empty content types', () => {
     const result = ProjectCreateSchema.safeParse({
-      counterpartyUserId: '550e8400-e29b-41d4-a716-446655440000',
+      counterparty_user_id: '550e8400-e29b-41d4-a716-446655440000',
       name: 'Campaign',
-      contentTypes: [],
+      content_types: [],
     });
     expect(result.success).toBe(false);
   });
@@ -147,7 +200,7 @@ describe('ProjectCreateSchema', () => {
 
 describe('MessageSchema', () => {
   it('accepts valid message', () => {
-    const result = MessageSchema.safeParse({ body: 'Hello, let\'s discuss the campaign!' });
+    const result = MessageSchema.safeParse({ body: "Hello, let's discuss the campaign!" });
     expect(result.success).toBe(true);
   });
 
@@ -162,13 +215,14 @@ describe('MessageSchema', () => {
   });
 });
 
+// Schema uses snake_case: availability_status (not availabilityStatus)
 describe('ProfileUpdateSchema', () => {
   it('accepts valid profile update', () => {
     const result = ProfileUpdateSchema.safeParse({
       name: 'Updated Name',
       bio: 'Updated bio text',
       headline: 'Creator | Artist',
-      availabilityStatus: 'open',
+      availability_status: 'open',
     });
     expect(result.success).toBe(true);
   });
@@ -182,7 +236,7 @@ describe('ProfileUpdateSchema', () => {
 
   it('rejects invalid availability status', () => {
     const result = ProfileUpdateSchema.safeParse({
-      availabilityStatus: 'super_busy',
+      availability_status: 'super_busy',
     });
     expect(result.success).toBe(false);
   });
@@ -195,10 +249,11 @@ describe('ProfileUpdateSchema', () => {
   });
 });
 
+// Schema uses snake_case: company_name (not companyName)
 describe('BusinessProfileUpdateSchema', () => {
   it('accepts valid business update', () => {
     const result = BusinessProfileUpdateSchema.safeParse({
-      companyName: 'Updated Corp',
+      company_name: 'Updated Corp',
       industry: 'Finance',
       tagline: 'We build the future',
     });

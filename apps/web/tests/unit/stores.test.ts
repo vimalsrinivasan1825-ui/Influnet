@@ -39,15 +39,17 @@ describe('AuthStore', () => {
     expect(useAuthStore.getState().user).toEqual(mockUser);
   });
 
-  it('should store token in localStorage', () => {
+  it('should store token in memory only (not localStorage)', () => {
     useAuthStore.getState().setToken('test-token');
-    expect(localStorage.getItem('influnet_token')).toBe('test-token');
+    // Token is kept in memory only — localStorage must NOT be written
+    expect(localStorage.getItem('influnet_token')).toBeNull();
     expect(useAuthStore.getState().token).toBe('test-token');
   });
 
-  it('should clear token from localStorage on null', () => {
-    localStorage.setItem('influnet_token', 'existing-token');
+  it('should clear in-memory token on setToken(null)', () => {
+    useAuthStore.getState().setToken('existing-token');
     useAuthStore.getState().setToken(null);
+    // No localStorage side-effect expected — only in-memory state cleared
     expect(localStorage.getItem('influnet_token')).toBeNull();
     expect(useAuthStore.getState().token).toBeNull();
   });

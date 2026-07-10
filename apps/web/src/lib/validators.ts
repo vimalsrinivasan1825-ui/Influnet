@@ -53,6 +53,50 @@ export const RegisterSchema = z.object({
   registeredAddress: z.string().optional(),
 });
 
+// Server-side guard for the register_profile RPC payload.
+// Note: email/password are NOT part of this body — they go to supabase.auth.signUp separately.
+// The critical field is `role` — it must NEVER be 'admin'. .passthrough() preserves any
+// additional fields the RPC reads without silently dropping them.
+export const RegisterProfileSchema = z.object({
+  role: z.enum(['business_owner', 'influencer']),  // 'admin' is deliberately excluded
+  name: z.string().min(1),
+  phone: z.string().optional(),
+  // business fields
+  companyName: z.string().optional(),
+  businessType: z.string().optional(),
+  industry: z.string().optional(),
+  website: z.string().optional(),
+  gstNumber: z.string().optional(),
+  registeredAddress: z.string().optional(),
+  marketingBudget: z.string().optional(),
+  businessUsername: z.string().optional(),
+  approvalStatus: z.string().optional(),
+  collabPreferences: z.array(z.string()).optional(),
+  instagramHandle: z.string().optional(),
+  facebookHandle: z.string().optional(),
+  linkedinHandle: z.string().optional(),
+  // influencer fields
+  username: z.string().optional(),
+  bio: z.string().optional(),
+  niche: z.array(z.string()).optional(),
+  gender: z.string().optional(),
+  youtubeHandle: z.string().optional(),
+  twitterHandle: z.string().optional(),
+  tiktokHandle: z.string().optional(),
+  languages: z.array(z.string()).optional(),
+  collabTypes: z.array(z.string()).optional(),
+  priceRange: z.string().optional(),
+  instagramFollowers: z.number().optional(),
+  facebookFollowers: z.number().optional(),
+  youtubeSubscribers: z.number().optional(),
+  tiktokFollowers: z.number().optional(),
+  extraSocialLinks: z.array(z.string()).optional(),
+  // shared / location
+  city: z.string().optional(),
+  state: z.string().optional(),
+  location: z.string().optional(),
+}).passthrough();
+
 export const SendOtpSchema = z.object({
   email: z.string().email('Invalid email address'),
 });

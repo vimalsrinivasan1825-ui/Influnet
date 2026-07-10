@@ -1,8 +1,13 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
-// These integration tests require a running Supabase instance
-// Set these in .env.test or .env.local
+// These integration tests require a running Supabase instance AND a running Next.js app.
+// Gate them on the presence of env vars so the suite skips (not fails) in local dev
+// without secrets. In CI, set NEXT_PUBLIC_SUPABASE_URL etc. to run them.
+const hasSupabaseEnv = !!(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
@@ -11,10 +16,9 @@ const TEST_BUSINESS_EMAIL = `test_business_${Date.now()}@test.influnet.com`;
 const TEST_INFLUENCER_EMAIL = `test_influencer_${Date.now()}@test.influnet.com`;
 const TEST_PASSWORD = 'TestPass123!';
 
-describe('Auth Integration', () => {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+describe.skipIf(!hasSupabaseEnv)('Auth Integration', () => {
   it('should sign up a business user', async () => {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data, error } = await supabase.auth.signUp({
       email: TEST_BUSINESS_EMAIL,
       password: TEST_PASSWORD,
@@ -29,6 +33,7 @@ describe('Auth Integration', () => {
   });
 
   it('should sign up an influencer user', async () => {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data, error } = await supabase.auth.signUp({
       email: TEST_INFLUENCER_EMAIL,
       password: TEST_PASSWORD,
@@ -41,7 +46,7 @@ describe('Auth Integration', () => {
   });
 });
 
-describe('API Route Authorization', () => {
+describe.skipIf(!hasSupabaseEnv)('API Route Authorization', () => {
   it('should reject requests without Authorization header', async () => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/collabs`, {
       method: 'GET',
@@ -61,7 +66,7 @@ describe('API Route Authorization', () => {
   });
 });
 
-describe('Zod Validation Integration', () => {
+describe.skipIf(!hasSupabaseEnv)('Zod Validation Integration', () => {
   it('should handle invalid input gracefully', async () => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/collabs`, {
       method: 'POST',
@@ -76,7 +81,7 @@ describe('Zod Validation Integration', () => {
   });
 });
 
-describe('Profile API', () => {
+describe.skipIf(!hasSupabaseEnv)('Profile API', () => {
   let authToken: string;
 
   beforeAll(async () => {

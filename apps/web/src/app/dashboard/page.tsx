@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Compass, DollarSign, Briefcase, Clock, CheckCircle } from 'lucide-react';
@@ -34,9 +35,32 @@ export default function BusinessDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter();
+
   useEffect(() => {
     (async () => {
       try {
+        // Role gate: influencers and admins don't belong on the business dashboard.
+        // Mirror the role-routing that login/page.tsx does post-login.
+        const supabaseClient = createClient();
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+          const { data: profileData } = await supabaseClient
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+          const role = (profileData as { role?: string } | null)?.role;
+          if (role === 'influencer') {
+            router.replace('/dashboard/influencer');
+            return;
+          }
+          if (role === 'admin') {
+            router.replace('/dashboard/admin');
+            return;
+          }
+        }
+
         const res = await apiFetch<DashboardData>('/api/business/dashboard');
         if (res.ok && res.data) {
           setData(res.data);
@@ -47,7 +71,7 @@ export default function BusinessDashboardPage() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [router]);
 
   if (loading) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafb' }}>

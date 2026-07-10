@@ -16,27 +16,31 @@ export async function GET(req: Request) {
 
     if (notifError) throw notifError;
 
-    // 2. Unread Stream Chat messages (we'll query Stream separately later, for now placeholder 0)
-    // To do this properly, we should use Stream Chat server client to get unread count.
-    // Assuming the client-side handles Stream Chat unread counts via Stream SDK instead.
+    // 2. Unread Stream Chat messages (client-side handles Stream Chat unread counts via Stream SDK)
     const unreadMessages = 0;
 
-    // 3. Pending requests (if business, requests they sent that are pending. If influencer, requests received that are pending)
+    // 3. Pending collab_requests count.
+    //    Real table: `collab_requests` with `from_user_id` / `to_user_id`.
+    //    (There is NO table called `collaboration_requests` — that was a bug.)
+    //    Business owner: count of requests THEY SENT that are still pending.
+    //    Influencer: count of requests THEY RECEIVED that are still pending.
     let pendingRequests = 0;
     if (auth.role === 'business_owner') {
       const { count, error } = await supabase
-        .from('collaboration_requests')
+        .from('collab_requests')
         .select('id', { count: 'exact', head: true })
-        .eq('business_id', user.id)
+        .eq('from_user_id', user.id)
         .eq('status', 'pending');
-      if (!error && count) pendingRequests = count;
+      if (error) throw error;  // surface errors — don't silently return 0
+      pendingRequests = count ?? 0;
     } else if (auth.role === 'influencer') {
       const { count, error } = await supabase
-        .from('collaboration_requests')
+        .from('collab_requests')
         .select('id', { count: 'exact', head: true })
-        .eq('influencer_id', user.id)
+        .eq('to_user_id', user.id)
         .eq('status', 'pending');
-      if (!error && count) pendingRequests = count;
+      if (error) throw error;
+      pendingRequests = count ?? 0;
     }
 
     return NextResponse.json({

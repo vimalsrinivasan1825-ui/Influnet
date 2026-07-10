@@ -28,35 +28,17 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
       return jsonError(403, 'Forbidden — you are not a participant');
     }
 
-    // Use management API to delete conversation and related data
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const mgmtKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+    // Delete the conversation row. The schema defines:
+    //   messages.conversation_id REFERENCES conversations(id) ON DELETE CASCADE
+    //   conversation_participants.conversation_id REFERENCES conversations(id) ON DELETE CASCADE
+    // So cascading handles messages + participants automatically.
+    // The RLS DELETE policy (migration 050) allows this under withAuth.
+    const { error: delErr } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', id);
 
-    const runSql = async (sql: string) => {
-      const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${mgmtKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: sql }),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`SQL error: ${res.status} ${errText}`);
-      }
-      return res.json();
-    };
-
-    // Delete messages, participants, then conversation
-    const sql = `
-      DELETE FROM public.messages WHERE conversation_id = '${id}'::uuid;
-      DELETE FROM public.conversation_participants WHERE conversation_id = '${id}'::uuid;
-      DELETE FROM public.conversations WHERE id = '${id}'::uuid;
-    `;
-
-    await runSql(sql);
+    if (delErr) return jsonError(500, 'Failed to delete conversation', delErr);
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);

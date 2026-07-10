@@ -23,6 +23,12 @@ CREATE POLICY "Users can update their own notifications"
   USING (auth.uid() = user_id);
 
 -- Enable Realtime
+-- NOTE (Medium 7): This block intentionally drops and recreates supabase_realtime
+-- to add only the `notifications` table. This means ONLY `notifications` is in the
+-- realtime publication by design. If other tables (messages, collab_requests, etc.)
+-- need live updates in future, add a new migration:
+--   ALTER PUBLICATION supabase_realtime ADD TABLE public.<table_name>;
+-- Do NOT assume other tables fire realtime events — they won't until explicitly added.
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
   CREATE PUBLICATION supabase_realtime;

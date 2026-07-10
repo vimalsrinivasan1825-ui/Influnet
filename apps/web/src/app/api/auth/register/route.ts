@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { RegisterProfileSchema } from '@/lib/validators';
 
 export async function POST(req: Request) {
   try {
@@ -8,9 +9,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
     }
 
-    const payload = await req.json();
+    const rawPayload = await req.json();
 
-    // Create an authenticated Supabase client using the user's token
+    // Validate the body — role is guaranteed to be business_owner | influencer after this.
+    // 'admin' is not an accepted value and will cause a 400.
+    const parsed = RegisterProfileSchema.safeParse(rawPayload);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid registration payload', details: parsed.error.format() },
+        { status: 400 }
+      );
+    }
+    const payload = parsed.data; // role is now guaranteed: business_owner | influencer
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -23,7 +34,6 @@ export async function POST(req: Request) {
       }
     );
 
-    // Call the register_profile RPC function
     const { data, error } = await supabase.rpc('register_profile', { payload });
 
     if (error) {
