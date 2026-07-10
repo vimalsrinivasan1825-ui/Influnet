@@ -142,9 +142,37 @@ This file tracks the current implementation state of each system module, issues 
   * `PATCH /api/profile` — Updates base profile fields (name, phone, location) + role-specific fields
 * **Settings Page Rewired**: Light theme, fetches profile on mount, saves changes via PATCH to `/api/profile`, updates localStorage cache, shows success/error states
 
-### Next Target
-* Phase 2: Payments & Notifications (milestone payments, email notifications)
-* Public creator profile page (link-in-bio for social sharing)
-* Expand the campaign projects section to allow counterparty deliverables file sharing and tracking
+### Phase 0: Repo Stabilization — COMPLETED (July 10, 2026)
 
+#### Scope
+* Deep-audited the full project against `PROJECT_ANALYSIS.md` and `EXECUTION_PLAN.md`.
+* Confirmed `.env*` files were **already gitignored** and **never tracked** in git history — the audit's concern was valid as a precaution but no actual exposure through git exists.
+* Created `influnet-app/.env.example` documenting all required env vars (including new `RESEND_API_KEY` / `EMAIL_FROM` / `NOTIFY_EMAILS_ENABLED` for Phase 2).
+* Committed the entire ~13,400-line pending codebase in 11 logical, reviewable chunks on the `dev` branch.
 
+#### Commit Series
+1. `phase0: untrack env files, add .env.example with all required vars`
+2. `phase0: add agent workflow docs and project docs`
+3. `phase0: add shadcn/ui setup, utils, and full type definitions`
+4. `phase0: add all API routes (auth, collabs, projects, conversations, discover, profile, admin, stream, notifications, dashboards)`
+5. `phase0: add admin panel pages and dev setup page`
+6. `phase0: add project Kanban workspace and signup role-select page`
+7. `phase0: add Stream Chat integration lib`
+8. `phase0: add test suite (unit, integration, E2E matchmaking) and CI workflow`
+9. `phase0: add Supabase migrations 036-042 and cleanup.sql`
+10. `phase0: wire dashboard pages, auth pages, shell, sidebar, landing components`
+11. `phase0: gitignore supabase/.temp CLI artifacts`
+
+#### Broken & Resolved
+* `.env.example` was initially caught by the `.env*` gitignore rule — resolved by adding `!.env.example` exception to `influnet-app/.gitignore`.
+* `supabase/.temp/` (CLI artifacts) got staged with `git add -A` — resolved by adding it to the root `.gitignore` and un-staging before commit.
+
+#### Key Lessons
+* **TypeScript was already clean** (`tsc --noEmit` → 0 errors) on the full uncommitted codebase before any changes — a strong sign of quality work.
+* **Always check `git ls-files` to confirm actual tracking state** before assuming a file is in history. The audit's concern about env files was accurate as a best practice, but the actual `.gitignore` already protected them.
+* **Commit in logical dependency order**: new deps (package.json) → types → lib utilities → API routes → pages → migrations → tests → CI. This way each commit is independently buildable.
+
+#### Next Target
+* **Task 1.1** — Fix Stream Chat authentication (messaging is currently dead). The `api/stream/token` and `api/stream/channel` routes need to read the Authorization header from the request, not use the service-role client.
+* **Task 1.2** — Remove Management-API raw SQL from `POST /api/conversations`, replace with migration 043 RPC.
+* **Task 1.3** — Atomic collab acceptance via migration 044 + delete the auto-heal from GET /api/projects.
