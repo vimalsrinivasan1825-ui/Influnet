@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:unit": "vitest run tests/unit/",
     "test:integration": "vitest run tests/integration/",
+    "test:e2e": "node scripts/e2e-exercise.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
