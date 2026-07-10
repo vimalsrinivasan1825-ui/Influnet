@@ -4,17 +4,24 @@ import { createRSCClient } from '@/lib/supabase/server-rsc';
 import {
   MapPin,
   CheckCircle,
-  Instagram,
-  Youtube,
-  Twitter,
-  Facebook,
-  Linkedin,
   MessageSquare,
   Globe,
   Briefcase,
   Star,
   Users
 } from 'lucide-react';
+
+const InstagramIcon = ({ size = 16, className = "" }: { size?: number, className?: string }) => (
+  <svg xmlns="http://www.svg.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+);
+
+const YoutubeIcon = ({ size = 16, className = "" }: { size?: number, className?: string }) => (
+  <svg xmlns="http://www.svg.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2.5 7.1C2.5 7.1 2.3 5.4 3 4.6 3.8 3.7 4.8 3.7 5.2 3.6 8.5 3.4 12 3.4 12 3.4s3.5 0 6.8.2c.4.1 1.4.1 2.2 1 .7.8 1 2.5 1 2.5s.2 2 .2 4.1v1.5c0 2.1-.2 4.1-.2 4.1s-.2 1.7-1 2.5c-.8.9-1.9.8-2.4.9-3.6.3-7.2.2-7.2.2s-3.5 0-6.8-.2c-.4-.1-1.4-.1-2.2-1-.7-.8-1-2.5-1-2.5s-.2-2-.2-4.1V11.2c0-2.1.2-4.1.2-4.1z"/><polygon points="9.5 15.5 16 12 9.5 8.5 9.5 15.5"/></svg>
+);
+
+const TwitterIcon = ({ size = 16, className = "" }: { size?: number, className?: string }) => (
+  <svg xmlns="http://www.svg.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
+);
 import Link from 'next/link';
 import { Metadata } from 'next';
 
@@ -173,7 +180,7 @@ export default async function PublicProfilePage({
               {profile.instagramFollowers > 0 && (
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center">
-                    <Instagram size={16} />
+                    <InstagramIcon size={16} />
                   </div>
                   <div>
                     <div className="text-sm font-black text-slate-900">{formatFollowers(profile.instagramFollowers)}</div>
@@ -184,7 +191,7 @@ export default async function PublicProfilePage({
               {profile.youtubeSubscribers > 0 && (
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
-                    <Youtube size={16} />
+                    <YoutubeIcon size={16} />
                   </div>
                   <div>
                     <div className="text-sm font-black text-slate-900">{formatFollowers(profile.youtubeSubscribers)}</div>
@@ -273,17 +280,17 @@ export default async function PublicProfilePage({
                 <div className="space-y-3">
                   {profile.instagramHandle && (
                     <a href={`https://instagram.com/${profile.instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold text-slate-700 hover:text-[#ee3e96]">
-                      <Instagram size={16} className="text-pink-600" /> @{profile.instagramHandle.replace('@', '')}
+                      <InstagramIcon size={16} className="text-pink-600" /> @{profile.instagramHandle.replace('@', '')}
                     </a>
                   )}
                   {profile.youtubeHandle && (
                     <a href={`https://youtube.com/${profile.youtubeHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold text-slate-700 hover:text-red-600">
-                      <Youtube size={16} className="text-red-600" /> @{profile.youtubeHandle.replace('@', '')}
+                      <YoutubeIcon size={16} className="text-red-600" /> @{profile.youtubeHandle.replace('@', '')}
                     </a>
                   )}
                   {profile.twitterHandle && (
                     <a href={`https://twitter.com/${profile.twitterHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold text-slate-700 hover:text-blue-500">
-                      <Twitter size={16} className="text-blue-500" /> @{profile.twitterHandle.replace('@', '')}
+                      <TwitterIcon size={16} className="text-blue-500" /> @{profile.twitterHandle.replace('@', '')}
                     </a>
                   )}
                   {profile.tiktokHandle && (
