@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { FolderGit2, Trash2, Search } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 const STAGE_LABELS: Record<string, string> = {
   collaboration_started: 'Started',
@@ -29,16 +30,9 @@ export default function AdminProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-
-      const res = await fetch('/api/admin/projects', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Failed to fetch projects');
-      const data = await res.json();
-      setProjects(data.projects || []);
+      const res = await apiFetch<{ projects: any[] }>('/api/admin/projects');
+      if (!res.ok || !res.data) throw new Error(res.error || 'Failed to fetch projects');
+      setProjects(res.data.projects || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -51,19 +45,13 @@ export default function AdminProjectsPage() {
   const handleDeleteProject = async (projectId: string) => {
     setDeletingId(projectId);
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-
-      const res = await fetch('/api/admin/projects', {
+      const res = await apiFetch('/api/admin/projects', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ project_id: projectId })
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to delete');
+        throw new Error(res.error || 'Failed to delete');
       }
 
       setConfirmDelete(null);

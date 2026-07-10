@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CheckCircle, XCircle, Clock, Building2 } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface BusinessUser {
   user_id: string;
@@ -32,22 +33,18 @@ export default function AdminApprovalsPage() {
   const [actionId, setActionId] = useState<string | null>(null);
 
   const fetchBusinesses = async () => {
-    const sb = createClient();
-    const { data: { session } } = await sb.auth.getSession();
-    const token = session?.access_token;
-    if (!token) return;
-
-    const res = await fetch('/api/admin/businesses', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setBusinesses(data.businesses || []);
-    } else {
-      const err = await res.json();
-      setError(err.error || 'Failed to fetch businesses');
+    try {
+      const res = await apiFetch<{ businesses: BusinessUser[] }>('/api/admin/businesses');
+      if (res.ok && res.data) {
+        setBusinesses(res.data.businesses || []);
+      } else {
+        setError(res.error || 'Failed to fetch businesses');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch businesses');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => { fetchBusinesses(); }, []);
@@ -55,19 +52,13 @@ export default function AdminApprovalsPage() {
   const handleApproval = async (userId: string, status: 'approved' | 'rejected') => {
     setActionId(userId);
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-
-      const res = await fetch('/api/admin/businesses', {
+      const res = await apiFetch('/api/admin/businesses', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ user_id: userId, approval_status: status })
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to update');
+        throw new Error(res.error || 'Failed to update');
       }
 
       await fetchBusinesses();

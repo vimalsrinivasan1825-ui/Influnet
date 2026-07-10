@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Save, Loader2 } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<any>(null);
@@ -26,22 +27,12 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const sb = createClient();
-        const { data: { session } } = await sb.auth.getSession();
-        const token = session?.access_token;
-        if (!token) return;
-
-        const res = await fetch('/api/profile', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to load profile');
+        const res = await apiFetch<{ profile: any }>('/api/profile');
+        if (!res.ok || !res.data) {
+          throw new Error(res.error || 'Failed to load profile');
         }
 
-        const data = await res.json();
-        const p = data.profile;
+        const p = res.data.profile;
         setProfile(p);
         setName(p.name || '');
         setPhone(p.phone || '');
@@ -67,10 +58,6 @@ export default function SettingsPage() {
     setSuccess('');
     setError('');
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-
       const payload: any = { name, phone, location };
       if (profile?.role === 'business_owner') {
         payload.company_name = companyName;
@@ -84,15 +71,13 @@ export default function SettingsPage() {
         payload.youtube_handle = youtube;
       }
 
-      const res = await fetch('/api/profile', {
+      const res = await apiFetch('/api/profile', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to save');
+        throw new Error(res.error || 'Failed to save');
       }
 
       // Update localStorage cache

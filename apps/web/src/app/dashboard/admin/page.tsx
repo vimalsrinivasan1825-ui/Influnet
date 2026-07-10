@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Shield, Users, Building2, Star, Briefcase, CheckCircle, Clock } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface AdminStats {
   total_users: number;
@@ -25,20 +26,11 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const sb = createClient();
-        const { data: { session } } = await sb.auth.getSession();
-        const token = session?.access_token;
-        if (!token) return;
-
-        const res = await fetch('/api/admin/dashboard', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || 'Failed to load admin data');
+        const res = await apiFetch<{ stats: AdminStats }>('/api/admin/dashboard');
+        if (!res.ok || !res.data) {
+          throw new Error(res.error || 'Failed to load admin data');
         }
-        const data = await res.json();
-        setStats(data.stats);
+        setStats(res.data.stats);
       } catch (err: any) {
         setError(err.message);
       } finally {

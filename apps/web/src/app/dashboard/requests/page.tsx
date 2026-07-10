@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getAuthToken } from '@/lib/api-client';
+import { getAuthToken, apiFetch } from '@/lib/api-client';
 
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   pending:   { bg: '#fffbeb', color: '#d97706', label: 'Pending' },
@@ -31,16 +31,11 @@ export default function RequestsPage() {
         setUserId(uid);
 
         // Step 2: Only THEN fetch requests (userId is in state before cards render)
-        const token = await getAuthToken();
-        const res = await fetch('/api/collabs', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `HTTP error ${res.status}`);
+        const res = await apiFetch<{ collabs: any[] }>('/api/collabs');
+        if (!res.ok || !res.data) {
+          throw new Error(res.error || `HTTP error`);
         }
-        const data = await res.json();
-        setRequests(data.collabs || []);
+        setRequests(res.data.collabs || []);
       } catch (e: any) {
         console.error("[RequestsPage init error]:", e);
         setErrorMsg(e.message || "Failed to load requests.");
@@ -54,34 +49,26 @@ export default function RequestsPage() {
 
 
   const refreshRequests = async () => {
-    const token = await getAuthToken();
-    const res = await fetch('/api/collabs', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setRequests(data.collabs || []);
+    const res = await apiFetch<{ collabs: any[] }>('/api/collabs');
+    if (res.ok && res.data) {
+      setRequests(res.data.collabs || []);
     }
   };
 
   const handleAction = async (requestId: string, status: string, otherUserId: string) => {
     setActionIds(prev => new Set(prev).add(requestId));
     try {
-      const token = await getAuthToken();
-
-      const res = await fetch('/api/collabs', {
+      const res = await apiFetch('/api/collabs', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: requestId, status })
       });
 
-      if (!res.ok) throw new Error('Failed to update request');
+      if (!res.ok) throw new Error(res.error || 'Failed to update request');
 
       // If accepted: also try to create conversation thread (the PATCH handler does this server-side too)
       if (status === 'accepted') {
-        await fetch('/api/conversations', {
+        await apiFetch('/api/conversations', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ collab_request_id: requestId, other_user_id: otherUserId })
         }).catch(() => {}); // swallow if already exists
       }

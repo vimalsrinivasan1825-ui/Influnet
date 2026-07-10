@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { apiFetch } from '@/lib/api-client';
 
 const STAGES = [
   { key: 'collaboration_started', label: 'Started', color: '#3b82f6', desc: 'Collaboration initiated between brand and creator' },
@@ -37,7 +38,7 @@ export default function ProjectsPage() {
           setUserId(user.id);
         }
 
-        await fetchProjects(sb);
+        await fetchProjects();
       } catch (e: any) {
         console.error(e);
         setErrorMsg(e.message || 'Failed to initialize projects');
@@ -48,20 +49,12 @@ export default function ProjectsPage() {
     init();
   }, []);
 
-  const fetchProjects = async (sb: any) => {
-    const { data: { session } } = await sb.auth.getSession();
-    const token = session?.access_token;
-    if (!token) throw new Error('No active session found. Please log in.');
-
-    const res = await fetch('/api/projects', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Failed to load projects');
+  const fetchProjects = async () => {
+    const res = await apiFetch<{ projects: any[] }>('/api/projects');
+    if (!res.ok || !res.data) {
+      throw new Error(res.error || 'Failed to load projects');
     }
-    const data = await res.json();
-    setProjects(data.projects || []);
+    setProjects(res.data.projects || []);
   };
 
   const handleAdvanceStage = async (projectId: string, currentStage: string) => {
@@ -71,14 +64,8 @@ export default function ProjectsPage() {
 
     setUpdatingId(projectId);
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error('No active session found.');
-
-      const res = await fetch('/api/projects', {
+      const res = await apiFetch('/api/projects', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           id: projectId,
           current_stage: nextStage,
@@ -87,11 +74,10 @@ export default function ProjectsPage() {
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to update stage');
+        throw new Error(res.error || 'Failed to update stage');
       }
 
-      await fetchProjects(sb); // refresh
+      await fetchProjects(); // refresh
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -102,19 +88,13 @@ export default function ProjectsPage() {
   const handleCancellationAction = async (projectId: string, actionType: 'request' | 'decline' | 'accept') => {
     setUpdatingId(projectId);
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error('No active session found.');
-
       let action = '';
       if (actionType === 'request') action = 'request_cancellation';
       else if (actionType === 'decline') action = 'decline_cancellation';
       else if (actionType === 'accept') action = 'accept_cancellation';
 
-      const res = await fetch('/api/projects', {
+      const res = await apiFetch('/api/projects', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           id: projectId,
           action
@@ -122,16 +102,15 @@ export default function ProjectsPage() {
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to process cancellation request.');
+        throw new Error(res.error || 'Failed to process cancellation request.');
       }
 
-      const resData = await res.json().catch(() => ({}));
+      const resData = res.data || {};
       if (resData.deleted) {
         alert('Project successfully cancelled and deleted.');
       }
 
-      await fetchProjects(sb); // refresh
+      await fetchProjects(); // refresh
     } catch (e: any) {
       alert(e.message);
     } finally {

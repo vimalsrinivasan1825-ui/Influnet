@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { StreamChat } from 'stream-chat';
+import { apiFetch } from '@/lib/api-client';
 import DashboardSidebar from '@/components/dashboard/sidebar';
 import DashboardHeader from '@/components/dashboard/header';
 import { useNotificationStore, NotificationItem } from '@/store/notification-store';
@@ -113,12 +114,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     
     const fetchSummary = async () => {
       try {
-        const notifRes = await fetch('/api/notifications/summary', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (notifRes.ok) {
-          const notifData = await notifRes.json();
-          setSummary(notifData);
+        const notifRes = await apiFetch<any>('/api/notifications/summary');
+        if (notifRes.ok && notifRes.data) {
+          setSummary(notifRes.data);
         }
       } catch (err) {
         console.error('Failed to update notifications summary:', err);
@@ -143,12 +141,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         streamClient = StreamChat.getInstance(streamKey);
         if (streamClient.userID === user.id) return; // already connected
         
-        const res = await fetch('/api/stream/token', {
+        const res = await apiFetch<{ token: string }>('/api/stream/token', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) return;
-        const { token: streamToken } = await res.json();
+        if (!res.ok || !res.data) return;
+        const { token: streamToken } = res.data;
         
         if (streamToken) {
           await streamClient.connectUser({ id: user.id }, streamToken);

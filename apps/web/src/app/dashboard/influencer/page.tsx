@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Send, MessageSquare, FolderGit2, DollarSign } from 'lucide-react';
 import { AreaChart, BarChart, StatCard } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
+import { apiFetch } from '@/lib/api-client';
 
 interface DashboardData {
   profile: {
@@ -40,16 +41,15 @@ export default function InfluencerDashboardPage() {
   useEffect(() => {
     (async () => {
       try {
-        const sb = createClient();
-        const { data: { session } } = await sb.auth.getSession();
-        if (session?.access_token) {
-          const res = await fetch('/api/influencer/dashboard', {
-            headers: { Authorization: `Bearer ${session.access_token}` }
-          });
-          if (res.ok) setData(await res.json());
+        const res = await apiFetch<DashboardData>('/api/influencer/dashboard');
+        if (res.ok && res.data) {
+          setData(res.data);
         }
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 

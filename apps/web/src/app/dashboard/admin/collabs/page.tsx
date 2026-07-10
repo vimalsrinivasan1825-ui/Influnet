@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Send, Trash2, Search, XCircle, CheckCircle } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   pending:   { bg: '#fffbeb', color: '#d97706', label: 'Pending' },
@@ -21,16 +22,9 @@ export default function AdminCollabsPage() {
 
   const fetchCollabs = async () => {
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-
-      const res = await fetch('/api/admin/collabs', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Failed to fetch requests');
-      const data = await res.json();
-      setCollabs(data.collabs || []);
+      const res = await apiFetch<{ collabs: any[] }>('/api/admin/collabs');
+      if (!res.ok || !res.data) throw new Error(res.error || 'Failed to fetch requests');
+      setCollabs(res.data.collabs || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -43,19 +37,13 @@ export default function AdminCollabsPage() {
   const handleStatusOverride = async (collabId: string, status: string) => {
     setActionId(collabId);
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-
-      const res = await fetch('/api/admin/collabs', {
+      const res = await apiFetch('/api/admin/collabs', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ collab_id: collabId, status })
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to update');
+        throw new Error(res.error || 'Failed to update');
       }
       await fetchCollabs();
     } catch (err: any) {
@@ -68,19 +56,13 @@ export default function AdminCollabsPage() {
   const handleDeleteRequest = async (collabId: string) => {
     setActionId(collabId);
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-
-      const res = await fetch('/api/admin/collabs', {
+      const res = await apiFetch('/api/admin/collabs', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ collab_id: collabId })
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to delete');
+        throw new Error(res.error || 'Failed to delete');
       }
       setConfirmDelete(null);
       await fetchCollabs();

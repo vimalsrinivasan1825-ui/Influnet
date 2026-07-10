@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import {
   DndContext, DragOverlay, useSensor, useSensors,
@@ -512,19 +513,14 @@ export default function ProjectKanbanPage() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) { setError('Not authenticated'); return; }
-
       const [projRes, cardsRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`/api/projects/${projectId}/cards`, { headers: { Authorization: `Bearer ${token}` } }),
+        apiFetch<{ project: any }>(`/api/projects/${projectId}`),
+        apiFetch<{ cards: ProjectCard[] }>(`/api/projects/${projectId}/cards`),
       ]);
-      if (projRes.ok) { const d = await projRes.json(); setProject(d.project); }
-      else { setError('Failed to load project'); }
-      if (cardsRes.ok) { const d = await cardsRes.json(); setCards(d.cards || []); }
-      else { setError('Failed to load cards'); }
+      if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
+      else { setError(projRes.error || 'Failed to load project'); }
+      if (cardsRes.ok && cardsRes.data) { const d = cardsRes.data; setCards(d.cards || []); }
+      else { setError(cardsRes.error || 'Failed to load cards'); }
     } catch (e) { console.error(e); setError('Network error'); }
     finally { setLoading(false); }
   }, [projectId]);
@@ -598,13 +594,8 @@ export default function ProjectKanbanPage() {
     ));
 
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-      await fetch(`/api/projects/${projectId}/cards/${activeCardData.id}`, {
+      await apiFetch(`/api/projects/${projectId}/cards/${activeCardData.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ stage_key: targetStageKey, start_date: targetDate })
       });
     } catch (e) { console.error(e); }
@@ -620,11 +611,6 @@ export default function ProjectKanbanPage() {
     pendingCreations.current.add(cellKey);
 
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) { console.warn('No session token'); return; }
-
       const cellFull = cards.some(c =>
         c.stage_key === stageKey && (
           getCardDateKey(c) === targetKey ||
@@ -633,14 +619,12 @@ export default function ProjectKanbanPage() {
       );
       if (cellFull) { console.warn('Cell already has a card or is covered by a span'); return; }
 
-      const res = await fetch(`/api/projects/${projectId}/cards`, {
+      const res = await apiFetch<{ card: ProjectCard }>(`/api/projects/${projectId}/cards`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ stage_key: stageKey, title: 'New Task', start_date: targetDate.toISOString() })
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); console.error('Card creation failed:', err); return; }
-      const data = await res.json();
-      if (data.card) setCards(prev => [...prev, data.card]);
+      if (!res.ok || !res.data) { console.error('Card creation failed:', res.error); return; }
+      if (res.data!.card) setCards(prev => [...prev, res.data!.card]);
     } catch (e) { console.error('Card creation error:', e); }
     finally { pendingCreations.current.delete(cellKey); }
   };
@@ -650,13 +634,8 @@ export default function ProjectKanbanPage() {
     if (toDelete.length === 0) return;
 
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-
       await Promise.all(toDelete.map(c =>
-        fetch(`/api/projects/${projectId}/cards/${c.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+        apiFetch(`/api/projects/${projectId}/cards/${c.id}`, { method: 'DELETE' })
       ));
       setCards(prev => prev.filter(c => c.stage_key !== stageKey));
     } catch (e) { console.error(e); }
@@ -675,13 +654,8 @@ export default function ProjectKanbanPage() {
     setCards(prev => prev.map(c => c.id === cardId ? { ...c, due_date: newDueDate } : c));
 
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-      await fetch(`/api/projects/${projectId}/cards/${cardId}`, {
+      await apiFetch(`/api/projects/${projectId}/cards/${cardId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ due_date: newDueDate })
       });
     } catch (e) { console.error(e); }
@@ -804,24 +778,16 @@ export default function ProjectKanbanPage() {
       <CardDetailModal card={modalCard} onClose={() => setModalCard(null)}
         onSave={async (id, updates) => {
           try {
-            const sb = createClient();
-            const { data: { session } } = await sb.auth.getSession();
-            const token = session?.access_token;
-            if (!token) return;
-            const res = await fetch(`/api/projects/${projectId}/cards/${id}`, {
-              method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            const res = await apiFetch<{ card: ProjectCard }>(`/api/projects/${projectId}/cards/${id}`, {
+              method: 'PATCH',
               body: JSON.stringify(updates)
             });
-            if (res.ok) { const d = await res.json(); setCards(prev => prev.map(c => c.id === id ? d.card : c)); setModalCard(null); }
+            if (res.ok && res.data) { setCards(prev => prev.map(c => c.id === id ? res.data!.card : c)); setModalCard(null); }
           } catch (e) { console.error(e); }
         }}
         onDelete={async (id) => {
           try {
-            const sb = createClient();
-            const { data: { session } } = await sb.auth.getSession();
-            const token = session?.access_token;
-            if (!token) return;
-            const res = await fetch(`/api/projects/${projectId}/cards/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            const res = await apiFetch(`/api/projects/${projectId}/cards/${id}`, { method: 'DELETE' });
             if (res.ok) { setCards(prev => prev.filter(c => c.id !== id)); setModalCard(null); }
           } catch (e) { console.error(e); }
         }}

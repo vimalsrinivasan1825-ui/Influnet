@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Compass, DollarSign, Briefcase, Clock, CheckCircle } from 'lucide-react';
 import { AreaChart, BarChart, StatCard } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
+import { apiFetch } from '@/lib/api-client';
 
 interface DashboardData {
   profile: { name: string; company_name: string; industry: string };
@@ -36,16 +37,15 @@ export default function BusinessDashboardPage() {
   useEffect(() => {
     (async () => {
       try {
-        const sb = createClient();
-        const { data: { session } } = await sb.auth.getSession();
-        if (session?.access_token) {
-          const res = await fetch('/api/business/dashboard', {
-            headers: { Authorization: `Bearer ${session.access_token}` }
-          });
-          if (res.ok) setData(await res.json());
+        const res = await apiFetch<DashboardData>('/api/business/dashboard');
+        if (res.ok && res.data) {
+          setData(res.data);
         }
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Users, Building2, Star, Shield, Search } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface PlatformUser {
   id: string;
@@ -29,17 +30,9 @@ export default function AdminUsersPage() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const sb = createClient();
-        const { data: { session } } = await sb.auth.getSession();
-        const token = session?.access_token;
-        if (!token) return;
-
-        const res = await fetch('/api/admin/users', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error('Failed to fetch users');
-        const data = await res.json();
-        setUsers(data.users || []);
+        const res = await apiFetch<{ users: PlatformUser[] }>('/api/admin/users');
+        if (!res.ok || !res.data) throw new Error(res.error || 'Failed to fetch users');
+        setUsers(res.data.users || []);
       } catch (err: any) {
         setError(err.message);
       } finally {

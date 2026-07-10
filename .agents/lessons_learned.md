@@ -311,4 +311,21 @@ This file tracks the current implementation state of each system module, issues 
 * To restrict visibility of incomplete/empty search directories for early-stage platforms, hidding navigation links and redirecting direct accesses without parameter context is highly effective, while still allowing the core transactional loops (like deep-linked transaction requests) to work seamlessly.
 
 #### Next Target
-* Phase 3 / Remaining items of the readiness plan.
+* Task 3.1: Shared API Client Migration.
+
+### Shared API Client Migration (Task 3.1) — COMPLETED (July 10, 2026)
+
+#### Scope
+* Centralized all dashboard client page and component requests under the shared `apiFetch` utility (`apps/web/src/lib/api-client.ts`).
+* Refactored 12 files across dashboards, settings, projects, requests, messages, shell, and admin workspaces to use `apiFetch` instead of manual token-injecting `fetch` calls.
+* Eliminated repetitive session retrieval and header building logic from client components.
+
+#### Broken & Resolved
+* **res.data null typecheck error**: In `projects/[id]/page.tsx`, TypeScript raised TS18047 because `apiFetch` returns `data: T | null`. Resolved by adding the non-null assertion operator (`!`) where proper presence check guards were already executed.
+
+#### Key Lessons
+* centralizing API fetch wrappers with built-in token injection guarantees that credentials are consistently passed and avoids repetitive auth code clutter in page routes.
+* TS type refinement for API results should be done cleanly via non-null assertions or explicit type narrowings.
+
+#### Next Target
+* Remaining Task 3 items (such as metrics, constants extraction, bento charts).

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { apiFetch } from '@/lib/api-client';
 import { StreamChat } from 'stream-chat';
 import {
   Chat,
@@ -55,18 +56,11 @@ function useStreamConnect(userId: string | null) {
           await c.disconnectUser();
         }
 
-        const sb = createClient();
-        const { data: { session } } = await sb.auth.getSession();
-
-        const res = await fetch('/api/stream/token', { 
+        const res = await apiFetch<{ token: string; name?: string }>('/api/stream/token', { 
           method: 'POST',
-          headers: { 
-            Authorization: `Bearer ${session?.access_token}`,
-            'Content-Type': 'application/json' 
-          }
         });
-        if (!res.ok) throw new Error('Failed to get Stream token');
-        const data = await res.json();
+        if (!res.ok || !res.data) throw new Error(res.error || 'Failed to get Stream token');
+        const data = res.data;
 
         await c.connectUser({ id: userId, name: data.name || 'User' }, data.token);
         clientRef.current = c;
@@ -140,17 +134,10 @@ function MessagesContent() {
 
   const fetchConversations = async () => {
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-      const res = await fetch('/api/conversations', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setConversations(data.conversations || []);
-        setProjects(data.projects || []);
+      const res = await apiFetch<{ conversations: any[]; projects: any[] }>('/api/conversations');
+      if (res.ok && res.data) {
+        setConversations(res.data.conversations || []);
+        setProjects(res.data.projects || []);
       }
     } catch (e) {
       console.error(e);
@@ -163,16 +150,9 @@ function MessagesContent() {
 
     const channelId = `conv_${convId}`;
 
-    const sb = createClient();
-    const { data: { session } } = await sb.auth.getSession();
-
     // Ensure channel exists on server
-    await fetch('/api/stream/channel', {
+    await apiFetch('/api/stream/channel', {
       method: 'POST',
-      headers: { 
-        Authorization: `Bearer ${session?.access_token}`,
-        'Content-Type': 'application/json' 
-      },
       body: JSON.stringify({
         conversationId: convId,
         otherUserId,
@@ -227,24 +207,15 @@ function MessagesContent() {
     if (!partnerId) return;
 
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-
-      const res = await fetch('/api/conversations', {
+      const res = await apiFetch<{ conversation: { id: string } }>('/api/conversations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ other_user_id: partnerId }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.conversation) {
-          setActiveProjectTitle(project.title);
-          await fetchConversations();
-          openConversation(data.conversation.id, partnerId, project.title);
-        }
+      if (res.ok && res.data?.conversation) {
+        setActiveProjectTitle(project.title);
+        await fetchConversations();
+        openConversation(res.data.conversation.id, partnerId, project.title);
       }
     } catch (e) {
       console.error(e);
@@ -254,14 +225,8 @@ function MessagesContent() {
   const deleteConversation = async (convId: string) => {
     setMenuOpenConv(null);
     try {
-      const sb = createClient();
-      const { data: { session } } = await sb.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-
-      const res = await fetch(`/api/conversations/${convId}`, {
+      const res = await apiFetch(`/api/conversations/${convId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.ok) {
