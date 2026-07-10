@@ -78,7 +78,7 @@ export default async function PublicProfilePage({
   }
 
   // Get viewer user if any
-  const rsc = createRSCClient();
+  const rsc = await createRSCClient();
   const { data: { user } } = await rsc.auth.getUser();
   const viewerRes = user 
     ? await rsc.from('profiles').select('role').eq('id', user.id).single()
