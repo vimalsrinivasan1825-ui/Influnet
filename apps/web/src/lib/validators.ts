@@ -75,6 +75,7 @@ export const ProfileUpdateSchema = z.object({
 });
 
 export const BusinessProfileUpdateSchema = z.object({
+  username: z.string().min(3).max(30).optional(),
   company_name: z.string().min(1).optional(),
   industry: z.string().optional(),
   business_type: z.string().optional(),

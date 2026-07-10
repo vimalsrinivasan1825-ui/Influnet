@@ -12,7 +12,7 @@ import { Clock, Shield } from 'lucide-react';
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { setUser, setToken, setLoading } = useAuthStore();
+  const { user, token, setUser, setToken, setLoading } = useAuthStore();
   const { setSummary } = useNotificationStore();
   const [role, setRole] = useState<UserRole | null>(null);
   const [userName, setUserName] = useState('');
@@ -113,6 +113,35 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   // Use the notification store values
   const { summary } = useNotificationStore();
+
+  
+  useEffect(() => {
+    if (!user?.id || !token) return;
+    const sb = createClient();
+    
+    const fetchSummary = async () => {
+      try {
+        const notifRes = await fetch('/api/notifications/summary', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (notifRes.ok) {
+          const notifData = await notifRes.json();
+          setSummary(notifData);
+        }
+      } catch (err) {
+        console.error('Failed to update notifications summary:', err);
+      }
+    };
+
+    const channel = sb.channel('global-notifications')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` }, fetchSummary)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'collaboration_requests', filter: `to_user_id=eq.${user.id}` }, fetchSummary)
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, [user?.id, token, setSummary]);
 
   // Show gate screen for unapproved businesses (pending review or rejected)
   if (isLoaded && role === 'business_owner' && (approvalStatus === 'pending_review' || approvalStatus === 'rejected')) {

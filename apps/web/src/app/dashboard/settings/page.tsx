@@ -13,6 +13,7 @@ export default function SettingsPage() {
 
   // Form fields
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -48,6 +49,7 @@ export default function SettingsPage() {
         setCompanyName(p.company_name || '');
         setIndustry(p.industry || '');
         setBio(p.bio || '');
+        setUsername(p.username || '');
         setHeadline(p.headline || '');
         setInstagram(p.instagram_handle || '');
         setYoutube(p.youtube_handle || '');
@@ -73,9 +75,11 @@ export default function SettingsPage() {
       if (profile?.role === 'business_owner') {
         payload.company_name = companyName;
         payload.industry = industry;
+        if (username) payload.username = username;
       } else if (profile?.role === 'influencer') {
         payload.bio = bio;
         payload.headline = headline;
+        if (username) payload.username = username;
         payload.instagram_handle = instagram;
         payload.youtube_handle = youtube;
       }
@@ -202,6 +206,18 @@ export default function SettingsPage() {
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Platform Username</label>
+                <input
+                  value={username}
+                  onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  placeholder="yourusername"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: '#fafafb' }}
+                  onFocus={e => { e.target.style.borderColor = '#ee3e96'; e.target.style.boxShadow = '0 0 0 3px rgba(238,62,150,0.1)'; e.target.style.background = '#fff'; }}
+                  onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafafb'; }}
+                />
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>This is your public URL: influnet.app/c/{username || 'yourusername'}</p>
+              </div>
+              <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Company Name</label>
                 <input
                   value={companyName}
@@ -240,6 +256,18 @@ export default function SettingsPage() {
               )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Platform Username</label>
+                <input
+                  value={username}
+                  onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  placeholder="yourusername"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: '#fafafb' }}
+                  onFocus={e => { e.target.style.borderColor = '#ee3e96'; e.target.style.boxShadow = '0 0 0 3px rgba(238,62,150,0.1)'; e.target.style.background = '#fff'; }}
+                  onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafafb'; }}
+                />
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>This is your public URL: influnet.app/c/{username || 'yourusername'}</p>
+              </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Headline</label>
                 <input
