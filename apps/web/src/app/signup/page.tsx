@@ -1,6 +1,19 @@
 import Link from 'next/link';
+import React from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export default function SignupSelectionPage() {
+  return (
+    <React.Suspense fallback={<div>Loading...</div>}>
+      <SignupSelectionContent />
+    </React.Suspense>
+  );
+}
+
+function SignupSelectionContent() {
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get('next');
+  const nextQuery = nextParam ? `?next=${encodeURIComponent(nextParam)}` : '';
   return (
     <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 relative overflow-hidden font-sans">
       {/* Soft Light Ambient Glows */}
@@ -31,7 +44,7 @@ export default function SignupSelectionPage() {
           <div className="space-y-4">
             
             {/* Influencer Card */}
-            <Link href="/signup/influencer" className="group block">
+            <Link href={`/signup/influencer${nextQuery}`} className="group block">
               <div className="p-6 rounded-[1.5rem] bg-gray-50/50 border border-gray-200 hover:border-pink-200 hover:bg-pink-50/40 transition-all cursor-pointer relative overflow-hidden">
                 <div className="flex items-center gap-4 relative z-10">
                   <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl border border-gray-100 group-hover:border-pink-100 group-hover:shadow-pink-100 transition-all">
@@ -46,7 +59,7 @@ export default function SignupSelectionPage() {
             </Link>
 
             {/* Business Card */}
-            <Link href="/signup/business" className="group block">
+            <Link href={`/signup/business${nextQuery}`} className="group block">
               <div className="p-6 rounded-[1.5rem] bg-gray-50/50 border border-gray-200 hover:border-purple-200 hover:bg-purple-50/40 transition-all cursor-pointer relative overflow-hidden">
                 <div className="flex items-center gap-4 relative z-10">
                   <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl border border-gray-100 group-hover:border-purple-100 group-hover:shadow-purple-100 transition-all">

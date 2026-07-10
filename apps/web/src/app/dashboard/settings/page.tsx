@@ -229,9 +229,16 @@ export default function SettingsPage() {
 
         {isInfluencer && (
           <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #f1f5f9', padding: '24px' }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 900, color: '#020617', borderBottom: '1px solid #f1f5f9', paddingBottom: 12 }}>
-              Creator Profile
-            </h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: 12, marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#020617' }}>
+                Creator Profile
+              </h2>
+              {profile?.username && (
+                <a href={`/c/${profile.username}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 700, color: '#ee3e96', textDecoration: 'none' }}>
+                  View Public Profile →
+                </a>
+              )}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Headline</label>

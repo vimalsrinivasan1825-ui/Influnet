@@ -38,7 +38,8 @@ async function updateSession(request: NextRequest) {
   const publicPaths = ['/', '/login', '/reset-password', '/influnet'];
   const isPublicPath =
     publicPaths.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
-    pathname.startsWith('/signup');
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/c/');
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();

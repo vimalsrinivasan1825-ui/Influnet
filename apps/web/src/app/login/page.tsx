@@ -1,13 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
+  return (
+    <React.Suspense fallback={<div>Loading...</div>}>
+      <LoginContent />
+    </React.Suspense>
+  );
+}
+
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get('next');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -43,11 +53,11 @@ export default function LoginPage() {
           
         const p = profile as any;
         if (p?.role === 'influencer') {
-          router.push('/dashboard/influencer');
+          router.push(nextParam || '/dashboard/influencer');
         } else if (p?.role === 'admin') {
-          router.push('/dashboard/admin');
+          router.push(nextParam || '/dashboard/admin');
         } else {
-          router.push('/dashboard');
+          router.push(nextParam || '/dashboard');
         }
       }
     } catch {
@@ -145,7 +155,7 @@ export default function LoginPage() {
         <p className="mt-8 text-center text-sm font-semibold text-gray-400">
           Don&apos;t have an account?{' '}
           <Link
-            href="/signup"
+            href={nextParam ? `/signup?next=${encodeURIComponent(nextParam)}` : '/signup'}
             className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors"
           >
             Sign up

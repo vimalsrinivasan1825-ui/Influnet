@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 type DiscoverResult = {
@@ -28,7 +28,7 @@ type ModalState = {
   targetName: string;
 };
 
-export default function DiscoverPage() {
+function DiscoverContent() {
   const router = useRouter();
   const [results, setResults] = useState<DiscoverResult[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -79,6 +79,25 @@ export default function DiscoverPage() {
     };
     fetchResults();
   }, [router]);
+
+  useEffect(() => {
+    // Wait until loading is done and results exist
+    if (!loading && results.length > 0) {
+      const requestId = searchParams.get('request');
+      if (requestId) {
+        // Find the target creator in the results
+        const target = results.find(r => r.user_id === requestId);
+        if (target) {
+          const name = userRole === 'business_owner' 
+            ? (target.profile?.name || 'Creator') 
+            : (target.company_name || target.profile?.name || 'Business');
+          if (!sentIds.has(requestId)) {
+            openModal(requestId, name);
+          }
+        }
+      }
+    }
+  }, [loading, results, searchParams, sentIds, userRole]);
 
 
   const openModal = (targetId: string, targetName: string) => {
@@ -337,6 +356,22 @@ export default function DiscoverPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DiscoverPage() {
+  return (
+    <React.Suspense fallback={
+      <div style={{ padding: '24px 28px', background: '#f8fafc', minHeight: '100%' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          {[1,2,3].map(i => (
+            <div key={i} style={{ height: 220, background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', animation: 'pulse 1.5s infinite' }} />
+          ))}
+        </div>
+      </div>
+    }>
+      <DiscoverContent />
+    </React.Suspense>
   );
 }
 

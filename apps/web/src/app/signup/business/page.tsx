@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 
@@ -34,7 +34,17 @@ const INDIAN_STATES = [
 type Step = 1 | 2 | 3 | 4;
 
 export default function BusinessSignupPage() {
+  return (
+    <React.Suspense fallback={<div>Loading...</div>}>
+      <BusinessSignupContent />
+    </React.Suspense>
+  );
+}
+
+function BusinessSignupContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get('next') || '/dashboard';
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -116,9 +126,9 @@ export default function BusinessSignupPage() {
 
         localStorage.setItem('influnet_token', data.session.access_token);
         localStorage.setItem('influnet_refresh_token', data.session.refresh_token);
-        router.push('/dashboard');
+        router.push(nextParam);
       } else {
-        router.push('/login?message=Check your email to confirm your account');
+        router.push(`/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`);
       }
     } catch {
       setError('An unexpected error occurred');
@@ -345,7 +355,7 @@ export default function BusinessSignupPage() {
         {/* Footnotes */}
         <p className="mt-8 text-center text-sm font-semibold text-gray-400">
           Already have an account?{' '}
-          <Link href="/login" className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors">
+          <Link href={nextParam && nextParam !== '/dashboard' ? `/login?next=${encodeURIComponent(nextParam)}` : '/login'} className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors">
             Sign in
           </Link>
         </p>
