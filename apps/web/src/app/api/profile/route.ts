@@ -122,10 +122,13 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
       }
       validatedData = result.data;
+    } else {
+      // Admins have no extended profile row to edit via this route
+      return jsonError(403, 'Only business and influencer profiles can be updated here');
     }
 
-    // Fallback for base profile fields that might be passed
-    const { name, phone, location } = body;
+    // Base profile fields come from the validated payload only
+    const { name, phone, location } = validatedData;
 
     // Update base profile
     const profileUpdates: any = {};

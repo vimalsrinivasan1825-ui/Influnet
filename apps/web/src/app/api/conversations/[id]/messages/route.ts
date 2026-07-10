@@ -26,15 +26,17 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       return jsonError(403, 'Forbidden');
     }
 
+    // Latest 200, returned oldest-first for rendering
     const { data: messages, error } = await supabase
       .from('messages')
       .select('*')
       .eq('conversation_id', id)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (error) return jsonError(500, 'Database query error', error);
 
-    return NextResponse.json({ messages });
+    return NextResponse.json({ messages: (messages || []).reverse() });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }
