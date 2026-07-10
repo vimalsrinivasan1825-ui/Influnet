@@ -155,6 +155,14 @@ function DiscoverContent() {
     })();
   }, [loading, results, searchParams, sentIds, userRole]);
 
+  // Redirect to dashboard if discover is accessed without a request deep-link
+  useEffect(() => {
+    const requestId = searchParams.get('request');
+    if (!requestId) {
+      router.replace('/dashboard');
+    }
+  }, [searchParams, router]);
+
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
@@ -174,7 +182,10 @@ function DiscoverContent() {
     setModal({ open: true, targetId, targetName });
   };
 
-  const closeModal = () => setModal({ open: false, targetId: '', targetName: '' });
+  const closeModal = () => {
+    setModal({ open: false, targetId: '', targetName: '' });
+    router.replace('/dashboard');
+  };
 
   const sendRequest = async () => {
     if (!form.title.trim()) { setError('Please enter a project title.'); return; }
@@ -205,7 +216,8 @@ function DiscoverContent() {
         throw new Error(res.error || 'Failed to send request');
       }
       setSentIds(prev => new Set(prev).add(modal.targetId));
-      closeModal();
+      setModal({ open: false, targetId: '', targetName: '' });
+      router.replace('/dashboard/requests');
     } catch (err: any) {
       setError(err.message);
     } finally {

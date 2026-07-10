@@ -294,4 +294,21 @@ This file tracks the current implementation state of each system module, issues 
 * Next.js App Router root `error.tsx` must be a client component (`'use client'`) and receive standard error boundary props (`error` & `reset`), while `not-found.tsx` can be a normal component.
 
 #### Next Target
-* Phase 3 tasks (such as Discovery filters search/pagination, shared API client, and dashboard metrics).
+* Disabling Discover Feed while preserving deep-linking collaboration request modal.
+
+### Disabling Discover Feed while Preserving Deep-Linking Modal — COMPLETED (July 10, 2026)
+
+#### Scope
+* Commented out the 'Discover' navigation item in `apps/web/src/components/dashboard/sidebar.tsx` so users cannot access it from the dashboard.
+* Modified the `/dashboard/discover` page to automatically redirect users to `/dashboard` if accessed directly (i.e. without the `?request=` deep-link query parameter).
+* Preserved the deep-link collaboration request modal flow. When a user clicks 'Request Collaboration' on a creator's public profile, they sign up/log in, get redirected to `/dashboard/discover?request=<creator_id>`, and the collaboration request form opens automatically.
+* Redirected users to `/dashboard/requests` upon successful submission of the collaboration request, or to `/dashboard` if they click "Cancel" to close the modal.
+
+#### Broken & Resolved
+* **Discover feed visibility**: Initially, we needed to make sure businesses could only connect via direct creator profile links rather than browsing an empty/incomplete search feed. Restricting page access unless `request` query parameter is present completely hides the browse state while preserving the functional collaboration creation flow.
+
+#### Key Lessons
+* To restrict visibility of incomplete/empty search directories for early-stage platforms, hidding navigation links and redirecting direct accesses without parameter context is highly effective, while still allowing the core transactional loops (like deep-linked transaction requests) to work seamlessly.
+
+#### Next Target
+* Phase 3 / Remaining items of the readiness plan.
