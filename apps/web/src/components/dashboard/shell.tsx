@@ -26,7 +26,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     const loadSession = async () => {
       try {
         const stored = localStorage.getItem('influnet_user');
-        const token = localStorage.getItem('influnet_token');
+        let token = localStorage.getItem('influnet_token');
 
         if (stored) {
           const user = JSON.parse(stored);
@@ -39,8 +39,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
-          setToken(session.access_token);
-          localStorage.setItem('influnet_token', session.access_token);
+          token = session.access_token;
+          setToken(token);
+          localStorage.setItem('influnet_token', token);
 
           const { data: profile } = await sb
             .from('profiles')
@@ -89,19 +90,29 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         setLoading(false);
         setIsLoaded(true);
 
-        const notifRes = await fetch('/api/notifications/summary');
-        if (notifRes.ok) {
-          const notifData = await notifRes.json();
-          setSummary(notifData);
+        if (token) {
+          const notifRes = await fetch('/api/notifications/summary', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (notifRes.ok) {
+            const notifData = await notifRes.json();
+            setSummary(notifData);
+          }
         }
-      } catch {
+      } catch (error) {
+        console.error("Failed to load session:", error);
         setLoading(false);
         setIsLoaded(true);
       }
     };
 
     loadSession();
-  }, []);
+  }, [router, setUser, setToken, setLoading, setSummary]);
+
+  // Use the notification store values
+  const { summary } = useNotificationStore();
 
   // Show gate screen for unapproved businesses (pending review or rejected)
   if (isLoaded && role === 'business_owner' && (approvalStatus === 'pending_review' || approvalStatus === 'rejected')) {
@@ -183,8 +194,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     <div className="min-h-screen bg-[#f8fafc] flex">
       <DashboardSidebar
         role={role || 'influencer'}
-        unreadMessages={0}
-        pendingRequests={0}
+        unreadMessages={summary.unreadCount || 0}
+        pendingRequests={summary.unreadCount || 0}
       />
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <DashboardHeader userName={userName} avatarUrl={avatarUrl} />
