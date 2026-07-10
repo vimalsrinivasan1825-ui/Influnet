@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { getAuthToken } from '@/lib/api-client';
 
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   pending:   { bg: '#fffbeb', color: '#d97706', label: 'Pending' },
@@ -30,7 +31,7 @@ export default function RequestsPage() {
         setUserId(uid);
 
         // Step 2: Only THEN fetch requests (userId is in state before cards render)
-        const token = localStorage.getItem('influnet_token');
+        const token = await getAuthToken();
         const res = await fetch('/api/collabs', {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -53,7 +54,7 @@ export default function RequestsPage() {
 
 
   const refreshRequests = async () => {
-    const token = localStorage.getItem('influnet_token');
+    const token = await getAuthToken();
     const res = await fetch('/api/collabs', {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -66,7 +67,7 @@ export default function RequestsPage() {
   const handleAction = async (requestId: string, status: string, otherUserId: string) => {
     setActionIds(prev => new Set(prev).add(requestId));
     try {
-      const token = localStorage.getItem('influnet_token');
+      const token = await getAuthToken();
 
       const res = await fetch('/api/collabs', {
         method: 'PATCH',

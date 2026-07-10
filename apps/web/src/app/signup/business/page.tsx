@@ -44,7 +44,7 @@ export default function BusinessSignupPage() {
 function BusinessSignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextParam = searchParams.get('next') || '/dashboard';
+  const nextParam = (() => { const n = searchParams.get('next'); return n && n.startsWith('/') && !n.startsWith('//') ? n : '/dashboard'; })();
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -124,8 +124,6 @@ function BusinessSignupContent() {
           return;
         }
 
-        localStorage.setItem('influnet_token', data.session.access_token);
-        localStorage.setItem('influnet_refresh_token', data.session.refresh_token);
         router.push(nextParam);
       } else {
         router.push(`/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`);

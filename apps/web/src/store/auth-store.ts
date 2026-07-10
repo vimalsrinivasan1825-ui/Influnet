@@ -19,16 +19,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   isLoading: true,
   setUser: (user) => set({ user }),
-  setToken: (token) => {
-    if (token) {
-      localStorage.setItem('influnet_token', token);
-    } else {
-      localStorage.removeItem('influnet_token');
-    }
-    set({ token });
-  },
+  // Token lives in memory only; the Supabase session (cookie-backed) is the
+  // source of truth. Never persist tokens to localStorage.
+  setToken: (token) => set({ token }),
   setLoading: (isLoading) => set({ isLoading }),
   logout: () => {
+    // Clear legacy cached keys from older builds
     localStorage.removeItem('influnet_token');
     localStorage.removeItem('influnet_refresh_token');
     localStorage.removeItem('influnet_user');

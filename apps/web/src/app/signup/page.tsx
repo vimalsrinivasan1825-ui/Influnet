@@ -14,7 +14,7 @@ export default function SignupSelectionPage() {
 
 function SignupSelectionContent() {
   const searchParams = useSearchParams();
-  const nextParam = searchParams.get('next');
+  const nextParam = (() => { const n = searchParams.get('next'); return n && n.startsWith('/') && !n.startsWith('//') ? n : null; })();
   const nextQuery = nextParam ? `?next=${encodeURIComponent(nextParam)}` : '';
   return (
     <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 relative overflow-hidden font-sans">

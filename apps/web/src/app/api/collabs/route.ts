@@ -74,6 +74,9 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
+      if (error.code === '23505') {
+        return jsonError(409, 'You already have a pending request to this user');
+      }
       return jsonError(500, 'Failed to insert collab request', error);
     }
 
