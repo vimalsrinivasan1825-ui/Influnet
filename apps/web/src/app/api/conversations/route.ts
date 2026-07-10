@@ -53,30 +53,53 @@ export async function GET(req: Request) {
 
     if (projectsError) return jsonError(500, 'Failed to fetch projects', projectsError);
 
-    // Enrich projects with partner profile info
-    const enrichedProjects = await Promise.all((projects || []).map(async (p: any) => {
-      const partnerId = p.owner_user_id === user.id ? p.counterparty_user_id : p.owner_user_id;
-      const { data: partnerProfile } = await supabase
+    // Enrich projects with partner profile info.
+    // Batched: one profiles query + one per role-specific table, stitched in
+    // memory, so query count stays flat as project counts grow.
+    const partnerIds = [...new Set((projects || []).map((p: any) =>
+      p.owner_user_id === user.id ? p.counterparty_user_id : p.owner_user_id
+    ).filter(Boolean))];
+
+    const profilesById = new Map<string, any>();
+    const bizByUserId = new Map<string, any>();
+    const infByUserId = new Map<string, any>();
+
+    if (partnerIds.length > 0) {
+      const { data: partnerProfiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, name, role')
-        .eq('id', partnerId)
-        .maybeSingle();
-      
+        .in('id', partnerIds);
+      if (profilesError) return jsonError(500, 'Failed to fetch partner profiles', profilesError);
+      for (const prof of partnerProfiles || []) profilesById.set(prof.id, prof);
+
+      const bizIds = (partnerProfiles || []).filter((p: any) => p.role === 'business_owner').map((p: any) => p.id);
+      const infIds = (partnerProfiles || []).filter((p: any) => p.role === 'influencer').map((p: any) => p.id);
+
+      const [bizResult, infResult] = await Promise.all([
+        bizIds.length > 0
+          ? supabase.from('business_profiles').select('user_id, company_name').in('user_id', bizIds)
+          : Promise.resolve({ data: [], error: null }),
+        infIds.length > 0
+          ? supabase.from('influencer_profiles').select('user_id, username, niche').in('user_id', infIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (bizResult.error) return jsonError(500, 'Failed to fetch business profiles', bizResult.error);
+      if (infResult.error) return jsonError(500, 'Failed to fetch influencer profiles', infResult.error);
+      for (const biz of bizResult.data || []) bizByUserId.set(biz.user_id, biz);
+      for (const inf of infResult.data || []) infByUserId.set(inf.user_id, inf);
+    }
+
+    const enrichedProjects = (projects || []).map((p: any) => {
+      const partnerId = p.owner_user_id === user.id ? p.counterparty_user_id : p.owner_user_id;
+      const partnerProfile = profilesById.get(partnerId);
+
       // Build partner info with business/influencer specific fields
       const partnerDisplay: Record<string, any> = { ...partnerProfile };
       if (partnerProfile?.role === 'business_owner') {
-        const { data: biz } = await supabase
-          .from('business_profiles')
-          .select('company_name')
-          .eq('user_id', partnerId)
-          .maybeSingle();
+        const biz = bizByUserId.get(partnerId);
         if (biz) partnerDisplay.company_name = biz.company_name;
       } else if (partnerProfile?.role === 'influencer') {
-        const { data: inf } = await supabase
-          .from('influencer_profiles')
-          .select('username, niche')
-          .eq('user_id', partnerId)
-          .maybeSingle();
+        const inf = infByUserId.get(partnerId);
         if (inf) { partnerDisplay.username = inf.username; partnerDisplay.niche = inf.niche; }
       }
 
@@ -88,7 +111,7 @@ export async function GET(req: Request) {
         partner: partnerDisplay,
         created_at: p.created_at,
       };
-    }));
+    });
 
     return NextResponse.json({ conversations, projects: enrichedProjects });
   } catch (error: any) {
