@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useNotificationStore } from '@/store/notification-store';
 import { useAuthStore } from '@/store/auth-store';
+import { useEffect, useState, useRef } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 
 interface DashboardHeaderProps {
   userName: string;
@@ -13,8 +15,10 @@ interface DashboardHeaderProps {
 
 export default function DashboardHeader({ userName, avatarUrl }: DashboardHeaderProps) {
   const router = useRouter();
-  const { summary } = useNotificationStore();
+  const { summary, notifications, unread_notifications_count, setNotifications, markAsRead } = useNotificationStore();
   const logout = useAuthStore((s) => s.logout);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
     try {
@@ -28,8 +32,58 @@ export default function DashboardHeader({ userName, avatarUrl }: DashboardHeader
     }
   };
 
+  useEffect(() => {
+    // Fetch initial notifications
+    const fetchNotifications = async () => {
+      try {
+        const res = await fetch('/api/notifications');
+        const json = await res.json();
+        if (json.data) {
+          setNotifications(json.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch notifications:', err);
+      }
+    };
+    fetchNotifications();
+  }, [setNotifications]);
+
+  useEffect(() => {
+    // Close dropdown on click outside
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleNotifications = async () => {
+    setShowNotifications((prev) => !prev);
+    
+    // Mark all currently unread notifications as read when opening
+    if (!showNotifications && unread_notifications_count > 0) {
+      const unreadIds = notifications.filter(n => !n.read_at).map(n => n.id);
+      if (unreadIds.length > 0) {
+        // Optimistic update
+        markAsRead(unreadIds);
+        
+        try {
+          await fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: unreadIds })
+          });
+        } catch (err) {
+          console.error('Failed to mark notifications as read', err);
+        }
+      }
+    }
+  };
+
   return (
-    <header className="h-16 bg-white/80 backdrop-blur-xl border-b border-[#f1f5f9] flex items-center justify-between px-4 sm:px-6">
+    <header className="h-16 bg-white/80 backdrop-blur-xl border-b border-[#f1f5f9] flex items-center justify-between px-4 sm:px-6 z-40 relative">
       <div className="flex items-center gap-3">
         <div className="md:hidden">
           <Link href="/" className="flex items-center gap-2">
@@ -58,19 +112,56 @@ export default function DashboardHeader({ userName, avatarUrl }: DashboardHeader
           )}
         </Link>
 
-        <Link
-          href="/dashboard/requests"
-          className="relative p-2 rounded-lg text-[#9ca3af] hover:text-[#020617] hover:bg-[#f8fafc] transition-all"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-          </svg>
-          {summary.pending_requests_count > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#f26e59] text-[9px] font-bold text-white flex items-center justify-center">
-              {summary.pending_requests_count > 9 ? '9+' : summary.pending_requests_count}
-            </span>
+        {/* Notifications Bell */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={toggleNotifications}
+            className={`relative p-2 rounded-lg transition-all ${
+              showNotifications ? 'bg-[#f8fafc] text-[#020617]' : 'text-[#9ca3af] hover:text-[#020617] hover:bg-[#f8fafc]'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+            </svg>
+            {unread_notifications_count > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#f26e59] text-[9px] font-bold text-white flex items-center justify-center">
+                {unread_notifications_count > 9 ? '9+' : unread_notifications_count}
+              </span>
+            )}
+          </button>
+          
+          {showNotifications && (
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-[#f1f5f9] overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#f1f5f9] flex items-center justify-between">
+                <h3 className="font-semibold text-[#020617] text-sm">Notifications</h3>
+              </div>
+              <div className="max-h-[360px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-[#9ca3af]">
+                    No notifications yet
+                  </div>
+                ) : (
+                  notifications.map((notif) => (
+                    <Link
+                      key={notif.id}
+                      href={notif.link || '#'}
+                      onClick={() => setShowNotifications(false)}
+                      className={`block px-4 py-3 hover:bg-[#f8fafc] border-b border-[#f1f5f9] last:border-0 transition-colors ${
+                        !notif.read_at ? 'bg-[#f8fafc]/50' : ''
+                      }`}
+                    >
+                      <p className="text-sm font-medium text-[#020617] mb-0.5">{notif.title}</p>
+                      <p className="text-xs text-[#64748b] mb-1 line-clamp-2">{notif.body}</p>
+                      <span className="text-[10px] text-[#9ca3af] font-medium uppercase tracking-wider">
+                        {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+                      </span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </div>
           )}
-        </Link>
+        </div>
 
         <div className="flex items-center gap-2 pl-3 border-l border-[#f1f5f9]">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#ee3e96]/20 to-[#f26e59]/15 flex items-center justify-center text-sm font-semibold text-[#020617] overflow-hidden">

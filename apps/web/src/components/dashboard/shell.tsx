@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { StreamChat } from 'stream-chat';
 import DashboardSidebar from '@/components/dashboard/sidebar';
 import DashboardHeader from '@/components/dashboard/header';
-import { useNotificationStore } from '@/store/notification-store';
+import { useNotificationStore, NotificationItem } from '@/store/notification-store';
 import { useAuthStore } from '@/store/auth-store';
 import type { UserRole } from '@/types';
 import { Clock, Shield } from 'lucide-react';
@@ -14,7 +14,7 @@ import { Clock, Shield } from 'lucide-react';
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, token, setUser, setToken, setLoading } = useAuthStore();
-  const { setSummary } = useNotificationStore();
+  const { summary, setSummary, addNotification } = useNotificationStore();
   const [role, setRole] = useState<UserRole | null>(null);
   const [userName, setUserName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -26,8 +26,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
     const loadSession = async () => {
       try {
+        // Cached display info for instant paint; the token always comes from
+        // the live Supabase session below, never from storage.
         const stored = localStorage.getItem('influnet_user');
-        let token = localStorage.getItem('influnet_token');
+        let token: string | null = null;
 
         if (stored) {
           const user = JSON.parse(stored);
@@ -35,14 +37,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           setRole(user.role);
           setUserName(user.name || 'User');
           setAvatarUrl(user.avatarUrl || user.logoUrl || null);
-          if (token) setToken(token);
         }
 
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
           token = session.access_token;
           setToken(token);
-          localStorage.setItem('influnet_token', token);
 
           const { data: profile } = await sb
             .from('profiles')
@@ -67,11 +67,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               if (bizProfile) {
                 const bp = bizProfile as { approval_status: string };
                 setApprovalStatus(bp.approval_status);
-
-                // Gate: redirect pending businesses to an under-review page
-                if (bp.approval_status === 'pending_review' && !window.location.pathname.includes('/admin')) {
-                  // Let them stay but they'll see the pending review message instead of content
-                }
               }
             }
 
@@ -112,10 +107,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     loadSession();
   }, [router, setUser, setToken, setLoading, setSummary]);
 
-  // Use the notification store values
-  const { summary } = useNotificationStore();
-
-  
   useEffect(() => {
     if (!user?.id || !token) return;
     const sb = createClient();
@@ -134,9 +125,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       }
     };
 
-    // 1. Supabase real-time for Collab Requests
+    // 1. Supabase real-time for Notifications
     const channel = sb.channel('global-notifications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'collaboration_requests', filter: `to_user_id=eq.${user.id}` }, fetchSummary)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
+        addNotification(payload.new as NotificationItem);
+        fetchSummary();
+      })
       .subscribe();
 
     // 2. Stream Chat real-time for Messages
@@ -180,7 +174,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         streamClient.disconnectUser();
       }
     };
-  }, [user?.id, token, setSummary]);
+  }, [user?.id, token, setSummary, addNotification]);
 
   // Show gate screen for unapproved businesses (pending review or rejected)
   if (isLoaded && role === 'business_owner' && (approvalStatus === 'pending_review' || approvalStatus === 'rejected')) {
