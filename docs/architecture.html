@@ -93,6 +93,13 @@
   }
   .topnav nav a:hover, .topnav nav a:focus-visible { color: var(--ink); background: var(--band); }
   a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .theme-btn {
+    margin-left: auto;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    font: inherit; font-size: 12.5px; font-weight: 600;
+    padding: 5px 13px; border-radius: 99px; cursor: pointer; white-space: nowrap;
+  }
+  .theme-btn:hover, .theme-btn:focus-visible { border-color: var(--accent); color: var(--accent); }
 
   .wrap { max-width: 1120px; margin: 0 auto; padding: 36px 28px 80px; }
 
@@ -245,6 +252,7 @@
     <a href="#hidden">Hidden assets</a>
     <a href="#log">Update log</a>
   </nav>
+  <button id="themeToggle" class="theme-btn" type="button" aria-label="Switch between light and dark theme">◐ Theme</button>
 </div>
 
 <div class="wrap">
@@ -841,5 +849,37 @@
   </footer>
 
 </div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('themeToggle');
+  if (!btn) return;
+
+  function effectiveTheme() {
+    var t = root.getAttribute('data-theme');
+    if (t === 'light' || t === 'dark') return t;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+
+  function paintLabel() {
+    btn.textContent = effectiveTheme() === 'dark' ? '☀ Light mode' : '☾ Dark mode';
+  }
+
+  try {
+    var saved = localStorage.getItem('influnet-arch-theme');
+    if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
+  } catch (e) { /* storage unavailable — theme just won't persist */ }
+
+  btn.addEventListener('click', function () {
+    var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('influnet-arch-theme', next); } catch (e) {}
+    paintLabel();
+  });
+
+  paintLabel();
+})();
+</script>
 </body>
 </html>
