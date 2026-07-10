@@ -9,5 +9,12 @@ __pycache__/
 *.pyc
 .env
 .env.*
+!.env.example
 graphify-out
 supabase/.temp/
+
+# monorepo
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo

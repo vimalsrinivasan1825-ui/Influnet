@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useAuthStore } from '@/store/auth-store';
 import { useMessagingStore } from '@/store/messaging-store';
