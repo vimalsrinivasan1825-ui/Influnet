@@ -133,62 +133,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'other_user_id is required' }, { status: 400 });
     }
 
-    // Validate UUID format to prevent SQL injection
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(other_user_id)) {
-      return NextResponse.json({ error: 'Invalid other_user_id format' }, { status: 400 });
+    // Call the RPC function to atomically get or create the conversation
+    const { data: convId, error: rpcError } = await authClient.rpc('get_or_create_conversation', {
+      user1_id: user.id,
+      user2_id: other_user_id
+    });
+
+    if (rpcError || !convId) {
+      console.error('[POST /api/conversations] RPC Error:', rpcError);
+      throw new Error(rpcError?.message || 'Failed to create conversation');
     }
 
-    // Use the management API to execute SQL directly (bypasses RLS)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const mgmtKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
-
-    const runSql = async (sql: string) => {
-      const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${mgmtKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: sql }),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`SQL error: ${res.status} ${errText}`);
-      }
-      return res.json();
-    };
-
-    // First check if a conversation already exists between these two users
-    const checkSql = `
-      SELECT cp1.conversation_id
-      FROM public.conversation_participants cp1
-      JOIN public.conversation_participants cp2 ON cp1.conversation_id = cp2.conversation_id
-      WHERE cp1.user_id = '${user.id}'::uuid AND cp2.user_id = '${other_user_id}'::uuid
-      LIMIT 1;
-    `;
-
-    const existing = await runSql(checkSql);
-    if (existing && existing.length > 0 && existing[0].conversation_id) {
-      return NextResponse.json({ conversation: { id: existing[0].conversation_id } });
-    }
-
-    // Create conversation and add both participants in a single transaction
-    const sql = `
-      WITH new_conv AS (
-        INSERT INTO public.conversations DEFAULT VALUES RETURNING id
-      )
-      INSERT INTO public.conversation_participants (conversation_id, user_id)
-      SELECT id, unnest(ARRAY['${user.id}'::uuid, '${other_user_id}'::uuid])
-      FROM new_conv
-      RETURNING conversation_id;
-    `;
-
-    const result = await runSql(sql);
-    const conversationId = result?.[0]?.conversation_id;
-    if (!conversationId) throw new Error('Failed to create conversation');
-
-    return NextResponse.json({ conversation: { id: conversationId } });
+    return NextResponse.json({ conversation: { id: convId } });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

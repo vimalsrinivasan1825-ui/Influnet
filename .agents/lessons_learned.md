@@ -182,9 +182,17 @@ This file tracks the current implementation state of each system module, issues 
 #### Broken & Resolved
 * **Stream Chat auth was returning 401**: The service role client in API routes didn't hold a user session, so `auth.getUser()` always failed. Switching to reading the `Authorization` header with the anon-key client fixed this.
 
+### Task 1.2: Refactor Conversation API to use RPC — COMPLETED (July 10, 2026)
+
+#### Scope
+* Refactored `POST /api/conversations` (which is used when a user starts a chat from the active projects list) to use the `get_or_create_conversation` RPC instead of executing raw SQL via the Supabase Management API.
+
+#### Broken & Resolved
+* **Raw SQL execution was a severe security and stability risk**: Using the management API bypasses RLS and could lead to SQL injection or break if the management API token is invalid/revoked. Replaced it with the `rpc()` method on the standard client, making it safe and atomic.
+
 #### Next Target
-* **Task 1.2** — Remove Management-API raw SQL from `POST /api/conversations`, replace with migration 043 RPC.
 * **Task 1.3** — Atomic collab acceptance via migration 044 + delete the auto-heal from GET /api/projects.
+* **Task 1.4** — Implement `/api/notifications/summary` route.
 
 ### Monorepo Refactor (2026-07-10)
 * **Scope**: Restructured the repo into a Turborepo monorepo: `influnet-app/` → `apps/web/`, npm workspaces root, `turbo.json` pipeline (build/lint/typecheck/test/dev), CI updated to root installs + `--workspace=web` commands. Deleted all legacy code (`influnet/`, `influnet.io/`, `scripts/`, `messaging-widget/`, `signup-widget/`, firebase/replit config, ~21,900 files incl. committed node_modules) — preserved at git tag `legacy-archive`.
