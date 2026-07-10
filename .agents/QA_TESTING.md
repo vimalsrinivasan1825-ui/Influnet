@@ -49,3 +49,18 @@ This file tracks the completed tasks and provides instructions on how to verify 
 6. Verify the newly created project appears correctly, meaning the database transaction completely succeeded.
 
 ---
+
+## Task 1.4: Implement notifications summary route
+
+**What was fixed:**
+- Created the missing `/api/notifications/summary` route.
+- Previously, the bell icon in the top navigation was polling an endpoint that did not exist, leading to 404 errors in the network console. The new endpoint correctly fetches pending collaboration requests for the logged-in user.
+
+**How to verify:**
+1. Log into your dashboard (`npm run dev`).
+2. Look at the top navigation bar where the Bell icon is located.
+3. Open your browser's Developer Tools (Network tab).
+4. Verify there are no 404 errors for `/api/notifications/summary`.
+5. If you have pending requests, the bell icon should display a notification badge with the correct count, and clicking it should show the recent notifications.
+
+---

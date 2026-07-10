@@ -199,8 +199,16 @@ This file tracks the current implementation state of each system module, issues 
 #### Broken & Resolved
 * **Node backend multi-step inserts**: The sequence of inserts wasn't wrapped in a transaction, so if a user accepted a collab and the server errored out halfway, the system reached an inconsistent state. The `accept_collab_request` RPC runs inside a Postgres transaction, guaranteeing success or complete rollback.
 
+### Task 1.4: Implement notifications summary route — COMPLETED (July 10, 2026)
+
+#### Scope
+* Created `apps/web/src/app/api/notifications/summary/route.ts` to implement the missing endpoint used by the frontend top navigation bell.
+* The endpoint uses standard Supabase auth (anon-key + Authorization header) to return pending collab requests directed to the user.
+
+#### Broken & Resolved
+* **Missing route causing 404s**: The top navigation bell was constantly polling an endpoint that didn't exist, spamming the network tab with 404s and keeping the bell from showing any real notification count.
+
 #### Next Target
-* **Task 1.4** — Implement `/api/notifications/summary` route (to un-break the top nav notification bell).
 * **Task 2.1** — Implement email notifications via Resend (the primary real-world alert pipeline).
 
 ### Monorepo Refactor (2026-07-10)
