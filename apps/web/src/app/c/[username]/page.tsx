@@ -80,9 +80,10 @@ export default async function PublicProfilePage({
   // Get viewer user if any
   const rsc = createRSCClient();
   const { data: { user } } = await rsc.auth.getUser();
-  const { data: viewerProfile } = user 
+  const viewerRes = user 
     ? await rsc.from('profiles').select('role').eq('id', user.id).single()
     : { data: null };
+  const viewerProfile = viewerRes.data as { role: string } | null;
 
   // Record view (fire and forget)
   supabaseAnon.rpc('record_profile_view', {
