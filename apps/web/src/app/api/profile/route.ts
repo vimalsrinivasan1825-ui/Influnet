@@ -41,6 +41,7 @@ export async function GET(req: Request) {
         .single();
       if (biz) {
         Object.assign(result, {
+          username: biz.username,
           company_name: biz.company_name,
           industry: biz.industry,
           business_type: biz.business_type,

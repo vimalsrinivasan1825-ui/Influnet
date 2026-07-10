@@ -201,9 +201,16 @@ export default function SettingsPage() {
         {/* Role-specific Section */}
         {isBusiness && (
           <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #f1f5f9', padding: '24px' }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 900, color: '#020617', borderBottom: '1px solid #f1f5f9', paddingBottom: 12 }}>
-              Business Details
-            </h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: 12, marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#020617' }}>
+                Business Details
+              </h2>
+              {profile?.username && (
+                <a href={`/b/${profile.username}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 700, color: '#ee3e96', textDecoration: 'none' }}>
+                  View Public Profile →
+                </a>
+              )}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Platform Username</label>
@@ -215,7 +222,7 @@ export default function SettingsPage() {
                   onFocus={e => { e.target.style.borderColor = '#ee3e96'; e.target.style.boxShadow = '0 0 0 3px rgba(238,62,150,0.1)'; e.target.style.background = '#fff'; }}
                   onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafafb'; }}
                 />
-                <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>This is your public URL: influnet.app/c/{username || 'yourusername'}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>This is your public URL: influnet.app/b/{username || 'yourusername'}</p>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Company Name</label>

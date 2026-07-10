@@ -240,3 +240,26 @@ This file tracks the current implementation state of each system module, issues 
 
 #### Next Target
 * **Task 2.1** — Implement email notifications via Resend (the primary real-world alert pipeline).
+
+### Task 2.3: Public Creator Profile (Link-in-Bio) — COMPLETED (July 10, 2026)
+
+#### Scope
+* Built public creator profile pages at `/c/[username]`.
+* Added `record_profile_view` and `record_profile_link_click` RPC functions to securely track analytics for anonymous users viewing profiles.
+* Refactored Auth pages (`/signup`, `/signup/influencer`, `/signup/business`, `/login`) to support and persist a `?next=` search parameter. This allows users coming from a "Request Collaboration" link on a creator's profile to be smoothly redirected to their intended destination after signing up or logging in.
+
+#### Broken & Resolved
+* **Missing Suspense boundary**: Added Next.js `React.Suspense` wrappers around all auth pages and discover page components that use `useSearchParams()` to prevent build errors and ensure proper client-side rendering.
+* **Lost redirect param**: Ensured the `?next=` param is passed through all steps of the signup/login flow, including links between signup and login screens.
+
+#### Key Lessons
+* **Next.js Client Components**: When using `useSearchParams()` in a Client Component (`'use client'`), the component *must* be wrapped in a `<Suspense>` boundary if the page is dynamically rendered, otherwise Next.js will throw an error or de-opt the entire route to client-side rendering during build.
+* **Anonymous DB Writes**: Use `SECURITY DEFINER` RPC functions in Supabase to allow anonymous (unauthenticated) users to trigger inserts/updates (like tracking analytics) without exposing raw table access.
+
+### Fixing Missing Real-time Unread Badge and 404 for Business Profile
+*   **Scope:** Added Stream Chat real-time event listener to global dashboard `shell.tsx` for updating unread message badge. Created missing `/b/[username]` public profile view for businesses.
+*   **Broken & Resolved:** 
+    *   **Real-time Badge Not Updating:** The `shell.tsx` component was incorrectly listening for inserts on the Postgres `messages` table, but the app uses Stream Chat. I resolved this by instantiating `StreamChat` directly in `shell.tsx` and listening to `message.new` and `message.read` events. Because `messages/page.tsx` uses `StreamChat.getInstance()`, the instances are seamlessly shared without causing duplicate connections.
+    *   **404 on Business Profile Links:** The user was testing username creation as a Business Owner and hitting `/c/[username]`, which returned a 404 because `get_public_influencer` correctly filters by the `influencer` role. I fixed this by adding the missing `username` column to `business_profiles`, creating the `/b/[username]` route exclusively for businesses, and updating the Settings UI to show the correct `influnet.app/b/` link prefix for business roles.
+*   **Key Lessons:** Ensure that Supabase real-time subscriptions are pointing to tables that are actively being used. If a third-party service (like Stream Chat) manages its own data, you must attach listeners to their specific client APIs to reflect real-time global state (like a sidebar badge).
+*   **Next Target:** Complete the remaining user workflows, email notifications if needed, and polish edge cases.

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { StreamChat } from 'stream-chat';
 import DashboardSidebar from '@/components/dashboard/sidebar';
 import DashboardHeader from '@/components/dashboard/header';
 import { useNotificationStore } from '@/store/notification-store';
@@ -133,13 +134,51 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       }
     };
 
+    // 1. Supabase real-time for Collab Requests
     const channel = sb.channel('global-notifications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` }, fetchSummary)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'collaboration_requests', filter: `to_user_id=eq.${user.id}` }, fetchSummary)
       .subscribe();
 
+    // 2. Stream Chat real-time for Messages
+    let streamClient: StreamChat | null = null;
+    const initStream = async () => {
+      try {
+        const streamKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+        if (!streamKey) return;
+        
+        streamClient = StreamChat.getInstance(streamKey);
+        if (streamClient.userID === user.id) return; // already connected
+        
+        const res = await fetch('/api/stream/token', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const { token: streamToken } = await res.json();
+        
+        if (streamToken) {
+          await streamClient.connectUser({ id: user.id }, streamToken);
+          
+          streamClient.on('notification.message_new', fetchSummary);
+          streamClient.on('notification.mark_read', fetchSummary);
+          streamClient.on('message.new', fetchSummary);
+          streamClient.on('message.read', fetchSummary);
+        }
+      } catch (err) {
+        console.error('Failed to init Stream Chat for notifications:', err);
+      }
+    };
+    initStream();
+
     return () => {
       sb.removeChannel(channel);
+      if (streamClient) {
+        streamClient.off('notification.message_new', fetchSummary);
+        streamClient.off('notification.mark_read', fetchSummary);
+        streamClient.off('message.new', fetchSummary);
+        streamClient.off('message.read', fetchSummary);
+        streamClient.disconnectUser();
+      }
     };
   }, [user?.id, token, setSummary]);
 
