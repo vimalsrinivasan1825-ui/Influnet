@@ -33,3 +33,19 @@ This file tracks the completed tasks and provides instructions on how to verify 
 4. Verify that it instantly opens a new chat screen and the network request to `POST /api/conversations` returns `200 OK` (with the new conversation ID).
 
 ---
+
+## Task 1.3: Atomic Collab Acceptance
+
+**What was fixed:**
+- Modified `PATCH /api/collabs` (used when a creator accepts a collaboration request) to trigger an atomic database RPC function (`accept_collab_request`).
+- This replaced a sequence of independent API calls that could fail halfway and leave the database in a broken state. We also removed the messy "auto-heal" loop from the projects GET route since the database now handles everything atomically.
+
+**How to verify:**
+1. Log into your dashboard as a creator (Influencer account).
+2. Go to the **Opportunities / Requests** tab (`/dashboard/collabs`).
+3. Click "Accept" on a pending collaboration request.
+4. Verify the UI updates to show it is accepted.
+5. Go to the **Projects** Kanban board (`/dashboard`) or the **Messages** panel.
+6. Verify the newly created project appears correctly, meaning the database transaction completely succeeded.
+
+---

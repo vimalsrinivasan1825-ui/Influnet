@@ -163,82 +163,32 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Request not found or access denied' }, { status: 404 });
     }
 
-    // Update the status
-    const { data: updated, error: updateError } = await supabase
-      .from('collab_requests')
-      .update({ status })
-      .eq('id', id)
-      .select()
-      .single();
+    let updated;
 
-    if (updateError) throw updateError;
-
-    // If accepted: auto-create a campaign_projects row + conversation
     if (status === 'accepted') {
-      // Business is the "from" user (sender of request), influencer is "to" user
-      const businessUserId = collab.from_user_id;
-      const influencerUserId = collab.to_user_id;
-
-      // 1. Ensure a conversation thread exists (upsert pattern)
-      // Do this FIRST so we can link it to the project
-
-      const participants = [businessUserId, influencerUserId].sort();
+      const { data: result, error: rpcError } = await supabase.rpc('accept_collab_request', {
+        request_id: id
+      });
+      if (rpcError) throw rpcError;
       
-      // Check for existing conversation between these two users
-      const { data: existingConvs } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', participants[0]);
-
-      let conversationId: string | null = null;
-
-      if (existingConvs && existingConvs.length > 0) {
-        const convIds = existingConvs.map(c => c.conversation_id);
-        const { data: match } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', participants[1])
-          .in('conversation_id', convIds)
-          .limit(1)
-          .single();
-        
-        if (match) conversationId = match.conversation_id;
-      }
-
-      // Create new conversation if one doesn't exist
-      if (!conversationId) {
-        const { data: newConv } = await supabase
-          .from('conversations')
-          .insert({})
-          .select('id')
-          .single();
-
-        if (newConv) {
-          conversationId = newConv.id;
-          await supabase.from('conversation_participants').insert([
-            { conversation_id: conversationId, user_id: participants[0] },
-            { conversation_id: conversationId, user_id: participants[1] },
-          ]);
-        }
-      }
-
-      // 2. Create campaign project — link to conversation
-      const { error: projectError } = await supabase
-        .from('campaign_projects')
-        .insert({
-          owner_user_id: businessUserId,
-          counterparty_user_id: influencerUserId,
-          title: collab.message?.split('\n')[0] || 'New Collaboration',
-          description: collab.message || '',
-          budget: collab.budget || null,
-          status: 'active',
-          current_stage: 'collaboration_started',
-          conversation_id: conversationId,
-        });
-
-      if (projectError) {
-        console.error('Failed to auto-create project:', projectError.message);
-      }
+      // Fetch the updated collab to return
+      const { data: fetchUpdated, error: refetchError } = await supabase
+        .from('collab_requests')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (refetchError) throw refetchError;
+      updated = fetchUpdated;
+    } else {
+      // Standard update for rejected or other statuses
+      const { data: stdUpdated, error: updateError } = await supabase
+        .from('collab_requests')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .single();
+      if (updateError) throw updateError;
+      updated = stdUpdated;
     }
 
     return NextResponse.json({ collab: updated });

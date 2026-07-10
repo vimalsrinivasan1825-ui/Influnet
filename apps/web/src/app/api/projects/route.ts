@@ -22,45 +22,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Auto-heal/reconcile campaign_projects for any accepted requests missing them
-    try {
-      const { data: acceptedCollabs } = await supabase
-        .from('collab_requests')
-        .select('*')
-        .eq('status', 'accepted')
-        .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`);
-
-      if (acceptedCollabs && acceptedCollabs.length > 0) {
-        const { data: existingProjects } = await supabase
-          .from('campaign_projects')
-          .select('owner_user_id, counterparty_user_id')
-          .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`);
-
-        const projectKeys = new Set(
-          existingProjects?.map(p => `${p.owner_user_id}:${p.counterparty_user_id}`) || []
-        );
-
-        for (const collab of acceptedCollabs) {
-          const key = `${collab.from_user_id}:${collab.to_user_id}`;
-          if (!projectKeys.has(key)) {
-            await supabase
-              .from('campaign_projects')
-              .insert({
-                owner_user_id: collab.from_user_id,
-                counterparty_user_id: collab.to_user_id,
-                title: collab.message?.split('\n')[0] || 'New Collaboration',
-                description: collab.message || '',
-                budget: collab.budget || null,
-                status: 'active',
-                current_stage: 'collaboration_started'
-              });
-          }
-        }
-      }
-    } catch (reconcileErr: any) {
-      console.error("[GET /api/projects] Reconciliation error:", reconcileErr.message);
-      // Don't crash GET requests if healing fails (e.g. RLS policy not applied yet)
-    }
 
     // Retrieve projects where caller is owner or counterparty
     const { data: projects, error } = await supabase

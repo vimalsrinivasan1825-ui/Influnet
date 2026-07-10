@@ -190,9 +190,18 @@ This file tracks the current implementation state of each system module, issues 
 #### Broken & Resolved
 * **Raw SQL execution was a severe security and stability risk**: Using the management API bypasses RLS and could lead to SQL injection or break if the management API token is invalid/revoked. Replaced it with the `rpc()` method on the standard client, making it safe and atomic.
 
+### Task 1.3: Atomic Collab Acceptance — COMPLETED (July 10, 2026)
+
+#### Scope
+* Replaced the node.js side multi-step creation logic (updating collab status, checking/creating conversations, inserting projects) in `PATCH /api/collabs` with an atomic RPC call (`accept_collab_request`).
+* Removed the "auto-heal" loop in `GET /api/projects` that was previously needed to patch broken or race-condition project states.
+
+#### Broken & Resolved
+* **Node backend multi-step inserts**: The sequence of inserts wasn't wrapped in a transaction, so if a user accepted a collab and the server errored out halfway, the system reached an inconsistent state. The `accept_collab_request` RPC runs inside a Postgres transaction, guaranteeing success or complete rollback.
+
 #### Next Target
-* **Task 1.3** — Atomic collab acceptance via migration 044 + delete the auto-heal from GET /api/projects.
-* **Task 1.4** — Implement `/api/notifications/summary` route.
+* **Task 1.4** — Implement `/api/notifications/summary` route (to un-break the top nav notification bell).
+* **Task 2.1** — Implement email notifications via Resend (the primary real-world alert pipeline).
 
 ### Monorepo Refactor (2026-07-10)
 * **Scope**: Restructured the repo into a Turborepo monorepo: `influnet-app/` → `apps/web/`, npm workspaces root, `turbo.json` pipeline (build/lint/typecheck/test/dev), CI updated to root installs + `--workspace=web` commands. Deleted all legacy code (`influnet/`, `influnet.io/`, `scripts/`, `messaging-widget/`, `signup-widget/`, firebase/replit config, ~21,900 files incl. committed node_modules) — preserved at git tag `legacy-archive`.
