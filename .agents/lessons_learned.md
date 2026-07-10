@@ -344,3 +344,27 @@ This file tracks the current implementation state of each system module, issues 
 
 #### Next Target
 * Remaining Task 3 items (such as metrics, decompositions, bento charts).
+
+### Pre-Launch Security Fixes (FIX_INSTRUCTIONS_2026-07-10) — COMPLETED (July 10, 2026)
+
+#### Scope
+* **Blocker 1 (Privilege Escalation):** Added `RegisterProfileSchema` to `validators.ts` with `role` locked to `['business_owner', 'influencer']`. Rewrote `api/auth/register/route.ts` to validate the body before calling the RPC (returns 400 for `role=admin`). Created migration `049_register_profile_role_guard.sql` with an `IF r NOT IN (...)` guard inside the DB function as defense-in-depth.
+* **Blocker 2 (Red Test Suite):** Rewrote `validators.test.ts` to use actual snake_case field names (`to_user_id`, `content_types`, `availability_status`, `company_name`). Updated `stores.test.ts` to reflect in-memory-only token storage. Fixed `api.test.ts` to skip gracefully when env vars are absent using `describe.skipIf`. Added `.env.test.example`. Result: **38 passing, 6 skipped (0 failed)**.
+* **Blocker 3 (Wrong Notification Table):** Fixed `api/notifications/summary/route.ts` — changed `collaboration_requests` → `collab_requests`, `business_id` → `from_user_id`, `influencer_id` → `to_user_id`, and stopped silently swallowing errors.
+* **High 5 (Broken Conversation Delete):** Replaced Management API raw SQL delete (which requires a personal access token, not service-role key) with `supabase.from('conversations').delete()`. Created migration `050_conversations_delete_policy.sql` adding a `FOR DELETE` RLS policy for participants. `ON DELETE CASCADE` handles messages + participants automatically.
+* **Medium 6 (No Role Gating):** Added role-based redirect in `dashboard/page.tsx` — influencers redirect to `/dashboard/influencer`, admins to `/dashboard/admin`.
+* **Medium 7 (Realtime Publication):** Added clarifying comment to migration `047` documenting that only `notifications` is in the realtime publication by design.
+
+#### Broken & Resolved
+* **`describe.skipIf` still crashes with `createClient()` at scope level** — Vitest evaluates the describe body to register tests even when skipped. Resolved by moving `createClient()` inside each `it()` callback so it's never evaluated at module parse time.
+* **TypeScript `property 'role' does not exist on type 'never'`** — Supabase client infers a narrow return type from `.select('role')`. Resolved by casting to `{ role?: string } | null` on the result.
+
+#### Key Lessons
+* `describe.skipIf` only skips test execution — it still runs the describe body to register the tests. Any side-effectful statements (like `createClient()`) at describe scope will still execute. Always keep heavy initialization inside `it()` or `beforeAll()`.
+* Never silently ignore database errors with `if (!error && count)`. Swallow errors like this create silent-wrong bugs that are far harder to debug than loud failures.
+* The Supabase Management API (`api.supabase.com`) requires a **personal access token** (`sbp_...`), not a service-role key. Using a service-role key there returns 401 silently.
+
+#### Next Target
+* High 4 (Rate Limiting — needs Upstash credentials from user).
+* Medium 9 (N+1 query fix in conversations list).
+* Medium 8 (Sentry — needs DSN from user).
