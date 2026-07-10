@@ -263,3 +263,17 @@ This file tracks the current implementation state of each system module, issues 
     *   **404 on Business Profile Links:** The user was testing username creation as a Business Owner and hitting `/c/[username]`, which returned a 404 because `get_public_influencer` correctly filters by the `influencer` role. I fixed this by adding the missing `username` column to `business_profiles`, creating the `/b/[username]` route exclusively for businesses, and updating the Settings UI to show the correct `influnet.app/b/` link prefix for business roles.
 *   **Key Lessons:** Ensure that Supabase real-time subscriptions are pointing to tables that are actively being used. If a third-party service (like Stream Chat) manages its own data, you must attach listeners to their specific client APIs to reflect real-time global state (like a sidebar badge).
 *   **Next Target:** Complete the remaining user workflows, email notifications if needed, and polish edge cases.
+
+## Fix: Real-time Message Badge & Public Profile 404s
+1. **Scope**: Wired up Stream Chat listeners in `shell.tsx` for real-time unread badges; fixed missing `username` on `business_profiles`; created `/b/[username]` route; fixed RPC variable ambiguity (`ip` vs table alias).
+2. **Broken & Resolved**:
+   - Issue: Global notification badge didn't update on new messages because the original db logic relied on manual reloading, and `messages` table was deprecated.
+   - Fix: Initialized `StreamChat` client in the global layout shell, bound to `message.new` and `message.read` to update badge counts in real-time.
+   - Issue: `/c/[username]` build crashed due to importing non-existent `Instagram`/`Youtube` icons from `lucide-react`.
+   - Fix: Removed invalid imports and used inline SVGs.
+   - Issue: `get_public_influencer` RPC failed with `column reference "ip.user_id" is ambiguous`.
+   - Fix: Renamed the PL/pgSQL variable from `ip` to `v_ip`.
+3. **Key Lessons**:
+   - When declaring `RECORD` or `%ROWTYPE` variables in PL/pgSQL, do not use names that collide with table aliases in the function's SQL queries.
+   - Always verify `lucide-react` exports; icons like Instagram/Twitter are omitted in some versions due to branding policies.
+4. **Next Target**: Task 2.1 (Notifications pipeline) & finishing Task 2.3 (CTA tracking logic for public profiles).
