@@ -1,4 +1,4 @@
-export type UserRole = 'business_owner' | 'influencer';
+export type UserRole = 'business_owner' | 'influencer' | 'admin';
 export type ApprovalStatus = 'pending_review' | 'approved' | 'rejected';
 export type ProjectStage =
   | 'collaboration_started'
@@ -13,6 +13,16 @@ export type ProjectStage =
   | 'final_approval'
   | 'final_payment'
   | 'project_completed';
+export interface StageProgress {
+  status: 'locked' | 'current' | 'completed' | 'skipped';
+  started_at?: string | null;
+  completed_at?: string | null;
+  notes?: string;
+  meeting_link?: string | null;
+  deliverables?: { name: string; url: string; type: 'file' | 'link' }[];
+  meeting_date?: string | null;
+}
+
 export type ConnectionStrength = 'new' | 'active' | 'trusted' | 'top';
 export type CollabRequestStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
 export type AvailabilityStatus = 'open' | 'limited' | 'paused';
@@ -154,12 +164,19 @@ export interface Database {
           id: string;
           owner_user_id: string;
           counterparty_user_id: string;
-          name: string;
+          title: string;
+          description: string;
           budget: number | null;
-          duration_days: number | null;
-          content_types: string[];
-          current_stage: ProjectStage;
+          timeline: string | null;
           status: string;
+          current_stage: ProjectStage;
+          deliverables: string;
+          stage_progress: Record<string, StageProgress>;
+          history: any[];
+          start_date: string | null;
+          end_date: string | null;
+          conversation_id: string | null;
+          cancel_requested_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -367,16 +384,38 @@ export interface CampaignProject {
   id: string;
   owner_user_id: string;
   counterparty_user_id: string;
-  name: string;
+  title: string;
+  description: string;
   budget: number | null;
-  duration_days: number | null;
-  content_types: string[];
-  current_stage: ProjectStage;
+  timeline: string | null;
   status: string;
+  current_stage: ProjectStage;
+  deliverables: string;
+  start_date: string | null;
+  end_date: string | null;
+  conversation_id: string | null;
+  cancel_requested_by: string | null;
   created_at: string;
   updated_at: string;
   owner?: CollabUser;
   counterparty?: CollabUser;
+}
+
+export interface ProjectCard {
+  id: string;
+  project_id: string;
+  stage_key: string;
+  title: string;
+  description: string;
+  start_date: string | null;
+  due_date: string | null;
+  meeting_link: string | null;
+  card_color: string | null;
+  position: number;
+  created_by: string;
+  status: 'not_started' | 'in_progress' | 'completed';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProjectAsset {
