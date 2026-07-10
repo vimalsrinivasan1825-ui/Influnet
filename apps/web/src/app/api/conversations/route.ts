@@ -34,7 +34,11 @@ export async function GET(req: Request) {
           messages(id, body, created_at, sender_user_id)
         `)
         .in('id', conversationIds)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        // Only the latest message is needed (list preview) — without this the
+        // embed returns every message of every conversation.
+        .order('created_at', { referencedTable: 'messages', ascending: false })
+        .limit(1, { referencedTable: 'messages' });
 
       if (convError) return jsonError(500, 'Failed to fetch conversations', convError);
       conversations = convData || [];
