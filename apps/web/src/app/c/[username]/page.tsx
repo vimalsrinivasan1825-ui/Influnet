@@ -88,7 +88,7 @@ export default async function PublicProfilePage({
   supabaseAnon.rpc('record_profile_view', {
     p_influencer_user_id: profile.userId,
     p_viewer_user_id: user?.id || null,
-  }).then(() => {}).catch(() => {});
+  }).then(() => {}, () => {});
 
   // Determine CTA
   let ctaHref = `/signup/business?next=/c/${username}`;
