@@ -1,24 +1,27 @@
 import { NextResponse } from 'next/server';
+import { withAuth, jsonError } from '@/lib/api';
+import { z } from 'zod';
+
+const PostProjectCardSchema = z.object({
+  stage_key: z.string().min(1),
+  title: z.string().optional(),
+});
+
+const PatchProjectCardsSchema = z.object({
+  updates: z.array(z.object({
+    id: z.string().uuid(),
+    stage_key: z.string().min(1),
+    position: z.number(),
+  })),
+});
 
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase } = auth;
+
     const { id } = await context.params;
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { data: cards, error } = await supabase
       .from('project_cards')
@@ -26,49 +29,46 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       .eq('project_id', id)
       .order('position', { ascending: true });
 
-    if (error) throw error;
+    if (error) return jsonError(500, 'Failed to fetch project cards', error);
 
     return NextResponse.json({ cards: cards || [] });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
     const { id } = await context.params;
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return jsonError(400, 'Invalid JSON body');
     }
 
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const result = PostProjectCardSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { stage_key, title } = body;
-
-    if (!stage_key) {
-      return NextResponse.json({ error: 'stage_key is required' }, { status: 400 });
-    }
+    const { stage_key, title } = result.data;
 
     // Get current max position for this stage
-    const { data: existing } = await supabase
+    const { data: existing, error: existingErr } = await supabase
       .from('project_cards')
       .select('position')
       .eq('project_id', id)
       .eq('stage_key', stage_key)
       .order('position', { ascending: false })
       .limit(1);
+
+    if (existingErr) return jsonError(500, 'Failed to fetch existing cards', existingErr);
 
     const nextPosition = existing && existing.length > 0 ? (existing[0].position + 1) : 0;
 
@@ -84,43 +84,39 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) return jsonError(500, 'Failed to insert project card', error);
 
     return NextResponse.json({ card });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 
 // PATCH for batch update (drag-and-drop reorder)
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase } = auth;
+
     const { id } = await context.params;
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return jsonError(400, 'Invalid JSON body');
     }
 
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const result = PatchProjectCardsSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { updates } = body; // Array of { id, stage_key, position }
-
-    if (!updates || !Array.isArray(updates)) {
-      return NextResponse.json({ error: 'updates array is required' }, { status: 400 });
-    }
+    const { updates } = result.data;
 
     // Update each card's stage and position
+    // We run these sequentially here, but could be batched via RPC or Promise.all if needed
     for (const update of updates) {
       const { error: updateErr } = await supabase
         .from('project_cards')
@@ -132,11 +128,11 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .eq('id', update.id)
         .eq('project_id', parseInt(id));
 
-      if (updateErr) throw updateErr;
+      if (updateErr) return jsonError(500, `Failed to update card ${update.id}`, updateErr);
     }
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
