@@ -1,35 +1,20 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { withAuth, jsonError } from '@/lib/api';
+import { CollabRequestSchema } from '@/lib/validators';
+import { z } from 'zod';
+
+// PATCH Collab Schema (since it only exists here for now)
+const PatchCollabSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(['pending', 'accepted', 'declined', 'cancelled'])
+});
 
 // GET all collaboration requests for the authenticated user
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("[GET /api/collabs] Missing Authorization header");
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error("[GET /api/collabs] Auth error or user not found:", userError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    console.log(`[GET /api/collabs] Fetching requests for user ID: ${user.id}`);
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
 
     // Get as sender or receiver
     const { data: collabs, error } = await supabase
@@ -43,64 +28,37 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error("[GET /api/collabs] Database query error:", error);
-      throw error;
+      return jsonError(500, 'Database query error', error);
     }
 
-    console.log(`[GET /api/collabs] Found ${collabs?.length || 0} requests.`);
     return NextResponse.json({ collabs });
   } catch (error: any) {
-    console.error("[GET /api/collabs] Exception caught:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 
 // POST a new collab request
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("[POST /api/collabs] Missing Authorization header");
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+    const auth = await withAuth(req, { role: 'business_owner' });
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return jsonError(400, 'Invalid JSON body');
     }
 
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error("[POST /api/collabs] Auth error or user not found:", userError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const result = CollabRequestSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
-    // Verify user role is business_owner (unidirectional requests rule)
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile || (profile as any).role !== 'business_owner') {
-      console.error("[POST /api/collabs] Non-brand user attempted to send request");
-      return NextResponse.json({ error: 'Only business owners can initiate collaboration requests' }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { to_user_id, project_title, project_description, budget } = body;
-    console.log(`[POST /api/collabs] Incoming collab request from ${user.id} to ${to_user_id}. Title: ${project_title}, Budget: ${budget}`);
-
-    // collab_requests table only has: message, budget (no project_title/project_description columns)
-    // We combine project_title + message into the `message` field for storage
+    const { to_user_id, project_title, project_description, budget } = result.data;
+    
+    // Combine project_title + message into the `message` field for storage
     const messageText = [project_title, project_description].filter(Boolean).join('\n\n');
 
     const { data, error } = await supabase
@@ -116,40 +74,35 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      console.error("[POST /api/collabs] Insert error:", error);
-      throw error;
+      return jsonError(500, 'Failed to insert collab request', error);
     }
 
-    console.log("[POST /api/collabs] Request inserted successfully:", data);
     return NextResponse.json({ collab: data });
   } catch (error: any) {
-    console.error("[POST /api/collabs] Exception caught:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 
 // PATCH to update status — and auto-create project + conversation on accept
 export async function PATCH(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return jsonError(400, 'Invalid JSON body');
     }
 
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const result = PatchCollabSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { id, status } = body;
+    const { id, status } = result.data;
 
     // Fetch the collab request before updating so we have both user IDs
     const { data: collab, error: fetchError } = await supabase
@@ -160,16 +113,16 @@ export async function PATCH(req: Request) {
       .single();
 
     if (fetchError || !collab) {
-      return NextResponse.json({ error: 'Request not found or access denied' }, { status: 404 });
+      return jsonError(404, 'Request not found or access denied', fetchError);
     }
 
     let updated;
 
     if (status === 'accepted') {
-      const { data: result, error: rpcError } = await supabase.rpc('accept_collab_request', {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('accept_collab_request', {
         request_id: id
       });
-      if (rpcError) throw rpcError;
+      if (rpcError) return jsonError(500, 'Failed to accept collab request', rpcError);
       
       // Fetch the updated collab to return
       const { data: fetchUpdated, error: refetchError } = await supabase
@@ -177,7 +130,7 @@ export async function PATCH(req: Request) {
         .select('*')
         .eq('id', id)
         .single();
-      if (refetchError) throw refetchError;
+      if (refetchError) return jsonError(500, 'Failed to refetch updated collab', refetchError);
       updated = fetchUpdated;
     } else {
       // Standard update for rejected or other statuses
@@ -187,13 +140,13 @@ export async function PATCH(req: Request) {
         .eq('id', id)
         .select()
         .single();
-      if (updateError) throw updateError;
+      if (updateError) return jsonError(500, 'Failed to update request status', updateError);
       updated = stdUpdated;
     }
 
     return NextResponse.json({ collab: updated });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 

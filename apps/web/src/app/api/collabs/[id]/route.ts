@@ -1,30 +1,13 @@
 import { NextResponse } from 'next/server';
+import { withAuth, jsonError } from '@/lib/api';
 
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
     const { id } = await context.params;
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { data: collab, error } = await supabase
       .from('collab_requests')
@@ -36,15 +19,16 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       .eq('id', id)
       .single();
 
-    if (error) throw error;
+    if (error) return jsonError(500, 'Database query error', error);
+    if (!collab) return jsonError(404, 'Collab request not found');
 
     // Check authorization: user must be sender or receiver
     if (collab.from_user_id !== user.id && collab.to_user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return jsonError(403, 'Forbidden');
     }
 
     return NextResponse.json({ collab });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
