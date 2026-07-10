@@ -194,8 +194,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     <div className="min-h-screen bg-[#f8fafc] flex">
       <DashboardSidebar
         role={role || 'influencer'}
-        unreadMessages={summary.unreadCount || 0}
-        pendingRequests={summary.unreadCount || 0}
+        unreadMessages={summary.unread_messages_count || 0}
+        pendingRequests={summary.pending_requests_count || 0}
       />
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <DashboardHeader userName={userName} avatarUrl={avatarUrl} />

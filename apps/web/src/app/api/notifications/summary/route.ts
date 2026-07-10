@@ -40,7 +40,8 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({
-      unreadCount: count || 0,
+      pending_requests_count: count || 0,
+      unread_messages_count: 0, // TODO: wire Stream unread via webhook (Task 2.2)
       recent: recent || []
     });
   } catch (error: any) {
