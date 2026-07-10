@@ -1,5 +1,21 @@
 import { z } from 'zod';
 
+// Usernames become public URLs (/c/<username>, /b/<username>) — block anything
+// that collides with app routes or impersonates the platform.
+const RESERVED_USERNAMES = new Set([
+  'admin', 'api', 'app', 'b', 'c', 'business', 'connections', 'creator',
+  'dashboard', 'discover', 'help', 'influnet', 'login', 'logout', 'mail',
+  'messages', 'official', 'profile', 'projects', 'requests', 'reset-password',
+  'root', 'settings', 'setup', 'signup', 'support', 'system', 'team', 'www',
+]);
+
+export const UsernameSchema = z
+  .string()
+  .min(3, 'Username must be at least 3 characters')
+  .max(30, 'Username must be at most 30 characters')
+  .regex(/^[a-z0-9_]+$/, 'Only lowercase letters, numbers and underscores are allowed')
+  .refine((u) => !RESERVED_USERNAMES.has(u), 'This username is reserved');
+
 export const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -19,7 +35,7 @@ export const RegisterSchema = z.object({
   collabPreferences: z.array(z.string()).optional(),
   bio: z.string().optional(),
   niche: z.array(z.string()).optional(),
-  username: z.string().min(3).max(30).optional(),
+  username: UsernameSchema.optional(),
   instagramHandle: z.string().optional(),
   youtubeHandle: z.string().optional(),
   twitterHandle: z.string().optional(),
@@ -53,7 +69,7 @@ export const ProfileUpdateSchema = z.object({
   location: z.string().optional(),
   bio: z.string().max(2000).optional(),
   niche: z.array(z.string()).optional(),
-  username: z.string().min(3).max(30).optional(),
+  username: UsernameSchema.optional(),
   gender: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -75,7 +91,7 @@ export const ProfileUpdateSchema = z.object({
 });
 
 export const BusinessProfileUpdateSchema = z.object({
-  username: z.string().min(3).max(30).optional(),
+  username: UsernameSchema.optional(),
   company_name: z.string().min(1).optional(),
   industry: z.string().optional(),
   business_type: z.string().optional(),

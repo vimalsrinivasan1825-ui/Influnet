@@ -1,7 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+// Next.js 16: the `middleware` file convention was renamed to `proxy`,
+// and the file must sit at the same level as `app` (inside src/).
+export async function proxy(request: NextRequest) {
   return await updateSession(request);
 }
 
@@ -39,7 +41,8 @@ async function updateSession(request: NextRequest) {
   const isPublicPath =
     publicPaths.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
     pathname.startsWith('/signup') ||
-    pathname.startsWith('/c/');
+    pathname.startsWith('/c/') ||
+    pathname.startsWith('/b/');
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
@@ -58,6 +61,6 @@ async function updateSession(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

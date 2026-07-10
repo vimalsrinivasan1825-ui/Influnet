@@ -29,7 +29,7 @@ export async function GET(req: Request) {
           *,
           participants:conversation_participants(
             user_id,
-            profile:profiles!conversation_participants_user_id_fkey(name, email, role)
+            profile:profiles!conversation_participants_user_id_fkey(name, role)
           ),
           messages(id, body, created_at, sender_user_id)
         `)
@@ -58,7 +58,7 @@ export async function GET(req: Request) {
       const partnerId = p.owner_user_id === user.id ? p.counterparty_user_id : p.owner_user_id;
       const { data: partnerProfile } = await supabase
         .from('profiles')
-        .select('id, name, email, role')
+        .select('id, name, role')
         .eq('id', partnerId)
         .maybeSingle();
       

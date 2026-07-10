@@ -1,35 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { withAdmin } from '@/lib/api';
 
 // GET all collaboration requests (admin view)
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || (profile as any).role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-    }
+    const auth = await withAdmin(req);
+    if (!auth.ok) return auth.res;
+    const { supabase } = auth;
 
     // Fetch all collab requests with sender and receiver info
     const { data: collabs, error } = await supabase
@@ -53,32 +30,9 @@ export async function GET(req: Request) {
 // DELETE a collab request (admin force-delete)
 export async function DELETE(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || (profile as any).role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-    }
+    const auth = await withAdmin(req);
+    if (!auth.ok) return auth.res;
+    const { supabase } = auth;
 
     const { collab_id } = await req.json();
     if (!collab_id) {
@@ -118,32 +72,9 @@ export async function DELETE(req: Request) {
 // PATCH to update a collab request status (admin override)
 export async function PATCH(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile || (profile as any).role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
-    }
+    const auth = await withAdmin(req);
+    if (!auth.ok) return auth.res;
+    const { supabase } = auth;
 
     const body = await req.json();
     const { collab_id, status } = body;

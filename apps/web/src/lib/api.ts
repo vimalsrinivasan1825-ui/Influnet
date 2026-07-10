@@ -12,6 +12,32 @@ export function jsonError(status: number, publicMessage: string, error?: any) {
   return NextResponse.json({ error: publicMessage }, { status });
 }
 
+// Admin routes: verify the caller's JWT + admin role, then hand back a
+// service-role client so admin queries can read columns (email/phone) that
+// column-level grants hide from the authenticated role.
+export async function withAdmin(
+  req: Request
+): Promise<
+  | { ok: true; supabase: any; user: User }
+  | { ok: false; res: NextResponse }
+> {
+  const auth = await withAuth(req, { role: 'admin' as UserRole });
+  if (!auth.ok) return auth;
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    return { ok: false, res: jsonError(500, 'Server misconfigured: missing service role key') };
+  }
+
+  const supabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+
+  return { ok: true, supabase, user: auth.user };
+}
+
 export async function withAuth(
   req: Request,
   opts?: { role?: UserRole }

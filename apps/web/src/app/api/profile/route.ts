@@ -9,12 +9,8 @@ export async function GET(req: Request) {
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
 
-    // Get base profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    // Base profile via RPC: email/phone are column-restricted on direct selects
+    const { data: profile, error: profileError } = await supabase.rpc('get_own_profile');
 
     if (profileError || !profile) {
       return jsonError(404, 'Profile not found', profileError);
@@ -159,22 +155,24 @@ export async function PATCH(req: Request) {
         .from('business_profiles')
         .update(bizUpdates)
         .eq('user_id', user.id);
-      if (bizError) return jsonError(500, 'Failed to update business profile', bizError);
+      if (bizError) {
+        if (bizError.code === '23505') return jsonError(409, 'That username is already taken');
+        return jsonError(500, 'Failed to update business profile', bizError);
+      }
     } else if (role === 'influencer' && Object.keys(validatedData).length > 0) {
       const infUpdates: any = { ...validatedData, updated_at: new Date().toISOString() };
       const { error: infError } = await supabase
         .from('influencer_profiles')
         .update(infUpdates)
         .eq('user_id', user.id);
-      if (infError) return jsonError(500, 'Failed to update influencer profile', infError);
+      if (infError) {
+        if (infError.code === '23505') return jsonError(409, 'That username is already taken');
+        return jsonError(500, 'Failed to update influencer profile', infError);
+      }
     }
 
     // Return updated profile
-    const { data: updatedProfile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    const { data: updatedProfile } = await supabase.rpc('get_own_profile');
 
     return NextResponse.json({ profile: updatedProfile });
   } catch (error: any) {
