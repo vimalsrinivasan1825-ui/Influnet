@@ -276,4 +276,22 @@ This file tracks the current implementation state of each system module, issues 
 3. **Key Lessons**:
    - When declaring `RECORD` or `%ROWTYPE` variables in PL/pgSQL, do not use names that collide with table aliases in the function's SQL queries.
    - Always verify `lucide-react` exports; icons like Instagram/Twitter are omitted in some versions due to branding policies.
-4. **Next Target**: Task 2.1 (Notifications pipeline) & finishing Task 2.3 (CTA tracking logic for public profiles).
+4. **Next Target**: Task 8: Stage Transition Validation, PII leak fix & Branded Error Pages.
+
+### Task 8: Stage Transition Validation, PII leak fix & Branded Error Pages — COMPLETED (July 10, 2026)
+
+#### Scope
+* Implemented a strict stage transition validation state machine in both the main `PATCH /api/projects` and single `PATCH /api/projects/[id]` API routes.
+* Removed the PII `email` field from the profiles join selects in the campaign project list and detail API routes to satisfy standard privacy lockdowns.
+* Created custom, branded, premium 404 (`not-found.tsx`) and 500 (`error.tsx`) pages using Influnet design aesthetic (Plus Jakarta Sans, light theme, glowing cards, custom SVGs).
+
+#### Broken & Resolved
+* **Unvalidated stage progression**: Users could call `update_stage` with arbitrary JSON objects, potentially bypassing the linear stage advancement logic or injecting incorrect statuses/started/completed timestamps. Enforced stage key checks against the `STAGES` enum, sanitized the inputs to ignore status/dates, and validated transitions against an `ALLOWED_TRANSITIONS` map.
+* **Stale next/types compiler errors**: After deleting old setup/seed pages, the Next.js `.next` folder kept stale generated TS types. Running a clean build after deleting `apps/web/.next` resolved this.
+
+#### Key Lessons
+* Enforcing state machine transitions at the API level prevents users from manipulating client-side payloads to bypass linear flows.
+* Next.js App Router root `error.tsx` must be a client component (`'use client'`) and receive standard error boundary props (`error` & `reset`), while `not-found.tsx` can be a normal component.
+
+#### Next Target
+* Phase 3 tasks (such as Discovery filters search/pagination, shared API client, and dashboard metrics).

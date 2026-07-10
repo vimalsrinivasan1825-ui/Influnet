@@ -24,8 +24,8 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       .from('campaign_projects')
       .select(`
         *,
-        owner:profiles!campaign_projects_owner_user_id_fkey(id, name, email, role),
-        counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name, email, role)
+        owner:profiles!campaign_projects_owner_user_id_fkey(id, name, role),
+        counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name, role)
       `)
       .eq('id', id)
       .single();
@@ -90,19 +90,52 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return jsonError(403, 'Forbidden');
     }
 
+    const STAGES = [
+      'collaboration_started', 'project_discussion', 'advance_payment',
+      'content_planning', 'content_confirmation', 'shooting_in_progress',
+      'editing_in_progress', 'sent_for_review', 'revisions',
+      'final_approval', 'final_payment', 'project_completed'
+    ];
+
+    const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+      collaboration_started: ['project_discussion'],
+      project_discussion: ['advance_payment'],
+      advance_payment: ['content_planning'],
+      content_planning: ['content_confirmation'],
+      content_confirmation: ['shooting_in_progress'],
+      shooting_in_progress: ['editing_in_progress'],
+      editing_in_progress: ['sent_for_review'],
+      sent_for_review: ['revisions', 'final_approval'],
+      revisions: ['sent_for_review'],
+      final_approval: ['final_payment'],
+      final_payment: ['project_completed'],
+      project_completed: [],
+    };
+
     const { action } = result.data;
 
     // 1) Advance to next stage
     if (action === 'advance') {
-      const STAGES = [
-        'collaboration_started', 'project_discussion', 'advance_payment',
-        'content_planning', 'content_confirmation', 'shooting_in_progress',
-        'editing_in_progress', 'sent_for_review', 'revisions',
-        'final_approval', 'final_payment', 'project_completed'
-      ];
       const currentIdx = STAGES.indexOf(project.current_stage);
-      if (currentIdx === -1 || currentIdx >= STAGES.length - 1) {
-        return jsonError(400, 'Already at final stage');
+      if (currentIdx === -1) {
+        return jsonError(400, 'Invalid current stage');
+      }
+
+      const { stage_key } = result.data;
+      let nextStage: string;
+
+      if (stage_key) {
+        // Enforce transition map
+        const allowed = ALLOWED_TRANSITIONS[project.current_stage] || [];
+        if (!allowed.includes(stage_key)) {
+          return jsonError(400, `Invalid stage transition from ${project.current_stage} to ${stage_key}`);
+        }
+        nextStage = stage_key;
+      } else {
+        if (currentIdx >= STAGES.length - 1) {
+          return jsonError(400, 'Already at final stage');
+        }
+        nextStage = STAGES[currentIdx + 1];
       }
 
       // Mark current stage as completed in stage_progress
@@ -113,7 +146,6 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         completed_at: new Date().toISOString(),
       };
 
-      const nextStage = STAGES[currentIdx + 1];
       stageProgress[nextStage] = {
         ...(stageProgress[nextStage] || {}),
         status: 'current',
@@ -143,10 +175,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(400, 'stage_key and updates required');
       }
 
+      if (!STAGES.includes(stage_key)) {
+        return jsonError(400, `Invalid stage key: ${stage_key}`);
+      }
+
+      // Sanitize updates to prevent tampering with stage status/dates directly
+      const sanitizedUpdates = { ...updates };
+      delete sanitizedUpdates.status;
+      delete sanitizedUpdates.started_at;
+      delete sanitizedUpdates.completed_at;
+
       const stageProgress = (project.stage_progress || {}) as Record<string, any>;
       stageProgress[stage_key] = {
         ...(stageProgress[stage_key] || { status: 'current', started_at: new Date().toISOString() }),
-        ...updates,
+        ...sanitizedUpdates,
       };
 
       const { data: updated, error: updateErr } = await supabase

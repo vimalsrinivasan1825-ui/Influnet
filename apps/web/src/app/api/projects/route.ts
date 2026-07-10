@@ -20,8 +20,8 @@ export async function GET(req: Request) {
       .from('campaign_projects')
       .select(`
         *,
-        owner:profiles!campaign_projects_owner_user_id_fkey(id, name, email, role),
-        counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name, email, role)
+        owner:profiles!campaign_projects_owner_user_id_fkey(id, name, role),
+        counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name, role)
       `)
       .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`)
       .order('updated_at', { ascending: false });
@@ -58,7 +58,7 @@ export async function PATCH(req: Request) {
     // Verify user is owner or counterparty of the project
     const { data: project, error: fetchErr } = await supabase
       .from('campaign_projects')
-      .select('id, owner_user_id, counterparty_user_id, cancel_requested_by')
+      .select('id, owner_user_id, counterparty_user_id, cancel_requested_by, current_stage')
       .eq('id', id)
       .single();
 
@@ -112,9 +112,32 @@ export async function PATCH(req: Request) {
     }
 
     // Default stage/status advancement flow
+    const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+      collaboration_started: ['project_discussion'],
+      project_discussion: ['advance_payment'],
+      advance_payment: ['content_planning'],
+      content_planning: ['content_confirmation'],
+      content_confirmation: ['shooting_in_progress'],
+      shooting_in_progress: ['editing_in_progress'],
+      editing_in_progress: ['sent_for_review'],
+      sent_for_review: ['revisions', 'final_approval'],
+      revisions: ['sent_for_review'],
+      final_approval: ['final_payment'],
+      final_payment: ['project_completed'],
+      project_completed: [],
+    };
+
     const updateData: any = {};
-    if (current_stage) updateData.current_stage = current_stage;
-    if (status) updateData.status = status;
+    if (current_stage) {
+      const allowed = ALLOWED_TRANSITIONS[project.current_stage] || [];
+      if (!allowed.includes(current_stage)) {
+        return jsonError(400, `Invalid stage transition from ${project.current_stage} to ${current_stage}`);
+      }
+      updateData.current_stage = current_stage;
+      updateData.status = current_stage === 'project_completed' ? 'completed' : 'active';
+    } else if (status) {
+      updateData.status = status;
+    }
     updateData.updated_at = new Date().toISOString();
 
     const { data: updatedProject, error: updateErr } = await supabase
