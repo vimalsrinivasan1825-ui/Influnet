@@ -16,7 +16,7 @@ export async function withAuth(
   req: Request,
   opts?: { role?: UserRole }
 ): Promise<
-  | { ok: true; supabase: SupabaseClient<Database>; user: User; role: UserRole }
+  | { ok: true; supabase: any; user: User; role: UserRole }
   | { ok: false; res: NextResponse }
 > {
   const authHeader = req.headers.get('Authorization');
@@ -25,7 +25,7 @@ export async function withAuth(
   }
 
   try {
-    const supabase = createSupabaseClient<Database>(
+    const supabase = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {

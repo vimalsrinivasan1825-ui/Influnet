@@ -233,6 +233,9 @@ export interface Database {
         Returns: boolean;
       };
     };
+    Views: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
 

@@ -1,21 +1,22 @@
-# QA & Testing Guide
+# QA Testing Instructions
 
-This file tracks the recent fixes and refactoring efforts, along with step-by-step instructions on how to manually verify them on your end.
+This document tracks all completed bugfixes and features along with instructions on how to manually verify them on your side.
 
-## Step 1: API Route Refactoring (withAuth & Zod)
-**What was fixed:**
-- We migrated the remaining core API routes to use the shared `withAuth` helper for Supabase authentication and added Zod schema validation for robust error handling.
-- **Routes refactored:** 
-  - `/api/collabs/[id]`
-  - `/api/projects` and `/api/projects/[id]`
-  - `/api/projects/[id]/cards` and `/api/projects/[id]/cards/[cardId]`
-  - `/api/conversations` and `/api/conversations/[id]`
-  - `/api/conversations/[id]/messages`
+## Fixes Completed
 
-**How to check:**
-1. **Collabs:** Send a collaboration request from a business account to an influencer, or vice versa. Ensure that the request is successfully created and appears in the collabs page.
-2. **Projects:** Accept a collaboration request so it becomes a project. Check the Projects dashboard to ensure the project loads correctly. Try advancing the project stage (e.g., from "Collaboration Started" to "Project Discussion") and verify it saves.
-3. **Project Cards:** In the project workspace, try adding a new kanban card, updating its title/description, moving it between stages, and deleting it. Ensure all actions persist on reload.
-4. **Conversations:** Start a chat with the counterparty. Send a message and ensure it appears. Try loading the conversation history.
+### Step 1: Messaging Webhook Payload Fix
+- **What was fixed**: The Stream Webhook payload had TypeScript/Supabase errors that were causing messages not to be logged to the local database for offline tracking. The errors have been resolved.
+- **How to test**:
+  1. Go to your **GetStream Dashboard** > App > Webhooks.
+  2. Ensure your webhook URL is set up and active (`https://<your-dev-domain>/api/stream/webhook`).
+  3. Send a message in the chat.
+  4. Check the GetStream Dashboard logs to ensure it receives a `200 OK`.
 
----
+### Step 2: Unread Message Notification Bell
+- **What was fixed**: The notification bell now correctly queries Stream to get your actual unread messages count instead of defaulting to 0.
+- **How to test**:
+  1. Have one account open in a browser where the chat page is **NOT** open. (If you have the chat page open anywhere, Stream automatically marks messages as read, causing a double-tick and clearing the notification).
+  2. From a second account, send a message to the first account.
+  3. Refresh or click around in the first account's dashboard (without going to the chat). You should see the notification bell display an unread count.
+
+> **Note on Double Ticks**: You mentioned seeing a double-tick (read receipt) even without opening the chat. This happens because if you have the chat page open in any browser tab (even in the background), the Stream React SDK automatically marks the channel as read instantly. To test unread notifications properly, ensure the recipient account does NOT have the `/dashboard/messages` page open anywhere!

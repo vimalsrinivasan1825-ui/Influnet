@@ -39,9 +39,21 @@ export async function GET(req: Request) {
       throw error;
     }
 
+    let unreadMessagesCount = 0;
+    try {
+      const { getStreamClient } = await import('@/lib/stream');
+      const streamClient = getStreamClient();
+      const response = await streamClient.queryUsers({ id: user.id });
+      if (response.users && response.users.length > 0) {
+        unreadMessagesCount = (response.users[0] as any).total_unread_count || 0;
+      }
+    } catch (e) {
+      console.error("[GET /api/notifications/summary] Stream unread count error:", e);
+    }
+
     return NextResponse.json({
       pending_requests_count: count || 0,
-      unread_messages_count: 0, // TODO: wire Stream unread via webhook (Task 2.2)
+      unread_messages_count: unreadMessagesCount,
       recent: recent || []
     });
   } catch (error: any) {
