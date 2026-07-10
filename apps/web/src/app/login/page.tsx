@@ -17,7 +17,7 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextParam = searchParams.get('next');
+  const nextParam = (() => { const n = searchParams.get('next'); return n && n.startsWith('/') && !n.startsWith('//') ? n : null; })();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -41,8 +41,6 @@ function LoginContent() {
       }
 
       if (data.session && data.user) {
-        localStorage.setItem('influnet_token', data.session.access_token);
-        localStorage.setItem('influnet_refresh_token', data.session.refresh_token);
         
         // Fetch user profile to determine role
         const { data: profile, error: profileError } = await sb
