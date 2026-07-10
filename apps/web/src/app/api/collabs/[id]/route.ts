@@ -13,8 +13,8 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       .from('collab_requests')
       .select(`
         *,
-        sender:profiles!collab_requests_from_user_id_fkey(name, email, role),
-        receiver:profiles!collab_requests_to_user_id_fkey(name, email, role)
+        sender:profiles!collab_requests_from_user_id_fkey(name, role),
+        receiver:profiles!collab_requests_to_user_id_fkey(name, role)
       `)
       .eq('id', id)
       .single();

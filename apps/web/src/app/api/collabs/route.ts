@@ -21,8 +21,8 @@ export async function GET(req: Request) {
       .from('collab_requests')
       .select(`
         *,
-        sender:profiles!collab_requests_from_user_id_fkey(name, email, role),
-        receiver:profiles!collab_requests_to_user_id_fkey(name, email, role)
+        sender:profiles!collab_requests_from_user_id_fkey(name, role),
+        receiver:profiles!collab_requests_to_user_id_fkey(name, role)
       `)
       .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
       .order('created_at', { ascending: false });
