@@ -146,6 +146,11 @@ export async function PATCH(req: Request) {
       if (updateError) return jsonError(500, 'Failed to update base profile', updateError);
     }
 
+    // Remove base profile fields from validatedData so they don't get inserted into extended profile tables
+    delete validatedData.name;
+    delete validatedData.phone;
+    delete validatedData.location;
+
     // Determine extended profile updates from validatedData
     if (role === 'business_owner' && Object.keys(validatedData).length > 0) {
       const bizUpdates: any = { ...validatedData, updated_at: new Date().toISOString() };

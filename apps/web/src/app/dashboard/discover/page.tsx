@@ -30,6 +30,7 @@ type ModalState = {
 
 function DiscoverContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [results, setResults] = useState<DiscoverResult[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
