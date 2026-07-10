@@ -221,3 +221,22 @@ This file tracks the current implementation state of each system module, issues 
   * `git mv <dir>` moves untracked files inside the dir too (node_modules, .env.local came along physically) — convenient but check for stray generated dirs afterwards.
   * Turbo cache verified working: second `npm run build` = FULL TURBO (23ms).
 * **Next Target**: Phase 1 of `.agents/EXECUTION_PLAN.md` (Task 1.1 Stream auth fix). Human still owes the Phase 0 key-rotation checklist.
+
+### Task 1.5: Shared API Client Refactor — COMPLETED (July 10, 2026)
+
+#### Scope
+* Built `withAuth` helper in `src/lib/api.ts` to encapsulate Supabase client creation, JWT authorization header parsing, and error normalization.
+* Refactored `/api/collabs`, `/api/collabs/[id]`, `/api/projects`, `/api/projects/[id]`, `/api/projects/[id]/cards`, `/api/projects/[id]/cards/[cardId]`, `/api/conversations`, `/api/conversations/[id]`, and `/api/conversations/[id]/messages` to use `withAuth`.
+* Implemented strict Zod schemas for all payload validations (e.g. `ProjectUpdateSchema`, `PostConversationSchema`, `PostMessageSchema`).
+* Ensured error payloads follow the standard `jsonError` structure for 400, 401, 403, 404, and 500 status codes.
+
+#### Broken & Resolved
+* **Duplicate / Unsafe Supabase clients**: Routes were manually parsing the auth header and spinning up Supabase clients inline, leading to repetitive boilerplates and potential misconfiguration of `user`. Replaced everything with `withAuth`.
+* **Payload discrepancies**: Enforced strict `snake_case` in Zod schemas for payload matching across frontend to backend to database.
+
+#### Key Lessons
+* Centralizing authentication logic saves enormous amounts of boilerplate and prevents edge cases where a route forgets to check `userError`.
+* Validating bodies via `safeParse` rather than raw destructuring prevents subtle bugs (e.g. `undefined` fields silently passing through update operations).
+
+#### Next Target
+* **Task 2.1** — Implement email notifications via Resend (the primary real-world alert pipeline).
