@@ -1,10 +1,10 @@
 # Influnet Supabase project (for CLI: supabase link)
-# Dashboard: https://supabase.com/dashboard/project/hrpaqufvjcihnjrjnpej
+# Dashboard: https://supabase.com/dashboard/project/jaajosocopoicmqcffuu
 
-project_id = "hrpaqufvjcihnjrjnpej"
+project_id = "jaajosocopoicmqcffuu"
 
 [api]
-url = "https://hrpaqufvjcihnjrjnpej.supabase.co"
+enabled = true
 
 [functions.phone-otp]
 verify_jwt = false
