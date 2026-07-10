@@ -58,52 +58,52 @@ export const ProfileUpdateSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   languages: z.array(z.string()).optional(),
-  collabTypes: z.array(z.string()).optional(),
-  priceRange: z.string().optional(),
-  instagramHandle: z.string().optional(),
-  youtubeHandle: z.string().optional(),
-  twitterHandle: z.string().optional(),
-  facebookHandle: z.string().optional(),
-  linkedinHandle: z.string().optional(),
-  tiktokHandle: z.string().optional(),
-  extraSocialLinks: z.array(z.string()).optional(),
+  collab_types: z.array(z.string()).optional(),
+  price_range: z.string().optional(),
+  instagram_handle: z.string().optional(),
+  youtube_handle: z.string().optional(),
+  twitter_handle: z.string().optional(),
+  facebook_handle: z.string().optional(),
+  linkedin_handle: z.string().optional(),
+  tiktok_handle: z.string().optional(),
+  extra_social_links: z.array(z.string()).optional(),
   headline: z.string().max(120).optional(),
-  availabilityStatus: z.enum(['open', 'limited', 'paused']).optional(),
-  engagementRate: z.number().min(0).max(100).optional(),
-  mediaKitUrl: z.string().url().optional().or(z.literal('')),
+  availability_status: z.enum(['open', 'limited', 'paused']).optional(),
+  engagement_rate: z.number().min(0).max(100).optional(),
+  media_kit_url: z.string().url().optional().or(z.literal('')),
   portfolio: z.array(z.object({ url: z.string(), title: z.string().optional() })).optional(),
 });
 
 export const BusinessProfileUpdateSchema = z.object({
-  companyName: z.string().min(1).optional(),
+  company_name: z.string().min(1).optional(),
   industry: z.string().optional(),
-  businessType: z.string().optional(),
-  gstNumber: z.string().optional(),
+  business_type: z.string().optional(),
+  gst_number: z.string().optional(),
   website: z.string().url().optional().or(z.literal('')),
-  marketingBudget: z.string().optional(),
-  registeredAddress: z.string().optional(),
+  marketing_budget: z.string().optional(),
+  registered_address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  collabPreferences: z.array(z.string()).optional(),
+  collab_preferences: z.array(z.string()).optional(),
   tagline: z.string().max(160).optional(),
-  companyDescription: z.string().max(2000).optional(),
-  instagramHandle: z.string().optional(),
-  facebookHandle: z.string().optional(),
-  linkedinHandle: z.string().optional(),
+  company_description: z.string().max(2000).optional(),
+  instagram_handle: z.string().optional(),
+  facebook_handle: z.string().optional(),
+  linkedin_handle: z.string().optional(),
 });
 
 export const CollabRequestSchema = z.object({
-  toUserId: z.string().uuid(),
+  to_user_id: z.string().uuid(),
   message: z.string().max(2000).optional(),
   budget: z.number().positive().optional(),
 });
 
 export const ProjectCreateSchema = z.object({
-  counterpartyUserId: z.string().uuid(),
+  counterparty_user_id: z.string().uuid(),
   name: z.string().min(1).max(200),
   budget: z.number().positive().optional(),
-  durationDays: z.number().positive().optional(),
-  contentTypes: z.array(z.string()).min(1),
+  duration_days: z.number().positive().optional(),
+  content_types: z.array(z.string()).min(1),
 });
 
 export const MessageSchema = z.object({
@@ -114,4 +114,27 @@ export const ConnectionUpdateSchema = z.object({
   favorite: z.boolean().optional(),
   notes: z.string().max(2000).optional(),
   status: z.enum(['active', 'removed']).optional(),
+});
+
+export const ProjectUpdateSchema = z.object({
+  status: z.string().optional(),
+  current_stage: z.enum([
+    'collaboration_started',
+    'project_discussion',
+    'advance_payment',
+    'content_planning',
+    'content_confirmation',
+    'shooting_in_progress',
+    'editing_in_progress',
+    'sent_for_review',
+    'revisions',
+    'final_approval',
+    'final_payment',
+    'project_completed'
+  ]).optional(),
+});
+
+export const CollabUpdateSchema = z.object({
+  status: z.enum(['pending', 'accepted', 'declined', 'cancelled']).optional(),
+  action: z.enum(['accept', 'decline', 'cancel']).optional(),
 });

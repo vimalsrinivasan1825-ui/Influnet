@@ -1,34 +1,14 @@
 import { NextResponse } from 'next/server';
+import { withAuth, jsonError } from '@/lib/api';
 
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    
+    const { supabase, user, role } = auth;
 
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get the current user's role
-    const { data: myProfile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    const myRole = myProfile?.role;
-
-    if (myRole === 'business_owner') {
+    if (role === 'business_owner') {
       // Business owners discover Influencers/Creators
       const { data: influencers, error } = await supabase
         .from('influencer_profiles')
@@ -40,31 +20,31 @@ export async function GET(req: Request) {
         .neq('user_id', user.id)
         .limit(30);
 
-      if (error) throw error;
+      if (error) return jsonError(500, 'Failed to fetch influencers', error);
 
       return NextResponse.json({ userRole: 'business_owner', results: influencers || [] });
 
-    } else if (myRole === 'influencer') {
+    } else if (role === 'influencer') {
       // Influencers discover Business Owners
       const { data: businesses, error } = await supabase
         .from('business_profiles')
         .select(`
           user_id, company_name, industry, tagline, company_description, logo_url,
-          preferred_creator_niches, website,
+          collab_preferences, website,
           profile:profiles!inner(id, name, location)
         `)
         .neq('user_id', user.id)
         .limit(30);
 
-      if (error) throw error;
+      if (error) return jsonError(500, 'Failed to fetch businesses', error);
 
       return NextResponse.json({ userRole: 'influencer', results: businesses || [] });
 
     } else {
-      return NextResponse.json({ error: 'Unknown role' }, { status: 400 });
+      return jsonError(400, 'Unknown role');
     }
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }

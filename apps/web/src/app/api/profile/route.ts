@@ -1,34 +1,23 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth, jsonError } from '@/lib/api';
+import { ProfileUpdateSchema, BusinessProfileUpdateSchema } from '@/lib/validators';
 
 // GET current user's profile (both base profile + extended profile)
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
 
     // Get base profile
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (!profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    if (profileError || !profile) {
+      return jsonError(404, 'Profile not found', profileError);
     }
 
     const p = profile as any;
@@ -104,31 +93,41 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ profile: result });
   } catch (error: any) {
-    console.error('[GET /api/profile] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
 
 // PATCH to update profile fields
 export async function PATCH(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user, role } = auth;
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return jsonError(400, 'Invalid JSON body');
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Validate request based on role
+    let validatedData: any;
+    if (role === 'business_owner') {
+      const result = BusinessProfileUpdateSchema.safeParse(body);
+      if (!result.success) {
+        return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
+      }
+      validatedData = result.data;
+    } else if (role === 'influencer') {
+      const result = ProfileUpdateSchema.safeParse(body);
+      if (!result.success) {
+        return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
+      }
+      validatedData = result.data;
     }
 
-    const body = await req.json();
+    // Fallback for base profile fields that might be passed
     const { name, phone, location } = body;
 
     // Update base profile
@@ -136,70 +135,32 @@ export async function PATCH(req: Request) {
     if (name !== undefined) profileUpdates.name = name;
     if (phone !== undefined) profileUpdates.phone = phone;
     if (location !== undefined) profileUpdates.location = location;
-    profileUpdates.updated_at = new Date().toISOString();
-
-    if (Object.keys(profileUpdates).length > 1) {
+    
+    if (Object.keys(profileUpdates).length > 0) {
+      profileUpdates.updated_at = new Date().toISOString();
       const { error: updateError } = await supabase
         .from('profiles')
         .update(profileUpdates)
         .eq('id', user.id);
 
-      if (updateError) throw updateError;
+      if (updateError) return jsonError(500, 'Failed to update base profile', updateError);
     }
 
-    // Get user's role to determine extended profile updates
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    const p = profile as any;
-    const role = p?.role;
-
-    if (role === 'business_owner') {
-      const bizUpdates: any = {};
-      if (body.company_name !== undefined) bizUpdates.company_name = body.company_name;
-      if (body.industry !== undefined) bizUpdates.industry = body.industry;
-      if (body.business_type !== undefined) bizUpdates.business_type = body.business_type;
-      if (body.website !== undefined) bizUpdates.website = body.website;
-      if (body.marketing_budget !== undefined) bizUpdates.marketing_budget = body.marketing_budget;
-      if (body.tagline !== undefined) bizUpdates.tagline = body.tagline;
-      if (body.company_description !== undefined) bizUpdates.company_description = body.company_description;
-      if (body.city !== undefined) bizUpdates.city = body.city;
-      if (body.state !== undefined) bizUpdates.state = body.state;
-      if (body.instagram_handle !== undefined) bizUpdates.instagram_handle = body.instagram_handle;
-      if (body.facebook_handle !== undefined) bizUpdates.facebook_handle = body.facebook_handle;
-      if (body.linkedin_handle !== undefined) bizUpdates.linkedin_handle = body.linkedin_handle;
-      bizUpdates.updated_at = new Date().toISOString();
-
-      if (Object.keys(bizUpdates).length > 1) {
-        const { error: bizError } = await supabase
-          .from('business_profiles')
-          .update(bizUpdates)
-          .eq('user_id', user.id);
-        if (bizError) throw bizError;
-      }
-    } else if (role === 'influencer') {
-      const infUpdates: any = {};
-      if (body.bio !== undefined) infUpdates.bio = body.bio;
-      if (body.headline !== undefined) infUpdates.headline = body.headline;
-      if (body.gender !== undefined) infUpdates.gender = body.gender;
-      if (body.city !== undefined) infUpdates.city = body.city;
-      if (body.state !== undefined) infUpdates.state = body.state;
-      if (body.instagram_handle !== undefined) infUpdates.instagram_handle = body.instagram_handle;
-      if (body.youtube_handle !== undefined) infUpdates.youtube_handle = body.youtube_handle;
-      if (body.twitter_handle !== undefined) infUpdates.twitter_handle = body.twitter_handle;
-      if (body.availability_status !== undefined) infUpdates.availability_status = body.availability_status;
-      infUpdates.updated_at = new Date().toISOString();
-
-      if (Object.keys(infUpdates).length > 1) {
-        const { error: infError } = await supabase
-          .from('influencer_profiles')
-          .update(infUpdates)
-          .eq('user_id', user.id);
-        if (infError) throw infError;
-      }
+    // Determine extended profile updates from validatedData
+    if (role === 'business_owner' && Object.keys(validatedData).length > 0) {
+      const bizUpdates: any = { ...validatedData, updated_at: new Date().toISOString() };
+      const { error: bizError } = await supabase
+        .from('business_profiles')
+        .update(bizUpdates)
+        .eq('user_id', user.id);
+      if (bizError) return jsonError(500, 'Failed to update business profile', bizError);
+    } else if (role === 'influencer' && Object.keys(validatedData).length > 0) {
+      const infUpdates: any = { ...validatedData, updated_at: new Date().toISOString() };
+      const { error: infError } = await supabase
+        .from('influencer_profiles')
+        .update(infUpdates)
+        .eq('user_id', user.id);
+      if (infError) return jsonError(500, 'Failed to update influencer profile', infError);
     }
 
     // Return updated profile
@@ -211,7 +172,6 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ profile: updatedProfile });
   } catch (error: any) {
-    console.error('[PATCH /api/profile] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(500, 'Internal server error', error);
   }
 }
