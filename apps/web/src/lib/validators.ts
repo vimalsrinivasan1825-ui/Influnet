@@ -94,6 +94,8 @@ export const BusinessProfileUpdateSchema = z.object({
 
 export const CollabRequestSchema = z.object({
   to_user_id: z.string().uuid(),
+  project_title: z.string().max(200).optional(),
+  project_description: z.string().max(2000).optional(),
   message: z.string().max(2000).optional(),
   budget: z.number().positive().optional(),
 });
