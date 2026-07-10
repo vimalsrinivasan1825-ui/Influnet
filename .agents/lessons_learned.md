@@ -328,4 +328,19 @@ This file tracks the current implementation state of each system module, issues 
 * TS type refinement for API results should be done cleanly via non-null assertions or explicit type narrowings.
 
 #### Next Target
-* Remaining Task 3 items (such as metrics, constants extraction, bento charts).
+* Task 3.2: Extract Constants & De-duplicate Signup Data.
+
+### Constants Extraction & Signup De-duplication (Task 3.2) — COMPLETED (July 10, 2026)
+
+#### Scope
+* Created a centralized constants database in `apps/web/src/lib/constants.ts` hosting niches, states, language options, collab types, price tiers, industries, business types, and budget ranges.
+* De-duplicated and removed all local copies of arrays in `signup/influencer/page.tsx`, `signup/business/page.tsx`, and `dashboard/discover/page.tsx`.
+
+#### Broken & Resolved
+* No compiler errors encountered; verified all imports resolved cleanly.
+
+#### Key Lessons
+* Storing configurations, static menus, categories, and tags in a centralized place makes updates trivial and prevents configuration drift between user signup types.
+
+#### Next Target
+* Remaining Task 3 items (such as metrics, decompositions, bento charts).

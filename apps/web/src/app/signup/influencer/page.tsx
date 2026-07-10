@@ -6,57 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 
-const NICHES = [
-  'Fashion & Beauty',
-  'Tech & Gadgets',
-  'Food & Cooking',
-  'Travel',
-  'Fitness & Health',
-  'Gaming',
-  'Finance',
-  'Lifestyle',
-  'Education',
-  'Entertainment',
-  'Sports',
-  'Parenting',
-  'Home Decor',
-  'Art & Design',
-  'Music',
-  'Comedy',
-  'Business',
-  'Environment',
-];
-
-const LANGUAGES = [
-  'English',
-  'Hindi',
-  'Tamil',
-  'Telugu',
-  'Kannada',
-  'Malayalam',
-  'Marathi',
-  'Bengali',
-  'Gujarati',
-  'Punjabi',
-];
-
-const COLLAB_TYPES = ['Reel', 'Story', 'Post', 'YouTube Video', 'Event Appearance'];
-
-const PRICE_TIERS = [
-  { value: 'entry', label: 'Entry', range: '₹1K – ₹5K' },
-  { value: 'standard', label: 'Standard', range: '₹5K – ₹10K' },
-  { value: 'premium', label: 'Premium', range: '₹10K – ₹25K' },
-  { value: 'pro', label: 'Pro', range: '₹25K+' },
-];
-
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
-  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
-  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
-  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Chandigarh', 'Puducherry',
-];
+import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from '@/lib/constants';
 
 type Step = 1 | 2 | 3 | 4;
 

@@ -5,12 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 
-const NICHES = [
-  'Fashion & Beauty', 'Tech & Gadgets', 'Food & Cooking', 'Travel',
-  'Fitness & Health', 'Gaming', 'Finance', 'Lifestyle', 'Education',
-  'Entertainment', 'Sports', 'Parenting', 'Home Decor', 'Art & Design',
-  'Music', 'Comedy', 'Business', 'Environment',
-];
+import { NICHES } from '@/lib/constants';
 
 type DiscoverResult = {
   user_id: string;

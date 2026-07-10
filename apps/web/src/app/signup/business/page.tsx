@@ -5,31 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
-
-const INDUSTRIES = [
-  'Fashion & Apparel', 'Beauty & Personal Care', 'Food & Beverage', 'Technology',
-  'Healthcare & Wellness', 'Finance', 'Education', 'Travel & Hospitality',
-  'Home & Lifestyle', 'Automotive', 'Entertainment & Media', 'Sports & Fitness',
-  'Real Estate', 'Other',
-];
-
-const BUSINESS_TYPES = [
-  'Startup', 'SME', 'Enterprise', 'Agency', 'D2C Brand', 'E-commerce',
-  'NGO / Non-profit', 'Freelancer / Solo', 'Other',
-];
-
-const BUDGET_RANGES = [
-  'Under ₹25K/month', '₹25K – ₹50K', '₹50K – ₹1L', '₹1L – ₹5L', '₹5L – ₹10L', '₹10L+', 'Other',
-];
-
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
-  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
-  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
-  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Chandigarh', 'Puducherry',
-];
+import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from '@/lib/constants';
 
 type Step = 1 | 2 | 3 | 4;
 
