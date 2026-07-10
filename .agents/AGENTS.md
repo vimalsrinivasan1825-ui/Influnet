@@ -41,7 +41,10 @@ Every AI session must strictly adhere to the following execution loop:
     ```
     to keep the codebase structure indexed.
 
-### Step 3: Living Lessons-Learned Updates
+### Step 3: Living Architecture Page
+*   After shipping or changing any feature, **update [docs/architecture.html](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/docs/architecture.html)**: refresh the affected module card's status pill + gap line, update the node's status dot in the diagram SVG if it changed, and append a row to the §Update Log (newest first). Statuses must reflect verified behavior, not intention.
+
+### Step 4: Living Lessons-Learned Updates
 *   Before ending your turn or concluding a feature development task, **you must update** [lessons_learned.md](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/.agents/lessons_learned.md) with:
     1.  **Scope**: What was built or modified.
     2.  **Broken & Resolved**: What broke, how you debugged it, and the final resolution.

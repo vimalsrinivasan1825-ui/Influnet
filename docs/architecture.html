@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>Influnet — System Architecture</title>
+<!--
+  LIVING DOCUMENT — docs/architecture.html
+  When you ship or change a feature:
+    1. Update the module card's status pill + "Gaps / next" line in §Modules.
+    2. If the status changed, update the node's dot class in the §Diagram SVG
+       (dot-ok / dot-warn / dot-bad / dot-idle, or node-plan for planned).
+    3. Append a row to §Update Log (newest first).
+  Source of truth is this file in the repo. See .agents/AGENTS.md workflow rules.
+-->
+<style>
+  :root {
+    --bg: #f7f7f9;
+    --surface: #ffffff;
+    --ink: #17171d;
+    --muted: #6f6c7c;
+    --line: #e7e5ee;
+    --accent: #b23ad1;
+    --accent-soft: #f8ecfb;
+    --ok: #0f9d6d;
+    --warn: #d98a06;
+    --bad: #dc2626;
+    --idle: #8b8899;
+    --band: #f1f0f6;
+    --code-bg: #f3f2f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101014;
+      --surface: #17171e;
+      --ink: #ecebf3;
+      --muted: #9b99a8;
+      --line: #2a2933;
+      --accent: #e07ff5;
+      --accent-soft: #2b1e31;
+      --ok: #3dd6a3;
+      --warn: #f0b545;
+      --bad: #f87171;
+      --idle: #77748a;
+      --band: #1b1b22;
+      --code-bg: #202028;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f7f9; --surface: #ffffff; --ink: #17171d; --muted: #6f6c7c;
+    --line: #e7e5ee; --accent: #b23ad1; --accent-soft: #f8ecfb;
+    --ok: #0f9d6d; --warn: #d98a06; --bad: #dc2626; --idle: #8b8899;
+    --band: #f1f0f6; --code-bg: #f3f2f7;
+  }
+  :root[data-theme="dark"] {
+    --bg: #101014; --surface: #17171e; --ink: #ecebf3; --muted: #9b99a8;
+    --line: #2a2933; --accent: #e07ff5; --accent-soft: #2b1e31;
+    --ok: #3dd6a3; --warn: #f0b545; --bad: #f87171; --idle: #77748a;
+    --band: #1b1b22; --code-bg: #202028;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+
+  .topnav {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 20px;
+    padding: 12px 28px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topnav .brand { font-weight: 800; letter-spacing: -0.02em; font-size: 15px; }
+  .topnav .brand em { color: var(--accent); font-style: normal; }
+  .topnav nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .topnav nav a {
+    color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600;
+    padding: 5px 10px; border-radius: 8px;
+  }
+  .topnav nav a:hover, .topnav nav a:focus-visible { color: var(--ink); background: var(--band); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 36px 28px 80px; }
+
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 {
+    font-size: 32px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15;
+    margin: 6px 0 10px; text-wrap: balance;
+  }
+  .lede { color: var(--muted); max-width: 68ch; margin: 0 0 8px; }
+  .meta { font-size: 12.5px; color: var(--muted); }
+  .meta .mono { background: var(--code-bg); padding: 1px 6px; border-radius: 5px; }
+
+  h2 {
+    font-size: 21px; font-weight: 800; letter-spacing: -0.02em;
+    margin: 56px 0 6px; scroll-margin-top: 80px;
+  }
+  .sub { color: var(--muted); font-size: 13.5px; margin: 0 0 18px; max-width: 75ch; }
+
+  /* ── Diagram ─────────────────────────────────────────── */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 0 0 12px; font-size: 12.5px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .ldot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .ldot.ok { background: var(--ok); }
+  .ldot.warn { background: var(--warn); }
+  .ldot.bad { background: var(--bad); }
+  .ldot.idle { background: var(--idle); }
+  .ldot.plan { background: transparent; border: 1.5px dashed var(--muted); }
+
+  .diagram-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px; overflow-x: auto;
+  }
+  .diagram-card svg { display: block; min-width: 900px; width: 100%; height: auto; }
+
+  svg .band { fill: var(--band); stroke: none; rx: 14px; }
+  svg .band-label {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.09em;
+    fill: var(--muted); text-transform: uppercase;
+  }
+  svg .node { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  svg .node-plan { stroke-dasharray: 5 4; }
+  svg .nlabel { font-size: 13px; font-weight: 600; fill: var(--ink); }
+  svg .nsub { font-size: 10.5px; fill: var(--muted); }
+  svg .node-plan-text { fill: var(--muted); }
+  svg .dot-ok { fill: var(--ok); }
+  svg .dot-warn { fill: var(--warn); }
+  svg .dot-bad { fill: var(--bad); }
+  svg .dot-idle { fill: var(--idle); }
+  svg .dot-plan { fill: none; stroke: var(--muted); stroke-dasharray: 2 2; }
+  svg .flow { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+  svg .flow-label { font-size: 10.5px; fill: var(--muted); }
+  svg .container-box { fill: none; stroke: var(--line); stroke-width: 1.4; }
+  svg .container-title { font-size: 13px; font-weight: 700; fill: var(--ink); }
+  svg a { cursor: pointer; }
+  svg a:hover .node, svg a:focus .node { stroke: var(--accent); stroke-width: 1.8; }
+  svg a:hover .nlabel { fill: var(--accent); }
+
+  /* ── Modules ─────────────────────────────────────────── */
+  .mods { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .mod {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; scroll-margin-top: 80px;
+  }
+  .mod:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .mod header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  .mod h3 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .pill {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 2px 9px; border-radius: 99px; white-space: nowrap;
+  }
+  .pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .pill.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .pill.idle { color: var(--idle); background: color-mix(in srgb, var(--idle) 14%, transparent); }
+  .pill.plan { color: var(--muted); border: 1px dashed var(--muted); }
+  .mod p { margin: 6px 0; font-size: 13.5px; }
+  .mod .paths {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px;
+    color: var(--muted); background: var(--code-bg); border-radius: 8px; padding: 7px 10px;
+    overflow-x: auto; white-space: nowrap;
+  }
+  .mod .gap { color: var(--muted); font-size: 12.5px; }
+  .mod .gap b { color: var(--ink); font-weight: 600; }
+
+  .callout {
+    border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
+    background: color-mix(in srgb, var(--warn) 7%, var(--surface));
+    border-radius: 14px; padding: 16px 20px; margin: 18px 0 0;
+  }
+  .callout h3 { margin: 0 0 8px; font-size: 14px; }
+  .callout ul { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .callout li { margin: 4px 0; }
+
+  /* ── Timeline ────────────────────────────────────────── */
+  .timeline { list-style: none; margin: 0; padding: 0 0 0 26px; position: relative; }
+  .timeline::before {
+    content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px;
+    width: 2px; background: var(--line); border-radius: 2px;
+  }
+  .timeline li { position: relative; padding: 0 0 22px 14px; }
+  .timeline li::before {
+    content: ""; position: absolute; left: -25px; top: 5px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--surface); border: 2.5px solid var(--accent);
+  }
+  .timeline li.era-legacy::before { border-color: var(--idle); }
+  .timeline li.era-next::before { border-color: var(--muted); background: var(--band); }
+  .timeline .when {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .timeline h3 { margin: 2px 0 4px; font-size: 15px; font-weight: 700; }
+  .timeline p { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 78ch; }
+  .timeline p b { color: var(--ink); font-weight: 600; }
+
+  /* ── Tables ──────────────────────────────────────────── */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th {
+    text-align: left; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); padding: 11px 14px; border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td .mono { font-size: 11.5px; background: var(--code-bg); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+  .note {
+    font-size: 12.5px; color: var(--muted); margin-top: 10px; max-width: 80ch;
+  }
+
+  footer.pagefoot {
+    margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12px; color: var(--muted);
+  }
+</style>
+
+<div class="topnav">
+  <span class="brand">influnet <em>/</em> architecture</span>
+  <nav aria-label="Sections">
+    <a href="#diagram">Diagram</a>
+    <a href="#modules">Modules</a>
+    <a href="#journey">Journey</a>
+    <a href="#hidden">Hidden assets</a>
+    <a href="#log">Update log</a>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <p class="eyebrow">Living document · update with every feature</p>
+  <h1>Influnet — System Architecture &amp; Build Record</h1>
+  <p class="lede">
+    One page that shows how the whole system fits together, what state every part is in,
+    how we got here, and what's still sitting unused in the codebase. Click any block in
+    the diagram to jump to its explanation.
+  </p>
+  <p class="meta">
+    Last updated <b>July 10, 2026</b> · repo layout: Turborepo monorepo, app in
+    <span class="mono">apps/web</span> · database: Supabase project
+    <span class="mono">jaajosocopoicmqcffuu</span> · 43 migrations
+  </p>
+
+  <!-- ═══════════════════ DIAGRAM ═══════════════════ -->
+  <h2 id="diagram">System diagram</h2>
+  <p class="sub">Every block is clickable. Colors show real, verified status — not aspiration.</p>
+
+  <div class="legend">
+    <span><i class="ldot ok"></i> Working</span>
+    <span><i class="ldot warn"></i> Partial / needs QA</span>
+    <span><i class="ldot bad"></i> Broken</span>
+    <span><i class="ldot idle"></i> Built, not wired in</span>
+    <span><i class="ldot plan"></i> Planned</span>
+  </div>
+
+  <div class="diagram-card">
+  <svg viewBox="0 0 1140 860" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Influnet system block diagram: client pages, edge middleware, API routes, and data services">
+    <defs>
+      <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/>
+      </marker>
+    </defs>
+
+    <!-- CLIENT band -->
+    <rect class="band" x="16" y="16" width="1108" height="222" rx="14"/>
+    <text class="band-label" x="32" y="44">Client — Next.js pages · apps/web/src/app</text>
+
+    <!-- Row A -->
+    <a href="#m-landing"><g>
+      <rect class="node" x="32" y="64" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="48" cy="91" r="4"/>
+      <text class="nlabel" x="117" y="96" text-anchor="middle">Landing</text>
+    </g></a>
+    <a href="#m-auth"><g>
+      <rect class="node" x="213" y="64" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="229" cy="91" r="4"/>
+      <text class="nlabel" x="298" y="96" text-anchor="middle">Login &amp; Signup</text>
+    </g></a>
+    <a href="#m-dashboards"><g>
+      <rect class="node" x="394" y="64" width="170" height="54" rx="12"/>
+      <circle class="dot-warn" cx="410" cy="91" r="4"/>
+      <text class="nlabel" x="479" y="96" text-anchor="middle">Business Dash</text>
+    </g></a>
+    <a href="#m-dashboards"><g>
+      <rect class="node" x="575" y="64" width="170" height="54" rx="12"/>
+      <circle class="dot-warn" cx="591" cy="91" r="4"/>
+      <text class="nlabel" x="660" y="96" text-anchor="middle">Creator Dash</text>
+    </g></a>
+    <a href="#m-discover"><g>
+      <rect class="node" x="756" y="64" width="170" height="54" rx="12"/>
+      <circle class="dot-warn" cx="772" cy="91" r="4"/>
+      <text class="nlabel" x="841" y="96" text-anchor="middle">Discover</text>
+    </g></a>
+    <a href="#m-requests"><g>
+      <rect class="node" x="937" y="64" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="953" cy="91" r="4"/>
+      <text class="nlabel" x="1022" y="96" text-anchor="middle">Requests</text>
+    </g></a>
+
+    <!-- Row B -->
+    <a href="#m-projects"><g>
+      <rect class="node" x="32" y="140" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="48" cy="167" r="4"/>
+      <text class="nlabel" x="117" y="172" text-anchor="middle">Projects + Kanban</text>
+    </g></a>
+    <a href="#m-messages"><g>
+      <rect class="node" x="213" y="140" width="170" height="54" rx="12"/>
+      <circle class="dot-warn" cx="229" cy="167" r="4"/>
+      <text class="nlabel" x="298" y="172" text-anchor="middle">Messages</text>
+    </g></a>
+    <a href="#m-admin"><g>
+      <rect class="node" x="394" y="140" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="410" cy="167" r="4"/>
+      <text class="nlabel" x="479" y="172" text-anchor="middle">Admin Panel</text>
+    </g></a>
+    <a href="#m-settings"><g>
+      <rect class="node" x="575" y="140" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="591" cy="167" r="4"/>
+      <text class="nlabel" x="660" y="172" text-anchor="middle">Settings</text>
+    </g></a>
+    <a href="#m-connections"><g>
+      <rect class="node node-plan" x="756" y="140" width="170" height="54" rx="12"/>
+      <circle class="dot-plan" cx="772" cy="167" r="4"/>
+      <text class="nlabel node-plan-text" x="841" y="172" text-anchor="middle">Connections</text>
+    </g></a>
+    <a href="#m-public-profile"><g>
+      <rect class="node node-plan" x="937" y="140" width="170" height="54" rx="12"/>
+      <circle class="dot-plan" cx="953" cy="167" r="4"/>
+      <text class="nlabel node-plan-text" x="1022" y="166" text-anchor="middle">Public Profile</text>
+      <text class="nsub" x="1022" y="181" text-anchor="middle">/c/[username] · link-in-bio</text>
+    </g></a>
+
+    <!-- flow client -> middleware -->
+    <line class="flow" x1="570" y1="240" x2="570" y2="262" marker-end="url(#arr)"/>
+    <text class="flow-label" x="584" y="256">fetch + Bearer JWT</text>
+
+    <!-- EDGE band -->
+    <rect class="band" x="16" y="254" width="1108" height="64" rx="14"/>
+    <text class="band-label" x="32" y="291">Edge</text>
+    <a href="#m-middleware"><g>
+      <rect class="node" x="330" y="266" width="480" height="40" rx="12"/>
+      <circle class="dot-ok" cx="348" cy="286" r="4"/>
+      <text class="nlabel" x="570" y="291" text-anchor="middle">Middleware — session refresh · route guard</text>
+    </g></a>
+
+    <!-- flow middleware -> api -->
+    <line class="flow" x1="570" y1="306" x2="570" y2="330" marker-end="url(#arr)"/>
+
+    <!-- API band -->
+    <rect class="band" x="16" y="334" width="1108" height="190" rx="14"/>
+    <text class="band-label" x="32" y="362">API — route handlers · apps/web/src/app/api</text>
+
+    <!-- API Row A -->
+    <a href="#m-requests"><g>
+      <rect class="node" x="32" y="382" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="48" cy="409" r="4"/>
+      <text class="nlabel" x="134" y="414" text-anchor="middle">/api/collabs</text>
+    </g></a>
+    <a href="#m-projects"><g>
+      <rect class="node" x="250" y="382" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="266" cy="409" r="4"/>
+      <text class="nlabel" x="352" y="414" text-anchor="middle">/api/projects + cards</text>
+    </g></a>
+    <a href="#m-messages"><g>
+      <rect class="node" x="468" y="382" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="484" cy="409" r="4"/>
+      <text class="nlabel" x="570" y="414" text-anchor="middle">/api/conversations</text>
+    </g></a>
+    <a href="#m-messages"><g>
+      <rect class="node" x="686" y="382" width="204" height="54" rx="12"/>
+      <circle class="dot-warn" cx="702" cy="409" r="4"/>
+      <text class="nlabel" x="788" y="414" text-anchor="middle">/api/stream/*</text>
+    </g></a>
+    <a href="#m-notifications"><g>
+      <rect class="node" x="904" y="382" width="204" height="54" rx="12"/>
+      <circle class="dot-warn" cx="920" cy="409" r="4"/>
+      <text class="nlabel" x="1006" y="414" text-anchor="middle">/api/notifications</text>
+    </g></a>
+
+    <!-- API Row B -->
+    <a href="#m-auth"><g>
+      <rect class="node" x="141" y="458" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="157" cy="485" r="4"/>
+      <text class="nlabel" x="243" y="490" text-anchor="middle">/api/auth · profile</text>
+    </g></a>
+    <a href="#m-discover"><g>
+      <rect class="node" x="359" y="458" width="204" height="54" rx="12"/>
+      <circle class="dot-warn" cx="375" cy="485" r="4"/>
+      <text class="nlabel" x="461" y="490" text-anchor="middle">/api/discover</text>
+    </g></a>
+    <a href="#m-dashboards"><g>
+      <rect class="node" x="577" y="458" width="204" height="54" rx="12"/>
+      <circle class="dot-warn" cx="593" cy="485" r="4"/>
+      <text class="nlabel" x="679" y="490" text-anchor="middle">/api/*/dashboard</text>
+    </g></a>
+    <a href="#m-admin"><g>
+      <rect class="node" x="795" y="458" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="811" cy="485" r="4"/>
+      <text class="nlabel" x="897" y="490" text-anchor="middle">/api/admin/*</text>
+    </g></a>
+
+    <!-- flows api -> services -->
+    <line class="flow" x1="350" y1="524" x2="350" y2="546" marker-end="url(#arr)"/>
+    <line class="flow" x1="900" y1="524" x2="900" y2="546" marker-end="url(#arr)"/>
+
+    <!-- SERVICES band -->
+    <rect class="band" x="16" y="552" width="1108" height="292" rx="14"/>
+    <text class="band-label" x="32" y="578">Data &amp; services</text>
+
+    <!-- Supabase container -->
+    <a href="#m-supabase"><g>
+      <rect class="container-box" x="32" y="590" width="650" height="196" rx="14"/>
+      <text class="container-title" x="48" y="614">Supabase — PostgreSQL · Auth · Storage · Edge Functions</text>
+    </g></a>
+    <a href="#m-supabase"><g>
+      <rect class="node" x="48" y="626" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="63" cy="651" r="4"/>
+      <text class="nlabel" x="146" y="656" text-anchor="middle">Auth (JWT)</text>
+    </g></a>
+    <a href="#m-supabase"><g>
+      <rect class="node" x="259" y="626" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="274" cy="651" r="4"/>
+      <text class="nlabel" x="357" y="651" text-anchor="middle">Postgres + RLS</text>
+      <text class="nsub" x="357" y="665" text-anchor="middle">43 migrations · 19 tables</text>
+    </g></a>
+    <a href="#m-supabase"><g>
+      <rect class="node" x="470" y="626" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="485" cy="651" r="4"/>
+      <text class="nlabel" x="568" y="656" text-anchor="middle">Storage</text>
+    </g></a>
+    <a href="#m-otp"><g>
+      <rect class="node" x="48" y="694" width="196" height="50" rx="10"/>
+      <circle class="dot-idle" cx="63" cy="719" r="4"/>
+      <text class="nlabel" x="146" y="724" text-anchor="middle">Edge Fn · phone-otp</text>
+    </g></a>
+    <a href="#m-otp"><g>
+      <rect class="node" x="259" y="694" width="196" height="50" rx="10"/>
+      <circle class="dot-idle" cx="274" cy="719" r="4"/>
+      <text class="nlabel" x="357" y="724" text-anchor="middle">Edge Fn · auth-signup</text>
+    </g></a>
+    <a href="#m-notifications"><g>
+      <rect class="node node-plan" x="470" y="694" width="196" height="50" rx="10"/>
+      <circle class="dot-plan" cx="485" cy="719" r="4"/>
+      <text class="nlabel node-plan-text" x="568" y="724" text-anchor="middle">Realtime</text>
+    </g></a>
+
+    <!-- Right service stack -->
+    <a href="#m-stream"><g>
+      <rect class="node" x="700" y="590" width="408" height="50" rx="12"/>
+      <circle class="dot-ok" cx="716" cy="615" r="4"/>
+      <text class="nlabel" x="904" y="620" text-anchor="middle">Stream Chat — hosted messaging</text>
+    </g></a>
+    <a href="#m-otp"><g>
+      <rect class="node" x="700" y="656" width="408" height="50" rx="12"/>
+      <circle class="dot-warn" cx="716" cy="681" r="4"/>
+      <text class="nlabel" x="904" y="686" text-anchor="middle">2Factor — SMS OTP (India)</text>
+    </g></a>
+    <a href="#m-notifications"><g>
+      <rect class="node node-plan" x="700" y="722" width="408" height="50" rx="12"/>
+      <circle class="dot-plan" cx="716" cy="747" r="4"/>
+      <text class="nlabel node-plan-text" x="904" y="752" text-anchor="middle">Resend — transactional email</text>
+    </g></a>
+    <a href="#m-payments"><g>
+      <rect class="node node-plan" x="700" y="788" width="408" height="44" rx="12"/>
+      <circle class="dot-plan" cx="716" cy="810" r="4"/>
+      <text class="nlabel node-plan-text" x="904" y="815" text-anchor="middle">Razorpay — payments</text>
+    </g></a>
+
+    <!-- SMS connector -->
+    <path class="flow" d="M 244 719 L 660 719 L 660 700 L 690 685" stroke-dasharray="4 4" marker-end="url(#arr)"/>
+    <text class="flow-label" x="600" y="712">SMS</text>
+  </svg>
+  </div>
+
+  <!-- ═══════════════════ MODULES ═══════════════════ -->
+  <h2 id="modules">Modules — what each block is</h2>
+  <p class="sub">
+    Status verified against the code and live database on July 10, 2026. Each card lists the
+    key paths and the honest gap that remains.
+  </p>
+
+  <div class="mods">
+
+    <section class="mod" id="m-landing">
+      <header><h3>Landing page</h3><span class="pill ok">Working</span></header>
+      <p>Public marketing site: hero with WebGL globe, 14 sections (vision, how-it-works, creator economy, trust, CTA). Premium Apple-style light theme.</p>
+      <p class="paths">src/app/page.tsx · src/components/landing/*</p>
+      <p class="gap"><b>Gap:</b> copy hardcoded in components (fine for now).</p>
+    </section>
+
+    <section class="mod" id="m-auth">
+      <header><h3>Auth — login &amp; signup</h3><span class="pill ok">Working</span></header>
+      <p>Email/password login, role picker, 4-step wizards for creators and businesses. Businesses land in <i>pending review</i> until an admin approves. Registration runs through the <span class="mono">register_profile</span> RPC.</p>
+      <p class="paths">src/app/login · src/app/signup/* · api/auth/register · api/profile</p>
+      <p class="gap"><b>Gaps:</b> no password reset page yet (Task 2.4); phone OTP not wired into the wizard (see 2Factor card); session token still mirrored to localStorage (Task 3.8).</p>
+    </section>
+
+    <section class="mod" id="m-middleware">
+      <header><h3>Edge middleware</h3><span class="pill ok">Working</span></header>
+      <p>Runs before every page: refreshes the Supabase session cookie, redirects logged-out visitors to <span class="mono">/login</span>, and bounces logged-in users away from the login page.</p>
+      <p class="paths">apps/web/middleware.ts</p>
+      <p class="gap"><b>Gap:</b> public-profile route <span class="mono">/c</span> must be whitelisted when built.</p>
+    </section>
+
+    <section class="mod" id="m-dashboards">
+      <header><h3>Dashboards (business + creator)</h3><span class="pill warn">Partial</span></header>
+      <p>Role-specific home screens. Request/project counts and budget totals are real; bell + badge counts now live via the notifications summary.</p>
+      <p class="paths">src/app/dashboard/page.tsx · dashboard/influencer · api/business|influencer/dashboard</p>
+      <p class="gap"><b>Gaps:</b> <span class="mono">reach</span>, <span class="mono">platform</span>, <span class="mono">profile_views</span>, trends are mock values (Task 3.5) — real sources exist in the dormant analytics tables.</p>
+    </section>
+
+    <section class="mod" id="m-discover">
+      <header><h3>Discovery</h3><span class="pill warn">Partial</span></header>
+      <p>Role-aware: businesses browse creators, creators see brands. Sends the collaborate modal into the request flow.</p>
+      <p class="paths">src/app/dashboard/discover · api/discover</p>
+      <p class="gap"><b>Gaps:</b> no search, filters, or pagination — flat <span class="mono">LIMIT 30</span> (Task 3.6). Quality collapses past a few dozen users.</p>
+    </section>
+
+    <section class="mod" id="m-requests">
+      <header><h3>Collab requests</h3><span class="pill ok">Working</span></header>
+      <p>Business → creator, one direction only (server-enforced 403). Accepting runs the atomic <span class="mono">accept_collab_request</span> RPC: request + project + conversation in one transaction, duplicate-proof. Zod-validated via the shared <span class="mono">withAuth</span> helper.</p>
+      <p class="paths">src/app/dashboard/requests · api/collabs · migration 043</p>
+      <p class="gap"><b>Note:</b> RPCs created in the live DB July 10; migration file 043 pending commit. Decline/cancel role rules could still be tightened.</p>
+    </section>
+
+    <section class="mod" id="m-projects">
+      <header><h3>Projects — 12-stage pipeline + Kanban</h3><span class="pill ok">Working</span></header>
+      <p>Auto-created on accept. Stage tracker (collaboration_started → project_completed), mutual-consent cancellation, and a per-project Kanban workspace with draggable cards (due dates, colors, meeting links).</p>
+      <p class="paths">dashboard/projects · projects/[id] · api/projects · api/projects/[id]/cards</p>
+      <p class="gap"><b>Done:</b> the old auto-heal side effect in GET was removed. <b>Gap:</b> file deliverables (<span class="mono">project_assets</span>) have no UI.</p>
+    </section>
+
+    <section class="mod" id="m-messages">
+      <header><h3>Messaging</h3><span class="pill warn">Needs live QA</span></header>
+      <p>Chat UI runs on Stream Chat (hosted). Supabase stays the source of truth for <i>which</i> conversations exist; conversation creation is atomic via <span class="mono">get_or_create_conversation</span>. Stream token/channel routes now authenticate the caller and verify channel membership.</p>
+      <p class="paths">dashboard/messages · api/conversations · api/stream/* · src/lib/stream.ts</p>
+      <p class="gap"><b>Gaps:</b> end-to-end QA with two real accounts still pending; message history isn't persisted back to Postgres yet (webhook — Task 1.6).</p>
+    </section>
+
+    <section class="mod" id="m-notifications">
+      <header><h3>Notifications</h3><span class="pill warn">Partial</span></header>
+      <p>In-app summary works: <span class="mono">/api/notifications/summary</span> feeds the sidebar badges and bell counts. This is the product's core promise — "instant" delivery is the next milestone.</p>
+      <p class="paths">api/notifications/summary · store/notification-store.ts · components/dashboard/shell.tsx</p>
+      <p class="gap"><b>Missing:</b> notifications table + Supabase Realtime push (Task 2.1) and email via Resend (Task 2.2). Until then, creators only see requests when they open the app.</p>
+    </section>
+
+    <section class="mod" id="m-admin">
+      <header><h3>Admin panel</h3><span class="pill ok">Working</span></header>
+      <p>Platform stats, business approval queue, user list, project and collab oversight with force-delete. Every route re-checks the admin role server-side; RLS uses the <span class="mono">is_admin()</span> definer function.</p>
+      <p class="paths">dashboard/admin/* · api/admin/* · migration 038</p>
+      <p class="gap"><b>Gap:</b> no audit log of admin actions yet.</p>
+    </section>
+
+    <section class="mod" id="m-settings">
+      <header><h3>Settings / profile</h3><span class="pill ok">Working</span></header>
+      <p>Read + edit for base profile and role-specific fields (creator socials, niches, pricing; business company data). Snake_case Zod validation end-to-end.</p>
+      <p class="paths">dashboard/settings · api/profile · lib/validators.ts</p>
+      <p class="gap"><b>Gap:</b> will need the "your public link" field once the public profile ships.</p>
+    </section>
+
+    <section class="mod" id="m-connections">
+      <header><h3>Connections</h3><span class="pill plan">Stub</span></header>
+      <p>Page is a 20-line placeholder. The database side (connections table, favorites, notes — migration 029) already exists.</p>
+      <p class="paths">dashboard/connections · migration 029</p>
+      <p class="gap"><b>To build:</b> list of collaborators derived from accepted projects, favorites, notes.</p>
+    </section>
+
+    <section class="mod" id="m-public-profile">
+      <header><h3>Public creator profile — link-in-bio</h3><span class="pill plan">Planned · critical</span></header>
+      <p>The acquisition engine: <span class="mono">influnet.com/c/&lt;username&gt;</span> in a creator's social bio → business clicks → sends a request. Existed on the legacy site; not yet in this app.</p>
+      <p class="paths">planned: src/app/c/[username] · get_public_influencer RPC (ready) · profile_link_clicks (ready)</p>
+      <p class="gap"><b>To build:</b> SSR page + OG tags + CTA for all three auth states (Task 2.3). DB support is already in place.</p>
+    </section>
+
+    <section class="mod" id="m-supabase">
+      <header><h3>Supabase (data backbone)</h3><span class="pill ok">Working</span></header>
+      <p>PostgreSQL with row-level security on every table, JWT auth, avatar/photo storage, and edge functions. 19 tables, 25+ RPCs, 43 numbered migrations. API routes always query with the caller's JWT so RLS applies.</p>
+      <p class="paths">supabase/migrations/ · supabase/functions/ · src/lib/supabase/*</p>
+      <p class="gap"><b>Note:</b> keys that were once committed to git history still need rotation (Phase 0 human checklist).</p>
+    </section>
+
+    <section class="mod" id="m-stream">
+      <header><h3>Stream Chat (hosted service)</h3><span class="pill ok">Integrated</span></header>
+      <p>GetStream handles live message transport and chat UI components. Channels map 1:1 to conversations (<span class="mono">conv_&lt;uuid&gt;</span>); tokens are issued server-side only.</p>
+      <p class="paths">src/lib/stream.ts · api/stream/token · api/stream/channel</p>
+      <p class="gap"><b>Gap:</b> webhook → Postgres persistence (Task 1.6) so Influnet owns its message history.</p>
+    </section>
+
+    <section class="mod" id="m-otp">
+      <header><h3>Phone OTP — 2Factor SMS</h3><span class="pill idle">Built, not wired</span></header>
+      <p>Complete server-side OTP system: send/verify edge function, rate limits (5/hr per number, 5 attempts per session, 10-min TTL), audit log, and <span class="mono">profiles.phone_verified</span>. OTP codes are never stored by Influnet. The UI was lost with the legacy site.</p>
+      <p class="paths">supabase/functions/phone-otp · migrations 022 + 026 · docs/DECISIONS.md → D-002</p>
+      <p class="gap"><b>To activate:</b> 2Factor API key + deploy function to project <span class="mono">jaajosocopoicmqcffuu</span> + small OTP step in the signup wizard. Old docs reference the previous project ref — follow D-002.</p>
+    </section>
+
+    <section class="mod" id="m-payments">
+      <header><h3>Payments</h3><span class="pill plan">Planned · Phase 3</span></header>
+      <p>The pipeline already reserves <i>advance_payment</i> and <i>final_payment</i> stages. Decision D-001: use Razorpay (India-standard) — never build payment handling in-house.</p>
+      <p class="paths">planned · docs/DECISIONS.md → D-001</p>
+      <p class="gap"><b>To build:</b> milestone payments tied to pipeline stages.</p>
+    </section>
+
+  </div>
+
+  <div class="callout">
+    <h3>⚠ Known issues on the working tree right now (July 10, 2026)</h3>
+    <ul>
+      <li><b>Typecheck fails:</b> the shared API helper types the Supabase client with the hand-written <span class="mono">Database</span> type, which is missing several tables/RPCs → ~30 <span class="mono">never</span> errors. Fix ready: adopt generated types from the live schema (awaiting go-ahead).</li>
+      <li><b>4 validator unit tests outdated:</b> schemas moved to snake_case in Task 1.5; tests still send camelCase.</li>
+      <li><b>Migration 043 uncommitted:</b> the accept/conversation RPCs exist in the live DB; the SQL file documenting them sits uncommitted in the working tree.</li>
+      <li><b>Key rotation outstanding:</b> secrets from old commits remain valid until rotated (Phase 0 human checklist).</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════ JOURNEY ═══════════════════ -->
+  <h2 id="journey">The journey — initial stage to now</h2>
+  <p class="sub">Three generations of the product, and everything shipped since.</p>
+
+  <ul class="timeline">
+    <li class="era-legacy">
+      <span class="when">Gen 1 · June 2026</span>
+      <h3>Static site on Firebase</h3>
+      <p>Marketing site + a compiled React bundle served by Firebase Hosting, with Supabase bolted on through a runtime <b>auth bridge</b> that intercepted <span class="mono">/api/*</span> calls. Included an early public creator profile and phone-OTP UI.</p>
+    </li>
+    <li class="era-legacy">
+      <span class="when">Gen 1.5 · June–July 2026</span>
+      <h3>The patch era</h3>
+      <p>Source access to the bundle was lost — ~60 Node/PowerShell scripts patched the <i>compiled</i> JavaScript directly. Painful, fragile, and the reason for the rewrite.</p>
+    </li>
+    <li>
+      <span class="when">Gen 3 · early July 2026</span>
+      <h3>Next.js rewrite begins (influnet-app)</h3>
+      <p>Fresh Next.js 16 + Supabase app: premium landing page, login, both 4-step signup wizards, bento-grid dashboards.</p>
+    </li>
+    <li>
+      <span class="when">July 7, 2026</span>
+      <h3>Backend build-out</h3>
+      <p>API routes for collabs, conversations, projects, discovery, dashboards. Unidirectional request rule, auto-created projects + conversations on accept, the <b>12-stage pipeline</b>, admin panel (approvals, users, oversight), settings wiring, E2E matchmaking test.</p>
+    </li>
+    <li>
+      <span class="when">July 8–9, 2026</span>
+      <h3>Kanban workspace + Stream Chat</h3>
+      <p>Per-project Kanban board with draggable cards (migrations 039–041); messaging UI migrated from Supabase Realtime to <b>Stream Chat</b>.</p>
+    </li>
+    <li>
+      <span class="when">July 10, 2026</span>
+      <h3>Full audit &amp; work order</h3>
+      <p>Complete codebase analysis (<span class="mono">docs/PROJECT_ANALYSIS.md</span>) found the broken messaging auth, a raw-SQL route, secrets in git, and the missing notification pipeline. Phased fix plan written (<span class="mono">.agents/EXECUTION_PLAN.md</span>).</p>
+    </li>
+    <li>
+      <span class="when">July 10, 2026</span>
+      <h3>Phase 0 — stabilization</h3>
+      <p>Env files untracked, <span class="mono">.env.example</span> added, ~13,400 lines of pending work committed in reviewable chunks. Key rotation flagged for human action.</p>
+    </li>
+    <li>
+      <span class="when">July 10, 2026</span>
+      <h3>Monorepo refactor</h3>
+      <p>Turborepo + npm workspaces: app moved to <span class="mono">apps/web</span>, ~21,900 legacy files deleted (preserved at git tag <span class="mono">legacy-archive</span>), CI updated, cached builds verified.</p>
+    </li>
+    <li>
+      <span class="when">July 10, 2026</span>
+      <h3>Phase 1 — core logic fixes (Tasks 1.1–1.5)</h3>
+      <p>Stream Chat auth fixed with channel-membership checks · raw-SQL conversation route replaced by RPC · atomic accept RPC · <span class="mono">/api/notifications/summary</span> + live bell counts · shared <span class="mono">withAuth</span> helper + snake_case Zod validation on every route.</p>
+    </li>
+    <li>
+      <span class="when">July 10, 2026</span>
+      <h3>Missing RPCs discovered &amp; created</h3>
+      <p>Live-DB verification revealed the two RPCs the routes call were never actually created. Migration 043 written and applied — <b>accepting a request now works end-to-end</b>. Buy-vs-build and OTP-reuse decisions recorded in <span class="mono">docs/DECISIONS.md</span>.</p>
+    </li>
+    <li class="era-next">
+      <span class="when">Next</span>
+      <h3>Ship the core promise</h3>
+      <p>Task 1.6 message persistence → Task 2.1/2.2 <b>instant notifications</b> (Realtime + email) → Task 2.3 <b>public link-in-bio profile</b> → password reset, OTP UI, then depth (search, analytics, deliverables) and Phase 3 payments.</p>
+    </li>
+  </ul>
+
+  <!-- ═══════════════════ HIDDEN ASSETS ═══════════════════ -->
+  <h2 id="hidden">Hidden assets — built, but unused</h2>
+  <p class="sub">
+    Things that already exist in the database or codebase with no UI on top. Each one is a
+    feature waiting to be switched on — build the interface, not the plumbing.
+  </p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Asset</th><th>Where</th><th>What it unlocks</th><th>Effort</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="mono">phone-otp</span> + <span class="mono">auth-signup</span> edge functions</td>
+          <td>supabase/functions · migrations 022, 026</td>
+          <td>SMS-verified signups; "Verified mobile" trust badge</td>
+          <td>UI only — see D-002</td>
+        </tr>
+        <tr>
+          <td><span class="mono">get_public_influencer</span> / <span class="mono">get_public_business</span> RPCs</td>
+          <td>migrations 021, 024, 027</td>
+          <td>The public link-in-bio profile page (Task 2.3)</td>
+          <td>One SSR page</td>
+        </tr>
+        <tr>
+          <td><span class="mono">profile_views</span> · <span class="mono">creator_profile_views</span> · <span class="mono">profile_link_clicks</span></td>
+          <td>migrations 018, 021</td>
+          <td>Real "profile views" and link analytics on the creator dashboard (replaces mock zeros)</td>
+          <td>Insert on view + count queries</td>
+        </tr>
+        <tr>
+          <td><span class="mono">influencer_shortlists</span></td>
+          <td>schema (live)</td>
+          <td>Businesses save/shortlist creators; "saved by N businesses" metric</td>
+          <td>Small UI + 2 endpoints</td>
+        </tr>
+        <tr>
+          <td><span class="mono">business_reviews</span></td>
+          <td>schema (live)</td>
+          <td>Ratings &amp; reviews when a project completes — the trust flywheel</td>
+          <td>UI + endpoint at project_completed</td>
+        </tr>
+        <tr>
+          <td><span class="mono">connections</span> table (favorites, notes)</td>
+          <td>migration 029</td>
+          <td>The Connections page (currently a stub)</td>
+          <td>Page build-out</td>
+        </tr>
+        <tr>
+          <td><span class="mono">project_assets</span></td>
+          <td>migration 020</td>
+          <td>File deliverables sharing inside project workspaces</td>
+          <td>Upload UI + storage rules</td>
+        </tr>
+        <tr>
+          <td><span class="mono">onboarding_progress</span> columns + completion wizard fields</td>
+          <td>migrations 031–035</td>
+          <td>Resumable signup / profile-completion nudges</td>
+          <td>Wire into wizard</td>
+        </tr>
+        <tr>
+          <td><span class="mono">user_presence</span> (typing indicators)</td>
+          <td>migrations 004–005</td>
+          <td>Superseded by Stream Chat — candidate for removal, not building</td>
+          <td>Cleanup decision</td>
+        </tr>
+        <tr>
+          <td><span class="mono">is_conversation_participant</span> · <span class="mono">add_conversation_participant</span> RPCs</td>
+          <td>migration 042 + live</td>
+          <td>Safe membership checks; future group conversations</td>
+          <td>Available now</td>
+        </tr>
+        <tr>
+          <td><span class="mono">influencer_pricing_from_tier</span> RPC</td>
+          <td>live schema</td>
+          <td>Normalized pricing display from signup tiers</td>
+          <td>Use in discover/profile</td>
+        </tr>
+        <tr>
+          <td>Advance/final <b>payment stages</b> in the pipeline enum</td>
+          <td>migration 006</td>
+          <td>Razorpay milestone payments slot straight in (Phase 3)</td>
+          <td>Full feature</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════ UPDATE LOG ═══════════════════ -->
+  <h2 id="log">Update log</h2>
+  <p class="sub">
+    Newest first. <b>Every feature change appends a row here</b> and refreshes the affected
+    module card + diagram dot — this rule lives in <span class="mono">.agents/AGENTS.md</span>.
+  </p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Change</th><th>Areas</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-10</td>
+          <td>Architecture page created; decisions D-001 (stack / buy-vs-build) and D-002 (reuse 2Factor OTP) recorded in <span class="mono">docs/DECISIONS.md</span></td>
+          <td>docs</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-10</td>
+          <td>Missing RPCs <span class="mono">accept_collab_request</span> + <span class="mono">get_or_create_conversation</span> created in live DB (migration 043) — accept flow now functional</td>
+          <td>Requests · Messages · DB</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-10</td>
+          <td>Phase 1 complete (Tasks 1.1–1.5): Stream auth + membership checks, conversation RPC, atomic accept, notifications summary + bell, withAuth + Zod everywhere</td>
+          <td>Messages · Requests · Notifications · API</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-10</td>
+          <td>Monorepo refactor: Turborepo, app → <span class="mono">apps/web</span>, legacy deleted (tag <span class="mono">legacy-archive</span>), CI updated</td>
+          <td>repo · CI</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-10</td>
+          <td>Phase 0 stabilization: env files untracked, pending work committed (12 chunks), full audit + execution plan published</td>
+          <td>repo · security · docs</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-07→09</td>
+          <td>Backend build-out, admin panel, 12-stage pipeline, Kanban workspace, Stream Chat migration</td>
+          <td>API · Projects · Messages · Admin</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">
+    How to update this page: edit the module card + its diagram dot, then add a row above.
+    Statuses must reflect verified behavior, not intention.
+  </p>
+
+  <footer class="pagefoot">
+    Influnet · living architecture record · source: <span class="mono">docs/architecture.html</span> ·
+    companion docs: <span class="mono">docs/PROJECT_ANALYSIS.md</span> · <span class="mono">docs/DECISIONS.md</span> · <span class="mono">.agents/EXECUTION_PLAN.md</span>
+  </footer>
+
+</div>
+</body>
+</html>
