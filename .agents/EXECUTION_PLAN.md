@@ -14,21 +14,21 @@ criteria, and verification. Do not expand scope beyond the task you were given.
 
 ## Global Rules (apply to every task)
 
-1. **Work only inside `influnet-app/` and `supabase/`** unless the task says otherwise.
-   Never modify `influnet/`, `influnet.io/`, `scripts/`, `messaging-widget/`,
-   `signup-widget/`, or `graphify-out/` — these are legacy/generated.
-2. **Verify before you finish.** Minimum bar for every task:
+1. **Work only inside `apps/web/` and `supabase/`** unless the task says otherwise.
+   (The repo is a Turborepo monorepo since July 10, 2026: the Next.js app lives in
+   `apps/web/`, installs run from the repo **root** via npm workspaces. All legacy code
+   was deleted — recover via git tag `legacy-archive` if ever needed.)
+2. **Verify before you finish.** Minimum bar for every task (run from the repo root):
    ```bash
-   cd influnet-app
-   npx tsc --noEmit        # must exit 0
-   npm run test:unit       # must pass
-   npm run build           # must succeed for tasks touching routes/pages
+   npm run typecheck                    # must exit 0
+   npm run test:unit --workspace=web    # must pass
+   npm run build                        # must succeed for tasks touching routes/pages
    ```
    For API tasks, also exercise the route (curl or a small script) against `npm run dev`.
 3. **Match existing patterns**: App Router conventions, functional components, Tailwind v4,
    the premium light-theme aesthetic (`#fafafb`, `rounded-2xl`), Lucide icons, zero-scroll
    dashboards. This Next.js version may differ from your training data — check
-   `influnet-app/node_modules/next/dist/docs/` when unsure (see `influnet-app/AGENTS.md`).
+   `apps/web/node_modules/next/dist/docs/` when unsure (see `apps/web/AGENTS.md`).
 4. **Dynamic route params are Promises** in this Next.js version:
    `const { id } = await context.params;`
 5. **Never hardcode tokens**; client-side fetches must get a fresh token via
@@ -48,24 +48,30 @@ criteria, and verification. Do not expand scope beyond the task you were given.
 
 ## Phase 0 — Repo Stabilization & Security ❗ (blocking everything)
 
+> **STATUS: ✅ COMPLETE (July 10, 2026).** Env files untracked, `.env.example` added,
+> pending work committed on `dev`, and additionally the repo was restructured into a
+> Turborepo monorepo (`influnet-app/` → `apps/web/`, legacy deleted at tag
+> `legacy-archive`). **The human key-rotation checklist in Task 0.1 step 5 remains
+> outstanding** — keys are still exposed in git history until rotated + history rewritten.
+
 ### Task 0.1 ❗ Stop tracking secrets; prepare for key rotation
 
 **Objective:** No secret material tracked by git; repo safe to push.
 
-**Context:** `influnet-app/.env` and `influnet-app/.env.local` are git-tracked.
+**Context:** `apps/web/.env` and `apps/web/.env.local` are git-tracked.
 `.env.local` contains `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ACCESS_TOKEN` (a personal
 access token that can execute arbitrary SQL), and `STREAM_API_SECRET`.
 
 **Steps:**
-1. Append to `influnet-app/.gitignore`:
+1. Append to `apps/web/.gitignore`:
    ```
    # env files — never commit
    .env
    .env.*
    !.env.example
    ```
-2. `git rm --cached influnet-app/.env influnet-app/.env.local` (files stay on disk).
-3. Create `influnet-app/.env.example` listing every required variable name with placeholder
+2. `git rm --cached apps/web/.env apps/web/.env.local` (files stay on disk).
+3. Create `apps/web/.env.example` listing every required variable name with placeholder
    values and a one-line comment each:
    `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
    `STREAM_API_KEY`, `NEXT_PUBLIC_STREAM_API_KEY`, `STREAM_API_SECRET`.
@@ -78,7 +84,7 @@ access token that can execute arbitrary SQL), and `STREAM_API_SECRET`.
    - Rotate the Stream API secret (GetStream Dashboard).
    - Update `.env.local` locally and GitHub Actions secrets.
    - If the repo was ever pushed with these files, rewrite history
-     (`git filter-repo --path influnet-app/.env --path influnet-app/.env.local --invert-paths`)
+     (`git filter-repo --path apps/web/.env --path apps/web/.env.local --invert-paths`)
      and force-push after coordinating with all clones.
 
 **Acceptance criteria:** `git ls-files | grep -E '\.env'` returns only `.env.example`;
@@ -404,7 +410,7 @@ it for field/layout reference, do not port code). DB support exists: public infl
 2. Confirm anonymous read works: if `influencer_profiles` policies require `authenticated`,
    add a migration exposing only the public columns to `anon` **through the RPC**
    (SECURITY DEFINER), not via table-level policy.
-3. Add `'/c'` to the public paths in `influnet-app/middleware.ts:38`.
+3. Add `'/c'` to the public paths in `apps/web/middleware.ts:38`.
 4. CTA logic: logged-in `business_owner` → open the existing collaborate modal flow
    (deep-link `/dashboard/discover?request=<user_id>` and handle the param there);
    logged-out → `/signup/business?next=/c/<username>`; store `next` and honor it after

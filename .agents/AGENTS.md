@@ -14,7 +14,7 @@ Influnet is a premium influencer marketing platform matching brands/businesses a
 *   **The Link-in-Bio Model**: Creators place their custom Influnet profile link in their social bios. Businesses click it, submit requests, and initiate immediate collaborations.
 
 ### Core Architecture & User Flows (V1 Scope):
-*   **Frontend**: Next.js (App Router) in [influnet-app](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/influnet-app) and static marketing site in [influnet](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/influnet).
+*   **Frontend & Backend**: Next.js (App Router) in [apps/web](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/apps/web) — a Turborepo monorepo workspace (`npm install` / `npm run dev` from the repo root). The old static marketing site was removed; see git tag `legacy-archive`.
 *   **Database & Auth**: Supabase (PostgreSQL, Row Level Security, Supabase Auth).
 *   **Aesthetic Guidelines**: Premium Apple-style light theme templates utilizing custom responsive SVGs and moderate border-radii (`rounded-2xl`).
 

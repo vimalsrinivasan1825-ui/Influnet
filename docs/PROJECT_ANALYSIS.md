@@ -3,6 +3,12 @@
 > **Generated:** July 10, 2026 · from a full audit of the repository on branch `dev`
 > **Purpose:** One document that explains the business, the architecture, what exists today,
 > what is broken, what is missing, and what to do next.
+>
+> **⚠️ Layout note (post-refactor):** Later on July 10, 2026 the repo was restructured into
+> a Turborepo monorepo. Paths in this document reflect the pre-refactor layout:
+> `influnet-app/` is now **`apps/web/`**, and all legacy directories (`influnet/`,
+> `influnet.io/`, `scripts/`, `messaging-widget/`, `signup-widget/`) were **deleted**
+> (preserved at git tag `legacy-archive`). Findings and priorities remain valid.
 
 ---
 
