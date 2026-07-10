@@ -9,15 +9,15 @@ This file tracks the current implementation state of each system module, issues 
 ### Auth Pages (Login / Signup)
 *   **State**: Complete (V1 UI Blueprint).
 *   **Files**:
-    *   [login/page.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/influnet-app/src/app/login/page.tsx)
-    *   [signup/influencer/page.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/influnet-app/src/app/signup/influencer/page.tsx)
-    *   [signup/business/page.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/influnet-app/src/app/signup/business/page.tsx)
+    *   [login/page.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/apps/web/src/app/login/page.tsx)
+    *   [signup/influencer/page.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/apps/web/src/app/signup/influencer/page.tsx)
+    *   [signup/business/page.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/apps/web/src/app/signup/business/page.tsx)
 *   **Details**: Apple-style premium card containers on light theme backdrops (`#fafafb`) with soft pink/purple gradient glows. Focus states styled with pink highlights. Ready to be wired to the Supabase client.
 
 ### Dashboard Portal (`/dashboard`)
 *   **State**: Complete (V1 UI Blueprint).
 *   **Files**:
-    *   [dashboard/page.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/influnet-app/src/app/dashboard/page.tsx)
+    *   [dashboard/page.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/apps/web/src/app/dashboard/page.tsx)
 *   **Details**: High-fidelity bento-grid dashboard (no scroll, fits exactly into `100vh - 56px` viewport).
 *   **Visual Elements**:
     *   Interactive SVG Campaign Reach Area Chart (gridlines, trend vectors, Friday peak indicator).
@@ -29,7 +29,7 @@ This file tracks the current implementation state of each system module, issues 
 ### Vision pedastal element
 *   **State**: Complete.
 *   **Files**:
-    *   [vision.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/influnet-app/src/components/landing/vision.tsx)
+    *   [vision.tsx](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/apps/web/src/components/landing/vision.tsx)
 *   **Details**: Uses high-fidelity template asset centerpiece with overlay animated check-cards doing smooth parallax animations.
 
 ---
@@ -147,7 +147,7 @@ This file tracks the current implementation state of each system module, issues 
 #### Scope
 * Deep-audited the full project against `PROJECT_ANALYSIS.md` and `EXECUTION_PLAN.md`.
 * Confirmed `.env*` files were **already gitignored** and **never tracked** in git history — the audit's concern was valid as a precaution but no actual exposure through git exists.
-* Created `influnet-app/.env.example` documenting all required env vars (including new `RESEND_API_KEY` / `EMAIL_FROM` / `NOTIFY_EMAILS_ENABLED` for Phase 2).
+* Created `apps/web/.env.example` documenting all required env vars (including new `RESEND_API_KEY` / `EMAIL_FROM` / `NOTIFY_EMAILS_ENABLED` for Phase 2).
 * Committed the entire ~13,400-line pending codebase in 11 logical, reviewable chunks on the `dev` branch.
 
 #### Commit Series
@@ -164,7 +164,7 @@ This file tracks the current implementation state of each system module, issues 
 11. `phase0: gitignore supabase/.temp CLI artifacts`
 
 #### Broken & Resolved
-* `.env.example` was initially caught by the `.env*` gitignore rule — resolved by adding `!.env.example` exception to `influnet-app/.gitignore`.
+* `.env.example` was initially caught by the `.env*` gitignore rule — resolved by adding `!.env.example` exception to `apps/web/.gitignore`.
 * `supabase/.temp/` (CLI artifacts) got staged with `git add -A` — resolved by adding it to the root `.gitignore` and un-staging before commit.
 
 #### Key Lessons
@@ -176,3 +176,14 @@ This file tracks the current implementation state of each system module, issues 
 * **Task 1.1** — Fix Stream Chat authentication (messaging is currently dead). The `api/stream/token` and `api/stream/channel` routes need to read the Authorization header from the request, not use the service-role client.
 * **Task 1.2** — Remove Management-API raw SQL from `POST /api/conversations`, replace with migration 043 RPC.
 * **Task 1.3** — Atomic collab acceptance via migration 044 + delete the auto-heal from GET /api/projects.
+
+### Monorepo Refactor (2026-07-10)
+* **Scope**: Restructured the repo into a Turborepo monorepo: `influnet-app/` → `apps/web/`, npm workspaces root, `turbo.json` pipeline (build/lint/typecheck/test/dev), CI updated to root installs + `--workspace=web` commands. Deleted all legacy code (`influnet/`, `influnet.io/`, `scripts/`, `messaging-widget/`, `signup-widget/`, firebase/replit config, ~21,900 files incl. committed node_modules) — preserved at git tag `legacy-archive`.
+* **Broken & Resolved**:
+  * Unit tests failed after the fresh workspace install with `localStorage is not defined`. Root cause: `jsdom` existed only in the old `package-lock.json` (never declared in `package.json`), so the clean install dropped it, and `vitest.config.ts` uses `environment: 'node'`. Fix: added `jsdom` as a declared devDependency and a `// @vitest-environment jsdom` directive to `tests/unit/stores.test.ts`.
+  * `git rm` with multiple paths aborts entirely if one path is untracked (`graphify-out`) — remove untracked dirs with plain `rm -rf`.
+* **Key Lessons**:
+  * Never rely on undeclared packages that happen to be in the lockfile — a workspace migration regenerates the lockfile from `package.json` only.
+  * `git mv <dir>` moves untracked files inside the dir too (node_modules, .env.local came along physically) — convenient but check for stray generated dirs afterwards.
+  * Turbo cache verified working: second `npm run build` = FULL TURBO (23ms).
+* **Next Target**: Phase 1 of `.agents/EXECUTION_PLAN.md` (Task 1.1 Stream auth fix). Human still owes the Phase 0 key-rotation checklist.
