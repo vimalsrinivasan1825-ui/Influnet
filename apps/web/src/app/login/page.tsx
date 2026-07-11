@@ -1,14 +1,17 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { motion } from 'framer-motion';
+import React, { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
 
 export default function LoginPage() {
   return (
-    <React.Suspense fallback={<div>Loading...</div>}>
+    <React.Suspense fallback={null}>
       <LoginContent />
     </React.Suspense>
   );
@@ -17,144 +20,125 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextParam = (() => { const n = searchParams.get('next'); return n && n.startsWith('/') && !n.startsWith('//') ? n : null; })();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const nextParam = (() => {
+    const n = searchParams.get("next");
+    return n && n.startsWith("/") && !n.startsWith("//") ? n : null;
+  })();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
-
     try {
       const sb = createClient();
-      const { data, error: authError } = await sb.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data, error: authError } = await sb.auth.signInWithPassword({ email, password });
       if (authError) {
         setError(authError.message);
         return;
       }
-
       if (data.session && data.user) {
-        
-        // Fetch user profile to determine role
-        const { data: profile, error: profileError } = await sb
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
+        const { data: profile } = await sb
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
           .single();
-          
-        const p = profile as any;
-        if (p?.role === 'influencer') {
-          router.push(nextParam || '/dashboard/influencer');
-        } else if (p?.role === 'admin') {
-          router.push(nextParam || '/dashboard/admin');
-        } else {
-          router.push(nextParam || '/dashboard');
-        }
+        const role = (profile as { role?: string } | null)?.role;
+        if (role === "influencer") router.push(nextParam || "/dashboard/influencer");
+        else if (role === "admin") router.push(nextParam || "/dashboard/admin");
+        else router.push(nextParam || "/dashboard");
       }
     } catch {
-      setError('An unexpected error occurred');
+      setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 relative overflow-hidden font-sans">
-      {/* Soft Light Ambient Glows */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-pink-100/30 blur-[130px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-100/30 blur-[130px]" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-4">
+      {/* Ambient brand glows */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
+        <div
+          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
+        />
+        <div
+          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
+        />
       </div>
 
-      <div className="relative z-10 w-full max-w-[450px]">
-        {/* Logo Container */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
-            <img
-              src="/influet_logo.png"
-              alt="influnet"
-              className="h-10 w-auto flex-shrink-0 transition-transform group-hover:scale-105"
-            />
-            <span className="text-2xl font-black text-gray-900 tracking-tight">influnet</span>
+      <div className="relative z-10 w-full max-w-md">
+        <div className="mb-8 text-center">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2.5">
+            <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
+            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Welcome back</h1>
-          <p className="text-gray-400 font-semibold">
-            Sign in to your account to continue
-          </p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-content">Welcome back</h1>
+          <p className="mt-1.5 text-sm text-content-soft">Sign in to your account to continue.</p>
         </div>
 
-        {/* Apple-like Premium Card */}
-        <div className="p-10 rounded-[2.5rem] bg-white border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.018)]">
+        <div className="rounded-3xl border border-hairline bg-surface-card p-8 shadow-[var(--shadow-raised)]">
           {error && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 text-sm font-semibold text-red-600">
+            <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+              <AlertTriangle className="size-4 shrink-0" />
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
-              <label htmlFor="email" className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">
-                Email Address
-              </label>
-              <input
+              <Label htmlFor="email">Email address</Label>
+              <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@company.com"
                 required
-                className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3.5 h-13 transition-all outline-none font-semibold text-base"
               />
             </div>
-
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label htmlFor="password" className="block text-xs font-black uppercase tracking-wider text-gray-400">
-                  Password
-                </label>
-              </div>
-              <input
+              <Label htmlFor="password">Password</Label>
+              <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
-                className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3.5 h-13 transition-all outline-none font-semibold text-base"
               />
             </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-13 mt-2 rounded-2xl text-base font-black text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center cursor-pointer"
-            >
-              {isLoading ? 'Signing in...' : 'Sign In'}
-            </button>
+            <Button type="submit" variant="brand" size="xl" className="mt-1 w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin" /> Signing in…
+                </>
+              ) : (
+                "Sign in"
+              )}
+            </Button>
           </form>
 
-          <div className="mt-8 text-center border-t border-gray-100 pt-6">
+          <div className="mt-7 border-t border-hairline pt-5 text-center">
             <Link
               href="/reset-password"
-              className="text-sm text-pink-600 hover:text-pink-700 font-extrabold transition-colors"
+              className="text-sm font-bold text-brand transition-colors hover:text-brand-strong"
             >
               Forgot password?
             </Link>
           </div>
         </div>
 
-        <p className="mt-8 text-center text-sm font-semibold text-gray-400">
-          Don&apos;t have an account?{' '}
+        <p className="mt-8 text-center text-sm font-medium text-content-soft">
+          Don&rsquo;t have an account?{" "}
           <Link
-            href={nextParam ? `/signup?next=${encodeURIComponent(nextParam)}` : '/signup'}
-            className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors"
+            href={nextParam ? `/signup?next=${encodeURIComponent(nextParam)}` : "/signup"}
+            className="font-bold text-brand transition-colors hover:text-brand-strong"
           >
             Sign up
           </Link>
