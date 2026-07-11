@@ -1,17 +1,22 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { motion } from 'framer-motion';
-import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from '@/lib/constants';
+import React, { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type Step = 1 | 2 | 3 | 4;
+const STEP_LABELS = ["Account", "Company", "Verify", "Intent"];
 
 export default function BusinessSignupPage() {
   return (
-    <React.Suspense fallback={<div>Loading...</div>}>
+    <React.Suspense fallback={null}>
       <BusinessSignupContent />
     </React.Suspense>
   );
@@ -20,24 +25,27 @@ export default function BusinessSignupPage() {
 function BusinessSignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextParam = (() => { const n = searchParams.get('next'); return n && n.startsWith('/') && !n.startsWith('//') ? n : '/dashboard'; })();
+  const nextParam = (() => {
+    const n = searchParams.get("next");
+    return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard";
+  })();
   const [step, setStep] = useState<Step>(1);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const [fullName, setFullName] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [businessType, setBusinessType] = useState('');
-  const [industry, setIndustry] = useState('');
-  const [website, setWebsite] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [registeredAddress, setRegisteredAddress] = useState('');
-  const [gstNumber, setGstNumber] = useState('');
-  const [marketingBudget, setMarketingBudget] = useState('');
+  const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [businessType, setBusinessType] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [website, setWebsite] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [registeredAddress, setRegisteredAddress] = useState("");
+  const [gstNumber, setGstNumber] = useState("");
+  const [marketingBudget, setMarketingBudget] = useState("");
 
   const canProceed = (): boolean => {
     if (step === 1) return !!fullName && !!companyName && !!email && !!password;
@@ -48,15 +56,13 @@ function BusinessSignupContent() {
   };
 
   const handleSubmit = async () => {
-    setError('');
+    setError("");
     setIsLoading(true);
-
     try {
       const sb = createClient();
-      
       const payload = {
         name: fullName,
-        role: 'business_owner',
+        role: "business_owner",
         companyName,
         phone,
         businessType,
@@ -73,269 +79,248 @@ function BusinessSignupContent() {
       const { data, error: authError } = await sb.auth.signUp({
         email,
         password,
-        options: {
-          data: payload,
-        },
+        options: { data: payload },
       });
-
       if (authError) {
         setError(authError.message);
         return;
       }
 
       if (data.session) {
-        // Register the profile in the database
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             Authorization: `Bearer ${data.session.access_token}`,
           },
           body: JSON.stringify(payload),
         });
-
         if (!res.ok) {
           const resData = await res.json();
-          setError(resData.error || 'Failed to create profile record');
+          setError(resData.error || "Failed to create profile record");
           return;
         }
-
         router.push(nextParam);
       } else {
-        router.push(`/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`);
+        router.push(
+          `/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`,
+        );
       }
     } catch {
-      setError('An unexpected error occurred');
+      setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 py-16 relative overflow-hidden font-sans">
-      {/* Ambient Glows */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-pink-100/30 blur-[130px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-100/30 blur-[130px]" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-4 py-16">
+      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
+        <div
+          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
+        />
+        <div
+          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
+        />
       </div>
 
-      <div className="relative z-10 w-full max-w-[500px]">
-        {/* Header Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
-            <img
-              src="/influet_logo.png"
-              alt="influnet"
-              className="h-10 w-auto flex-shrink-0 transition-transform group-hover:scale-105"
-            />
-            <span className="text-2xl font-black text-gray-900 tracking-tight">influnet</span>
+      <div className="relative z-10 w-full max-w-lg">
+        <div className="mb-8 text-center">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2.5">
+            <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
+            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Create your business account</h1>
-          <p className="text-gray-400 font-semibold">Join as a Business</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-content">Create your business account</h1>
+          <p className="mt-1.5 text-sm text-content-soft">Join as a business partner.</p>
         </div>
 
-        {/* Step Progression Bar */}
-        <div className="mb-8 px-4">
-          <div className="flex items-center justify-between mb-3">
+        {/* Stepper */}
+        <div className="mb-8 px-2">
+          <div className="mb-2 flex items-center justify-between">
             {[1, 2, 3, 4].map((s) => (
-              <div key={s} className="flex items-center gap-2">
+              <React.Fragment key={s}>
                 <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black transition-all ${
-                    s <= step
-                      ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/15'
-                      : 'bg-gray-100 text-gray-400 border border-gray-200'
-                  }`}
+                  className={cn(
+                    "flex size-9 items-center justify-center rounded-full text-sm font-bold transition-all",
+                    s <= step ? "bg-brand text-white" : "bg-surface-muted text-content-muted",
+                  )}
                 >
                   {s}
                 </div>
                 {s < 4 && (
                   <div
-                    className={`w-10 sm:w-16 h-0.5 rounded-full transition-all ${
-                      s < step ? 'bg-pink-500' : 'bg-gray-200'
-                    }`}
+                    className={cn("h-0.5 flex-1 rounded-full transition-all", s < step ? "bg-brand" : "bg-hairline-strong")}
                   />
                 )}
-              </div>
+              </React.Fragment>
             ))}
           </div>
-          <div className="flex justify-between text-[11px] font-black uppercase tracking-wider text-gray-400">
-            <span>Account</span>
-            <span>Company</span>
-            <span>Verify</span>
-            <span>Intent</span>
+          <div className="flex justify-between text-[0.625rem] font-bold uppercase tracking-wider text-content-muted">
+            {STEP_LABELS.map((l) => (
+              <span key={l}>{l}</span>
+            ))}
           </div>
         </div>
 
-        {/* Premium Form Card */}
-        <div className="p-10 rounded-[2.5rem] bg-white border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.018)]">
+        <div className="rounded-3xl border border-hairline bg-surface-card p-8 shadow-[var(--shadow-raised)]">
           {error && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 text-sm font-semibold text-red-600">
-              {error}
+            <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+              <AlertTriangle className="size-4 shrink-0" /> {error}
             </div>
           )}
 
           {step === 1 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Account Details</h2>
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Account details</h2>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Full Name</label>
-                <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Full name</Label>
+                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Company Name</label>
-                <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your company name" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Company name</Label>
+                <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your company name" />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Work Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Work email</Label>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Phone (optional)</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Phone (optional)</Label>
+                <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Password</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Password</Label>
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" />
               </div>
             </div>
           )}
 
           {step === 2 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Company Information</h2>
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Company information</h2>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Business Type</label>
-                <select value={businessType} onChange={(e) => setBusinessType(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
+                <Label>Business type</Label>
+                <Select value={businessType} onChange={(e) => setBusinessType(e.target.value)}>
                   <option value="">Select business type</option>
                   {BUSINESS_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Industry</label>
-                <select value={industry} onChange={(e) => setIndustry(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
+                <Label>Industry</Label>
+                <Select value={industry} onChange={(e) => setIndustry(e.target.value)}>
                   <option value="">Select industry</option>
                   {INDUSTRIES.map((ind) => (
                     <option key={ind} value={ind}>{ind}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Website (optional)</label>
-                <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourcompany.com" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Website (optional)</Label>
+                <Input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourcompany.com" />
               </div>
             </div>
           )}
 
           {step === 3 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Verification & Address</h2>
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Verification & address</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">City</label>
-                  <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                  <Label>City</Label>
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">State</label>
-                  <select value={state} onChange={(e) => setState(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
+                  <Label>State</Label>
+                  <Select value={state} onChange={(e) => setState(e.target.value)}>
                     <option value="">Select state</option>
                     {INDIAN_STATES.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Registered Address</label>
-                <textarea
-                  value={registeredAddress}
-                  onChange={(e) => setRegisteredAddress(e.target.value)}
-                  placeholder="Full registered address"
-                  rows={3}
-                  className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 transition-all outline-none resize-none font-semibold text-base"
-                />
+                <Label>Registered address</Label>
+                <Textarea value={registeredAddress} onChange={(e) => setRegisteredAddress(e.target.value)} placeholder="Full registered address" rows={3} />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">GST Number (optional)</label>
-                <input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="22AAAAA0000A1Z5" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>GST number (optional)</Label>
+                <Input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="22AAAAA0000A1Z5" />
               </div>
             </div>
           )}
 
           {step === 4 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Collaboration Intent</h2>
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Collaboration intent</h2>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Monthly Marketing Budget</label>
+                <Label>Monthly marketing budget</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {BUDGET_RANGES.map((range) => (
                     <button
                       key={range}
                       type="button"
                       onClick={() => setMarketingBudget(range)}
-                      className={`p-3.5 rounded-2xl text-left text-sm font-bold border transition-all cursor-pointer ${
+                      className={cn(
+                        "rounded-xl border px-3.5 py-3 text-left text-sm font-bold transition-all",
                         marketingBudget === range
-                          ? 'bg-pink-50 border-pink-200 text-pink-600'
-                          : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-100/20'
-                      }`}
+                          ? "border-brand bg-brand-soft text-brand-strong"
+                          : "border-hairline-strong bg-surface-muted text-content-soft hover:border-content-muted",
+                      )}
                     >
                       {range}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-pink-50/40 border border-pink-100/50">
-                <p className="text-sm font-semibold text-gray-500 leading-relaxed">
-                  Your account will be reviewed by our team. You&apos;ll receive access to the dashboard once approved.
+              <div className="rounded-xl border border-brand/15 bg-brand-soft px-4 py-3">
+                <p className="text-sm leading-relaxed text-content-soft">
+                  Your account will be reviewed by our team. You&rsquo;ll get dashboard access once approved.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Navigation Controls */}
-          <div className="flex gap-3 mt-8">
+          <div className="mt-8 flex gap-3">
             {step > 1 && (
-              <button
-                type="button"
-                onClick={() => setStep((step - 1) as Step)}
-                className="flex-1 h-13 rounded-2xl text-base font-black text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all cursor-pointer"
-              >
+              <Button variant="surface" size="xl" className="flex-1" onClick={() => setStep((step - 1) as Step)}>
                 Back
-              </button>
+              </Button>
             )}
             {step < 4 ? (
-              <button
-                type="button"
-                onClick={() => setStep((step + 1) as Step)}
-                disabled={!canProceed()}
-                className="flex-1 h-13 rounded-2xl text-base font-black text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center cursor-pointer"
-              >
+              <Button variant="brand" size="xl" className="flex-1" disabled={!canProceed()} onClick={() => setStep((step + 1) as Step)}>
                 Continue
-              </button>
+              </Button>
             ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isLoading || !canProceed()}
-                className="flex-1 h-13 rounded-2xl text-base font-black text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center cursor-pointer"
-              >
-                {isLoading ? 'Creating account...' : 'Submit for Review'}
-              </button>
+              <Button variant="brand" size="xl" className="flex-1" disabled={isLoading || !canProceed()} onClick={handleSubmit}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" /> Creating account…
+                  </>
+                ) : (
+                  "Submit for review"
+                )}
+              </Button>
             )}
           </div>
         </div>
 
-        {/* Footnotes */}
-        <p className="mt-8 text-center text-sm font-semibold text-gray-400">
-          Already have an account?{' '}
-          <Link href={nextParam && nextParam !== '/dashboard' ? `/login?next=${encodeURIComponent(nextParam)}` : '/login'} className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors">
+        <p className="mt-8 text-center text-sm font-medium text-content-soft">
+          Already have an account?{" "}
+          <Link
+            href={nextParam && nextParam !== "/dashboard" ? `/login?next=${encodeURIComponent(nextParam)}` : "/login"}
+            className="font-bold text-brand transition-colors hover:text-brand-strong"
+          >
             Sign in
           </Link>
         </p>
-        <p className="mt-2 text-center text-sm font-semibold text-gray-400">
-          Want to join as a creator?{' '}
-          <Link href="/signup/influencer" className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors">
+        <p className="mt-2 text-center text-sm font-medium text-content-soft">
+          Want to join as a creator?{" "}
+          <Link href="/signup/influencer" className="font-bold text-brand transition-colors hover:text-brand-strong">
             Sign up here
           </Link>
         </p>

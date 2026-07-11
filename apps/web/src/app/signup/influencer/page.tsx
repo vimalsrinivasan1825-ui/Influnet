@@ -1,49 +1,81 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { motion } from 'framer-motion';
-
-import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from '@/lib/constants';
+import React, { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type Step = 1 | 2 | 3 | 4;
+const STEP_LABELS = ["Account", "Profile", "Creator", "Collab"];
 
 export default function InfluencerSignupPage() {
   return (
-    <React.Suspense fallback={<div>Loading...</div>}>
+    <React.Suspense fallback={null}>
       <InfluencerSignupContent />
     </React.Suspense>
+  );
+}
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-xl border px-3 py-2 text-xs font-bold transition-all",
+        active
+          ? "border-brand bg-brand-soft text-brand-strong"
+          : "border-hairline-strong bg-surface-muted text-content-soft hover:border-content-muted",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
 function InfluencerSignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextParam = (() => { const n = searchParams.get('next'); return n && n.startsWith('/') && !n.startsWith('//') ? n : '/dashboard/influencer'; })();
+  const nextParam = (() => {
+    const n = searchParams.get("next");
+    return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard/influencer";
+  })();
   const [step, setStep] = useState<Step>(1);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [gender, setGender] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [gender, setGender] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
   const [languages, setLanguages] = useState<string[]>([]);
-  const [primaryNiche, setPrimaryNiche] = useState('');
+  const [primaryNiche, setPrimaryNiche] = useState("");
   const [secondaryNiches, setSecondaryNiches] = useState<string[]>([]);
-  const [bio, setBio] = useState('');
-  const [instagramHandle, setInstagramHandle] = useState('');
-  const [youtubeHandle, setYoutubeHandle] = useState('');
-  const [twitterHandle, setTwitterHandle] = useState('');
+  const [bio, setBio] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
+  const [youtubeHandle, setYoutubeHandle] = useState("");
+  const [twitterHandle, setTwitterHandle] = useState("");
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState('');
+  const [priceRange, setPriceRange] = useState("");
 
   const toggleArrayItem = <T,>(arr: T[], item: T): T[] =>
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
@@ -57,15 +89,13 @@ function InfluencerSignupContent() {
   };
 
   const handleSubmit = async () => {
-    setError('');
+    setError("");
     setIsLoading(true);
-
     try {
       const sb = createClient();
-      
       const payload = {
         name: `${firstName} ${lastName}`,
-        role: 'influencer',
+        role: "influencer",
         username,
         email,
         phone,
@@ -85,183 +115,167 @@ function InfluencerSignupContent() {
       const { data, error: authError } = await sb.auth.signUp({
         email,
         password,
-        options: {
-          data: payload,
-        },
+        options: { data: payload },
       });
-
       if (authError) {
         setError(authError.message);
         return;
       }
 
       if (data.session) {
-        // Register the profile in the database
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             Authorization: `Bearer ${data.session.access_token}`,
           },
           body: JSON.stringify(payload),
         });
-
         if (!res.ok) {
           const resData = await res.json();
-          setError(resData.error || 'Failed to create profile record');
+          setError(resData.error || "Failed to create profile record");
           return;
         }
-
         router.push(nextParam);
       } else {
-        router.push(`/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`);
+        router.push(
+          `/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`,
+        );
       }
     } catch {
-      setError('An unexpected error occurred');
+      setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 py-16 relative overflow-hidden font-sans">
-      {/* Ambient Glows */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-pink-100/30 blur-[130px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-100/30 blur-[130px]" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-4 py-16">
+      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
+        <div
+          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
+        />
+        <div
+          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
+        />
       </div>
 
-      <div className="relative z-10 w-full max-w-[500px]">
-        {/* Header Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
-            <img
-              src="/influet_logo.png"
-              alt="influnet"
-              className="h-10 w-auto flex-shrink-0 transition-transform group-hover:scale-105"
-            />
-            <span className="text-2xl font-black text-gray-900 tracking-tight">influnet</span>
+      <div className="relative z-10 w-full max-w-lg">
+        <div className="mb-8 text-center">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2.5">
+            <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
+            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Create your account</h1>
-          <p className="text-gray-400 font-semibold">Join as a Creator</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-content">Create your account</h1>
+          <p className="mt-1.5 text-sm text-content-soft">Join as a creator.</p>
         </div>
 
-        {/* Step Progression Bar */}
-        <div className="mb-8 px-4">
-          <div className="flex items-center justify-between mb-3">
+        {/* Stepper */}
+        <div className="mb-8 px-2">
+          <div className="mb-2 flex items-center justify-between">
             {[1, 2, 3, 4].map((s) => (
-              <div key={s} className="flex items-center gap-2">
+              <React.Fragment key={s}>
                 <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black transition-all ${
-                    s <= step
-                      ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/15'
-                      : 'bg-gray-100 text-gray-400 border border-gray-200'
-                  }`}
+                  className={cn(
+                    "flex size-9 items-center justify-center rounded-full text-sm font-bold transition-all",
+                    s <= step ? "bg-brand text-white" : "bg-surface-muted text-content-muted",
+                  )}
                 >
                   {s}
                 </div>
                 {s < 4 && (
-                  <div
-                    className={`w-10 sm:w-16 h-0.5 rounded-full transition-all ${
-                      s < step ? 'bg-pink-500' : 'bg-gray-200'
-                    }`}
-                  />
+                  <div className={cn("h-0.5 flex-1 rounded-full transition-all", s < step ? "bg-brand" : "bg-hairline-strong")} />
                 )}
-              </div>
+              </React.Fragment>
             ))}
           </div>
-          <div className="flex justify-between text-[11px] font-black uppercase tracking-wider text-gray-400">
-            <span>Account</span>
-            <span>Profile</span>
-            <span>Creator</span>
-            <span>Collab</span>
+          <div className="flex justify-between text-[0.625rem] font-bold uppercase tracking-wider text-content-muted">
+            {STEP_LABELS.map((l) => (
+              <span key={l}>{l}</span>
+            ))}
           </div>
         </div>
 
-        {/* Premium Form Card */}
-        <div className="p-10 rounded-[2.5rem] bg-white border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.018)]">
+        <div className="rounded-3xl border border-hairline bg-surface-card p-8 shadow-[var(--shadow-raised)]">
           {error && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 text-sm font-semibold text-red-600">
-              {error}
+            <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+              <AlertTriangle className="size-4 shrink-0" /> {error}
             </div>
           )}
 
           {step === 1 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Account Details</h2>
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Account details</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">First Name</label>
-                  <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                  <Label>First name</Label>
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Last Name</label>
-                  <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                  <Label>Last name</Label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Username</label>
-                <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="Choose username" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Username</Label>
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                  placeholder="Choose username"
+                />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Email Address</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Email address</Label>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Phone (optional)</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Phone (optional)</Label>
+                <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Password</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Password</Label>
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" />
               </div>
             </div>
           )}
 
           {step === 2 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Profile Details</h2>
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Profile details</h2>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Gender</label>
-                <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
+                <Label>Gender</Label>
+                <Select value={gender} onChange={(e) => setGender(e.target.value)}>
                   <option value="">Select gender</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                   <option value="non-binary">Non-binary</option>
                   <option value="prefer-not-to-say">Prefer not to say</option>
-                </select>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">City</label>
-                  <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Your city" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                  <Label>City</Label>
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Your city" />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">State</label>
-                  <select value={state} onChange={(e) => setState(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
+                  <Label>State</Label>
+                  <Select value={state} onChange={(e) => setState(e.target.value)}>
                     <option value="">Select state</option>
                     {INDIAN_STATES.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Languages</label>
+                <Label>Languages</Label>
                 <div className="flex flex-wrap gap-2">
                   {LANGUAGES.map((lang) => (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => setLanguages(toggleArrayItem(languages, lang))}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        languages.includes(lang)
-                          ? 'bg-pink-50 border-pink-200 text-pink-600'
-                          : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-100/50'
-                      }`}
-                    >
+                    <Chip key={lang} active={languages.includes(lang)} onClick={() => setLanguages(toggleArrayItem(languages, lang))}>
                       {lang}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </div>
@@ -269,103 +283,80 @@ function InfluencerSignupContent() {
           )}
 
           {step === 3 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Creator Positioning</h2>
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Creator positioning</h2>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Primary Niche</label>
-                <select value={primaryNiche} onChange={(e) => setPrimaryNiche(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base">
+                <Label>Primary niche</Label>
+                <Select value={primaryNiche} onChange={(e) => setPrimaryNiche(e.target.value)}>
                   <option value="">Select primary niche</option>
                   {NICHES.map((n) => (
                     <option key={n} value={n}>{n}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Secondary Niches (optional)</label>
-                <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto p-1 border border-gray-100 rounded-xl bg-gray-50/30">
+                <Label>Secondary niches (optional)</Label>
+                <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-xl border border-hairline bg-surface-muted/50 p-2">
                   {NICHES.filter((n) => n !== primaryNiche).map((niche) => (
-                    <button
-                      key={niche}
-                      type="button"
-                      onClick={() => setSecondaryNiches(toggleArrayItem(secondaryNiches, niche))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                        secondaryNiches.includes(niche)
-                          ? 'bg-pink-50 border-pink-200 text-pink-600'
-                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-100/50'
-                      }`}
-                    >
+                    <Chip key={niche} active={secondaryNiches.includes(niche)} onClick={() => setSecondaryNiches(toggleArrayItem(secondaryNiches, niche))}>
                       {niche}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Bio</label>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Tell brands about yourself..."
-                  rows={3}
-                  className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 transition-all outline-none resize-none font-semibold text-base"
-                />
+                <Label>Bio</Label>
+                <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell brands about yourself…" rows={3} />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Instagram Handle</label>
-                <input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@username" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                <Label>Instagram handle</Label>
+                <Input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@username" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">YouTube (optional)</label>
-                  <input value={youtubeHandle} onChange={(e) => setYoutubeHandle(e.target.value)} placeholder="@channel" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                  <Label>YouTube (optional)</Label>
+                  <Input value={youtubeHandle} onChange={(e) => setYoutubeHandle(e.target.value)} placeholder="@channel" />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-1.5">Twitter (optional)</label>
-                  <input value={twitterHandle} onChange={(e) => setTwitterHandle(e.target.value)} placeholder="@handle" className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3 h-13 transition-all outline-none font-semibold text-base" />
+                  <Label>Twitter (optional)</Label>
+                  <Input value={twitterHandle} onChange={(e) => setTwitterHandle(e.target.value)} placeholder="@handle" />
                 </div>
               </div>
             </div>
           )}
 
           {step === 4 && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-black text-gray-900 mb-4 border-b border-gray-100 pb-2">Collaboration Preferences</h2>
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Collaboration preferences</h2>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Content Types</label>
+                <Label>Content types</Label>
                 <div className="flex flex-wrap gap-2">
                   {COLLAB_TYPES.map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setCollabTypes(toggleArrayItem(collabTypes, type))}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all cursor-pointer ${
-                        collabTypes.includes(type)
-                          ? 'bg-pink-50 border-pink-200 text-pink-600'
-                          : 'bg-gray-50/50 border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-100/50'
-                      }`}
-                    >
+                    <Chip key={type} active={collabTypes.includes(type)} onClick={() => setCollabTypes(toggleArrayItem(collabTypes, type))}>
                       {type}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">Price Range</label>
+                <Label>Price range</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {PRICE_TIERS.map((tier) => (
                     <button
                       key={tier.value}
                       type="button"
                       onClick={() => setPriceRange(tier.value)}
-                      className={`p-4 rounded-2xl text-left border transition-all cursor-pointer ${
+                      className={cn(
+                        "rounded-xl border p-4 text-left transition-all",
                         priceRange === tier.value
-                          ? 'bg-pink-50/40 border-pink-200/80'
-                          : 'bg-gray-50/50 border-gray-200 hover:border-gray-300 hover:bg-gray-100/20'
-                      }`}
+                          ? "border-brand bg-brand-soft"
+                          : "border-hairline-strong bg-surface-muted hover:border-content-muted",
+                      )}
                     >
-                      <div className={`text-sm font-black ${priceRange === tier.value ? 'text-pink-600' : 'text-gray-900'}`}>
+                      <div className={cn("text-sm font-extrabold", priceRange === tier.value ? "text-brand-strong" : "text-content")}>
                         {tier.label}
                       </div>
-                      <div className="text-xs text-gray-400 font-bold mt-0.5">{tier.range}</div>
+                      <div className="mt-0.5 text-xs font-semibold text-content-muted">{tier.range}</div>
                     </button>
                   ))}
                 </div>
@@ -373,52 +364,42 @@ function InfluencerSignupContent() {
             </div>
           )}
 
-          {/* Navigation Controls */}
-          <div className="flex gap-3 mt-8">
+          <div className="mt-8 flex gap-3">
             {step > 1 && (
-              <button
-                type="button"
-                onClick={() => setStep((step - 1) as Step)}
-                className="flex-1 h-13 rounded-2xl text-base font-black text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all cursor-pointer"
-              >
+              <Button variant="surface" size="xl" className="flex-1" onClick={() => setStep((step - 1) as Step)}>
                 Back
-              </button>
+              </Button>
             )}
             {step < 4 ? (
-              <button
-                type="button"
-                onClick={() => setStep((step + 1) as Step)}
-                disabled={!canProceed()}
-                className="flex-1 h-13 rounded-2xl text-base font-black text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center cursor-pointer"
-              >
+              <Button variant="brand" size="xl" className="flex-1" disabled={!canProceed()} onClick={() => setStep((step + 1) as Step)}>
                 Continue
-              </button>
+              </Button>
             ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isLoading || !canProceed()}
-                className="flex-1 h-13 rounded-2xl text-base font-black text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center cursor-pointer"
-              >
-                {isLoading ? 'Creating account...' : 'Create Account'}
-              </button>
+              <Button variant="brand" size="xl" className="flex-1" disabled={isLoading || !canProceed()} onClick={handleSubmit}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" /> Creating account…
+                  </>
+                ) : (
+                  "Create account"
+                )}
+              </Button>
             )}
           </div>
         </div>
 
-        {/* Footnotes */}
-        <p className="mt-8 text-center text-sm font-semibold text-gray-400">
-          Already have an account?{' '}
+        <p className="mt-8 text-center text-sm font-medium text-content-soft">
+          Already have an account?{" "}
           <Link
-            href={nextParam && nextParam !== '/dashboard/influencer' ? `/login?next=${encodeURIComponent(nextParam)}` : '/login'}
-            className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors"
+            href={nextParam && nextParam !== "/dashboard/influencer" ? `/login?next=${encodeURIComponent(nextParam)}` : "/login"}
+            className="font-bold text-brand transition-colors hover:text-brand-strong"
           >
             Sign in
           </Link>
         </p>
-        <p className="mt-2 text-center text-sm font-semibold text-gray-400">
-          Want to join as a business?{' '}
-          <Link href="/signup/business" className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors">
+        <p className="mt-2 text-center text-sm font-medium text-content-soft">
+          Want to join as a business?{" "}
+          <Link href="/signup/business" className="font-bold text-brand transition-colors hover:text-brand-strong">
             Sign up here
           </Link>
         </p>
