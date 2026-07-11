@@ -3,7 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { Loader2, AlertTriangle, CheckCircle, Mail, KeyRound } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input, Label } from '@/components/ui/input';
 
 type Mode = 'request' | 'update' | 'sent' | 'done';
 
@@ -92,123 +96,156 @@ export default function ResetPasswordPage() {
     }
   };
 
-  const inputClass =
-    'w-full bg-gray-50/50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 rounded-2xl px-4 py-3.5 h-13 transition-all outline-none font-semibold text-base';
-  const buttonClass =
-    'w-full h-13 mt-2 rounded-2xl text-base font-black text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center cursor-pointer';
-  const labelClass = 'block text-xs font-black uppercase tracking-wider text-gray-400 mb-2';
-
   return (
-    <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 relative overflow-hidden font-sans">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden font-sans"
+      style={{ background: 'var(--color-surface)' }}>
+
+      {/* Ambient blobs — same as login */}
       <div className="absolute inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-pink-100/30 blur-[130px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-100/30 blur-[130px]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full blur-[130px]"
+          style={{ background: 'color-mix(in oklch, var(--color-brand) 8%, transparent)' }} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[130px]"
+          style={{ background: 'color-mix(in oklch, var(--color-brand) 5%, transparent)' }} />
       </div>
 
       <div className="relative z-10 w-full max-w-[450px]">
+        {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
-            <img
+            <Image
               src="/influet_logo.png"
               alt="influnet"
+              width={40}
+              height={40}
               className="h-10 w-auto flex-shrink-0 transition-transform group-hover:scale-105"
             />
-            <span className="text-2xl font-black text-gray-900 tracking-tight">influnet</span>
+            <span className="text-2xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
+              influnet
+            </span>
           </Link>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">
+
+          <h1 className="text-3xl font-black tracking-tight mb-2" style={{ color: 'var(--color-text-primary)' }}>
             {mode === 'update' ? 'Set a new password' : 'Reset your password'}
           </h1>
-          <p className="text-gray-400 font-semibold">
+          <p className="font-semibold" style={{ color: 'var(--color-text-muted)' }}>
             {mode === 'update'
               ? 'Choose a strong password for your account'
               : "Enter your email and we'll send you a reset link"}
           </p>
         </div>
 
-        <div className="p-10 rounded-[2.5rem] bg-white border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.018)]">
+        {/* Card */}
+        <div className="p-10 rounded-[2.5rem] border"
+          style={{
+            background: 'var(--color-card)',
+            borderColor: 'var(--color-border)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.04)',
+          }}>
+
+          {/* Error banner */}
           {error && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 text-sm font-semibold text-red-600">
+            <div className="mb-6 p-4 rounded-2xl flex items-start gap-3 text-sm font-semibold"
+              style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+              <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
               {error}
             </div>
           )}
 
+          {/* Mode: request email */}
           {mode === 'request' && (
             <form onSubmit={handleRequest} className="space-y-6">
               <div>
-                <label htmlFor="email" className={labelClass}>Email Address</label>
-                <input
+                <Label htmlFor="email">Email Address</Label>
+                <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
                   required
-                  className={inputClass}
                 />
               </div>
-              <button type="submit" disabled={isLoading} className={buttonClass}>
-                {isLoading ? 'Sending...' : 'Send Reset Link'}
-              </button>
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <><Loader2 size={16} className="animate-spin mr-2" />Sending...</>
+                ) : (
+                  <><Mail size={16} className="mr-2" />Send Reset Link</>
+                )}
+              </Button>
             </form>
           )}
 
+          {/* Mode: sent confirmation */}
           {mode === 'sent' && (
-            <div className="text-center py-4">
-              <div className="text-4xl mb-4">📬</div>
-              <p className="font-bold text-gray-900 mb-2">Check your inbox</p>
-              <p className="text-sm font-semibold text-gray-400">
-                If an account exists for {email}, you&apos;ll receive a password reset
-                link shortly. The link expires after a short time.
+            <div className="text-center py-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+                style={{ background: 'color-mix(in oklch, var(--color-brand) 10%, transparent)' }}>
+                <Mail size={28} style={{ color: 'var(--color-brand)' }} />
+              </div>
+              <p className="font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Check your inbox</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+                If an account exists for <span className="font-bold" style={{ color: 'var(--color-text-primary)' }}>{email}</span>,
+                you&apos;ll receive a password reset link shortly. The link expires after a short time.
               </p>
             </div>
           )}
 
+          {/* Mode: set new password */}
           {mode === 'update' && (
             <form onSubmit={handleUpdate} className="space-y-6">
               <div>
-                <label htmlFor="password" className={labelClass}>New Password</label>
-                <input
+                <Label htmlFor="password">New Password</Label>
+                <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 6 characters"
                   required
-                  className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="confirm" className={labelClass}>Confirm Password</label>
-                <input
+                <Label htmlFor="confirm">Confirm Password</Label>
+                <Input
                   id="confirm"
                   type="password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   placeholder="Repeat your new password"
                   required
-                  className={inputClass}
                 />
               </div>
-              <button type="submit" disabled={isLoading} className={buttonClass}>
-                {isLoading ? 'Updating...' : 'Update Password'}
-              </button>
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <><Loader2 size={16} className="animate-spin mr-2" />Updating...</>
+                ) : (
+                  <><KeyRound size={16} className="mr-2" />Update Password</>
+                )}
+              </Button>
             </form>
           )}
 
+          {/* Mode: done */}
           {mode === 'done' && (
-            <div className="text-center py-4">
-              <div className="text-4xl mb-4">✅</div>
-              <p className="font-bold text-gray-900 mb-2">Password updated</p>
-              <p className="text-sm font-semibold text-gray-400">
+            <div className="text-center py-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+                style={{ background: '#f0fdf4' }}>
+                <CheckCircle size={28} style={{ color: '#16a34a' }} />
+              </div>
+              <p className="font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Password updated!</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>
                 Redirecting you to sign in...
               </p>
             </div>
           )}
         </div>
 
-        <p className="mt-8 text-center text-sm font-semibold text-gray-400">
+        {/* Footer link */}
+        <p className="mt-8 text-center text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>
           Remembered it?{' '}
-          <Link href="/login" className="text-pink-600 hover:text-pink-700 font-extrabold transition-colors">
+          <Link href="/login"
+            className="font-extrabold transition-colors hover:opacity-80"
+            style={{ color: 'var(--color-brand)' }}>
             Back to sign in
           </Link>
         </p>
