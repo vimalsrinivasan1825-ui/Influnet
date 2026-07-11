@@ -120,8 +120,8 @@ Standalone pages (no dashboard sidebar):
 ---
 
 ## Status Tracker
-- [ ] Task 1 — reset-password commit
-- [ ] Task 2 — c/[username] token swap + commit
-- [ ] Task 3 — b/[username] token swap + commit
-- [ ] Task 4 — influnet/[slug] redirect + commit
-- [ ] Task 5 — build + audit + commit
+- [x] Task 1 — reset-password commit (d0c71432)
+- [x] Task 2 — c/[username] token swap + commit (e328d245)
+- [x] Task 3 — b/[username] token swap + commit (17c0afee)
+- [x] Task 4 — influnet/[slug] redirect + commit (9fcabd98)
+- [x] Task 5 — build + audit + commit ✅ 47 routes, 0 errors (2026-07-11)
