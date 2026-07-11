@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { apiFetch } from '@/lib/api-client';
-import Link from 'next/link';
 import {
   DndContext, DragOverlay, useSensor, useSensors,
   PointerSensor, useDraggable, useDroppable,
@@ -17,6 +16,10 @@ import {
   RefreshCw, ThumbsUp, CreditCard, Award,
 } from 'lucide-react';
 import type { ProjectCard } from '@/types';
+import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button, ButtonLink } from '@/components/ui/button';
+import { Input, Label, Textarea } from '@/components/ui/input';
 
 const ROW_HEIGHT = 64;
 const HEADER_HEIGHT = 44;
@@ -277,7 +280,7 @@ function Column({ stage, cards, dates, onOpenCard, onAddCard, onClearColumn, act
         display: 'flex', flexDirection: 'column',
         minWidth: 280, maxWidth: 300, flexShrink: 0,
         background: isOver ? '#e2e8f0' : '#f1f5f9',
-        borderRadius: 10, border: isOver ? '2px dashed #ee3e96' : '1px solid #e2e8f0',
+        borderRadius: 10, border: isOver ? '2px dashed var(--brand)' : '1px solid #e2e8f0',
         boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden', position: 'relative',
       }}
     >
@@ -395,87 +398,117 @@ function CardDetailModal({ card, onClose, onSave, onDelete }: {
 
   if (!card) return null;
 
+  const STATUS_OPTS = [
+    { key: 'not_started' as const, label: 'New' },
+    { key: 'in_progress' as const, label: 'Progress' },
+    { key: 'completed' as const, label: 'Done' },
+  ];
+
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, maxWidth: 440, width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,0.15)', padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 900 }}>Card Details</h3>
-          <button onClick={onClose} style={{ border: 'none', background: '#f1f5f9', borderRadius: 6, padding: 5, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X size={14} /></button>
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-extrabold tracking-tight text-content">Card details</h3>
+          <button
+            onClick={onClose}
+            className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"
+          >
+            <X size={16} />
+          </button>
         </div>
 
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 3 }}>Title</div>
-          <input type="text" value={title} onChange={e => setTitle(e.target.value)} style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 14, fontWeight: 700, color: '#0f172a', boxSizing: 'border-box' }} />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+        <div className="flex flex-col gap-3.5">
           <div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 3 }}>Start</div>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, color: '#334155', boxSizing: 'border-box' }} />
+            <Label>Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Start</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>End</Label>
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+          </div>
+
           <div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 3 }}>End</div>
-            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, color: '#334155', boxSizing: 'border-box' }} />
+            <Label>Notes</Label>
+            <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="Add notes…" />
           </div>
-        </div>
 
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 3 }}>Notes</div>
-          <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2} placeholder="Add notes..." style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-        </div>
+          <div>
+            <Label>Meeting link</Label>
+            <Input value={meetingLink} onChange={(e) => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/…" />
+          </div>
 
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 3 }}>Meeting Link</div>
-          <input type="text" value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, color: '#334155', boxSizing: 'border-box' }} />
-        </div>
-
-        {/* Card Color Picker */}
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 3 }}>Card Color</div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setCardColor(null)}
-              style={{
-                width: 26, height: 26, borderRadius: 6,
-                border: cardColor === null ? '2px solid #0f172a' : '1px solid #e2e8f0',
-                background: '#f8fafc', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, color: '#94a3b8',
-              }}
-              title="Default (status-based)"
-            >
-              <Circle size={12} />
-            </button>
-            {CARD_COLORS.map(color => (
+          <div>
+            <Label>Card color</Label>
+            <div className="flex flex-wrap gap-1.5">
               <button
-                key={color}
-                onClick={() => setCardColor(color)}
-                style={{
-                  width: 26, height: 26, borderRadius: 6,
-                  border: cardColor === color ? '2px solid #0f172a' : '1px solid #e2e8f0',
-                  background: color, cursor: 'pointer',
-                }}
-                title={color}
-              />
-            ))}
+                onClick={() => setCardColor(null)}
+                title="Default (status-based)"
+                className={`flex size-7 items-center justify-center rounded-md bg-surface-muted text-content-muted ${cardColor === null ? 'ring-2 ring-content' : 'ring-1 ring-hairline-strong'}`}
+              >
+                <Circle size={12} />
+              </button>
+              {CARD_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setCardColor(color)}
+                  title={color}
+                  className={`size-7 rounded-md ${cardColor === color ? 'ring-2 ring-content' : 'ring-1 ring-hairline-strong'}`}
+                  style={{ background: color }}
+                />
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(['not_started', 'in_progress', 'completed'] as const).map(s => {
-              const colors: Record<string, { bg: string; color: string }> = { not_started: { bg: '#f8fafc', color: '#94a3b8' }, in_progress: { bg: '#fffbeb', color: '#d97706' }, completed: { bg: '#f0fdf4', color: '#16a34a' } };
-              const isActive = status === s;
-              return (
-                <button key={s} onClick={() => setStatus(s)} style={{ padding: '5px 9px', borderRadius: 5, border: '1px solid', cursor: 'pointer', fontWeight: 700, fontSize: 10, background: isActive ? colors[s].bg : '#fff', color: isActive ? colors[s].color : '#94a3b8', borderColor: isActive ? colors[s].color : '#e2e8f0' }}>
-                  {s === 'completed' ? 'Done' : s === 'in_progress' ? 'Progress' : 'New'}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex gap-1.5">
+              {STATUS_OPTS.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setStatus(s.key)}
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                    status === s.key
+                      ? 'bg-brand-soft text-brand-strong'
+                      : 'bg-surface-muted text-content-muted hover:text-content'
+                  }`}
+                >
+                  {s.label}
                 </button>
-              );
-            })}
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => onDelete(card.id)} style={{ padding: '7px 13px', borderRadius: 6, border: '1px solid #fef2f2', background: '#fef2f2', color: '#dc2626', fontWeight: 800, fontSize: 11, cursor: 'pointer' }}><Trash2 size={12} style={{ display: 'inline', marginRight: 3 }} />Delete</button>
-            <button onClick={() => onSave(card.id, { title, description: desc, start_date: startDate ? new Date(startDate).toISOString() : null, due_date: dueDate ? new Date(dueDate).toISOString() : null, meeting_link: meetingLink || null, status, card_color: cardColor })} style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: '#0f172a', color: '#fff', fontWeight: 800, fontSize: 11, cursor: 'pointer' }}><Save size={12} style={{ display: 'inline', marginRight: 3 }} />Save</button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="destructive" size="sm" onClick={() => onDelete(card.id)}>
+                <Trash2 /> Delete
+              </Button>
+              <Button
+                size="sm"
+                onClick={() =>
+                  onSave(card.id, {
+                    title,
+                    description: desc,
+                    start_date: startDate ? new Date(startDate).toISOString() : null,
+                    due_date: dueDate ? new Date(dueDate).toISOString() : null,
+                    meeting_link: meetingLink || null,
+                    status,
+                    card_color: cardColor,
+                  })
+                }
+              >
+                <Save /> Save
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -664,46 +697,59 @@ export default function ProjectKanbanPage() {
   const activeCard = useMemo(() => cards.find(c => c.id === activeCardId) || null, [cards, activeCardId]);
 
   return (
-    <div style={{ height: 'calc(100vh - 56px)', background: '#fafafb', display: 'flex', flexDirection: 'column' }}>
+    <div className="flex h-[calc(100vh-4rem)] flex-col bg-surface">
       {/* Top Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderBottom: '1px solid #e2e8f0', background: '#fff', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => router.push('/dashboard/projects')} style={{ border: '1px solid #e2e8f0', background: '#fff', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex', color: '#64748b' }}><ArrowLeft size={15} /></button>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#ee3e96' }}>
-              {project && (project.owner_user_id === userId ? 'Client Portal' : 'Creator Portal')} &middot; {project ? `With ${(project.owner_user_id === userId ? project.counterparty : project.owner)?.name || 'Partner'}` : ''}
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-hairline bg-surface-card px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          <Button variant="surface" size="icon" onClick={() => router.push('/dashboard/projects')} aria-label="Back to projects">
+            <ArrowLeft size={16} />
+          </Button>
+          <div className="flex items-center gap-2.5">
+            {project && (
+              <Avatar
+                name={(project.owner_user_id === userId ? project.counterparty : project.owner)?.name}
+                size="sm"
+                square
+              />
+            )}
+            <div>
+              <div className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">
+                {project && (project.owner_user_id === userId ? 'Client portal' : 'Creator portal')}
+                {project ? ` · With ${(project.owner_user_id === userId ? project.counterparty : project.owner)?.name || 'Partner'}` : ''}
+              </div>
+              <h1 className="text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || 'Loading…'}</h1>
             </div>
-            <h1 style={{ margin: 0, fontSize: 15, fontWeight: 900 }}>{project?.title || 'Loading...'}</h1>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {project?.budget && <div style={{ padding: '5px 10px', background: '#f0fdf4', borderRadius: 6, fontSize: 13, fontWeight: 900, color: '#16a34a' }}>₹{Number(project.budget).toLocaleString()}</div>}
-          {project?.conversation_id && (
-            <Link href={`/dashboard/messages?conv=${project.conversation_id}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, color: '#334155', fontWeight: 700, fontSize: 11, textDecoration: 'none' }}>
-              <MessageSquare size={13} /> Chat
-            </Link>
+        <div className="flex items-center gap-2">
+          {project?.budget != null && project.budget !== '' && (
+            <Badge variant="success" size="md">₹{Number(project.budget).toLocaleString()}</Badge>
           )}
-          <div style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 800, background: '#f8fafc', color: '#64748b', border: '1px solid #f1f5f9' }}>
-            Stage {STAGE_CONFIG.findIndex(s => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
-          </div>
+          {project?.conversation_id && (
+            <ButtonLink href={`/dashboard/messages?conv=${project.conversation_id}`} variant="surface" size="sm">
+              <MessageSquare size={14} /> Chat
+            </ButtonLink>
+          )}
+          <Badge variant="neutral" size="md">
+            Stage {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
+          </Badge>
         </div>
       </div>
 
       {/* Board */}
       {loading ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: 32, height: 32, border: '3px solid #f1f5f9', borderTopColor: '#ee3e96', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="size-8 animate-spin rounded-full border-[3px] border-hairline border-t-brand" />
         </div>
       ) : error ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-          <h2 style={{ fontWeight: 900, fontSize: 16 }}>{error}</h2>
-          <button onClick={fetchData} style={{ padding: '8px 16px', background: '#ee3e96', color: '#fff', borderRadius: 8, fontWeight: 800, fontSize: 12, border: 'none', cursor: 'pointer' }}>Retry</button>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3">
+          <h2 className="text-base font-extrabold text-content">{error}</h2>
+          <Button variant="brand" onClick={fetchData}>Retry</Button>
         </div>
       ) : !project ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-          <h2 style={{ fontWeight: 900, fontSize: 16 }}>Project Not Found</h2>
-          <Link href="/dashboard/projects" style={{ padding: '8px 16px', background: '#ee3e96', color: '#fff', borderRadius: 8, fontWeight: 800, fontSize: 12, textDecoration: 'none' }}>Back to Projects</Link>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3">
+          <h2 className="text-base font-extrabold text-content">Project not found</h2>
+          <ButtonLink href="/dashboard/projects" variant="brand">Back to projects</ButtonLink>
         </div>
       ) : (
         <div style={{ flex: 1, overflow: 'auto', display: 'flex', padding: '0 0 0 10px' }}>
@@ -726,9 +772,9 @@ export default function ProjectKanbanPage() {
                   borderBottom: '1px solid #e2e8f0',
                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
                   padding: '0 10px',
-                  background: isToday(date) ? '#fdf2f8' : '#fff',
+                  background: isToday(date) ? 'var(--brand-soft)' : '#fff',
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: isToday(date) ? 900 : 700, color: isToday(date) ? '#db2777' : '#0f172a', lineHeight: 1.2 }}>
+                  <div style={{ fontSize: 12, fontWeight: isToday(date) ? 900 : 700, color: isToday(date) ? 'var(--brand-strong)' : '#0f172a', lineHeight: 1.2 }}>
                     {date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </div>
                   <div style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8' }}>
@@ -761,7 +807,7 @@ export default function ProjectKanbanPage() {
                     background: '#fff', borderRadius: 5, padding: '6px 10px',
                     boxShadow: '0 12px 36px rgba(0,0,0,0.12)',
                     fontSize: 12, fontWeight: 800, color: '#0f172a',
-                    border: '2px solid #ee3e96',
+                    border: '2px solid var(--brand)',
                     width: 260, height: ROW_HEIGHT - 8,
                     display: 'flex', alignItems: 'center', gap: 6,
                   }}>
