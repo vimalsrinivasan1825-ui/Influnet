@@ -37,7 +37,7 @@ async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  const publicPaths = ['/', '/login', '/reset-password', '/influnet'];
+  const publicPaths = ['/', '/login', '/reset-password', '/influnet', '/ui-preview'];
   const isPublicPath =
     publicPaths.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
     pathname.startsWith('/signup') ||

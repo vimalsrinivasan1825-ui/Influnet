@@ -1,26 +1,49 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { StreamChat } from 'stream-chat';
-import { apiFetch } from '@/lib/api-client';
-import DashboardSidebar from '@/components/dashboard/sidebar';
-import DashboardHeader from '@/components/dashboard/header';
-import { useNotificationStore, NotificationItem } from '@/store/notification-store';
-import { useAuthStore } from '@/store/auth-store';
-import type { UserRole } from '@/types';
-import { Clock, Shield } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Clock, XCircle } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { StreamChat } from "stream-chat";
+import { apiFetch } from "@/lib/api-client";
+import DashboardSidebar from "@/components/dashboard/sidebar";
+import DashboardHeader from "@/components/dashboard/header";
+import { useNotificationStore, NotificationItem } from "@/store/notification-store";
+import { useAuthStore } from "@/store/auth-store";
+import { Button } from "@/components/ui/button";
+import type { UserRole } from "@/types";
+
+const THEME_CLASS: Record<UserRole, string> = {
+  business_owner: "theme-brand",
+  influencer: "theme-creator",
+  admin: "theme-admin",
+};
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, token, setUser, setToken, setLoading } = useAuthStore();
   const { summary, setSummary, addNotification } = useNotificationStore();
   const [role, setRole] = useState<UserRole | null>(null);
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Restore the desktop collapse preference.
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("influnet_sidebar_collapsed") === "1");
+  }, []);
+
+  const toggleCollapse = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("influnet_sidebar_collapsed", next ? "1" : "0");
+      return next;
+    });
+  };
 
   useEffect(() => {
     const sb = createClient();
@@ -29,40 +52,41 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       try {
         // Cached display info for instant paint; the token always comes from
         // the live Supabase session below, never from storage.
-        const stored = localStorage.getItem('influnet_user');
+        const stored = localStorage.getItem("influnet_user");
         let token: string | null = null;
 
         if (stored) {
           const user = JSON.parse(stored);
           setUser(user);
           setRole(user.role);
-          setUserName(user.name || 'User');
+          setUserName(user.name || "User");
           setAvatarUrl(user.avatarUrl || user.logoUrl || null);
         }
 
-        const { data: { session } } = await sb.auth.getSession();
+        const {
+          data: { session },
+        } = await sb.auth.getSession();
         if (session) {
           token = session.access_token;
           setToken(token);
 
           const { data: profile } = await sb
-            .from('profiles')
-            .select('role, name')
-            .eq('id', session.user.id)
+            .from("profiles")
+            .select("role, name")
+            .eq("id", session.user.id)
             .single();
 
           if (profile) {
             const p = profile as { role: UserRole; name: string | null };
             setRole(p.role);
-            setUserName(p.name || 'User');
+            setUserName(p.name || "User");
             setUser({ ...session.user, role: p.role, name: p.name } as any);
 
-            // If business owner, check approval status
-            if (p.role === 'business_owner') {
+            if (p.role === "business_owner") {
               const { data: bizProfile } = await sb
-                .from('business_profiles')
-                .select('approval_status')
-                .eq('user_id', session.user.id)
+                .from("business_profiles")
+                .select("approval_status")
+                .eq("user_id", session.user.id)
                 .single();
 
               if (bizProfile) {
@@ -71,16 +95,18 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               }
             }
 
-            // Layout guard for dashboard routes
             const currentPath = window.location.pathname;
-            if (p.role === 'influencer' && currentPath === '/dashboard') {
-              router.push('/dashboard/influencer');
-            } else if (p.role === 'business_owner' && currentPath === '/dashboard/influencer') {
-              router.push('/dashboard');
+            if (p.role === "influencer" && currentPath === "/dashboard") {
+              router.push("/dashboard/influencer");
+            } else if (
+              p.role === "business_owner" &&
+              currentPath === "/dashboard/influencer"
+            ) {
+              router.push("/dashboard");
             }
           }
         } else if (!stored) {
-          router.push('/login');
+          router.push("/login");
           return;
         }
 
@@ -88,10 +114,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         setIsLoaded(true);
 
         if (token) {
-          const notifRes = await fetch('/api/notifications/summary', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+          const notifRes = await fetch("/api/notifications/summary", {
+            headers: { Authorization: `Bearer ${token}` },
           });
           if (notifRes.ok) {
             const notifData = await notifRes.json();
@@ -111,52 +135,59 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   useEffect(() => {
     if (!user?.id || !token) return;
     const sb = createClient();
-    
+
     const fetchSummary = async () => {
       try {
-        const notifRes = await apiFetch<any>('/api/notifications/summary');
+        const notifRes = await apiFetch<any>("/api/notifications/summary");
         if (notifRes.ok && notifRes.data) {
           setSummary(notifRes.data);
         }
       } catch (err) {
-        console.error('Failed to update notifications summary:', err);
+        console.error("Failed to update notifications summary:", err);
       }
     };
 
-    // 1. Supabase real-time for Notifications
-    const channel = sb.channel('global-notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
-        addNotification(payload.new as NotificationItem);
-        fetchSummary();
-      })
+    const channel = sb
+      .channel("global-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          addNotification(payload.new as NotificationItem);
+          fetchSummary();
+        },
+      )
       .subscribe();
 
-    // 2. Stream Chat real-time for Messages
     let streamClient: StreamChat | null = null;
     const initStream = async () => {
       try {
         const streamKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
         if (!streamKey) return;
-        
+
         streamClient = StreamChat.getInstance(streamKey);
-        if (streamClient.userID === user.id) return; // already connected
-        
-        const res = await apiFetch<{ token: string }>('/api/stream/token', {
-          method: 'POST',
+        if (streamClient.userID === user.id) return;
+
+        const res = await apiFetch<{ token: string }>("/api/stream/token", {
+          method: "POST",
         });
         if (!res.ok || !res.data) return;
         const { token: streamToken } = res.data;
-        
+
         if (streamToken) {
           await streamClient.connectUser({ id: user.id }, streamToken);
-          
-          streamClient.on('notification.message_new', fetchSummary);
-          streamClient.on('notification.mark_read', fetchSummary);
-          streamClient.on('message.new', fetchSummary);
-          streamClient.on('message.read', fetchSummary);
+          streamClient.on("notification.message_new", fetchSummary);
+          streamClient.on("notification.mark_read", fetchSummary);
+          streamClient.on("message.new", fetchSummary);
+          streamClient.on("message.read", fetchSummary);
         }
       } catch (err) {
-        console.error('Failed to init Stream Chat for notifications:', err);
+        console.error("Failed to init Stream Chat for notifications:", err);
       }
     };
     initStream();
@@ -164,71 +195,68 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     return () => {
       sb.removeChannel(channel);
       if (streamClient) {
-        streamClient.off('notification.message_new', fetchSummary);
-        streamClient.off('notification.mark_read', fetchSummary);
-        streamClient.off('message.new', fetchSummary);
-        streamClient.off('message.read', fetchSummary);
+        streamClient.off("notification.message_new", fetchSummary);
+        streamClient.off("notification.mark_read", fetchSummary);
+        streamClient.off("message.new", fetchSummary);
+        streamClient.off("message.read", fetchSummary);
         streamClient.disconnectUser();
       }
     };
   }, [user?.id, token, setSummary, addNotification]);
 
-  // Show gate screen for unapproved businesses (pending review or rejected)
-  if (isLoaded && role === 'business_owner' && (approvalStatus === 'pending_review' || approvalStatus === 'rejected')) {
-    const isRejected = approvalStatus === 'rejected';
+  const themeClass = role ? THEME_CLASS[role] : "theme-brand";
+
+  // Gate screen for unapproved businesses (pending review or rejected).
+  if (
+    isLoaded &&
+    role === "business_owner" &&
+    (approvalStatus === "pending_review" || approvalStatus === "rejected")
+  ) {
+    const isRejected = approvalStatus === "rejected";
     return (
-      <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4" style={{ fontFamily: '"Plus Jakarta Sans", Inter, sans-serif' }}>
-        <div style={{ maxWidth: 480, textAlign: 'center' }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: 20,
-            background: isRejected ? '#fef2f2' : '#fffbeb',
-            border: `1px solid ${isRejected ? '#fee2e2' : '#fde68a'}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 20px'
-          }}>
-            {isRejected ? (
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/>
-                <line x1="9" y1="9" x2="15" y2="15"/>
-              </svg>
-            ) : (
-              <Clock size={36} style={{ color: '#d97706' }} />
-            )}
-          </div>
-          <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', marginBottom: 8 }}>
-            {isRejected ? 'Account Not Approved' : 'Account Under Review'}
-          </h1>
-          <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6, marginBottom: 24 }}>
-            {isRejected
-              ? 'Your business account registration was not approved. This decision was made by our review team. If you believe this is an error, please contact support.'
-              : 'Your business account is currently being reviewed by our team. You\'ll receive access to the dashboard once your account is approved. This usually takes 1–2 business days.'}
-          </p>
-          <div style={{
-            background: isRejected ? '#fef2f2' : '#fffbeb',
-            border: `1px solid ${isRejected ? '#fee2e2' : '#fde68a'}`,
-            borderRadius: 12, padding: '12px 16px', marginBottom: 24,
-            fontSize: 13, color: isRejected ? '#991b1b' : '#92400e', fontWeight: 600
-          }}>
-            {isRejected
-              ? 'Your account has been rejected. Please contact support for assistance.'
-              : 'Status: Pending Review — We\'ll notify you by email once approved.'}
-          </div>
-          <button
-            onClick={async () => {
-              const sb = createClient();
-              await sb.auth.signOut();
-              localStorage.clear();
-              router.push('/login');
-            }}
-            style={{
-              padding: '10px 20px', borderRadius: 12, border: '1px solid #e2e8f0',
-              background: '#fff', color: '#475569', fontWeight: 700, fontSize: 13,
-              cursor: 'pointer'
-            }}
+      <div className={`${themeClass} flex min-h-screen items-center justify-center bg-surface px-4`}>
+        <div className="w-full max-w-md text-center">
+          <div
+            className={`mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl border ${
+              isRejected
+                ? "border-danger/20 bg-danger-soft text-danger"
+                : "border-warn/20 bg-warn-soft text-warn"
+            }`}
           >
-            Sign Out
-          </button>
+            {isRejected ? <XCircle className="size-8" /> : <Clock className="size-8" />}
+          </div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-content">
+            {isRejected ? "Account not approved" : "Account under review"}
+          </h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-content-soft">
+            {isRejected
+              ? "Your business account wasn't approved by our review team. If you think this is a mistake, contact support and we'll take another look."
+              : "Our team is reviewing your business account. You'll get dashboard access as soon as it's approved — usually within 1–2 business days."}
+          </p>
+          <div
+            className={`mx-auto mt-5 max-w-sm rounded-xl border px-4 py-3 text-sm font-semibold ${
+              isRejected
+                ? "border-danger/20 bg-danger-soft text-danger"
+                : "border-warn/20 bg-warn-soft text-warn"
+            }`}
+          >
+            {isRejected
+              ? "Status: Rejected — contact support for help."
+              : "Status: Pending review — we'll email you once approved."}
+          </div>
+          <div className="mt-6">
+            <Button
+              variant="surface"
+              size="xl"
+              onClick={async () => {
+                await createClient().auth.signOut();
+                localStorage.clear();
+                router.push("/login");
+              }}
+            >
+              Sign out
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -236,31 +264,39 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+      <div className={`${themeClass} flex min-h-screen items-center justify-center bg-surface`}>
         <div className="flex flex-col items-center gap-4">
-          <img
+          <Image
             src="/influet_logo.png"
-            alt="loading"
-            className="w-12 h-12 flex-shrink-0 animate-pulse"
+            alt=""
+            width={44}
+            height={44}
+            className="size-11 animate-pulse"
           />
-          <p className="text-sm text-gray-500">Loading...</p>
+          <p className="text-sm font-medium text-content-muted">Loading your workspace…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex">
+    <div className={`${themeClass} flex min-h-screen bg-surface text-content`}>
       <DashboardSidebar
-        role={role || 'influencer'}
+        role={role || "influencer"}
         unreadMessages={summary.unread_messages_count || 0}
         pendingRequests={summary.pending_requests_count || 0}
+        collapsed={collapsed}
+        onToggleCollapse={toggleCollapse}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
-        <DashboardHeader userName={userName} avatarUrl={avatarUrl} />
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <DashboardHeader
+          userName={userName}
+          avatarUrl={avatarUrl}
+          onOpenMobile={() => setMobileOpen(true)}
+        />
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

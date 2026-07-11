@@ -1,116 +1,87 @@
-'use client';
+"use client";
 
-import * as React from 'react';
+import * as React from "react";
 import {
   AreaChart as RechartsAreaChart,
   BarChart as RechartsBarChart,
   PieChart as RechartsPieChart,
+  LineChart as RechartsLineChart,
   Area,
   Bar,
   Pie,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   Cell,
-} from 'recharts';
+} from "recharts";
 
-const COLORS = {
-  primary: '#ee3e96',
-  secondary: '#a855f7',
-  accent: '#f26e59',
-  blue: '#2563eb',
-  green: '#16a34a',
-  amber: '#d97706',
-  slate: '#64748b',
-  pink: '#db2777',
-  purple: '#9333ea',
-  teal: '#0d9488',
-};
-
+/** Shared categorical palette, aligned with the design tokens. */
 const CHART_COLORS = [
-  COLORS.primary,
-  COLORS.blue,
-  COLORS.green,
-  COLORS.amber,
-  COLORS.purple,
-  COLORS.teal,
-  COLORS.accent,
-  COLORS.pink,
+  "var(--brand)",
+  "#2563eb",
+  "#16a34a",
+  "#d97706",
+  "#8b5cf6",
+  "#0d9488",
+  "#f26e59",
+  "#db2777",
 ];
 
 interface ChartConfig {
-  [key: string]: {
-    label: string;
-    color: string;
-  };
+  [key: string]: { label: string; color: string };
 }
 
-interface ChartContainerProps {
-  config: ChartConfig;
-  children: React.ReactNode;
-  className?: string;
-  height?: number;
+const axisTick = { fontSize: 11, fontWeight: 600, fill: "#94a3b8" } as const;
+const gridStroke = "#eef0f4";
+
+function fmtCompact(v: number) {
+  if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`;
+  return `${v}`;
 }
 
-// ChartContainer — wraps charts with config context for consistent theming
-function ChartContainer({ config, children, className = '', height = 300 }: ChartContainerProps) {
-  // Inject CSS variables for colors
-  const styleVars = Object.entries(config).reduce((acc, [key, val]) => {
-    acc[`--color-${key}`] = val.color;
-    return acc;
-  }, {} as Record<string, string>);
-
+/**
+ * Thin ResponsiveContainer wrapper. Recharts' own mount animation is disabled
+ * on the marks below (it can stay stuck clipped when the chart mounts inside a
+ * CSS entrance animation); the card's `ds-rise` provides the motion instead.
+ */
+function AutoResponsive({
+  height,
+  children,
+}: {
+  height: number | `${number}%`;
+  children: React.ReactElement;
+}) {
   return (
-    <div
-      className={className}
-      style={{
-        width: '100%',
-        height,
-        ...styleVars,
-      }}
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        {children as React.ReactElement}
-      </ResponsiveContainer>
-    </div>
+    <ResponsiveContainer width="100%" height={height} minWidth={0}>
+      {children}
+    </ResponsiveContainer>
   );
 }
 
-// Custom tooltip that uses chart config for labels
-function ChartTooltip({ active, payload, label, config }: any) {
+function ChartTooltip({ active, payload, label, config, prefix }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid #f1f5f9',
-        borderRadius: 10,
-        padding: '10px 14px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
-        fontSize: 12,
-        fontWeight: 600,
-      }}
-    >
-      <div style={{ fontWeight: 800, marginBottom: 6, color: '#0f172a' }}>{label}</div>
+    <div className="rounded-xl border border-hairline bg-surface-card px-3.5 py-2.5 shadow-[var(--shadow-pop)]">
+      {label != null && (
+        <div className="mb-1.5 text-xs font-bold text-content">{label}</div>
+      )}
       {payload.map((entry: any, idx: number) => (
-        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+        <div key={idx} className="flex items-center gap-2 text-xs">
           <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: entry.color || config?.[entry.dataKey]?.color,
-              display: 'inline-block',
-            }}
+            className="size-2 rounded-full"
+            style={{ background: entry.color || entry.payload?.fill }}
           />
-          <span style={{ color: '#64748b' }}>
-            {config?.[entry.dataKey]?.label || entry.dataKey}:
+          <span className="text-content-soft">
+            {config?.[entry.dataKey]?.label || entry.name || entry.dataKey}
           </span>
-          <span style={{ color: '#0f172a', fontWeight: 800 }}>
-            {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+          <span className="ml-auto pl-3 font-bold text-content tabular-nums">
+            {prefix}
+            {typeof entry.value === "number"
+              ? entry.value.toLocaleString()
+              : entry.value}
           </span>
         </div>
       ))}
@@ -118,213 +89,216 @@ function ChartTooltip({ active, payload, label, config }: any) {
   );
 }
 
-// ChartLegendTitle — simple legend that shows colored dots + labels
-function ChartLegendTitle({ config, data }: { config: ChartConfig; data?: any[] }) {
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 12 }}>
-      {Object.entries(config).map(([key, val]) => {
-        const total = data?.reduce((sum, item) => sum + (Number(item[key]) || 0), 0) || 0;
-        return (
-          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: val.color,
-                display: 'inline-block',
-              }}
-            />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>{val.label}</span>
-            {total > 0 && (
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>{total.toLocaleString()}</span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// Area chart component
 function AreaChart({
   data,
   config,
-  xKey = 'name',
+  xKey = "name",
   areas,
-  height = 250,
+  height = 240,
+  prefix,
 }: {
   data: any[];
   config: ChartConfig;
   xKey?: string;
-  areas: { dataKey: string; color: string }[];
+  areas: { dataKey: string; color?: string }[];
   height?: number;
+  prefix?: string;
 }) {
+  const gid = React.useId().replace(/:/g, "");
   return (
-    <div>
-      <ChartLegendTitle config={config} data={data} />
-      <ChartContainer config={config} height={height}>
-        <RechartsAreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-          <defs>
-            {areas.map((area) => (
-              <linearGradient key={area.dataKey} id={`gradient-${area.dataKey}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={area.color} stopOpacity={0.15} />
-                <stop offset="95%" stopColor={area.color} stopOpacity={0} />
+    <AutoResponsive height={height}>
+      <RechartsAreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+        <defs>
+          {areas.map((a, i) => {
+            const color = a.color ?? CHART_COLORS[i % CHART_COLORS.length];
+            return (
+              <linearGradient key={a.dataKey} id={`${gid}-${a.dataKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.28} />
+                <stop offset="100%" stopColor={color} stopOpacity={0} />
               </linearGradient>
-            ))}
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-          <XAxis
-            dataKey={xKey}
-            tick={{ fontSize: 10, fontWeight: 600, fill: '#94a3b8' }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 10, fontWeight: 600, fill: '#94a3b8' }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
-          />
-          <Tooltip content={<ChartTooltip config={config} />} />
-          {areas.map((area) => (
+            );
+          })}
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+        <XAxis dataKey={xKey} tick={axisTick} tickLine={false} axisLine={false} dy={4} />
+        <YAxis tick={axisTick} tickLine={false} axisLine={false} width={38} tickFormatter={fmtCompact} />
+        <Tooltip cursor={{ stroke: "#e3e6ec" }} content={<ChartTooltip config={config} prefix={prefix} />} />
+        {areas.map((a, i) => {
+          const color = a.color ?? CHART_COLORS[i % CHART_COLORS.length];
+          return (
             <Area
-              key={area.dataKey}
+              key={a.dataKey}
               type="monotone"
-              dataKey={area.dataKey}
-              stroke={area.color}
+              dataKey={a.dataKey}
+              stroke={color}
               strokeWidth={2.5}
-              fill={`url(#gradient-${area.dataKey})`}
-              dot={{ r: 3, fill: area.color, strokeWidth: 2, stroke: '#fff' }}
-              activeDot={{ r: 5, fill: area.color, strokeWidth: 0 }}
+              fill={`url(#${gid}-${a.dataKey})`}
+              dot={false}
+              isAnimationActive={false}
+              activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: "#fff" }}
             />
-          ))}
-        </RechartsAreaChart>
-      </ChartContainer>
-    </div>
+          );
+        })}
+      </RechartsAreaChart>
+    </AutoResponsive>
   );
 }
 
-// Bar chart component
 function BarChart({
   data,
   config,
-  xKey = 'name',
+  xKey = "name",
   bars,
-  height = 250,
+  height = 240,
   stacked = false,
+  prefix,
 }: {
   data: any[];
   config: ChartConfig;
   xKey?: string;
-  bars: { dataKey: string; color: string; stackId?: string }[];
+  bars: { dataKey: string; color?: string; stackId?: string }[];
   height?: number;
   stacked?: boolean;
+  prefix?: string;
 }) {
   return (
-    <div>
-      <ChartLegendTitle config={config} data={data} />
-      <ChartContainer config={config} height={height}>
-        <RechartsBarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} barSize={stacked ? 20 : 24}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-          <XAxis
-            dataKey={xKey}
-            tick={{ fontSize: 10, fontWeight: 600, fill: '#94a3b8' }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 10, fontWeight: 600, fill: '#94a3b8' }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
-          />
-          <Tooltip content={<ChartTooltip config={config} />} />
-          {bars.map((bar) => (
-            <Bar
-              key={bar.dataKey}
-              dataKey={bar.dataKey}
-              radius={[4, 4, 0, 0]}
-              stackId={stacked ? (bar.stackId || 'stack') : undefined}
-            >
-              {/* Use Cell for per-bar coloring when data items have fill property */}
-              {data.map((entry, idx) => (
-                <Cell key={idx} fill={entry.fill || bar.color} />
-              ))}
-            </Bar>
-          ))}
-        </RechartsBarChart>
-      </ChartContainer>
-    </div>
+    <AutoResponsive height={height}>
+      <RechartsBarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }} barCategoryGap="28%">
+        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+        <XAxis dataKey={xKey} tick={axisTick} tickLine={false} axisLine={false} dy={4} />
+        <YAxis tick={axisTick} tickLine={false} axisLine={false} width={38} tickFormatter={fmtCompact} />
+        <Tooltip cursor={{ fill: "rgba(148,163,184,0.08)" }} content={<ChartTooltip config={config} prefix={prefix} />} />
+        {bars.map((bar, bi) => (
+          <Bar
+            key={bar.dataKey}
+            dataKey={bar.dataKey}
+            radius={[6, 6, 0, 0]}
+            maxBarSize={44}
+            isAnimationActive={false}
+            stackId={stacked ? bar.stackId || "stack" : undefined}
+          >
+            {data.map((entry, idx) => (
+              <Cell
+                key={idx}
+                fill={entry.fill || bar.color || CHART_COLORS[bi % CHART_COLORS.length]}
+              />
+            ))}
+          </Bar>
+        ))}
+      </RechartsBarChart>
+    </AutoResponsive>
   );
 }
 
-// Mini statistic card — small stat display for compact layout
-function StatCard({
-  label,
-  value,
-  subtitle,
-  icon,
-  color,
-  bg,
+/** Donut with a centered total; `data` items carry name/value/fill. */
+function DonutChart({
+  data,
+  height = 240,
+  centerLabel,
+  centerValue,
+  prefix,
 }: {
-  label: string;
-  value: string;
-  subtitle?: string;
-  icon?: React.ReactNode;
-  color: string;
-  bg: string;
+  data: { name: string; value: number; fill?: string }[];
+  height?: number;
+  centerLabel?: string;
+  centerValue?: React.ReactNode;
+  prefix?: string;
 }) {
+  const total =
+    centerValue ?? data.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
   return (
-    <div
-      style={{
-        background: '#fff',
-        borderRadius: 14,
-        border: '1px solid #f1f5f9',
-        padding: '14px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
-      }}
-    >
-      {icon && (
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: bg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color,
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </div>
-      )}
-      <div>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#64748b',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-          }}
-        >
-          {label}
-        </div>
-        <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a', marginTop: 1 }}>{value}</div>
-        {subtitle && (
-          <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', marginTop: 1 }}>{subtitle}</div>
+    <div className="relative" style={{ height }}>
+      <AutoResponsive height="100%">
+        <RechartsPieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            innerRadius="62%"
+            outerRadius="88%"
+            paddingAngle={2}
+            stroke="none"
+            isAnimationActive={false}
+          >
+            {data.map((entry, idx) => (
+              <Cell key={idx} fill={entry.fill || CHART_COLORS[idx % CHART_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip content={<ChartTooltip prefix={prefix} />} />
+        </RechartsPieChart>
+      </AutoResponsive>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-extrabold tracking-tight text-content tabular-nums">
+          {prefix}
+          {typeof total === "number" ? total.toLocaleString() : total}
+        </span>
+        {centerLabel && (
+          <span className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+            {centerLabel}
+          </span>
         )}
       </div>
     </div>
   );
 }
 
-export { ChartContainer, AreaChart, BarChart, StatCard, ChartLegendTitle, COLORS, CHART_COLORS };
+/** Compact inline trend line, no axes — for stat tiles. */
+function Sparkline({
+  data,
+  dataKey = "value",
+  color = "var(--brand)",
+  height = 40,
+}: {
+  data: any[];
+  dataKey?: string;
+  color?: string;
+  height?: number;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <RechartsLineChart data={data} margin={{ top: 4, right: 2, left: 2, bottom: 0 }}>
+        <Line
+          type="monotone"
+          dataKey={dataKey}
+          stroke={color}
+          strokeWidth={2}
+          dot={false}
+          isAnimationActive={false}
+        />
+      </RechartsLineChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Legend chips with per-series totals. */
+function ChartLegend({
+  items,
+}: {
+  items: { label: string; color: string; value?: React.ReactNode }[];
+}) {
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-2">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-1.5">
+          <span className="size-2 rounded-full" style={{ background: item.color }} />
+          <span className="text-xs font-medium text-content-soft">{item.label}</span>
+          {item.value != null && (
+            <span className="text-xs font-bold text-content tabular-nums">
+              {item.value}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export {
+  AreaChart,
+  BarChart,
+  DonutChart,
+  Sparkline,
+  ChartLegend,
+  CHART_COLORS,
+};
 export type { ChartConfig };

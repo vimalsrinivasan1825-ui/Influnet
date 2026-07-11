@@ -1,233 +1,298 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import {
+  Home,
+  MessageSquare,
+  Send,
+  FolderKanban,
+  Users,
+  Settings,
+  Shield,
+  BadgeCheck,
+  Compass,
+  Building2,
+  PanelLeftClose,
+  PanelLeft,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { UserRole } from "@/types";
 
-const NAV_ITEMS = [
-  {
-    label: 'Home',
-    href: '/dashboard',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-      </svg>
-    ),
-  },
-  /* {
-    label: 'Discover',
-    href: '/dashboard/discover',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-      </svg>
-    ),
-  }, */
-  {
-    label: 'Messages',
-    href: '/dashboard/messages',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-      </svg>
-    ),
-    badge: 'unread',
-  },
-  {
-    label: 'Requests',
-    href: '/dashboard/requests',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-      </svg>
-    ),
-    badge: 'pending',
-  },
-  {
-    label: 'Projects',
-    href: '/dashboard/projects',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Connections',
-    href: '/dashboard/connections',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-      </svg>
-    ),
-  },
+type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  badge?: "unread" | "pending";
+};
+
+const CREATOR_NAV: NavItem[] = [
+  { label: "Home", href: "/dashboard/influencer", icon: Home },
+  { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
+  { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
+  { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+  { label: "Connections", href: "/dashboard/connections", icon: Users },
 ];
 
-const ADMIN_ITEMS = [
-  {
-    label: 'Admin Home',
-    href: '/dashboard/admin',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Approvals',
-    href: '/dashboard/admin/approvals',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Users',
-    href: '/dashboard/admin/users',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Projects',
-    href: '/dashboard/admin/projects',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Requests',
-    href: '/dashboard/admin/collabs',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-      </svg>
-    ),
-  },
+const BUSINESS_NAV: NavItem[] = [
+  { label: "Home", href: "/dashboard", icon: Home },
+  { label: "Discover", href: "/dashboard/discover", icon: Compass },
+  { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
+  { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
+  { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+  { label: "Connections", href: "/dashboard/connections", icon: Users },
 ];
 
-const BOTTOM_ITEMS = [
-  {
-    label: 'Settings',
-    href: '/dashboard/settings',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-  },
+const ADMIN_NAV: NavItem[] = [
+  { label: "Overview", href: "/dashboard/admin", icon: Shield },
+  { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
+  { label: "Users", href: "/dashboard/admin/users", icon: Users },
+  { label: "Projects", href: "/dashboard/admin/projects", icon: FolderKanban },
+  { label: "Requests", href: "/dashboard/admin/collabs", icon: Send },
 ];
 
-interface DashboardSidebarProps {
-  role: 'business_owner' | 'influencer' | 'admin';
-  unreadMessages?: number;
-  pendingRequests?: number;
+const ROLE_META: Record<
+  UserRole,
+  { label: string; short: string; nav: NavItem[]; icon: LucideIcon }
+> = {
+  influencer: { label: "Creator", short: "C", nav: CREATOR_NAV, icon: Users },
+  business_owner: { label: "Business", short: "B", nav: BUSINESS_NAV, icon: Building2 },
+  admin: { label: "Admin", short: "A", nav: ADMIN_NAV, icon: Shield },
+};
+
+function NavList({
+  items,
+  collapsed,
+  unreadMessages,
+  pendingRequests,
+  onNavigate,
+}: {
+  items: NavItem[];
+  collapsed: boolean;
+  unreadMessages: number;
+  pendingRequests: number;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  return (
+    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
+      {items.map((item) => {
+        const active =
+          pathname === item.href ||
+          (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
+        const count =
+          item.badge === "unread"
+            ? unreadMessages
+            : item.badge === "pending"
+              ? pendingRequests
+              : 0;
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            title={collapsed ? item.label : undefined}
+            className={cn(
+              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+              collapsed && "justify-center px-0",
+              active
+                ? "bg-brand-soft text-brand-strong"
+                : "text-content-soft hover:bg-surface-muted hover:text-content",
+            )}
+          >
+            {active && !collapsed && (
+              <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand" />
+            )}
+            <Icon className="size-[1.15rem] shrink-0" />
+            {!collapsed && <span className="flex-1">{item.label}</span>}
+            {count > 0 &&
+              (collapsed ? (
+                <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand ring-2 ring-surface-card" />
+              ) : (
+                <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[0.625rem] font-bold text-white tabular-nums">
+                  {count > 99 ? "99+" : count}
+                </span>
+              ))}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
-export default function DashboardSidebar({ role, unreadMessages = 0, pendingRequests = 0 }: DashboardSidebarProps) {
-  const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+function Brand({ collapsed }: { collapsed: boolean }) {
+  return (
+    <Link href="/" className="flex items-center gap-2.5">
+      <Image src="/influet_logo.png" alt="" width={28} height={28} className="size-7 shrink-0" />
+      {!collapsed && (
+        <span className="text-lg font-extrabold tracking-tight text-content">influnet</span>
+      )}
+    </Link>
+  );
+}
 
-  const allItems = [
-    ...(role === 'admin' ? ADMIN_ITEMS : NAV_ITEMS),
-  ];
+function RolePill({ role, collapsed }: { role: UserRole; collapsed: boolean }) {
+  const meta = ROLE_META[role];
+  const Icon = meta.icon;
+  return (
+    <div className="px-3 pt-3">
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-lg bg-brand-soft px-2.5 py-1.5 text-brand-strong",
+          collapsed && "justify-center px-0",
+        )}
+      >
+        <Icon className="size-3.5 shrink-0" />
+        {!collapsed && (
+          <span className="text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
+            {meta.label} workspace
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface SidebarProps {
+  role: UserRole;
+  unreadMessages?: number;
+  pendingRequests?: number;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
+}
+
+export default function DashboardSidebar({
+  role,
+  unreadMessages = 0,
+  pendingRequests = 0,
+  collapsed,
+  onToggleCollapse,
+  mobileOpen,
+  onCloseMobile,
+}: SidebarProps) {
+  const meta = ROLE_META[role] ?? ROLE_META.influencer;
+  const showSettings = role !== "admin";
 
   return (
-    <aside
-      className={`hidden md:flex flex-col h-screen bg-white border-r border-[#f1f5f9] shadow-[4px_0_20px_rgba(15,23,42,0.06)] transition-all duration-300 ${
-        collapsed ? 'w-16' : 'w-60'
-      }`}
-    >
-      <div className="flex items-center justify-between h-16 px-4 border-b border-[#f1f5f9]">
-        <Link href="/" className="flex items-center gap-2">
-          <img
-            src="/influet_logo.png"
-            alt="influnet"
-            className="h-8 w-auto flex-shrink-0"
-          />
-          {!collapsed && (
-            <span className="text-[#020617] font-bold text-xl tracking-tight">influnet</span>
+    <>
+      {/* Desktop rail */}
+      <aside
+        className={cn(
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-hairline bg-surface-card transition-[width] duration-200 md:flex",
+          collapsed ? "w-[4.5rem]" : "w-60",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-16 items-center border-b border-hairline px-4",
+            collapsed ? "justify-center" : "justify-between",
           )}
-        </Link>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="text-[#9ca3af] hover:text-[#020617] transition-colors p-1"
-          aria-label="Toggle sidebar"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="px-3 py-4">
-        <div className={`px-2 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider ${
-          role === 'business_owner' ? 'text-[#ee3e96] bg-[#fdf2f8]' : role === 'admin' ? 'text-[#6366f1] bg-[#eef2ff]' : 'text-[#f26e59] bg-[#fff7ed]'
-        }`}>
-          {collapsed ? (role === 'business_owner' ? 'B' : role === 'admin' ? 'A' : 'C') : (role === 'business_owner' ? 'Business' : role === 'admin' ? 'Admin' : 'Creator')}
+          {!collapsed && <Brand collapsed={false} />}
+          <button
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="rounded-lg p-1.5 text-content-muted transition-colors hover:bg-surface-muted hover:text-content"
+          >
+            {collapsed ? <PanelLeft className="size-5" /> : <PanelLeftClose className="size-5" />}
+          </button>
         </div>
-      </div>
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-        {allItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          const badgeCount =
-            'badge' in item && item.badge === 'unread' ? unreadMessages :
-            'badge' in item && item.badge === 'pending' ? pendingRequests : 0;
+        <RolePill role={role} collapsed={collapsed} />
+        <NavList
+          items={meta.nav}
+          collapsed={collapsed}
+          unreadMessages={unreadMessages}
+          pendingRequests={pendingRequests}
+        />
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-[#fdf2f8] text-[#ee3e96] border border-[#fbcfe8]'
-                  : 'text-[#64748b] hover:text-[#020617] hover:bg-[#f8fafc]'
-              }`}
+        {showSettings && (
+          <div className="border-t border-hairline px-3 py-3">
+            <SettingsLink collapsed={collapsed} />
+          </div>
+        )}
+      </aside>
+
+      {/* Mobile drawer */}
+      <div
+        className={cn(
+          "fixed inset-0 z-50 md:hidden",
+          mobileOpen ? "pointer-events-auto" : "pointer-events-none",
+        )}
+        aria-hidden={!mobileOpen}
+      >
+        <div
+          className={cn(
+            "absolute inset-0 bg-content/40 backdrop-blur-sm transition-opacity duration-200",
+            mobileOpen ? "opacity-100" : "opacity-0",
+          )}
+          onClick={onCloseMobile}
+        />
+        <aside
+          className={cn(
+            "absolute left-0 top-0 flex h-full w-[17rem] max-w-[82vw] flex-col border-r border-hairline bg-surface-card shadow-[var(--shadow-pop)] transition-transform duration-200",
+            mobileOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <div className="flex h-16 items-center justify-between border-b border-hairline px-4">
+            <Brand collapsed={false} />
+            <button
+              onClick={onCloseMobile}
+              aria-label="Close menu"
+              className="rounded-lg p-1.5 text-content-muted transition-colors hover:bg-surface-muted hover:text-content"
             >
-              <span className={`flex-shrink-0 ${isActive ? 'text-[#ee3e96]' : ''}`}>
-                {item.icon}
-              </span>
-              {!collapsed && (
-                <>
-                  <span className="flex-1">{item.label}</span>
-                  {badgeCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ee3e96] text-white min-w-[20px] text-center">
-                      {badgeCount}
-                    </span>
-                  )}
-                </>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="px-3 py-3 border-t border-[#f1f5f9]">
-        {BOTTOM_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-[#fdf2f8] text-[#ee3e96]'
-                  : 'text-[#64748b] hover:text-[#020617] hover:bg-[#f8fafc]'
-              }`}
-            >
-              <span className="flex-shrink-0">{item.icon}</span>
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+              <X className="size-5" />
+            </button>
+          </div>
+          <RolePill role={role} collapsed={false} />
+          <NavList
+            items={meta.nav}
+            collapsed={false}
+            unreadMessages={unreadMessages}
+            pendingRequests={pendingRequests}
+            onNavigate={onCloseMobile}
+          />
+          {showSettings && (
+            <div className="border-t border-hairline px-3 py-3">
+              <SettingsLink collapsed={false} onNavigate={onCloseMobile} />
+            </div>
+          )}
+        </aside>
       </div>
-    </aside>
+    </>
+  );
+}
+
+function SettingsLink({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const active = pathname === "/dashboard/settings";
+  return (
+    <Link
+      href="/dashboard/settings"
+      onClick={onNavigate}
+      title={collapsed ? "Settings" : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+        collapsed && "justify-center px-0",
+        active
+          ? "bg-brand-soft text-brand-strong"
+          : "text-content-soft hover:bg-surface-muted hover:text-content",
+      )}
+    >
+      <Settings className="size-[1.15rem] shrink-0" />
+      {!collapsed && "Settings"}
+    </Link>
   );
 }
