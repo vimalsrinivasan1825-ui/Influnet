@@ -356,3 +356,14 @@ a {
     animation: none;
   }
 }
+
+/* Align Stream Chat's built-in theme with the brand accent */
+.str-chat {
+  --str-chat__primary-color: var(--brand);
+  --str-chat__active-primary-color: var(--brand-strong);
+  --str-chat__primary-color-low-emphasis: var(--brand-soft);
+  --str-chat__background-color: var(--surface-card);
+  --str-chat__secondary-background-color: var(--surface-muted);
+  --str-chat__border-radius-circle: 9999px;
+  --str-chat__font-family: inherit;
+}

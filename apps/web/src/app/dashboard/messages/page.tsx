@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { Suspense, useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { apiFetch } from '@/lib/api-client';
-import { StreamChat } from 'stream-chat';
+import { Suspense, useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { apiFetch } from "@/lib/api-client";
+import { StreamChat } from "stream-chat";
 import {
   Chat,
   Channel,
@@ -12,129 +12,136 @@ import {
   MessageComposer,
   Window,
   ChannelHeader,
-} from 'stream-chat-react';
-import 'stream-chat-react/dist/css/index.css';
-import {
-  MessageSquare,
-  Plus,
-  FolderKanban,
-  MoreVertical,
-  Trash2,
-  Loader2,
-} from 'lucide-react';
+} from "stream-chat-react";
+import "stream-chat-react/dist/css/index.css";
+import { MessageSquare, Plus, FolderKanban, MoreVertical, Trash2, Loader2 } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 const STREAM_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
+
+interface Participant {
+  user_id: string;
+  profile?: { user_id?: string; name?: string; avatar_url?: string | null };
+}
+interface Conversation {
+  id: string;
+  participants?: Participant[];
+  messages?: { body?: string; content?: string }[];
+}
+interface ProjectConversation {
+  project_id: string;
+  conversation_id?: string | null;
+  title: string;
+  partner?: { id?: string; name?: string; company_name?: string; username?: string; avatar_url?: string | null };
+}
 
 // ── Stream Connection Hook ──────────────────────────────────────────
 function useStreamConnect(userId: string | null) {
   const [client, setClient] = useState<StreamChat | null>(null);
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
   const clientRef = useRef<StreamChat | null>(null);
 
   useEffect(() => {
     if (!userId) return;
-
     let cancelled = false;
 
     const connect = async () => {
-      setStatus('connecting');
+      setStatus("connecting");
       try {
         const c = StreamChat.getInstance(STREAM_KEY);
-
-        // If already connected as this user, reuse
         if (c.userID === userId) {
           clientRef.current = c;
           if (!cancelled) {
             setClient(c);
-            setStatus('connected');
+            setStatus("connected");
           }
           return;
         }
+        if (c.userID) await c.disconnectUser();
 
-        // Disconnect previous user if different
-        if (c.userID) {
-          await c.disconnectUser();
-        }
-
-        const res = await apiFetch<{ token: string; name?: string }>('/api/stream/token', { 
-          method: 'POST',
+        const res = await apiFetch<{ token: string; name?: string }>("/api/stream/token", {
+          method: "POST",
         });
-        if (!res.ok || !res.data) throw new Error(res.error || 'Failed to get Stream token');
+        if (!res.ok || !res.data) throw new Error(res.error || "Failed to get Stream token");
         const data = res.data;
 
-        await c.connectUser({ id: userId, name: data.name || 'User' }, data.token);
+        await c.connectUser({ id: userId, name: data.name || "User" }, data.token);
         clientRef.current = c;
-
         if (!cancelled) {
           setClient(c);
-          setStatus('connected');
+          setStatus("connected");
         }
       } catch (err) {
-        console.error('[Stream] Connection failed:', err);
-        if (!cancelled) setStatus('error');
+        console.error("[Stream] Connection failed:", err);
+        if (!cancelled) setStatus("error");
       }
     };
 
     connect();
-
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   return { client, status };
 }
 
-
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-2 pb-1 pt-2 text-[0.5625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+      {children}
+    </div>
+  );
+}
 
 // ── Main Messages Content ───────────────────────────────────────────
 function MessagesContent() {
   const searchParams = useSearchParams();
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [projects, setProjects] = useState<ProjectConversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
-  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-  const [activeProjectTitle, setActiveProjectTitle] = useState<string | null>(null);
+  const [, setActiveChannelId] = useState<string | null>(null);
+  const [, setActiveProjectTitle] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [menuOpenConv, setMenuOpenConv] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [activeChannel, setActiveChannel] = useState<any>(null);
+  const [activeChannel, setActiveChannel] = useState<ReturnType<StreamChat["channel"]> | null>(null);
 
   const { client: streamClient, status: streamStatus } = useStreamConnect(userId);
-  const supabase = createClient();
 
-  // Close menu on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpenConv(null);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpenConv(null);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Init user
   useEffect(() => {
     (async () => {
       const sb = createClient();
-      const { data: { user } } = await sb.auth.getUser();
+      const {
+        data: { user },
+      } = await sb.auth.getUser();
       if (user) setUserId(user.id);
       await fetchConversations();
       setLoading(false);
     })();
   }, []);
 
-  // Set active conversation from URL param
   useEffect(() => {
-    const convFromUrl = searchParams.get('conv');
-    if (convFromUrl) {
-      openConversation(convFromUrl);
-    }
+    const convFromUrl = searchParams.get("conv");
+    if (convFromUrl) openConversation(convFromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const fetchConversations = async () => {
     try {
-      const res = await apiFetch<{ conversations: any[]; projects: any[] }>('/api/conversations');
+      const res = await apiFetch<{ conversations: Conversation[]; projects: ProjectConversation[] }>(
+        "/api/conversations",
+      );
       if (res.ok && res.data) {
         setConversations(res.data.conversations || []);
         setProjects(res.data.projects || []);
@@ -144,74 +151,52 @@ function MessagesContent() {
     }
   };
 
-  // Build Stream channel from a conversation
   const ensureChannel = async (convId: string, otherUserId: string, channelName?: string) => {
     if (!streamClient) return null;
-
     const channelId = `conv_${convId}`;
-
-    // Ensure channel exists on server
-    await apiFetch('/api/stream/channel', {
-      method: 'POST',
-      body: JSON.stringify({
-        conversationId: convId,
-        otherUserId,
-        channelName: channelName || 'Chat',
-      }),
+    await apiFetch("/api/stream/channel", {
+      method: "POST",
+      body: JSON.stringify({ conversationId: convId, otherUserId, channelName: channelName || "Chat" }),
     });
-
-    // Get or create the channel client-side
-    const channel = streamClient.channel('messaging', channelId);
+    const channel = streamClient.channel("messaging", channelId);
     await channel.watch();
     return channel;
   };
 
-  const openConversation = async (
-    convId: string,
-    otherUserId?: string,
-    title?: string,
-  ) => {
+  const openConversation = async (convId: string, otherUserId?: string, title?: string) => {
     setActiveConvId(convId);
     if (title) setActiveProjectTitle(title);
 
-    // Find other user from conversations if not provided
     if (!otherUserId) {
       const conv = conversations.find((c) => c.id === convId);
-      const other = conv?.participants?.find((p: any) => p.user_id !== userId);
+      const other = conv?.participants?.find((p) => p.user_id !== userId);
       otherUserId = other?.user_id;
     }
     if (streamClient && otherUserId) {
       try {
-        const channel = await ensureChannel(convId, otherUserId, title || 'Chat');
+        const channel = await ensureChannel(convId, otherUserId, title || "Chat");
         if (channel) {
           setActiveChannel(channel);
           setActiveChannelId(`messaging:conv_${convId}`);
         }
       } catch (err) {
-        console.error('[Stream] Failed to open channel:', err);
+        console.error("[Stream] Failed to open channel:", err);
       }
     }
   };
 
-  const startProjectConversation = async (project: any) => {
+  const startProjectConversation = async (project: ProjectConversation) => {
     if (project.conversation_id) {
-      openConversation(
-        project.conversation_id,
-        project.partner?.id,
-        project.title,
-      );
+      openConversation(project.conversation_id, project.partner?.id, project.title);
       return;
     }
-
     const partnerId = project.partner?.id;
     if (!partnerId) return;
-
     try {
-      const res = await apiFetch<{ conversation: { id: string } }>('/api/conversations', {
-        method: 'POST',
+      const res = await apiFetch<{ conversation: { id: string } }>("/api/conversations", {
+        method: "POST",
         body: JSON.stringify({ other_user_id: partnerId }),
       });
-
       if (res.ok && res.data?.conversation) {
         setActiveProjectTitle(project.title);
         await fetchConversations();
@@ -225,10 +210,7 @@ function MessagesContent() {
   const deleteConversation = async (convId: string) => {
     setMenuOpenConv(null);
     try {
-      const res = await apiFetch(`/api/conversations/${convId}`, {
-        method: 'DELETE',
-      });
-
+      const res = await apiFetch(`/api/conversations/${convId}`, { method: "DELETE" });
       if (res.ok) {
         if (activeConvId === convId) {
           setActiveConvId(null);
@@ -243,363 +225,120 @@ function MessagesContent() {
     }
   };
 
-  // Loading
   if (loading) {
     return (
-      <div
-        style={{
-          height: 'calc(100vh - 56px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#fafafb',
-        }}
-      >
-        <Loader2 size={28} className="animate-spin" style={{ color: '#ee3e96' }} />
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-surface">
+        <Loader2 className="size-7 animate-spin text-brand" />
       </div>
     );
   }
 
-
-
   return (
-    <div
-      style={{
-        height: 'calc(100vh - 56px)',
-        display: 'flex',
-        overflow: 'hidden',
-        background: '#fafafb',
-        fontFamily: '"Plus Jakarta Sans", Inter, sans-serif',
-      }}
-    >
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-surface">
       {/* Sidebar */}
-      <div
-        style={{
-          width: 320,
-          flexShrink: 0,
-          borderRight: '1px solid #f1f5f9',
-          background: '#fff',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <div
-          style={{
-            padding: '16px 16px 8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#0f172a' }}>
-            Messages
-          </h2>
-          {streamStatus === 'connecting' && (
-            <Loader2 size={14} className="animate-spin" style={{ color: '#94a3b8' }} />
-          )}
+      <div className="flex w-full max-w-[20rem] shrink-0 flex-col border-r border-hairline bg-surface-card max-md:max-w-[16rem]">
+        <div className="flex items-center justify-between px-4 pb-2 pt-4">
+          <h2 className="text-base font-extrabold tracking-tight text-content">Messages</h2>
+          {streamStatus === "connecting" && <Loader2 className="size-3.5 animate-spin text-content-muted" />}
         </div>
-        <div
-          ref={menuRef}
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '8px 12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
-          {streamStatus === 'error' && (
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: 8,
-                background: '#fef2f2',
-                color: '#dc2626',
-                fontSize: 11,
-                fontWeight: 600,
-                marginBottom: 8,
-              }}
-            >
-              Chat connection issue — messages may not update in real-time
+
+        <div ref={menuRef} className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2">
+          {streamStatus === "error" && (
+            <div className="mb-2 rounded-lg bg-danger-soft px-3 py-2 text-xs font-semibold text-danger">
+              Chat connection issue — messages may not update in real time.
             </div>
           )}
 
-          {/* Active Projects */}
+          {/* Active projects */}
           {projects.length > 0 && (
             <>
-              <div
-                style={{
-                  fontSize: 9,
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  color: '#94a3b8',
-                  padding: '8px 8px 4px',
-                }}
-              >
-                Active Projects
-              </div>
+              <SectionLabel>Active projects</SectionLabel>
               {projects.map((p) => (
                 <button
                   key={`project-${p.project_id}`}
                   onClick={() => startProjectConversation(p)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    border: 'none',
-                    background: activeConvId === p.conversation_id ? '#fdf2f8' : '#fff',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    width: '100%',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeConvId !== p.conversation_id)
-                      (e.currentTarget as HTMLElement).style.background = '#f8fafc';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeConvId !== p.conversation_id)
-                      (e.currentTarget as HTMLElement).style.background = '#fff';
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 10,
-                      background: '#f0fdf4',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#16a34a',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <FolderKanban size={16} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 800,
-                        color: '#0f172a',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {p.title}
-                    </div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#64748b' }}>
-                      {p.partner?.company_name || p.partner?.name || p.partner?.username || 'Partner'}
-                      {p.conversation_id ? ' · Active' : ' · Start chat'}
-                    </div>
-                  </div>
-                  {!p.conversation_id && (
-                    <Plus size={12} color="#ee3e96" style={{ flexShrink: 0 }} />
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors",
+                    activeConvId === p.conversation_id ? "bg-brand-soft" : "hover:bg-surface-muted",
                   )}
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-ok-soft text-ok">
+                    <FolderKanban className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.8125rem] font-bold text-content">{p.title}</span>
+                    <span className="block truncate text-[0.6875rem] font-medium text-content-soft">
+                      {p.partner?.company_name || p.partner?.name || p.partner?.username || "Partner"}
+                      {p.conversation_id ? " · Active" : " · Start chat"}
+                    </span>
+                  </span>
+                  {!p.conversation_id && <Plus className="size-3.5 shrink-0 text-brand" />}
                 </button>
               ))}
-              <div
-                style={{ height: 1, background: '#f1f5f9', margin: '4px 8px' }}
-              />
+              <div className="mx-2 my-1 h-px bg-hairline" />
             </>
           )}
 
           {/* Chats */}
           {conversations.length === 0 && projects.length === 0 ? (
-            <div
-              style={{
-                padding: 20,
-                textAlign: 'center',
-                borderRadius: 12,
-                background: '#fafafb',
-                fontSize: 13,
-                color: '#94a3b8',
-                fontWeight: 600,
-              }}
-            >
-              <MessageSquare
-                size={24}
-                style={{ opacity: 0.3, margin: '0 auto 8px', display: 'block' }}
-              />
+            <div className="rounded-xl bg-surface-muted px-5 py-8 text-center text-sm font-semibold text-content-muted">
+              <MessageSquare className="mx-auto mb-2 size-6 opacity-40" />
               No conversations yet
             </div>
           ) : (
             <>
-              {conversations.length > 0 && (
-                <div
-                  style={{
-                    fontSize: 9,
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: '#94a3b8',
-                    padding: '8px 8px 4px',
-                  }}
-                >
-                  Chats
-                </div>
-              )}
+              {conversations.length > 0 && <SectionLabel>Chats</SectionLabel>}
               {conversations.map((c) => {
-                const other = c.participants?.find((p: any) => p.user_id !== userId)?.profile;
+                const other = c.participants?.find((p) => p.user_id !== userId)?.profile;
                 const isActive = activeConvId === c.id;
                 const isMenuOpen = menuOpenConv === c.id;
                 const lastMsg = c.messages?.[c.messages.length - 1];
                 return (
                   <div
                     key={c.id}
-                    style={{
-                      position: 'relative',
-                      display: 'flex',
-                      alignItems: 'center',
-                      borderRadius: 10,
-                      background: isActive ? '#fdf2f8' : 'transparent',
-                    }}
-                    onMouseEnter={() => {
-                      if (activeConvId !== c.id) setMenuOpenConv(c.id);
-                    }}
-                    onMouseLeave={() => {
-                      if (!isMenuOpen) setMenuOpenConv(null);
-                    }}
+                    className={cn(
+                      "group relative flex items-center rounded-xl",
+                      isActive && "bg-brand-soft",
+                    )}
                   >
                     <button
-                      onClick={() =>
-                        openConversation(
-                          c.id,
-                          other?.user_id,
-                          other?.name || 'Chat',
-                        )
-                      }
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '10px 12px',
-                        borderRadius: 10,
-                        border: 'none',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        flex: 1,
-                        minWidth: 0,
-                        transition: 'background 0.15s',
-                      }}
+                      onClick={() => openConversation(c.id, other?.user_id, other?.name || "Chat")}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-muted"
                     >
-                      <div
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #ee3e96, #a855f7)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontWeight: 900,
-                          fontSize: 13,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {(other?.name || '?').charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 800,
-                            color: '#0f172a',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {other?.name || 'Unknown'}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: '#64748b',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {lastMsg
-                            ? lastMsg.body || lastMsg.content || ''
-                            : 'No messages yet'}
-                        </div>
-                      </div>
+                      <Avatar name={other?.name} src={other?.avatar_url} size="sm" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[0.8125rem] font-bold text-content">
+                          {other?.name || "Unknown"}
+                        </span>
+                        <span className="block truncate text-[0.6875rem] font-medium text-content-soft">
+                          {lastMsg ? lastMsg.body || lastMsg.content || "" : "No messages yet"}
+                        </span>
+                      </span>
                     </button>
 
-                    {/* Three-dot menu */}
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div className="relative shrink-0 pr-1">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setMenuOpenConv(isMenuOpen ? null : c.id);
                         }}
-                        onMouseEnter={() => setMenuOpenConv(c.id)}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          padding: '6px',
-                          borderRadius: 6,
-                          color: '#94a3b8',
-                          display: 'flex',
-                          opacity: isMenuOpen ? 1 : 0.6,
-                        }}
+                        className={cn(
+                          "rounded-md p-1.5 text-content-muted transition-opacity hover:text-content",
+                          isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                        )}
                       >
-                        <MoreVertical size={14} />
+                        <MoreVertical className="size-3.5" />
                       </button>
                       {isMenuOpen && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            right: 0,
-                            bottom: '100%',
-                            zIndex: 20,
-                            background: '#fff',
-                            borderRadius: 8,
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                            border: '1px solid #f1f5f9',
-                            minWidth: 140,
-                            overflow: 'hidden',
-                          }}
-                        >
+                        <div className="absolute bottom-full right-0 z-20 mb-1 min-w-[9rem] overflow-hidden rounded-xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)]">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteConversation(c.id);
                             }}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              width: '100%',
-                              padding: '8px 12px',
-                              border: 'none',
-                              background: 'transparent',
-                              cursor: 'pointer',
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: '#dc2626',
-                              fontFamily: 'inherit',
-                            }}
-                            onMouseEnter={(e) =>
-                              ((e.currentTarget as HTMLElement).style.background = '#fef2f2')
-                            }
-                            onMouseLeave={(e) =>
-                              ((e.currentTarget as HTMLElement).style.background = 'transparent')
-                            }
+                            className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft"
                           >
-                            <Trash2 size={12} /> Delete Chat
+                            <Trash2 className="size-3.5" /> Delete chat
                           </button>
                         </div>
                       )}
@@ -612,61 +351,20 @@ function MessagesContent() {
         </div>
       </div>
 
-      {/* Chat Area */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-          background: '#fff',
-        }}
-      >
+      {/* Chat area */}
+      <div className="str-chat flex min-w-0 flex-1 flex-col bg-surface-card">
         {!activeConvId ? (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 40,
-            }}
-          >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 20,
-                background: '#fdf2f8',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-              }}
-            >
-              <MessageSquare size={28} color="#db2777" />
-            </div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>
-              Select a conversation
-            </p>
-            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
-              Choose a project or chat from the sidebar
-            </p>
+          <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">
+            <span className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+              <MessageSquare className="size-7" />
+            </span>
+            <p className="text-sm font-bold text-content">Select a conversation</p>
+            <p className="mt-1 text-xs text-content-muted">Choose a project or chat from the sidebar.</p>
           </div>
-        ) : streamStatus === 'connecting' ? (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-            }}
-          >
-            <Loader2 size={24} className="animate-spin" style={{ color: '#ee3e96' }} />
-            <p style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Connecting...</p>
+        ) : streamStatus === "connecting" ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3">
+            <Loader2 className="size-6 animate-spin text-brand" />
+            <p className="text-sm font-semibold text-content-soft">Connecting…</p>
           </div>
         ) : streamClient && activeChannel ? (
           <Chat client={streamClient}>
@@ -679,20 +377,9 @@ function MessagesContent() {
             </Channel>
           </Chat>
         ) : (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-            }}
-          >
-            <Loader2 size={24} className="animate-spin" style={{ color: '#ee3e96' }} />
-            <p style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
-              Loading conversation...
-            </p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3">
+            <Loader2 className="size-6 animate-spin text-brand" />
+            <p className="text-sm font-semibold text-content-soft">Loading conversation…</p>
           </div>
         )}
       </div>
@@ -704,26 +391,8 @@ export default function MessagesPage() {
   return (
     <Suspense
       fallback={
-        <div
-          style={{
-            height: 'calc(100vh - 56px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#fafafb',
-          }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              border: '3px solid #f1f5f9',
-              borderTopColor: '#ee3e96',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-            }}
-          />
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-surface">
+          <div className="size-8 animate-spin rounded-full border-[3px] border-hairline border-t-brand" />
         </div>
       }
     >
