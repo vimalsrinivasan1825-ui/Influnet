@@ -4,12 +4,15 @@ import { createRSCClient } from '@/lib/supabase/server-rsc';
 import {
   MapPin,
   CheckCircle,
-  MessageSquare,
   Globe,
   Briefcase,
   Star,
   Users
 } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Metadata } from 'next';
+import { ButtonLink } from '@/components/ui/button';
 
 const InstagramIcon = ({ size = 16, className = "" }: { size?: number, className?: string }) => (
   <svg xmlns="http://www.svg.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
@@ -22,8 +25,6 @@ const YoutubeIcon = ({ size = 16, className = "" }: { size?: number, className?:
 const TwitterIcon = ({ size = 16, className = "" }: { size?: number, className?: string }) => (
   <svg xmlns="http://www.svg.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
 );
-import Link from 'next/link';
-import { Metadata } from 'next';
 
 // Use anon client for fetching public profile
 const supabaseAnon = createClient(
@@ -101,7 +102,6 @@ export default async function PublicProfilePage({
     } else if (viewerProfile?.role === 'business_owner') {
       ctaHref = `/dashboard/discover?request=${profile.userId}`;
     } else {
-      // Logged in as influencer, but viewing another influencer
       ctaHref = `/dashboard`;
       ctaText = "Back to Dashboard";
     }
@@ -115,25 +115,34 @@ export default async function PublicProfilePage({
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafb] font-sans pb-20">
+    <div className="min-h-screen bg-surface font-sans pb-20">
       {/* Cover Image */}
-      <div 
-        className="w-full h-48 md:h-64 lg:h-80 bg-slate-200 relative"
+      <div
+        className="w-full h-48 md:h-64 lg:h-80 relative"
         style={{
-          backgroundImage: profile.coverImageUrl ? `url(${profile.coverImageUrl})` : 'linear-gradient(to right, #fdf2f8, #f8fafc)',
+          backgroundImage: profile.coverImageUrl
+            ? `url(${profile.coverImageUrl})`
+            : 'linear-gradient(to right, var(--brand-soft), var(--surface-muted))',
           backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          backgroundPosition: 'center',
         }}
-      ></div>
+      />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 sm:-mt-24 relative z-10">
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 sm:p-8 flex flex-col md:flex-row gap-6 md:gap-8">
-          
+        {/* Hero card */}
+        <div className="bg-surface-card rounded-3xl shadow-[var(--shadow-card)] border border-hairline p-6 sm:p-8 flex flex-col md:flex-row gap-6 md:gap-8">
+
           {/* Avatar */}
           <div className="flex-shrink-0">
-            <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white shadow-md bg-slate-100 overflow-hidden flex items-center justify-center text-4xl font-black text-slate-400">
+            <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-hairline shadow-md bg-surface-muted overflow-hidden flex items-center justify-center text-4xl font-black text-content-muted">
               {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
+                <Image
+                  src={profile.avatarUrl}
+                  alt={profile.name}
+                  width={160}
+                  height={160}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 profile.name?.charAt(0).toUpperCase()
               )}
@@ -144,22 +153,25 @@ export default async function PublicProfilePage({
           <div className="flex-grow pt-2">
             <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-black text-content flex items-center gap-2">
                   {profile.name}
-                  {profile.isVerified && <CheckCircle size={20} className="text-[#ee3e96]" />}
+                  {profile.isVerified && <CheckCircle size={20} className="text-brand" />}
                 </h1>
-                <p className="text-slate-500 font-semibold mb-2">@{profile.username}</p>
-                {profile.headline && <p className="text-slate-700 text-sm sm:text-base font-medium max-w-xl">{profile.headline}</p>}
-                
-                <div className="flex flex-wrap items-center gap-3 mt-3 text-xs font-semibold text-slate-500">
+                <p className="text-content-soft font-semibold mb-2">@{profile.username}</p>
+                {profile.headline && (
+                  <p className="text-content-soft text-sm sm:text-base font-medium max-w-xl">{profile.headline}</p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3 mt-3 text-xs font-semibold text-content-muted">
                   {(profile.location || profile.city) && (
                     <span className="flex items-center gap-1">
-                      <MapPin size={14} /> {profile.city ? `${profile.city}, ${profile.state || ''}` : profile.location}
+                      <MapPin size={14} />
+                      {profile.city ? `${profile.city}, ${profile.state || ''}` : profile.location}
                     </span>
                   )}
                   {profile.languages?.length > 0 && (
                     <span className="flex items-center gap-1">
-                      <Globe size={14} /> {profile.languages.slice(0,2).join(', ')}
+                      <Globe size={14} /> {profile.languages.slice(0, 2).join(', ')}
                     </span>
                   )}
                 </div>
@@ -167,48 +179,44 @@ export default async function PublicProfilePage({
 
               {/* CTA */}
               <div className="flex-shrink-0">
-                <Link 
-                  href={ctaHref}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#ee3e96] hover:bg-[#db2777] text-white font-bold rounded-xl transition-all shadow-sm shadow-pink-200"
-                >
+                <ButtonLink href={ctaHref} variant="brand">
                   {ctaText}
-                </Link>
+                </ButtonLink>
               </div>
             </div>
 
             {/* Stats row */}
-            <div className="flex flex-wrap gap-4 sm:gap-8 mt-6 pt-6 border-t border-slate-100">
+            <div className="flex flex-wrap gap-4 sm:gap-8 mt-6 pt-6 border-t border-hairline">
               {profile.instagramFollowers > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-brand-soft text-brand flex items-center justify-center">
                     <InstagramIcon size={16} />
                   </div>
                   <div>
-                    <div className="text-sm font-black text-slate-900">{formatFollowers(profile.instagramFollowers)}</div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Instagram</div>
+                    <div className="text-sm font-black text-content">{formatFollowers(profile.instagramFollowers)}</div>
+                    <div className="text-[10px] font-bold text-content-muted uppercase tracking-wider">Instagram</div>
                   </div>
                 </div>
               )}
               {profile.youtubeSubscribers > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-surface-muted text-red-600 flex items-center justify-center">
                     <YoutubeIcon size={16} />
                   </div>
                   <div>
-                    <div className="text-sm font-black text-slate-900">{formatFollowers(profile.youtubeSubscribers)}</div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">YouTube</div>
+                    <div className="text-sm font-black text-content">{formatFollowers(profile.youtubeSubscribers)}</div>
+                    <div className="text-[10px] font-bold text-content-muted uppercase tracking-wider">YouTube</div>
                   </div>
                 </div>
               )}
               {profile.tiktokFollowers > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-900 flex items-center justify-center">
-                    {/* SVG fallback for TikTok */}
+                  <div className="w-8 h-8 rounded-full bg-surface-muted text-content flex items-center justify-center">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
                   </div>
                   <div>
-                    <div className="text-sm font-black text-slate-900">{formatFollowers(profile.tiktokFollowers)}</div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TikTok</div>
+                    <div className="text-sm font-black text-content">{formatFollowers(profile.tiktokFollowers)}</div>
+                    <div className="text-[10px] font-bold text-content-muted uppercase tracking-wider">TikTok</div>
                   </div>
                 </div>
               )}
@@ -220,12 +228,12 @@ export default async function PublicProfilePage({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
           {/* Main Column */}
           <div className="md:col-span-2 space-y-6">
-            
+
             {/* About */}
             {profile.bio && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4">About</h2>
-                <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">
+              <div className="bg-surface-card rounded-2xl shadow-[var(--shadow-card)] border border-hairline p-6">
+                <h2 className="text-sm font-black uppercase tracking-wider text-content-muted mb-4">About</h2>
+                <div className="text-sm text-content-soft leading-relaxed whitespace-pre-wrap font-medium">
                   {profile.bio}
                 </div>
               </div>
@@ -233,42 +241,39 @@ export default async function PublicProfilePage({
 
             {/* Niches / Categories */}
             {profile.niche && profile.niche.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4">Content Categories</h2>
+              <div className="bg-surface-card rounded-2xl shadow-[var(--shadow-card)] border border-hairline p-6">
+                <h2 className="text-sm font-black uppercase tracking-wider text-content-muted mb-4">Content Categories</h2>
                 <div className="flex flex-wrap gap-2">
                   {profile.niche.map((n: string, i: number) => (
-                    <span key={i} className="px-3 py-1.5 bg-slate-50 border border-slate-100 text-slate-700 text-xs font-bold rounded-lg">
+                    <span key={i} className="px-3 py-1.5 bg-surface-muted border border-hairline text-content-soft text-xs font-bold rounded-lg">
                       {n}
                     </span>
                   ))}
                 </div>
               </div>
             )}
-
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            
+
             {/* Quick Info */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-              <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4">Quick Info</h2>
-              
+            <div className="bg-surface-card rounded-2xl shadow-[var(--shadow-card)] border border-hairline p-6">
+              <h2 className="text-sm font-black uppercase tracking-wider text-content-muted mb-4">Quick Info</h2>
               <div className="space-y-4">
                 {profile.availabilityStatus && (
                   <div>
-                    <div className="text-xs font-semibold text-slate-400 mb-1">Availability</div>
-                    <div className="flex items-center gap-2 text-sm font-bold text-emerald-600">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <div className="text-xs font-semibold text-content-muted mb-1">Availability</div>
+                    <div className="flex items-center gap-2 text-sm font-bold text-ok">
+                      <div className="w-2 h-2 rounded-full bg-ok" />
                       {profile.availabilityStatus.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
                     </div>
                   </div>
                 )}
-                
                 {profile.priceRange && (
                   <div>
-                    <div className="text-xs font-semibold text-slate-400 mb-1">Starting Price</div>
-                    <div className="text-sm font-bold text-slate-900">{profile.priceRange}</div>
+                    <div className="text-xs font-semibold text-content-muted mb-1">Starting Price</div>
+                    <div className="text-sm font-bold text-content">{profile.priceRange}</div>
                   </div>
                 )}
               </div>
@@ -276,33 +281,40 @@ export default async function PublicProfilePage({
 
             {/* Social Links */}
             {(profile.instagramHandle || profile.youtubeHandle || profile.twitterHandle || profile.facebookHandle || profile.linkedinHandle || profile.tiktokHandle) && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4">Social Links</h2>
+              <div className="bg-surface-card rounded-2xl shadow-[var(--shadow-card)] border border-hairline p-6">
+                <h2 className="text-sm font-black uppercase tracking-wider text-content-muted mb-4">Social Links</h2>
                 <div className="space-y-3">
                   {profile.instagramHandle && (
-                    <a href={`https://instagram.com/${profile.instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold text-slate-700 hover:text-[#ee3e96]">
-                      <InstagramIcon size={16} className="text-pink-600" /> @{profile.instagramHandle.replace('@', '')}
+                    <a href={`https://instagram.com/${profile.instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 text-sm font-semibold text-content-soft hover:text-brand transition-colors">
+                      <InstagramIcon size={16} className="text-brand" />
+                      @{profile.instagramHandle.replace('@', '')}
                     </a>
                   )}
                   {profile.youtubeHandle && (
-                    <a href={`https://youtube.com/${profile.youtubeHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold text-slate-700 hover:text-red-600">
-                      <YoutubeIcon size={16} className="text-red-600" /> @{profile.youtubeHandle.replace('@', '')}
+                    <a href={`https://youtube.com/${profile.youtubeHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 text-sm font-semibold text-content-soft hover:text-red-600 transition-colors">
+                      <YoutubeIcon size={16} className="text-red-600" />
+                      @{profile.youtubeHandle.replace('@', '')}
                     </a>
                   )}
                   {profile.twitterHandle && (
-                    <a href={`https://twitter.com/${profile.twitterHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold text-slate-700 hover:text-blue-500">
-                      <TwitterIcon size={16} className="text-blue-500" /> @{profile.twitterHandle.replace('@', '')}
+                    <a href={`https://twitter.com/${profile.twitterHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 text-sm font-semibold text-content-soft hover:text-blue-500 transition-colors">
+                      <TwitterIcon size={16} className="text-blue-500" />
+                      @{profile.twitterHandle.replace('@', '')}
                     </a>
                   )}
                   {profile.tiktokHandle && (
-                    <a href={`https://tiktok.com/@${profile.tiktokHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold text-slate-700 hover:text-slate-900">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg> @{profile.tiktokHandle.replace('@', '')}
+                    <a href={`https://tiktok.com/@${profile.tiktokHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 text-sm font-semibold text-content-soft hover:text-content transition-colors">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
+                      @{profile.tiktokHandle.replace('@', '')}
                     </a>
                   )}
                 </div>
               </div>
             )}
-            
           </div>
         </div>
       </div>
