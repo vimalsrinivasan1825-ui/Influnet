@@ -9,7 +9,10 @@ import { useState } from "react";
 import { InfluencerHomeView } from "@/components/dashboard/views/influencer-home";
 import { BusinessHomeView } from "@/components/dashboard/views/business-home";
 import { AdminHomeView } from "@/components/dashboard/views/admin-home";
+import DashboardSidebar from "@/components/dashboard/sidebar";
+import DashboardHeader from "@/components/dashboard/header";
 import { SegmentedTabs } from "@/components/ui/tabs";
+import type { UserRole } from "@/types";
 import type {
   AdminHomeData,
   BusinessHomeData,
@@ -102,18 +105,42 @@ const THEME: Record<Role, string> = {
   influencer: "theme-creator",
   admin: "theme-admin",
 };
+const ROLE_TO_USERROLE: Record<Role, UserRole> = {
+  influencer: "influencer",
+  business: "business_owner",
+  admin: "admin",
+};
 
 export default function UiPreviewPage() {
   const [role, setRole] = useState<Role>("influencer");
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className={`${THEME[role]} min-h-screen bg-surface`}>
-      <div className="sticky top-0 z-10 border-b border-hairline bg-surface-card/85 px-4 py-3 backdrop-blur-xl sm:px-6">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-          <p className="text-sm font-bold text-content">Dashboard UI preview</p>
+    <div className={`${THEME[role]} flex min-h-screen bg-surface text-content`}>
+      <DashboardSidebar
+        role={ROLE_TO_USERROLE[role]}
+        unreadMessages={3}
+        pendingRequests={6}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed((c) => !c)}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <DashboardHeader
+          userName={role === "business" ? "Rahul" : role === "admin" ? "Admin" : "Priya Sharma"}
+          avatarUrl={null}
+          onOpenMobile={() => setMobileOpen(true)}
+        />
+        <div className="flex items-center justify-between gap-3 border-b border-hairline bg-surface-card/60 px-4 py-2 sm:px-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-content-muted">
+            UI preview — mock data
+          </p>
           <SegmentedTabs
             value={role}
             onValueChange={setRole}
+            size="sm"
             tabs={[
               { value: "influencer", label: "Creator" },
               { value: "business", label: "Business" },
@@ -121,11 +148,12 @@ export default function UiPreviewPage() {
             ]}
           />
         </div>
+        <main className="flex-1">
+          {role === "influencer" && <InfluencerHomeView data={influencer} />}
+          {role === "business" && <BusinessHomeView data={business} />}
+          {role === "admin" && <AdminHomeView data={admin} />}
+        </main>
       </div>
-
-      {role === "influencer" && <InfluencerHomeView data={influencer} />}
-      {role === "business" && <BusinessHomeView data={business} />}
-      {role === "admin" && <AdminHomeView data={admin} />}
     </div>
   );
 }
