@@ -1,0 +1,53 @@
+name: Deploy to Production (Azure)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  promote-and-deploy:
+    name: Promote Staging Image & Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production # Triggers manual approval gating in GitHub
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for smoke tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies (needed for smoke test execution)
+        run: npm ci
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry (ACR)
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Promote Staging Image to Production
+        run: |
+          docker pull ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:staging-latest
+          docker tag ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:staging-latest ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-${{ github.sha }}
+          docker tag ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:staging-latest ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-latest
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-${{ github.sha }}
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-latest
+
+      - name: Deploy to Azure App Service (Production)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_APP_SERVICE_PROD_NAME }}
+          images: '${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-${{ github.sha }}'
+
+      - name: Run Smoke Tests
+        run: node scripts/smoke.mjs ${{ secrets.PRODUCTION_APP_URL }}

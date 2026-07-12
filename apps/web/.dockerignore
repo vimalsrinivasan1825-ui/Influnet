@@ -1,0 +1,27 @@
+# Dependency directories
+node_modules
+**/node_modules
+
+# Next.js build output
+.next
+**/ .next
+
+# Environment files containing secrets
+.env
+.env.local
+.env.*.local
+
+# Git configuration and metadata
+.git
+.gitignore
+.gitattributes
+
+# Documentation and meta
+README.md
+docs
+.agents
+graphify-out
+
+# System files
+.DS_Store
+Thumbs.db

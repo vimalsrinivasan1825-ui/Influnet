@@ -1,0 +1,194 @@
+# Influnet — CI/CD & Environments
+
+How code moves from a feature branch to production, what runs automatically at
+each step, and everything you must provision once by hand.
+
+- **Manual deploy steps** (Supabase provisioning, DNS, first-time host setup) live in the [Deployment Runbook](DEPLOYMENT.md).
+- **Local env switching** (`APP_ENV`, `.env.*` files, the boot banner) is documented in [apps/web/.env.example](../../apps/web/.env.example) and implemented in `apps/web/src/lib/env.ts` + `apps/web/src/instrumentation.ts`.
+
+> **Status legend:** ✅ built · 🛠️ planned (not yet in repo) · 👤 human-only (needs an account/credential from you)
+
+---
+
+## 1. Philosophy (why it's shaped this way)
+
+- **GitHub Actions, not Jenkins** — no server to babysit; the pipeline lives in `.github/workflows/`.
+- **Dev/prod parity where it matters.** Production runs on **Azure App Service via Docker**, so `staging` runs on the *same* platform and the *same* container image. `dev` runs on **Vercel** purely for fast iteration and free per-PR previews — it is not a parity gate.
+- **The container built for `staging` is the exact artifact promoted to `main`.** We don't rebuild for prod; we re-tag and redeploy the tested image.
+- **Every environment has its own Supabase project.** Local/dev/staging never touch the production database.
+- **Skipped on purpose** (they'd add ops burden with no benefit here): SonarQube (→ ESLint + `npm audit` + CodeQL), Trivy/Docker Hub/Kubernetes.
+
+---
+
+## 2. Branch → environment map
+
+| Branch | Deploys to | Host | `APP_ENV` | Supabase project | Purpose |
+|---|---|---|---|---|---|
+| `feature/*` | Preview (ephemeral, per-PR) | Vercel | `dev` | dev | Build & review in isolation |
+| `dev` | Dev | Vercel | `dev` | dev | Integration; always-deployable |
+| `staging` | Staging | **Azure App Service (Docker)** | `staging` | **staging (separate)** | Prod replica; client UAT |
+| `main` | Production | **Azure App Service (Docker)** | `production` | production | Live |
+
+**Flow:** `feature/*` → PR → `dev` → PR → `staging` → PR → `main`.
+One fix = one commit. Migrations are append-only. Never commit `.env*`.
+
+```
+feature/*  ──PR──▶  dev  ──PR──▶  staging  ──PR──▶  main
+  (CI)             (CI+CD          (CI+CD           (CI+CD
+                    Vercel)         Azure)           Azure, gated)
+```
+
+---
+
+## 3. What runs at each stage
+
+### 3.1 CI — every push & PR to `dev`/`staging`/`main`  ✅ (exists: `.github/workflows/ci.yml`)
+
+| Job | Command | Gate |
+|---|---|---|
+| Type check | `npm run typecheck` | blocks merge |
+| Lint | `npm run lint` | advisory today → make blocking |
+| Unit tests | `npm run test:unit --workspace=web` | blocks merge |
+| Integration tests | `npm run test:integration` (against a Supabase test project) | blocks merge |
+| E2E | `node apps/web/tests/matchmaking.js` | blocks merge |
+| Build | `npm run build` | blocks merge |
+
+> 🛠️ **Make CI a required merge gate** on `dev`, `staging`, and `main` (branch protection). The branch shipped with a red build once — this closes that gap.
+
+### 3.2 CD — deploy per branch
+
+| Trigger | Workflow (🛠️ planned) | Steps |
+|---|---|---|
+| push to `dev` | `deploy-dev.yml` | CI green → deploy to Vercel (dev) |
+| push to `staging` | `deploy-staging.yml` | CI green → **build Docker image** → push to Azure Container Registry → deploy to App Service (staging) → **smoke test** |
+| push to `main` | `deploy-prod.yml` | **manual approval** (GitHub Environment protection) → promote the staging image to App Service (prod) → smoke test → tag Sentry release |
+
+---
+
+## 4. The Docker + Azure path (staging & prod)  🛠️
+
+**Planned repo additions:**
+
+| File | Purpose |
+|---|---|
+| `apps/web/Dockerfile` | Multi-stage build using Next.js `output: 'standalone'` (small runtime image) |
+| `apps/web/.dockerignore` | Keep `node_modules`, `.next`, `.env*` out of the build context |
+| `next.config.ts` → `output: 'standalone'` | Emit the standalone server for the container |
+| `apps/web/src/app/api/health/route.ts` | Health endpoint — returns 200 + checks Supabase reachability |
+| `scripts/smoke.mjs` | Post-deploy check: hits `/api/health` + key public routes, expects 200 |
+
+**Image promotion (parity guarantee):** `deploy-staging.yml` builds and tags the image (e.g. `:<git-sha>`); `deploy-prod.yml` deploys *that same tag* to prod — no rebuild.
+
+**Azure resources** 👤 (you provision once):
+- Azure Container Registry (ACR) — stores the images.
+- Azure App Service (Linux container) — one for **staging**, one for **production**.
+- App Service **application settings** = the env vars from §6 (Azure's secret store).
+- A service principal / OIDC credential so GitHub Actions can push to ACR and deploy.
+
+---
+
+## 5. Environments & `APP_ENV`  ✅
+
+`APP_ENV` (`local | dev | staging | production`) selects **which backend/credentials** a
+process runs against. It is deliberately separate from `NODE_ENV` (Next.js only allows
+`development | production | test` and cannot express "staging").
+
+- **Deployed envs:** set `APP_ENV` in the host's config (Vercel env vars / Azure app settings).
+- **Local:** the npm scripts set it via the loaded `.env.*` file (see [.env.example](../../apps/web/.env.example)):
+
+  | Command | `APP_ENV` | Loads | Runs against |
+  |---|---|---|---|
+  | `npm run dev` | local | `.env.local` | local/dev backend |
+  | `npm run dev:dev` | dev | `.env.dev.local` | dev backend |
+  | `npm run dev:staging` | staging | `.env.staging.local` | staging backend |
+  | `npm run dev:prod` | production | `.env.production.local` | **prod (guarded, warns loudly)** |
+
+On every server boot, `instrumentation.ts` prints a banner naming the active `APP_ENV`,
+the env file, and which secrets are present — your "what am I running against?" check.
+
+---
+
+## 6. Required secrets / config per environment  👤
+
+Store these in **GitHub Actions secrets** (for the pipeline) and the **host's app settings**
+(Vercel env vars / Azure App Service application settings) — never in git.
+
+**App runtime (all envs — values differ per environment):**
+
+| Var | Scope | Notes |
+|---|---|---|
+| `APP_ENV` | public | `dev` / `staging` / `production` |
+| `NEXT_PUBLIC_APP_URL` | public | the env's own base URL |
+| `NEXT_PUBLIC_SUPABASE_URL` | public | that env's Supabase project |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | public | that env's anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | **server only** | that env's `service_role` **JWT** (`eyJ…`), *not* an `sbp_…` token |
+| `NEXT_PUBLIC_STREAM_API_KEY` / `STREAM_API_KEY` / `STREAM_API_SECRET` | public / server / **server** | Stream Chat |
+| `RESEND_API_KEY` / `EMAIL_FROM` / `NOTIFY_EMAILS_ENABLED` | server | email; keep `false` outside prod |
+| `NEXT_PUBLIC_SENTRY_DSN` | public | error monitoring (§8) |
+
+**Pipeline-only (CI/CD plumbing):**
+
+| Secret | Used by | Purpose |
+|---|---|---|
+| `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | `deploy-dev.yml` | deploy to Vercel |
+| `AZURE_CREDENTIALS` (or OIDC) | `deploy-staging/prod.yml` | auth to Azure |
+| `ACR_LOGIN_SERVER` / `ACR_USERNAME` / `ACR_PASSWORD` | staging/prod | push/pull container images |
+
+---
+
+## 7. Smoke tests  🛠️
+
+After each staging/prod deploy the pipeline runs `scripts/smoke.mjs` against the freshly
+deployed URL. Minimum assertions:
+
+- `GET /api/health` → `200` (app up + Supabase reachable).
+- `GET /c/<known-username>` and `/b/<known-username>` → `200` (public profiles stay public).
+- Logged-out `GET /dashboard` → redirects to `/login`.
+
+A failed smoke test **fails the deploy** (and, for prod, should trigger rollback to the previous image tag).
+
+---
+
+## 8. Monitoring  👤 + 🛠️
+
+The "production-ready" monitoring layer for this stack — nothing more is needed for v1:
+
+| Tool | Role | Setup |
+|---|---|---|
+| **Sentry** | Runtime error + performance tracking | 👤 create project → `NEXT_PUBLIC_SENTRY_DSN`; 🛠️ wire client/server/edge + `app/error.tsx` |
+| **Uptime monitor** (UptimeRobot / Better Stack) | External "is the site up?" alerting | 👤 point a monitor at `/api/health`, every 1–5 min |
+| **Azure Application Insights** | Native APM: CPU/memory/latency/HTTP errors | 👤 enable on the App Service (this is our "Grafana"; no Prometheus needed) |
+| **Supabase dashboard** | DB/API metrics | ✅ built-in, nothing to set up |
+
+**Deferred:** Grafana / Prometheus / Grafana Cloud — redundant with App Insights + Sentry for a managed-hosting setup. Revisit only at scale.
+
+---
+
+## 9. Security scanning  🛠️
+
+Free replacements for the SonarQube/Trivy chain:
+
+- `.github/dependabot.yml` — automated dependency-update PRs + CVE alerts.
+- **CodeQL** workflow — static analysis on push/PR (GitHub-native, free for this repo).
+- `npm audit` — already available; can be a non-blocking CI step.
+
+---
+
+## 10. Build checklist (what's left)
+
+**Repo work (I can do):**
+- [ ] `apps/web/Dockerfile` + `.dockerignore` + `output: 'standalone'`
+- [ ] `apps/web/src/app/api/health/route.ts`
+- [ ] `scripts/smoke.mjs`
+- [ ] `.github/workflows/deploy-dev.yml` (Vercel)
+- [ ] `.github/workflows/deploy-staging.yml` (Docker → ACR → App Service → smoke)
+- [ ] `.github/workflows/deploy-prod.yml` (promote image, manual approval, smoke)
+- [ ] `.github/dependabot.yml` + CodeQL workflow
+- [ ] Make `ci.yml` a required merge gate; flip lint to blocking
+
+**Human-only (you provision):** 👤
+- [ ] Second Supabase project for **staging** (prod already covered in [DEPLOYMENT.md](DEPLOYMENT.md))
+- [ ] Vercel project (dev)
+- [ ] Azure Container Registry + two App Services (staging, prod) + GitHub↔Azure credential
+- [ ] All §6 secrets in GitHub + each host
+- [ ] Sentry project + uptime monitor + enable App Insights
