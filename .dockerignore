@@ -1,0 +1,43 @@
+# This file lives at the REPO ROOT because the Docker build context is the repo
+# root (railway.json builds apps/web/Dockerfile with context "."). A .dockerignore
+# inside apps/web/ is ignored for a root-context build.
+
+# Dependency directories (restored in-image from the deps stage)
+node_modules
+**/node_modules
+
+# Build output
+.next
+**/.next
+dist
+**/dist
+
+# Environment files — never enter the build context.
+# Patterns are recursive so apps/web/.env* is excluded, not just root .env.
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Git metadata
+.git
+.gitignore
+.gitattributes
+.github
+
+# Docs, meta, local tooling
+README.md
+docs
+.agents
+graphify-out
+.vscode
+.idea
+
+# Test / CI artifacts
+coverage
+**/coverage
+*.log
+
+# System files
+.DS_Store
+Thumbs.db

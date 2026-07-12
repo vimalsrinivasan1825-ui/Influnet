@@ -5,6 +5,44 @@
 
 ---
 
+## D-003 · Deploy as one unified app; scale horizontally; split out a *worker*, not a frontend/backend (2026-07-12)
+
+**Decision:** Keep Influnet as a **single unified Next.js app** (`apps/web`, pages + `/api/*`
+together) and deploy it to **one host**. Do **not** split the frontend and backend into
+separate deployable services. When independent scaling is eventually needed, extract a
+**background worker service** for heavy async jobs — not a frontend-vs-backend split.
+
+**Now (small → moderately bigger traffic):**
+- One app, one host. **Railway** (existing `apps/web/Dockerfile`, `output: "standalone"`,
+  `/api/health`) or Vercel — pick one, don't split.
+- Scale by: horizontal instances + a bigger Supabase tier + **connection pooling
+  (Supavisor/PgBouncer)** + CDN/caching on public `/b/[username]` and `/c/[username]` pages.
+
+**Why not a frontend/backend split:**
+- **Wrong bottleneck.** The Next.js layer (pages *and* API routes) is I/O-bound glue; the
+  real work is in **Postgres** (126 RLS policies, 43 `SECURITY DEFINER` fns) and **Stream** —
+  both already separate managed services. Splitting the Node app does nothing for the DB,
+  which is what strains first (connections/throughput).
+- **Same scaling curve.** Every page view triggers its own API calls, so FE and BE load rise
+  together. A FE/BE split gives you two services with the *same* curve — no independent-scaling
+  win. Railway/Vercel already scale the unified app horizontally.
+- **Auth cost.** Auth is same-origin **Supabase cookies + RLS**. Splitting to two domains
+  forces cross-origin cookies, CORS, and token forwarding — real complexity to solve a
+  scaling problem we don't have. (Full cost of leaving this model: see
+  [architecture/FUTURE_MIGRATIONS.md](../architecture/FUTURE_MIGRATIONS.md).)
+
+**The split we *will* eventually want — web vs. worker:** when a genuinely heavy,
+independently-shaped workload appears (image/media processing — e.g. the Unsplash
+replacement — bulk notifications, verification scraping, analytics rollups, ML), extract
+*that specific job* into a queue-backed worker service. Web scales on request volume, worker
+scales on job volume — *different* curves, so the split earns its keep.
+
+**Keep the future cheap (do this now, it's free):** keep all data access in `src/lib`, keep
+API routes thin, and never let heavy work run inside a request handler. Clean seams make the
+later worker extraction a small, safe lift instead of a rewrite.
+
+---
+
 ## D-002 · Reuse the existing 2Factor phone-OTP system (2026-07-10)
 
 **Decision:** Keep and reuse the SMS OTP verification stack that already exists in this repo.

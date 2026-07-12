@@ -1,5 +1,5 @@
-# Base image
-FROM node:20-alpine AS base
+# Base image — Node 22 (Node 20 is EOL; @supabase/supabase-js warns on <22)
+FROM node:22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -16,13 +16,28 @@ RUN npm ci
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+# npm workspaces hoist all dependencies to the ROOT node_modules (including the
+# per-workspace symlinks like node_modules/web -> ../apps/web), so copying the
+# root tree is sufficient. Per-app node_modules dirs are empty/absent and must
+# NOT be copied — doing so breaks the build in a clean environment.
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/apps/landing/node_modules ./apps/landing/node_modules
 COPY . .
 
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# NEXT_PUBLIC_* values are inlined into the client bundle at BUILD time — runtime
+# env vars CANNOT change already-built client JS. Railway must pass these as
+# *build* variables (build args). If omitted, the client bundle ships blank
+# Supabase/Stream config and the browser app cannot authenticate.
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_STREAM_API_KEY
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
+    NEXT_PUBLIC_STREAM_API_KEY=$NEXT_PUBLIC_STREAM_API_KEY \
+    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
 # Build the Next.js app in standalone mode
 RUN npm run build --workspace=web

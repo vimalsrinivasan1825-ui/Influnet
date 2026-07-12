@@ -4,7 +4,29 @@ Canonical **manual** deploy guide (provisioning, DNS, first-time setup). For the
 
 **Stack:** single Next.js 16 app (`apps/web`) in a Turborepo, backed by Supabase (Postgres + Auth + Storage + Edge Functions) and Stream Chat.
 
-**Hosts:** `dev` → **Vercel** (fast iteration, per-PR previews). `staging` + `production` → **Azure App Service via Docker** (staging is a same-platform prod replica). See [CICD.md §2](CICD.md#2-branch--environment-map).
+**Host (current plan — [D-003](../product/DECISIONS.md)):** one unified app on **Railway** (Docker build from `apps/web/Dockerfile`, `output: "standalone"`). See **[§Railway deployment](#railway-deployment-single-host--current-plan)** below. *(The earlier multi-host plan — Vercel for `dev`, Azure App Service for `staging`/`production` — is retained in [CICD.md](CICD.md) for reference but is superseded by D-003 for the initial launch.)*
+
+---
+
+## Railway deployment (single-host — current plan)
+
+Deploys the whole Next.js app (UI + `/api/*`) as **one** Railway service from the Docker image. Config lives in [`railway.json`](../../railway.json) at the repo root. **Do §1 (prod Supabase + migrations) first** — the app is only as healthy as the DB it points at.
+
+### Build-context gotchas (verified via local Docker build — do not "simplify" away)
+- **`.dockerignore` must be at the repo root**, not `apps/web/`. The build context is the repo root, so a `.dockerignore` inside `apps/web/` is silently ignored. Without the root one, `.env*` files leak into the image and the **dev** Supabase project gets baked into a prod build.
+- **`NEXT_PUBLIC_*` vars are inlined at BUILD time**, not runtime. They must be passed as Railway **build variables** (Docker `--build-arg`), or the browser bundle ships blank Supabase/Stream config and login silently fails. Setting them only as runtime service variables is **not enough**. The Dockerfile declares `ARG`s for: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STREAM_API_KEY`, `NEXT_PUBLIC_APP_URL`.
+- Server-only secrets (`SUPABASE_SERVICE_ROLE_KEY`, `STREAM_API_SECRET`, …) are read at **runtime** — set those as normal service variables.
+
+### Steps
+1. **Railway → New Project → Deploy from GitHub repo**; pick this repo/branch. Railway auto-detects `railway.json` → builds `apps/web/Dockerfile`, health-checks `/api/health`, restarts on failure.
+2. **Region:** pick the one closest to your prod Supabase project (India launch → Singapore) to minimise DB latency.
+3. **Build variables** (Settings → Variables → *Build*, so they reach `--build-arg`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STREAM_API_KEY`, `NEXT_PUBLIC_APP_URL` (= the Railway public URL / custom domain).
+4. **Runtime variables** (same four *plus* the server-only ones from §2): `SUPABASE_SERVICE_ROLE_KEY` (real service-role **JWT**, not an `sbp_…` token), `STREAM_API_KEY`, `STREAM_API_SECRET`, `NOTIFY_EMAILS_ENABLED`, `APP_ENV=production`.
+5. **Deploy.** Then set the domain and update Supabase **Auth → Site URL / Redirect URLs** + the Stream webhook to that domain (§3).
+6. **Verify:** `GET /api/health` → `{"status":"healthy","database":"connected"}`, then run the §4 smoke test.
+
+### Auto-deploy on push to `dev`
+`.github/workflows/deploy-dev.yml` deploys to Railway **after** the CI/CD Pipeline succeeds on `dev` (via `workflow_run`), so a push runs the full pipeline (typecheck/lint/tests/build) and only deploys if green. Requires repo secrets `RAILWAY_TOKEN` (Railway project token) and `RAILWAY_SERVICE` (service name). **Turn OFF Railway's native "auto-deploy on push"** in the service settings — otherwise Railway builds on every push *without* waiting for CI, defeating the gate.
 
 ---
 
