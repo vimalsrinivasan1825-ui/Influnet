@@ -5,6 +5,9 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable
 
 const sb = createClient(supabaseUrl, supabaseKey);
 
+console.log(`[DEBUG] Connecting to Supabase URL: ${supabaseUrl}`);
+console.log(`[DEBUG] Supabase Key prefix: ${supabaseKey ? supabaseKey.substring(0, 15) : 'undefined'}...`);
+
 // Random suffixes to avoid user collisions
 const suffix = Math.floor(Math.random() * 1000000);
 const brandEmail = `testbrand_${suffix}@influnet.com`;
