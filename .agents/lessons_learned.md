@@ -142,6 +142,26 @@ This file tracks the current implementation state of each system module, issues 
   * `PATCH /api/profile` — Updates base profile fields (name, phone, location) + role-specific fields
 * **Settings Page Rewired**: Light theme, fetches profile on mount, saves changes via PATCH to `/api/profile`, updates localStorage cache, shows success/error states
 
+### Phase 1: Security & Route Lockdowns — COMPLETED (July 12, 2026)
+
+#### Scope
+* Built `lib/project-lifecycle.ts` to centralize the 12-stage pipeline state machine, role authorization for transitions, and cancellation actions.
+* Refactored `/api/projects/[id]/route.ts` to use the shared lifecycle module for stage advancement and project cancellations.
+* Removed duplicate state machines and `PATCH` logic from `/api/projects/route.ts`.
+* Updated frontend API calls in `dashboard/projects/page.tsx` to use the new `/api/projects/[id]` route structure.
+* Created Migration `053_pii_lockdown.sql` to explicitly drop the broad `SELECT` policy on `public.profiles` that exposed influencer email and phone numbers to anonymous users.
+* Verified that the open redirect vulnerability on the `?next=` parameter in `login/page.tsx`, `signup/business/page.tsx`, and `signup/influencer/page.tsx` was properly handled via strict string matching (`n.startsWith("/") && !n.startsWith("//")`).
+
+#### Broken & Resolved
+* **Duplicate State Machines**: Previously, stage advancement logic was duplicated across collection routes and item routes, with the frontend pointing to the collection route by mistake. Consolidating this completely into the `[id]` route enforces strict REST patterns and single-source-of-truth authorization.
+
+#### Key Lessons
+* Abstracting state machine and transition permissions into a pure shared module (`lib/project-lifecycle.ts`) keeps API routes clean and makes the transition logic highly testable.
+* Always enforce the "next" redirect parameter to be relative (`startsWith("/")` and not `startsWith("//")`) to prevent open redirect phishing vulnerabilities on authentication pages.
+
+#### Next Target
+* Phase 2: Launch-Prep (Dashboard Metrics, Reviews/Ratings, Progress Bars).
+
 ### Phase 0: Repo Stabilization — COMPLETED (July 10, 2026)
 
 #### Scope
@@ -390,11 +410,22 @@ This file tracks the current implementation state of each system module, issues 
 * Supabase JS embeds accept per-embed ordering/limits: `.order('created_at', { referencedTable: 'messages', ascending: false }).limit(1, { referencedTable: 'messages' })` — use this instead of fetching whole child tables for previews.
 * The E2E harness pattern (seed → exercise API → assert → SQL-verify → cleanup) catches integration breakage that unit tests and typecheck cannot (both were green while the requests page 500'd).
 
-#### Environment Issues Found (user action needed)
-* `SUPABASE_SERVICE_ROLE_KEY` in `apps/web/.env.local` holds a duplicate of the `sbp_` CLI token, not a real service-role key → all admin routes and the Stream webhook fail locally until the real `sb_secret_…` key is pasted in.
-* `ADMIN_CREDENTIALS.local.txt` is stale (`admin@influnet.com` → invalid_credentials).
+#### Environment Issues Resolved
+* `SUPABASE_SERVICE_ROLE_KEY` in `apps/web/.env.local` was updated by the user to the correct `eyJ...` JWT service role token. The personal access token (`sbp_...`) was removed.
+* Staging/production migrations (051 to 056) were pushed successfully using the Supabase CLI using the linked project tokens.
+
+### CI/CD Pipeline & Operations Setup (2026-07-12)
+* **Scope**: Multi-stage Dockerfile and .dockerignore for standalone container building; health check API route (`/api/health`); smoke test script (`scripts/smoke.mjs`); deploy-dev, deploy-staging, deploy-prod Github Actions workflows; dependabot and CodeQL static analysis workflows.
+* **Broken & Resolved**:
+  * **055 Migration Grant Mismatch**: Pushing migrations failed initially on `055_verification_system.sql` due to a mismatch in `admin_decide_verification` parameters inside the `GRANT` statement (called with 7 arguments instead of 6). Resolved by correcting the `GRANT` statement signature in the migration file.
+  * **Next.js 16 Proxy Convention**: Verified that path routing and authorization checks are routed via the newer `src/proxy.ts` middleware. Asserts redirects properly.
+  * **Flex Shrink Misalignment on Kanban Board**: Flex containers without explicit minimum sizes can shrink on smaller viewports. Add explicit `flex-shrink: 0` and `min-height` settings to sticky calendar headers and columns to maintain precise layout grid alignment.
+
+### Key Lessons
+* Next.js `output: 'standalone'` is critical for Next.js container builds as it optimizes the build footprint by including only the files trace-required for node execution.
+* When executing multi-stage DB migrations, ensure the parameter count in `GRANT EXECUTE ON FUNCTION` exactly matches the function's declaration. A mismatch triggers a database compilation error that rolls back subsequent migrations.
+* Always enforce `flex-shrink: 0` on flex items that have rigid, absolute height/width coordinates (like Kanban or calendar grid blocks) to prevent browser rendering engines from auto-scaling and misaligning cells.
 
 #### Next Target
-* High 4 (Rate limiting — needs Upstash credentials from user).
-* Medium 8 (Sentry — needs DSN from user).
-* Consider promoting the E2E harness into CI once a staging Supabase project exists.
+* Upstash Rate Limiting and Sentry error logging integration.
+* Proceed with Razorpay payment integration and schema checks.

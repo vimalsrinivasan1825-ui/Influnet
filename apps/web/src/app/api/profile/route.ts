@@ -26,15 +26,18 @@ export async function GET(req: Request) {
       location: p.location,
       created_at: p.created_at,
       updated_at: p.updated_at,
+      verification_status: p.verification_status ?? 'unverified',
+      verified_badge: p.verified_badge ?? false,
+      verified_at: p.verified_at ?? null,
     };
 
-    // Get extended profile based on role
+    // Get extended profile based on role.
+    // Business owner reads its full row via a SECURITY DEFINER RPC because
+    // sensitive columns (gst_number, registered_address, marketing_budget)
+    // are revoked from direct authenticated selects (migration 053).
     if (p.role === 'business_owner') {
-      const { data: biz } = await supabase
-        .from('business_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      const { data: bizJson } = await supabase.rpc('get_own_business_profile');
+      const biz = bizJson as any;
       if (biz) {
         Object.assign(result, {
           username: biz.username,

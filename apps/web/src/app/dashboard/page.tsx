@@ -14,7 +14,7 @@ const FALLBACK: BusinessHomeData = {
     active_collabs_count: 0,
     completed_collabs_count: 0,
     pending_collabs_count: 0,
-    total_budget_sum: 0,
+    pipeline_value: 0,
   },
   weekly_spend: [],
   pipeline_data: [],

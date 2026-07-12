@@ -19,7 +19,7 @@ import { AreaChart, BarChart, type ChartConfig } from "@/components/ui/chart";
 import type { BusinessHomeData } from "./types";
 
 const spendConfig: ChartConfig = {
-  spend: { label: "Spend", color: "var(--brand)" },
+  spend: { label: "Pipeline", color: "var(--brand)" },
 };
 const pipelineConfig: ChartConfig = {
   value: { label: "Collabs", color: "var(--brand)" },
@@ -48,17 +48,15 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
             )}
           </div>
         </div>
-        <ButtonLink href="/dashboard/discover" variant="brand" size="xl">
-          <Compass /> Discover creators
-        </ButtonLink>
+        {/* Discover feature temporarily disabled */}
       </Reveal>
 
       {/* KPIs */}
       <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4" start={0.05}>
         <StatCard
-          label="Total spend"
-          value={`₹${s.total_budget_sum.toLocaleString()}`}
-          hint="Across all campaigns"
+          label="Pipeline value"
+          value={`₹${s.pipeline_value.toLocaleString()}`}
+          hint="Active & pending budgets"
           tone="brand"
           icon={<DollarSign />}
         />
@@ -88,7 +86,7 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.1} className="lg:col-span-2">
-          <SectionCard eyebrow="Spend" title="Weekly budget trend" className="h-full">
+          <SectionCard eyebrow="Pipeline" title="Weekly pipeline trend" className="h-full">
             <AreaChart
               data={data.weekly_spend}
               config={spendConfig}
@@ -135,12 +133,8 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
             <EmptyState
               icon={<Megaphone />}
               title="No collaborations yet"
-              description="Discover creators and send your first brief to get started."
-              action={
-                <ButtonLink href="/dashboard/discover" variant="brandSoft" size="sm">
-                  Discover creators
-                </ButtonLink>
-              }
+              description="Wait for creators to send pitches or connect with them."
+              action={null}
             />
           ) : (
             <ul className="grid gap-2 sm:grid-cols-2">

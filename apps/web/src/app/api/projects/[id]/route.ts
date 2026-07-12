@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { z } from 'zod';
+import { blockingItems, type StageItem } from '@/lib/project-stage-items';
 
 const PatchProjectActionSchema = z.object({
-  action: z.enum(['advance', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
+  action: z.enum(['advance', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
   stage_key: z.string().optional(),
   updates: z.any().optional(),
   title: z.string().optional(),
@@ -76,7 +77,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
-    // Verify user is participant
+    // Verify user is participant. Select only columns that always exist so this
+    // works even before the completion-confirmation migration (056) is applied;
+    // the confirm_completion branch reads those columns separately.
     const { data: project, error: fetchErr } = await supabase
       .from('campaign_projects')
       .select('id, owner_user_id, counterparty_user_id, current_stage, stage_progress')
@@ -106,6 +109,29 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       const currentStageActor = STAGE_ACTOR[project.current_stage as typeof Stage] || 'either';
       if (currentStageActor !== 'either' && currentStageActor !== userRole) {
         return jsonError(403, `Only the ${currentStageActor} can advance the stage from ${project.current_stage}`);
+      }
+
+      // Gate: every REQUIRED checklist item of the current stage must be done
+      // before the project can move on. Enforced here (not just in the UI) so a
+      // direct PATCH can't skip payment/approval gates.
+      const { data: stageItems, error: itemsErr } = await supabase
+        .from('project_stage_items')
+        .select('*')
+        .eq('project_id', id)
+        .eq('stage_key', project.current_stage);
+      // Fail OPEN if the checklist table isn't there yet (migration 054 not
+      // applied): the gate is an enhancement, not a reason to block advancing.
+      // Log so it's visible, but don't 500 the user.
+      if (itemsErr) console.warn('[advance] stage checklist unavailable, skipping gate:', itemsErr.message);
+      const pending = itemsErr ? [] : blockingItems(project.current_stage, (stageItems || []) as StageItem[]);
+      if (pending.length > 0) {
+        return NextResponse.json(
+          {
+            error: 'Complete the required checklist items before advancing.',
+            blocking: pending.map((it) => it.label),
+          },
+          { status: 409 },
+        );
       }
 
       const { stage_key } = result.data;
@@ -153,6 +179,55 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       if (updateErr) return jsonError(500, 'Failed to advance stage', updateErr);
       return NextResponse.json({ project: updated });
+    }
+
+    // 1b) Dual-confirm completion: BOTH participants must confirm before a
+    // project reaches 'project_completed' (which unlocks reviews + means paid).
+    if (action === 'confirm_completion') {
+      if (project.current_stage !== 'final_payment') {
+        return jsonError(400, 'Completion can only be confirmed at the final payment stage');
+      }
+
+      // Read the confirmation columns here (added in migration 056). If they're
+      // not present yet, guide the operator to apply the migration rather than
+      // silently misbehaving.
+      const { data: confirmRow, error: confirmErr } = await supabase
+        .from('campaign_projects')
+        .select('owner_confirmed_complete, counterparty_confirmed_complete')
+        .eq('id', id)
+        .single();
+      if (confirmErr) {
+        return jsonError(400, 'Completion confirmations are not enabled yet. Apply migration 056 to enable dual-confirm completion.');
+      }
+
+      const ownerConfirmed = userRole === 'business' ? true : !!confirmRow.owner_confirmed_complete;
+      const counterpartyConfirmed = userRole === 'creator' ? true : !!confirmRow.counterparty_confirmed_complete;
+      const bothConfirmed = ownerConfirmed && counterpartyConfirmed;
+
+      const updateData: Record<string, unknown> = {
+        owner_confirmed_complete: ownerConfirmed,
+        counterparty_confirmed_complete: counterpartyConfirmed,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (bothConfirmed) {
+        const stageProgress = (project.stage_progress || {}) as Record<string, any>;
+        stageProgress['final_payment'] = { ...(stageProgress['final_payment'] || {}), status: 'completed', completed_at: new Date().toISOString() };
+        stageProgress['project_completed'] = { ...(stageProgress['project_completed'] || {}), status: 'current', started_at: new Date().toISOString() };
+        updateData.current_stage = 'project_completed';
+        updateData.status = 'completed';
+        updateData.stage_progress = stageProgress;
+      }
+
+      const { data: updated, error: updateErr } = await supabase
+        .from('campaign_projects')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateErr) return jsonError(500, 'Failed to confirm completion', updateErr);
+      return NextResponse.json({ project: updated, both_confirmed: bothConfirmed });
     }
 
     // 2) Update stage progress details (notes, meeting_link, deliverables)

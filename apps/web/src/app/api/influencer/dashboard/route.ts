@@ -37,11 +37,10 @@ export async function GET(req: Request) {
     const pending = collabs?.filter(c => c.status === 'pending').length || 0;
     const acceptedCollabs = collabs?.filter(c => c.status === 'accepted') || [];
     const declinedCollabs = collabs?.filter(c => c.status === 'declined') || [];
-    const completedCollabs = collabs?.filter(c => c.status === 'completed') || [];
     const active_discussions = acceptedCollabs.length;
 
-    // Total earnings from accepted collab budgets
-    const total_earnings = acceptedCollabs.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+    // Pipeline value from accepted collab budgets
+    const pipeline_value = acceptedCollabs.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
 
     // 3. Fetch projects
     const { data: projects } = await supabase
@@ -118,7 +117,7 @@ export async function GET(req: Request) {
         active_discussions,
         active_projects,
         completed_projects,
-        total_earnings,
+        pipeline_value,
       },
       earnings_trend: earningsTrend,
       request_breakdown: requestBreakdown,

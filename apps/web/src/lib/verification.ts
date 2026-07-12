@@ -1,0 +1,142 @@
+// Verification scoring & decision logic — the trust-badge brain.
+// PURE and deterministic so it can be unit-tested and reasoned about. The
+// scraper (verification-scraper.ts) produces `signals`; this module turns them
+// into a confidence score and a decision. Swap `scoreWithAI` for a real Claude
+// call later — the thresholds and the "never auto-reject" rule stay here.
+
+export type VerificationStatus =
+  | 'unverified'
+  | 'pending'
+  | 'in_review'
+  | 'verified'
+  | 'rejected'
+  | 'needs_more_info';
+
+export type Role = 'business_owner' | 'influencer';
+
+// Structured evidence gathered about a user. Everything optional so a partial
+// scrape still scores.
+export interface VerificationSignals {
+  // business
+  website_resolves?: boolean;
+  website_mentions_name?: boolean;
+  gst_format_valid?: boolean;
+  domain_age_days?: number;
+  // creator
+  social_handles_live?: Record<string, boolean>;
+  follower_count?: number;
+  last_post_days_ago?: number;
+  bio_matches_niche?: boolean;
+  // shared
+  has_contactable_channel?: boolean;
+  flags?: string[]; // e.g. ['gst_not_found', 'all_handles_dead']
+}
+
+export interface VerificationDecision {
+  score: number; // 0..1
+  status: Extract<VerificationStatus, 'verified' | 'in_review' | 'needs_more_info'>;
+  reason: string;
+  decided_by: 'ai';
+}
+
+// Thresholds — deliberately conservative to start; tune with real data.
+export const AUTO_APPROVE_THRESHOLD = 0.85;
+export const ESCALATE_THRESHOLD = 0.5;
+
+// Hard fraud signals never auto-approve and never auto-reject — they escalate.
+function hasFraudFlag(signals: VerificationSignals): boolean {
+  const flags = signals.flags ?? [];
+  return flags.some((f) => /fraud|impersonat|all_handles_dead|domain_not_found/.test(f));
+}
+
+function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
+
+// --- Heuristic scorers (default when no live AI call is configured) ----------
+
+export function scoreBusinessSignals(s: VerificationSignals): number {
+  let score = 0;
+  if (s.website_resolves) score += 0.35;
+  if (s.website_mentions_name) score += 0.25;
+  if (s.gst_format_valid) score += 0.2;
+  if ((s.domain_age_days ?? 0) >= 180) score += 0.1;
+  if (s.has_contactable_channel) score += 0.1;
+  return clamp01(score);
+}
+
+export function scoreCreatorSignals(s: VerificationSignals): number {
+  let score = 0;
+  const live = s.social_handles_live ?? {};
+  const liveCount = Object.values(live).filter(Boolean).length;
+  if (liveCount >= 1) score += 0.35;
+  if (liveCount >= 2) score += 0.15;
+  if ((s.follower_count ?? 0) >= 1000) score += 0.15;
+  if ((s.last_post_days_ago ?? Infinity) <= 30) score += 0.2;
+  if (s.bio_matches_niche) score += 0.15;
+  return clamp01(score);
+}
+
+export function scoreSignals(role: Role, signals: VerificationSignals): number {
+  return role === 'business_owner'
+    ? scoreBusinessSignals(signals)
+    : scoreCreatorSignals(signals);
+}
+
+// --- Decision --------------------------------------------------------------
+
+// Map a confidence score (+ fraud flags) to an automated decision.
+// INVARIANT: this never returns 'rejected'. Low-confidence, non-fraud cases ask
+// for more info; anything suspicious or middling escalates to a human.
+export function decide(role: Role, signals: VerificationSignals): VerificationDecision {
+  const score = scoreSignals(role, signals);
+  const fraud = hasFraudFlag(signals);
+
+  if (fraud) {
+    return {
+      score,
+      status: 'in_review',
+      reason: `Escalated: suspicious signals (${(signals.flags ?? []).join(', ')}).`,
+      decided_by: 'ai',
+    };
+  }
+  if (score >= AUTO_APPROVE_THRESHOLD) {
+    return { score, status: 'verified', reason: 'High-confidence auto-approval.', decided_by: 'ai' };
+  }
+  if (score >= ESCALATE_THRESHOLD) {
+    return { score, status: 'in_review', reason: 'Medium confidence — needs human review.', decided_by: 'ai' };
+  }
+  return {
+    score,
+    status: 'needs_more_info',
+    reason: 'Low confidence — additional or corrected details needed.',
+    decided_by: 'ai',
+  };
+}
+
+// Notification copy for each terminal/interim status (reuses migration 047 pipeline).
+export const VERIFICATION_NOTIFICATION: Record<
+  VerificationDecision['status'] | 'rejected',
+  { type: string; title: string; body: string }
+> = {
+  verified: {
+    type: 'verification_approved',
+    title: "You're verified ✅",
+    body: 'Your account passed verification. Your verified badge is now live.',
+  },
+  in_review: {
+    type: 'verification_in_review',
+    title: 'Verification under review',
+    body: "We're reviewing your details. You can keep using everything in the meantime.",
+  },
+  needs_more_info: {
+    type: 'verification_needs_info',
+    title: 'Action needed to get verified',
+    body: 'We need a bit more information to verify your account.',
+  },
+  rejected: {
+    type: 'verification_rejected',
+    title: 'Verification update',
+    body: "We couldn't verify your account yet. Review your details and try again.",
+  },
+};

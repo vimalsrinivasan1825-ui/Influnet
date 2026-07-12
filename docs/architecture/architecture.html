@@ -237,6 +237,75 @@
     font-size: 12.5px; color: var(--muted); margin-top: 10px; max-width: 80ch;
   }
 
+  /* ── Module reference (engineering handbook) ─────────── */
+  .mr-intro { max-width: 82ch; }
+  .mr-intro p { font-size: 13.8px; }
+  .layerkey { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 6px; }
+  .ltag {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+    padding: 3px 9px; border-radius: 7px; border: 1px solid var(--line);
+    color: var(--muted); background: var(--surface); white-space: nowrap;
+  }
+  .ltag b { color: var(--ink); font-weight: 700; }
+
+  .contract-note {
+    background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+    border-radius: 12px; padding: 13px 16px; margin: 16px 0 22px; font-size: 13px;
+  }
+  .contract-note b { color: var(--accent); }
+
+  .mgroup { margin: 26px 0 4px; }
+  .mgroup h3 {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .mgroup h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  details.modx {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 13px;
+    margin: 0 0 10px; overflow: hidden; scroll-margin-top: 80px;
+  }
+  details.modx:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  details.modx > summary {
+    list-style: none; cursor: pointer; padding: 13px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  details.modx > summary::-webkit-details-marker { display: none; }
+  details.modx > summary::before {
+    content: "▸"; color: var(--muted); font-size: 11px; transition: transform 0.15s;
+  }
+  details.modx[open] > summary::before { transform: rotate(90deg); }
+  details.modx > summary:hover { background: var(--band); }
+  .modx .mx-title { font-weight: 700; font-size: 14.5px; letter-spacing: -0.01em; }
+  .modx .mx-one { color: var(--muted); font-size: 12.5px; margin-left: auto; text-align: right; }
+  @media (max-width: 640px) { .modx .mx-one { display: none; } }
+
+  .modx .mx-body { padding: 4px 16px 18px; border-top: 1px solid var(--line); }
+  .mx-body p { font-size: 13.3px; margin: 12px 0 10px; max-width: 84ch; }
+  .mrow { display: grid; grid-template-columns: 128px 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); align-items: start; }
+  .mrow:last-of-type { border-bottom: none; }
+  .mrow .k {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--muted); padding-top: 2px;
+  }
+  .mrow .v { font-size: 13px; }
+  .mrow .v code, .paths-inline {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px;
+    background: var(--code-bg); padding: 1px 6px; border-radius: 5px; color: var(--ink);
+  }
+  .mrow.flow ol { margin: 0; padding-left: 18px; }
+  .mrow.flow li { font-size: 12.8px; margin: 3px 0; }
+  @media (max-width: 560px) { .mrow { grid-template-columns: 1fr; gap: 3px; } }
+
+  .boundary {
+    margin-top: 12px; border-left: 3px solid var(--accent); background: var(--band);
+    border-radius: 0 10px 10px 0; padding: 10px 14px; font-size: 12.6px;
+  }
+  .boundary b { color: var(--accent); }
+
   footer.pagefoot {
     margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
     font-size: 12px; color: var(--muted);
@@ -248,6 +317,7 @@
   <nav aria-label="Sections">
     <a href="#diagram">Diagram</a>
     <a href="#modules">Modules</a>
+    <a href="#module-reference">Module map</a>
     <a href="#journey">Journey</a>
     <a href="#hidden">Hidden assets</a>
     <a href="#log">Update log</a>
@@ -554,9 +624,9 @@
 
     <section class="mod" id="m-projects">
       <header><h3>Projects — 12-stage pipeline + Kanban</h3><span class="pill ok">Working</span></header>
-      <p>Auto-created on accept. Stage tracker (collaboration_started → project_completed), mutual-consent cancellation, and a per-project Kanban workspace with draggable cards (due dates, colors, meeting links).</p>
-      <p class="paths">dashboard/projects · projects/[id] · api/projects · api/projects/[id]/cards</p>
-      <p class="gap"><b>Done:</b> the old auto-heal side effect in GET was removed. <b>Gap:</b> file deliverables (<span class="mono">project_assets</span>) have no UI.</p>
+      <p>Auto-created on accept. Stage tracker (collaboration_started → project_completed), mutual-consent cancellation, and a per-project Kanban workspace with draggable cards (due dates, colors, meeting links). State transitions and role enforcements are centralized in a shared lifecycle module.</p>
+      <p class="paths">dashboard/projects · lib/project-lifecycle.ts · api/projects/[id] · api/projects/[id]/cards</p>
+      <p class="gap"><b>Done:</b> Unified stage advancement and cancellation flows. <b>Gap:</b> file deliverables (<span class="mono">project_assets</span>) have no UI.</p>
     </section>
 
     <section class="mod" id="m-messages">
@@ -638,6 +708,318 @@
       <li><b>4 validator unit tests outdated:</b> schemas moved to snake_case in Task 1.5; tests still send camelCase.</li>
       <li><b>Migration 043 uncommitted:</b> the accept/conversation RPCs exist in the live DB; the SQL file documenting them sits uncommitted in the working tree.</li>
       <li><b>Key rotation outstanding:</b> secrets from old commits remain valid until rotated (Phase 0 human checklist).</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════ MODULE REFERENCE ═══════════════════ -->
+  <h2 id="module-reference">Module map — engineering handbook</h2>
+  <p class="sub">
+    The section above is a status board. This one is the wiring diagram a developer opens
+    <em>before touching code</em>. Every feature is written as a self-contained module with a
+    clear boundary, so you can work inside one without breaking another. Each entry answers
+    five questions: what files it <b>owns</b>, what it <b>depends on</b>, what data it touches,
+    how a request <b>flows</b> through it, and where you <b>start debugging</b> when it breaks.
+  </p>
+
+  <div class="mr-intro">
+    <p>
+      Read a module as a <b>contract</b>, not a folder. A module exposes one inbound surface
+      (an API route, an edge function, or a React view) and reaches other modules only through
+      named, stable seams — never by importing another feature's internals. Those seams are:
+    </p>
+    <div class="layerkey">
+      <span class="ltag"><b>UI</b> · React page/view</span>
+      <span class="ltag"><b>API</b> · /api route (server)</span>
+      <span class="ltag"><b>RPC</b> · Postgres function</span>
+      <span class="ltag"><b>RLS</b> · row-level security</span>
+      <span class="ltag"><b>EDGE</b> · Supabase edge function</span>
+      <span class="ltag"><b>EXT</b> · third-party service</span>
+      <span class="ltag"><b>STORE</b> · Zustand client state</span>
+    </div>
+  </div>
+
+  <div class="contract-note">
+    <b>The one rule that keeps modules independent:</b> a feature never imports another feature's
+    files. Everything shared lives in the <b>Shared kernel</b> (<span class="mono">lib/</span>,
+    <span class="mono">types/</span>, <span class="mono">store/</span>). Cross-feature effects happen in the
+    database (an RPC or a trigger), not in application code. That is why accepting a collab request
+    can create a project, a conversation, and a notification without the requests module ever
+    importing the projects, messaging, or notifications modules.
+  </div>
+
+  <!-- ── Group: Shared kernel ── -->
+  <div class="mgroup">
+    <h3>Shared kernel — the spine every module depends on</h3>
+  </div>
+
+  <details class="modx" id="mx-kernel">
+    <summary><span class="mx-title">Shared kernel</span><span class="mx-one">Auth guard · fetch client · types · validators · stores</span></summary>
+    <div class="mx-body">
+      <p>The only code every feature is allowed to import. Change it deliberately — a breaking edit here ripples everywhere. It has no feature logic of its own; it only provides the seams.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>lib/api.ts</code> (server auth: <code>withAuth</code> / <code>withAdmin</code> / <code>jsonError</code>), <code>lib/api-client.ts</code> (<code>apiFetch</code> + bearer token), <code>lib/supabase/*</code> (browser / server / RSC / proxy clients), <code>lib/validators.ts</code> (Zod, snake_case), <code>types/index.ts</code> (Database + domain models), <code>lib/constants.ts</code>, <code>store/auth-store.ts</code>, <code>store/notification-store.ts</code></span></div>
+      <div class="mrow"><span class="k">Inbound seam</span><span class="v">Server: every <code>/api/*</code> route calls <code>withAuth(req)</code> → verifies the JWT, loads the profile role, returns a Supabase client scoped to the caller. Client: every UI calls <code>apiFetch(path)</code> → injects <code>Authorization: Bearer &lt;session token&gt;</code>.</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Supabase Auth (JWT verification) only. Depends on no feature module — features depend on <em>it</em>.</span></div>
+      <div class="mrow flow"><span class="k">Auth flow</span><span class="v"><ol><li>UI reads live session token via <code>getAuthToken()</code> (never localStorage).</li><li><code>apiFetch</code> attaches it as a bearer header.</li><li><code>withAuth</code> re-derives the user from the token + reads <code>profiles.role</code>.</li><li>Route runs queries with the <em>caller's</em> JWT, so Postgres RLS is the real gate.</li></ol></span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v"><code>lib/api.ts:41</code> (<code>withAuth</code>) logs 401/403 with reasons; <code>lib/api-client.ts</code> never throws on empty bodies. A "works in UI, 401 in API" bug is almost always a stale/absent bearer token.</span></div>
+      <div class="boundary"><b>Boundary:</b> features may import from <code>lib/</code>, <code>types/</code>, <code>store/</code> — never from each other. Adding a table? Update <code>types/index.ts</code> Database type so <code>withAuth</code>'s client stays typed.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-session">
+    <summary><span class="mx-title">Session &amp; edge middleware</span><span class="mx-one">UI · proxy · runs before every page</span></summary>
+    <div class="mx-body">
+      <p>Refreshes the Supabase session cookie on every navigation and enforces logged-in / logged-out routing. In Next.js 16 the old <code>middleware.ts</code> convention is renamed <code>proxy.ts</code> and must sit beside <code>app/</code> in <code>src/</code>.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>src/proxy.ts</code>, <code>lib/supabase/middleware.ts</code></span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Shared kernel (Supabase SSR client). No feature module.</span></div>
+      <div class="mrow flow"><span class="k">Flow</span><span class="v"><ol><li>Request hits <code>proxy</code> before the page renders.</li><li>Supabase SSR client reads/rewrites the auth cookie, refreshing the token if near expiry.</li><li>Logged-out users hitting a private route → redirect to <code>/login</code>; logged-in users hitting <code>/login</code> → bounced to <code>/dashboard</code>.</li></ol></span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v"><code>src/proxy.ts</code>. Symptoms: infinite redirect loops, or being logged out on refresh → check cookie set/get and the public-route allowlist.</span></div>
+      <div class="boundary"><b>Boundary:</b> public routes (<code>/c/*</code>, <code>/b/*</code>, <code>/influnet/*</code>, <code>/login</code>, <code>/signup</code>) must be whitelisted here or SSR profiles 404 for logged-out visitors.</div>
+    </div>
+  </details>
+
+  <!-- ── Group: Identity & onboarding ── -->
+  <div class="mgroup">
+    <h3>Identity &amp; onboarding</h3>
+  </div>
+
+  <details class="modx" id="mx-auth">
+    <summary><span class="mx-title">Auth &amp; signup</span><span class="mx-one">UI · API · EDGE · RPC</span></summary>
+    <div class="mx-body">
+      <p>Email/password login plus two 4-step signup wizards (creator, business). A business lands in <code>pending_review</code> until an admin approves. Account creation is done server-side by the <code>auth-signup</code> edge function so the phone-verification gate can't be bypassed.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/login</code>, <code>app/signup</code>, <code>app/signup/{business,influencer}</code>, <code>app/reset-password</code>, <code>api/auth/register</code>, <code>supabase/functions/auth-signup</code>, <code>store/auth-store.ts</code>, migrations 001 / 008 / 049</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v"><b>Phone OTP</b> (verification token), <b>Email sending</b> (confirmation), <b>Data backbone</b> (<code>register_profile</code> RPC), Shared kernel.</span></div>
+      <div class="mrow"><span class="k">Data</span><span class="v"><code>auth.users</code> (Supabase Auth), <code>profiles</code>, role-specific rows via <code>register_profile</code>. Role guard in migration 049.</span></div>
+      <div class="mrow flow"><span class="k">Flow</span><span class="v"><ol><li>Wizard collects details → verifies phone (OTP module) → gets a verification token.</li><li>Submits to <code>auth-signup</code> edge fn with email, password, phone token, role.</li><li>Edge fn (service role) creates the auth user + calls <code>register_profile</code> in one shot.</li><li>Supabase Auth emails a confirmation link (Email module).</li><li>Login → session cookie set → proxy keeps it fresh.</li></ol></span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">Signup failing → <code>auth-signup</code> edge logs. Login OK but "profile not found" → <code>register_profile</code> didn't run or role guard rejected it. Reset link → Supabase Auth email logs.</span></div>
+      <div class="boundary"><b>Boundary:</b> exposes only the Supabase session (cookie + JWT). Every other module consumes identity through <code>withAuth</code> — none of them read the auth tables directly.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-otp">
+    <summary><span class="mx-title">Phone OTP sending</span><span class="mx-one">EDGE · EXT (2Factor) · RPC</span></summary>
+    <div class="mx-body">
+      <p>Fully server-side SMS OTP over 2Factor.in. Codes are generated, sent, and verified by 2Factor and an edge function — Influnet <em>never stores the code</em>. Rate limits and an audit trail live in Postgres.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>supabase/functions/phone-otp/index.ts</code> (actions <code>send</code> / <code>verify</code>), migrations 022 + 026, RPCs <code>phone_otp_send_allowed</code>, <code>phone_otp_*</code></span></div>
+      <div class="mrow"><span class="k">External</span><span class="v"><code>2factor.in</code> · env <code>TWOFACTOR_API_KEY</code> · SMS template <code>Login_Verification_OTP</code> · 10-min TTL</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Data backbone (rate-limit RPCs + OTP tables). Consumed by <b>Auth &amp; signup</b>.</span></div>
+      <div class="mrow flow"><span class="k">Flow</span><span class="v"><ol><li>Wizard invokes <code>phone-otp {action:'send', phone}</code>.</li><li>Edge fn checks <code>phone_otp_send_allowed</code> (5/hr per number) → calls 2Factor → SMS out.</li><li>User enters code → <code>{action:'verify', code}</code> → 2Factor validates (5 attempts, 10-min window).</li><li>On success the fn returns a verification token, handed to <code>auth-signup</code>.</li></ol></span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">Supabase edge function logs for <code>phone-otp</code>; the OTP rate-limit tables; verify that <code>TWOFACTOR_API_KEY</code> is set on the project. Not wired into the live wizard yet (the UI step was lost with the legacy site — see DECISIONS D-002).</span></div>
+      <div class="boundary"><b>Boundary:</b> contract is a single opaque token string. Auth doesn't know it's SMS — swapping providers (e.g. to WhatsApp OTP) touches only this module.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-email">
+    <summary><span class="mx-title">Email sending</span><span class="mx-one">EXT (Supabase Auth SMTP)</span></summary>
+    <div class="mx-body">
+      <p>All transactional email today is delegated to Supabase Auth (GoTrue): signup confirmation, magic link, and password reset. The app never talks to an SMTP server directly — it calls Supabase Auth methods and Supabase sends the mail.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v">Supabase Auth email templates (confirm / recovery / magic), <code>docs/supabase-email-otp-template.html</code>, the <code>app/reset-password</code> handler</span></div>
+      <div class="mrow"><span class="k">Triggered by</span><span class="v"><code>supabase.auth.signUp()</code> and <code>resetPasswordForEmail()</code> from the Auth module</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">Supabase Dashboard → Auth → Email logs + SMTP settings. No email arriving → check SMTP config and the template redirect URL, not app code.</span></div>
+      <div class="boundary"><b>Boundary:</b> <b>notification emails</b> (e.g. "you got a new request" via Resend) are a <em>separate, planned</em> module (Task 2.2) — do not conflate them with these Auth system emails. Keep auth email and marketing/notification email on different providers so one can't rate-limit the other.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-profile">
+    <summary><span class="mx-title">Profile &amp; settings</span><span class="mx-one">UI · API · RLS</span></summary>
+    <div class="mx-body">
+      <p>Read + edit for the base profile and role-specific fields (creator socials / niches / pricing; business company data). Validation is snake_case end-to-end via shared Zod schemas.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/dashboard/settings</code>, <code>api/profile</code>, uses <code>lib/validators.ts</code></span></div>
+      <div class="mrow"><span class="k">Data</span><span class="v"><code>profiles</code>, <code>business_profiles</code>, <code>influencer_profiles</code>; avatar/photo Storage buckets (migrations 013 / 025)</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Shared kernel; feeds <b>Discovery</b> and <b>Public profiles</b> (they read the same rows).</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v"><code>api/profile</code> route + the matching Zod schema. A 400 on save is almost always a camelCase field hitting a snake_case schema.</span></div>
+      <div class="boundary"><b>Boundary:</b> owns the write path to profile tables. Other modules read those tables but route <em>writes</em> through this module's API so validation stays in one place.</div>
+    </div>
+  </details>
+
+  <!-- ── Group: Marketplace core ── -->
+  <div class="mgroup">
+    <h3>Marketplace core — the collaboration loop</h3>
+  </div>
+
+  <details class="modx" id="mx-discover">
+    <summary><span class="mx-title">Discovery</span><span class="mx-one">UI · API</span></summary>
+    <div class="mx-body">
+      <p>Role-aware directory: businesses browse creators, creators see brands. The "collaborate" action hands off into the collab-request flow.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/dashboard/discover</code>, <code>api/discover</code></span></div>
+      <div class="mrow"><span class="k">Data</span><span class="v">reads <code>profiles</code> + role tables (flat <code>LIMIT 30</code>, no filters/pagination yet — Task 3.6)</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Profile (data), hands off to <b>Collab requests</b>.</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v"><code>api/discover</code>. Empty list → check role branch + RLS on the target role's table.</span></div>
+      <div class="boundary"><b>Boundary:</b> read-only. It never creates a request itself — it only opens the requests module's modal.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-requests">
+    <summary><span class="mx-title">Collab requests</span><span class="mx-one">UI · API · RPC (atomic)</span></summary>
+    <div class="mx-body">
+      <p>Business → creator, one direction only (server-enforced 403). Accepting is the fan-out point of the whole app, done atomically in Postgres so partial state is impossible.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/dashboard/requests</code>, <code>api/collabs</code>, <code>api/collabs/[id]</code>, migration 043 (<code>accept_collab_request</code>, <code>get_or_create_conversation</code>)</span></div>
+      <div class="mrow"><span class="k">Data</span><span class="v"><code>collab_requests</code>; RPC also writes <code>campaign_projects</code> + <code>conversations</code></span></div>
+      <div class="mrow flow"><span class="k">Accept flow</span><span class="v"><ol><li>Creator accepts → <code>api/collabs/[id]</code> calls <code>accept_collab_request</code>.</li><li>In one transaction: request → accepted, a project row is created, a conversation is created — duplicate-proof.</li><li>DB triggers (migration 047) then insert notifications for both sides.</li></ol></span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Shared kernel + Data backbone. It does <b>not</b> import Projects, Messaging, or Notifications — those are produced by the RPC + triggers.</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v"><code>api/collabs/[id]</code> then the <code>accept_collab_request</code> RPC in the DB. Missing project/conversation after accept → the RPC failed or was replaced; check migration 043 is applied.</span></div>
+      <div class="boundary"><b>Boundary:</b> the cleanest example of the golden rule — one RPC is the seam to three other modules, so this code stays tiny and independent.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-projects">
+    <summary><span class="mx-title">Projects &amp; Kanban pipeline</span><span class="mx-one">UI · API · RLS</span></summary>
+    <div class="mx-body">
+      <p>Auto-created on accept. A 12-stage tracker (<code>collaboration_started</code> → <code>project_completed</code>), mutual-consent cancellation, and a per-project Kanban board with draggable cards.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/dashboard/projects</code>, <code>app/dashboard/projects/[id]</code>, <code>api/projects</code>, <code>api/projects/[id]/cards</code>, migrations 006 / 020 / 037–041</span></div>
+      <div class="mrow"><span class="k">Data</span><span class="v"><code>campaign_projects</code>, <code>project_cards</code> (kanban), <code>project_assets</code> (deliverables — no UI yet)</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Created by <b>Collab requests</b>' RPC; reads participants from profiles. Reserves <code>advance_payment</code> / <code>final_payment</code> stages for the future <b>Payments</b> module.</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v"><code>api/projects/[id]/cards</code> for board bugs; the stage enum in <code>types/index.ts</code> (<code>ProjectStage</code>) for tracker bugs.</span></div>
+      <div class="boundary"><b>Boundary:</b> owns everything about project state. Payments will hang off named pipeline stages via a trigger — no rewrite of this module needed.</div>
+    </div>
+  </details>
+
+  <!-- ── Group: Communication ── -->
+  <div class="mgroup">
+    <h3>Communication</h3>
+  </div>
+
+  <details class="modx" id="mx-chat">
+    <summary><span class="mx-title">Chat / messaging</span><span class="mx-one">UI · API · EXT (Stream) · webhook</span></summary>
+    <div class="mx-body">
+      <p>Live chat runs on Stream Chat (hosted). Supabase stays the source of truth for <em>which</em> conversations exist and mirrors message history back via a webhook, so Influnet owns its data even though transport is outsourced.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/dashboard/messages</code>, <code>api/conversations{,/[id]{,/messages}}</code>, <code>api/stream/{token,channel,webhook}</code>, <code>lib/stream.ts</code>, <code>components/messaging/*</code></span></div>
+      <div class="mrow"><span class="k">External</span><span class="v">GetStream · env <code>STREAM_API_KEY</code> / <code>STREAM_API_SECRET</code> · channels are <code>conv_&lt;uuid&gt;</code>, 1:1 with a DB conversation · tokens issued server-side only</span></div>
+      <div class="mrow"><span class="k">Data</span><span class="v"><code>conversations</code>, <code>conversation_participants</code>, <code>messages</code> (mirrored), <code>message_attachments</code>; <code>get_or_create_conversation</code> RPC</span></div>
+      <div class="mrow flow"><span class="k">Flow</span><span class="v"><ol><li>UI asks <code>api/stream/token</code> → server verifies caller + <code>ensureStreamUser</code> → returns a Stream token.</li><li><code>api/stream/channel</code> verifies channel membership + <code>ensureStreamChannel</code>.</li><li>Messages transit Stream live.</li><li>Stream fires <code>message.new</code> → <code>api/stream/webhook</code> verifies the signature → writes the row into Postgres <code>messages</code> (service role).</li></ol></span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">Chat empty / auth error → <code>api/stream/token</code> + <code>lib/stream.ts</code> (missing Stream creds throw here). History not saving → <code>api/stream/webhook</code> signature check + the webhook URL configured in the Stream dashboard.</span></div>
+      <div class="boundary"><b>Boundary:</b> Stream owns transport + UI; Postgres owns the record. The seam is the channel-id convention <code>conv_&lt;uuid&gt;</code> and the webhook. Swap Stream out → only this module + <code>lib/stream.ts</code> change.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-notifications">
+    <summary><span class="mx-title">Notifications</span><span class="mx-one">API · RLS · Realtime · triggers · STORE</span></summary>
+    <div class="mx-body">
+      <p>In-app notifications with a real table, DB triggers that write them, Supabase Realtime for live push, and a summary endpoint that feeds sidebar badges + the bell. Notifications are <em>produced by triggers</em> on other tables, so no feature module has to remember to create them.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>api/notifications</code>, <code>api/notifications/summary</code>, <code>store/notification-store.ts</code>, badge wiring in <code>components/dashboard/shell.tsx</code>, migration 047</span></div>
+      <div class="mrow"><span class="k">Data</span><span class="v"><code>notifications</code> table (RLS: users see only their own); trigger fns <code>handle_new_collab_request</code>, <code>handle_update_collab_request</code>, etc. <code>notifications</code> is the <em>only</em> table in the <code>supabase_realtime</code> publication — by design.</span></div>
+      <div class="mrow flow"><span class="k">Flow</span><span class="v"><ol><li>A row changes elsewhere (e.g. a collab request inserted).</li><li>A <code>SECURITY DEFINER</code> trigger inserts a <code>notifications</code> row for the right user.</li><li>Realtime pushes it to the client; the Zustand store prepends it and bumps the unread count.</li><li><code>api/notifications/summary</code> gives exact counts on load; <code>PATCH</code> marks read.</li></ol></span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Every write-path module (indirectly, via triggers). It imports none of them.</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">No live push → confirm the table is in <code>supabase_realtime</code> (migration 047 rebuilds the publication). Missing a notification type → the trigger function for that source table. Wrong badge count → <code>api/notifications/summary</code> + the store.</span></div>
+      <div class="boundary"><b>Boundary:</b> to add a new notification, add a trigger on the source table — never scatter <code>insert into notifications</code> across feature code. Live email push (Resend, Task 2.2) will subscribe to this table, not replace it.</div>
+    </div>
+  </details>
+
+  <!-- ── Group: Presence & network ── -->
+  <div class="mgroup">
+    <h3>Presence &amp; network</h3>
+  </div>
+
+  <details class="modx" id="mx-connections">
+    <summary><span class="mx-title">Connections</span><span class="mx-one">UI (stub) · data ready</span></summary>
+    <div class="mx-body">
+      <p>Your collaborator network — favourites and notes over people you've worked with. The database side (migration 029) exists; the page is a placeholder.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/dashboard/connections</code>, migration 029 (<code>connections</code>, strength enum)</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Projects (derives collaborators from accepted projects), Profile.</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">Nothing to debug yet — a 20-line stub. To build: list from accepted projects + favourites + notes.</span></div>
+      <div class="boundary"><b>Boundary:</b> read-model over existing data; it should not create new sources of truth, just aggregate.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-public">
+    <summary><span class="mx-title">Public profiles &amp; link-in-bio</span><span class="mx-one">UI (SSR) · RPC · public</span></summary>
+    <div class="mx-body">
+      <p>The acquisition engine. A creator/business puts <code>influnet.com/c/&lt;username&gt;</code> in their social bio; a visitor lands on an SSR profile and can send a request. These routes are public — they must be allowlisted in the proxy.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/c/[username]</code>, <code>app/b/[username]</code>, <code>app/influnet/[slug]</code> (redirect), <code>components/public-profile/*</code></span></div>
+      <div class="mrow"><span class="k">Data</span><span class="v"><code>get_public_influencer</code> / <code>get_public_business</code> RPCs (definer, safe columns only); <code>profile_link_clicks</code> / <code>profile_views</code> analytics</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Session module (must be public in proxy), Profile (source rows). Hands anonymous visitors into Auth → Requests.</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">404 for logged-out users → route not whitelisted in <code>proxy.ts</code>. Missing fields → the public RPC's column allowlist (migrations 027 / 046).</span></div>
+      <div class="boundary"><b>Boundary:</b> reads only through the public RPCs, never raw tables — that's what keeps private columns (email/phone) from leaking to anonymous visitors.</div>
+    </div>
+  </details>
+
+  <!-- ── Group: Operations & platform ── -->
+  <div class="mgroup">
+    <h3>Operations &amp; platform</h3>
+  </div>
+
+  <details class="modx" id="mx-dashboards">
+    <summary><span class="mx-title">Dashboards</span><span class="mx-one">UI · API</span></summary>
+    <div class="mx-body">
+      <p>Role-specific home screens that aggregate everything else into counts and cards. Composition layer, not a source of truth.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/dashboard/page.tsx</code>, <code>app/dashboard/influencer</code>, <code>api/business/dashboard</code>, <code>api/influencer/dashboard</code>, <code>components/dashboard/*</code></span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Requests, Projects, Notifications (all read-only). Some tiles (reach, profile_views, trends) are still mock — Task 3.5.</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">Wrong count → the specific dashboard API route; wrong badge → Notifications summary.</span></div>
+      <div class="boundary"><b>Boundary:</b> read-only aggregator. If a number is wrong, fix the owning module, not the dashboard.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-admin">
+    <summary><span class="mx-title">Admin panel</span><span class="mx-one">API (service role) · RLS · admin-gated</span></summary>
+    <div class="mx-body">
+      <p>Platform stats, the business-approval queue, user list, and project/collab oversight with force-delete. Every route re-checks the admin role server-side and uses a service-role client to read columns that column grants hide from normal users.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>app/dashboard/admin/*</code>, <code>api/admin/*</code>, migration 038 (<code>is_admin()</code> definer + admin role)</span></div>
+      <div class="mrow"><span class="k">Depends on</span><span class="v">Shared kernel's <code>withAdmin</code> (= <code>withAuth</code> role:admin + service-role client). RLS on other tables uses <code>is_admin()</code>.</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v"><code>lib/api.ts:18</code> (<code>withAdmin</code>). A 500 "missing service role key" → <code>SUPABASE_SERVICE_ROLE_KEY</code> not set. Data a normal user can't see appearing → confirm you're on the service-role path intentionally.</span></div>
+      <div class="boundary"><b>Boundary:</b> the only module that uses the service-role key from a request path. Keep that key strictly inside <code>withAdmin</code>; no audit log of admin actions exists yet.</div>
+    </div>
+  </details>
+
+  <details class="modx" id="mx-data">
+    <summary><span class="mx-title">Data backbone</span><span class="mx-one">Postgres · RLS · RPC · Storage</span></summary>
+    <div class="mx-body">
+      <p>The real application server. PostgreSQL with row-level security on every table, JWT auth, Storage buckets, edge functions, ~19 tables, 25+ RPCs, 50 numbered migrations. Because API routes query with the caller's JWT, RLS — not application code — is the ultimate authorization gate.</p>
+      <div class="mrow"><span class="k">Owns</span><span class="v"><code>supabase/migrations/*</code> (001–050), <code>supabase/functions/*</code>, <code>lib/supabase/*</code>, <code>supabase/config.toml</code></span></div>
+      <div class="mrow"><span class="k">Serves</span><span class="v">Every module. Cross-module effects live here as RPCs (<code>accept_collab_request</code>, <code>get_or_create_conversation</code>) and triggers (notifications).</span></div>
+      <div class="mrow"><span class="k">Debug from</span><span class="v">"403 / empty result but the row exists" → an RLS policy. Migrations are the change log — read the numbered file for any table. Typecheck <code>never</code> errors → the hand-written <code>Database</code> type drifting from the live schema.</span></div>
+      <div class="boundary"><b>Boundary:</b> schema changes are append-only migrations, never edits to old files. This is where you put logic that must stay atomic or must fan out to several modules.</div>
+    </div>
+  </details>
+
+  <!-- ── Dependency at a glance ── -->
+  <h3 style="margin-top:40px;font-size:16px;">Dependency at a glance</h3>
+  <p class="sub">Who calls whom, and through which seam. Read left-to-right: the left module reaches the right one <em>only</em> via the named contract.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Module</th><th>Reaches</th><th>Through this seam (contract)</th></tr></thead>
+      <tbody>
+        <tr><td>Any UI</td><td>Any API</td><td><span class="mono">apiFetch</span> + bearer token → <span class="mono">withAuth</span></td></tr>
+        <tr><td>Auth / signup</td><td>Phone OTP · Email · Data</td><td>verification token · Supabase Auth email · <span class="mono">register_profile</span></td></tr>
+        <tr><td>Collab requests</td><td>Projects · Messaging · Notifications</td><td><span class="mono">accept_collab_request</span> RPC + DB triggers</td></tr>
+        <tr><td>Messaging</td><td>Stream (EXT) · Data</td><td><span class="mono">conv_&lt;uuid&gt;</span> channel · <span class="mono">/api/stream/webhook</span></td></tr>
+        <tr><td>Notifications</td><td>(all write paths)</td><td>Postgres triggers → Realtime → store</td></tr>
+        <tr><td>Public profiles</td><td>Profile</td><td><span class="mono">get_public_*</span> RPCs (safe columns)</td></tr>
+        <tr><td>Admin</td><td>every table</td><td><span class="mono">withAdmin</span> + service role + <span class="mono">is_admin()</span></td></tr>
+        <tr><td>Dashboards</td><td>Requests · Projects · Notifications</td><td>read-only dashboard API routes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Debugging playbook ── -->
+  <h3 style="margin-top:36px;font-size:16px;">Debugging playbook — symptom → module → first file</h3>
+  <p class="sub">When something breaks, start at the module that owns the seam, not where the symptom shows.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Symptom</th><th>Owning module</th><th>Open first</th></tr></thead>
+      <tbody>
+        <tr><td>Works in UI, 401/403 from the API</td><td>Shared kernel</td><td><span class="mono">lib/api.ts</span> · check the bearer token in <span class="mono">apiFetch</span></td></tr>
+        <tr><td>Logged out on refresh / redirect loop</td><td>Session</td><td><span class="mono">src/proxy.ts</span> cookie + allowlist</td></tr>
+        <tr><td>Signup fails or "profile not found"</td><td>Auth</td><td><span class="mono">auth-signup</span> edge logs · <span class="mono">register_profile</span></td></tr>
+        <tr><td>OTP SMS never arrives</td><td>Phone OTP</td><td><span class="mono">phone-otp</span> edge logs · <span class="mono">TWOFACTOR_API_KEY</span></td></tr>
+        <tr><td>Confirmation / reset email missing</td><td>Email</td><td>Supabase Auth → Email logs + SMTP</td></tr>
+        <tr><td>Accept didn't create project/chat</td><td>Collab requests</td><td><span class="mono">accept_collab_request</span> RPC (migration 043)</td></tr>
+        <tr><td>Chat empty or won't connect</td><td>Messaging</td><td><span class="mono">/api/stream/token</span> · <span class="mono">lib/stream.ts</span></td></tr>
+        <tr><td>Messages not saved to DB</td><td>Messaging</td><td><span class="mono">/api/stream/webhook</span> signature + Stream dashboard URL</td></tr>
+        <tr><td>No live notification / wrong badge</td><td>Notifications</td><td>trigger fn + <span class="mono">supabase_realtime</span> publication · summary route</td></tr>
+        <tr><td>Public profile 404 when logged out</td><td>Public profiles</td><td>route allowlist in <span class="mono">proxy.ts</span></td></tr>
+        <tr><td>Row exists but query returns empty</td><td>Data backbone</td><td>the table's RLS policy (its migration file)</td></tr>
+        <tr><td>Save returns 400 on valid-looking data</td><td>Profile</td><td>Zod schema in <span class="mono">lib/validators.ts</span> (snake_case)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout" style="border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, var(--surface));">
+    <h3>The golden rule for scaling this codebase</h3>
+    <ul>
+      <li><b>Features never import features.</b> If module A needs something from module B, it goes through an API route, an RPC, or a shared-kernel helper — never a direct file import. If you find yourself importing across features, that logic belongs in the Shared kernel or the database.</li>
+      <li><b>Cross-module effects live in Postgres.</b> One action touching many modules (accept → project + conversation + notifications) is an <em>atomic RPC + triggers</em>, so each feature stays small and testable in isolation.</li>
+      <li><b>The database is the real API.</b> RLS is authorization; API routes are thin. To reason about "can this user do X", read the policy, not the route.</li>
+      <li><b>Schema is append-only.</b> Never edit a shipped migration — add the next numbered file. The migration list is the system's real change log.</li>
+      <li><b>Swap an external, not the app.</b> Stream, 2Factor, and the email provider each sit behind one seam (<code>lib/stream.ts</code>, the OTP edge fn, Supabase Auth). Replacing any of them touches exactly one module.</li>
     </ul>
   </div>
 
@@ -806,6 +1188,11 @@
       </thead>
       <tbody>
         <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-12</td>
+          <td><strong>CI/CD Plumbing & Operations Setup</strong>: Created Next.js multi-stage Dockerfile and .dockerignore for staging/production containers; added standalone output configuration in next.config.ts; created /api/health endpoint for health monitoring; wrote scripts/smoke.mjs to perform automated route-health and auth-redirect post-deploy tests; added deploy-dev.yml (Vercel), deploy-staging.yml (Azure App Service Staging), and deploy-prod.yml (Azure App Service Prod image promotion with approval gate) workflows; added dependabot.yml and codeql.yml analysis. Fixed Kanban date-panel flex shrinking alignment bug. Disabled Discover navigation links on Business home & sidebar. Pushed migrations 051-056 successfully to the production database.</td>
+          <td>CI/CD · Docker · Operations · Deployments · Kanban</td>
+        </tr>
+        <tr>
           <td class="mono" style="white-space:nowrap">2026-07-11</td>
           <td><strong>Core-loop hardening + E2E harness</strong>: Fixed conversations-list N+1 (batched partner profile queries, Medium 9); fixed collab routes 500 caused by 048's PII column lockdown (email in profile embeds — requests page was broken); limited conversations-list messages embed to latest message; capped messages GET at 200; profile PATCH no longer crashes for admin role and validates base fields for businesses; notifications API validates JSON/action and clamps pagination. Added rerunnable 43-check core-loop E2E harness (<span class="mono">npm run test:e2e</span>) covering auth → discover → collab → accept → project → kanban → messaging → notifications → public RPCs → admin gating; all green</td>
           <td>Performance · Collabs · Conversations · Profile · Notifications · Tests</td>
@@ -814,6 +1201,11 @@
           <td class="mono" style="white-space:nowrap">2026-07-10</td>
           <td><strong>Pre-launch Security Fixes</strong>: Blocked privilege escalation (register_profile role guard — app layer + DB migration 049); fixed broken test suite (38 passing, 6 skipped); fixed notification summary wrong table/columns; fixed conversation DELETE (Management API → RLS-backed client delete + migration 050); added role gating on /dashboard; documented realtime publication scope</td>
           <td>Security · Auth · Tests · Notifications · Conversations · Dashboard</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-12</td>
+          <td>Phase 1 complete: Centralized project state/transitions via lib/project-lifecycle.ts, fixed open redirects on auth pages, added Migration 053 for locking down influencer PII</td>
+          <td>Projects · API · Security</td>
         </tr>
         <tr>
           <td class="mono" style="white-space:nowrap">2026-07-10</td>

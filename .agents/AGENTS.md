@@ -32,7 +32,8 @@ Every AI session must strictly adhere to the following execution loop:
 
 ### Step 1: Pre-Execution Context Load
 *   **Always** read this file (`.agents/AGENTS.md`) and the lessons-learned tracker file [lessons_learned.md](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/.agents/lessons_learned.md) to understand current progress, state, and past issues.
-*   **Active work order:** execute tasks from [EXECUTION_PLAN.md](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/.agents/EXECUTION_PLAN.md) in phase order (findings backing it: `docs/PROJECT_ANALYSIS.md`).
+*   **Documentation map:** [`docs/README.md`](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/docs/README.md) indexes every doc. Before writing any API route or migration, read [`docs/operations/SECURITY.md`](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/docs/operations/SECURITY.md) (auth model + PII lockdown).
+*   **Active work order:** current status, backlog, and open decisions live in [`docs/product/ROADMAP.md`](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/docs/product/ROADMAP.md). Older phased plans/analyses are preserved in `docs/archive/`.
 
 ### Step 2: AST Code Graph Sync
 *   After making any structural or functional modifications, **always** run:
@@ -42,7 +43,7 @@ Every AI session must strictly adhere to the following execution loop:
     to keep the codebase structure indexed.
 
 ### Step 3: Living Architecture Page
-*   After shipping or changing any feature, **update [docs/architecture.html](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/docs/architecture.html)**: refresh the affected module card's status pill + gap line, update the node's status dot in the diagram SVG if it changed, and append a row to the §Update Log (newest first). Statuses must reflect verified behavior, not intention.
+*   After shipping or changing any feature, **update [docs/architecture/architecture.html](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/docs/architecture/architecture.html)** and the canonical [docs/architecture/ARCHITECTURE.md](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/docs/architecture/ARCHITECTURE.md): refresh the affected module card's status pill + gap line, update the node's status dot in the diagram SVG if it changed, and append a row to the §Update Log (newest first). Statuses must reflect verified behavior, not intention.
 
 ### Step 4: Living Lessons-Learned Updates
 *   Before ending your turn or concluding a feature development task, **you must update** [lessons_learned.md](file:///Users/macbook/Downloads/Library/PROJECTS/Influnet/.agents/lessons_learned.md) with:

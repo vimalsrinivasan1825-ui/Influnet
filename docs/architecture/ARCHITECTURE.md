@@ -1017,14 +1017,19 @@ Every API route:
 
 ---
 
-## 9. CI/CD Pipeline
+## 9. CI/CD & Deployment Pipeline
 
-See `.github/workflows/ci.yml` for the CI/CD configuration. The pipeline includes:
-- TypeScript type checking
-- Linting (ESLint)
-- Unit tests (Vitest)
-- Integration tests (Supertest)
-- E2E test against Supabase (matchmaking test)
+The codebase implements a complete 4-tier branch-to-environment lifecycle:
+1. **Continuous Integration (`ci.yml`)**: Runs on all pushes and PRs to `dev`, `main`, and feature branches. Performs type checking, linting, unit tests, integration tests, and full E2E matchmaking tests.
+2. **Dev Deployment (`deploy-dev.yml`)**: Automatically triggers on pushes to `dev` to compile and deploy preview builds to Vercel.
+3. **Staging Deployment (`deploy-staging.yml`)**: Automatically triggers on pushes to `staging`. Builds a optimized multi-stage Docker container (using Next.js standalone output tracing), pushes it to Azure Container Registry (ACR), deploys it to the Staging Azure App Service, and executes the post-deploy smoke test (`scripts/smoke.mjs`).
+4. **Production Deployment (`deploy-prod.yml`)**: Triggers on pushes to `main`. It promotes the exact container image built and tested in staging (by pulling and re-tagging `staging-latest` to `prod-latest`), deploys it to the Production Azure App Service under a manual-approval gate environment, and executes the post-deploy smoke test.
+5. **Security & Dependency Audits (`codeql.yml` & `dependabot.yml`)**: CodeQL static analysis runs on all PRs to scan for vulnerabilities. Dependabot runs weekly scans to create dependency update PRs.
+
+### Deployment Health Check & Smoke Test
+- **`/api/health`**: A lightweight server endpoint returning `200 OK` if the app is active and can reach the Supabase database.
+- **`scripts/smoke.mjs`**: A Node test runner executing against the newly deployed environment. Asserts health check response contents, resolves landing and auth login routes, and validates unauthorized redirect responses for private routes.
+
 
 ---
 

@@ -22,7 +22,7 @@ const FALLBACK: InfluencerHomeData = {
     active_discussions: 0,
     active_projects: 0,
     completed_projects: 0,
-    total_earnings: 0,
+    pipeline_value: 0,
   },
   earnings_trend: [],
   request_breakdown: [],

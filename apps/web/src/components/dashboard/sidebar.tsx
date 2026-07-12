@@ -39,7 +39,6 @@ const CREATOR_NAV: NavItem[] = [
 
 const BUSINESS_NAV: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: Home },
-  { label: "Discover", href: "/dashboard/discover", icon: Compass },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },

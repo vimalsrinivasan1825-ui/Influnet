@@ -136,11 +136,16 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     if (!user?.id || !token) return;
     const sb = createClient();
 
+    let streamClient: StreamChat | null = null;
+
     const fetchSummary = async () => {
       try {
         const notifRes = await apiFetch<any>("/api/notifications/summary");
         if (notifRes.ok && notifRes.data) {
-          setSummary(notifRes.data);
+          setSummary({
+            ...notifRes.data,
+            unread_messages_count: (streamClient?.user as { total_unread_count?: number } | undefined)?.total_unread_count || 0
+          });
         }
       } catch (err) {
         console.error("Failed to update notifications summary:", err);
@@ -164,7 +169,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       )
       .subscribe();
 
-    let streamClient: StreamChat | null = null;
     const initStream = async () => {
       try {
         const streamKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;

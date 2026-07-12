@@ -8,6 +8,7 @@ import { SectionCard } from "@/components/ui/section-card";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
+import { VerificationPanel } from "@/components/dashboard/verification-panel";
 
 interface Profile {
   role?: string;
@@ -158,6 +159,8 @@ export default function SettingsPage() {
           <AlertTriangle className="size-4" /> {error}
         </div>
       )}
+
+      {(isBusiness || isInfluencer) && <VerificationPanel />}
 
       <SectionCard title="Profile information">
         <div className="flex flex-col gap-4">

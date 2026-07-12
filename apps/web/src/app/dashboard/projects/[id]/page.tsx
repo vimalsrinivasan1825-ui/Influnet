@@ -7,15 +7,26 @@ import { apiFetch } from '@/lib/api-client';
 import {
   DndContext, DragOverlay, useSensor, useSensors,
   PointerSensor, useDraggable, useDroppable,
-  type DragStartEvent, type DragEndEvent,
+  defaultDropAnimationSideEffects,
+  type DragStartEvent, type DragEndEvent, type DropAnimation,
 } from '@dnd-kit/core';
+
+// Smooth "snap into place" when a card is dropped (Trello/Jira feel).
+const DROP_ANIMATION: DropAnimation = {
+  duration: 200,
+  easing: 'cubic-bezier(0.2, 0, 0, 1)',
+  sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }),
+};
 import {
   ArrowLeft, MessageSquare, Plus, X, Calendar,
   GripVertical, Circle, CheckCircle2, Clock,
   Trash2, Save, Zap, Wallet, FileText, Camera, Scissors, Eye,
-  RefreshCw, ThumbsUp, CreditCard, Award,
+  RefreshCw, ThumbsUp, CreditCard, Award, Star,
+  Check, Lock, ChevronRight, Loader2, Flag,
 } from 'lucide-react';
 import type { ProjectCard } from '@/types';
+import { blockingItems, type StageItem } from '@/lib/project-stage-items';
+import { STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, ButtonLink } from '@/components/ui/button';
@@ -193,10 +204,14 @@ function DraggableCard({ card, onOpen, isDragging, top, dates, onResizeEnd }: {
       style={{
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
         opacity: isDragging ? 0 : 1,
-        background: card.card_color ? hexToLightBg(card.card_color) : '#fff', borderRadius: 5,
+        // Glide to the new row/shadow on drop (Jira/Trello feel). We deliberately
+        // do NOT transition `transform` so live dragging stays 1:1 with the pointer.
+        transition: isDragging ? 'none' : 'top 200ms cubic-bezier(0.2, 0, 0, 1), box-shadow 150ms ease, border-color 150ms ease',
+        willChange: 'top, transform',
+        background: card.card_color ? hexToLightBg(card.card_color) : '#fff', borderRadius: 6,
         border: `1px solid ${card.card_color ? borderColor : '#e2e8f0'}`, borderLeft: `3px solid ${borderColor}`,
-        padding: '5px 7px', cursor: 'grab',
-        boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.1)' : '0 1px 2px rgba(0,0,0,0.04)',
+        padding: '5px 7px', cursor: isDragging ? 'grabbing' : 'grab',
+        boxShadow: isDragging ? '0 12px 28px rgba(0,0,0,0.14)' : '0 1px 2px rgba(0,0,0,0.05)',
         display: 'flex', flexDirection: 'column', gap: 2, userSelect: 'none',
         height: cardHeight, boxSizing: 'border-box', overflow: 'hidden',
         minWidth: 100, width: 'calc(100% - 8px)',
@@ -516,6 +531,162 @@ function CardDetailModal({ card, onClose, onSave, onDelete }: {
   );
 }
 
+// ─── Stage Pipeline (gated checklist + tracker) ───
+function StagePipeline({
+  currentStage, items, userRole, canToggleStage, canAdvance,
+  advancing, advanceError, onToggleItem, onAdvance,
+  isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
+}: {
+  currentStage?: string;
+  items: StageItem[];
+  userRole: 'business' | 'creator' | null;
+  canToggleStage: boolean;
+  canAdvance: boolean;
+  advancing: boolean;
+  advanceError: string | null;
+  onToggleItem: (item: StageItem, done: boolean) => void;
+  onAdvance: () => void;
+  isFinalPayment: boolean;
+  myConfirmed: boolean;
+  otherConfirmed: boolean;
+  onConfirmCompletion: () => void;
+}) {
+  const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
+  const stage = STAGE_CONFIG[currentIdx];
+  const nextStage = STAGE_CONFIG[currentIdx + 1];
+  const isComplete = currentStage === 'project_completed';
+
+  const roleLabel = (r: string) => (r === 'business' ? 'Client' : r === 'creator' ? 'Creator' : 'Both');
+
+  return (
+    <div className="flex-shrink-0 border-b border-hairline bg-surface-card">
+      {/* Tracker */}
+      <div className="flex items-center gap-1 overflow-x-auto px-4 py-2.5">
+        {STAGE_CONFIG.map((s, i) => {
+          const state = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'upcoming';
+          return (
+            <div key={s.key} className="flex items-center gap-1">
+              <div
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[0.6875rem] font-bold transition-colors ${
+                  state === 'current'
+                    ? 'bg-brand text-white'
+                    : state === 'done'
+                    ? 'bg-ok-soft text-ok'
+                    : 'bg-surface-muted text-content-muted'
+                }`}
+                title={s.label}
+              >
+                {state === 'done' ? <Check size={11} /> : state === 'current' ? <Circle size={9} fill="currentColor" /> : <Circle size={9} />}
+                {s.label}
+              </div>
+              {i < STAGE_CONFIG.length - 1 && <ChevronRight size={12} className="shrink-0 text-content-muted" />}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Current stage checklist + advance */}
+      {!isComplete && stage && (
+        <div className="flex flex-col gap-3 border-t border-hairline px-4 py-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">Current stage</span>
+              <span className="text-sm font-extrabold text-content">{stage.label}</span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {items.length === 0 && (
+                <span className="text-xs text-content-muted">No required steps — you can advance when ready.</span>
+              )}
+              {items.map((it) => {
+                const canToggleThis = canToggleStage && (it.owner_role === 'both' || it.owner_role === userRole);
+                const done = !!it.done_at;
+                return (
+                  <button
+                    key={it.id}
+                    disabled={!canToggleThis}
+                    onClick={() => onToggleItem(it, !done)}
+                    className={`group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors ${
+                      canToggleThis ? 'hover:bg-surface-muted' : 'cursor-not-allowed opacity-80'
+                    }`}
+                    title={canToggleThis ? 'Toggle done' : `Only the ${roleLabel(it.owner_role)} can mark this`}
+                  >
+                    <span
+                      className={`flex size-[18px] shrink-0 items-center justify-center rounded-md border ${
+                        done ? 'border-ok bg-ok text-white' : 'border-hairline-strong bg-surface'
+                      }`}
+                    >
+                      {done && <Check size={12} />}
+                    </span>
+                    <span className={`font-semibold ${done ? 'text-content-muted line-through' : 'text-content'}`}>
+                      {it.label}
+                    </span>
+                    {it.is_gate && (
+                      <Badge variant="warning" size="sm" className="ml-0.5">
+                        <Lock size={9} /> Gate
+                      </Badge>
+                    )}
+                    {it.is_required && !done && (
+                      <span className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">Required</span>
+                    )}
+                    <span className="ml-auto text-[0.625rem] font-semibold text-content-muted">{roleLabel(it.owner_role)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-col items-stretch gap-1.5 lg:w-64 lg:items-end">
+            {isFinalPayment ? (
+              <>
+                <Button
+                  variant={myConfirmed ? 'surface' : 'brand'}
+                  size="sm"
+                  disabled={myConfirmed || advancing}
+                  onClick={onConfirmCompletion}
+                  className="w-full lg:w-auto"
+                >
+                  {advancing ? <Loader2 className="animate-spin" /> : myConfirmed ? <Check /> : <ThumbsUp />}
+                  {myConfirmed ? 'You confirmed completion' : 'Confirm completion'}
+                </Button>
+                <span className="text-right text-[0.6875rem] text-content-muted">
+                  {otherConfirmed
+                    ? 'The other party has confirmed.'
+                    : `Waiting on the ${roleLabel(userRole === 'business' ? 'creator' : 'business')} to also confirm.`}
+                  {' '}Both must confirm to complete the project.
+                </span>
+              </>
+            ) : (
+              <>
+                <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={onAdvance} className="w-full lg:w-auto">
+                  {advancing ? <Loader2 className="animate-spin" /> : <ChevronRight />}
+                  {nextStage ? `Advance to ${nextStage.label}` : 'Advance'}
+                </Button>
+                {!canToggleStage && (
+                  <span className="text-right text-[0.6875rem] text-content-muted">
+                    Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to move this stage forward.
+                  </span>
+                )}
+                {canToggleStage && !canAdvance && (
+                  <span className="text-right text-[0.6875rem] text-warn">
+                    Finish the required steps above to advance.
+                  </span>
+                )}
+              </>
+            )}
+            {advanceError && <span className="text-right text-[0.6875rem] text-danger">{advanceError}</span>}
+          </div>
+        </div>
+      )}
+
+      {isComplete && (
+        <div className="flex items-center gap-2 border-t border-hairline px-4 py-3 text-sm font-bold text-ok">
+          <Award size={16} /> Project completed — reviews are now open.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ───
 export default function ProjectKanbanPage() {
   const params = useParams();
@@ -524,11 +695,28 @@ export default function ProjectKanbanPage() {
 
   const [project, setProject] = useState<any>(null);
   const [cards, setCards] = useState<ProjectCard[]>([]);
+  const [stageItems, setStageItems] = useState<StageItem[]>([]);
+  const [advancing, setAdvancing] = useState(false);
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<ProjectCard | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Reviews state
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Report state (trust & safety)
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState<'spam' | 'harassment' | 'scam' | 'fake' | 'other'>('scam');
+  const [reportDetails, setReportDetails] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
 
   const [dates, setDates] = useState<Date[]>([]);
   useEffect(() => {
@@ -546,14 +734,18 @@ export default function ProjectKanbanPage() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const [projRes, cardsRes] = await Promise.all([
+      const [projRes, cardsRes, reviewsRes, itemsRes] = await Promise.all([
         apiFetch<{ project: any }>(`/api/projects/${projectId}`),
         apiFetch<{ cards: ProjectCard[] }>(`/api/projects/${projectId}/cards`),
+        apiFetch<{ reviews: any[] }>(`/api/projects/${projectId}/reviews`),
+        apiFetch<{ items: StageItem[] }>(`/api/projects/${projectId}/stage-items`),
       ]);
       if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
       else { setError(projRes.error || 'Failed to load project'); }
       if (cardsRes.ok && cardsRes.data) { const d = cardsRes.data; setCards(d.cards || []); }
       else { setError(cardsRes.error || 'Failed to load cards'); }
+      if (reviewsRes.ok && reviewsRes.data) { setReviews(reviewsRes.data.reviews || []); }
+      if (itemsRes.ok && itemsRes.data) { setStageItems(itemsRes.data.items || []); }
     } catch (e) { console.error(e); setError('Network error'); }
     finally { setLoading(false); }
   }, [projectId]);
@@ -577,6 +769,67 @@ export default function ProjectKanbanPage() {
     }
     return grouped;
   }, [cards, dates]);
+
+  // ─── Stage pipeline (gated checklist) ───
+  const userRole: 'business' | 'creator' | null = project
+    ? (project.owner_user_id === userId ? 'business' : 'creator')
+    : null;
+  const currentStage: string | undefined = project?.current_stage;
+  const currentStageItems = useMemo(
+    () => stageItems.filter((it) => it.stage_key === currentStage).sort((a, b) => a.position - b.position),
+    [stageItems, currentStage],
+  );
+  const currentStageActor = currentStage ? STAGE_ACTOR[currentStage as Stage] : undefined;
+  const gateBlocking = currentStage ? blockingItems(currentStage, stageItems) : [];
+  const canToggleStage = !!currentStage && (currentStageActor === 'either' || currentStageActor === userRole);
+  const canAdvance = gateBlocking.length === 0 && canToggleStage && currentStage !== 'project_completed';
+
+  const handleToggleItem = async (item: StageItem, done: boolean) => {
+    setStageItems((prev) => prev.map((it) => it.id === item.id
+      ? { ...it, done_at: done ? new Date().toISOString() : null, done_by: done ? userId : null }
+      : it));
+    setAdvanceError(null);
+    try {
+      const res = await apiFetch<{ item: StageItem }>(`/api/projects/${projectId}/stage-items`, {
+        method: 'PATCH',
+        body: JSON.stringify({ item_id: item.id, done }),
+      });
+      if (!res.ok) { await fetchData(); }
+    } catch (e) { console.error(e); await fetchData(); }
+  };
+
+  const handleAdvance = async () => {
+    if (!currentStage) return;
+    setAdvancing(true);
+    setAdvanceError(null);
+    try {
+      const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'advance' }),
+      });
+      if (res.ok && res.data) { setProject(res.data.project); }
+      else { setAdvanceError(res.error || 'Could not advance to the next stage.'); }
+    } catch (e) { console.error(e); setAdvanceError('Network error while advancing.'); }
+    finally { setAdvancing(false); }
+  };
+
+  // Dual-confirm completion (both parties must confirm at final_payment).
+  const myConfirmed = userRole === 'business' ? !!project?.owner_confirmed_complete : !!project?.counterparty_confirmed_complete;
+  const otherConfirmed = userRole === 'business' ? !!project?.counterparty_confirmed_complete : !!project?.owner_confirmed_complete;
+
+  const handleConfirmCompletion = async () => {
+    setAdvancing(true);
+    setAdvanceError(null);
+    try {
+      const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'confirm_completion' }),
+      });
+      if (res.ok && res.data) { setProject(res.data.project); }
+      else { setAdvanceError(res.error || 'Could not confirm completion.'); }
+    } catch (e) { console.error(e); setAdvanceError('Network error while confirming.'); }
+    finally { setAdvancing(false); }
+  };
 
   // ─── Drag ───
   const handleDragStart = (event: DragStartEvent) => {
@@ -730,11 +983,41 @@ export default function ProjectKanbanPage() {
               <MessageSquare size={14} /> Chat
             </ButtonLink>
           )}
+          {project && (
+            <Button variant="surface" size="icon" onClick={() => setShowReportModal(true)} aria-label="Report this user" title="Report this user">
+              <Flag size={14} />
+            </Button>
+          )}
+          {project?.status === 'completed' && (
+            <Button variant="surface" size="sm" onClick={() => setShowReviewModal(true)}>
+              <Star size={14} fill={reviews.some(r => r.from_user?.id === userId) ? "var(--brand)" : "none"} color="var(--brand)" /> 
+              {reviews.some(r => r.from_user?.id === userId) ? 'View Reviews' : 'Leave a Review'}
+            </Button>
+          )}
           <Badge variant="neutral" size="md">
             Stage {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
           </Badge>
         </div>
       </div>
+
+      {/* Stage Pipeline — the spine of the collaboration */}
+      {!loading && !error && project && (
+        <StagePipeline
+          currentStage={currentStage}
+          items={currentStageItems}
+          userRole={userRole}
+          canToggleStage={canToggleStage}
+          canAdvance={canAdvance}
+          advancing={advancing}
+          advanceError={advanceError}
+          onToggleItem={handleToggleItem}
+          onAdvance={handleAdvance}
+          isFinalPayment={currentStage === 'final_payment'}
+          myConfirmed={myConfirmed}
+          otherConfirmed={otherConfirmed}
+          onConfirmCompletion={handleConfirmCompletion}
+        />
+      )}
 
       {/* Board */}
       {loading ? (
@@ -757,21 +1040,23 @@ export default function ProjectKanbanPage() {
           <div style={{ position: 'sticky', left: 0, zIndex: 10, background: '#fff', borderRight: '1px solid #e2e8f0', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
             {/* Header aligned with column headers */}
             <div style={{
-              height: HEADER_HEIGHT, boxSizing: 'border-box',
+              height: HEADER_HEIGHT, minHeight: HEADER_HEIGHT, boxSizing: 'border-box',
               borderBottom: '1px solid #e2e8f0',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: '#fff', padding: '0 10px',
+              background: '#fff', padding: '0 10px', flexShrink: 0,
             }}>
               <Calendar size={14} color="#64748b" />
             </div>
             {/* Date rows */}
-            <div style={{ height: dates.length * ROW_HEIGHT }}>
+            <div style={{ height: dates.length * ROW_HEIGHT, flexShrink: 0 }}>
               {dates.map(date => (
                 <div key={dateToKey(date)} style={{
                   height: ROW_HEIGHT, boxSizing: 'border-box',
                   borderBottom: '1px solid #e2e8f0',
-                  display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                  padding: '0 10px',
+                  // Top-align the label to line up with cards (which sit at +4px
+                  // from the row top), so date rows read level with their cells.
+                  display: 'flex', flexDirection: 'column', justifyContent: 'flex-start',
+                  padding: '8px 10px 0',
                   background: isToday(date) ? 'var(--brand-soft)' : '#fff',
                 }}>
                   <div style={{ fontSize: 12, fontWeight: isToday(date) ? 900 : 700, color: isToday(date) ? 'var(--brand-strong)' : '#0f172a', lineHeight: 1.2 }}>
@@ -801,15 +1086,17 @@ export default function ProjectKanbanPage() {
                   onResizeEnd={handleResizeEnd}
                 />
               ))}
-              <DragOverlay>
+              <DragOverlay dropAnimation={DROP_ANIMATION}>
                 {activeCard && (
                   <div style={{
-                    background: '#fff', borderRadius: 5, padding: '6px 10px',
-                    boxShadow: '0 12px 36px rgba(0,0,0,0.12)',
+                    background: '#fff', borderRadius: 6, padding: '6px 10px',
+                    boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
                     fontSize: 12, fontWeight: 800, color: '#0f172a',
                     border: '2px solid var(--brand)',
                     width: 260, height: ROW_HEIGHT - 8,
+                    transform: 'rotate(1.5deg)',
                     display: 'flex', alignItems: 'center', gap: 6,
+                    cursor: 'grabbing',
                   }}>
                     <CheckCircle2 size={13} color="#94a3b8" />
                     {activeCard.title}
@@ -838,6 +1125,157 @@ export default function ProjectKanbanPage() {
           } catch (e) { console.error(e); }
         }}
       />
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-extrabold text-content">Report this user</h3>
+              <button onClick={() => { setShowReportModal(false); setReportDone(false); }} className="text-content-muted hover:text-content">
+                <X size={20} />
+              </button>
+            </div>
+            {reportDone ? (
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <CheckCircle2 size={32} className="text-ok" />
+                <p className="text-sm font-semibold text-content">Thanks — our team will review this report.</p>
+                <Button variant="surface" size="sm" onClick={() => { setShowReportModal(false); setReportDone(false); }}>Close</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-content-muted">Reports are private and sent to the Influnet team for review.</p>
+                <div>
+                  <Label>Reason</Label>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {(['scam', 'harassment', 'spam', 'fake', 'other'] as const).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setReportReason(r)}
+                        className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                          reportReason === r ? 'bg-brand-soft text-brand-strong' : 'bg-surface-muted text-content-muted hover:text-content'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label>Details (optional)</Label>
+                  <Textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} placeholder="What happened?" rows={3} />
+                </div>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  disabled={submittingReport}
+                  onClick={async () => {
+                    if (!project) return;
+                    const reportedId = project.owner_user_id === userId ? project.counterparty_user_id : project.owner_user_id;
+                    setSubmittingReport(true);
+                    try {
+                      const res = await apiFetch('/api/reports', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          reported_id: reportedId,
+                          reason: reportReason,
+                          details: reportDetails || undefined,
+                          project_id: Number(projectId),
+                        }),
+                      });
+                      if (res.ok) { setReportDone(true); setReportDetails(''); }
+                      else { alert(res.error || 'Failed to submit report'); }
+                    } finally {
+                      setSubmittingReport(false);
+                    }
+                  }}
+                >
+                  {submittingReport ? <Loader2 className="animate-spin" /> : <Flag />} Submit report
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-extrabold text-content">Project Reviews</h3>
+              <button onClick={() => setShowReviewModal(false)} className="text-content-muted hover:text-content">
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* Existing Reviews */}
+            {reviews.length > 0 && (
+              <div className="mb-6 space-y-4">
+                {reviews.map(r => (
+                  <div key={r.id} className="rounded-xl border border-hairline bg-surface-card p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-bold text-content">{r.from_user?.name || 'User'}</span>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <Star key={star} size={14} fill={star <= r.rating ? "var(--brand)" : "none"} color={star <= r.rating ? "var(--brand)" : "#cbd5e1"} />
+                        ))}
+                      </div>
+                    </div>
+                    {r.comment && <p className="text-sm text-content-soft">{r.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Leave a Review Form */}
+            {!reviews.some(r => r.from_user?.id === userId) && (
+              <div className="space-y-4 border-t border-hairline pt-4">
+                <div>
+                  <Label>Rating</Label>
+                  <div className="mt-2 flex gap-2">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button key={star} onClick={() => setReviewRating(star)}>
+                        <Star size={24} fill={star <= reviewRating ? "var(--brand)" : "none"} color={star <= reviewRating ? "var(--brand)" : "#cbd5e1"} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label>Comment (optional)</Label>
+                  <Textarea value={reviewComment} onChange={e => setReviewComment(e.target.value)} placeholder="How was working with them?" rows={3} />
+                </div>
+                <Button 
+                  variant="brand" 
+                  className="w-full"
+                  disabled={submittingReview}
+                  onClick={async () => {
+                    setSubmittingReview(true);
+                    try {
+                      const res = await apiFetch(`/api/projects/${projectId}/reviews`, {
+                        method: 'POST',
+                        body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
+                      });
+                      if (res.ok) {
+                        await fetchData();
+                        setShowReviewModal(false);
+                      } else {
+                        alert(res.error || 'Failed to submit review');
+                      }
+                    } finally {
+                      setSubmittingReview(false);
+                    }
+                  }}
+                >
+                  Submit Review
+                </Button>
+              </div>
+            )}
+            
+            {reviews.length === 0 && !reviews.some(r => r.from_user?.id === userId) && (
+              <p className="mt-2 text-center text-sm text-content-muted">No reviews yet. Be the first to leave one!</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

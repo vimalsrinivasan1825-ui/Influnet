@@ -108,6 +108,7 @@ function MessagesContent() {
   const [menuOpenConv, setMenuOpenConv] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeChannel, setActiveChannel] = useState<ReturnType<StreamChat["channel"]> | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
 
   const { client: streamClient, status: streamStatus } = useStreamConnect(userId);
 
@@ -136,6 +137,47 @@ function MessagesContent() {
     if (convFromUrl) openConversation(convFromUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!streamClient || (conversations.length === 0 && projects.length === 0)) return;
+
+    const userIds = new Set<string>();
+    conversations.forEach((c) => {
+      const other = c.participants?.find((p) => p.user_id !== userId);
+      if (other?.user_id) userIds.add(other.user_id);
+    });
+    projects.forEach((p) => {
+      if (p.partner?.id) userIds.add(p.partner.id);
+    });
+
+    const usersToQuery = Array.from(userIds);
+    if (usersToQuery.length === 0) return;
+
+    const initPresence = async () => {
+      try {
+        const res = await streamClient.queryUsers({ id: { $in: usersToQuery } }, { id: 1 }, { presence: true });
+        const initOnline: Record<string, boolean> = {};
+        res.users.forEach((u) => {
+          initOnline[u.id] = !!u.online;
+        });
+        setOnlineUsers((prev) => ({ ...prev, ...initOnline }));
+      } catch (e) {
+        console.error("Failed to query user presence:", e);
+      }
+    };
+    initPresence();
+
+    const handlePresence = (e: any) => {
+      if (e.user && e.user.id) {
+        setOnlineUsers((prev) => ({ ...prev, [e.user.id]: !!e.user.online }));
+      }
+    };
+
+    streamClient.on("user.presence.changed", handlePresence);
+    return () => {
+      streamClient.off("user.presence.changed", handlePresence);
+    };
+  }, [streamClient, conversations, projects, userId]);
 
   const fetchConversations = async () => {
     try {
@@ -266,10 +308,17 @@ function MessagesContent() {
                     <FolderKanban className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.8125rem] font-bold text-content">{p.title}</span>
-                    <span className="block truncate text-[0.6875rem] font-medium text-content-soft">
-                      {p.partner?.company_name || p.partner?.name || p.partner?.username || "Partner"}
-                      {p.conversation_id ? " · Active" : " · Start chat"}
+                    <span className="flex items-center gap-1.5">
+                      <span className="block truncate text-[0.8125rem] font-bold text-content">{p.title}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="block truncate text-[0.6875rem] font-medium text-content-soft">
+                        {p.partner?.company_name || p.partner?.name || p.partner?.username || "Partner"}
+                        {p.conversation_id ? " · Active" : " · Start chat"}
+                      </span>
+                      {p.partner?.id && onlineUsers[p.partner.id] && (
+                        <span className="size-1.5 shrink-0 rounded-full bg-brand" title="Online" />
+                      )}
                     </span>
                   </span>
                   {!p.conversation_id && <Plus className="size-3.5 shrink-0 text-brand" />}
@@ -305,7 +354,12 @@ function MessagesContent() {
                       onClick={() => openConversation(c.id, other?.user_id, other?.name || "Chat")}
                       className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface-muted"
                     >
-                      <Avatar name={other?.name} src={other?.avatar_url} size="sm" />
+                      <div className="relative">
+                        <Avatar name={other?.name} src={other?.avatar_url} size="sm" />
+                        {other?.user_id && onlineUsers[other.user_id] && (
+                          <div className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-surface-card bg-brand" title="Online" />
+                        )}
+                      </div>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[0.8125rem] font-bold text-content">
                           {other?.name || "Unknown"}

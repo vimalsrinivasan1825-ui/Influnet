@@ -35,7 +35,7 @@ const influencer: InfluencerHomeData = {
     active_discussions: 4,
     active_projects: 3,
     completed_projects: 18,
-    total_earnings: 486500,
+    pipeline_value: 486500,
   },
   earnings_trend: [
     { week: "W1", amount: 32000 },
@@ -64,7 +64,7 @@ const business: BusinessHomeData = {
     active_collabs_count: 7,
     completed_collabs_count: 24,
     pending_collabs_count: 5,
-    total_budget_sum: 1875000,
+    pipeline_value: 1875000,
   },
   weekly_spend: [
     { week: "W1", spend: 120000 },

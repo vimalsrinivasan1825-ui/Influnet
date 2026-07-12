@@ -20,7 +20,7 @@ import { AreaChart, DonutChart, type ChartConfig } from "@/components/ui/chart";
 import type { InfluencerHomeData } from "./types";
 
 const earningsConfig: ChartConfig = {
-  amount: { label: "Earnings", color: "var(--brand)" },
+  amount: { label: "Pipeline", color: "var(--brand)" },
 };
 
 export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
@@ -69,9 +69,9 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       {/* KPIs */}
       <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4" start={0.05}>
         <StatCard
-          label="Total earnings"
-          value={`₹${s.total_earnings.toLocaleString()}`}
-          hint="Lifetime, settled"
+          label="Pipeline value"
+          value={`₹${s.pipeline_value.toLocaleString()}`}
+          hint="From accepted requests"
           tone="success"
           icon={<DollarSign />}
         />
@@ -101,7 +101,7 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.1} className="lg:col-span-2">
-          <SectionCard eyebrow="Earnings" title="Weekly earnings trend" className="h-full">
+          <SectionCard eyebrow="Pipeline" title="Weekly pipeline trend" className="h-full">
             <AreaChart
               data={data.earnings_trend}
               config={earningsConfig}
@@ -148,9 +148,9 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
               </div>
             )}
             <div className="mt-5 flex items-center justify-between rounded-xl border border-hairline bg-surface-muted px-4 py-3">
-              <span className="text-sm font-semibold text-content-soft">Total earnings</span>
+              <span className="text-sm font-semibold text-content-soft">Pipeline value</span>
               <span className="text-lg font-extrabold text-ok">
-                ₹{s.total_earnings.toLocaleString()}
+                ₹{s.pipeline_value.toLocaleString()}
               </span>
             </div>
           </SectionCard>

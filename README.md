@@ -62,13 +62,27 @@ supabase db push
 
 Edge functions (`supabase/functions/`): `phone-otp` (2Factor SMS OTP), `auth-signup`.
 
+## Deployment (cloud)
+
+**Before deploying, read [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)** (runbook) and [docs/operations/QA_AND_GO_LIVE.md](docs/operations/QA_AND_GO_LIVE.md) (test script). Short version:
+
+1. **Provision a separate _production_ Supabase project** (do not reuse the dev project `jaajosocopoicmqcffuu`). `supabase link --project-ref <PROD_REF>` then `supabase db push`, and `supabase functions deploy phone-otp auth-signup`.
+2. In Supabase Auth, set **Site URL + Redirect URLs** to your production domain and configure the SMTP sender.
+3. **Host `apps/web` on Vercel.** Set every env var from `apps/web/.env.example` in the host's secret store — `SUPABASE_SERVICE_ROLE_KEY` and `STREAM_API_SECRET` are **server-only, never `NEXT_PUBLIC`**. Do **not** ship `SUPABASE_ACCESS_TOKEN`.
+4. Point the **Stream webhook** at `https://<domain>/api/stream/webhook`.
+5. Run the post-deploy smoke test and lifecycle script.
+
 ## Documentation
 
-- [docs/PROJECT_ANALYSIS.md](docs/PROJECT_ANALYSIS.md) — full codebase analysis & state
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — module reference
-- [.agents/EXECUTION_PLAN.md](.agents/EXECUTION_PLAN.md) — active work order (phased tasks)
-- [docs/SUPABASE.md](docs/SUPABASE.md) — Supabase project setup
-- [docs/PHONE_OTP_SETUP.md](docs/PHONE_OTP_SETUP.md) — SMS OTP configuration
+**📖 [docs/README.md](docs/README.md) is the map — start there.** Key entries:
+
+- [docs/product/VISION.md](docs/product/VISION.md) — what Influnet is
+- [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) — module reference (canonical)
+- [docs/operations/SECURITY.md](docs/operations/SECURITY.md) — auth model, PII lockdown, audit history (read before writing routes/migrations)
+- [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) — cloud deploy runbook
+- [docs/operations/QA_AND_GO_LIVE.md](docs/operations/QA_AND_GO_LIVE.md) — manual QA + go-live checklist
+- [docs/product/ROADMAP.md](docs/product/ROADMAP.md) — status, backlog, build specs, open decisions
+- [.agents/AGENTS.md](.agents/AGENTS.md) — agent working rules
 
 ## Branches
 

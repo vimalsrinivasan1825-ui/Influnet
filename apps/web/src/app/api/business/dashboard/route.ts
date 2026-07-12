@@ -36,11 +36,10 @@ export async function GET(req: Request) {
 
     const pending = collabs?.filter(c => c.status === 'pending').length || 0;
     const acceptedCollabs = collabs?.filter(c => c.status === 'accepted') || [];
-    const completedCollabs = collabs?.filter(c => c.status === 'completed') || [];
     const accepted = acceptedCollabs.length;
 
     // Budget from accepted collab requests only (source of truth)
-    const total_budget = acceptedCollabs.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+    const pipeline_value = acceptedCollabs.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
 
     // 3. Fetch campaign projects for completion tracking
     const { data: projects } = await supabase
@@ -132,7 +131,7 @@ export async function GET(req: Request) {
         active_collabs_count,
         completed_collabs_count: completed_projects,
         pending_collabs_count: pending,
-        total_budget_sum: total_budget,
+        pipeline_value,
       },
       weekly_spend: weeklySpend,
       pipeline_data: pipelineData,

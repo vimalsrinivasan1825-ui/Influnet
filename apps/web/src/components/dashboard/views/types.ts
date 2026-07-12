@@ -16,7 +16,7 @@ export interface InfluencerHomeData {
     active_discussions: number;
     active_projects: number;
     completed_projects: number;
-    total_earnings: number;
+    pipeline_value: number;
   };
   earnings_trend: { week: string; amount: number }[];
   request_breakdown: { name: string; value: number; fill: string }[];
@@ -31,7 +31,7 @@ export interface BusinessHomeData {
     active_collabs_count: number;
     completed_collabs_count: number;
     pending_collabs_count: number;
-    total_budget_sum: number;
+    pipeline_value: number;
   };
   weekly_spend: { week: string; spend: number }[];
   pipeline_data: { name: string; value: number; fill: string }[];

@@ -20,7 +20,7 @@ Do not rebuild it and do not buy a new OTP service.
 | Audit logging of every send/verify/rate-limit event | `phone_otp_audit_log` | ✅ Done |
 | Helper edge function `auth-signup` (server-side signup + email auto-confirm) | `supabase/functions/auth-signup/index.ts` | ✅ Intact |
 | Signup/settings OTP **UI** (Send OTP button, 6-digit boxes, resend timer) | was in the deleted legacy site (`legacy-archive` tag: `influnet/phone-otp-verification.js`) | ❌ Needs rebuild in Next.js |
-| Setup guide | `docs/PHONE_OTP_SETUP.md` | ⚠️ References the OLD Supabase project ref |
+| Setup guide | `docs/operations/PHONE_OTP.md` | ⚠️ References the OLD Supabase project ref |
 
 **Security design worth keeping:** OTP values are never stored by Influnet — 2Factor's
 AUTOGEN session is the source of truth; we store only the provider session id + status.
@@ -29,7 +29,7 @@ AUTOGEN session is the source of truth; we store only the provider session id + 
 1. Have an active [2Factor.in](https://2factor.in) account with the `Login_Verification_OTP`
    AUTOGEN template.
 2. Verify migrations 022 + 026 are applied to the **current** Supabase project
-   (`jaajosocopoicmqcffuu` — note: `docs/PHONE_OTP_SETUP.md` still says the old ref
+   (`jaajosocopoicmqcffuu` — note: `docs/operations/PHONE_OTP.md` still says the old ref
    `hrpaqufvjcihnjrjnpej`; use the ref from `supabase/config.toml`).
 3. `npx supabase secrets set TWOFACTOR_API_KEY=... --project-ref jaajosocopoicmqcffuu`
 4. `npx supabase functions deploy phone-otp --project-ref jaajosocopoicmqcffuu`

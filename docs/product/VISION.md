@@ -1,6 +1,10 @@
-Why Influnet?
+# Influnet — Product Vision
 
-The Problem
+> Influnet is a premium influencer-marketing platform that removes the latency between businesses and creators. Creators put their Influnet link-in-bio; businesses click it and start a collaboration in minutes, not days.
+
+## Why Influnet?
+
+### The Problem
 
 Today, creators and businesses mostly connect through DMs and emails.
 

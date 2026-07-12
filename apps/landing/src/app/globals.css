@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #fbfaf8;
+  --paper-deep: #f4f2ee;
+  --ink: #17141d;
+  --ink-soft: #4a4552;
+  --muted: #8b8693;
+  --line: #e7e3dc;
+  --line-strong: #d9d4cb;
+  --card: #ffffff;
+  --magenta: #ee3e96;
+  --magenta-deep: #d6358a;
+  --magenta-tint: #fdeef6;
+  --verified: #0e9f6e;
+  --verified-tint: #e9f7f1;
+  --amber: #b7791f;
+  --amber-tint: #fdf5e7;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-card: var(--card);
+  --color-magenta: var(--magenta);
+  --color-magenta-deep: var(--magenta-deep);
+  --color-magenta-tint: var(--magenta-tint);
+  --color-verified: var(--verified);
+  --color-verified-tint: var(--verified-tint);
+  --color-amber: var(--amber);
+  --color-amber-tint: var(--amber-tint);
+  --font-display: var(--font-bricolage);
+  --font-sans: var(--font-instrument);
+  --font-mono: var(--font-spline-mono);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-instrument), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--magenta);
+  color: #fff;
+}
+
+a,
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--magenta);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Mono eyebrow label — the recurring "on the record" device */
+.eyebrow {
+  font-family: var(--font-spline-mono), monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Ledger row hairline used in the hero timeline */
+.ledger-rule {
+  background: linear-gradient(to right, var(--line-strong) 0 60%, transparent);
+  height: 1px;
+}
+
+/* Entrance animations — CSS-only so content never depends on JS to appear */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes write-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.anim-rise {
+  animation: rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0s);
+}
+
+.anim-write {
+  animation: write-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
