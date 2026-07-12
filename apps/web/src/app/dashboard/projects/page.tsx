@@ -82,12 +82,11 @@ export default function ProjectsPage() {
 
     setUpdatingId(projectId);
     try {
-      const res = await apiFetch("/api/projects", {
+      const res = await apiFetch(`/api/projects/${projectId}`, {
         method: "PATCH",
         body: JSON.stringify({
-          id: projectId,
-          current_stage: nextStage,
-          status: nextStage === "completed" ? "completed" : "active",
+          action: "advance",
+          stage_key: nextStage,
         }),
       });
       if (!res.ok) throw new Error(res.error || "Failed to update stage");

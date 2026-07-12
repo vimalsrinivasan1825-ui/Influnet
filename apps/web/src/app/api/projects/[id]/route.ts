@@ -3,7 +3,7 @@ import { withAuth, jsonError } from '@/lib/api';
 import { z } from 'zod';
 
 const PatchProjectActionSchema = z.object({
-  action: z.enum(['advance', 'update_stage', 'update_project']),
+  action: z.enum(['advance', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
   stage_key: z.string().optional(),
   updates: z.any().optional(),
   title: z.string().optional(),
@@ -90,35 +90,22 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return jsonError(403, 'Forbidden');
     }
 
-    const STAGES = [
-      'collaboration_started', 'project_discussion', 'advance_payment',
-      'content_planning', 'content_confirmation', 'shooting_in_progress',
-      'editing_in_progress', 'sent_for_review', 'revisions',
-      'final_approval', 'final_payment', 'project_completed'
-    ];
-
-    const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-      collaboration_started: ['project_discussion'],
-      project_discussion: ['advance_payment'],
-      advance_payment: ['content_planning'],
-      content_planning: ['content_confirmation'],
-      content_confirmation: ['shooting_in_progress'],
-      shooting_in_progress: ['editing_in_progress'],
-      editing_in_progress: ['sent_for_review'],
-      sent_for_review: ['revisions', 'final_approval'],
-      revisions: ['sent_for_review'],
-      final_approval: ['final_payment'],
-      final_payment: ['project_completed'],
-      project_completed: [],
-    };
-
     const { action } = result.data;
+    const { STAGES, ALLOWED_TRANSITIONS, STAGE_ACTOR, Stage } = require('@/lib/project-lifecycle');
+
+    // Get user's role in the project
+    const userRole = project.owner_user_id === user.id ? 'business' : 'creator';
 
     // 1) Advance to next stage
     if (action === 'advance') {
       const currentIdx = STAGES.indexOf(project.current_stage);
       if (currentIdx === -1) {
         return jsonError(400, 'Invalid current stage');
+      }
+
+      const currentStageActor = STAGE_ACTOR[project.current_stage as typeof Stage] || 'either';
+      if (currentStageActor !== 'either' && currentStageActor !== userRole) {
+        return jsonError(403, `Only the ${currentStageActor} can advance the stage from ${project.current_stage}`);
       }
 
       const { stage_key } = result.data;
@@ -222,6 +209,52 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       if (updateErr) return jsonError(500, 'Failed to update project details', updateErr);
       return NextResponse.json({ project: updated });
+    }
+
+    // 4) Cancellation flows
+    if (action === 'request_cancellation') {
+      const { data: updated, error: updateErr } = await supabase
+        .from('campaign_projects')
+        .update({ cancel_requested_by: user.id, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (updateErr) return jsonError(500, 'Failed to request cancellation', updateErr);
+      return NextResponse.json({ project: updated });
+    }
+
+    if (action === 'decline_cancellation') {
+      const { data: updated, error: updateErr } = await supabase
+        .from('campaign_projects')
+        .update({ cancel_requested_by: null, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (updateErr) return jsonError(500, 'Failed to decline cancellation', updateErr);
+      return NextResponse.json({ project: updated });
+    }
+
+    if (action === 'accept_cancellation') {
+      const { data: cancelProject, error: fetchCancelErr } = await supabase
+        .from('campaign_projects')
+        .select('cancel_requested_by')
+        .eq('id', id)
+        .single();
+      if (fetchCancelErr) return jsonError(500, 'Failed to fetch project', fetchCancelErr);
+      if (!cancelProject.cancel_requested_by) {
+        return jsonError(400, 'No active cancellation request found');
+      }
+      if (cancelProject.cancel_requested_by === user.id) {
+        return jsonError(400, 'Cannot accept your own cancellation request');
+      }
+
+      const { error: deleteErr } = await supabase
+        .from('campaign_projects')
+        .delete()
+        .eq('id', id);
+
+      if (deleteErr) return jsonError(500, 'Failed to delete project', deleteErr);
+      return NextResponse.json({ ok: true, deleted: true });
     }
 
     return jsonError(400, 'Unknown action');
