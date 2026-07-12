@@ -77,7 +77,7 @@ jobs:
           NODE_ENV: test
 
   integration-tests:
-    name: Integration Tests
+    name: Integration and E2E Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +105,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Run integration tests
         run: npm run test:integration --workspace=web -- --reporter verbose
@@ -113,22 +114,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_APP_URL: http://localhost:3000
-
-  e2e-tests:
-    name: E2E Tests (Supabase)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Run E2E matchmaking test
         run: node apps/web/tests/matchmaking.js
@@ -170,7 +156,7 @@ jobs:
   deploy-dev-railway:
     name: Deploy to Dev (Railway)
     runs-on: ubuntu-latest
-    needs: [build, integration-tests, e2e-tests]
+    needs: [build, integration-tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     steps:
       - uses: actions/checkout@v4
