@@ -26,6 +26,7 @@ interface NotificationState {
   markAllAsRead: () => void;
   
   setLoading: (loading: boolean) => void;
+  setUnreadMessages: (count: number) => void;
   decrementUnreadMessages: () => void;
   decrementPendingRequests: () => void;
   incrementUnreadMessages: () => void;
@@ -78,6 +79,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   setLoading: (isLoading) => set({ isLoading }),
+
+  setUnreadMessages: (count) => {
+    const { summary } = get();
+    set({
+      summary: { ...summary, unread_messages_count: Math.max(0, count) },
+    });
+  },
 
   decrementUnreadMessages: () => {
     const { summary } = get();

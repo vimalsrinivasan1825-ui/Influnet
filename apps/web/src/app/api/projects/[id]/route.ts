@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { z } from 'zod';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
+import { notifyUser } from '@/lib/notify';
+import { logger, requestId } from '@/lib/logger';
 
 const PatchProjectActionSchema = z.object({
   action: z.enum(['advance', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
@@ -64,6 +66,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     const { supabase, user } = auth;
 
     const { id } = await context.params;
+    const log = logger.child({
+      route: 'PATCH /api/projects/[id]',
+      requestId: requestId(req),
+      projectId: id,
+      userId: user.id,
+    });
 
     let body;
     try {
@@ -82,7 +90,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // the confirm_completion branch reads those columns separately.
     const { data: project, error: fetchErr } = await supabase
       .from('campaign_projects')
-      .select('id, owner_user_id, counterparty_user_id, current_stage, stage_progress')
+      .select('id, title, owner_user_id, counterparty_user_id, current_stage, stage_progress')
       .eq('id', id)
       .single();
 
@@ -94,10 +102,16 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
 
     const { action } = result.data;
-    const { STAGES, ALLOWED_TRANSITIONS, STAGE_ACTOR, Stage } = require('@/lib/project-lifecycle');
+    const { STAGES, ALLOWED_TRANSITIONS, STAGE_ACTOR, STAGE_LABELS, Stage } = require('@/lib/project-lifecycle');
 
     // Get user's role in the project
     const userRole = project.owner_user_id === user.id ? 'business' : 'creator';
+    // The other participant — the person to notify when this user acts.
+    const counterpartyId =
+      userRole === 'business' ? project.counterparty_user_id : project.owner_user_id;
+    const recipientRole = userRole === 'business' ? 'creator' : 'business';
+    const projectLabel = project.title ? `“${project.title}”` : 'Your project';
+    const projectLink = `/dashboard/projects/${id}`;
 
     // 1) Advance to next stage
     if (action === 'advance') {
@@ -122,7 +136,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       // Fail OPEN if the checklist table isn't there yet (migration 054 not
       // applied): the gate is an enhancement, not a reason to block advancing.
       // Log so it's visible, but don't 500 the user.
-      if (itemsErr) console.warn('[advance] stage checklist unavailable, skipping gate:', itemsErr.message);
+      if (itemsErr) log.warn('stage checklist unavailable, skipping gate', { err: itemsErr.message });
       const pending = itemsErr ? [] : blockingItems(project.current_stage, (stageItems || []) as StageItem[]);
       if (pending.length > 0) {
         return NextResponse.json(
@@ -178,6 +192,26 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .single();
 
       if (updateErr) return jsonError(500, 'Failed to advance stage', updateErr);
+
+      // Audit trail: who moved which project from which stage to which.
+      log.info('project stage advanced', { from: project.current_stage, to: nextStage, actor: userRole });
+
+      // Tell the counterparty the stage moved, and whether the ball is now in
+      // their court. Best-effort — never blocks the response on a failed write.
+      if (counterpartyId) {
+        const nextActor = STAGE_ACTOR[nextStage as typeof Stage] || 'either';
+        const yourTurn = nextActor === 'either' || nextActor === recipientRole;
+        await notifyUser({
+          userId: counterpartyId,
+          type: 'project_stage',
+          title: `${projectLabel} moved to ${STAGE_LABELS[nextStage] || nextStage}`,
+          body: yourTurn
+            ? "It's your turn to move this project forward."
+            : `Now waiting on the ${nextActor === 'business' ? 'brand' : 'creator'}.`,
+          link: projectLink,
+        });
+      }
+
       return NextResponse.json({ project: updated });
     }
 
@@ -227,6 +261,23 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .single();
 
       if (updateErr) return jsonError(500, 'Failed to confirm completion', updateErr);
+
+      log.info('project completion confirmed', { actor: userRole, bothConfirmed });
+
+      if (counterpartyId) {
+        await notifyUser({
+          userId: counterpartyId,
+          type: 'project_stage',
+          title: bothConfirmed
+            ? `${projectLabel} is complete`
+            : `${projectLabel}: completion confirmed`,
+          body: bothConfirmed
+            ? 'Both parties confirmed — the project is complete and reviews are open.'
+            : 'The other party confirmed completion. Confirm on your side to finish.',
+          link: projectLink,
+        });
+      }
+
       return NextResponse.json({ project: updated, both_confirmed: bothConfirmed });
     }
 
@@ -295,6 +346,15 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .select()
         .single();
       if (updateErr) return jsonError(500, 'Failed to request cancellation', updateErr);
+      if (counterpartyId) {
+        await notifyUser({
+          userId: counterpartyId,
+          type: 'project_cancel',
+          title: `${projectLabel}: cancellation requested`,
+          body: `The ${userRole === 'business' ? 'brand' : 'creator'} asked to cancel this project. Review it to accept or decline.`,
+          link: projectLink,
+        });
+      }
       return NextResponse.json({ project: updated });
     }
 
@@ -306,6 +366,15 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .select()
         .single();
       if (updateErr) return jsonError(500, 'Failed to decline cancellation', updateErr);
+      if (counterpartyId) {
+        await notifyUser({
+          userId: counterpartyId,
+          type: 'project_cancel',
+          title: `${projectLabel}: cancellation declined`,
+          body: 'Your request to cancel this project was declined. The project continues.',
+          link: projectLink,
+        });
+      }
       return NextResponse.json({ project: updated });
     }
 
@@ -329,6 +398,15 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .eq('id', id);
 
       if (deleteErr) return jsonError(500, 'Failed to delete project', deleteErr);
+      log.info('project cancellation accepted — project deleted', { actor: userRole });
+      // Notify the party who requested the cancellation that it was accepted.
+      await notifyUser({
+        userId: cancelProject.cancel_requested_by,
+        type: 'project_cancel',
+        title: `${projectLabel} was cancelled`,
+        body: 'Your cancellation request was accepted. The project has been closed.',
+        link: '/dashboard/projects',
+      });
       return NextResponse.json({ ok: true, deleted: true });
     }
 
