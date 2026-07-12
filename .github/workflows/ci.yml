@@ -146,31 +146,4 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
-  # Deploy to Railway — only on a push to `dev`, and only after the full pipeline
-  # (build + integration + e2e) is green. Railway builds the Docker image remotely
-  # using the service's configured BUILD variables (NEXT_PUBLIC_*), so no build
-  # args are passed here.
-  #
-  # Required repo secrets: RAILWAY_TOKEN (project token), RAILWAY_SERVICE (service name).
-  # Turn OFF Railway's native "auto-deploy on push" so CI stays the only gate.
-  deploy-dev-railway:
-    name: Deploy to Dev (Railway)
-    runs-on: ubuntu-latest
-    needs: [build, integration-tests]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install Railway CLI
-        run: npm install --global @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up --service "$RAILWAY_SERVICE" --ci
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
