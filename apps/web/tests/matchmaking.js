@@ -249,16 +249,15 @@ async function runTests() {
     // TEST 7: Project Stage Advancement
     // ----------------------------------------------------
     console.log("\n[TEST 7] Testing stage advancement timeline...");
-    const advanceRes = await fetch('http://localhost:3000/api/projects', {
+    const advanceRes = await fetch(`http://localhost:3000/api/projects/${createdProjectId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${brandSession.access_token}`
       },
       body: JSON.stringify({
-        id: createdProjectId,
-        current_stage: 'project_discussion',
-        status: 'active'
+        action: 'advance',
+        stage_key: 'project_discussion'
       })
     });
 
