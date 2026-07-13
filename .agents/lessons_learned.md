@@ -4,6 +4,62 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-13 (2): Smart CTA on creator public profile for business owners
+
+**Branch**: `fix/discover-route-protection`
+
+### Scope
+When a business owner visits a creator's public profile (`/c/[username]`) and they **already have a pending request or active project** with that creator, the CTA previously still showed "Work with me" — inviting a duplicate request which would fail at the API with a 409.
+
+### Fix
+Added a server-side parallel lookup in `/c/[username]/page.tsx` (RSC, no client cost) before setting `ctaHref`:
+
+| State | CTA label | CTA destination |
+|---|---|---|
+| Active `campaign_project` between the two users | **View project** | `/dashboard/projects/<id>` |
+| Pending `collab_request` from business → creator | **Request sent** | `/dashboard/requests` |
+| No prior relationship | **Work with me** | `/dashboard/requests/new?to=userId` |
+
+The two Supabase queries (`collab_requests` + `campaign_projects`) run in `Promise.all()` so they don't add sequential latency.
+
+### Key Lessons
+- Public profile CTAs must reflect the **current relationship state**, not a static label. Otherwise the UI invites invalid actions (duplicate requests).
+- Always prefer a server-side lookup in RSC pages over a client-side check — the page already has the authenticated client and the lookup is free at render time, adds zero JS to the browser, and is never stale.
+- `maybeSingle()` (not `single()`) is the right Supabase call when a row may or may not exist — `single()` throws a 406 if no row is found.
+
+### Next Target
+- Raise PR from `fix/discover-route-protection` → `dev` and merge.
+- Consider adding a middleware-level route guard for `/dashboard/discover` (non-business-owners should get a 403, not a client-side redirect).
+
+---
+
+## Session — 2026-07-13: Discover page isolated from collab request flow
+
+**Branch**: `fix/discover-route-protection`
+
+### Scope
+Removed the Discover page from the collaboration request entry flow. Previously, clicking "Work with me" on any creator's public profile (`/c/[username]`) routed a business owner through `/dashboard/discover?request=userId`, which loaded the full creator grid and then opened a modal — exposing the Discover page to any user who followed a creator's link.
+
+### What broke
+The Discover page had a `useEffect` that redirected to `/dashboard` if no `?request=` param was present. This meant the page was _only_ reachable via the CTA on a creator profile, but it still fully rendered the creator grid before the request modal appeared — a visible race condition.
+
+### Fix
+1. **Created `/dashboard/requests/new/page.tsx`** — standalone business-owner-only page. Takes `?to=userId`, shows a minimal creator card preview, and posts directly to `/api/collabs`. Redirects to `/dashboard/requests` on success.
+2. **Patched `/c/[username]/page.tsx`** — changed `ctaHref` from `/dashboard/discover?request=...` to `/dashboard/requests/new?to=...`.
+3. **Cleaned `discover/page.tsx`** — removed the entire `?request=` deep-link `useEffect` block and `sentIds`/`deepLinkHandled` state. Added a single backward-compat redirect: any stale `?request=` link automatically forwards to `/dashboard/requests/new?to=`.
+
+### Key Lessons
+- Never make a page double as a "modal trigger" via URL params for a flow it isn't the primary owner of. Create a dedicated lightweight page instead.
+- The Discover page's `if (!requestId) router.replace("/dashboard")` guard is now gone — the page will show normally to business owners who navigate to it directly.
+- Always check whether a deep-link pattern will flash the underlying page content before the modal appears. In Next.js, the `useEffect` for searchParams runs _after_ first render.
+
+### Next Target
+- Raise PR from `fix/discover-route-protection` → `dev` and merge.
+- Add a middleware-level route guard so `/dashboard/discover` returns 403 for non-business-owner sessions (belt-and-suspenders on top of the client-side redirect).
+
+---
+
+
 ## 1. System Modules Status
 
 ### Auth Pages (Login / Signup)

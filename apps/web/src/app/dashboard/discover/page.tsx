@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Check, Globe, MapPin, Rocket, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { createClient } from "@/lib/supabase/client";
 import { NICHES } from "@/lib/constants";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -48,12 +49,50 @@ function DiscoverContent() {
   const [form, setForm] = useState({ title: "", budget: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
-  const deepLinkHandled = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        const sb = createClient();
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) {
+          router.replace("/login");
+          return;
+        }
+
+        const { data: profile, error: profileErr } = await sb
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        if (profileErr || !profile) {
+          router.replace("/login");
+          return;
+        }
+
+        const r = (profile as any).role;
+        if (r !== "business_owner" && r !== "admin") {
+          router.replace("/dashboard/influencer");
+          return;
+        }
+
+        setRoleLoading(false);
+      } catch (e) {
+        console.error("Error checking role:", e);
+        router.replace("/dashboard");
+      }
+    };
+    checkUserRole();
+  }, [router]);
 
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [niche, setNiche] = useState(searchParams.get("niche") || "");
   const [location, setLocation] = useState(searchParams.get("location") || "");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const buildParams = useCallback(
     (cursor?: string | null) => {
@@ -107,14 +146,25 @@ function DiscoverContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, niche, location]);
 
+
+  // Redirect stale ?request= links (old deep-link format) to the new dedicated page
+  useEffect(() => {
+    const requestId = searchParams.get("request");
+    if (requestId) {
+      router.replace(`/dashboard/requests/new?to=${requestId}`);
+    }
+  }, [searchParams, router]);
+
+  // Track which user IDs this business owner already sent a request to (for grid badges).
   useEffect(() => {
     const loadSent = async () => {
       const res = await apiFetch<{
         collabs: { from_user_id: string; to_user_id: string; status: string }[];
       }>("/api/collabs");
       if (res.ok && res.data) {
-        const me = await apiFetch<{ profile: { id: string } }>("/api/profile");
-        const myId = me.data?.profile?.id;
+        const sb = createClient();
+        const { data: { session } } = await sb.auth.getSession();
+        const myId = session?.user?.id;
         if (!myId) return;
         const sent = (res.data.collabs || [])
           .filter((r) => r.from_user_id === myId && (r.status === "pending" || r.status === "accepted"))
@@ -125,43 +175,6 @@ function DiscoverContent() {
     loadSent();
   }, []);
 
-  useEffect(() => {
-    const requestId = searchParams.get("request");
-    if (!requestId || loading || deepLinkHandled.current) return;
-    if (sentIds.has(requestId)) {
-      deepLinkHandled.current = true;
-      return;
-    }
-
-    const target = results.find((r) => r.user_id === requestId);
-    if (target) {
-      deepLinkHandled.current = true;
-      const name =
-        userRole === "business_owner"
-          ? target.profile?.name || "Creator"
-          : target.company_name || target.profile?.name || "Business";
-      openModal(requestId, name);
-      return;
-    }
-
-    deepLinkHandled.current = true;
-    (async () => {
-      const res = await apiFetch<{ results: DiscoverResult[] }>(`/api/discover?id=${requestId}`);
-      const t = res.data?.results?.[0];
-      if (t) {
-        const name =
-          userRole === "business_owner"
-            ? t.profile?.name || "Creator"
-            : t.company_name || t.profile?.name || "Business";
-        openModal(requestId, name);
-      }
-    })();
-  }, [loading, results, searchParams, sentIds, userRole]);
-
-  useEffect(() => {
-    const requestId = searchParams.get("request");
-    if (!requestId) router.replace("/dashboard");
-  }, [searchParams, router]);
 
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return;
@@ -226,6 +239,18 @@ function DiscoverContent() {
       setSubmitting(false);
     }
   };
+
+  if (roleLoading) {
+    return (
+      <div className="mx-auto max-w-7xl p-4 sm:p-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-56 w-full rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const isCreatorView = userRole === "business_owner";
   const hasFilters = !!(query.trim() || niche || location.trim());

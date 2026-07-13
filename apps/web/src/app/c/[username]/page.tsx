@@ -1,43 +1,24 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { createRSCClient } from '@/lib/supabase/server-rsc';
+import type { Metadata } from 'next';
+import CreatorProfileViewComponent from '@/components/public-profile/creator-profile-view';
 import {
-  MapPin,
-  CheckCircle,
-  Globe,
-  Briefcase,
-  Star,
-  Users
-} from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Metadata } from 'next';
-import { ButtonLink } from '@/components/ui/button';
+  buildCreatorProfileView,
+  resolveMockMode,
+  type RawPublicProfile,
+} from '@/lib/public-profile/creator-profile';
 
-const InstagramIcon = ({ size = 16, className = "" }: { size?: number, className?: string }) => (
-  <svg xmlns="http://www.svg.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-);
-
-const YoutubeIcon = ({ size = 16, className = "" }: { size?: number, className?: string }) => (
-  <svg xmlns="http://www.svg.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2.5 7.1C2.5 7.1 2.3 5.4 3 4.6 3.8 3.7 4.8 3.7 5.2 3.6 8.5 3.4 12 3.4 12 3.4s3.5 0 6.8.2c.4.1 1.4.1 2.2 1 .7.8 1 2.5 1 2.5s.2 2 .2 4.1v1.5c0 2.1-.2 4.1-.2 4.1s-.2 1.7-1 2.5c-.8.9-1.9.8-2.4.9-3.6.3-7.2.2-7.2.2s-3.5 0-6.8-.2c-.4-.1-1.4-.1-2.2-1-.7-.8-1-2.5-1-2.5s-.2-2-.2-4.1V11.2c0-2.1.2-4.1.2-4.1z"/><polygon points="9.5 15.5 16 12 9.5 8.5 9.5 15.5"/></svg>
-);
-
-const TwitterIcon = ({ size = 16, className = "" }: { size?: number, className?: string }) => (
-  <svg xmlns="http://www.svg.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
-);
-
-// Use anon client for fetching public profile
+// Anon client for public profile reads.
 const supabaseAnon = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
-async function getProfile(username: string) {
-  const { data, error } = await supabaseAnon.rpc('get_public_influencer', {
-    p_slug: username,
-  });
+async function getProfile(username: string): Promise<RawPublicProfile | null> {
+  const { data, error } = await supabaseAnon.rpc('get_public_influencer', { p_slug: username });
   if (error || !data) return null;
-  return data;
+  return data as RawPublicProfile;
 }
 
 export async function generateMetadata({
@@ -45,279 +26,96 @@ export async function generateMetadata({
 }: {
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
-  const resolvedParams = await params;
-  const profile = await getProfile(resolvedParams.username);
+  const { username } = await params;
+  const profile = await getProfile(username);
+  if (!profile) return { title: 'Profile Not Found | Influnet' };
 
-  if (!profile) {
-    return {
-      title: 'Profile Not Found | Influnet',
-    };
-  }
-
+  const title = `${profile.name} (@${profile.username}) | Influnet`;
+  const description =
+    profile.headline || profile.bio || `Check out ${profile.name}'s creator profile on Influnet.`;
   return {
-    title: `${profile.name} (@${profile.username}) | Influnet`,
-    description: profile.headline || profile.bio || `Check out ${profile.name}'s creator profile on Influnet.`,
-    openGraph: {
-      title: `${profile.name} (@${profile.username}) | Influnet`,
-      description: profile.headline || profile.bio || `Check out ${profile.name}'s creator profile on Influnet.`,
-      images: profile.avatarUrl ? [profile.avatarUrl] : [],
-    },
+    title,
+    description,
+    openGraph: { title, description, images: profile.avatarUrl ? [profile.avatarUrl] : [] },
   };
 }
 
 export default async function PublicProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ mock?: string }>;
 }) {
-  const resolvedParams = await params;
-  const username = resolvedParams.username;
+  const [{ username }, sp] = await Promise.all([params, searchParams]);
   const profile = await getProfile(username);
+  if (!profile) notFound();
+  // profileId is guaranteed string from here — userId is marked optional in the type
+  // but the RPC always populates it. Bail out defensively if somehow it is missing.
+  if (!profile.userId) notFound();
 
-  if (!profile) {
-    notFound();
-  }
-
-  // Get viewer user if any
+  // Viewer (for owner detection + CTA).
   const rsc = await createRSCClient();
-  const { data: { user } } = await rsc.auth.getUser();
-  const viewerRes = user 
+  const {
+    data: { user },
+  } = await rsc.auth.getUser();
+  const viewerRes = user
     ? await rsc.from('profiles').select('role').eq('id', user.id).single()
     : { data: null };
-  const viewerProfile = viewerRes.data as { role: string } | null;
+  const viewerRole = (viewerRes.data as { role: string } | null)?.role;
+  const isOwner = !!user && user.id === profile.userId;
 
-  // Record view (fire and forget)
-  supabaseAnon.rpc('record_profile_view', {
-    p_influencer_user_id: profile.userId,
-    p_viewer_user_id: user?.id || null,
-  }).then(() => {}, () => {});
+  // Record the view (fire-and-forget).
+  supabaseAnon
+    .rpc('record_profile_view', { p_influencer_user_id: profile.userId, p_viewer_user_id: user?.id || null })
+    .then(() => {}, () => {});
 
-  // Determine CTA
+  // Primary CTA.
   let ctaHref = `/signup/business?next=/c/${username}`;
-  let ctaText = "Request Collaboration";
-  if (user) {
-    if (user.id === profile.userId) {
-      ctaHref = `/dashboard/settings`;
-      ctaText = "Edit Profile";
-    } else if (viewerProfile?.role === 'business_owner') {
-      ctaHref = `/dashboard/discover?request=${profile.userId}`;
+  let ctaLabel = 'Work with me';
+  if (isOwner) {
+    ctaHref = '/dashboard/settings';
+    ctaLabel = 'Edit profile';
+  } else if (user && viewerRole === 'business_owner') {
+    // Check if this business already has a pending request or active project with this creator.
+    const [collabRes, projectRes] = await Promise.all([
+      rsc
+        .from('collab_requests')
+        .select('id, status')
+        .eq('from_user_id', user.id)
+        .eq('to_user_id', profile.userId)
+        .in('status', ['pending', 'accepted'])
+        .maybeSingle(),
+      rsc
+        .from('campaign_projects')
+        .select('id')
+        .or(
+          `and(owner_user_id.eq.${user.id},counterparty_user_id.eq.${profile.userId}),and(owner_user_id.eq.${profile.userId},counterparty_user_id.eq.${user.id})`
+        )
+        .maybeSingle(),
+    ]);
+
+    const existingProject = projectRes.data as { id: string } | null;
+    const existingCollab  = collabRes.data  as { id: string; status: string } | null;
+
+    if (existingProject) {
+      // Already working together — take them straight to the project.
+      ctaHref  = `/dashboard/projects/${existingProject.id}`;
+      ctaLabel = 'View project';
+    } else if (existingCollab?.status === 'pending') {
+      // Request has been sent but not yet accepted.
+      ctaHref  = '/dashboard/requests';
+      ctaLabel = 'Request sent';
     } else {
-      ctaHref = `/dashboard`;
-      ctaText = "Back to Dashboard";
+      // No prior relationship — standard "Work with me" flow.
+      ctaHref = `/dashboard/requests/new?to=${profile.userId}`;
     }
+  } else if (user) {
+    ctaHref = '/dashboard';
+    ctaLabel = 'Back to dashboard';
   }
 
-  const formatFollowers = (num: number) => {
-    if (!num) return '0';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-  };
+  const view = buildCreatorProfileView(profile, { useMock: resolveMockMode(sp.mock) });
 
-  return (
-    <div className="min-h-screen bg-surface font-sans pb-20">
-      {/* Cover Image */}
-      <div
-        className="w-full h-48 md:h-64 lg:h-80 relative"
-        style={{
-          backgroundImage: profile.coverImageUrl
-            ? `url(${profile.coverImageUrl})`
-            : 'linear-gradient(to right, var(--brand-soft), var(--surface-muted))',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 sm:-mt-24 relative z-10">
-        {/* Hero card */}
-        <div className="bg-surface-card rounded-3xl shadow-[var(--shadow-card)] border border-hairline p-6 sm:p-8 flex flex-col md:flex-row gap-6 md:gap-8">
-
-          {/* Avatar */}
-          <div className="flex-shrink-0">
-            <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-hairline shadow-md bg-surface-muted overflow-hidden flex items-center justify-center text-4xl font-black text-content-muted">
-              {profile.avatarUrl ? (
-                <Image
-                  src={profile.avatarUrl}
-                  alt={profile.name}
-                  width={160}
-                  height={160}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                profile.name?.charAt(0).toUpperCase()
-              )}
-            </div>
-          </div>
-
-          {/* Core Info */}
-          <div className="flex-grow pt-2">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-content flex items-center gap-2">
-                  {profile.name}
-                  {profile.isVerified && <CheckCircle size={20} className="text-brand" />}
-                </h1>
-                <p className="text-content-soft font-semibold mb-2">@{profile.username}</p>
-                {profile.headline && (
-                  <p className="text-content-soft text-sm sm:text-base font-medium max-w-xl">{profile.headline}</p>
-                )}
-
-                <div className="flex flex-wrap items-center gap-3 mt-3 text-xs font-semibold text-content-muted">
-                  {(profile.location || profile.city) && (
-                    <span className="flex items-center gap-1">
-                      <MapPin size={14} />
-                      {profile.city ? `${profile.city}, ${profile.state || ''}` : profile.location}
-                    </span>
-                  )}
-                  {profile.languages?.length > 0 && (
-                    <span className="flex items-center gap-1">
-                      <Globe size={14} /> {profile.languages.slice(0, 2).join(', ')}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* CTA */}
-              <div className="flex-shrink-0">
-                <ButtonLink href={ctaHref} variant="brand">
-                  {ctaText}
-                </ButtonLink>
-              </div>
-            </div>
-
-            {/* Stats row */}
-            <div className="flex flex-wrap gap-4 sm:gap-8 mt-6 pt-6 border-t border-hairline">
-              {profile.instagramFollowers > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-brand-soft text-brand flex items-center justify-center">
-                    <InstagramIcon size={16} />
-                  </div>
-                  <div>
-                    <div className="text-sm font-black text-content">{formatFollowers(profile.instagramFollowers)}</div>
-                    <div className="text-[10px] font-bold text-content-muted uppercase tracking-wider">Instagram</div>
-                  </div>
-                </div>
-              )}
-              {profile.youtubeSubscribers > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-surface-muted text-red-600 flex items-center justify-center">
-                    <YoutubeIcon size={16} />
-                  </div>
-                  <div>
-                    <div className="text-sm font-black text-content">{formatFollowers(profile.youtubeSubscribers)}</div>
-                    <div className="text-[10px] font-bold text-content-muted uppercase tracking-wider">YouTube</div>
-                  </div>
-                </div>
-              )}
-              {profile.tiktokFollowers > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-surface-muted text-content flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
-                  </div>
-                  <div>
-                    <div className="text-sm font-black text-content">{formatFollowers(profile.tiktokFollowers)}</div>
-                    <div className="text-[10px] font-bold text-content-muted uppercase tracking-wider">TikTok</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Content Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          {/* Main Column */}
-          <div className="md:col-span-2 space-y-6">
-
-            {/* About */}
-            {profile.bio && (
-              <div className="bg-surface-card rounded-2xl shadow-[var(--shadow-card)] border border-hairline p-6">
-                <h2 className="text-sm font-black uppercase tracking-wider text-content-muted mb-4">About</h2>
-                <div className="text-sm text-content-soft leading-relaxed whitespace-pre-wrap font-medium">
-                  {profile.bio}
-                </div>
-              </div>
-            )}
-
-            {/* Niches / Categories */}
-            {profile.niche && profile.niche.length > 0 && (
-              <div className="bg-surface-card rounded-2xl shadow-[var(--shadow-card)] border border-hairline p-6">
-                <h2 className="text-sm font-black uppercase tracking-wider text-content-muted mb-4">Content Categories</h2>
-                <div className="flex flex-wrap gap-2">
-                  {profile.niche.map((n: string, i: number) => (
-                    <span key={i} className="px-3 py-1.5 bg-surface-muted border border-hairline text-content-soft text-xs font-bold rounded-lg">
-                      {n}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-
-            {/* Quick Info */}
-            <div className="bg-surface-card rounded-2xl shadow-[var(--shadow-card)] border border-hairline p-6">
-              <h2 className="text-sm font-black uppercase tracking-wider text-content-muted mb-4">Quick Info</h2>
-              <div className="space-y-4">
-                {profile.availabilityStatus && (
-                  <div>
-                    <div className="text-xs font-semibold text-content-muted mb-1">Availability</div>
-                    <div className="flex items-center gap-2 text-sm font-bold text-ok">
-                      <div className="w-2 h-2 rounded-full bg-ok" />
-                      {profile.availabilityStatus.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
-                    </div>
-                  </div>
-                )}
-                {profile.priceRange && (
-                  <div>
-                    <div className="text-xs font-semibold text-content-muted mb-1">Starting Price</div>
-                    <div className="text-sm font-bold text-content">{profile.priceRange}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Social Links */}
-            {(profile.instagramHandle || profile.youtubeHandle || profile.twitterHandle || profile.facebookHandle || profile.linkedinHandle || profile.tiktokHandle) && (
-              <div className="bg-surface-card rounded-2xl shadow-[var(--shadow-card)] border border-hairline p-6">
-                <h2 className="text-sm font-black uppercase tracking-wider text-content-muted mb-4">Social Links</h2>
-                <div className="space-y-3">
-                  {profile.instagramHandle && (
-                    <a href={`https://instagram.com/${profile.instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 text-sm font-semibold text-content-soft hover:text-brand transition-colors">
-                      <InstagramIcon size={16} className="text-brand" />
-                      @{profile.instagramHandle.replace('@', '')}
-                    </a>
-                  )}
-                  {profile.youtubeHandle && (
-                    <a href={`https://youtube.com/${profile.youtubeHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 text-sm font-semibold text-content-soft hover:text-red-600 transition-colors">
-                      <YoutubeIcon size={16} className="text-red-600" />
-                      @{profile.youtubeHandle.replace('@', '')}
-                    </a>
-                  )}
-                  {profile.twitterHandle && (
-                    <a href={`https://twitter.com/${profile.twitterHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 text-sm font-semibold text-content-soft hover:text-blue-500 transition-colors">
-                      <TwitterIcon size={16} className="text-blue-500" />
-                      @{profile.twitterHandle.replace('@', '')}
-                    </a>
-                  )}
-                  {profile.tiktokHandle && (
-                    <a href={`https://tiktok.com/@${profile.tiktokHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 text-sm font-semibold text-content-soft hover:text-content transition-colors">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
-                      @{profile.tiktokHandle.replace('@', '')}
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <CreatorProfileViewComponent data={view} isOwner={isOwner} ctaHref={ctaHref} ctaLabel={ctaLabel} />;
 }
