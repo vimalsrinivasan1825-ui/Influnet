@@ -74,7 +74,7 @@ export default async function PublicProfilePage({
     ctaHref = '/dashboard/settings';
     ctaLabel = 'Edit profile';
   } else if (user && viewerRole === 'business_owner') {
-    ctaHref = `/dashboard/discover?request=${profile.userId}`;
+    ctaHref = `/dashboard/requests/new?to=${profile.userId}`;
   } else if (user) {
     ctaHref = '/dashboard';
     ctaLabel = 'Back to dashboard';

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Check, Globe, MapPin, Rocket, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -48,8 +48,6 @@ function DiscoverContent() {
   const [modal, setModal] = useState<ModalState>({ open: false, targetId: "", targetName: "" });
   const [form, setForm] = useState({ title: "", budget: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
-  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
-  const deepLinkHandled = useRef(false);
 
   const [roleLoading, setRoleLoading] = useState(true);
 
@@ -146,60 +144,13 @@ function DiscoverContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, niche, location]);
 
-  useEffect(() => {
-    const loadSent = async () => {
-      const res = await apiFetch<{
-        collabs: { from_user_id: string; to_user_id: string; status: string }[];
-      }>("/api/collabs");
-      if (res.ok && res.data) {
-        const me = await apiFetch<{ profile: { id: string } }>("/api/profile");
-        const myId = me.data?.profile?.id;
-        if (!myId) return;
-        const sent = (res.data.collabs || [])
-          .filter((r) => r.from_user_id === myId && (r.status === "pending" || r.status === "accepted"))
-          .map((r) => r.to_user_id);
-        setSentIds(new Set(sent));
-      }
-    };
-    loadSent();
-  }, []);
 
+  // Redirect stale ?request= links (old deep-link format) to the new dedicated page
   useEffect(() => {
     const requestId = searchParams.get("request");
-    if (!requestId || loading || deepLinkHandled.current) return;
-    if (sentIds.has(requestId)) {
-      deepLinkHandled.current = true;
-      return;
+    if (requestId) {
+      router.replace(`/dashboard/requests/new?to=${requestId}`);
     }
-
-    const target = results.find((r) => r.user_id === requestId);
-    if (target) {
-      deepLinkHandled.current = true;
-      const name =
-        userRole === "business_owner"
-          ? target.profile?.name || "Creator"
-          : target.company_name || target.profile?.name || "Business";
-      openModal(requestId, name);
-      return;
-    }
-
-    deepLinkHandled.current = true;
-    (async () => {
-      const res = await apiFetch<{ results: DiscoverResult[] }>(`/api/discover?id=${requestId}`);
-      const t = res.data?.results?.[0];
-      if (t) {
-        const name =
-          userRole === "business_owner"
-            ? t.profile?.name || "Creator"
-            : t.company_name || t.profile?.name || "Business";
-        openModal(requestId, name);
-      }
-    })();
-  }, [loading, results, searchParams, sentIds, userRole]);
-
-  useEffect(() => {
-    const requestId = searchParams.get("request");
-    if (!requestId) router.replace("/dashboard");
   }, [searchParams, router]);
 
   const loadMore = async () => {
