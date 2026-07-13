@@ -95,7 +95,26 @@ export const RegisterProfileSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   location: z.string().optional(),
-}).passthrough();
+}).passthrough().superRefine((data, ctx) => {
+  if (data.role === 'influencer') {
+    const handles = [
+      data.instagramHandle,
+      data.youtubeHandle,
+      data.twitterHandle,
+      data.facebookHandle,
+      data.linkedinHandle,
+      data.tiktokHandle,
+    ];
+    const hasAtLeastOneHandle = handles.some((h) => h && h.trim().length > 0);
+    if (!hasAtLeastOneHandle) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Influencers must provide at least one social media handle.',
+        path: ['instagramHandle'],
+      });
+    }
+  }
+});
 
 export const SendOtpSchema = z.object({
   email: z.string().email('Invalid email address'),

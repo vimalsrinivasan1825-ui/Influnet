@@ -49,11 +49,8 @@ CREATE POLICY "reviews_update_own"
   USING (from_user_id = auth.uid())
   WITH CHECK (from_user_id = auth.uid());
 
-DROP POLICY IF EXISTS "Users can delete own reviews" ON public.reviews;
-CREATE POLICY "reviews_delete_own"
-  ON public.reviews FOR DELETE
-  TO authenticated
-  USING (from_user_id = auth.uid());
+-- Deletion of reviews is INTENTIONALLY NOT ALLOWED to ensure trust and immutability.
+-- Once a review is posted, it cannot be removed.
 
 CREATE INDEX IF NOT EXISTS idx_reviews_to_user_id ON public.reviews(to_user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_project_id ON public.reviews(project_id);

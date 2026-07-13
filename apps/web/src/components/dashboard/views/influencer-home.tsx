@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal, Stagger } from "@/components/ui/motion";
 import { AreaChart, DonutChart, type ChartConfig } from "@/components/ui/chart";
 import type { InfluencerHomeData } from "./types";
+import { WelcomeModal } from "./welcome-modal";
 
 const earningsConfig: ChartConfig = {
   amount: { label: "Pipeline", color: "var(--brand)" },
@@ -29,6 +30,7 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 sm:p-6">
+      <WelcomeModal username={p.username} />
       {/* Header */}
       <Reveal className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">

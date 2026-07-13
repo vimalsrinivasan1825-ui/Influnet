@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     } else {
       const { data: inf } = await supabase
         .from('influencer_profiles')
-        .select('bio, niche, instagram_handle, youtube_handle, twitter_handle')
+        .select('bio, niche, instagram_handle, youtube_handle, twitter_handle, instagram_followers, youtube_subscribers')
         .eq('user_id', user.id)
         .single();
       const i = inf ?? {};

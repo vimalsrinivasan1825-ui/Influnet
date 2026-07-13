@@ -30,6 +30,8 @@ export interface CreatorProfileInput {
   youtube_handle?: string | null;
   twitter_handle?: string | null;
   phone?: string | null;
+  instagram_followers?: number | null;
+  youtube_subscribers?: number | null;
 }
 
 const URL_RE = /^https?:\/\/[^\s.]+\.[^\s]{2,}$/i;
@@ -89,6 +91,9 @@ export function buildCreatorSignals(p: CreatorProfileInput): VerificationSignals
   }
   const liveCount = Object.values(live).filter(Boolean).length;
   if (liveCount === 0) flags.push('no_social_handles');
+
+  const hasAudience = (p.instagram_followers ?? 0) > 0 || (p.youtube_subscribers ?? 0) > 0;
+  if (!hasAudience) flags.push('no_audience_data_found');
 
   const niche = Array.isArray(p.niche) ? p.niche : [];
   const bio = (p.bio ?? '').toLowerCase();

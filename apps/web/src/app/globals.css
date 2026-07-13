@@ -178,7 +178,7 @@ body {
 }
 
 input, textarea, select {
-  background: #fff;
+  background-color: #fff;
   border: 1px solid #e5e7eb;
   color: #020617;
   border-radius: 0.5rem;
