@@ -545,7 +545,7 @@ function StagePipeline({
   advancing: boolean;
   advanceError: string | null;
   onToggleItem: (item: StageItem, done: boolean) => void;
-  onAdvance: () => void;
+  onAdvance: (stageKey?: string) => void;
   isFinalPayment: boolean;
   myConfirmed: boolean;
   otherConfirmed: boolean;
@@ -555,6 +555,9 @@ function StagePipeline({
   const stage = STAGE_CONFIG[currentIdx];
   const nextStage = STAGE_CONFIG[currentIdx + 1];
   const isComplete = currentStage === 'project_completed';
+  // 'sent_for_review' forks: the reviewer either sends the draft back for
+  // revisions or approves it straight to final approval.
+  const isReviewFork = currentStage === 'sent_for_review';
 
   const roleLabel = (r: string) => (r === 'business' ? 'Client' : r === 'creator' ? 'Creator' : 'Both');
 
@@ -655,9 +658,36 @@ function StagePipeline({
                   {' '}Both must confirm to complete the project.
                 </span>
               </>
+            ) : isReviewFork ? (
+              <>
+                <div className="flex w-full flex-col gap-1.5 lg:flex-row lg:justify-end">
+                  <Button variant="surface" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance('revisions')} className="w-full lg:w-auto">
+                    {advancing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                    Request revisions
+                  </Button>
+                  <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance('final_approval')} className="w-full lg:w-auto">
+                    {advancing ? <Loader2 className="animate-spin" /> : <ThumbsUp />}
+                    Approve draft
+                  </Button>
+                </div>
+                {canToggleStage ? (
+                  <span className="text-right text-[0.6875rem] text-content-muted">
+                    Review the draft — send it back for changes, or approve it to move to final approval.
+                  </span>
+                ) : (
+                  <span className="text-right text-[0.6875rem] text-content-muted">
+                    Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to review the draft.
+                  </span>
+                )}
+                {canToggleStage && !canAdvance && (
+                  <span className="text-right text-[0.6875rem] text-warn">
+                    Finish the required steps above first.
+                  </span>
+                )}
+              </>
             ) : (
               <>
-                <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={onAdvance} className="w-full lg:w-auto">
+                <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance()} className="w-full lg:w-auto">
                   {advancing ? <Loader2 className="animate-spin" /> : <ChevronRight />}
                   {nextStage ? `Advance to ${nextStage.label}` : 'Advance'}
                 </Button>
@@ -798,14 +828,14 @@ export default function ProjectKanbanPage() {
     } catch (e) { console.error(e); await fetchData(); }
   };
 
-  const handleAdvance = async () => {
+  const handleAdvance = async (stageKey?: string) => {
     if (!currentStage) return;
     setAdvancing(true);
     setAdvanceError(null);
     try {
       const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ action: 'advance' }),
+        body: JSON.stringify(stageKey ? { action: 'advance', stage_key: stageKey } : { action: 'advance' }),
       });
       if (res.ok && res.data) { setProject(res.data.project); }
       else { setAdvanceError(res.error || 'Could not advance to the next stage.'); }

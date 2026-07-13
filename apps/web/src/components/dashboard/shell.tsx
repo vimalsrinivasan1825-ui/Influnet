@@ -23,7 +23,7 @@ const THEME_CLASS: Record<UserRole, string> = {
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, token, setUser, setToken, setLoading } = useAuthStore();
-  const { summary, setSummary, addNotification } = useNotificationStore();
+  const { summary, setSummary, setUnreadMessages, addNotification } = useNotificationStore();
   const [role, setRole] = useState<UserRole | null>(null);
   const [userName, setUserName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -119,7 +119,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           });
           if (notifRes.ok) {
             const notifData = await notifRes.json();
-            setSummary(notifData);
+            // The message count is owned by the Stream effect below; the server
+            // always returns 0 for it, so don't let this clobber a live count.
+            setSummary({
+              ...notifData,
+              unread_messages_count:
+                useNotificationStore.getState().summary.unread_messages_count,
+            });
           }
         }
       } catch (error) {
@@ -137,19 +143,35 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     const sb = createClient();
 
     let streamClient: StreamChat | null = null;
+    let cancelled = false;
 
-    const fetchSummary = async () => {
+    // Refresh the notification + pending-request counts from our API, while
+    // preserving the Stream-owned message count so it isn't stomped by the
+    // server's hardcoded 0.
+    const refreshSummary = async () => {
       try {
         const notifRes = await apiFetch<any>("/api/notifications/summary");
         if (notifRes.ok && notifRes.data) {
           setSummary({
             ...notifRes.data,
-            unread_messages_count: (streamClient?.user as { total_unread_count?: number } | undefined)?.total_unread_count || 0
+            unread_messages_count:
+              useNotificationStore.getState().summary.unread_messages_count,
           });
         }
       } catch (err) {
         console.error("Failed to update notifications summary:", err);
       }
+    };
+
+    // Push the live Stream unread total into the store. Prefer the count on the
+    // event payload, falling back to the connected user's tracked total.
+    const syncMessageCount = (event?: { total_unread_count?: number }) => {
+      const count =
+        event?.total_unread_count ??
+        (streamClient?.user as { total_unread_count?: number } | undefined)
+          ?.total_unread_count ??
+        0;
+      setUnreadMessages(count);
     };
 
     const channel = sb
@@ -164,7 +186,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         },
         (payload) => {
           addNotification(payload.new as NotificationItem);
-          fetchSummary();
+          refreshSummary();
         },
       )
       .subscribe();
@@ -175,21 +197,29 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         if (!streamKey) return;
 
         streamClient = StreamChat.getInstance(streamKey);
-        if (streamClient.userID === user.id) return;
 
-        const res = await apiFetch<{ token: string }>("/api/stream/token", {
-          method: "POST",
-        });
-        if (!res.ok || !res.data) return;
-        const { token: streamToken } = res.data;
-
-        if (streamToken) {
-          await streamClient.connectUser({ id: user.id }, streamToken);
-          streamClient.on("notification.message_new", fetchSummary);
-          streamClient.on("notification.mark_read", fetchSummary);
-          streamClient.on("message.new", fetchSummary);
-          streamClient.on("message.read", fetchSummary);
+        // The Stream client is a shared singleton (the Messages page uses it
+        // too). Only (re)connect if it isn't already this user — but ALWAYS
+        // attach the listeners and do an initial read below, so the badge stays
+        // live even when the connection was opened elsewhere.
+        if (streamClient.userID !== user.id) {
+          const res = await apiFetch<{ token: string }>("/api/stream/token", {
+            method: "POST",
+          });
+          if (!res.ok || !res.data?.token) return;
+          if (streamClient.userID) await streamClient.disconnectUser();
+          await streamClient.connectUser({ id: user.id }, res.data.token);
         }
+        if (cancelled) return;
+
+        // Reconcile the badge with the real unread total right after connecting,
+        // so pre-existing unread messages show up without opening the module.
+        syncMessageCount();
+
+        streamClient.on("notification.message_new", syncMessageCount);
+        streamClient.on("notification.mark_read", syncMessageCount);
+        streamClient.on("message.new", syncMessageCount);
+        streamClient.on("message.read", syncMessageCount);
       } catch (err) {
         console.error("Failed to init Stream Chat for notifications:", err);
       }
@@ -197,16 +227,18 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     initStream();
 
     return () => {
+      cancelled = true;
       sb.removeChannel(channel);
       if (streamClient) {
-        streamClient.off("notification.message_new", fetchSummary);
-        streamClient.off("notification.mark_read", fetchSummary);
-        streamClient.off("message.new", fetchSummary);
-        streamClient.off("message.read", fetchSummary);
-        streamClient.disconnectUser();
+        streamClient.off("notification.message_new", syncMessageCount);
+        streamClient.off("notification.mark_read", syncMessageCount);
+        streamClient.off("message.new", syncMessageCount);
+        streamClient.off("message.read", syncMessageCount);
+        // Do NOT disconnectUser here: the Messages page shares this singleton
+        // connection, and disconnecting would break its live chat.
       }
     };
-  }, [user?.id, token, setSummary, addNotification]);
+  }, [user?.id, token, setSummary, setUnreadMessages, addNotification]);
 
   const themeClass = role ? THEME_CLASS[role] : "theme-brand";
 

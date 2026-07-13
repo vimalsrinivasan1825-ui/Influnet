@@ -2,13 +2,12 @@ import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Database, UserRole } from '@/types';
+import { logger } from './logger';
 
 export function jsonError(status: number, publicMessage: string, error?: any) {
-  if (error) {
-    console.error(`[API Error ${status}] ${publicMessage}:`, error);
-  } else {
-    console.error(`[API Error ${status}] ${publicMessage}`);
-  }
+  // 5xx are server faults (error); 4xx are expected client errors (warn).
+  const level = status >= 500 ? 'error' : 'warn';
+  logger[level](publicMessage, { status, ...(error != null ? { err: error } : {}) });
   return NextResponse.json({ error: publicMessage }, { status });
 }
 
