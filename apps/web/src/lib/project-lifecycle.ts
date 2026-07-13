@@ -38,9 +38,9 @@ export const STAGE_ACTOR: Record<Stage, 'business' | 'creator' | 'either'> = {
   content_planning: 'creator',
   content_confirmation: 'business', // brand approves the concept
   shooting_in_progress: 'creator',
-  editing_in_progress: 'creator',
-  sent_for_review: 'creator', // creator submits the draft
-  revisions: 'creator',
+  editing_in_progress: 'creator', // creator finishes editing and submits the draft
+  sent_for_review: 'business', // brand reviews the draft: request revisions OR approve
+  revisions: 'creator', // creator reworks and resubmits
   final_approval: 'business', // brand approves final content
   final_payment: 'business', // payer confirms final payment
   project_completed: 'either',
