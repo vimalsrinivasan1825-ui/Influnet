@@ -50,6 +50,9 @@ export default async function PublicProfilePage({
   const [{ username }, sp] = await Promise.all([params, searchParams]);
   const profile = await getProfile(username);
   if (!profile) notFound();
+  // profileId is guaranteed string from here — userId is marked optional in the type
+  // but the RPC always populates it. Bail out defensively if somehow it is missing.
+  if (!profile.userId) notFound();
 
   // Viewer (for owner detection + CTA).
   const rsc = await createRSCClient();

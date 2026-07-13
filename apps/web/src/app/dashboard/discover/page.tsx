@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Check, Globe, MapPin, Rocket, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -48,6 +48,9 @@ function DiscoverContent() {
   const [modal, setModal] = useState<ModalState>({ open: false, targetId: "", targetName: "" });
   const [form, setForm] = useState({ title: "", budget: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   const [roleLoading, setRoleLoading] = useState(true);
 
@@ -90,7 +93,6 @@ function DiscoverContent() {
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [niche, setNiche] = useState(searchParams.get("niche") || "");
   const [location, setLocation] = useState(searchParams.get("location") || "");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const buildParams = useCallback(
     (cursor?: string | null) => {
@@ -152,6 +154,27 @@ function DiscoverContent() {
       router.replace(`/dashboard/requests/new?to=${requestId}`);
     }
   }, [searchParams, router]);
+
+  // Track which user IDs this business owner already sent a request to (for grid badges).
+  useEffect(() => {
+    const loadSent = async () => {
+      const res = await apiFetch<{
+        collabs: { from_user_id: string; to_user_id: string; status: string }[];
+      }>("/api/collabs");
+      if (res.ok && res.data) {
+        const sb = createClient();
+        const { data: { session } } = await sb.auth.getSession();
+        const myId = session?.user?.id;
+        if (!myId) return;
+        const sent = (res.data.collabs || [])
+          .filter((r) => r.from_user_id === myId && (r.status === "pending" || r.status === "accepted"))
+          .map((r) => r.to_user_id);
+        setSentIds(new Set(sent));
+      }
+    };
+    loadSent();
+  }, []);
+
 
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return;
