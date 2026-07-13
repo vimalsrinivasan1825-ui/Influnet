@@ -105,7 +105,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               router.push("/dashboard");
             }
           }
-        } else if (!stored) {
+        } else {
+          localStorage.removeItem("influnet_user");
+          setUser(null);
+          setToken(null);
           router.push("/login");
           return;
         }

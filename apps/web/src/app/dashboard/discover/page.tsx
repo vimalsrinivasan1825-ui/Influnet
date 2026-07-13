@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Check, Globe, MapPin, Rocket, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { createClient } from "@/lib/supabase/client";
 import { NICHES } from "@/lib/constants";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,44 @@ function DiscoverContent() {
   const [submitting, setSubmitting] = useState(false);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const deepLinkHandled = useRef(false);
+
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        const sb = createClient();
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) {
+          router.replace("/login");
+          return;
+        }
+
+        const { data: profile, error: profileErr } = await sb
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        if (profileErr || !profile) {
+          router.replace("/login");
+          return;
+        }
+
+        const r = (profile as any).role;
+        if (r !== "business_owner" && r !== "admin") {
+          router.replace("/dashboard/influencer");
+          return;
+        }
+
+        setRoleLoading(false);
+      } catch (e) {
+        console.error("Error checking role:", e);
+        router.replace("/dashboard");
+      }
+    };
+    checkUserRole();
+  }, [router]);
 
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [niche, setNiche] = useState(searchParams.get("niche") || "");
@@ -226,6 +265,18 @@ function DiscoverContent() {
       setSubmitting(false);
     }
   };
+
+  if (roleLoading) {
+    return (
+      <div className="mx-auto max-w-7xl p-4 sm:p-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-56 w-full rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const isCreatorView = userRole === "business_owner";
   const hasFilters = !!(query.trim() || niche || location.trim());
