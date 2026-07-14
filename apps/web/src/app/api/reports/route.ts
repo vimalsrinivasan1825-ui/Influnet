@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const ReportSchema = z.object({
@@ -15,6 +16,10 @@ export async function POST(req: Request) {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
+
+    // Guard the abuse-report queue against flooding.
+    const limited = await enforceRateLimit(req, { bucket: 'reports:create', limit: 10, windowMs: 60_000, key: user.id });
+    if (limited) return limited;
 
     let body;
     try {

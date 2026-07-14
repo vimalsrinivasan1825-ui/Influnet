@@ -52,6 +52,21 @@ const envSchema = z.object({
 
   // Observability — optional.
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
+  SENTRY_DSN: z.string().optional(),
+
+  // Distributed rate limiting — optional. Absent → limiter uses an in-process
+  // fixed-window floor (fine for single instance; NOT correct across serverless
+  // instances). Present → shared counters across all instances.
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+
+  // Live Instagram verification providers — optional. Absent → verification
+  // falls back to structural-only signals + human review (never blocks access).
+  // Provider is chosen by VERIFICATION_PROVIDER, else auto (prefers Apify).
+  VERIFICATION_PROVIDER: z.enum(['apify', 'hikerapi']).optional(),
+  APIFY_TOKEN: z.string().optional(),
+  HIKERAPI_ACCESS_KEY: z.string().optional(),
+  HIKERAPI_BASE_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -156,7 +171,24 @@ export function describeEnv(): {
     },
     {
       label: 'Sentry',
-      value: present('NEXT_PUBLIC_SENTRY_DSN') ? 'enabled' : 'disabled',
+      value: present('NEXT_PUBLIC_SENTRY_DSN') || present('SENTRY_DSN') ? 'enabled' : 'disabled',
+      ok: true,
+    },
+    {
+      label: 'Rate limiting',
+      value:
+        present('UPSTASH_REDIS_REST_URL') && present('UPSTASH_REDIS_REST_TOKEN')
+          ? 'distributed (Upstash)'
+          : 'in-process floor',
+      ok: true,
+    },
+    {
+      label: 'Verification provider',
+      value: present('APIFY_TOKEN')
+        ? `Apify${process.env.VERIFICATION_PROVIDER ? ` (pinned: ${process.env.VERIFICATION_PROVIDER})` : ''}`
+        : present('HIKERAPI_ACCESS_KEY')
+          ? 'HikerAPI'
+          : 'disabled (structural-only)',
       ok: true,
     },
   ];

@@ -3,11 +3,16 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Database, UserRole } from '@/types';
 import { logger } from './logger';
+import { captureException } from './observability';
 
 export function jsonError(status: number, publicMessage: string, error?: any) {
   // 5xx are server faults (error); 4xx are expected client errors (warn).
   const level = status >= 500 ? 'error' : 'warn';
   logger[level](publicMessage, { status, ...(error != null ? { err: error } : {}) });
+  // Report server faults to Sentry (no-op unless a DSN is configured).
+  if (status >= 500) {
+    captureException(error ?? new Error(publicMessage), { tags: { status } });
+  }
   return NextResponse.json({ error: publicMessage }, { status });
 }
 

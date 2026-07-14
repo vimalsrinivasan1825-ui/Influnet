@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { CollabRequestSchema } from '@/lib/validators';
 import { z } from 'zod';
 
@@ -43,6 +44,10 @@ export async function POST(req: Request) {
     const auth = await withAuth(req, { role: 'business_owner' });
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
+
+    // Guard against collab-request spam (one business blasting many creators).
+    const limited = await enforceRateLimit(req, { bucket: 'collabs:create', limit: 20, windowMs: 60_000, key: user.id });
+    if (limited) return limited;
 
     let body;
     try {

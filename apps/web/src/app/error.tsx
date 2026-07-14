@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { captureException } from '@/lib/observability';
 
 export default function ErrorPage({
   error,
@@ -11,8 +12,9 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service if available
     console.error('Unhandled app-level error:', error);
+    // Report to Sentry (no-op unless NEXT_PUBLIC_SENTRY_DSN is configured).
+    captureException(error, { tags: { boundary: 'app-error', ...(error.digest ? { digest: error.digest } : {}) } });
   }, [error]);
 
   return (
