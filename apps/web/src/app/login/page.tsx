@@ -24,6 +24,9 @@ function LoginContent() {
     const n = searchParams.get("next");
     return n && n.startsWith("/") && !n.startsWith("//") ? n : null;
   })();
+  // Reflected from the URL (e.g. the "check your email" hint after signup).
+  // React escapes it, but cap the length so it can't be abused for phishing.
+  const message = searchParams.get("message")?.slice(0, 120) || null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -41,11 +44,38 @@ function LoginContent() {
         return;
       }
       if (data.session && data.user) {
+        // Recover a registration that couldn't complete at signup time. When
+        // email confirmation is enabled, signUp returns no session, so the
+        // signup page stashes the payload and we replay it on first login.
+        // register_profile is idempotent (ON CONFLICT), so this is safe.
+        try {
+          const pending = localStorage.getItem("influnet_pending_registration");
+          if (pending) {
+            const res = await fetch("/api/auth/register", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${data.session.access_token}`,
+              },
+              body: pending,
+            });
+            if (res.ok) {
+              localStorage.removeItem("influnet_pending_registration");
+              void fetch("/api/verification", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${data.session.access_token}` },
+              }).catch(() => {});
+            }
+          }
+        } catch {
+          /* best-effort; fall through to normal routing */
+        }
+
         const { data: profile } = await sb
           .from("profiles")
           .select("role")
           .eq("id", data.user.id)
-          .single();
+          .maybeSingle();
         const role = (profile as { role?: string } | null)?.role;
         if (role === "influencer") router.push(nextParam || "/dashboard/influencer");
         else if (role === "admin") router.push(nextParam || "/dashboard/admin");
@@ -83,6 +113,11 @@ function LoginContent() {
         </div>
 
         <div className="rounded-3xl border border-hairline bg-surface-card p-8 shadow-[var(--shadow-raised)]">
+          {message && !error && (
+            <div className="mb-5 rounded-xl border border-brand/20 bg-brand-soft px-4 py-3 text-sm font-semibold text-brand-strong">
+              {message}
+            </div>
+          )}
           {error && (
             <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
               <AlertTriangle className="size-4 shrink-0" />

@@ -75,7 +75,7 @@ export default async function MediaKitPage({
   const viewerRole = (viewerRes.data as { role: string } | null)?.role;
   const isOwner = !!user && user.id === profile.userId;
 
-  let ctaHref = `/signup/business?next=/c/${username}/media-kit`;
+  let ctaHref = `/signup?next=/c/${username}/media-kit`;
   let ctaLabel = 'Work with me';
   if (isOwner) {
     ctaHref = '/dashboard/settings';

@@ -71,8 +71,10 @@ export default async function PublicProfilePage({
     .rpc('record_profile_view', { p_influencer_user_id: profile.userId, p_viewer_user_id: user?.id || null })
     .then(() => {}, () => {});
 
-  // Primary CTA.
-  let ctaHref = `/signup/business?next=/c/${username}`;
+  // Primary CTA. Anonymous visitors land on the entry screen (sign in OR sign
+  // up) rather than straight into business signup — a returning brand may
+  // already have an account and just needs to sign in.
+  let ctaHref = `/signup?next=/c/${username}`;
   let ctaLabel = 'Work with me';
   if (isOwner) {
     ctaHref = '/dashboard/settings';

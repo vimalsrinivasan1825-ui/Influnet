@@ -22,6 +22,15 @@ export async function POST(req: Request) {
     }
     const payload = parsed.data; // role is now guaranteed: business_owner | influencer
 
+    // SECURITY: never let the client set its own approval status. The schema
+    // accepts (and .passthrough() would forward) `approvalStatus`, and the
+    // register_profile RPC reads it — so without this strip a caller could POST
+    // `approvalStatus: 'approved'` and self-approve their business, bypassing
+    // admin review. Approval is server-authoritative only (admin flow / RPC).
+    if ('approvalStatus' in payload) {
+      delete (payload as Record<string, unknown>).approvalStatus;
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

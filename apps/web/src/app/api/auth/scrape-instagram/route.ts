@@ -30,7 +30,18 @@ export async function GET(req: Request) {
       return jsonError(404, 'Instagram profile not found');
     }
 
-    return NextResponse.json({ profile });
+    // Data minimization: this route is UNAUTHENTICATED, so only return the few
+    // fields signup actually prefills. The provider payload also carries e.g.
+    // publicEmail / internal ids — never proxy those to anonymous callers.
+    return NextResponse.json({
+      profile: {
+        fullName: profile.fullName ?? null,
+        biography: profile.biography ?? null,
+        followerCount: profile.followerCount ?? null,
+        profilePicUrl: profile.profilePicUrl ?? null,
+        isVerified: profile.isVerified ?? null,
+      },
+    });
   } catch (error: any) {
     if (error instanceof InstagramProviderError) {
       return jsonError(503, `Provider error: ${error.kind}`);

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,13 @@ import { cn } from "@/lib/utils";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 const STEP_LABELS = ["Connect", "Account", "Profile", "Creator", "Collab"];
+
+const compactNum = (n: number): string =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
+    : n >= 1_000
+      ? `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`
+      : String(n);
 
 export default function InfluencerSignupPage() {
   return (
@@ -60,6 +67,7 @@ function InfluencerSignupContent() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectError, setConnectError] = useState("");
   const [followerCount, setFollowerCount] = useState<number | null>(null);
+  const [prefilled, setPrefilled] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -116,6 +124,7 @@ function InfluencerSignupContent() {
         if (data.profile.followerCount !== undefined && data.profile.followerCount !== null) {
           setFollowerCount(data.profile.followerCount);
         }
+        setPrefilled(true);
         setStep(2);
       }
     } catch (err) {
@@ -183,6 +192,12 @@ function InfluencerSignupContent() {
         }).catch(() => {});
         router.push(nextParam);
       } else {
+        // Email confirmation required: no session yet, so register_profile can't
+        // run now. Stash the payload so login can replay it once confirmed —
+        // otherwise all of this wizard's data would be lost.
+        try {
+          localStorage.setItem("influnet_pending_registration", JSON.stringify(payload));
+        } catch { /* ignore */ }
         router.push(
           `/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`,
         );
@@ -247,6 +262,16 @@ function InfluencerSignupContent() {
           {error && (
             <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
               <AlertTriangle className="size-4 shrink-0" /> {error}
+            </div>
+          )}
+
+          {prefilled && step >= 2 && step <= 4 && (
+            <div className="mb-5 flex items-start gap-2 rounded-xl border border-brand/20 bg-brand-soft px-4 py-3 text-sm font-semibold text-brand-strong">
+              <Sparkles className="mt-0.5 size-4 shrink-0" />
+              <span>
+                We pre-filled your details from Instagram
+                {followerCount ? ` · ${compactNum(followerCount)} followers` : ""}. Review and edit anything below.
+              </span>
             </div>
           )}
 
@@ -460,7 +485,9 @@ function InfluencerSignupContent() {
             </div>
           )}
 
-          <div className="mt-6 flex gap-3">
+          {/* Step 1 owns its own actions (Auto-fill / Skip and fill manually),
+              so the shared nav row only appears from step 2 onward. */}
+          <div className={cn("mt-6 gap-3", step === 1 ? "hidden" : "flex")}>
             {step > 1 && (
               <Button variant="surface" size="xl" className="flex-1" onClick={() => setStep((step - 1) as Step)}>
                 Back
@@ -468,7 +495,7 @@ function InfluencerSignupContent() {
             )}
             {step < 5 ? (
               <Button variant="brand" size="xl" className="flex-1" disabled={!canProceed()} onClick={() => setStep((step + 1) as Step)}>
-                {step === 1 ? "Skip" : "Continue"}
+                Continue
               </Button>
             ) : (
               <Button variant="brand" size="xl" className="flex-1" disabled={isLoading || !canProceed()} onClick={handleSubmit}>

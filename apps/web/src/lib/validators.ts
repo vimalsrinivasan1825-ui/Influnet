@@ -70,7 +70,10 @@ export const RegisterProfileSchema = z.object({
   registeredAddress: z.string().optional(),
   marketingBudget: z.string().optional(),
   businessUsername: z.string().optional(),
-  approvalStatus: z.string().optional(),
+  // NOTE: approvalStatus is deliberately NOT accepted here — approval is
+  // server-authoritative (admin flow / register_profile always inserts
+  // 'pending_review'). The register route also strips it defensively because
+  // this schema uses .passthrough().
   collabPreferences: z.array(z.string()).optional(),
   instagramHandle: z.string().optional(),
   facebookHandle: z.string().optional(),

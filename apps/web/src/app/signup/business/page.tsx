@@ -108,6 +108,12 @@ function BusinessSignupContent() {
         }).catch(() => {});
         router.push(nextParam);
       } else {
+        // Email confirmation required: no session yet, so register_profile can't
+        // run now. Stash the payload so login can replay it once confirmed —
+        // otherwise all of this wizard's data would be lost.
+        try {
+          localStorage.setItem("influnet_pending_registration", JSON.stringify(payload));
+        } catch { /* ignore */ }
         router.push(
           `/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`,
         );
