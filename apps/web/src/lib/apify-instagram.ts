@@ -10,7 +10,12 @@
 // so verification-live.ts can consume either provider without branching.
 
 import { logger } from './logger';
-import { HikerApiError, normalizeHandle, type HikerInstagramUser } from './hikerapi';
+import {
+  HikerApiError,
+  normalizeHandle,
+  type HikerInstagramUser,
+  type InstagramRecentPost,
+} from './hikerapi';
 
 const ACTOR = 'apify~instagram-profile-scraper';
 const APIFY_BASE = 'https://api.apify.com/v2';
@@ -104,7 +109,36 @@ export async function getInstagramUser(username: string): Promise<HikerInstagram
     publicEmail: u.public_email ?? null, // not provided by this actor; kept for shape parity
     categoryName: u.businessCategoryName ?? null,
     lastPostDaysAgo: daysSince(latest?.timestamp),
+    profilePicUrl: u.profilePicUrlHD ?? u.profilePicUrl ?? null,
+    recentPosts: mapRecentPosts(u.latestPosts),
   };
+}
+
+/** Map the actor's `latestPosts` array to the shared recent-post shape. */
+function mapRecentPosts(raw: unknown): InstagramRecentPost[] {
+  if (!Array.isArray(raw)) return [];
+  const posts: InstagramRecentPost[] = [];
+  for (const p of raw) {
+    if (!p || typeof p !== 'object') continue;
+    const shortcode = typeof p.shortCode === 'string' ? p.shortCode : null;
+    const url = typeof p.url === 'string' ? p.url : shortcode ? `https://www.instagram.com/p/${shortcode}/` : null;
+    if (!shortcode || !url) continue;
+    const type = p.type === 'Video' || p.type === 'Sidecar' ? p.type : 'Image';
+    posts.push({
+      url,
+      shortcode,
+      type,
+      // Trim captions: they're display hints, not content storage.
+      caption: typeof p.caption === 'string' ? p.caption.slice(0, 200) : null,
+      likes: toNum(p.likesCount),
+      comments: toNum(p.commentsCount),
+      views: toNum(p.videoViewCount),
+      takenAt: typeof p.timestamp === 'string' ? p.timestamp : null,
+      displayUrl: typeof p.displayUrl === 'string' ? p.displayUrl : null,
+      pinned: Boolean(p.isPinned),
+    });
+  }
+  return posts;
 }
 
 /**

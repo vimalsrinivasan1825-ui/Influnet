@@ -122,3 +122,63 @@ describe('buildCreatorProfileView — real mode', () => {
     expect(minimal.platforms).toEqual([]);
   });
 });
+
+describe('buildCreatorProfileView — live Instagram snapshot', () => {
+  const snapshot = {
+    followerCount: 87_752_956,
+    postsCount: 489,
+    avgViews: 7_593_774,
+    engagementRate: 3.3,
+    isVerified: true,
+    profilePicUrl: 'https://cdn.example/social-cache/ig/u1/profile.jpg',
+    fetchedAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    posts: [
+      { url: 'https://www.instagram.com/p/AAA/', thumbUrl: 'https://cdn.example/a.jpg', views: null, likes: 5_795_006, type: 'Sidecar' },
+      { url: 'https://www.instagram.com/p/BBB/', thumbUrl: 'https://cdn.example/b.jpg', views: 8_429_166, likes: 1_095_815, type: 'Video' },
+      { url: 'https://www.instagram.com/p/CCC/', thumbUrl: null, views: 100, likes: 5, type: 'Video' },
+      { url: 'https://www.instagram.com/p/DDD/', thumbUrl: 'https://cdn.example/d.jpg', views: null, likes: 719_888, type: 'Sidecar' },
+    ],
+  };
+
+  it('overrides mock mode entirely when a snapshot exists', () => {
+    const view = buildCreatorProfileView(baseProfile, { useMock: true, instagram: snapshot });
+    expect(view.usingMock).toBe(false);
+    const ig = view.platforms.find((p) => p.platform === 'instagram');
+    expect(ig?.stats.find((s) => s.label === 'Followers')?.value).toBe('87.8M');
+    expect(ig?.stats.find((s) => s.label === 'Posts')?.value).toBe('489');
+    expect(ig?.stats.find((s) => s.label === 'Avg views')?.value).toBe('7.6M');
+    expect(ig?.note).toMatch(/^Live from Instagram · updated 2h ago$/);
+    expect(ig?.connected).toBe(true);
+  });
+
+  it('links real thumbnails to the original posts, skipping thumb-less ones', () => {
+    const view = buildCreatorProfileView(baseProfile, { useMock: false, instagram: snapshot });
+    const ig = view.platforms.find((p) => p.platform === 'instagram');
+    expect(ig?.content.length).toBe(3);
+    expect(ig?.content.map((c) => c.href)).toEqual([
+      'https://www.instagram.com/p/AAA/',
+      'https://www.instagram.com/p/BBB/',
+      'https://www.instagram.com/p/DDD/', // CCC has no cached thumb
+    ]);
+    // views label prefers video views, falls back to likes
+    expect(ig?.content[0].views).toBe('5.8M');
+    expect(ig?.content[1].views).toBe('8.4M');
+  });
+
+  it('shows the real engagement chip and snapshot-driven reach', () => {
+    const view = buildCreatorProfileView(baseProfile, { useMock: false, instagram: snapshot });
+    expect(view.heroStats.find((s) => s.label === 'Engagement')?.value).toBe('3.3%');
+    // reach = snapshot followers + youtube subs = 87,845,356
+    expect(view.heroStats.find((s) => s.label === 'Total reach')?.value).toBe('87.8M');
+  });
+
+  it('falls back to the cached profile pic when no avatar is set', () => {
+    const view = buildCreatorProfileView(baseProfile, { useMock: false, instagram: snapshot });
+    expect(view.avatarUrl).toBe('https://cdn.example/social-cache/ig/u1/profile.jpg');
+    const withAvatar = buildCreatorProfileView(
+      { ...baseProfile, avatarUrl: 'https://example.com/me.jpg' },
+      { useMock: false, instagram: snapshot },
+    );
+    expect(withAvatar.avatarUrl).toBe('https://example.com/me.jpg');
+  });
+});

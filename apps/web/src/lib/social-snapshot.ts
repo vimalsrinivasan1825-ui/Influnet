@@ -1,0 +1,201 @@
+// Social snapshot capture — persists the rich Instagram payload the verification
+// scrape already paid for, so the public profile can show REAL analytics.
+//
+// What gets stored (see migration 060):
+//   - social_snapshots row: followers, posts count, avg views, engagement rate,
+//     recent posts (permanent instagram.com links + our own cached thumbnails)
+//   - social-cache bucket: thumbnail/profile-pic images, downloaded at capture
+//     time because Instagram CDN URLs are signed and expire after days
+//
+// INVARIANTS
+//  - Never throws: snapshot capture is a best-effort side effect of verification;
+//    any failure is logged and swallowed so it can never break a verification run.
+//  - SERVER-ONLY: uses the service-role key (bucket + table writes bypass RLS).
+
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { logger } from './logger';
+import type { HikerInstagramUser, InstagramRecentPost } from './hikerapi';
+
+/** How many recent posts to keep in the snapshot / cache thumbnails for. */
+const MAX_POSTS = 12;
+const MAX_THUMBS = 6;
+const IMAGE_TIMEOUT_MS = 8_000;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // matches the bucket's file_size_limit
+
+export interface InstagramMetrics {
+  postsCount: number | null;
+  /** Mean video view count across recent video posts; null when none have views. */
+  avgViews: number | null;
+  /** avg(likes+comments) per recent post / followers, as a percentage (1 decimal). */
+  engagementRate: number | null;
+}
+
+/**
+ * Pure metric computation from a scraped profile. Pinned posts are included —
+ * they're what visitors actually see first on the account.
+ */
+export function computeInstagramMetrics(user: HikerInstagramUser): InstagramMetrics {
+  const posts = user.recentPosts ?? [];
+
+  const viewCounts = posts
+    .map((p) => p.views)
+    .filter((v): v is number => typeof v === 'number' && v > 0);
+  const avgViews = viewCounts.length
+    ? Math.round(viewCounts.reduce((a, b) => a + b, 0) / viewCounts.length)
+    : null;
+
+  let engagementRate: number | null = null;
+  const followers = user.followerCount ?? 0;
+  const engaged = posts
+    .map((p) => (p.likes ?? 0) + (p.comments ?? 0))
+    .filter((n) => n > 0);
+  if (followers > 0 && engaged.length > 0) {
+    const avgEngaged = engaged.reduce((a, b) => a + b, 0) / engaged.length;
+    engagementRate = Math.round((avgEngaged / followers) * 1000) / 10; // 1 decimal, in %
+  }
+
+  return { postsCount: user.mediaCount ?? null, avgViews, engagementRate };
+}
+
+function serviceClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+/** Public URL for a path inside the social-cache bucket. */
+export function socialCachePublicUrl(path: string): string {
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+  return `${base}/storage/v1/object/public/social-cache/${path}`;
+}
+
+/** Download an image (size- and time-capped). Returns null on any failure. */
+async function fetchImage(url: string): Promise<{ bytes: ArrayBuffer; contentType: string } | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), IMAGE_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') ?? 'image/jpeg';
+    if (!contentType.startsWith('image/')) return null;
+    const bytes = await res.arrayBuffer();
+    if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES) return null;
+    return { bytes, contentType };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Download + upload one image into social-cache. Returns the storage path or null. */
+async function cacheImage(
+  admin: SupabaseClient,
+  sourceUrl: string,
+  path: string,
+): Promise<string | null> {
+  const img = await fetchImage(sourceUrl);
+  if (!img) return null;
+  const { error } = await admin.storage
+    .from('social-cache')
+    .upload(path, img.bytes, { contentType: img.contentType, upsert: true });
+  if (error) {
+    logger.warn('social-snapshot: image upload failed (non-fatal)', { path, error: error.message });
+    return null;
+  }
+  return path;
+}
+
+/**
+ * Persist an Instagram snapshot for a user from an already-fetched profile.
+ * Fire-and-forget semantics: logs and returns false on failure, never throws.
+ */
+export async function captureInstagramSnapshot(
+  userId: string,
+  user: HikerInstagramUser,
+): Promise<boolean> {
+  try {
+    const admin = serviceClient();
+    if (!admin) {
+      logger.warn('social-snapshot: skipped — service role key not configured');
+      return false;
+    }
+    const handle = (user.username ?? '').toLowerCase();
+    if (!handle) return false;
+
+    const metrics = computeInstagramMetrics(user);
+    const posts = (user.recentPosts ?? []).slice(0, MAX_POSTS);
+
+    // Cache thumbnails for the first few posts + the profile pic, in parallel.
+    // Shortcode-based paths make refreshes overwrite naturally.
+    const thumbJobs = posts.slice(0, MAX_THUMBS).map((p, i) =>
+      p.displayUrl
+        ? cacheImage(admin, p.displayUrl, `ig/${userId}/${p.shortcode}.jpg`).then((path) => ({ i, path }))
+        : Promise.resolve({ i, path: null as string | null }),
+    );
+    const avatarJob = user.profilePicUrl
+      ? cacheImage(admin, user.profilePicUrl, `ig/${userId}/profile.jpg`)
+      : Promise.resolve(null);
+    const [thumbs, profilePicPath] = await Promise.all([Promise.all(thumbJobs), avatarJob]);
+
+    const thumbPathByIndex = new Map(thumbs.map((t) => [t.i, t.path]));
+    const recentPosts = posts.map((p, i) => ({
+      url: p.url,
+      shortcode: p.shortcode,
+      type: p.type,
+      caption: p.caption,
+      likes: p.likes,
+      comments: p.comments,
+      views: p.views,
+      taken_at: p.takenAt,
+      thumb_path: thumbPathByIndex.get(i) ?? null,
+      pinned: p.pinned,
+    }));
+
+    const { error: upsertErr } = await admin.from('social_snapshots').upsert(
+      {
+        user_id: userId,
+        platform: 'instagram',
+        handle,
+        follower_count: user.followerCount,
+        posts_count: metrics.postsCount,
+        avg_views: metrics.avgViews,
+        engagement_rate: metrics.engagementRate,
+        is_verified: user.isVerified,
+        profile_pic_path: profilePicPath,
+        recent_posts: recentPosts,
+        fetched_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,platform' },
+    );
+    if (upsertErr) {
+      logger.warn('social-snapshot: upsert failed (non-fatal)', { userId, error: upsertErr.message });
+      return false;
+    }
+
+    // Keep the creator's profile row in step with reality: refresh the follower
+    // count, and fill the avatar from the cached profile pic when none is set.
+    const { data: prof } = await admin
+      .from('influencer_profiles')
+      .select('avatar_url')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const updates: Record<string, unknown> = {};
+    if (user.followerCount != null) updates.instagram_followers = user.followerCount;
+    if (prof && !prof.avatar_url && profilePicPath) {
+      updates.avatar_url = socialCachePublicUrl(profilePicPath);
+    }
+    if (Object.keys(updates).length > 0) {
+      await admin.from('influencer_profiles').update(updates).eq('user_id', userId);
+    }
+
+    return true;
+  } catch (err) {
+    logger.warn('social-snapshot: capture failed (non-fatal)', {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}

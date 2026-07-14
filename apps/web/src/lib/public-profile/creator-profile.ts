@@ -20,6 +20,8 @@ export interface PlatformContentItem {
   views: string;
   /** Video duration for YouTube, e.g. "12:04". */
   duration?: string;
+  /** Permanent link to the original post; renders the thumbnail as a link. */
+  href?: string | null;
 }
 
 export interface PlatformCardView {
@@ -123,6 +125,43 @@ function locationOf(profile: RawPublicProfile): string | null {
   return profile.location ?? null;
 }
 
+// ── Real analytics — captured social snapshot (see lib/social-snapshot.ts) ─────
+
+/** One recent post, already resolved for display (thumb is a durable public URL). */
+export interface SnapshotPostView {
+  /** Permanent instagram.com post link. */
+  url: string;
+  /** Cached thumbnail public URL (social-cache bucket), or null. */
+  thumbUrl: string | null;
+  views: number | null;
+  likes: number | null;
+  type: string;
+}
+
+/** Instagram analytics snapshot, mapped from a social_snapshots row by the page. */
+export interface InstagramSnapshotView {
+  followerCount: number | null;
+  postsCount: number | null;
+  avgViews: number | null;
+  engagementRate: number | null;
+  isVerified: boolean;
+  /** Cached profile pic public URL, or null. */
+  profilePicUrl: string | null;
+  posts: SnapshotPostView[];
+  fetchedAt: string | null;
+}
+
+function relativeAge(iso: string | null): string {
+  if (!iso) return 'recently';
+  const ms = Date.now() - Date.parse(iso);
+  if (!Number.isFinite(ms) || ms < 0) return 'recently';
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 1) return 'just now';
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 // ── Mock analytics — placeholder numbers until real data is connected ──────────
 const MOCK = {
   reach: '340K',
@@ -147,14 +186,17 @@ const MOCK = {
 
 export function buildCreatorProfileView(
   profile: RawPublicProfile,
-  opts: { useMock: boolean },
+  opts: { useMock: boolean; instagram?: InstagramSnapshotView | null },
 ): CreatorProfileView {
-  const { useMock } = opts;
+  const ig = opts.instagram ?? null;
+  // A captured snapshot beats mock data: once real analytics exist, always show
+  // them. Mock remains only the development placeholder for snapshot-less accounts.
+  const useMock = opts.useMock && !ig;
   const { lead, accent } = splitSubtitle(profile);
   const igHandle = cleanHandle(profile.instagramHandle) || cleanHandle(profile.username);
   const ytHandle = cleanHandle(profile.youtubeHandle) || profile.name || '';
 
-  const igFollowersReal = profile.instagramFollowers ?? 0;
+  const igFollowersReal = ig?.followerCount ?? profile.instagramFollowers ?? 0;
   const ytSubsReal = profile.youtubeSubscribers ?? 0;
   const reachReal = igFollowersReal + ytSubsReal + (profile.tiktokFollowers ?? 0);
 
@@ -166,24 +208,42 @@ export function buildCreatorProfileView(
       value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal),
     },
   ];
-  if (useMock) heroStats.push({ label: 'Engagement', value: MOCK.engagement });
+  if (ig?.engagementRate != null) {
+    heroStats.push({ label: 'Engagement', value: `${ig.engagementRate}%` });
+  } else if (useMock) {
+    heroStats.push({ label: 'Engagement', value: MOCK.engagement });
+  }
 
   // Platform cards
   const platforms: PlatformCardView[] = [];
-  const hasIg = useMock || !!profile.instagramHandle || igFollowersReal > 0;
+  const hasIg = useMock || !!ig || !!profile.instagramHandle || igFollowersReal > 0;
   if (hasIg) {
+    // Real recent posts (prefer ones with a cached thumbnail), linked to the
+    // original instagram.com post.
+    const igContent: PlatformContentItem[] = (ig?.posts ?? [])
+      .filter((p) => p.thumbUrl)
+      .slice(0, 3)
+      .map((p) => ({
+        imageUrl: p.thumbUrl,
+        views: formatCount(p.views ?? p.likes),
+        href: p.url,
+      }));
     platforms.push({
       platform: 'instagram',
       displayName: igHandle ? `@${igHandle}` : 'Instagram',
       handle: 'Instagram',
       stats: [
-        { label: 'Posts', value: useMock ? MOCK.instagram.posts : '—' },
+        { label: 'Posts', value: ig?.postsCount != null ? formatCount(ig.postsCount) : useMock ? MOCK.instagram.posts : '—' },
         { label: 'Followers', value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal) },
-        { label: 'Avg views', value: useMock ? MOCK.instagram.avgViews : '—' },
+        { label: 'Avg views', value: ig?.avgViews != null ? formatCount(ig.avgViews) : useMock ? MOCK.instagram.avgViews : '—' },
       ],
-      content: useMock ? MOCK.instagram.content : [],
-      note: useMock ? 'Connect-verified · refreshed 2h ago' : 'Connect Instagram to show live stats',
-      connected: useMock,
+      content: ig ? igContent : useMock ? MOCK.instagram.content : [],
+      note: ig
+        ? `Live from Instagram · updated ${relativeAge(ig.fetchedAt)}`
+        : useMock
+          ? 'Connect-verified · refreshed 2h ago'
+          : 'Connect Instagram to show live stats',
+      connected: Boolean(ig) || useMock,
     });
   }
   const hasYt = useMock || !!profile.youtubeHandle || ytSubsReal > 0;
@@ -226,7 +286,7 @@ export function buildCreatorProfileView(
   return {
     name: profile.name || (profile.username ? `@${profile.username}` : 'Creator'),
     username: cleanHandle(profile.username),
-    avatarUrl: profile.avatarUrl ?? null,
+    avatarUrl: profile.avatarUrl ?? ig?.profilePicUrl ?? null,
     subtitleLead: lead,
     subtitleAccent: accent,
     tagline:

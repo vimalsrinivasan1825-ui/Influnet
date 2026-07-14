@@ -3,6 +3,7 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { buildSignals } from '@/lib/verification-scraper';
 import { enrichWithLiveData } from '@/lib/verification-live';
+import { captureInstagramSnapshot } from '@/lib/social-snapshot';
 import { normalizeHandle } from '@/lib/instagram';
 import { decide, VERIFICATION_NOTIFICATION, type Role } from '@/lib/verification';
 
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
     // 2) Live enrichment: confirm the Instagram handle against HikerAPI (real
     //    followers, IG's own verified flag, recency). Never throws — a provider
     //    outage degrades to structural signals + human review.
-    const { signals, note } = await enrichWithLiveData(
+    const { signals, note, profile: liveProfile } = await enrichWithLiveData(
       role as Role,
       {
         instagram_handle: (input as any).instagram_handle ?? null,
@@ -101,6 +102,13 @@ export async function POST(req: Request) {
       },
       baseSignals,
     );
+
+    // Reuse the paid scrape: persist a public-profile snapshot (followers, posts
+    // count, engagement, recent posts + cached thumbnails). Best-effort — a
+    // snapshot failure must never affect the verification outcome.
+    if (role === 'influencer' && liveProfile) {
+      await captureInstagramSnapshot(user.id, liveProfile);
+    }
 
     // Ownership gate: has the user PROVEN control of this Instagram handle via the
     // bio-code handshake? Without it, decide() will not auto-verify (anti-impersonation).

@@ -38,6 +38,24 @@ export class HikerApiError extends Error {
   }
 }
 
+/** A recent post as returned inline by providers that support it (Apify). */
+export interface InstagramRecentPost {
+  /** Permanent post link, e.g. https://www.instagram.com/p/<shortcode>/ */
+  url: string;
+  shortcode: string;
+  type: 'Image' | 'Video' | 'Sidecar';
+  caption: string | null;
+  likes: number | null;
+  comments: number | null;
+  /** Video view count; null for images/sidecars or when withheld. */
+  views: number | null;
+  /** ISO timestamp of the post. */
+  takenAt: string | null;
+  /** Signed Instagram CDN thumbnail URL — EXPIRES after days; cache, never store. */
+  displayUrl: string | null;
+  pinned: boolean;
+}
+
 /** Normalised subset of the HikerAPI `User` object we actually use. */
 export interface HikerInstagramUser {
   pk: string;
@@ -57,6 +75,10 @@ export interface HikerInstagramUser {
   // the caller can skip the separate getLastPostDaysAgo() call. HikerAPI leaves
   // this undefined and exposes recency via getLastPostDaysAgo().
   lastPostDaysAgo?: number | null;
+  // Extras only some providers return (Apify does, HikerAPI leaves undefined).
+  // Signed CDN URL — expires; cache to storage before persisting anywhere.
+  profilePicUrl?: string | null;
+  recentPosts?: InstagramRecentPost[];
 }
 
 /** Is a HikerAPI key configured? When false, live checks are skipped entirely. */

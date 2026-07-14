@@ -210,17 +210,25 @@ function PlatformCard({ card }: { card: PlatformCardView }) {
       </div>
       {card.content.length > 0 && (
         <div className={styles.thumbs}>
-          {card.content.map((c, i) => (
-            <div
-              key={i}
-              className={`${styles.th} ${isIg ? styles.sq : styles.wide}`}
-              style={c.imageUrl ? { backgroundImage: `url(${c.imageUrl})` } : { background: THUMB_GRADIENTS[(isIg ? 0 : 3) + i] }}
-            >
-              {isIg
-                ? <span className={styles.ov}><Play />{c.views}</span>
-                : <><span className={styles.play}><Play /></span>{c.duration && <span className={styles.dur}>{c.duration}</span>}</>}
-            </div>
-          ))}
+          {card.content.map((c, i) => {
+            const inner = isIg
+              ? <span className={styles.ov}><Play />{c.views}</span>
+              : <><span className={styles.play}><Play /></span>{c.duration && <span className={styles.dur}>{c.duration}</span>}</>;
+            const style = c.imageUrl
+              ? { backgroundImage: `url(${c.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : { background: THUMB_GRADIENTS[(isIg ? 0 : 3) + i] };
+            const cls = `${styles.th} ${isIg ? styles.sq : styles.wide}`;
+            // Real posts link out to the original; mock/placeholder tiles don't.
+            return c.href ? (
+              <a key={i} className={cls} style={style} href={c.href} target="_blank" rel="noopener noreferrer">
+                {inner}
+              </a>
+            ) : (
+              <div key={i} className={cls} style={style}>
+                {inner}
+              </div>
+            );
+          })}
         </div>
       )}
       <div className={styles.pfoot}><span className={styles.vok}><Check w={0.55} /></span>{card.note}</div>

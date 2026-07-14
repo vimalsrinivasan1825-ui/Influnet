@@ -21,6 +21,7 @@ import {
   activeProvider,
   normalizeHandle,
   InstagramProviderError,
+  type InstagramProfile,
 } from './instagram';
 
 export interface LiveInput {
@@ -39,13 +40,15 @@ function dedupeFlags(flags: string[]): string[] {
 
 /**
  * Enrich structural signals with live Instagram data. Returns a NEW signals
- * object (input is not mutated) plus a short human-readable note for admins.
+ * object (input is not mutated), a short human-readable note for admins, and —
+ * when the live fetch succeeded — the raw profile so callers can reuse the paid
+ * scrape (e.g. social-snapshot capture) without a second provider call.
  */
 export async function enrichWithLiveData(
   role: Role,
   input: LiveInput,
   baseSignals: VerificationSignals,
-): Promise<{ signals: VerificationSignals; note: string | null }> {
+): Promise<{ signals: VerificationSignals; note: string | null; profile?: InstagramProfile | null }> {
   const signals: VerificationSignals = {
     ...baseSignals,
     social_handles_live: { ...(baseSignals.social_handles_live ?? {}) },
@@ -119,7 +122,7 @@ export async function enrichWithLiveData(
     const parts = [`@${handle}: ${real.toLocaleString()} followers`];
     if (user.isVerified) parts.push('IG-verified');
     if (lastPostDays != null) parts.push(`last post ${lastPostDays}d ago`);
-    return { signals, note: parts.join(' · ') };
+    return { signals, note: parts.join(' · '), profile: user };
   } catch (err) {
     // Provider unavailable (402/401/429/network) → keep structural signals,
     // flag it, and let decide() escalate to a human. Product access is untouched.

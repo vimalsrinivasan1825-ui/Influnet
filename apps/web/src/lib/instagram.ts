@@ -14,7 +14,7 @@ import * as hiker from './hikerapi';
 // Shared shape + error, re-exported so consumers depend on this module, not a
 // specific provider.
 export { HikerApiError as InstagramProviderError, normalizeHandle } from './hikerapi';
-export type { HikerInstagramUser as InstagramProfile } from './hikerapi';
+export type { HikerInstagramUser as InstagramProfile, InstagramRecentPost } from './hikerapi';
 
 export type ProviderName = 'apify' | 'hikerapi' | 'none';
 
