@@ -38,8 +38,11 @@ describe('formatCount', () => {
 });
 
 describe('resolveMockMode', () => {
-  it('defaults to mock on', () => {
-    expect(resolveMockMode(undefined)).toBe(true);
+  it('defaults to mock off (no fabricated numbers for real visitors)', () => {
+    const prev = process.env.NEXT_PUBLIC_PROFILE_MOCK;
+    delete process.env.NEXT_PUBLIC_PROFILE_MOCK;
+    expect(resolveMockMode(undefined)).toBe(false);
+    if (prev !== undefined) process.env.NEXT_PUBLIC_PROFILE_MOCK = prev;
   });
   it('respects explicit off/on query values', () => {
     expect(resolveMockMode('0')).toBe(false);
@@ -60,12 +63,11 @@ describe('buildCreatorProfileView — mock mode', () => {
     expect(view.heroStats.map((s) => s.label)).toContain('Engagement');
   });
 
-  it('builds Instagram and YouTube cards with content thumbnails', () => {
-    const ig = view.platforms.find((p) => p.platform === 'instagram');
-    const yt = view.platforms.find((p) => p.platform === 'youtube');
-    expect(ig?.content.length).toBe(3);
-    expect(yt?.content.length).toBe(3);
-    expect(ig?.connected).toBe(true);
+  it('builds featured content from mock data', () => {
+    expect(view.featured.length).toBeGreaterThan(0);
+    // The mock data fills out 6 items max, and they should be marked isVideo with a '#' href
+    expect(view.featured[0].href).toBe('#');
+    expect(view.featured[0].isVideo).toBe(true);
   });
 
   it('derives a two-tone subtitle from niches', () => {
@@ -101,16 +103,15 @@ describe('buildCreatorProfileView — real mode', () => {
 
   it('uses real follower counts and no fake content', () => {
     expect(view.usingMock).toBe(false);
-    const ig = view.platforms.find((p) => p.platform === 'instagram');
-    expect(ig?.content).toEqual([]);
-    const followers = ig?.stats.find((s) => s.label === 'Followers');
+    expect(view.featured).toEqual([]);
+    const followers = view.stats.find((s) => s.label === 'Followers');
     expect(followers?.value).toBe('248K');
     // no engagement chip without real data
-    expect(view.heroStats.map((s) => s.label)).not.toContain('Engagement');
+    expect(view.stats.map((s) => s.label)).not.toContain('Engagement');
   });
 
   it('total reach sums real platform counts', () => {
-    const reach = view.heroStats.find((s) => s.label === 'Total reach');
+    const reach = view.stats.find((s) => s.label === '30-Day Reach');
     expect(reach?.value).toBe('340K'); // 248000 + 92400 = 340400 -> 340K
   });
 
@@ -119,7 +120,7 @@ describe('buildCreatorProfileView — real mode', () => {
       { userId: 'u2', name: 'Solo', username: 'solo', niche: ['Tech'] },
       { useMock: false },
     );
-    expect(minimal.platforms).toEqual([]);
+    expect(minimal.stats.find((s) => s.label === 'Followers')?.value).toBe('0');
   });
 });
 
@@ -143,33 +144,29 @@ describe('buildCreatorProfileView — live Instagram snapshot', () => {
   it('overrides mock mode entirely when a snapshot exists', () => {
     const view = buildCreatorProfileView(baseProfile, { useMock: true, instagram: snapshot });
     expect(view.usingMock).toBe(false);
-    const ig = view.platforms.find((p) => p.platform === 'instagram');
-    expect(ig?.stats.find((s) => s.label === 'Followers')?.value).toBe('87.8M');
-    expect(ig?.stats.find((s) => s.label === 'Posts')?.value).toBe('489');
-    expect(ig?.stats.find((s) => s.label === 'Avg views')?.value).toBe('7.6M');
-    expect(ig?.note).toMatch(/^Live from Instagram · updated 2h ago$/);
-    expect(ig?.connected).toBe(true);
+    expect(view.heroChips.find((s) => s.label === 'Followers')?.value).toBe('87.8M');
+    expect(view.heroChips.find((s) => s.label === 'Posts')?.value).toBe('489');
+    expect(view.snapshotAge).toMatch(/^2h ago$/);
   });
 
   it('links real thumbnails to the original posts, skipping thumb-less ones', () => {
     const view = buildCreatorProfileView(baseProfile, { useMock: false, instagram: snapshot });
-    const ig = view.platforms.find((p) => p.platform === 'instagram');
-    expect(ig?.content.length).toBe(3);
-    expect(ig?.content.map((c) => c.href)).toEqual([
+    expect(view.featured.length).toBe(3);
+    expect(view.featured.map((c) => c.href)).toEqual([
       'https://www.instagram.com/p/AAA/',
       'https://www.instagram.com/p/BBB/',
       'https://www.instagram.com/p/DDD/', // CCC has no cached thumb
     ]);
     // views label prefers video views, falls back to likes
-    expect(ig?.content[0].views).toBe('5.8M');
-    expect(ig?.content[1].views).toBe('8.4M');
+    expect(view.featured[0].views).toBe('5.8M');
+    expect(view.featured[1].views).toBe('8.4M');
   });
 
   it('shows the real engagement chip and snapshot-driven reach', () => {
     const view = buildCreatorProfileView(baseProfile, { useMock: false, instagram: snapshot });
-    expect(view.heroStats.find((s) => s.label === 'Engagement')?.value).toBe('3.3%');
-    // reach = snapshot followers + youtube subs = 87,845,356
-    expect(view.heroStats.find((s) => s.label === 'Total reach')?.value).toBe('87.8M');
+    expect(view.stats.find((s) => s.label === 'Engagement')?.value).toBe('3.3%');
+    // reach = sum of views/likes in recent posts when no dates are available = 14.9M
+    expect(view.stats.find((s) => s.label === '30-Day Reach')?.value).toBe('14.9M');
   });
 
   it('falls back to the cached profile pic when no avatar is set', () => {

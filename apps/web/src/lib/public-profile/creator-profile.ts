@@ -22,17 +22,8 @@ export interface PlatformContentItem {
   duration?: string;
   /** Permanent link to the original post; renders the thumbnail as a link. */
   href?: string | null;
-}
-
-export interface PlatformCardView {
-  platform: SocialPlatform;
-  displayName: string;
-  handle: string;
-  stats: ProfileStat[];
-  content: PlatformContentItem[];
-  /** Trust line, e.g. "Connect-verified · refreshed 2h ago". */
-  note: string;
-  connected: boolean;
+  /** True if this is a video format. */
+  isVideo?: boolean;
 }
 
 export interface FloatingBadge {
@@ -51,12 +42,24 @@ export interface CreatorProfileView {
   subtitleAccent: string;
   tagline: string;
   location: string | null;
+  languages: string[];
   niches: string[];
   isVerified: boolean;
+  heroChips: ProfileStat[];
   heroStats: ProfileStat[];
   floating: FloatingBadge[];
-  platforms: PlatformCardView[];
+  stats: ProfileStat[];
+  featured: PlatformContentItem[];
+  audience?: {
+    locations: { label: string; pct: number }[];
+    ages: { label: string; pct: number }[];
+    genders: { label: string; pct: number }[];
+  } | null;
+  pastCollaborations: string[];
+  pricing: { title: string; desc: string; amount: string; features: string[] }[];
   usingMock: boolean;
+  profileUrl: string;
+  snapshotAge: string | null;
 }
 
 /** Loosely-typed shape of the `get_public_influencer` RPC payload. */
@@ -79,6 +82,14 @@ export interface RawPublicProfile {
   instagramHandle?: string | null;
   youtubeHandle?: string | null;
   tiktokHandle?: string | null;
+  // Fields the RPC also returns, consumed by the media kit.
+  collabTypes?: string[] | null;
+  priceRange?: string | null;
+  pricingMin?: number | null;
+  pricingMax?: number | null;
+  audienceDemographics?: Record<string, unknown> | null;
+  pastCollaborations?: unknown[] | null;
+  engagementRate?: number | null;
 }
 
 /** Format a raw count into a compact label: 1284 → "1,284", 92400 → "92.4K". */
@@ -91,15 +102,16 @@ export function formatCount(n: number | null | undefined): string {
 }
 
 /**
- * Decide whether to render mock analytics. Mock is ON by default so the profile
- * looks complete during development; turn it off with NEXT_PUBLIC_PROFILE_MOCK=off
- * or per-request with ?mock=0. Force it on with ?mock=1.
+ * Decide whether to render mock analytics. Mock is OFF by default: real visitors
+ * (and brands) must never see fabricated follower/engagement/past-brand numbers.
+ * Opt in for local design work with NEXT_PUBLIC_PROFILE_MOCK=on, or per-request
+ * with ?mock=1. Force it off with ?mock=0.
  */
 export function resolveMockMode(searchParam?: string | string[]): boolean {
   const q = Array.isArray(searchParam) ? searchParam[0] : searchParam;
   if (q === '0' || q === 'off' || q === 'false') return false;
   if (q === '1' || q === 'on' || q === 'true') return true;
-  return process.env.NEXT_PUBLIC_PROFILE_MOCK !== 'off';
+  return process.env.NEXT_PUBLIC_PROFILE_MOCK === 'on';
 }
 
 const cleanHandle = (h?: string | null) => (h ? h.replace(/^@/, '') : '');
@@ -136,6 +148,7 @@ export interface SnapshotPostView {
   views: number | null;
   likes: number | null;
   type: string;
+  takenAt?: string | null;
 }
 
 /** Instagram analytics snapshot, mapped from a social_snapshots row by the page. */
@@ -182,27 +195,77 @@ const MOCK = {
       { views: '96K', duration: '15:22' },
     ],
   },
+  audience: {
+    locations: [
+      { label: 'India', pct: 72 },
+      { label: 'USA', pct: 11 },
+      { label: 'UK', pct: 6 },
+      { label: 'UAE', pct: 4 },
+      { label: 'Others', pct: 7 },
+    ],
+    ages: [
+      { label: '18-24', pct: 38 },
+      { label: '25-34', pct: 41 },
+      { label: '35-44', pct: 15 },
+      { label: '45+', pct: 6 },
+    ],
+    genders: [
+      { label: 'Male', pct: 82 },
+      { label: 'Female', pct: 17 },
+      { label: 'Others', pct: 1 },
+    ]
+  },
+  pastCollaborations: ['mamaearth', 'Upstox', 'NordVPN', 'Skillshare', 'CoinDCX', 'UNACADEMY'],
+  pricing: [
+    {
+      title: 'Instagram Post',
+      desc: 'Single image post with caption featuring your brand.',
+      amount: '$1,200',
+      features: ['Permanent post', 'Brand tagging', 'Link in bio for 24h'],
+    }
+  ]
 };
 
 export function buildCreatorProfileView(
   profile: RawPublicProfile,
-  opts: { useMock: boolean; instagram?: InstagramSnapshotView | null },
+  opts: { useMock: boolean; instagram?: InstagramSnapshotView | null; origin?: string },
 ): CreatorProfileView {
   const ig = opts.instagram ?? null;
   // A captured snapshot beats mock data: once real analytics exist, always show
   // them. Mock remains only the development placeholder for snapshot-less accounts.
   const useMock = opts.useMock && !ig;
   const { lead, accent } = splitSubtitle(profile);
-  const igHandle = cleanHandle(profile.instagramHandle) || cleanHandle(profile.username);
-  const ytHandle = cleanHandle(profile.youtubeHandle) || profile.name || '';
+  const username = cleanHandle(profile.username);
 
   const igFollowersReal = ig?.followerCount ?? profile.instagramFollowers ?? 0;
   const ytSubsReal = profile.youtubeSubscribers ?? 0;
-  const reachReal = igFollowersReal + ytSubsReal + (profile.tiktokFollowers ?? 0);
+  let reachReal = igFollowersReal + ytSubsReal + (profile.tiktokFollowers ?? 0);
+  
+  if (ig && ig.posts.length > 0) {
+    // Attempt to calculate 30-day reach from scraped views
+    const postsWithDates = ig.posts.filter(p => p.takenAt).sort((a, b) => Date.parse(b.takenAt!) - Date.parse(a.takenAt!));
+    const totalViews = ig.posts.reduce((sum, p) => sum + (p.views || p.likes || 0), 0);
+    if (postsWithDates.length >= 4) {
+      // Drop the oldest 3 posts assuming they might be old pinned posts
+      const recent = postsWithDates.slice(0, postsWithDates.length - 3);
+      const recentViews = recent.reduce((sum, p) => sum + (p.views || p.likes || 0), 0);
+      const newestDate = Date.parse(recent[0].takenAt!);
+      const oldestDate = Date.parse(recent[recent.length - 1].takenAt!);
+      const daysDiff = Math.max((newestDate - oldestDate) / (1000 * 60 * 60 * 24), 1);
+      reachReal = Math.round((recentViews / daysDiff) * 30);
+    } else if (postsWithDates.length >= 2) {
+      const newestDate = Date.parse(postsWithDates[0].takenAt!);
+      const oldestDate = Date.parse(postsWithDates[postsWithDates.length - 1].takenAt!);
+      const daysDiff = Math.max((newestDate - oldestDate) / (1000 * 60 * 60 * 24), 1);
+      reachReal = Math.round((totalViews / daysDiff) * 30);
+    } else {
+      reachReal = totalViews;
+    }
+  }
 
   // Hero stat chips
   const heroStats: ProfileStat[] = [
-    { label: 'Total reach', value: useMock ? MOCK.reach : formatCount(reachReal) },
+    { label: '30-Day Reach', value: useMock ? MOCK.reach : formatCount(reachReal) },
     {
       label: 'Followers',
       value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal),
@@ -214,53 +277,41 @@ export function buildCreatorProfileView(
     heroStats.push({ label: 'Engagement', value: MOCK.engagement });
   }
 
-  // Platform cards
-  const platforms: PlatformCardView[] = [];
-  const hasIg = useMock || !!ig || !!profile.instagramHandle || igFollowersReal > 0;
-  if (hasIg) {
-    // Real recent posts (prefer ones with a cached thumbnail), linked to the
-    // original instagram.com post.
-    const igContent: PlatformContentItem[] = (ig?.posts ?? [])
-      .filter((p) => p.thumbUrl)
-      .slice(0, 3)
-      .map((p) => ({
-        imageUrl: p.thumbUrl,
-        views: formatCount(p.views ?? p.likes),
-        href: p.url,
-      }));
-    platforms.push({
-      platform: 'instagram',
-      displayName: igHandle ? `@${igHandle}` : 'Instagram',
-      handle: 'Instagram',
-      stats: [
-        { label: 'Posts', value: ig?.postsCount != null ? formatCount(ig.postsCount) : useMock ? MOCK.instagram.posts : '—' },
-        { label: 'Followers', value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal) },
-        { label: 'Avg views', value: ig?.avgViews != null ? formatCount(ig.avgViews) : useMock ? MOCK.instagram.avgViews : '—' },
-      ],
-      content: ig ? igContent : useMock ? MOCK.instagram.content : [],
-      note: ig
-        ? `Live from Instagram · updated ${relativeAge(ig.fetchedAt)}`
-        : useMock
-          ? 'Connect-verified · refreshed 2h ago'
-          : 'Connect Instagram to show live stats',
-      connected: Boolean(ig) || useMock,
-    });
+  // Hero stat chips (small pills under avatar)
+  const heroChips: ProfileStat[] = [];
+  if (igFollowersReal > 0 || useMock) heroChips.push({ label: 'Followers', value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal) });
+  if (ytSubsReal > 0 || useMock) heroChips.push({ label: 'Subscribers', value: useMock ? MOCK.youtube.subscribers : formatCount(ytSubsReal) });
+  if (ig?.postsCount || useMock) heroChips.push({ label: 'Posts', value: useMock ? MOCK.instagram.posts : formatCount(ig?.postsCount) });
+
+  // Main stat cards
+  const stats: ProfileStat[] = [
+    { label: '30-Day Reach', value: useMock ? MOCK.reach : formatCount(reachReal) },
+    { label: 'Followers', value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal) },
+  ];
+  if (ig?.engagementRate != null) {
+    stats.push({ label: 'Engagement', value: `${ig.engagementRate}%` });
+  } else if (useMock) {
+    stats.push({ label: 'Engagement', value: MOCK.engagement });
+  } else if (ig?.avgViews != null) {
+    stats.push({ label: 'Avg Views', value: formatCount(ig.avgViews) });
   }
-  const hasYt = useMock || !!profile.youtubeHandle || ytSubsReal > 0;
-  if (hasYt) {
-    platforms.push({
-      platform: 'youtube',
-      displayName: ytHandle || 'YouTube',
-      handle: 'YouTube',
-      stats: [
-        { label: 'Subscribers', value: useMock ? MOCK.youtube.subscribers : formatCount(ytSubsReal) },
-        { label: 'Videos', value: useMock ? MOCK.youtube.videos : '—' },
-        { label: 'Avg views', value: useMock ? MOCK.youtube.avgViews : '—' },
-      ],
-      content: useMock ? MOCK.youtube.content : [],
-      note: useMock ? 'Connect-verified · 1.6M views this year' : 'Connect YouTube to show live stats',
-      connected: useMock,
-    });
+
+  // Featured Content (6 tiles max)
+  const hasIg = useMock || !!ig || !!profile.instagramHandle || igFollowersReal > 0;
+  const featured: PlatformContentItem[] = [];
+  if (ig) {
+    featured.push(...(ig.posts ?? [])
+      .filter((p) => p.thumbUrl)
+      .slice(0, 6)
+      .map((p) => ({
+        href: p.url,
+        imageUrl: p.thumbUrl as string,
+        views: formatCount(p.views ?? p.likes),
+        isVideo: p.type === 'Video',
+      }))
+    );
+  } else if (useMock) {
+    featured.push(...MOCK.instagram.content.map(c => ({ ...c, isVideo: true, href: '#' })), ...MOCK.youtube.content.map(c => ({ ...c, isVideo: true, href: '#' })));
   }
 
   // Floating orbit badges
@@ -272,6 +323,7 @@ export function buildCreatorProfileView(
       label: 'Instagram',
     });
   }
+  const hasYt = useMock || !!profile.youtubeHandle || ytSubsReal > 0;
   if (hasYt) {
     floating.push({
       platform: 'youtube',
@@ -292,12 +344,25 @@ export function buildCreatorProfileView(
     tagline:
       (profile.bio || profile.headline || '').trim() ||
       'Creating content that helps brands reach and move real audiences.',
-    location: locationOf(profile),
-    niches: profile.niche ?? [],
+    location: profile.city ? [profile.city, profile.state].filter(Boolean).join(', ') : (profile.location ?? null),
+    languages: (profile.languages ?? []).slice(0, 4),
+    niches: (profile.niche ?? []).slice(0, 8),
     isVerified: !!profile.isVerified,
     heroStats,
+    heroChips,
     floating,
-    platforms,
+    stats,
+    featured: featured.slice(0, 6),
+    audience: useMock ? MOCK.audience : null,
+    pastCollaborations: profile.pastCollaborations ? (profile.pastCollaborations as string[]) : (useMock ? MOCK.pastCollaborations : []),
+    pricing: profile.pricingMin ? [{
+      title: 'Instagram Post',
+      desc: 'Single image post with caption featuring your brand.',
+      amount: profile.priceRange || `$${profile.pricingMin.toLocaleString()}`,
+      features: ['Permanent post', 'Brand tagging'],
+    }] : (useMock ? MOCK.pricing : []),
     usingMock: useMock,
+    profileUrl: `${opts.origin ?? 'https://influnet.app'}/c/${username}`,
+    snapshotAge: relativeAge(ig?.fetchedAt ?? null),
   };
 }

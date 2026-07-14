@@ -6,9 +6,9 @@ import CreatorProfileViewComponent from '@/components/public-profile/creator-pro
 import {
   buildCreatorProfileView,
   resolveMockMode,
-  type InstagramSnapshotView,
   type RawPublicProfile,
 } from '@/lib/public-profile/creator-profile';
+import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
 
 // Anon client for public profile reads.
 const supabaseAnon = createClient(
@@ -20,41 +20,6 @@ async function getProfile(username: string): Promise<RawPublicProfile | null> {
   const { data, error } = await supabaseAnon.rpc('get_public_influencer', { p_slug: username });
   if (error || !data) return null;
   return data as RawPublicProfile;
-}
-
-const socialCacheUrl = (path: string) =>
-  `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/social-cache/${path}`;
-
-/** Captured Instagram analytics (real followers/posts/engagement + cached thumbs). */
-async function getInstagramSnapshot(userId: string): Promise<InstagramSnapshotView | null> {
-  const { data, error } = await supabaseAnon
-    .from('social_snapshots')
-    .select('follower_count, posts_count, avg_views, engagement_rate, is_verified, profile_pic_path, recent_posts, fetched_at')
-    .eq('user_id', userId)
-    .eq('platform', 'instagram')
-    .maybeSingle();
-  if (error || !data) return null;
-
-  const posts = (Array.isArray(data.recent_posts) ? data.recent_posts : [])
-    .filter((p: any) => p && typeof p.url === 'string')
-    .map((p: any) => ({
-      url: p.url as string,
-      thumbUrl: typeof p.thumb_path === 'string' ? socialCacheUrl(p.thumb_path) : null,
-      views: typeof p.views === 'number' ? p.views : null,
-      likes: typeof p.likes === 'number' ? p.likes : null,
-      type: typeof p.type === 'string' ? p.type : 'Image',
-    }));
-
-  return {
-    followerCount: data.follower_count ?? null,
-    postsCount: data.posts_count ?? null,
-    avgViews: data.avg_views ?? null,
-    engagementRate: data.engagement_rate != null ? Number(data.engagement_rate) : null,
-    isVerified: Boolean(data.is_verified),
-    profilePicUrl: data.profile_pic_path ? socialCacheUrl(data.profile_pic_path) : null,
-    posts,
-    fetchedAt: data.fetched_at ?? null,
-  };
 }
 
 export async function generateMetadata({

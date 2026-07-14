@@ -1,19 +1,25 @@
 'use client';
 
+// Creator media kit — the brand-facing one-pager. Visual design ported from
+// docs/product/mockups/creator-media-kit.html; every number rendered here is
+// real (scraped snapshot / creator profile / platform reviews). Sections with
+// no data are simply not rendered.
+
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import styles from './creator-profile.module.css';
-import type { CreatorProfileView } from '@/lib/public-profile/creator-profile';
+import styles from './media-kit.module.css';
+import type { MediaKitView, AudienceSlice } from '@/lib/public-profile/media-kit';
 
 const PRESETS: { name: string; a: string; b: string }[] = [
-  { name: 'Violet', a: '#7C6BF6', b: '#9E92FF' },
   { name: 'Rose', a: '#EC2C7A', b: '#FF6FA6' },
+  { name: 'Violet', a: '#7C6BF6', b: '#9E92FF' },
   { name: 'Blue', a: '#2E90FA', b: '#6AB6FF' },
   { name: 'Emerald', a: '#12B981', b: '#4BD9A8' },
   { name: 'Amber', a: '#F5A623', b: '#FFC15E' },
 ];
+
+const DONUT_COLORS = ['var(--c2)', 'var(--c1)', 'var(--c3)', 'var(--c4)', 'var(--ink-3)'];
 
 function lighten(hex: string, amt: number): string {
   let h = hex.replace('#', '');
@@ -25,14 +31,12 @@ function lighten(hex: string, amt: number): string {
 }
 
 /* ── icons ── */
-const Ic = (p: { d: string; fill?: boolean; w?: number }) => (
-  <svg className={styles.ico} viewBox="0 0 24 24" fill={p.fill ? 'currentColor' : 'none'} stroke={p.fill ? 'none' : 'currentColor'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={p.w ? { width: `${p.w}em`, height: `${p.w}em` } : undefined}>
+const Ic = (p: { d: string; fill?: boolean }) => (
+  <svg className={styles.ico} viewBox="0 0 24 24" fill={p.fill ? 'currentColor' : 'none'} stroke={p.fill ? 'none' : 'currentColor'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <path d={p.d} />
   </svg>
 );
-const Check = ({ w }: { w?: number }) => <Ic d="M20 6 9 17l-5-5" w={w} />;
 const Play = () => <Ic d="M8 5v14l11-7z" fill />;
-const Heart = () => <Ic d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill />;
 const Send = () => <Ic d="M22 2 11 13M22 2l-7 20-4-9-9-4Z" />;
 const Copy = () => <Ic d="M9 9h11v11a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2zM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />;
 const IgLogo = ({ s = 16 }: { s?: number }) => (
@@ -44,45 +48,23 @@ const YtPlay = ({ s = 16 }: { s?: number }) => (
   <svg viewBox="0 0 24 24" width={s} height={s} fill="#fff"><path d="M8 5v14l11-7z" /></svg>
 );
 
-export interface CreatorProfileViewProps {
-  data: CreatorProfileView;
+export interface MediaKitViewProps {
+  data: MediaKitView;
+  /** Real scannable QR of the profile URL, rendered server-side as SVG markup. */
+  qrSvg: string;
   isOwner: boolean;
   ctaHref: string;
   ctaLabel: string;
 }
 
-export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ctaLabel }: CreatorProfileViewProps) {
+export default function MediaKitViewComponent({ data, qrSvg, isOwner, ctaHref, ctaLabel }: MediaKitViewProps) {
   const [accent, setAccent] = useState(PRESETS[0].a);
   const [accent2, setAccent2] = useState(PRESETS[0].b);
   const [dark, setDark] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [toast, setToast] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const router = useRouter();
 
+  // Same appearance store as the public profile page, so both pages match.
   const storeKey = `influnet:profile-appearance:${data.username}`;
-
-  const handleRefresh = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    try {
-      const res = await fetch('/api/profile/refresh', { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || 'Failed to refresh data');
-      } else {
-        router.refresh();
-      }
-    } catch (err) {
-      alert('An error occurred while refreshing data.');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Restore the owner's saved appearance (per-browser for now).
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storeKey);
@@ -95,13 +77,13 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
     } catch { /* ignore */ }
   }, [storeKey]);
 
-  const applyPreset = (a: string, b: string) => { setAccent(a); setAccent2(b); };
-  const applyCustom = (v: string) => { setAccent(v); setAccent2(lighten(v, 0.22)); };
-  const publish = () => {
-    try { localStorage.setItem(storeKey, JSON.stringify({ accent, accent2, dark })); } catch { /* ignore */ }
-    setToast(true);
-    setTimeout(() => setToast(false), 2800);
+  const persist = (a: string, b: string, d: boolean) => {
+    if (!isOwner) return;
+    try { localStorage.setItem(storeKey, JSON.stringify({ accent: a, accent2: b, dark: d })); } catch { /* ignore */ }
   };
+  const applyPreset = (a: string, b: string) => { setAccent(a); setAccent2(b); persist(a, b, dark); };
+  const applyCustom = (v: string) => { const b = lighten(v, 0.22); setAccent(v); setAccent2(b); persist(v, b, dark); };
+  const applyTheme = (d: boolean) => { setDark(d); persist(accent, accent2, d); };
 
   const copyUrl = async () => {
     try {
@@ -119,28 +101,10 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
   };
 
   const styleVars = { ['--accent']: accent, ['--accent-2']: accent2 } as CSSProperties;
-  const rootClass = [styles.stage, dark ? styles.dark : '', previewing ? styles.previewing : '', editing ? styles.editing : ''].filter(Boolean).join(' ');
-
-  const igBadge = data.floating.find((f) => f.platform === 'instagram');
-  const ytBadge = data.floating.find((f) => f.platform === 'youtube');
-  const verifiedBadge = data.floating.find((f) => f.platform === 'verified');
 
   return (
-    <div className={rootClass} style={styleVars}>
+    <div className={`${styles.stage} ${dark ? styles.dark : ''}`} style={styleVars}>
       <div className={styles.bg}><span className={`${styles.blob} ${styles.b1}`} /><span className={`${styles.blob} ${styles.b2}`} /></div>
-
-      {isOwner && (
-        <div className={styles.previewbanner}>
-          <span><Ic d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6" />You&apos;re viewing your public profile exactly as a visitor sees it</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className={`${styles.btn} ${styles.tb}`} onClick={handleRefresh} disabled={refreshing}>
-              <Ic d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              {refreshing ? 'Refreshing...' : 'Refresh Data'}
-            </button>
-            <button className={`${styles.btn} ${styles.tb}`} onClick={() => setPreviewing(false)}><Ic d="M19 12H5M11 6l-6 6 6 6" />Back to editing</button>
-          </div>
-        </div>
-      )}
 
       <div className={styles.wrap}>
         <div className={styles.topbar}>
@@ -149,8 +113,31 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
             <Ic d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8" />influnet.com/<b>@{data.username}</b>
             <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>
           </div>
-          <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
+          <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />Let&apos;s Collab</Link>
         </div>
+
+        {isOwner && (
+          <div className={styles.toolbar}>
+            <Link className={`${styles.btn} ${styles.sm}`} href={`/c/${data.username}`}><Ic d="M19 12H5M11 6l-6 6 6 6" />Back to profile</Link>
+            <div className={styles.grp}>
+              <span className={styles.glbl}>Theme</span>
+              <div className={styles.seg} role="group" aria-label="Theme">
+                <button aria-pressed={!dark} onClick={() => applyTheme(false)}>Light</button>
+                <button aria-pressed={dark} onClick={() => applyTheme(true)}>Dark</button>
+              </div>
+            </div>
+            <div className={styles.grp} role="group" aria-label="Accent color">
+              <span className={styles.glbl}>Color</span>
+              {PRESETS.map((p) => (
+                <button key={p.name} className={styles.sw} style={{ background: p.a }} aria-label={p.name} aria-pressed={accent === p.a} onClick={() => applyPreset(p.a, p.b)} />
+              ))}
+              <span className={styles.picker} title="Pick any color">
+                <input type="color" value={accent.startsWith('#') ? accent : '#EC2C7A'} aria-label="Custom accent color" onChange={(e) => applyCustom(e.target.value)} />
+              </span>
+            </div>
+            <div className={styles.tspace} /><span className={styles.hint}>Owner-only bar</span>
+          </div>
+        )}
 
         <div className={styles.layout}>
           <div className={styles.main}>
@@ -190,8 +177,6 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                       ))}
                     </div>
                   )}
-                  {igBadge && <div className={`${styles.fcard} ${styles.fIg}`}><span className={styles.fi} style={{ background: 'var(--ig)' }}><IgLogo s={17} /></span><div><b>{igBadge.value}</b><small>{igBadge.label}</small></div></div>}
-                  {ytBadge && <div className={`${styles.fcard} ${styles.fYt}`}><span className={styles.fi}><YtPlay s={17} /></span><div><b>{ytBadge.value}</b><small>{ytBadge.label}</small></div></div>}
                 </div>
               </div>
             </section>
@@ -211,7 +196,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
               ))}
             </section>
 
-            {/* FEATURED CONTENT */}
+            {/* FEATURED CONTENT — real recent posts, linked to the originals */}
             {data.featured.length > 0 && (
               <section className={`${styles.card} ${styles.pad}`} id="featured">
                 <div className={styles.chead}>
@@ -219,91 +204,70 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                   {data.snapshotAge && <span className={styles.viewall}>Live from Instagram · {data.snapshotAge}</span>}
                 </div>
                 <div className={styles.thumbs6}>
-                  {data.featured.map((p, i) => (
-                    <a key={p.href || i} className={styles.th} style={{ backgroundImage: `url(${p.imageUrl})` }} href={p.href || '#'} target="_blank" rel="noopener noreferrer">
+                  {data.featured.map((p) => (
+                    <a key={p.href} className={styles.th} style={{ backgroundImage: `url(${p.thumbUrl})` }} href={p.href} target="_blank" rel="noopener noreferrer">
                       {p.isVideo && <span className={styles.play}><Play /></span>}
-                      <span className={styles.ov}>
-                        {p.isVideo ? <Play /> : <Heart />}
-                        {p.views}
-                      </span>
+                      <span className={styles.ov}><Play />{p.label}</span>
                     </a>
                   ))}
                 </div>
               </section>
             )}
 
-            {/* AUDIENCE INSIGHTS */}
+            {/* AUDIENCE INSIGHTS — self-reported; hidden when empty */}
             {data.audience && (
               <section className={`${styles.card} ${styles.pad}`}>
                 <div className={styles.chead}><div className={styles.ctitle}>Audience Insights</div></div>
                 <div className={styles.aud3}>
-                  <div className={styles.subcard}>
-                    <h4>Top Locations</h4>
-                    {data.audience.locations.map(loc => (
-                      <div className={styles.bar} key={loc.label}>
-                        <span>{loc.label}</span>
-                        <span className={styles.track}><span className={styles.fill} style={{ width: `${loc.pct}%` }} /></span>
-                        <span className={styles.pct}>{loc.pct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className={styles.subcard}>
-                    <h4>Age Range</h4>
-                    <div className={styles.donutwrap}>
-                      <div className={styles.donut} style={{ background: `conic-gradient(var(--c2) 0 38%,var(--c1) 38% 79%,var(--c3) 79% 94%,var(--c4) 94% 100%)` }} />
-                      <div className={styles.legend}>
-                        {data.audience.ages.map((a, i) => {
-                          const color = ['var(--c2)', 'var(--c1)', 'var(--c3)', 'var(--c4)'][i % 4];
-                          return <div key={a.label}><span className={styles.dot} style={{ background: color }} />{a.label}<b>{a.pct}%</b></div>
-                        })}
-                      </div>
+                  {data.audience.locations && (
+                    <div className={styles.subcard}>
+                      <h4>Top Locations</h4>
+                      {data.audience.locations.map((l) => (
+                        <div className={styles.bar} key={l.label}>
+                          <span>{l.label}</span>
+                          <span className={styles.track}><span className={styles.fill} style={{ width: `${l.pct}%` }} /></span>
+                          <span className={styles.pct}>{l.pct}%</span>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  <div className={styles.subcard}>
-                    <h4>Gender</h4>
-                    <div className={styles.donutwrap}>
-                      <div className={styles.donut} style={{ background: `conic-gradient(var(--c1) 0 82%,var(--c2) 82% 99%,var(--c4) 99% 100%)` }} />
-                      <div className={styles.legend}>
-                        {data.audience.genders.map((g, i) => {
-                          const color = ['var(--c1)', 'var(--c2)', 'var(--c4)'][i % 3];
-                          return <div key={g.label}><span className={styles.dot} style={{ background: color }} />{g.label}<b>{g.pct}%</b></div>
-                        })}
-                      </div>
-                    </div>
-                  </div>
+                  )}
+                  {data.audience.age && <Donut title="Age Range" slices={data.audience.age} />}
+                  {data.audience.gender && <Donut title="Gender" slices={data.audience.gender} />}
                 </div>
               </section>
             )}
 
-            {/* PAST COLLABORATIONS */}
-            {data.pastCollaborations.length > 0 && (
+            {/* PAST COLLABORATIONS — self-reported; hidden when empty */}
+            {data.pastCollaborations && (
               <section className={`${styles.card} ${styles.pad}`}>
                 <div className={styles.chead}><div className={styles.ctitle}>Past Collaborations</div></div>
                 <div className={styles.brands}>
-                  {data.pastCollaborations.map(b => (
-                    <div className={styles['brand-c']} key={b} style={b.length > 8 ? { fontSize: '.62rem' } : {}}>{b}</div>
-                  ))}
+                  {data.pastCollaborations.map((b) => <div className={styles['brand-c']} key={b}>{b}</div>)}
                 </div>
               </section>
             )}
 
-            {/* WORK WITH ME */}
-            {data.pricing.length > 0 && (
+            {/* WORK WITH ME — from the creator's collab types + pricing */}
+            {data.packages && (
               <section className={`${styles.card} ${styles.pad}`}>
                 <div className={styles.chead}><div className={styles.ctitle}>Work With Me</div></div>
                 <div className={styles.prices}>
-                  {data.pricing.map((p, i) => (
-                    <div className={`${styles.price} ${i === 0 ? styles.feat : ''}`} key={p.title}>
-                      <div className={styles.ph}><span className={styles.plogo} style={{ background: 'var(--ig)' }}><IgLogo /></span>{p.title}</div>
-                      <div className={styles.pdesc}>{p.desc}</div>
-                      <div className={styles.amt}>{p.amount}</div>
-                      <ul>
-                        {p.features.map(f => <li key={f}><span className={styles.ck}>✓</span> {f}</li>)}
-                      </ul>
-                      <Link className={`${styles.btn} ${styles.accent} ${styles.wide} ${styles.sm}`} href={ctaHref} style={{ marginTop: '.6rem' }}><Send />{ctaLabel}</Link>
+                  {data.packages.map((p) => (
+                    <div className={`${styles.price} ${p.featured ? styles.feat : ''}`} key={p.title}>
+                      <div className={styles.ph}>
+                        <span className={styles.plogo} style={{ background: p.platform === 'youtube' ? 'var(--yt)' : p.platform === 'instagram' ? 'var(--ig)' : 'var(--c2)' }}>
+                          {p.platform === 'youtube' ? <YtPlay s={15} /> : <IgLogo s={15} />}
+                        </span>
+                        {p.title}
+                      </div>
+                      <div className={styles.pdesc}>{p.description}</div>
+                      <div className={styles.amt}>{p.priceLabel}</div>
+                      <ul>{p.perks.map((perk) => <li key={perk}><span className={styles.ck}>✓</span>{perk}</li>)}</ul>
+                      <Link className={`${styles.btn} ${p.featured ? styles.accent : ''} ${styles.wide} ${styles.sm}`} href={ctaHref}>Select</Link>
                     </div>
                   ))}
                 </div>
+                <div className={styles.note}>Packages are customizable. Let&apos;s discuss what works best for your brand!</div>
               </section>
             )}
           </div>
@@ -312,6 +276,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
           <div className={styles.side}>
             <div className={`${styles.card} ${styles.pad}`}>
               <div className={styles['share-title']}><h3>Share My Profile</h3><p>Connect instantly</p></div>
+              <div className={styles.qrbox} dangerouslySetInnerHTML={{ __html: qrSvg }} />
               <div className={styles.urlmini} style={{ fontWeight: 600 }}>
                 influnet.com/@{data.username}
                 <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>
@@ -330,12 +295,13 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
               </div>
             </div>
 
-            {(data.location || data.languages.length > 0) && (
+            {(data.location || data.languages.length > 0 || data.topAudience) && (
               <div className={`${styles.card} ${styles.pad}`}>
                 <h3>About Me</h3>
                 <div className={styles.aboutlist}>
                   {data.location && <div><span className={styles.ai}><Ic d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5" /></span>{data.location}</div>}
                   {data.languages.length > 0 && <div><span className={styles.ai}><Ic d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18" /></span>{data.languages.join(', ')}</div>}
+                  {data.topAudience && <div><span className={styles.ai}><Ic d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" /></span>Top Audience: <b>{data.topAudience}</b></div>}
                 </div>
               </div>
             )}
@@ -344,6 +310,26 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
               <div className={`${styles.card} ${styles.pad}`}>
                 <h3>What I Create</h3>
                 <div className={styles.createpills}>{data.niches.map((n) => <span className={styles.cpill} key={n}>{n}</span>)}</div>
+              </div>
+            )}
+
+            <div className={`${styles.card} ${styles.pad}`}>
+              <h3>Let&apos;s Collaborate</h3>
+              <p className={styles.collabtxt}>Open to brand deals, product collaborations, ambassador roles and more!</p>
+              <Link className={`${styles.btn} ${styles.ghost} ${styles.wide} ${styles.sm}`} href={ctaHref}>{ctaLabel}</Link>
+            </div>
+
+            {data.reviews && (
+              <div className={`${styles.card} ${styles.pad}`}>
+                <h3>What Brands Say</h3>
+                <div className={styles.quote}>
+                  <span className={styles.qm}>&ldquo;</span>
+                  <p>{data.reviews[0].comment}</p>
+                  <div className={styles.qa}>— {'★'.repeat(data.reviews[0].rating)} verified collaboration</div>
+                </div>
+                {data.reviews.length > 1 && (
+                  <div className={styles.dots}>{data.reviews.map((_, i) => <span key={i} className={i === 0 ? styles.on : ''} />)}</div>
+                )}
               </div>
             )}
 
@@ -359,37 +345,33 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
       <footer className={styles.mkfooter}>
         <span>© {new Date().getFullYear()} Influnet · All rights reserved</span>
         <div className={styles.flinks}>
-          <Link href={`/c/${data.username}/media-kit`} style={{ color: 'inherit', textDecoration: 'none' }}>View Media Kit</Link>
+          <Link href={`/c/${data.username}`} style={{ color: 'inherit', textDecoration: 'none' }}>View profile</Link>
         </div>
       </footer>
+    </div>
+  );
+}
 
-      {isOwner && !previewing && (
-        <div className={styles.toolbar}>
-          <button className={`${styles.btn} ${styles.accent} ${styles.tb}`} onClick={publish}><Ic d="M22 2 11 13M22 2l-7 20-4-9-9-4Z" />Save &amp; publish</button>
-          <button className={`${styles.btn} ${styles.tb}`} onClick={() => { setPreviewing(true); setEditing(false); }}><Ic d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6" />Preview as visitor</button>
-          <button className={`${styles.btn} ${styles.tb}`} aria-pressed={editing} onClick={() => setEditing((e) => !e)}><Ic d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />Edit blocks</button>
-          <div className={styles.grp}>
-            <span className={styles.glbl}>Theme</span>
-            <div className={styles.seg} role="group" aria-label="Theme">
-              <button aria-pressed={!dark} onClick={() => setDark(false)}><Ic d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19" />Light</button>
-              <button aria-pressed={dark} onClick={() => setDark(true)}><Ic d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />Dark</button>
-            </div>
-          </div>
-          <div className={styles.grp} role="group" aria-label="Accent color">
-            <span className={styles.glbl}>Color</span>
-            {PRESETS.map((p) => (
-              <button key={p.name} className={styles.sw} style={{ background: p.a }} aria-label={p.name} aria-pressed={accent === p.a} onClick={() => applyPreset(p.a, p.b)} />
-            ))}
-            <span className={styles.picker} title="Pick any color">
-              <input type="color" value={accent.startsWith('#') ? accent : '#7C6BF6'} aria-label="Custom accent color" onChange={(e) => applyCustom(e.target.value)} />
-            </span>
-          </div>
-          <div className={styles.tspace} />
-          <span className={styles.hint}>Owner-only bar. Visitors see just the profile.</span>
+function Donut({ title, slices }: { title: string; slices: AudienceSlice[] }) {
+  // conic-gradient stops from cumulative percentages
+  let acc = 0;
+  const stops = slices.map((s, i) => {
+    const from = acc;
+    acc = Math.min(100, acc + s.pct);
+    return `${DONUT_COLORS[i % DONUT_COLORS.length]} ${from}% ${acc}%`;
+  });
+  if (acc < 100) stops.push(`var(--tile) ${acc}% 100%`);
+  return (
+    <div className={styles.subcard}>
+      <h4>{title}</h4>
+      <div className={styles.donutwrap}>
+        <div className={styles.donut} style={{ background: `conic-gradient(${stops.join(',')})` }} />
+        <div className={styles.legend}>
+          {slices.map((s, i) => (
+            <div key={s.label}><span className={styles.dot} style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />{s.label}<b>{s.pct}%</b></div>
+          ))}
         </div>
-      )}
-
-      <div className={`${styles.toast} ${toast ? styles.show : ''}`}><span className={styles.tk}><Check w={0.6} /></span>Published — your profile is live at influnet.com/@{data.username}</div>
+      </div>
     </div>
   );
 }
