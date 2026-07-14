@@ -100,6 +100,12 @@ function BusinessSignupContent() {
           setError(resData.error || "Failed to create profile record");
           return;
         }
+        // Fire-and-forget verification kick — starts the trust badge processing
+        // without blocking signup (re-runnable from Settings if it fails).
+        void fetch("/api/verification", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        }).catch(() => {});
         router.push(nextParam);
       } else {
         router.push(

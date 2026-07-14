@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type Step = 1 | 2 | 3 | 4;
-const STEP_LABELS = ["Account", "Profile", "Creator", "Collab"];
+type Step = 1 | 2 | 3 | 4 | 5;
+const STEP_LABELS = ["Connect", "Account", "Profile", "Creator", "Collab"];
 
 export default function InfluencerSignupPage() {
   return (
@@ -57,6 +57,9 @@ function InfluencerSignupContent() {
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectError, setConnectError] = useState("");
+  const [followerCount, setFollowerCount] = useState<number | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -81,11 +84,45 @@ function InfluencerSignupContent() {
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
 
   const canProceed = (): boolean => {
-    if (step === 1) return !!firstName && !!lastName && !!username && !!email && !!password;
-    if (step === 2) return !!gender && !!city && !!state && languages.length > 0;
-    if (step === 3) return !!primaryNiche && !!bio && (!!instagramHandle || !!youtubeHandle || !!twitterHandle);
-    if (step === 4) return collabTypes.length > 0 && !!priceRange;
+    if (step === 1) return true;
+    if (step === 2) return !!firstName && !!lastName && !!username && !!email && !!password;
+    if (step === 3) return !!gender && !!city && !!state && languages.length > 0;
+    if (step === 4) return !!primaryNiche && !!bio && (!!instagramHandle || !!youtubeHandle || !!twitterHandle);
+    if (step === 5) return collabTypes.length > 0 && !!priceRange;
     return false;
+  };
+
+  const handleConnectInstagram = async () => {
+    setConnectError("");
+    if (!instagramHandle) {
+      setConnectError("Please enter an Instagram handle");
+      return;
+    }
+    setIsConnecting(true);
+    try {
+      const res = await fetch(`/api/auth/scrape-instagram?handle=${encodeURIComponent(instagramHandle)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setConnectError(data.error || "Failed to fetch profile");
+        return;
+      }
+      if (data.profile) {
+        if (data.profile.fullName) {
+          const parts = data.profile.fullName.split(' ');
+          if (!firstName && parts.length > 0) setFirstName(parts[0]);
+          if (!lastName && parts.length > 1) setLastName(parts.slice(1).join(' '));
+        }
+        if (data.profile.biography && !bio) setBio(data.profile.biography);
+        if (data.profile.followerCount !== undefined && data.profile.followerCount !== null) {
+          setFollowerCount(data.profile.followerCount);
+        }
+        setStep(2);
+      }
+    } catch (err) {
+      setConnectError("Network error. Please try again.");
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -110,6 +147,7 @@ function InfluencerSignupContent() {
         twitterHandle,
         collabTypes,
         priceRange,
+        instagramFollowers: followerCount ?? undefined,
       };
 
       const { data, error: authError } = await sb.auth.signUp({
@@ -136,6 +174,13 @@ function InfluencerSignupContent() {
           setError(resData.error || "Failed to create profile record");
           return;
         }
+        // Kick off verification in the background so the trust badge starts
+        // processing immediately. Fire-and-forget — never blocks signup, and a
+        // failure here is harmless (the user can re-run it from Settings).
+        void fetch("/api/verification", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        }).catch(() => {});
         router.push(nextParam);
       } else {
         router.push(
@@ -175,7 +220,7 @@ function InfluencerSignupContent() {
         {/* Stepper */}
         <div className="mb-8 px-2">
           <div className="mb-2 flex items-center justify-between">
-            {[1, 2, 3, 4].map((s) => (
+            {[1, 2, 3, 4, 5].map((s) => (
               <React.Fragment key={s}>
                 <div
                   className={cn(
@@ -185,7 +230,7 @@ function InfluencerSignupContent() {
                 >
                   {s}
                 </div>
-                {s < 4 && (
+                {s < 5 && (
                   <div className={cn("h-0.5 flex-1 rounded-full transition-all", s < step ? "bg-brand" : "bg-hairline-strong")} />
                 )}
               </React.Fragment>
@@ -206,6 +251,57 @@ function InfluencerSignupContent() {
           )}
 
           {step === 1 && (
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Connect your Instagram</h2>
+              <p className="text-sm text-content-soft">
+                Enter your handle, and we'll automatically pull in your profile details to speed up signup.
+              </p>
+              {connectError && (
+                <div className="flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+                  <AlertTriangle className="size-4 shrink-0" /> {connectError}
+                </div>
+              )}
+              <div>
+                <Label>Instagram handle</Label>
+                <Input 
+                  value={instagramHandle} 
+                  onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ''))} 
+                  placeholder="username" 
+                />
+              </div>
+              <Button 
+                variant="surface" 
+                className="w-full" 
+                onClick={handleConnectInstagram} 
+                disabled={isConnecting || !instagramHandle}
+              >
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="animate-spin mr-2 size-4" /> Fetching profile...
+                  </>
+                ) : (
+                  "Auto-fill my details"
+                )}
+              </Button>
+              <div className="relative my-2 text-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-hairline"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-surface-card px-2 text-content-muted">Or</span>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                className="w-full text-content-soft" 
+                onClick={() => setStep(2)}
+              >
+                Skip and fill manually
+              </Button>
+            </div>
+          )}
+
+          {step === 2 && (
             <div className="flex flex-col gap-4">
               <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Account details</h2>
               <div className="grid grid-cols-2 gap-4">
@@ -241,7 +337,7 @@ function InfluencerSignupContent() {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div className="flex flex-col gap-4">
               <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Profile details</h2>
               <div>
@@ -282,7 +378,7 @@ function InfluencerSignupContent() {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="flex flex-col gap-4">
               <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Creator positioning</h2>
               <div>
@@ -325,7 +421,7 @@ function InfluencerSignupContent() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div className="flex flex-col gap-4">
               <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Collaboration preferences</h2>
               <div>
@@ -370,9 +466,9 @@ function InfluencerSignupContent() {
                 Back
               </Button>
             )}
-            {step < 4 ? (
+            {step < 5 ? (
               <Button variant="brand" size="xl" className="flex-1" disabled={!canProceed()} onClick={() => setStep((step + 1) as Step)}>
-                Continue
+                {step === 1 ? "Skip" : "Continue"}
               </Button>
             ) : (
               <Button variant="brand" size="xl" className="flex-1" disabled={isLoading || !canProceed()} onClick={handleSubmit}>

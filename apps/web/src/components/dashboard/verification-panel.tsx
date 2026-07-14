@@ -15,7 +15,7 @@ interface StatusResponse {
 }
 
 const BLURB: Record<VerificationStatus, string> = {
-  unverified: "Run verification to earn a trust badge. It happens in the background — you can keep using everything meanwhile.",
+  unverified: "Run verification to earn a trust badge. We check your Instagram handle live — real followers, recent activity, and Instagram's own verified status. It runs in the background; you can keep using everything meanwhile.",
   pending: "Verification is running. This won't stop you using any feature.",
   in_review: "A reviewer is taking a look. No action needed — you have full access in the meantime.",
   verified: "Your account is verified. The badge is visible to businesses and creators you work with.",

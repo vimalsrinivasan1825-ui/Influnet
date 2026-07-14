@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { buildSignals } from '@/lib/verification-scraper';
+import { enrichWithLiveData } from '@/lib/verification-live';
+import { normalizeHandle } from '@/lib/instagram';
 import { decide, VERIFICATION_NOTIFICATION, type Role } from '@/lib/verification';
+
+// The live provider (Apify actor) can take ~15s to return. Allow headroom so the
+// serverless function doesn't time out mid-verification. The signup trigger is
+// fire-and-forget, so users never wait on this; the Settings button shows a
+// spinner. (For higher scale, move to the async verification_jobs queue.)
+export const maxDuration = 60;
 
 // GET: the caller's current verification status + latest check (for the UI panel).
 export async function GET(req: Request) {
@@ -49,6 +58,10 @@ export async function POST(req: Request) {
       return jsonError(400, 'Only business and creator accounts can be verified');
     }
 
+    // Each run spends a paid scrape (~$0.0026 + ~15s). Cap re-runs per user.
+    const limited = await enforceRateLimit(req, { bucket: 'verification:run', limit: 6, windowMs: 60_000, key: user.id });
+    if (limited) return limited;
+
     // Gather the user's own submitted data as scraper input.
     const { data: baseProfile } = await supabase.rpc('get_own_profile');
     const phone = (baseProfile as any)?.phone ?? null;
@@ -75,14 +88,43 @@ export async function POST(req: Request) {
       input = { ...i, phone };
     }
 
-    const signals = buildSignals(role as Role, input);
+    // 1) Structural signals from the user's own submission (pure, sync).
+    const baseSignals = buildSignals(role as Role, input);
+    // 2) Live enrichment: confirm the Instagram handle against HikerAPI (real
+    //    followers, IG's own verified flag, recency). Never throws — a provider
+    //    outage degrades to structural signals + human review.
+    const { signals, note } = await enrichWithLiveData(
+      role as Role,
+      {
+        instagram_handle: (input as any).instagram_handle ?? null,
+        instagram_followers: (input as any).instagram_followers ?? null,
+      },
+      baseSignals,
+    );
+
+    // Ownership gate: has the user PROVEN control of this Instagram handle via the
+    // bio-code handshake? Without it, decide() will not auto-verify (anti-impersonation).
+    const igHandle = normalizeHandle((input as any).instagram_handle)?.toLowerCase() ?? null;
+    if (igHandle) {
+      const { data: owned } = await supabase
+        .from('social_account_claims')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('platform', 'instagram')
+        .eq('handle', igHandle)
+        .eq('status', 'verified')
+        .maybeSingle();
+      signals.ownership_verified = !!owned;
+    }
+
     const decision = decide(role as Role, signals);
+    const reason = note ? `${decision.reason} — ${note}` : decision.reason;
     const notif = VERIFICATION_NOTIFICATION[decision.status];
 
     const { data: result, error: rpcErr } = await supabase.rpc('submit_verification', {
       p_signals: signals,
       p_score: decision.score,
-      p_reason: decision.reason,
+      p_reason: reason,
       p_status: decision.status,
       p_notif_type: notif.type,
       p_notif_title: notif.title,
@@ -93,7 +135,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       status: decision.status,
       score: decision.score,
-      reason: decision.reason,
+      reason,
       result,
     });
   } catch (error: any) {

@@ -74,6 +74,77 @@ describe('decide', () => {
     });
     expect(d.status).toBe('in_review');
   });
+
+  it('escalates when the claimed Instagram handle does not resolve', () => {
+    const d = decide('influencer', {
+      social_handles_live: { instagram: false },
+      flags: ['instagram_handle_not_found'],
+    });
+    expect(d.status).toBe('in_review');
+  });
+
+  it('escalates a wildly inflated follower claim rather than approving', () => {
+    const d = decide('influencer', {
+      social_handles_live: { instagram: true },
+      follower_count: 1200,
+      last_post_days_ago: 3,
+      platform_verified: true, // would otherwise auto-approve
+      flags: ['follower_count_inflated'],
+    });
+    expect(d.status).toBe('in_review');
+  });
+});
+
+describe('ownership gate (anti-impersonation)', () => {
+  const strongCreator = {
+    social_handles_live: { instagram: true },
+    follower_count: 500000,
+    last_post_days_ago: 2,
+    platform_verified: true,
+  };
+
+  it('does NOT auto-verify strong metrics without proven ownership — escalates instead', () => {
+    const d = decide('influencer', strongCreator); // ownership_verified undefined
+    expect(d.score).toBeGreaterThanOrEqual(AUTO_APPROVE_THRESHOLD);
+    expect(d.status).toBe('in_review');
+    expect(d.status).not.toBe('verified' as never);
+  });
+
+  it('auto-verifies the same profile once ownership is proven', () => {
+    const d = decide('influencer', { ...strongCreator, ownership_verified: true });
+    expect(d.status).toBe('verified');
+  });
+
+  it('impersonating a famous account (claimed with its real metrics) cannot auto-verify', () => {
+    // Someone types @famous — real live data comes back great, but they never proved control.
+    const d = decide('influencer', {
+      social_handles_live: { instagram: true },
+      follower_count: 100000000,
+      last_post_days_ago: 0,
+      platform_verified: true,
+      ownership_verified: false,
+    });
+    expect(d.status).toBe('in_review');
+  });
+});
+
+describe('platform_verified (Instagram blue-check) signal', () => {
+  it('lets an IG-verified creator with a live, owned handle auto-approve', () => {
+    const d = decide('influencer', {
+      social_handles_live: { instagram: true },
+      follower_count: 250000,
+      last_post_days_ago: 4,
+      platform_verified: true,
+      ownership_verified: true, // creators must prove ownership to auto-approve
+    });
+    expect(d.status).toBe('verified');
+  });
+
+  it('boosts a business that is platform-verified', () => {
+    const withBadge = scoreBusinessSignals({ website_resolves: true, platform_verified: true });
+    const without = scoreBusinessSignals({ website_resolves: true });
+    expect(withBadge).toBeGreaterThan(without);
+  });
 });
 
 describe('scraper signal builders', () => {

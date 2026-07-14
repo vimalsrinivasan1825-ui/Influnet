@@ -28,8 +28,25 @@ export interface VerificationSignals {
   last_post_days_ago?: number;
   bio_matches_niche?: boolean;
   // shared
+  platform_verified?: boolean; // the platform itself (e.g. Instagram) already verifies this account
+  ownership_verified?: boolean; // the user PROVED control of the handle (bio-code handshake / OAuth)
   has_contactable_channel?: boolean;
-  flags?: string[]; // e.g. ['gst_not_found', 'all_handles_dead']
+  flags?: string[]; // e.g. ['gst_not_found', 'all_handles_dead', 'instagram_not_found']
+  // Audit-only: what the live data provider actually returned. Never scored;
+  // surfaced to admins in the escalation queue for a human sanity-check.
+  live?: {
+    provider: string; // 'hikerapi' | 'none'
+    status: 'ok' | 'not_found' | 'unavailable' | 'skipped';
+    instagram?: {
+      handle: string;
+      found: boolean;
+      follower_count: number | null;
+      is_verified: boolean;
+      is_private: boolean;
+      last_post_days_ago: number | null;
+      error?: string;
+    };
+  };
 }
 
 export interface VerificationDecision {
@@ -46,7 +63,9 @@ export const ESCALATE_THRESHOLD = 0.5;
 // Hard fraud signals never auto-approve and never auto-reject — they escalate.
 function hasFraudFlag(signals: VerificationSignals): boolean {
   const flags = signals.flags ?? [];
-  return flags.some((f) => /fraud|impersonat|all_handles_dead|domain_not_found/.test(f));
+  // A claimed handle that doesn't resolve, or a wildly inflated follower claim,
+  // is suspicious: never auto-approve, never auto-reject — send it to a human.
+  return flags.some((f) => /fraud|impersonat|all_handles_dead|domain_not_found|handle_not_found|_inflated/.test(f));
 }
 
 function clamp01(n: number): number {
@@ -62,6 +81,8 @@ export function scoreBusinessSignals(s: VerificationSignals): number {
   if (s.gst_format_valid) score += 0.2;
   if ((s.domain_age_days ?? 0) >= 180) score += 0.1;
   if (s.has_contactable_channel) score += 0.1;
+  // A platform-verified (Instagram blue-check) business account is strong proof.
+  if (s.platform_verified) score += 0.2;
   return clamp01(score);
 }
 
@@ -74,6 +95,8 @@ export function scoreCreatorSignals(s: VerificationSignals): number {
   if ((s.follower_count ?? 0) >= 1000) score += 0.15;
   if ((s.last_post_days_ago ?? Infinity) <= 30) score += 0.2;
   if (s.bio_matches_niche) score += 0.15;
+  // Instagram's own blue-check is the single strongest creator trust signal.
+  if (s.platform_verified) score += 0.35;
   return clamp01(score);
 }
 
@@ -101,6 +124,20 @@ export function decide(role: Role, signals: VerificationSignals): VerificationDe
     };
   }
   if (score >= AUTO_APPROVE_THRESHOLD) {
+    // ANTI-IMPERSONATION GATE (creators): high metrics alone are not enough.
+    // A creator's Instagram is scraped by handle, so someone could type a famous
+    // creator's handle and inherit their metrics. Auto-approval therefore requires
+    // PROVEN ownership (bio-code handshake / OAuth); without it we escalate to a
+    // human. Businesses verify via other evidence (website/GST/admin) and are not
+    // gated here.
+    if (role === 'influencer' && !signals.ownership_verified) {
+      return {
+        score,
+        status: 'in_review',
+        reason: 'Metrics look strong, but account ownership is not yet confirmed — pending review.',
+        decided_by: 'ai',
+      };
+    }
     return { score, status: 'verified', reason: 'High-confidence auto-approval.', decided_by: 'ai' };
   }
   if (score >= ESCALATE_THRESHOLD) {

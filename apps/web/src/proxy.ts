@@ -42,7 +42,8 @@ async function updateSession(request: NextRequest) {
     publicPaths.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
     pathname.startsWith('/signup') ||
     pathname.startsWith('/c/') ||
-    pathname.startsWith('/b/');
+    pathname.startsWith('/b/') ||
+    pathname.startsWith('/vf/');
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();

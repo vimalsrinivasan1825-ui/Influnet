@@ -9,6 +9,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
+import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
 
 interface Profile {
   role?: string;
@@ -49,6 +50,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -126,6 +128,26 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("Are you sure you want to completely delete your account? This will instantly wipe all your data from the database and cannot be undone.")) {
+      return;
+    }
+    setDeleting(true);
+    setError("");
+    try {
+      const res = await apiFetch("/api/profile", {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(res.error || "Failed to delete account");
+      
+      localStorage.removeItem("influnet_user");
+      window.location.href = "/login";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete account");
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-5 p-4 sm:p-6">
@@ -161,6 +183,10 @@ export default function SettingsPage() {
       )}
 
       {(isBusiness || isInfluencer) && <VerificationPanel />}
+
+      {isInfluencer && profile?.instagram_handle && (
+        <InstagramOwnershipPanel handle={profile.instagram_handle} />
+      )}
 
       <SectionCard title="Profile information">
         <div className="flex flex-col gap-4">
@@ -265,6 +291,30 @@ export default function SettingsPage() {
             </>
           )}
         </Button>
+      </div>
+
+      <div className="mt-8">
+        <SectionCard title="Danger zone">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-content-muted">
+              Permanently delete your account and all associated data. This action cannot be undone.
+            </div>
+            <Button
+              variant="outline"
+              className="border-danger/30 text-danger hover:bg-danger-soft hover:text-danger-strong"
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="animate-spin mr-2 size-4" /> Deleting…
+                </>
+              ) : (
+                "Delete account"
+              )}
+            </Button>
+          </div>
+        </SectionCard>
       </div>
     </div>
   );

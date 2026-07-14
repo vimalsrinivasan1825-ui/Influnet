@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VerificationQueue } from "@/components/dashboard/admin/verification-queue";
 
 interface BusinessUser {
   user_id: string;
@@ -70,11 +71,13 @@ export default function AdminApprovalsPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 sm:p-6">
       <PageHeader
-        eyebrow="Business approval"
+        eyebrow="Trust & approvals"
         title="Account approvals"
-        subtitle="Review and approve or reject business registrations."
+        subtitle="Resolve verification escalations and approve business registrations."
         icon={<Building2 />}
       />
+
+      <VerificationQueue />
 
       {error && (
         <div className="flex items-center gap-3 rounded-2xl border border-danger/20 bg-danger-soft px-5 py-4 text-sm font-semibold text-danger">

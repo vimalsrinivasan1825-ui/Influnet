@@ -99,8 +99,18 @@ describe('RegisterProfileSchema', () => {
       username: 'testcreator',
       niche: ['Fashion'],
       bio: 'A test creator',
+      instagramHandle: '@testcreator', // influencers must supply ≥1 social handle
     });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects an influencer with no social handle', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Handleless Creator',
+      role: 'influencer',
+      username: 'nohandle',
+    });
+    expect(result.success).toBe(false);
   });
 
   it('accepts valid business profile payload (no email/password)', () => {
@@ -132,6 +142,7 @@ describe('RegisterProfileSchema', () => {
     const result = RegisterProfileSchema.safeParse({
       name: 'Creator',
       role: 'influencer',
+      instagramHandle: '@creator', // influencers must supply ≥1 social handle
       someUnknownRpcField: 'value',
     });
     expect(result.success).toBe(true);
