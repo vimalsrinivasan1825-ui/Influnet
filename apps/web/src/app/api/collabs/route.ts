@@ -45,6 +45,18 @@ export async function POST(req: Request) {
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
 
+    // Approval gate: pending/rejected businesses can browse the dashboard (soft
+    // banner) but cannot reach out to creators until an admin approves them.
+    // Enforced server-side — the UI lock is not a security boundary.
+    const { data: bizProfile } = await supabase
+      .from('business_profiles')
+      .select('approval_status')
+      .eq('user_id', user.id)
+      .single();
+    if ((bizProfile as { approval_status?: string } | null)?.approval_status !== 'approved') {
+      return jsonError(403, 'Your business account is still under review. You can reach out to creators once it’s approved.');
+    }
+
     // Guard against collab-request spam (one business blasting many creators).
     const limited = await enforceRateLimit(req, { bucket: 'collabs:create', limit: 20, windowMs: 60_000, key: user.id });
     if (limited) return limited;

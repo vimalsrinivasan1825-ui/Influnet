@@ -59,7 +59,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-4">
+    <div className="relative flex h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-6">
       {/* Ambient brand glows */}
       <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
         <div
@@ -72,7 +72,7 @@ function LoginContent() {
         />
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 flex max-h-full w-full max-w-md flex-col overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mb-8 text-center">
           <Link href="/" className="mb-6 inline-flex items-center gap-2.5">
             <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />

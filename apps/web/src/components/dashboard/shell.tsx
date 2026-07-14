@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Clock, XCircle } from "lucide-react";
+import { Clock, XCircle, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { StreamChat } from "stream-chat";
 import { apiFetch } from "@/lib/api-client";
@@ -11,7 +11,6 @@ import DashboardSidebar from "@/components/dashboard/sidebar";
 import DashboardHeader from "@/components/dashboard/header";
 import { useNotificationStore, NotificationItem } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
-import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/types";
 
 const THEME_CLASS: Record<UserRole, string> = {
@@ -29,8 +28,21 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Restore the per-status dismissal of the verification banner. Keyed by status
+  // so a later state change (e.g. rejected) surfaces a fresh banner.
+  useEffect(() => {
+    if (!approvalStatus) return;
+    setBannerDismissed(localStorage.getItem(`influnet_verif_banner:${approvalStatus}`) === "1");
+  }, [approvalStatus]);
+
+  const dismissBanner = () => {
+    if (approvalStatus) localStorage.setItem(`influnet_verif_banner:${approvalStatus}`, "1");
+    setBannerDismissed(true);
+  };
 
   // Restore the desktop collapse preference.
   useEffect(() => {
@@ -245,61 +257,15 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const themeClass = role ? THEME_CLASS[role] : "theme-brand";
 
-  // Gate screen for unapproved businesses (pending review or rejected).
-  if (
+  // Soft verification banner for unapproved businesses. They can explore the
+  // dashboard and set up their profile, but outreach actions stay locked
+  // server-side until an admin approves (see /api/collabs POST). Dismissible.
+  const showVerifBanner =
     isLoaded &&
     role === "business_owner" &&
-    (approvalStatus === "pending_review" || approvalStatus === "rejected")
-  ) {
-    const isRejected = approvalStatus === "rejected";
-    return (
-      <div className={`${themeClass} flex min-h-screen items-center justify-center bg-surface px-4`}>
-        <div className="w-full max-w-md text-center">
-          <div
-            className={`mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl border ${
-              isRejected
-                ? "border-danger/20 bg-danger-soft text-danger"
-                : "border-warn/20 bg-warn-soft text-warn"
-            }`}
-          >
-            {isRejected ? <XCircle className="size-8" /> : <Clock className="size-8" />}
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-content">
-            {isRejected ? "Account not approved" : "Account under review"}
-          </h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-content-soft">
-            {isRejected
-              ? "Your business account wasn't approved by our review team. If you think this is a mistake, contact support and we'll take another look."
-              : "Our team is reviewing your business account. You'll get dashboard access as soon as it's approved — usually within 1–2 business days."}
-          </p>
-          <div
-            className={`mx-auto mt-5 max-w-sm rounded-xl border px-4 py-3 text-sm font-semibold ${
-              isRejected
-                ? "border-danger/20 bg-danger-soft text-danger"
-                : "border-warn/20 bg-warn-soft text-warn"
-            }`}
-          >
-            {isRejected
-              ? "Status: Rejected — contact support for help."
-              : "Status: Pending review — we'll email you once approved."}
-          </div>
-          <div className="mt-6">
-            <Button
-              variant="surface"
-              size="xl"
-              onClick={async () => {
-                await createClient().auth.signOut();
-                localStorage.clear();
-                router.push("/login");
-              }}
-            >
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    (approvalStatus === "pending_review" || approvalStatus === "rejected") &&
+    !bannerDismissed;
+  const isRejected = approvalStatus === "rejected";
 
   if (!isLoaded) {
     return (
@@ -335,7 +301,46 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           avatarUrl={avatarUrl}
           onOpenMobile={() => setMobileOpen(true)}
         />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1">
+          {showVerifBanner && (
+            <div className="px-4 pt-4 sm:px-6 lg:px-8">
+              <div
+                className={`flex items-start gap-3 rounded-2xl border px-4 py-3.5 ${
+                  isRejected
+                    ? "border-danger/20 bg-danger-soft"
+                    : "border-warn/25 bg-warn-soft"
+                }`}
+              >
+                <div
+                  className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ${
+                    isRejected ? "bg-danger/10 text-danger" : "bg-warn/15 text-warn"
+                  }`}
+                >
+                  {isRejected ? <XCircle className="size-5" /> : <Clock className="size-5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-extrabold text-content">
+                    {isRejected ? "Your account wasn’t approved" : "Your profile is being verified"}
+                  </p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-content-soft">
+                    {isRejected
+                      ? "Our review team didn’t approve your business account. You can look around, but reaching out to creators is disabled. Think this is a mistake? Contact support and we’ll take another look."
+                      : "You’re all set to explore and finish setting up your profile. Reaching out to creators unlocks once our team approves your account — usually within 1–2 business days."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissBanner}
+                  aria-label="Dismiss"
+                  className="shrink-0 rounded-lg p-1.5 text-content-muted transition-colors hover:bg-black/5 hover:text-content"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );

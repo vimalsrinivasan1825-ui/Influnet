@@ -120,7 +120,7 @@ function BusinessSignupContent() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-4 py-16">
+    <div className="relative flex h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-4">
       <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
         <div
           className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
@@ -132,18 +132,18 @@ function BusinessSignupContent() {
         />
       </div>
 
-      <div className="relative z-10 w-full max-w-lg">
-        <div className="mb-8 text-center">
-          <Link href="/" className="mb-6 inline-flex items-center gap-2.5">
+      <div className="relative z-10 flex max-h-full w-full max-w-lg flex-col overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mb-5 text-center">
+          <Link href="/" className="mb-4 inline-flex items-center gap-2.5">
             <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
             <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-3xl font-extrabold tracking-tight text-content">Create your business account</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-content">Create your business account</h1>
           <p className="mt-1.5 text-sm text-content-soft">Join as a business partner.</p>
         </div>
 
         {/* Stepper */}
-        <div className="mb-8 px-2">
+        <div className="mb-5 px-2">
           <div className="mb-2 flex items-center justify-between">
             {[1, 2, 3, 4].map((s) => (
               <React.Fragment key={s}>
@@ -170,7 +170,7 @@ function BusinessSignupContent() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-hairline bg-surface-card p-8 shadow-[var(--shadow-raised)]">
+        <div className="rounded-3xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-7">
           {error && (
             <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
               <AlertTriangle className="size-4 shrink-0" /> {error}
@@ -291,7 +291,7 @@ function BusinessSignupContent() {
             </div>
           )}
 
-          <div className="mt-8 flex gap-3">
+          <div className="mt-6 flex gap-3">
             {step > 1 && (
               <Button variant="surface" size="xl" className="flex-1" onClick={() => setStep((step - 1) as Step)}>
                 Back
@@ -315,7 +315,7 @@ function BusinessSignupContent() {
           </div>
         </div>
 
-        <p className="mt-8 text-center text-sm font-medium text-content-soft">
+        <p className="mt-5 text-center text-sm font-medium text-content-soft">
           Already have an account?{" "}
           <Link
             href={nextParam && nextParam !== "/dashboard" ? `/login?next=${encodeURIComponent(nextParam)}` : "/login"}
