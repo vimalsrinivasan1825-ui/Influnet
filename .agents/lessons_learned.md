@@ -429,3 +429,18 @@ This file tracks the current implementation state of each system module, issues 
 #### Next Target
 * Upstash Rate Limiting and Sentry error logging integration.
 * Proceed with Razorpay payment integration and schema checks.
+
+### Instagram Auto-Populate for Influencer Signup (2026-07-14)
+#### Scope
+* **Feature**: Added a "Connect Instagram" step (Step 1) to the influencer signup flow `apps/web/src/app/signup/influencer/page.tsx` that fetches public profile data using the `fetchInstagramProfile` utility and pre-fills the signup form (First/Last Name, Bio).
+* **API Route**: Created `apps/web/src/app/api/auth/scrape-instagram/route.ts` which is unauthenticated but strictly rate-limited using the in-house/Upstash rate limiting solution.
+* **Payload Update**: Follower counts retrieved from Instagram are now sent directly in the registration payload, ensuring the `instagram_followers` field is populated on account creation for immediate sorting/ranking capability.
+
+#### Broken & Resolved
+* **Followers Missing in Payload**: The `instagram_followers` field was needed in the payload, but was only checked during verification. I confirmed `lib/validators.ts` (`RegisterProfileSchema`) supported `instagramFollowers` and wired it into the frontend state correctly.
+
+#### Key Lessons
+* Unauthenticated scraping API routes are high-risk targets for abuse. They MUST be wrapped in strict rate limits (e.g., 5 hits/min per IP) before shipping to production.
+
+#### Next Target
+* The codebase is now complete. The remaining gate is strictly infrastructure (Setting Supabase production keys, Upstash Redis keys). Proceed with deployment and infrastructure validation.

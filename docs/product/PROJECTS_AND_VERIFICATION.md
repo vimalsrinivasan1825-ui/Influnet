@@ -209,6 +209,99 @@ Your `Badge` component (`components/ui/badge.tsx`) and `statusVariant()` already
 
 Only render the badge when `profiles.verified_badge = true`. Keep a plain "Unverified/Pending" affordance elsewhere so absence of a badge is legible, not silent.
 
+### 2.9 Live integration — **SHIPPED 2026-07-14 (Apify default, HikerAPI alternative)**
+
+The design in §2.4–2.5 is implemented against a live public-Instagram data provider, behind the exact same `VerificationSignals` → `decide()` seam. **Two interchangeable providers** sit behind one selector; **Apify is the tested default** (it has free credit and returns post-recency inline), with HikerAPI as a drop-in alternative.
+
+**Code map**
+| File | Role |
+|---|---|
+| `apps/web/src/lib/instagram.ts` | **Provider selector.** `fetchInstagramProfile(username)`, `activeProvider()`, `isInstagramProviderConfigured()`. Picks provider from `VERIFICATION_PROVIDER` (`apify`\|`hikerapi`) or auto (prefers Apify). Re-exports the shared `InstagramProfile` type + `InstagramProviderError`. |
+| `apps/web/src/lib/apify-instagram.ts` | **Apify backend** (default). Runs the `apify/instagram-profile-scraper` actor via `run-sync-get-dataset-items`. Returns the full profile **plus recency inline** (`latestPosts[].timestamp`). |
+| `apps/web/src/lib/hikerapi.ts` | **HikerAPI backend** (alternative). Direct REST; recency via a second call. Defines the shared `InstagramProfile` shape + typed error (`unauthorized`/`insufficient_funds`/`not_found`/`rate_limited`/`network`). |
+| `apps/web/src/lib/verification-live.ts` | `enrichWithLiveData(role, input, baseSignals)` — folds live facts into signals via the selector. **Never throws**; provider outage → `live_check_unavailable` flag → human review. |
+| `apps/web/src/lib/verification.ts` | Pure scorer (unchanged seam). Added `platform_verified` signal (Instagram's own blue-check: +0.35 creator / +0.20 business) and extended the fraud-flag matcher to `handle_not_found` and `*_inflated`. |
+| `apps/web/src/app/api/verification/route.ts` | POST runs `buildSignals` → `enrichWithLiveData` → `decide` → `submit_verification`. `maxDuration = 60` for the Apify actor's ~15s latency. |
+| `apps/web/src/components/dashboard/admin/verification-queue.tsx` | **Admin cockpit** on `/dashboard/admin/approvals` — resolves escalations for both roles, showing AI score, live IG facts, and flags. |
+
+**Real signals gathered (Instagram):** account exists/live, real `follower_count`, Instagram `is_verified` (blue-check), `is_private`, `is_business` + category, `external_url`, post recency, plus derived flags: `instagram_handle_not_found` (claimed handle doesn't resolve → escalate), `follower_count_inflated` (self-reported ≥5k and >3× reality → escalate), `live_check_unavailable` (provider down → escalate).
+
+**Flow**
+- **Signup:** on profile creation the client fires a fire-and-forget `POST /api/verification` so the badge starts processing immediately (non-blocking; re-runnable).
+- **Settings:** `VerificationPanel` lets the user run/re-run it and shows the latest reason.
+- **Admin:** escalations land in the verification queue for a manual verify / ask-for-info / reject.
+
+**Config:** `APIFY_TOKEN` (default) and/or `HIKERAPI_ACCESS_KEY`, plus optional `VERIFICATION_PROVIDER` to pin one. All server-only (see `.env.example`). If neither is set — or the active provider is out of credit — verification still works, degrades to structural signals + human review, and **never blocks product access**.
+
+**Apify facts (measured live 2026-07-14):** actor `apify/instagram-profile-scraper`; ~$0.0026/profile (~$2.60/1000, ≈1,900 verifications on the $5 free credit); ~12–15s/call. Verified end-to-end against real handles (nasa/mrbeast/cristiano → auto-`verified`; non-existent handle → escalate).
+
+> ⚠️ **Launch note:** at higher scale, move the provider call from the inline request to the async `verification_jobs` queue (already in migration `055`) to avoid holding a serverless function for ~15s. Fine as-is for launch volume with `maxDuration=60`. See the launch-confidence report in `operations/`.
+
+### 2.10 Ownership vs. authenticity — the impersonation gap (DECISION PENDING)
+
+**The problem.** Because we deliberately avoid OAuth, a user just *types* an Instagram handle in the signup form. A background scrape (Apify/HikerAPI) then reads that public account. This answers **"is this a real, active, maybe-verified account?"** (authenticity/quality) but it does **not** answer **"does the person signing up actually control this account?"** (ownership).
+
+**Concrete hole (present in the shipped code):** the scorer has no ownership signal, so someone who signs up claiming `@cristiano` gets: handle live ✓, 676M followers ✓, `platform_verified` ✓ → **auto-`verified` (score 1.0)**. That is impersonation passing as verification. The dormant `impersonat` fraud-flag hook exists but nothing emits it yet.
+
+**Why scraping alone can never fix it.** Read-only scraping is anonymous — it can read *any* public profile, so by construction it cannot distinguish the owner from an impostor.
+
+**The fix without OAuth — challenge/response (proof of control).** Issue a short-lived unique code (e.g. `influnet-verify-x7q2`); the user places it where only the account owner can edit — the **Instagram bio** (we already fetch `biography` via Apify, so the extra cost is ~zero) — then the background check reads the bio and confirms the code. This proves control. The user may remove the code afterward. Alternatives (higher friction): a story/post with the code; a temporary username suffix.
+
+**Recommended layered trust model**
+1. **Ownership (control proof) — the gate.** Bio-code challenge. Badge is only granted when this passes.
+2. **Authenticity/quality — the score.** Apify data (followers, `verified`, recency) → auto-approve vs escalate. *Runs only after ownership passes.*
+3. **Human review — the safety net.** Anything suspicious → admin queue (already built).
+
+Until ownership is implemented, the honest interim posture is: **do not auto-approve on scrape data alone — route every creator to admin review** (flip `AUTO_APPROVE_THRESHOLD` behavior for creators, or require Layer 1). Auto-approve is only safe *after* a control proof.
+
+**Business owners — the analog.** Ownership proof = **domain control** (a DNS `TXT` record or a meta-tag / `/.well-known` file on their stated website), and/or the same bio-code on their business IG. GST is format-only today (real validation needs a GST API).
+
+**Edge cases:** private accounts (bio not scrapeable → require public during verify, else admin); code expiry + single-use; re-verify/revoke on handle change; rate-limit verify attempts.
+
+**Build cost:** small and additive — a code column/table, a "confirm ownership" endpoint that scrapes + matches the bio, a signup/settings step, and gating the badge on Layer 1. Reuses the existing provider + scorer + admin queue.
+
+### 2.11 Chosen direction — OAuth identity + scrape (via Supabase, NOT a new auth vendor)
+
+Supersedes §2.10's bio-code recommendation (rejected on UX). The target model is the **hybrid** the team landed on: prove **ownership** with an OAuth login, then **scrape metrics** against the verified account ID (the scrape half is already built, §2.9).
+
+**Correct architecture:** `[Connect Instagram] → [user logs in on Meta's page] → [we receive verified instagram_id + token] → [Apify scrapes metrics for that id] → [badge = identity + metrics]`.
+
+**The load-bearing correction (matters for planning):** an auth SaaS does **not** remove the Meta dependency.
+- Auth0 / Auth.js / Firebase Auth are *wrappers* around the OAuth handshake. For **Instagram** they all still require **our own Meta Developer app + App Review + Business Verification**. There is no "relaxed basic profile" shortcut anymore: Meta **shut down the Instagram Basic Display API on 2024-12-04**, and Auth0's native Instagram social connection was deprecated with it. So "toggle Instagram in Auth0 and ship today" is no longer real.
+- Facebook Login with only `public_profile`/`email` needs no review — but it proves a *Facebook* identity, not Instagram ownership. Instagram data (`instagram_business_basic` etc.) is review-gated.
+- Auth0 free tier is ~25k MAU (not millions). We already run **Supabase Auth**, which supports **identity linking** (`linkIdentity`) and OAuth providers — so it can broker steps 2–3 itself. Adding Auth0 would create a second identity system on top of Supabase (double login, extra cost, worse UX). **Recommendation: do the Meta OAuth through Supabase Auth, no new vendor.**
+
+**What is actually fast vs gated:** LinkedIn ("Sign in with LinkedIn / OIDC") is quick and low-review — usable soon. **Instagram is gated by Meta App Review + Business Verification (days–weeks) — cannot be live for public users on launch day.** No vendor changes this.
+
+**Plan:** (1) target = Supabase-brokered Meta OAuth "Connect Instagram" → verified id → existing Apify scraper; (2) begin Meta app review + business verification now (it's the long pole); (3) **launch bridge = admin manual review** (scrape data shown as *unconfirmed* until an identity login exists — never auto-approve on scrape alone, per §2.10). Flip auto-approve on once OAuth is live.
+
+### 2.12 V1 ownership handshake — bio-code challenge (SHIPPING, security design)
+
+The V1 ownership proof (before Meta OAuth, §2.11) is a **bound challenge-response**. It is the anti-impersonation gate: **no account auto-verifies without it.**
+
+**Handshake**
+1. **Initiate** — an authenticated user requests ownership of `(platform, handle)`. Server mints a fresh **high-entropy, single-use, expiring** code (`vf_…`, ~140 bits, 30 min TTL) **bound to (user, platform, handle)** and returns a link `…/vf/<code>` to place.
+2. **Place** — user puts the link/code in a surface **only the account owner can edit** (Instagram bio; for business: LinkedIn/website — see scope).
+3. **Confirm** — server **scrapes the LIVE bio itself** (Apify) and checks the exact issued code is present. Rate-limited.
+4. **Bind** — on match: status→`verified`, proof snippet stored; **global uniqueness** enforced (one verified owner per handle). Code consumed. Ownership now gates the badge.
+
+**Loopholes and how each is closed**
+| Attack | Mitigation |
+|---|---|
+| Claim an account you don't own (impersonation) | You can't edit its bio → can't place our code → fail. `decide()` **never auto-verifies without `ownership_verified`**. |
+| Reuse/replay a code | Codes are per-attempt, single-use, expiring, **bound to (user, handle)**. Public visibility is harmless — an attacker still can't write to the target bio. |
+| Guess a code | ~140-bit CSPRNG code. |
+| Forge the proof (submit a screenshot/URL) | **We never trust client-submitted proof** — only our own server-side live scrape. |
+| Two accounts claim the same handle | Partial-unique index: at most one `verified` row per `(platform, handle)`. |
+| Cloaking (serve the scraper different content) | Low risk for IG (Apify reads IG's own data). Website/LinkedIn proof is deferred to DNS-TXT / OAuth for exactly this reason. |
+| Private account (bio unreadable) | Require public during verify, else route to admin review. |
+| Cost / brute-force abuse | Rate-limit **initiate** and **confirm** per user + per handle; cooldown; attempt cap. |
+| Stale ownership (handle sold) | Re-verification supported; admin can revoke. |
+
+**Data:** `social_account_claims` (migration `058`) — `(user_id, platform, handle, code, status, attempts, expires_at, verified_at, proof)`; writes only via `SECURITY DEFINER` RPCs (`initiate_social_claim`, `confirm_social_claim`); RLS = own-or-admin read.
+
+**Scope V1:** Instagram fully (creators + business IG), via Apify bio read. Schema/endpoints are platform-generic so **LinkedIn** (business) and **website** (DNS-TXT) plug in next; Meta **OAuth** (§2.11) replaces/augments the whole handshake later.
+
 ---
 
 ## 3. Full Flow Audit (onboarding → completion)

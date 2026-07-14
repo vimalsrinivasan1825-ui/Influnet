@@ -67,15 +67,18 @@ function NavList({
   collapsed,
   unreadMessages,
   pendingRequests,
+  role,
   onNavigate,
 }: {
   items: NavItem[];
   collapsed: boolean;
   unreadMessages: number;
   pendingRequests: number;
+  role: UserRole;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const isCreator = role === "influencer";
   return (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
       {items.map((item) => {
@@ -99,8 +102,12 @@ function NavList({
               "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
               collapsed && "justify-center px-0",
               active
-                ? "bg-brand-soft text-brand-strong"
-                : "text-content-soft hover:bg-surface-muted hover:text-content",
+                ? isCreator
+                  ? "bg-white/20 text-white"
+                  : "bg-brand-soft text-brand-strong"
+                : isCreator
+                  ? "text-white/70 hover:bg-white/10 hover:text-white"
+                  : "text-content-soft hover:bg-surface-muted hover:text-content",
             )}
           >
             {active && !collapsed && (
@@ -123,12 +130,13 @@ function NavList({
   );
 }
 
-function Brand({ collapsed }: { collapsed: boolean }) {
+function Brand({ collapsed, role }: { collapsed: boolean; role: UserRole }) {
+  const isCreator = role === "influencer";
   return (
     <Link href="/" className="flex items-center gap-2.5">
       <Image src="/influet_logo.png" alt="" width={28} height={28} className="size-7 shrink-0" />
       {!collapsed && (
-        <span className="text-lg font-extrabold tracking-tight text-content">influnet</span>
+        <span className={cn("text-lg font-extrabold tracking-tight", isCreator ? "text-white" : "text-content")}>influnet</span>
       )}
     </Link>
   );
@@ -141,7 +149,8 @@ function RolePill({ role, collapsed }: { role: UserRole; collapsed: boolean }) {
     <div className="px-3 pt-3">
       <div
         className={cn(
-          "flex items-center gap-2 rounded-lg bg-brand-soft px-2.5 py-1.5 text-brand-strong",
+          "flex items-center gap-2 rounded-lg px-2.5 py-1.5",
+          role === "influencer" ? "bg-white/10 text-white" : "bg-brand-soft text-brand-strong",
           collapsed && "justify-center px-0",
         )}
       >
@@ -183,21 +192,28 @@ export default function DashboardSidebar({
       {/* Desktop rail */}
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-hairline bg-surface-card transition-[width] duration-200 md:flex",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r transition-[width] duration-200 md:flex",
+          role === "influencer" ? "bg-brand text-white border-brand-strong" : "bg-surface-card border-hairline",
           collapsed ? "w-[4.5rem]" : "w-60",
         )}
       >
         <div
           className={cn(
-            "flex h-16 items-center border-b border-hairline px-4",
+            "flex h-16 items-center border-b px-4",
+            role === "influencer" ? "border-white/10" : "border-hairline",
             collapsed ? "justify-center" : "justify-between",
           )}
         >
-          {!collapsed && <Brand collapsed={false} />}
+          {!collapsed && <Brand collapsed={false} role={role} />}
           <button
             onClick={onToggleCollapse}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="rounded-lg p-1.5 text-content-muted transition-colors hover:bg-surface-muted hover:text-content"
+            className={cn(
+              "rounded-lg p-1.5 transition-colors",
+              role === "influencer" 
+                ? "text-white/70 hover:bg-white/10 hover:text-white" 
+                : "text-content-muted hover:bg-surface-muted hover:text-content"
+            )}
           >
             {collapsed ? <PanelLeft className="size-5" /> : <PanelLeftClose className="size-5" />}
           </button>
@@ -209,11 +225,12 @@ export default function DashboardSidebar({
           collapsed={collapsed}
           unreadMessages={unreadMessages}
           pendingRequests={pendingRequests}
+          role={role}
         />
 
         {showSettings && (
-          <div className="border-t border-hairline px-3 py-3">
-            <SettingsLink collapsed={collapsed} />
+          <div className={cn("border-t px-3 py-3", role === "influencer" ? "border-white/10" : "border-hairline")}>
+            <SettingsLink collapsed={collapsed} role={role} />
           </div>
         )}
       </aside>
@@ -235,16 +252,20 @@ export default function DashboardSidebar({
         />
         <aside
           className={cn(
-            "absolute left-0 top-0 flex h-full w-[17rem] max-w-[82vw] flex-col border-r border-hairline bg-surface-card shadow-[var(--shadow-pop)] transition-transform duration-200",
+            "absolute left-0 top-0 flex h-full w-[17rem] max-w-[82vw] flex-col border-r shadow-[var(--shadow-pop)] transition-transform duration-200",
+            role === "influencer" ? "bg-brand text-white border-brand-strong" : "bg-surface-card border-hairline",
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
-          <div className="flex h-16 items-center justify-between border-b border-hairline px-4">
-            <Brand collapsed={false} />
+          <div className={cn("flex h-16 items-center justify-between border-b px-4", role === "influencer" ? "border-white/10" : "border-hairline")}>
+            <Brand collapsed={false} role={role} />
             <button
               onClick={onCloseMobile}
               aria-label="Close menu"
-              className="rounded-lg p-1.5 text-content-muted transition-colors hover:bg-surface-muted hover:text-content"
+              className={cn(
+                "rounded-lg p-1.5 transition-colors",
+                role === "influencer" ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-content-muted hover:bg-surface-muted hover:text-content"
+              )}
             >
               <X className="size-5" />
             </button>
@@ -256,10 +277,11 @@ export default function DashboardSidebar({
             unreadMessages={unreadMessages}
             pendingRequests={pendingRequests}
             onNavigate={onCloseMobile}
+            role={role}
           />
           {showSettings && (
-            <div className="border-t border-hairline px-3 py-3">
-              <SettingsLink collapsed={false} onNavigate={onCloseMobile} />
+            <div className={cn("border-t px-3 py-3", role === "influencer" ? "border-white/10" : "border-hairline")}>
+              <SettingsLink collapsed={false} onNavigate={onCloseMobile} role={role} />
             </div>
           )}
         </aside>
@@ -270,13 +292,16 @@ export default function DashboardSidebar({
 
 function SettingsLink({
   collapsed,
+  role,
   onNavigate,
 }: {
   collapsed: boolean;
+  role: UserRole;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const active = pathname === "/dashboard/settings";
+  const isCreator = role === "influencer";
   return (
     <Link
       href="/dashboard/settings"
@@ -286,8 +311,8 @@ function SettingsLink({
         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
         collapsed && "justify-center px-0",
         active
-          ? "bg-brand-soft text-brand-strong"
-          : "text-content-soft hover:bg-surface-muted hover:text-content",
+          ? isCreator ? "bg-white/20 text-white" : "bg-brand-soft text-brand-strong"
+          : isCreator ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-content-soft hover:bg-surface-muted hover:text-content",
       )}
     >
       <Settings className="size-[1.15rem] shrink-0" />

@@ -14,7 +14,7 @@ function Card({
     <div
       data-slot="card"
       className={cn(
-        "rounded-2xl border border-hairline bg-surface-card text-content shadow-[var(--shadow-card)]",
+        "rounded-3xl border border-hairline bg-surface-card text-content shadow-[var(--shadow-soft)]",
         interactive &&
           "transition-all duration-200 hover:-translate-y-0.5 hover:border-hairline-strong hover:shadow-[var(--shadow-raised)]",
         className,

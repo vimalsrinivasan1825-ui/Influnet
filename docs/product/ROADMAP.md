@@ -20,6 +20,7 @@ What's built, what's left, and the open decisions. For the deep manual test list
 | Notifications | ✅ | DB triggers → Supabase Realtime bell; summary endpoint. |
 | Dashboards (business/influencer/admin) | ✅ | Metrics from `campaign_projects.status`; "Pipeline value" (not "earnings"). |
 | Admin approval + management | ✅ | `withAdmin` service-role; approvals/users/collabs/projects. |
+| **Verification & trust badge** | ✅ code + live-tested / ⚠️ needs migrations | Live Instagram checks via a 2-provider seam (`lib/instagram.ts`): **Apify default** (free credit, happy path verified live) + HikerAPI alt. Auto-approve or escalate to admin queue; never blocks access. Needs migration `055` applied on hosted DB — see [LAUNCH_CONFIDENCE_2026-07-14](../operations/LAUNCH_CONFIDENCE_2026-07-14.md). |
 | **Reviews & ratings** | 🟡 built, verifying | Table + RLS + route done this round; run QA to confirm live. |
 | **Payments** | ⛔ not built | Stages are cosmetic; no gateway/records. **Decision open (§4).** |
 | **Completion outcomes** (showcase, reputation ranking) | ⛔ not built | See §3. |

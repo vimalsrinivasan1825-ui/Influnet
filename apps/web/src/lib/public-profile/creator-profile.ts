@@ -219,7 +219,9 @@ export function buildCreatorProfileView(
       label: 'YouTube',
     });
   }
-  floating.push({ platform: 'verified', value: 'Verified', label: 'by Influnet' });
+  if (profile.isVerified) {
+    floating.push({ platform: 'verified', value: 'Verified', label: 'by Influnet' });
+  }
 
   return {
     name: profile.name || (profile.username ? `@${profile.username}` : 'Creator'),

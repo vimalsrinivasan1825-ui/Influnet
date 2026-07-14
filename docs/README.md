@@ -44,6 +44,7 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [DEPLOYMENT.md](operations/DEPLOYMENT.md) | Cloud deployment runbook: prod Supabase, env vars, host setup, edge functions, Stream webhook, post-deploy smoke test, infra to-dos (Sentry/Upstash/backups). |
 | [QA_AND_GO_LIVE.md](operations/QA_AND_GO_LIVE.md) | Manual QA / test script (step-by-step, expected results) + "path to a solid product" checklist. |
 | [E2E_SYSTEM_FLOW_TEST.md](operations/E2E_SYSTEM_FLOW_TEST.md) | **Deep "nothing hidden" walkthrough.** Every flow (signup→link→discover→request→accept→12-stage project→chat) broken down as user-sees / does / backend / DB rows / verify-SQL, plus negative tests and what was verified live. |
+| [LAUNCH_CONFIDENCE_2026-07-14.md](operations/LAUNCH_CONFIDENCE_2026-07-14.md) | Pre-launch readiness report: app-health verification, the HikerAPI verification integration, and the human-only prerequisites (API balance, migrations). |
 | [SUPABASE.md](operations/SUPABASE.md) | Supabase project setup, auth email templates, field mapping (UI → DB). |
 | [PHONE_OTP.md](operations/PHONE_OTP.md) | 2Factor SMS OTP setup: migration, edge-function deploy, client flows, security limits. |
 

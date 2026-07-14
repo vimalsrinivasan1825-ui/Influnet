@@ -74,6 +74,28 @@ describe('buildCreatorProfileView — mock mode', () => {
   });
 });
 
+describe('buildCreatorProfileView — verified badge', () => {
+  it('includes the verified orbit badge when the profile is verified', () => {
+    const view = buildCreatorProfileView(baseProfile, { useMock: true });
+    expect(view.isVerified).toBe(true);
+    expect(view.floating.some((f) => f.platform === 'verified')).toBe(true);
+  });
+
+  it('omits the verified orbit badge when the profile is not verified', () => {
+    for (const useMock of [true, false]) {
+      const view = buildCreatorProfileView({ ...baseProfile, isVerified: false }, { useMock });
+      expect(view.isVerified).toBe(false);
+      expect(view.floating.some((f) => f.platform === 'verified')).toBe(false);
+    }
+  });
+
+  it('treats a missing isVerified field as unverified', () => {
+    const { isVerified: _omit, ...rest } = baseProfile;
+    const view = buildCreatorProfileView(rest, { useMock: true });
+    expect(view.floating.some((f) => f.platform === 'verified')).toBe(false);
+  });
+});
+
 describe('buildCreatorProfileView — real mode', () => {
   const view = buildCreatorProfileView(baseProfile, { useMock: false });
 

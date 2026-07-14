@@ -37,12 +37,12 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
           <Avatar name={p.name} src={p.avatar_url} size="lg" />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-xl font-extrabold tracking-tight text-content sm:text-2xl">
-                {p.name}
+              <h1 className="truncate text-2xl font-extrabold tracking-tight text-content sm:text-3xl">
+                Welcome back, {p.name.split(' ')[0]}!
               </h1>
               {p.is_verified && (
-                <Badge variant="success" size="sm">
-                  <BadgeCheck /> Verified
+                <Badge variant="success" size="sm" className="hidden sm:inline-flex">
+                  <BadgeCheck className="size-3" />
                 </Badge>
               )}
             </div>
@@ -136,24 +136,35 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       {/* Profile + activity */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.18}>
-          <SectionCard eyebrow="Profile" title="Snapshot" className="h-full">
-            {p.headline && (
-              <p className="text-sm leading-relaxed text-content-soft">{p.headline}</p>
-            )}
-            {p.niche.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {p.niche.map((n) => (
-                  <Badge key={n} variant="brand" size="sm">
-                    {n}
-                  </Badge>
-                ))}
+          <SectionCard eyebrow="Brands" title="Active Roster" className="h-full">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted border border-hairline">
+                  <span className="text-sm font-bold text-content">L'O</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-content">L'Oreal Paris</p>
+                  <p className="truncate text-xs text-content-muted">Skincare Campaign</p>
+                </div>
+                <Badge variant="success" size="sm" dot>Active</Badge>
               </div>
-            )}
-            <div className="mt-5 flex items-center justify-between rounded-xl border border-hairline bg-surface-muted px-4 py-3">
-              <span className="text-sm font-semibold text-content-soft">Pipeline value</span>
-              <span className="text-lg font-extrabold text-ok">
-                ₹{s.pipeline_value.toLocaleString()}
-              </span>
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted border border-hairline">
+                  <span className="text-sm font-bold text-content">NK</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-content">Nike</p>
+                  <p className="truncate text-xs text-content-muted">Summer Athletics</p>
+                </div>
+                <Badge variant="info" size="sm" dot>Review</Badge>
+              </div>
+              
+              <div className="mt-2 flex items-center justify-between rounded-xl border border-hairline bg-surface-muted px-4 py-3">
+                <span className="text-sm font-semibold text-content-soft">Total Reach</span>
+                <span className="text-lg font-extrabold text-brand">
+                  1.2M+
+                </span>
+              </div>
             </div>
           </SectionCard>
         </Reveal>

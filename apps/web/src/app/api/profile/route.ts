@@ -185,3 +185,35 @@ export async function PATCH(req: Request) {
     return jsonError(500, 'Internal server error', error);
   }
 }
+
+// DELETE to completely remove the user account
+export async function DELETE(req: Request) {
+  try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { user } = auth;
+
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) {
+      return jsonError(500, 'Server misconfigured: missing service role key');
+    }
+
+    // Must use the service_role client to delete users from auth.users
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceKey,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+    
+    if (error) {
+      return jsonError(500, 'Failed to delete user account', error);
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    return jsonError(500, 'Internal server error', error);
+  }
+}

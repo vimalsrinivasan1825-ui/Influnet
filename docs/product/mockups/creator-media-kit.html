@@ -155,9 +155,9 @@
 
   .side h3{margin:0 0 .1rem;font-size:1rem;font-weight:660;}
   .share-title{text-align:center;} .share-title p{margin:.15rem 0 0;font-size:.78rem;color:var(--ink-3);}
-  .qrbox{margin:.9rem auto;width:180px;height:180px;background:#fff;border:1px solid var(--line);border-radius:var(--r-sm);display:grid;place-items:center;position:relative;padding:10px;}
+  .qrbox{margin:.9rem auto;width:180px;height:180px;background:#fff;border:3px solid var(--accent);box-shadow:0 8px 24px -8px var(--accent);border-radius:24px;display:grid;place-items:center;position:relative;padding:10px;}
   .qrbox svg{width:100%;height:100%;}
-  .qrlogo{position:absolute;inset:0;margin:auto;width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:800;box-shadow:0 0 0 4px #fff;}
+  .qrlogo{position:absolute;inset:0;margin:auto;width:48px;height:48px;display:grid;place-items:center;}
   .urlmini{display:flex;align-items:center;justify-content:center;gap:.5rem;font-size:.78rem;color:var(--ink-2);background:var(--tile);border:1px solid var(--line);border-radius:var(--r-sm);padding:.45rem .7rem;}
   .divlabel{text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:.9rem 0 .6rem;}
   .sharevia{display:flex;justify-content:center;gap:.6rem;}
@@ -188,9 +188,9 @@
 
   <div class="wrap">
     <div class="topbar">
-      <a class="brand" href="#"><span class="blogo">i</span>influnet</a>
-      <div class="url"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>influnet.com/<b>@madangowri</b><span class="cp"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></div>
-      <a class="btn accent" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Hire me</a>
+      <a class="brand" href="#" style="gap:.4rem"><img src="../../../apps/web/public/influet_logo.png" alt="Influnet Logo" style="width:24px;height:24px;object-fit:contain;border-radius:4px;">influnet</a>
+      <div class="url"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>influnet.com/<b>@madangowri</b><span class="cp" style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-weight:600;color:var(--ink-2);"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</span></div>
+      <a class="btn accent" href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>Let's Collab</a>
     </div>
 
     <div class="previewbanner">
@@ -229,7 +229,7 @@
           <div class="hright">
             <div class="havatar">
               <span class="haloglow"></span><span class="halo"></span>
-              <div class="avatar"><img class="avimg" src="https://yt3.ggpht.com/G_en_LI9bDE97eXvd2uNLlIkfnshlzqZvAao_VPAq5RN1wBbgxtkBGon9lvtaSg0AlWql4M8-jtH=s288-c-fcrop64=1,00000000ffffffff-nd-v1" alt="Madan Gowri"></div>
+              <div class="avatar"><img class="avimg" src="https://yt3.googleusercontent.com/ytc/AIdro_lrMeOj87eBqgzxutjD58IfdwxTzlyfl5JPMd27ga2zeXEi=s900-c-k-c0x00ffffff-no-rj" alt="Madan Gowri"></div>
               <div class="vbadge"><span class="vi">i</span><div><b>Verified</b><small>by Influnet</small></div></div>
               <div class="fstack">
                 <div class="fcard"><span class="fi" style="background:var(--ig)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.6" cy="6.4" r="1.1" fill="#fff" stroke="none"/></svg></span><div><b>2.8M</b><small>Followers</small></div></div>
@@ -286,8 +286,8 @@
               <div class="donutwrap">
                 <div class="donut" style="background:conic-gradient(var(--c1) 0 82%,var(--c2) 82% 99%,var(--c4) 99% 100%)"></div>
                 <div class="legend">
-                  <div><span class="dot" style="background:var(--c1)"></span>Female<b>82%</b></div>
-                  <div><span class="dot" style="background:var(--c2)"></span>Male<b>17%</b></div>
+                  <div><span class="dot" style="background:var(--c1)"></span>Male<b>82%</b></div>
+                  <div><span class="dot" style="background:var(--c2)"></span>Female<b>17%</b></div>
                   <div><span class="dot" style="background:var(--c4)"></span>Others<b>1%</b></div>
                 </div>
               </div>
@@ -298,7 +298,7 @@
         <section class="card pad">
           <div class="chead"><div class="ctitle">Past Collaborations</div><span class="viewall">View all</span></div>
           <div class="brands">
-            <div class="brand-c">mamaearth</div><div class="brand-c">NYKAA</div><div class="brand-c">SUGAR</div><div class="brand-c">PHILIPS</div><div class="brand-c">boAt</div><div class="brand-c" style="font-size:.62rem">THE BODY SHOP</div>
+            <div class="brand-c">mamaearth</div><div class="brand-c">Upstox</div><div class="brand-c">NordVPN</div><div class="brand-c">Skillshare</div><div class="brand-c">CoinDCX</div><div class="brand-c" style="font-size:.62rem">UNACADEMY</div>
           </div>
         </section>
 
@@ -334,8 +334,8 @@
       <div class="side">
         <div class="card pad">
           <div class="share-title"><h3>Share My Profile</h3><p>Connect instantly</p></div>
-          <div class="qrbox"><svg id="qr" viewBox="0 0 100 100" shape-rendering="crispEdges"></svg><span class="qrlogo">i</span></div>
-          <div class="urlmini">influnet.com/@aanya.rao<span class="cp" style="cursor:pointer;color:var(--ink-3)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></div>
+          <div class="qrbox"><svg id="qr" viewBox="0 0 100 100" shape-rendering="geometricPrecision"></svg><img class="qrlogo" src="../../../apps/web/public/influet_logo.png" alt="logo" style="object-fit:contain;"></div>
+          <div class="urlmini" style="font-weight:600;">influnet.com/@madangowri<span class="cp" style="display:flex;align-items:center;gap:.3rem;cursor:pointer;color:var(--ink-2);"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</span></div>
           <div class="divlabel">Share via</div>
           <div class="sharevia">
             <button class="svbtn" style="background:var(--wa)" aria-label="WhatsApp"><svg class="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.2-.7-2.7-1.1-4.4-3.8-4.5-4-.1-.2-1.1-1.4-1.1-2.7 0-1.3.7-1.9.9-2.2.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.5.7 1.8.8 1.9.1.1.1.3 0 .5-.3.6-.6.7-.8 1-.2.2-.3.4-.1.7.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1.2-.2.7-.8.9-1.1.2-.3.4-.2.6-.1.2.1 1.5.7 1.7.9.2.1.4.1.4.2.1.2.1.7-.1 1.3Z"/></svg></button>
@@ -408,10 +408,11 @@
 
   var N=25,qr=document.getElementById('qr'),ns='http://www.w3.org/2000/svg',seed=987654;
   function rnd(){seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;}
-  function rect(x,y,w,h){var r=document.createElementNS(ns,'rect');r.setAttribute('x',x*4);r.setAttribute('y',y*4);r.setAttribute('width',w*4);r.setAttribute('height',h*4);r.setAttribute('fill','#111');qr.appendChild(r);}
-  function finder(x,y){rect(x,y,7,7);var w=document.createElementNS(ns,'rect');w.setAttribute('x',(x+1)*4);w.setAttribute('y',(y+1)*4);w.setAttribute('width',20);w.setAttribute('height',20);w.setAttribute('fill','#fff');qr.appendChild(w);rect(x+2,y+2,3,3);}
+  function rect(x,y,w,h,rx){var r=document.createElementNS(ns,'rect');r.setAttribute('x',x*4);r.setAttribute('y',y*4);r.setAttribute('width',w*4);r.setAttribute('height',h*4);if(rx)r.setAttribute('rx',rx);r.setAttribute('fill','var(--ink-2)');qr.appendChild(r);}
+  function circ(x,y,rad){var c=document.createElementNS(ns,'circle');c.setAttribute('cx',x*4+2);c.setAttribute('cy',y*4+2);c.setAttribute('r',rad*2);c.setAttribute('fill','var(--ink-2)');qr.appendChild(c);}
+  function finder(x,y){rect(x,y,7,7,12);var w=document.createElementNS(ns,'rect');w.setAttribute('x',(x+1)*4);w.setAttribute('y',(y+1)*4);w.setAttribute('width',20);w.setAttribute('height',20);w.setAttribute('rx',8);w.setAttribute('fill','#fff');qr.appendChild(w);circ(x+3.5,y+3.5,1.5);}
   function inFinder(x,y){return (x<8&&y<8)||(x>N-9&&y<8)||(x<8&&y>N-9);}
-  for(var y=0;y<N;y++)for(var x=0;x<N;x++){if(inFinder(x,y))continue;if(x>9&&x<15&&y>9&&y<15)continue;if(rnd()>.55)rect(x,y,1,1);}
+  for(var y=0;y<N;y++)for(var x=0;x<N;x++){if(inFinder(x,y))continue;if(x>9&&x<15&&y>9&&y<15)continue;if(rnd()>.55)circ(x,y,rnd()>.5?1:0.75);}
   finder(0,0);finder(N-7,0);finder(0,N-7);
 })();
 </script>
