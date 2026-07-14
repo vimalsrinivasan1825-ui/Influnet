@@ -50,6 +50,9 @@ export default async function PublicProfilePage({
   const [{ username }, sp] = await Promise.all([params, searchParams]);
   const profile = await getProfile(username);
   if (!profile) notFound();
+  // profileId is guaranteed string from here — userId is marked optional in the type
+  // but the RPC always populates it. Bail out defensively if somehow it is missing.
+  if (!profile.userId) notFound();
 
   // Viewer (for owner detection + CTA).
   const rsc = await createRSCClient();
@@ -74,7 +77,39 @@ export default async function PublicProfilePage({
     ctaHref = '/dashboard/settings';
     ctaLabel = 'Edit profile';
   } else if (user && viewerRole === 'business_owner') {
-    ctaHref = `/dashboard/discover?request=${profile.userId}`;
+    // Check if this business already has a pending request or active project with this creator.
+    const [collabRes, projectRes] = await Promise.all([
+      rsc
+        .from('collab_requests')
+        .select('id, status')
+        .eq('from_user_id', user.id)
+        .eq('to_user_id', profile.userId)
+        .in('status', ['pending', 'accepted'])
+        .maybeSingle(),
+      rsc
+        .from('campaign_projects')
+        .select('id')
+        .or(
+          `and(owner_user_id.eq.${user.id},counterparty_user_id.eq.${profile.userId}),and(owner_user_id.eq.${profile.userId},counterparty_user_id.eq.${user.id})`
+        )
+        .maybeSingle(),
+    ]);
+
+    const existingProject = projectRes.data as { id: string } | null;
+    const existingCollab  = collabRes.data  as { id: string; status: string } | null;
+
+    if (existingProject) {
+      // Already working together — take them straight to the project.
+      ctaHref  = `/dashboard/projects/${existingProject.id}`;
+      ctaLabel = 'View project';
+    } else if (existingCollab?.status === 'pending') {
+      // Request has been sent but not yet accepted.
+      ctaHref  = '/dashboard/requests';
+      ctaLabel = 'Request sent';
+    } else {
+      // No prior relationship — standard "Work with me" flow.
+      ctaHref = `/dashboard/requests/new?to=${profile.userId}`;
+    }
   } else if (user) {
     ctaHref = '/dashboard';
     ctaLabel = 'Back to dashboard';
