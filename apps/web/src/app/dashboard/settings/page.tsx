@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Check, ExternalLink, Loader2, Save } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
@@ -10,6 +10,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
+
+type Slice = { label: string; pct: number };
+type SliceRow = { label: string; pct: string };
+
+interface AudienceDemographics {
+  locations?: Slice[];
+  age?: Slice[];
+  gender?: Slice[];
+}
 
 interface Profile {
   role?: string;
@@ -24,6 +33,95 @@ interface Profile {
   headline?: string;
   instagram_handle?: string;
   youtube_handle?: string;
+  pricing_min?: number | null;
+  pricing_max?: number | null;
+  past_collaborations?: unknown[] | null;
+  audience_demographics?: AudienceDemographics | null;
+}
+
+// Stored slices may arrive as {label,pct} objects; map to editable string rows.
+function toRows(slices: unknown): SliceRow[] {
+  if (!Array.isArray(slices)) return [];
+  return slices
+    .map((s): SliceRow => ({
+      label: String((s as any)?.label ?? ""),
+      pct: (s as any)?.pct != null ? String((s as any).pct) : "",
+    }))
+    .filter((r) => r.label);
+}
+
+// Editable rows → clean {label,pct} slices (drop blanks / non-numeric).
+function fromRows(rows: SliceRow[]): Slice[] {
+  return rows
+    .map((r) => ({ label: r.label.trim(), pct: Number(r.pct) }))
+    .filter((s) => s.label && Number.isFinite(s.pct))
+    .map((s) => ({ label: s.label, pct: Math.max(0, Math.min(100, Math.round(s.pct))) }));
+}
+
+// past_collaborations may be strings or {brand|name} objects → display names.
+function collabNames(raw: unknown[] | null | undefined): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((c: any) => (typeof c === "string" ? c : c?.brand ?? c?.name ?? ""))
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+}
+
+function SliceEditor({
+  label,
+  hint,
+  placeholder,
+  rows,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  placeholder: string;
+  rows: SliceRow[];
+  onChange: (rows: SliceRow[]) => void;
+}) {
+  const set = (i: number, patch: Partial<SliceRow>) =>
+    onChange(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="flex flex-col gap-2">
+        {rows.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Input
+              value={row.label}
+              onChange={(e) => set(i, { label: e.target.value })}
+              placeholder={placeholder}
+              className="flex-1"
+            />
+            <Input
+              value={row.pct}
+              onChange={(e) => set(i, { pct: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })}
+              placeholder="%"
+              inputMode="numeric"
+              className="w-16 text-center"
+            />
+            <button
+              type="button"
+              onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
+              aria-label="Remove"
+              className="shrink-0 rounded-lg p-2 text-content-muted transition-colors hover:bg-danger-soft hover:text-danger"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => onChange([...rows, { label: "", pct: "" }])}
+          className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-hairline-strong bg-surface-muted px-3 py-1.5 text-xs font-bold text-content-soft transition-colors hover:border-brand hover:text-brand"
+        >
+          <Plus className="size-3.5" /> Add
+        </button>
+      </div>
+      {hint && <p className="mt-1.5 text-xs text-content-muted">{hint}</p>}
+    </div>
+  );
 }
 
 function Field({
@@ -62,6 +160,13 @@ export default function SettingsPage() {
   const [headline, setHeadline] = useState("");
   const [instagram, setInstagram] = useState("");
   const [youtube, setYoutube] = useState("");
+  // Media-kit fields (influencer)
+  const [pricingMin, setPricingMin] = useState("");
+  const [pricingMax, setPricingMax] = useState("");
+  const [pastCollabs, setPastCollabs] = useState("");
+  const [locations, setLocations] = useState<SliceRow[]>([]);
+  const [ages, setAges] = useState<SliceRow[]>([]);
+  const [genders, setGenders] = useState<SliceRow[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -80,6 +185,13 @@ export default function SettingsPage() {
         setHeadline(p.headline || "");
         setInstagram(p.instagram_handle || "");
         setYoutube(p.youtube_handle || "");
+        setPricingMin(p.pricing_min != null ? String(p.pricing_min) : "");
+        setPricingMax(p.pricing_max != null ? String(p.pricing_max) : "");
+        setPastCollabs(collabNames(p.past_collaborations).join("\n"));
+        const ad = (p.audience_demographics || {}) as AudienceDemographics;
+        setLocations(toRows(ad.locations));
+        setAges(toRows(ad.age));
+        setGenders(toRows(ad.gender));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load profile");
       } finally {
@@ -93,7 +205,7 @@ export default function SettingsPage() {
     setSuccess("");
     setError("");
     try {
-      const payload: Record<string, string> = { name, phone, location };
+      const payload: Record<string, unknown> = { name, phone, location };
       if (profile?.role === "business_owner") {
         payload.company_name = companyName;
         payload.industry = industry;
@@ -104,6 +216,22 @@ export default function SettingsPage() {
         if (username) payload.username = username;
         payload.instagram_handle = instagram;
         payload.youtube_handle = youtube;
+        // Media-kit fields. Only send pricing when it parses to a number so we
+        // don't wipe a saved value with an empty string.
+        const pmin = Number(pricingMin);
+        const pmax = Number(pricingMax);
+        if (pricingMin.trim() && Number.isFinite(pmin)) payload.pricing_min = pmin;
+        if (pricingMax.trim() && Number.isFinite(pmax)) payload.pricing_max = pmax;
+        payload.past_collaborations = pastCollabs
+          .split(/[\n,]/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .slice(0, 24);
+        payload.audience_demographics = {
+          locations: fromRows(locations),
+          age: fromRows(ages),
+          gender: fromRows(genders),
+        };
       }
 
       const res = await apiFetch("/api/profile", {
@@ -275,6 +403,63 @@ export default function SettingsPage() {
             <Field label="YouTube channel">
               <Input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="@channel" />
             </Field>
+          </div>
+        </SectionCard>
+      )}
+
+      {isInfluencer && (
+        <SectionCard title="Media kit details">
+          <div className="flex flex-col gap-5">
+            <p className="-mt-1 text-sm text-content-muted">
+              Powers your brand-facing media kit. Each section stays hidden until you fill it in.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Rate — from (₹)" hint="Your starting collaboration rate.">
+                <Input
+                  value={pricingMin}
+                  onChange={(e) => setPricingMin(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="5000"
+                  inputMode="numeric"
+                />
+              </Field>
+              <Field label="Rate — up to (₹)">
+                <Input
+                  value={pricingMax}
+                  onChange={(e) => setPricingMax(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="25000"
+                  inputMode="numeric"
+                />
+              </Field>
+            </div>
+
+            <Field label="Past collaborations" hint="One brand per line. Shown as a logo/name wall on your media kit.">
+              <Textarea
+                value={pastCollabs}
+                onChange={(e) => setPastCollabs(e.target.value)}
+                placeholder={"Mamaearth\nBoat\nUnacademy"}
+                rows={3}
+              />
+            </Field>
+
+            <SliceEditor
+              label="Audience — top locations"
+              placeholder="India"
+              hint="Add your biggest audience locations and their share (%)."
+              rows={locations}
+              onChange={setLocations}
+            />
+            <SliceEditor
+              label="Audience — age groups"
+              placeholder="25-34"
+              rows={ages}
+              onChange={setAges}
+            />
+            <SliceEditor
+              label="Audience — gender split"
+              placeholder="Female"
+              rows={genders}
+              onChange={setGenders}
+            />
           </div>
         </SectionCard>
       )}

@@ -252,6 +252,27 @@ describe('ProfileUpdateSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts media-kit fields (pricing, past collaborations, audience)', () => {
+    const result = ProfileUpdateSchema.safeParse({
+      pricing_min: 5000,
+      pricing_max: 25000,
+      past_collaborations: ['Mamaearth', 'Boat'],
+      audience_demographics: {
+        locations: [{ label: 'India', pct: 72 }],
+        age: [{ label: '25-34', pct: 41 }],
+        gender: [{ label: 'Female', pct: 60 }],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an audience slice pct over 100', () => {
+    const result = ProfileUpdateSchema.safeParse({
+      audience_demographics: { locations: [{ label: 'India', pct: 140 }] },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('rejects too long bio', () => {
     const result = ProfileUpdateSchema.safeParse({
       bio: 'a'.repeat(2001),

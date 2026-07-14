@@ -129,6 +129,13 @@ export const VerifyOtpSchema = z.object({
   type: z.enum(['signup', 'magiclink', 'recovery']),
 });
 
+// One audience slice, e.g. { label: 'India', pct: 72 }. Rendered by the media
+// kit's tolerant parseSlices (lib/public-profile/media-kit.ts).
+export const AudienceSliceSchema = z.object({
+  label: z.string().min(1).max(40),
+  pct: z.number().min(0).max(100),
+});
+
 export const ProfileUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   phone: z.string().optional(),
@@ -154,6 +161,17 @@ export const ProfileUpdateSchema = z.object({
   engagement_rate: z.number().min(0).max(100).optional(),
   media_kit_url: z.string().url().optional().or(z.literal('')),
   portfolio: z.array(z.object({ url: z.string(), title: z.string().optional() })).optional(),
+  // Media-kit fields collected from settings (not signup — keeps signup light).
+  pricing_min: z.number().min(0).max(100_000_000).optional(),
+  pricing_max: z.number().min(0).max(100_000_000).optional(),
+  past_collaborations: z.array(z.string().min(1).max(80)).max(24).optional(),
+  audience_demographics: z
+    .object({
+      locations: z.array(AudienceSliceSchema).max(12).optional(),
+      age: z.array(AudienceSliceSchema).max(12).optional(),
+      gender: z.array(AudienceSliceSchema).max(12).optional(),
+    })
+    .optional(),
 });
 
 export const BusinessProfileUpdateSchema = z.object({
