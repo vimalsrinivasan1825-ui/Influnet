@@ -14,7 +14,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { logger } from './logger';
-import type { HikerInstagramUser, InstagramRecentPost } from './hikerapi';
+import type { HikerInstagramUser } from './hikerapi';
 
 /** How many recent posts to keep in the snapshot / cache thumbnails for. */
 const MAX_POSTS = 12;
