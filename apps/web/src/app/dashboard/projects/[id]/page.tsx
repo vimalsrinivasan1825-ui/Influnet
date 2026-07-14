@@ -31,6 +31,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui/input';
+import { PaymentGate } from '@/components/dashboard/payment-gate';
 
 const ROW_HEIGHT = 64;
 const HEADER_HEIGHT = 44;
@@ -536,6 +537,7 @@ function StagePipeline({
   currentStage, items, userRole, canToggleStage, canAdvance,
   advancing, advanceError, onToggleItem, onAdvance,
   isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
+  projectId, budget, onPaid,
 }: {
   currentStage?: string;
   items: StageItem[];
@@ -550,7 +552,16 @@ function StagePipeline({
   myConfirmed: boolean;
   otherConfirmed: boolean;
   onConfirmCompletion: () => void;
+  projectId: number | string;
+  budget?: number | string | null;
+  onPaid: () => void;
 }) {
+  // Payment stages carry a money gate — advance_payment always, and
+  // final_payment (which also drives the dual-confirm completion).
+  const isPaymentStage = currentStage === 'advance_payment' || currentStage === 'final_payment';
+  const paymentGateItem = isPaymentStage
+    ? items.find((it) => it.stage_key === currentStage && it.is_gate)
+    : undefined;
   const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
   const stage = STAGE_CONFIG[currentIdx];
   const nextStage = STAGE_CONFIG[currentIdx + 1];
@@ -636,6 +647,17 @@ function StagePipeline({
                 );
               })}
             </div>
+
+            {isPaymentStage && (currentStage as string) === 'advance_payment' && (
+              <PaymentGate
+                projectId={projectId}
+                stageKey="advance_payment"
+                amountRupees={budget != null && budget !== '' ? Number(budget) : null}
+                userRole={userRole}
+                isDone={!!paymentGateItem?.done_at}
+                onPaid={onPaid}
+              />
+            )}
           </div>
 
           <div className="flex shrink-0 flex-col items-stretch gap-1.5 lg:w-64 lg:items-end">
@@ -1046,6 +1068,9 @@ export default function ProjectKanbanPage() {
           myConfirmed={myConfirmed}
           otherConfirmed={otherConfirmed}
           onConfirmCompletion={handleConfirmCompletion}
+          projectId={projectId}
+          budget={project?.budget}
+          onPaid={() => { setTimeout(() => { void fetchData(); }, 2500); }}
         />
       )}
 

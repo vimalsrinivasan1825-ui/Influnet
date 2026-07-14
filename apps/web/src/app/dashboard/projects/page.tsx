@@ -12,7 +12,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Reveal } from "@/components/ui/motion";
+import { Reveal, Stagger } from "@/components/ui/motion";
+import { KanbanCard } from "@/components/dashboard/views/kanban-card";
 import { cn } from "@/lib/utils";
 
 const STAGES = [
@@ -27,7 +28,15 @@ const STAGES = [
   { key: "revisions", label: "Revisions", desc: "Making requested edits and revisions." },
   { key: "final_approval", label: "Approved", desc: "Content approved for publication." },
   { key: "final_payment", label: "Payment", desc: "Final invoice and payment settlement." },
+  { key: "final_payment", label: "Payment", desc: "Final invoice and payment settlement." },
   { key: "project_completed", label: "Completed", desc: "Campaign successfully completed." },
+];
+
+const KANBAN_COLUMNS = [
+  { id: "pitched", label: "Pitched & Planning", stages: ["collaboration_started", "project_discussion", "advance_payment", "content_planning"] },
+  { id: "creating", label: "Creating Content", stages: ["content_confirmation", "shooting_in_progress", "editing_in_progress"] },
+  { id: "review", label: "In Review", stages: ["sent_for_review", "revisions"] },
+  { id: "completed", label: "Completed", stages: ["final_approval", "final_payment", "project_completed"] },
 ];
 
 interface Project {
@@ -140,154 +149,46 @@ export default function ProjectsPage() {
           />
         </Card>
       ) : (
-        <div className="flex flex-col gap-4">
-          {projects.map((p) => {
-            const isOwner = p.owner_user_id === userId;
-            const counterparty = isOwner ? p.counterparty : p.owner;
-            const stageIndex = STAGES.findIndex((s) => s.key === p.current_stage);
-            const currentStage = STAGES[stageIndex] || STAGES[0];
-            const isCompleted = p.current_stage === "completed" || stageIndex === STAGES.length - 1;
-            const isAdvancing = updatingId === p.id;
-            const userRole: "business" | "creator" = isOwner ? "business" : "creator";
-            const actor = STAGE_ACTOR[p.current_stage as Stage] || "either";
-            const myTurn = actor === "either" || actor === userRole;
-            // 'sent_for_review' needs a choice (revisions vs approve), so send the
-            // user into the project to decide rather than blindly advancing.
-            const isFork = p.current_stage === "sent_for_review";
-
+        <div className="flex flex-1 gap-6 overflow-x-auto pb-4 snap-x snap-mandatory lg:snap-none">
+          {KANBAN_COLUMNS.map((col, colIdx) => {
+            const columnProjects = projects.filter((p) => col.stages.includes(p.current_stage));
+            
             return (
-              <Reveal key={p.id}>
-                <Card
-                  interactive
-                  onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                  className="cursor-pointer p-5 sm:p-6"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
-                          {isOwner ? "Client portal" : "Creator portal"}
-                        </span>
-                        <span className="text-content-muted">·</span>
-                        <span className="text-sm font-semibold text-content-soft">
-                          With {counterparty?.name || "Partner"} (
-                          {counterparty?.role === "influencer" ? "Creator" : "Brand"})
-                        </span>
-                        {!isCompleted && myTurn && (
-                          <>
-                            <span className="text-content-muted">·</span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-brand-strong">
-                              Your turn
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      <h3 className="mt-1.5 text-lg font-extrabold tracking-tight text-content">
-                        {p.title}
-                      </h3>
-                      {p.description && (
-                        <p className="mt-1.5 text-sm leading-relaxed text-content-soft">
-                          {p.description}
-                        </p>
-                      )}
-                    </div>
+              <div key={col.id} className="flex min-w-[280px] max-w-[320px] shrink-0 snap-start flex-col gap-3 rounded-2xl bg-surface-muted p-3">
+                <div className="flex items-center justify-between px-2 pt-1">
+                  <h3 className="text-sm font-bold text-content">{col.label}</h3>
+                  <span className="flex size-5 items-center justify-center rounded-full bg-white text-[0.625rem] font-bold text-content-muted shadow-sm">
+                    {columnProjects.length}
+                  </span>
+                </div>
+                
+                <div className="flex flex-col gap-3 overflow-y-auto">
+                  {columnProjects.map((p) => {
+                    const isOwner = p.owner_user_id === userId;
+                    const counterparty = isOwner ? p.counterparty : p.owner;
+                    const stageIndex = STAGES.findIndex((s) => s.key === p.current_stage);
+                    const isCompleted = p.current_stage === "completed" || stageIndex === STAGES.length - 1;
+                    const userRole = isOwner ? "business" : "creator";
+                    const actor = STAGE_ACTOR[p.current_stage as Stage] || "either";
+                    const myTurn = actor === "either" || actor === userRole;
 
-                    <div className="flex shrink-0 items-center gap-4">
-                      {p.budget != null && p.budget !== "" && (
-                        <div className="text-right">
-                          <div className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">
-                            Budget
-                          </div>
-                          <div className="text-lg font-extrabold text-content">
-                            ₹{Number(p.budget).toLocaleString()}
-                          </div>
-                        </div>
-                      )}
-                      {isCompleted ? (
-                        <Badge variant="success" size="md">
-                          <Check /> Completed
-                        </Badge>
-                      ) : isFork ? (
-                        <Button
-                          variant="brand"
-                          size="lg"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/projects/${p.id}`);
-                          }}
-                        >
-                          <Eye /> Review draft
-                        </Button>
-                      ) : myTurn ? (
-                        <Button
-                          variant="brand"
-                          size="lg"
-                          disabled={isAdvancing}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAdvanceStage(p.id, p.current_stage);
-                          }}
-                        >
-                          {isAdvancing ? "Updating…" : "Advance stage"}
-                          <ArrowRight />
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-1.5 rounded-xl bg-surface-muted px-3 py-2.5 text-xs font-semibold text-content-muted">
-                          <Clock className="size-3.5 shrink-0" />
-                          Waiting on {counterparty?.name || (userRole === "business" ? "the creator" : "the brand")}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Stepper */}
-                  <div className="mt-5 flex items-center gap-0 overflow-x-auto pb-2">
-                    {STAGES.map((s, idx) => {
-                      const active = idx === stageIndex;
-                      const past = idx < stageIndex;
-                      return (
-                        <div key={s.key} className="flex min-w-[2.75rem] flex-1 items-center">
-                          <span
-                            title={s.label}
-                            className={cn(
-                              "flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-bold",
-                              active && "bg-brand text-white shadow-[0_0_0_4px_var(--brand-soft)]",
-                              past && "bg-brand text-white",
-                              !active && !past && "bg-surface-muted text-content-muted",
-                            )}
-                          >
-                            {past ? "✓" : idx + 1}
-                          </span>
-                          {idx < STAGES.length - 1 && (
-                            <span
-                              className={cn(
-                                "h-0.5 flex-1",
-                                past ? "bg-brand" : "bg-hairline-strong",
-                              )}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Current stage detail */}
-                  <div className="mt-1 rounded-xl border border-hairline bg-surface-muted px-4 py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-content">
-                        Stage {stageIndex + 1}/{STAGES.length}:{" "}
-                        <span className="text-brand-strong">{currentStage.label}</span>
-                      </span>
-                      <span className="text-xs font-semibold text-content-muted">
-                        Updated {new Date(p.updated_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-content-soft">
-                      {currentStage.desc}
-                    </p>
-                  </div>
-                </Card>
-              </Reveal>
+                    return (
+                      <KanbanCard
+                        key={p.id}
+                        id={p.id}
+                        title={p.title}
+                        counterpartyName={counterparty?.name || "Partner"}
+                        counterpartyRole={counterparty?.role === "influencer" ? "Creator" : "Brand"}
+                        stageKey={p.current_stage}
+                        budget={p.budget}
+                        myTurn={myTurn}
+                        isCompleted={isCompleted}
+                        onClick={() => router.push(`/dashboard/projects/${p.id}`)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
