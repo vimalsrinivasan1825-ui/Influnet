@@ -40,6 +40,7 @@ export async function uploadToCloudinary(
   form.append('folder', folder);
   if (public_id) {
     form.append('public_id', public_id);
+    form.append('overwrite', 'true');
   }
 
   // Direct upload to Cloudinary (does not go through our server). `auto` handles
