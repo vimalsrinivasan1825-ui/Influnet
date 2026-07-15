@@ -4,6 +4,38 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-14: Auth Hardening, Data Leaks & Media Kit Settings
+
+**Branch**: `feat/public-profile-live-data`
+
+### Scope
+Addressed critical vulnerabilities found during a sign-in/sign-up audit, including self-approval for business accounts, email confirmation data loss, API data leaks, and reflected XSS. Also added a Media Kit settings section with nudges to encourage completion.
+
+### What broke
+- **Critical - Business Self-Approval**: The `/api/auth/register_profile` endpoint allowed users to pass `approvalStatus: 'approved'` in the payload (because the schema used `.passthrough()`), completely skipping admin review.
+- **High - Email Confirmation Data Loss**: The `register_profile` trigger only ran when `signUp` returned a session. If email confirmation was enabled, no session was returned initially, causing the entire profile and onboarding data to be silently dropped.
+- **Medium - Data Leak on Scrape**: The unauthenticated `/api/auth/scrape-instagram` returned the entire provider object (including `publicEmail`) instead of just the 5 fields needed.
+- **Medium - Reflected Message**: `/login?message=` was not length-capped, allowing for reflected-text phishing.
+
+### Fix
+- **Self-Approval**: Stripped `approvalStatus` from the route payload, removed it from the schema, and deployed DB migration `061` to force the RPC to always insert `pending_review` and never elevate it on re-register.
+- **Data Loss**: The payload is now stashed and replayed idempotently on the first successful login, ensuring no data drops even if the session is delayed by email verification.
+- **Data Leak**: The scrape endpoint now strictly maps and returns only the 5 required fields.
+- **Reflected Message**: Length-capped the `message` parameter in the login UI.
+- **Media Kit Data**: Built a "Media kit details" section in creator settings (rate range, past-brands, audience demographics) to keep it out of the initial signup flow, plus a dashboard nudge to encourage completion.
+
+### Key Lessons
+- Never trust client payloads for authorization or status flags, even if the schema allows them. Validate at the API layer *and* enforce defaults at the DB/RPC layer.
+- Auth flows with delayed sessions (like email confirmation) require idempotent replay mechanisms for onboarding data. Do not assume `signUp` will immediately yield a user session.
+- Always explicitly map fields before returning external API or provider objects to prevent accidental PII leakage.
+
+### Next Target
+- Apply migration `061` to the hosted DB manually.
+- Perform a live manual verification of the settings, soft banners, and dashboard nudges using an authenticated account.
+- Determine if the anonymous "Work with me" CTA should route straight to `/signup/business` rather than the role-picker.
+
+---
+
 ## Session — 2026-07-13 (2): Smart CTA on creator public profile for business owners
 
 **Branch**: `fix/discover-route-protection`

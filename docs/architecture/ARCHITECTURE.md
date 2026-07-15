@@ -248,6 +248,7 @@ Step 4 (Collab): content types, price range
 Submit:
   1. supabase.auth.signUp({ email, password, data: payload })
   2. If session returned → POST /api/auth/register (calls register_profile RPC)
+     - *Note: If email confirmation is enabled, the payload is stashed and replayed idempotently on first successful login to prevent data loss.*
   3. RPC inserts into: profiles + influencer_profiles
   4. Redirect to /dashboard/influencer
 ```
@@ -260,17 +261,19 @@ Step 2: business type, GST, website, address
 Step 3: budget, collab preferences
 Step 4: review + submit
 
-After submit: approval_status = 'pending_review'
-User redirected with message "pending approval"
-Cannot access dashboard until admin approves
-```
+After submit:
+  1. Route drops `approvalStatus` payload (preventing self-approval attacks).
+  2. RPC enforces `approval_status = 'pending_review'`.
+  3. User redirected with message "pending approval".
+  4. Cannot access dashboard until admin approves.
 
 **Security Notes:**
-- Passwords handled entirely by Supabase Auth (never stored in app)
-- JWT tokens stored in localStorage (vulnerable to XSS — known tradeoff)
-- API routes verify tokens server-side via `supabase.auth.getUser()`
-- Session refresh via `@supabase/ssr` middleware with cookie fallback
-- **No rate limiting** on login attempts (v1 gap)
+- Passwords handled entirely by Supabase Auth (never stored in app).
+- JWT tokens stored in localStorage (vulnerable to XSS — known tradeoff).
+- API routes verify tokens server-side via `supabase.auth.getUser()`.
+- Registration payloads strictly validated at route level; DB migrations enforce default statuses (blocking self-approval injections).
+- Scrape endpoints sanitize external provider data before returning (no PII leakage).
+- URL-based login messages are length-capped to prevent reflected XSS.
 
 ---
 
@@ -308,11 +311,13 @@ Request (body: { name, phone, location, ...role-specific fields })
 
 **Data Sent/Received:**
 - Request sends: `{ name, phone, location, [role-specific fields] }`
+  - *For influencers, includes advanced Media Kit fields (rate range, past brands, audience demographics).*
 - Response returns: full profile object with all fields
 
 **Integration Points:**
 - Uses Supabase client with user's JWT (respects RLS)
 - Returns to: settings page UI
+- Dashboard UI exposes nudges for incomplete Media Kit fields
 - No caching layer (always fetches fresh from DB)
 
 ---
