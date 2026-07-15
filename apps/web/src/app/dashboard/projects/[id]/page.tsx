@@ -550,7 +550,7 @@ function StagePipeline({
   currentStage, items, userRole, canToggleStage, canAdvance,
   advancing, advanceError, onToggleItem, onAdvance,
   isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
-  projectId, budget, onPaid,
+  projectId, budget, advanceAmount, onPaid,
 }: {
   currentStage?: string;
   items: StageItem[];
@@ -567,6 +567,7 @@ function StagePipeline({
   onConfirmCompletion: () => void;
   projectId: number | string;
   budget?: number | string | null;
+  advanceAmount?: number | string | null;
   onPaid: () => void;
 }) {
   // Payment stages carry a money gate — advance_payment always, and
@@ -665,7 +666,7 @@ function StagePipeline({
               <PaymentGate
                 projectId={projectId}
                 stageKey="advance_payment"
-                amountRupees={budget != null && budget !== '' ? Number(budget) : null}
+                amountRupees={advanceAmount != null && advanceAmount !== '' ? Number(advanceAmount) : budget != null && budget !== '' ? Number(budget) : null}
                 userRole={userRole}
                 isDone={!!paymentGateItem?.done_at}
                 onPaid={onPaid}
@@ -676,6 +677,19 @@ function StagePipeline({
           <div className="flex shrink-0 flex-col items-stretch gap-1.5 lg:w-64 lg:items-end">
             {isFinalPayment ? (
               <>
+                {isFinalPayment && (advanceAmount != null && advanceAmount !== '' ? Number(budget || 0) - Number(advanceAmount) : 0) > 0 && (
+                  <div className="mb-4">
+                    <PaymentGate
+                      projectId={projectId}
+                      stageKey="final_payment"
+                      amountRupees={(advanceAmount != null && advanceAmount !== '' ? Number(budget || 0) - Number(advanceAmount) : 0)}
+                      userRole={userRole}
+                      isDone={items.some((it) => it.stage_key === 'final_payment' && it.is_gate && !!it.done_at)}
+                      onPaid={onPaid}
+                    />
+                  </div>
+                )}
+
                 <Button
                   variant={myConfirmed ? 'surface' : 'brand'}
                   size="sm"
@@ -694,32 +708,34 @@ function StagePipeline({
                 </span>
               </>
             ) : isReviewFork ? (
-              <>
-                <div className="flex w-full flex-col gap-1.5 lg:flex-row lg:justify-end">
-                  <Button variant="surface" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance('revisions')} className="w-full lg:w-auto">
-                    {advancing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-                    Request revisions
-                  </Button>
-                  <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance('final_approval')} className="w-full lg:w-auto">
-                    {advancing ? <Loader2 className="animate-spin" /> : <ThumbsUp />}
-                    Approve draft
-                  </Button>
-                </div>
-                {canToggleStage ? (
+              STAGE_ACTOR[currentStage as Stage] === userRole ? (
+                <>
+                  <div className="flex w-full flex-col gap-1.5 lg:flex-row lg:justify-end">
+                    <Button variant="surface" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance('revisions')} className="w-full lg:w-auto">
+                      {advancing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                      Request revisions
+                    </Button>
+                    <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance('final_approval')} className="w-full lg:w-auto">
+                      {advancing ? <Loader2 className="animate-spin" /> : <ThumbsUp />}
+                      Approve draft
+                    </Button>
+                  </div>
                   <span className="text-right text-[0.6875rem] text-content-muted">
                     Review the draft — send it back for changes, or approve it to move to final approval.
                   </span>
-                ) : (
+                  {!canAdvance && (
+                    <span className="text-right text-[0.6875rem] text-warn block mt-1">
+                      Finish the required steps above first.
+                    </span>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-end justify-center py-2">
                   <span className="text-right text-[0.6875rem] text-content-muted">
                     Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to review the draft.
                   </span>
-                )}
-                {canToggleStage && !canAdvance && (
-                  <span className="text-right text-[0.6875rem] text-warn">
-                    Finish the required steps above first.
-                  </span>
-                )}
-              </>
+                </div>
+              )
             ) : (
               <>
                 <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance()} className="w-full lg:w-auto">
@@ -838,6 +854,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
 }) {
   const [title, setTitle] = useState(project?.title || '');
   const [budget, setBudget] = useState(project?.budget != null ? String(project.budget) : '');
+  const [advanceAmount, setAdvanceAmount] = useState(project?.advance_amount != null ? String(project.advance_amount) : '');
   const [deliverables, setDeliverables] = useState(project?.deliverables || '');
   const [description, setDescription] = useState(project?.description || '');
   const [err, setErr] = useState<string | null>(null);
@@ -846,6 +863,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
     const changes: Record<string, unknown> = {};
     if (title.trim() && title.trim() !== (project?.title || '')) changes.title = title.trim();
     if (budget !== '' && Number(budget) !== Number(project?.budget)) changes.budget = Number(budget);
+    if (advanceAmount !== '' && Number(advanceAmount) !== Number(project?.advance_amount)) changes.advance_amount = Number(advanceAmount);
     if (deliverables !== (project?.deliverables || '')) changes.deliverables = deliverables;
     if (description !== (project?.description || '')) changes.description = description;
     if (Object.keys(changes).length === 0) { setErr('Change at least one field.'); return; }
@@ -863,6 +881,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
         <div className="flex flex-col gap-3.5">
           <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
           <div><Label>Budget (₹)</Label><Input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} /></div>
+          <div><Label>Advance Payment (₹)</Label><Input type="number" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} placeholder="Leave blank for 100% advance" /></div>
           <div><Label>Deliverables</Label><Textarea rows={2} value={deliverables} onChange={(e) => setDeliverables(e.target.value)} placeholder="What the creator will deliver…" /></div>
           <div><Label>Description</Label><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
           {err && <span className="text-xs font-semibold text-warn">{err}</span>}
@@ -1056,7 +1075,7 @@ function GuidedFlow({
   onProposeSkip, onConfirmSkip, onCancelSkip,
   entries, onOpenCompose, onDeleteEntry,
   isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
-  projectId, budget, onPaid, onPreviewImage,
+  projectId, budget, advanceAmount, onPaid, onPreviewImage,
 }: {
   project: any;
   userId: string | null;
@@ -1082,6 +1101,7 @@ function GuidedFlow({
   onConfirmCompletion: () => void;
   projectId: number | string;
   budget?: number | string | null;
+  advanceAmount?: number | string | null;
   onPaid: () => void;
   onPreviewImage: (url: string) => void;
 }) {
@@ -1267,7 +1287,7 @@ function GuidedFlow({
             <PaymentGate
               projectId={projectId}
               stageKey="advance_payment"
-              amountRupees={budget != null && budget !== '' ? Number(budget) : null}
+              amountRupees={advanceAmount != null && advanceAmount !== '' ? Number(advanceAmount) : budget != null && budget !== '' ? Number(budget) : null}
               userRole={userRole}
               isDone={items.some((it) => it.is_gate && !!it.done_at)}
               onPaid={onPaid}
@@ -1277,7 +1297,20 @@ function GuidedFlow({
           {/* Action zone */}
           <div className="border-t border-hairline pt-4">
             {isFinalPayment ? (
-              <div className="flex flex-col gap-2">
+              <>
+                {isFinalPayment && (advanceAmount != null && advanceAmount !== '' ? Number(budget || 0) - Number(advanceAmount) : 0) > 0 && (
+                  <div className="mb-4">
+                    <PaymentGate
+                      projectId={projectId}
+                      stageKey="final_payment"
+                      amountRupees={(advanceAmount != null && advanceAmount !== '' ? Number(budget || 0) - Number(advanceAmount) : 0)}
+                      userRole={userRole}
+                      isDone={items.some((it) => it.stage_key === 'final_payment' && it.is_gate && !!it.done_at)}
+                      onPaid={onPaid}
+                    />
+                  </div>
+                )}
+ <div className="flex flex-col gap-2">
                 <Button variant={myConfirmed ? 'surface' : 'brand'} disabled={myConfirmed || advancing} onClick={onConfirmCompletion}>
                   {advancing ? <Loader2 className="animate-spin" /> : myConfirmed ? <Check /> : <ThumbsUp />}
                   {myConfirmed ? 'You confirmed completion' : 'Confirm completion'}
@@ -1286,6 +1319,7 @@ function GuidedFlow({
                   {otherConfirmed ? 'The other party has confirmed.' : `Waiting on the ${roleLabel(otherRole)} to also confirm.`} Both must confirm to complete the project.
                 </span>
               </div>
+              </>
             ) : isReviewFork ? (
               <div className="flex flex-col gap-2">
                 {STAGE_ACTOR[currentStage as Stage] === userRole ? (
@@ -1831,7 +1865,12 @@ export default function ProjectKanbanPage() {
             </button>
           </div>
           {project?.budget != null && project.budget !== '' && (
-            <Badge variant="success" size="md">₹{Number(project.budget).toLocaleString()}</Badge>
+            <Badge variant="success" size="md">
+              ₹{Number(project.budget).toLocaleString()} 
+              {project?.advance_amount != null && project.advance_amount !== '' && Number(project.advance_amount) < Number(project.budget) 
+                ? ` (₹${Number(project.advance_amount).toLocaleString()} advance)` 
+                : ''}
+            </Badge>
           )}
           {project?.conversation_id && (
             <ButtonLink href={`/dashboard/messages?conv=${project.conversation_id}`} variant="surface" size="sm">
@@ -1873,6 +1912,7 @@ export default function ProjectKanbanPage() {
           onConfirmCompletion={handleConfirmCompletion}
           projectId={projectId}
           budget={project?.budget}
+          advanceAmount={project?.advance_amount}
           onPaid={() => { setTimeout(() => { void fetchData(); }, 2500); }}
         />
       )}
@@ -1930,6 +1970,7 @@ export default function ProjectKanbanPage() {
             onConfirmCompletion={handleConfirmCompletion}
             projectId={projectId}
             budget={project?.budget}
+          advanceAmount={project?.advance_amount}
             onPaid={() => { setTimeout(() => { void fetchData(); }, 2500); }}
             onPreviewImage={setLightboxImage}
           />

@@ -136,6 +136,15 @@ export const AudienceSliceSchema = z.object({
   pct: z.number().min(0).max(100),
 });
 
+export const ProposeTermsSchema = z.object({
+  title: z.string().min(1, 'Title is required').optional(),
+  description: z.string().optional(),
+  budget: z.number().positive().optional(),
+  advance_amount: z.number().nonnegative().optional(),
+  deliverables: z.string().optional(),
+  timeline: z.string().optional(),
+});
+
 export const ProfileUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   phone: z.string().optional(),

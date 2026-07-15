@@ -5,7 +5,7 @@ import { notifyUser } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
 
 // The deal terms that can be changed via the propose → confirm loop.
-const EDITABLE_FIELDS = ['title', 'description', 'deliverables', 'budget'] as const;
+const EDITABLE_FIELDS = ['title', 'description', 'deliverables', 'budget', 'advance_amount'] as const;
 type EditableField = typeof EDITABLE_FIELDS[number];
 
 const ChangesSchema = z.object({
