@@ -49,10 +49,9 @@ export async function POST(req: Request) {
     // banner) but cannot reach out to creators until an admin approves them.
     // Enforced server-side — the UI lock is not a security boundary.
     const { data: bizProfile } = await supabase
-      .from('business_profiles')
-      .select('approval_status')
-      .eq('user_id', user.id)
+      .rpc('get_own_business_profile')
       .single();
+
     if ((bizProfile as { approval_status?: string } | null)?.approval_status !== 'approved') {
       return jsonError(403, 'Your business account is still under review. You can reach out to creators once it’s approved.');
     }

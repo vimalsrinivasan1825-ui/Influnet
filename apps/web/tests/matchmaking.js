@@ -2,11 +2,14 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hrpaqufvjcihnjrjnpej.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_ebIIalxnJ-fYMr6I2N-EpQ_6TV5kaBy';
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const sb = createClient(supabaseUrl, supabaseKey);
+const sbAdmin = serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
 
 console.log(`[DEBUG] Connecting to Supabase URL: ${supabaseUrl}`);
 console.log(`[DEBUG] Supabase Key prefix: ${supabaseKey ? supabaseKey.substring(0, 15) : 'undefined'}...`);
+if (sbAdmin) console.log(`[DEBUG] Service Role Key is available for admin overrides.`);
 
 // Random suffixes to avoid user collisions
 const suffix = Math.floor(Math.random() * 1000000);
@@ -71,6 +74,21 @@ async function signUpUser(email, name, role) {
   if (!regRes.ok) {
     const regErr = await regRes.json().catch(() => ({}));
     throw new Error(`Profile registration failed: ${regErr.error || regRes.statusText}`);
+  }
+  if (role === 'business_owner') {
+    if (sbAdmin) {
+      console.log(`- Auto-approving test business account via Service Role...`);
+      const { error: updateErr } = await sbAdmin
+        .from('business_profiles')
+        .update({ approval_status: 'approved' })
+        .eq('user_id', session.user.id);
+      
+      if (updateErr) {
+        console.error(`- Warning: Could not auto-approve business account: ${updateErr.message}`);
+      }
+    } else {
+      console.log(`- Warning: No SUPABASE_SERVICE_ROLE_KEY provided. E2E tests may fail at the outreach step.`);
+    }
   }
 
   return session;

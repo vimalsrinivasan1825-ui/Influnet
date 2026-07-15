@@ -36,7 +36,12 @@ export async function withAdmin(
   const supabase = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     serviceKey,
-    { auth: { persistSession: false, autoRefreshToken: false } }
+    { 
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
+      },
+    }
   );
 
   return { ok: true, supabase, user: auth.user };
@@ -63,6 +68,7 @@ export async function withAuth(
           headers: {
             Authorization: authHeader,
           },
+          fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
         },
       }
     );
