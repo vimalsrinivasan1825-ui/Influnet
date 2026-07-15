@@ -543,3 +543,12 @@ The Discover page had a `useEffect` that redirected to `/dashboard` if no `?requ
 3. **Key Lessons:** 
    * Component structures that wrap logical forks (like `StagePipeline`) must explicitly inherit role-based gates; relying on internal children states or loose `canToggleStage` booleans isn't enough for critical actions like approvals.
 4. **Next Target:** Continue tracking image duplicate uploads with Cloudinary and refine the system design for CAS content storage.
+
+### Matchmaking API Caching & Column-Level Grants (2026-07-15)
+1. **Scope:** Fixed bugs preventing business owners from sending collab requests despite being auto-approved in integration tests.
+2. **Broken & Resolved:** 
+   * **Broken:** The `/api/collabs` route consistently returned a 403 "Your business account is still under review" during tests.
+   * **Debugged:** Discovered two contributing factors: Next.js App Router's underlying `fetch` was caching GET requests made by the Supabase JS client. Additionally, `053_pii_lockdown` introduced column-level grants restricting `authenticated` access to only specific PII columns, meaning a direct `.select('approval_status')` returned an RLS error (which translated to `null` data).
+   * **Resolved:** Overrode the Next.js `fetch` default inside the Supabase client creation in `lib/api.ts` by appending `cache: 'no-store'`. Replaced the direct `.select()` on `business_profiles` inside the `/api/collabs` endpoint with a call to the `get_own_business_profile` RPC, which operates as `SECURITY DEFINER` and bypasses the column-level grant restriction cleanly.
+3. **Key Lessons:** Always remember that column-level RLS grants (like `GRANT SELECT (x, y) ON public.table`) implicitly revoke default table access. Queries for non-granted columns won't return `null` fields; they'll error out with `permission denied for table`. Also, aggressively apply `cache: 'no-store'` when instantiating Supabase clients in App Router API routes to avoid stale permission reads.
+4. **Next Target:** Feature validation and QA of the implemented pipelines on staging/production environments.
