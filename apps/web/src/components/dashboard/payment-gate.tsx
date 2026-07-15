@@ -44,6 +44,8 @@ export function PaymentGate({
   userRole,
   isDone,
   onPaid,
+  configured: configuredProp,
+  keyId,
 }: {
   projectId: number | string;
   stageKey: 'advance_payment' | 'final_payment';
@@ -51,11 +53,17 @@ export function PaymentGate({
   userRole: 'business' | 'creator' | null;
   isDone: boolean;
   onPaid?: () => void;
+  // Server-authoritative "in-app payments enabled?" (from GET /payments). This
+  // is the single source of truth — it must match the server's own gate check,
+  // so we never show the off-platform card while the server demands a payment.
+  // Falls back to the build-time public key only when not provided.
+  configured?: boolean;
+  keyId?: string | null;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const configured = Boolean(RAZORPAY_KEY_ID);
+  const configured = configuredProp ?? Boolean(RAZORPAY_KEY_ID);
   const amountLabel =
     amountRupees != null && Number.isFinite(Number(amountRupees))
       ? `₹${Number(amountRupees).toLocaleString('en-IN')}`
@@ -112,7 +120,7 @@ export function PaymentGate({
       }
 
       const rzp = new window.Razorpay({
-        key: res.data.key_id || RAZORPAY_KEY_ID,
+        key: res.data.key_id || keyId || RAZORPAY_KEY_ID,
         order_id: res.data.order_id,
         amount: res.data.amount,
         currency: res.data.currency,

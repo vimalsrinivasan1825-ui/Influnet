@@ -550,7 +550,7 @@ function StagePipeline({
   currentStage, items, userRole, canToggleStage, canAdvance,
   advancing, advanceError, onToggleItem, onAdvance,
   isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
-  projectId, budget, advanceAmount, onPaid,
+  projectId, budget, advanceAmount, paymentsConfigured, paymentKeyId, onPaid,
 }: {
   currentStage?: string;
   items: StageItem[];
@@ -568,6 +568,8 @@ function StagePipeline({
   projectId: number | string;
   budget?: number | string | null;
   advanceAmount?: number | string | null;
+  paymentsConfigured: boolean;
+  paymentKeyId: string | null;
   onPaid: () => void;
 }) {
   // Payment stages carry a money gate — advance_payment always, and
@@ -626,8 +628,11 @@ function StagePipeline({
                 <span className="text-xs text-content-muted">No required steps — you can advance when ready.</span>
               )}
               {items.map((it) => {
-                const canToggleThis = canToggleStage && (it.owner_role === 'both' || it.owner_role === userRole);
                 const done = !!it.done_at;
+                // Payment gates open only via a confirmed Razorpay payment when
+                // in-app payments are enabled — never by a manual tick.
+                const paymentLocked = it.is_gate && isPaymentStage && paymentsConfigured && !done;
+                const canToggleThis = canToggleStage && (it.owner_role === 'both' || it.owner_role === userRole) && !paymentLocked;
                 return (
                   <button
                     key={it.id}
@@ -636,7 +641,7 @@ function StagePipeline({
                     className={`group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors ${
                       canToggleThis ? 'hover:bg-surface-muted' : 'cursor-not-allowed opacity-80'
                     }`}
-                    title={canToggleThis ? 'Toggle done' : `Only the ${roleLabel(it.owner_role)} can mark this`}
+                    title={paymentLocked ? 'Opens automatically once the payment is confirmed' : canToggleThis ? 'Toggle done' : `Only the ${roleLabel(it.owner_role)} can mark this`}
                   >
                     <span
                       className={`flex size-[18px] shrink-0 items-center justify-center rounded-md border ${
@@ -669,6 +674,8 @@ function StagePipeline({
                 amountRupees={advanceAmount != null && advanceAmount !== '' ? Number(advanceAmount) : budget != null && budget !== '' ? Number(budget) : null}
                 userRole={userRole}
                 isDone={!!paymentGateItem?.done_at}
+                configured={paymentsConfigured}
+                keyId={paymentKeyId}
                 onPaid={onPaid}
               />
             )}
@@ -685,6 +692,8 @@ function StagePipeline({
                       amountRupees={(advanceAmount != null && advanceAmount !== '' ? Number(budget || 0) - Number(advanceAmount) : 0)}
                       userRole={userRole}
                       isDone={items.some((it) => it.stage_key === 'final_payment' && it.is_gate && !!it.done_at)}
+                      configured={paymentsConfigured}
+                      keyId={paymentKeyId}
                       onPaid={onPaid}
                     />
                   </div>
@@ -1075,7 +1084,7 @@ function GuidedFlow({
   onProposeSkip, onConfirmSkip, onCancelSkip,
   entries, onOpenCompose, onDeleteEntry,
   isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
-  projectId, budget, advanceAmount, onPaid, onPreviewImage,
+  projectId, budget, advanceAmount, paymentsConfigured, paymentKeyId, onPaid, onPreviewImage,
 }: {
   project: any;
   userId: string | null;
@@ -1102,6 +1111,8 @@ function GuidedFlow({
   projectId: number | string;
   budget?: number | string | null;
   advanceAmount?: number | string | null;
+  paymentsConfigured: boolean;
+  paymentKeyId: string | null;
   onPaid: () => void;
   onPreviewImage: (url: string) => void;
 }) {
@@ -1257,7 +1268,7 @@ function GuidedFlow({
                 // Only PAYMENT gate items open via a confirmed payment. Approval
                 // gates (concept / final approval) are ticked by hand as normal.
                 const isPaymentStage = currentStage === 'advance_payment' || currentStage === 'final_payment';
-                const paymentLocked = it.is_gate && isPaymentStage && PAYMENTS_CONFIGURED && !done;
+                const paymentLocked = it.is_gate && isPaymentStage && paymentsConfigured && !done;
                 const canToggleThis = (it.owner_role === 'both' || it.owner_role === userRole) && !paymentLocked;
                 return (
                   <button
@@ -1290,6 +1301,8 @@ function GuidedFlow({
               amountRupees={advanceAmount != null && advanceAmount !== '' ? Number(advanceAmount) : budget != null && budget !== '' ? Number(budget) : null}
               userRole={userRole}
               isDone={items.some((it) => it.is_gate && !!it.done_at)}
+              configured={paymentsConfigured}
+              keyId={paymentKeyId}
               onPaid={onPaid}
             />
           )}
@@ -1306,6 +1319,8 @@ function GuidedFlow({
                       amountRupees={(advanceAmount != null && advanceAmount !== '' ? Number(budget || 0) - Number(advanceAmount) : 0)}
                       userRole={userRole}
                       isDone={items.some((it) => it.stage_key === 'final_payment' && it.is_gate && !!it.done_at)}
+                      configured={paymentsConfigured}
+                      keyId={paymentKeyId}
                       onPaid={onPaid}
                     />
                   </div>
@@ -1442,6 +1457,13 @@ export default function ProjectKanbanPage() {
   const [proposeOpen, setProposeOpen] = useState(false);
   const [crBusy, setCrBusy] = useState(false);
   const [stageEntries, setStageEntries] = useState<any[]>([]);
+  // Server-authoritative payment config (drives Razorpay vs off-platform mode).
+  // Seeded from the build-time public key as an optimistic default, then
+  // corrected by GET /payments so the UI can never disagree with the server gate.
+  const [paymentConfig, setPaymentConfig] = useState<{ configured: boolean; keyId: string | null }>({
+    configured: PAYMENTS_CONFIGURED,
+    keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || null,
+  });
   const [composeOpen, setComposeOpen] = useState(false);
   const [entryBusy, setEntryBusy] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -1476,7 +1498,7 @@ export default function ProjectKanbanPage() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes] = await Promise.all([
+      const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes, payRes] = await Promise.all([
         apiFetch<{ project: any }>(`/api/projects/${projectId}`),
         apiFetch<{ cards: ProjectCard[] }>(`/api/projects/${projectId}/cards`),
         apiFetch<{ reviews: any[] }>(`/api/projects/${projectId}/reviews`),
@@ -1484,6 +1506,7 @@ export default function ProjectKanbanPage() {
         apiFetch<{ activity: any[] }>(`/api/projects/${projectId}/activity`),
         apiFetch<{ change_requests: any[] }>(`/api/projects/${projectId}/change-requests`),
         apiFetch<{ entries: any[] }>(`/api/projects/${projectId}/stage-entries`),
+        apiFetch<{ configured: boolean; key_id: string | null }>(`/api/projects/${projectId}/payments`),
       ]);
       if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
       else { setError(projRes.error || 'Failed to load project'); }
@@ -1494,6 +1517,7 @@ export default function ProjectKanbanPage() {
       if (activityRes.ok && activityRes.data) { setActivity(activityRes.data.activity || []); }
       if (crRes.ok && crRes.data) { setChangeRequests(crRes.data.change_requests || []); }
       if (entriesRes.ok && entriesRes.data) { setStageEntries(entriesRes.data.entries || []); }
+      if (payRes.ok && payRes.data) { setPaymentConfig({ configured: !!payRes.data.configured, keyId: payRes.data.key_id ?? null }); }
     } catch (e) { console.error(e); setError('Network error'); }
     finally { setLoading(false); }
   }, [projectId]);
@@ -1913,6 +1937,8 @@ export default function ProjectKanbanPage() {
           projectId={projectId}
           budget={project?.budget}
           advanceAmount={project?.advance_amount}
+          paymentsConfigured={paymentConfig.configured}
+          paymentKeyId={paymentConfig.keyId}
           onPaid={() => { setTimeout(() => { void fetchData(); }, 2500); }}
         />
       )}
@@ -1971,6 +1997,8 @@ export default function ProjectKanbanPage() {
             projectId={projectId}
             budget={project?.budget}
           advanceAmount={project?.advance_amount}
+            paymentsConfigured={paymentConfig.configured}
+            paymentKeyId={paymentConfig.keyId}
             onPaid={() => { setTimeout(() => { void fetchData(); }, 2500); }}
             onPreviewImage={setLightboxImage}
           />
