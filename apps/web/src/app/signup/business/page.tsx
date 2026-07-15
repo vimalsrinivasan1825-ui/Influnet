@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,25 @@ import { cn } from "@/lib/utils";
 
 type Step = 1 | 2 | 3 | 4;
 const STEP_LABELS = ["Account", "Company", "Verify", "Intent"];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** 0–4 password strength score with a matching label + bar color. */
+function passwordStrength(pw: string): { score: number; label: string; color: string } {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+  const meta = [
+    { label: "Too short", color: "bg-danger" },
+    { label: "Weak", color: "bg-danger" },
+    { label: "Fair", color: "bg-amber-500" },
+    { label: "Good", color: "bg-amber-500" },
+    { label: "Strong", color: "bg-emerald-500" },
+  ][score];
+  return { score, ...meta };
+}
 
 export default function BusinessSignupPage() {
   return (
@@ -46,9 +65,13 @@ function BusinessSignupContent() {
   const [registeredAddress, setRegisteredAddress] = useState("");
   const [gstNumber, setGstNumber] = useState("");
   const [marketingBudget, setMarketingBudget] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const emailValid = EMAIL_RE.test(email);
+  const passwordOk = password.length >= 8;
 
   const canProceed = (): boolean => {
-    if (step === 1) return !!fullName && !!companyName && !!email && !!password;
+    if (step === 1) return !!fullName && !!companyName && emailValid && passwordOk;
     if (step === 2) return !!businessType && !!industry;
     if (step === 3) return !!city && !!state && !!registeredAddress;
     if (step === 4) return !!marketingBudget;
@@ -196,7 +219,17 @@ function BusinessSignupContent() {
               </div>
               <div>
                 <Label>Work email</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  aria-invalid={email.length > 0 && !emailValid}
+                  autoComplete="email"
+                />
+                {email.length > 0 && !emailValid && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
+                )}
               </div>
               <div>
                 <Label>Phone (optional)</Label>
@@ -204,7 +237,45 @@ function BusinessSignupContent() {
               </div>
               <div>
                 <Label>Password</Label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className="pr-10"
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-content-muted transition-colors hover:text-content"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                {password.length > 0 && (() => {
+                  const s = passwordStrength(password);
+                  return (
+                    <div className="mt-2">
+                      <div className="flex gap-1">
+                        {[0, 1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              "h-1 flex-1 rounded-full transition-colors",
+                              i < s.score ? s.color : "bg-hairline-strong",
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-content-muted">
+                        {passwordOk ? `Password strength: ${s.label}` : "Use at least 8 characters"}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}

@@ -4,12 +4,32 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Eye, EyeOff, Loader2, Sparkles, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
 import { cn } from "@/lib/utils";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** 0–4 password strength score with a matching label + bar color. */
+function passwordStrength(pw: string): { score: number; label: string; color: string } {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+  const meta = [
+    { label: "Too short", color: "bg-danger" },
+    { label: "Weak", color: "bg-danger" },
+    { label: "Fair", color: "bg-amber-500" },
+    { label: "Good", color: "bg-amber-500" },
+    { label: "Strong", color: "bg-emerald-500" },
+  ][score];
+  return { score, ...meta };
+}
 
 type Step = 1 | 2 | 3 | 4 | 5;
 const STEP_LABELS = ["Connect", "Account", "Profile", "Creator", "Collab"];
@@ -87,13 +107,24 @@ function InfluencerSignupContent() {
   const [twitterHandle, setTwitterHandle] = useState("");
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
+  // Fail open on network/server errors — the register RPC is the source of truth
+  // and will still reject a taken name, so we never hard-block on a flaky check.
+  const usernameOk = usernameStatus === "available" || usernameStatus === "error";
+  const emailValid = EMAIL_RE.test(email);
+  const passwordOk = password.length >= 8;
 
   const toggleArrayItem = <T,>(arr: T[], item: T): T[] =>
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
 
   const canProceed = (): boolean => {
     if (step === 1) return true;
-    if (step === 2) return !!firstName && !!lastName && !!username && !!email && !!password;
+    if (step === 2)
+      return (
+        !!firstName && !!lastName && !!username && usernameOk && emailValid && passwordOk
+      );
     if (step === 3) return !!gender && !!city && !!state && languages.length > 0;
     if (step === 4) return !!primaryNiche && !!bio && (!!instagramHandle || !!youtubeHandle || !!twitterHandle);
     if (step === 5) return collabTypes.length > 0 && !!priceRange;
@@ -138,6 +169,24 @@ function InfluencerSignupContent() {
     setError("");
     setIsLoading(true);
     try {
+      // Final guard: re-check availability right before creating the auth user.
+      // The live check gates step 2, but the name could be claimed while the user
+      // lingers on later steps — catching it here avoids an orphaned auth account.
+      try {
+        const check = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
+        const checkData = await check.json();
+        if (checkData.valid === false || checkData.available === false) {
+          setError(
+            checkData.valid === false
+              ? checkData.reason || "That username isn’t allowed."
+              : "That username was just taken. Please pick another and go back to step 2.",
+          );
+          return;
+        }
+      } catch {
+        // Network hiccup — fall through; register_profile still enforces uniqueness.
+      }
+
       const sb = createClient();
       const payload = {
         name: `${firstName} ${lastName}`,
@@ -341,15 +390,50 @@ function InfluencerSignupContent() {
               </div>
               <div>
                 <Label>Username</Label>
-                <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                  placeholder="Choose username"
-                />
+                <div className="relative">
+                  <Input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                    placeholder="Choose username"
+                    className="pr-10"
+                    aria-invalid={usernameStatus === "taken" || usernameStatus === "invalid"}
+                    autoComplete="off"
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {usernameStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {usernameStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
+                {usernameMessage && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      usernameStatus === "available" && "text-emerald-600",
+                      (usernameStatus === "taken" || usernameStatus === "invalid") && "text-danger",
+                      (usernameStatus === "checking" || usernameStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {usernameMessage}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-content-muted">
+                  Your public profile will be influnet.com/c/{username || "username"}
+                </p>
               </div>
               <div>
                 <Label>Email address</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  aria-invalid={email.length > 0 && !emailValid}
+                  autoComplete="email"
+                />
+                {email.length > 0 && !emailValid && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
+                )}
               </div>
               <div>
                 <Label>Phone (optional)</Label>
@@ -357,7 +441,45 @@ function InfluencerSignupContent() {
               </div>
               <div>
                 <Label>Password</Label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className="pr-10"
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-content-muted transition-colors hover:text-content"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                {password.length > 0 && (() => {
+                  const s = passwordStrength(password);
+                  return (
+                    <div className="mt-2">
+                      <div className="flex gap-1">
+                        {[0, 1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              "h-1 flex-1 rounded-full transition-colors",
+                              i < s.score ? s.color : "bg-hairline-strong",
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-content-muted">
+                        {passwordOk ? `Password strength: ${s.label}` : "Use at least 8 characters"}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
