@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { createRSCClient } from '@/lib/supabase/server-rsc';
 import type { Metadata } from 'next';
@@ -118,8 +119,28 @@ export default async function PublicProfilePage({
     ctaLabel = 'Back to dashboard';
   }
 
+  // Canonical origin for the shareable profile URL — derived from the real
+  // request host so it works across preview/prod domains, falling back to the
+  // configured public app URL.
+  const hdrs = await headers();
+  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host');
+  const proto = hdrs.get('x-forwarded-proto') ?? 'https';
+  const origin = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'https://influnet.app');
+
+  // Brand names from real completed collaborations in-app — merged into the
+  // profile's past-collaborations wall so they can't be faked.
+  const { data: autoCollabs } = await supabaseAnon.rpc('get_creator_collaborations', {
+    p_user_id: profile.userId,
+  });
+  const autoCollaborations = Array.isArray(autoCollabs) ? (autoCollabs as string[]) : [];
+
   const instagram = await getInstagramSnapshot(profile.userId);
-  const view = buildCreatorProfileView(profile, { useMock: resolveMockMode(sp.mock), instagram });
+  const view = buildCreatorProfileView(profile, {
+    useMock: resolveMockMode(sp.mock),
+    instagram,
+    origin,
+    autoCollaborations,
+  });
 
   return <CreatorProfileViewComponent data={view} isOwner={isOwner} ctaHref={ctaHref} ctaLabel={ctaLabel} />;
 }

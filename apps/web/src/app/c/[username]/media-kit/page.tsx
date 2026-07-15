@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
 import type { Metadata } from 'next';
@@ -87,7 +88,14 @@ export default async function MediaKitPage({
     ctaLabel = 'Back to dashboard';
   }
 
-  const view = buildMediaKitView(profile, instagram, reviews);
+  // Canonical origin from the real request host (works across preview/prod
+  // domains), so the shareable URL + QR always point at the right place.
+  const hdrs = await headers();
+  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host');
+  const proto = hdrs.get('x-forwarded-proto') ?? 'https';
+  const origin = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'https://influnet.app');
+
+  const view = buildMediaKitView(profile, instagram, reviews, { origin });
 
   // Real scannable QR of the public profile URL (SVG, transparent background —
   // the box behind it is white).

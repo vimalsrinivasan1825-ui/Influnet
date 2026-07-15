@@ -116,6 +116,68 @@ export function resolveMockMode(searchParam?: string | string[]): boolean {
 
 const cleanHandle = (h?: string | null) => (h ? h.replace(/^@/, '') : '');
 
+/** One `{label,pct}` slice of an audience breakdown. */
+export interface AudienceSlice {
+  label: string;
+  pct: number;
+}
+
+/**
+ * Normalise a self-reported audience breakdown. Accepts `{"India": 72, ...}` or
+ * `[{label|name, pct|value|percent}]`, returns slices sorted high→low (max 6).
+ */
+export function parseAudienceSlices(raw: unknown): AudienceSlice[] | null {
+  if (!raw) return null;
+  let entries: [string, number][] = [];
+  if (Array.isArray(raw)) {
+    entries = raw
+      .map((r: any): [string, number] => [
+        String(r?.label ?? r?.name ?? ''),
+        Number(r?.pct ?? r?.value ?? r?.percent ?? NaN),
+      ])
+      .filter(([l, v]) => l && Number.isFinite(v));
+  } else if (typeof raw === 'object') {
+    entries = Object.entries(raw as Record<string, unknown>)
+      .map(([k, v]): [string, number] => [k, Number(v)])
+      .filter(([l, v]) => l && Number.isFinite(v));
+  }
+  if (entries.length === 0) return null;
+  return entries
+    .map(([label, pct]) => ({ label, pct: Math.max(0, Math.min(100, Math.round(pct))) }))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 6);
+}
+
+/** First present value among `keys` on `obj` (used for shape-tolerant demographics). */
+export function pickKey(obj: Record<string, unknown> | null | undefined, keys: string[]): unknown {
+  if (!obj) return null;
+  for (const k of keys) if (obj[k] != null) return obj[k];
+  return null;
+}
+
+/** Map the raw audience_demographics jsonb into the three display breakdowns. */
+export function parseAudience(demo: Record<string, unknown> | null | undefined): {
+  locations: AudienceSlice[];
+  ages: AudienceSlice[];
+  genders: AudienceSlice[];
+} | null {
+  if (!demo) return null;
+  const locations = parseAudienceSlices(pickKey(demo, ['locations', 'top_locations', 'topLocations', 'countries']));
+  const ages = parseAudienceSlices(pickKey(demo, ['ages', 'age', 'age_range', 'ageRange']));
+  const genders = parseAudienceSlices(pickKey(demo, ['genders', 'gender']));
+  if (!locations && !ages && !genders) return null;
+  return { locations: locations ?? [], ages: ages ?? [], genders: genders ?? [] };
+}
+
+/** Normalise self-reported past collaborations (strings or {brand|name} objects) to names. */
+export function parseCollaborationNames(raw: unknown[] | null | undefined): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((c: any) => (typeof c === 'string' ? c : (c?.brand ?? c?.name ?? '')))
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+}
+
 function splitSubtitle(profile: RawPublicProfile): { lead: string; accent: string } {
   const niches = profile.niche ?? [];
   if (niches.length > 0) {
@@ -228,7 +290,13 @@ const MOCK = {
 
 export function buildCreatorProfileView(
   profile: RawPublicProfile,
-  opts: { useMock: boolean; instagram?: InstagramSnapshotView | null; origin?: string },
+  opts: {
+    useMock: boolean;
+    instagram?: InstagramSnapshotView | null;
+    origin?: string;
+    /** Brand names from completed collaborations in-app; merged with self-reported. */
+    autoCollaborations?: string[];
+  },
 ): CreatorProfileView {
   const ig = opts.instagram ?? null;
   // A captured snapshot beats mock data: once real analytics exist, always show
@@ -335,6 +403,30 @@ export function buildCreatorProfileView(
     floating.push({ platform: 'verified', value: 'Verified', label: 'by Influnet' });
   }
 
+  // Real self-reported audience demographics take precedence over mock.
+  const realAudience = parseAudience(profile.audienceDemographics);
+  const audience = realAudience
+    ? { locations: realAudience.locations, ages: realAudience.ages, genders: realAudience.genders }
+    : useMock
+      ? MOCK.audience
+      : null;
+
+  // Past collaborations: in-app completed collabs (trustworthy) merged with the
+  // creator's self-reported list, de-duplicated case-insensitively.
+  const selfReported = parseCollaborationNames(profile.pastCollaborations);
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  for (const name of [...(opts.autoCollaborations ?? []), ...selfReported]) {
+    const key = name.toLowerCase();
+    if (name && !seen.has(key)) {
+      seen.add(key);
+      merged.push(name);
+    }
+  }
+  const pastCollaborations = merged.length ? merged.slice(0, 24) : useMock ? MOCK.pastCollaborations : [];
+
+  const origin = (opts.origin || 'https://influnet.app').replace(/\/$/, '');
+
   return {
     name: profile.name || (profile.username ? `@${profile.username}` : 'Creator'),
     username: cleanHandle(profile.username),
@@ -353,8 +445,8 @@ export function buildCreatorProfileView(
     floating,
     stats,
     featured: featured.slice(0, 6),
-    audience: useMock ? MOCK.audience : null,
-    pastCollaborations: profile.pastCollaborations ? (profile.pastCollaborations as string[]) : (useMock ? MOCK.pastCollaborations : []),
+    audience,
+    pastCollaborations,
     pricing: profile.pricingMin ? [{
       title: 'Instagram Post',
       desc: 'Single image post with caption featuring your brand.',
@@ -362,7 +454,7 @@ export function buildCreatorProfileView(
       features: ['Permanent post', 'Brand tagging'],
     }] : (useMock ? MOCK.pricing : []),
     usingMock: useMock,
-    profileUrl: `${opts.origin ?? 'https://influnet.app'}/c/${username}`,
+    profileUrl: `${origin}/c/${username}`,
     snapshotAge: relativeAge(ig?.fetchedAt ?? null),
   };
 }

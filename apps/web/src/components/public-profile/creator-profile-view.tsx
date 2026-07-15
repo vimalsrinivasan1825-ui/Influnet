@@ -25,6 +25,27 @@ function lighten(hex: string, amt: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
+// Donut palettes — shared between the ring gradient and its legend so colours
+// always line up. Ordered for maximum contrast between adjacent slices: --c1
+// (the accent) defaults to the same violet as --c2, so they must never sit next
+// to each other or the two biggest segments blur into one solid ring.
+const AGE_PALETTE = ['var(--c1)', 'var(--c3)', 'var(--c4)', 'var(--c2)'];
+const GENDER_PALETTE = ['var(--c1)', 'var(--c3)', 'var(--c4)'];
+
+/** Build a conic-gradient from real slice percentages, normalised to a full ring. */
+function buildConic(slices: { label: string; pct: number }[], palette: string[]): string {
+  const total = slices.reduce((sum, s) => sum + Math.max(0, s.pct), 0);
+  if (total <= 0) return palette[0] ?? 'var(--c1)';
+  let acc = 0;
+  const stops = slices.map((s, i) => {
+    const start = (acc / total) * 100;
+    acc += Math.max(0, s.pct);
+    const end = (acc / total) * 100;
+    return `${palette[i % palette.length]} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+  });
+  return `conic-gradient(${stops.join(',')})`;
+}
+
 /* ── icons ── */
 const Ic = (p: { d: string; fill?: boolean; w?: number }) => (
   <svg className={styles.ico} viewBox="0 0 24 24" fill={p.fill ? 'currentColor' : 'none'} stroke={p.fill ? 'none' : 'currentColor'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={p.w ? { width: `${p.w}em`, height: `${p.w}em` } : undefined}>
@@ -119,6 +140,11 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
     } catch { /* dismissed */ }
   };
 
+  // Human-readable form of the real shareable URL (protocol + trailing slash
+  // stripped), e.g. "influnet.app/c/username". Derived from data.profileUrl so
+  // the displayed link always matches what Copy/Share actually use.
+  const displayUrl = data.profileUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
   const styleVars = { ['--accent']: accent, ['--accent-2']: accent2 } as CSSProperties;
   const rootClass = [styles.stage, dark ? styles.dark : '', previewing ? styles.previewing : '', editing ? styles.editing : ''].filter(Boolean).join(' ');
 
@@ -147,7 +173,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
         <div className={styles.topbar}>
           <Link href="/" className={styles.brand}><span className={styles.blogo}>i</span>influnet</Link>
           <div className={styles.url}>
-            <Ic d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8" />influnet.com/<b>@{data.username}</b>
+            <Ic d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8" /><b>{displayUrl}</b>
             <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>
           </div>
           <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
@@ -238,6 +264,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
               <section className={`${styles.card} ${styles.pad}`}>
                 <div className={styles.chead}><div className={styles.ctitle}>Audience Insights</div></div>
                 <div className={styles.aud3}>
+                  {data.audience.locations.length > 0 && (
                   <div className={styles.subcard}>
                     <h4>Top Locations</h4>
                     {data.audience.locations.map(loc => (
@@ -248,30 +275,35 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                       </div>
                     ))}
                   </div>
+                  )}
+                  {data.audience.ages.length > 0 && (
                   <div className={styles.subcard}>
                     <h4>Age Range</h4>
                     <div className={styles.donutwrap}>
-                      <div className={styles.donut} style={{ background: `conic-gradient(var(--c2) 0 38%,var(--c1) 38% 79%,var(--c3) 79% 94%,var(--c4) 94% 100%)` }} />
+                      <div className={styles.donut} style={{ background: buildConic(data.audience.ages, AGE_PALETTE) }} />
                       <div className={styles.legend}>
                         {data.audience.ages.map((a, i) => {
-                          const color = ['var(--c2)', 'var(--c1)', 'var(--c3)', 'var(--c4)'][i % 4];
+                          const color = AGE_PALETTE[i % AGE_PALETTE.length];
                           return <div key={a.label}><span className={styles.dot} style={{ background: color }} />{a.label}<b>{a.pct}%</b></div>
                         })}
                       </div>
                     </div>
                   </div>
+                  )}
+                  {data.audience.genders.length > 0 && (
                   <div className={styles.subcard}>
                     <h4>Gender</h4>
                     <div className={styles.donutwrap}>
-                      <div className={styles.donut} style={{ background: `conic-gradient(var(--c1) 0 82%,var(--c2) 82% 99%,var(--c4) 99% 100%)` }} />
+                      <div className={styles.donut} style={{ background: buildConic(data.audience.genders, GENDER_PALETTE) }} />
                       <div className={styles.legend}>
                         {data.audience.genders.map((g, i) => {
-                          const color = ['var(--c1)', 'var(--c2)', 'var(--c4)'][i % 3];
+                          const color = GENDER_PALETTE[i % GENDER_PALETTE.length];
                           return <div key={g.label}><span className={styles.dot} style={{ background: color }} />{g.label}<b>{g.pct}%</b></div>
                         })}
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               </section>
             )}
@@ -314,7 +346,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
             <div className={`${styles.card} ${styles.pad}`}>
               <div className={styles['share-title']}><h3>Share My Profile</h3><p>Connect instantly</p></div>
               <div className={styles.urlmini} style={{ fontWeight: 600 }}>
-                influnet.com/@{data.username}
+                {displayUrl}
                 <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>
               </div>
               <div className={styles.divlabel}>Share via</div>
@@ -390,7 +422,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
         </div>
       )}
 
-      <div className={`${styles.toast} ${showToast ? styles.show : ''}`}><span className={styles.tk}><Check w={0.6} /></span>Published — your profile is live at influnet.com/@{data.username}</div>
+      <div className={`${styles.toast} ${showToast ? styles.show : ''}`}><span className={styles.tk}><Check w={0.6} /></span>Published — your profile is live at {displayUrl}</div>
     </div>
   );
 }

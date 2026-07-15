@@ -63,6 +63,9 @@ export default function MediaKitViewComponent({ data, qrSvg, isOwner, ctaHref, c
   const [dark, setDark] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Human-readable form of the real shareable URL, e.g. "influnet.com/c/username".
+  const displayUrl = data.profileUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
   // Same appearance store as the public profile page, so both pages match.
   const storeKey = `influnet:profile-appearance:${data.username}`;
   useEffect(() => {
@@ -110,7 +113,7 @@ export default function MediaKitViewComponent({ data, qrSvg, isOwner, ctaHref, c
         <div className={styles.topbar}>
           <Link href="/" className={styles.brand}><span className={styles.blogo}>i</span>influnet</Link>
           <div className={styles.url}>
-            <Ic d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8" />influnet.com/<b>@{data.username}</b>
+            <Ic d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8" /><b>{displayUrl}</b>
             <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>
           </div>
           <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />Let&apos;s Collab</Link>
@@ -278,7 +281,7 @@ export default function MediaKitViewComponent({ data, qrSvg, isOwner, ctaHref, c
               <div className={styles['share-title']}><h3>Share My Profile</h3><p>Connect instantly</p></div>
               <div className={styles.qrbox} dangerouslySetInnerHTML={{ __html: qrSvg }} />
               <div className={styles.urlmini} style={{ fontWeight: 600 }}>
-                influnet.com/@{data.username}
+                {displayUrl}
                 <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>
               </div>
               <div className={styles.divlabel}>Share via</div>

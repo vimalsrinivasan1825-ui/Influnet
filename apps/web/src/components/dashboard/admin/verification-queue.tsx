@@ -28,6 +28,29 @@ interface AiSignals {
   platform_verified?: boolean;
   live?: { provider: string; status: string; instagram?: LiveIg };
 }
+interface InfluencerDetails {
+  username: string | null;
+  instagram_handle: string | null;
+  youtube_handle: string | null;
+  tiktok_handle: string | null;
+  niche: string[] | null;
+  city: string | null;
+  state: string | null;
+  instagram_followers: number | null;
+  youtube_subscribers: number | null;
+  is_verified: boolean | null;
+}
+interface BusinessDetails {
+  company_name: string | null;
+  industry: string | null;
+  business_type: string | null;
+  website: string | null;
+  city: string | null;
+  state: string | null;
+  gst_number: string | null;
+  team_size: string | null;
+  approval_status: string | null;
+}
 interface QueueItem {
   id: string;
   user_id: string;
@@ -37,7 +60,17 @@ interface QueueItem {
   ai_reason: string | null;
   ai_signals: AiSignals | null;
   created_at: string;
-  profile: { id: string; name: string; email: string; verification_status: string } | null;
+  profile: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    location: string | null;
+    verification_status: string;
+    created_at: string | null;
+  } | null;
+  influencer: InfluencerDetails | null;
+  business: BusinessDetails | null;
 }
 
 type Decision = "verified" | "rejected" | "needs_more_info";
@@ -149,6 +182,9 @@ function QueueRow({
         </div>
       </div>
 
+      {/* Everything the user submitted at signup — the admin's source of truth. */}
+      <SignupDetails item={item} />
+
       {item.ai_reason && <p className="text-xs text-content-muted">{item.ai_reason}</p>}
 
       {/* Live Instagram facts pulled during scoring — the human's evidence. */}
@@ -204,5 +240,64 @@ function QueueRow({
         </Button>
       </div>
     </Card>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string | number | null | undefined }) {
+  if (value === null || value === undefined || value === "") return null;
+  return (
+    <div className="min-w-0">
+      <dt className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">{label}</dt>
+      <dd className="truncate text-xs font-semibold text-content" title={String(value)}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+/** The full set of signup fields the user submitted, so the admin can verify them. */
+function SignupDetails({ item }: { item: QueueItem }) {
+  const p = item.profile;
+  const memberSince = p?.created_at
+    ? new Date(p.created_at).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
+    : null;
+  const inf = item.influencer;
+  const biz = item.business;
+  const fmt = (n: number | null | undefined) => (n != null ? n.toLocaleString("en-IN") : null);
+
+  return (
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-hairline bg-surface-muted px-3 py-3 sm:grid-cols-3">
+      <Detail label="Full name" value={p?.name} />
+      <Detail label="Email" value={p?.email} />
+      <Detail label="Phone" value={p?.phone} />
+      <Detail label="Location" value={p?.location} />
+      <Detail label="Signed up" value={memberSince} />
+
+      {item.role === "influencer" && inf && (
+        <>
+          <Detail label="Username" value={inf.username ? `@${inf.username}` : null} />
+          <Detail label="Instagram" value={inf.instagram_handle ? `@${inf.instagram_handle.replace(/^@/, "")}` : null} />
+          <Detail label="IG followers" value={fmt(inf.instagram_followers)} />
+          <Detail label="YouTube" value={inf.youtube_handle} />
+          <Detail label="YT subscribers" value={fmt(inf.youtube_subscribers)} />
+          <Detail label="TikTok" value={inf.tiktok_handle} />
+          <Detail label="Niche" value={inf.niche?.length ? inf.niche.join(", ") : null} />
+          <Detail label="City / State" value={[inf.city, inf.state].filter(Boolean).join(", ") || null} />
+        </>
+      )}
+
+      {item.role !== "influencer" && biz && (
+        <>
+          <Detail label="Company" value={biz.company_name} />
+          <Detail label="Industry" value={biz.industry} />
+          <Detail label="Business type" value={biz.business_type} />
+          <Detail label="Team size" value={biz.team_size} />
+          <Detail label="GST number" value={biz.gst_number} />
+          <Detail label="Website" value={biz.website} />
+          <Detail label="City / State" value={[biz.city, biz.state].filter(Boolean).join(", ") || null} />
+          <Detail label="Approval" value={biz.approval_status} />
+        </>
+      )}
+    </dl>
   );
 }

@@ -14,13 +14,46 @@ export async function GET(req: Request) {
       .from('verification_checks')
       .select(`
         id, user_id, role, status, ai_score, ai_reason, ai_signals, created_at,
-        profile:profiles!inner(id, name, email, verification_status)
+        profile:profiles!inner(id, name, email, phone, location, verification_status, created_at)
       `)
       .in('status', ['pending', 'in_review'])
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return NextResponse.json({ queue: checks || [] });
+
+    // Attach the role-specific signup details (Instagram handle, niche, company,
+    // GST, etc.) so an admin can verify against everything the user provided —
+    // not just their name/email. Fetched in two lookups and merged by user_id.
+    const rows = (checks || []) as any[];
+    const userIds = [...new Set(rows.map((c) => c.user_id))];
+    let inflMap = new Map<string, unknown>();
+    let bizMap = new Map<string, unknown>();
+    if (userIds.length > 0) {
+      const [{ data: infl }, { data: biz }] = await Promise.all([
+        supabase
+          .from('influencer_profiles')
+          .select(
+            'user_id, username, instagram_handle, youtube_handle, tiktok_handle, niche, city, state, instagram_followers, youtube_subscribers, is_verified'
+          )
+          .in('user_id', userIds),
+        supabase
+          .from('business_profiles')
+          .select(
+            'user_id, company_name, industry, business_type, website, city, state, gst_number, team_size, approval_status'
+          )
+          .in('user_id', userIds),
+      ]);
+      inflMap = new Map((infl || []).map((r: any) => [r.user_id, r]));
+      bizMap = new Map((biz || []).map((r: any) => [r.user_id, r]));
+    }
+
+    const queue = rows.map((c) => ({
+      ...c,
+      influencer: inflMap.get(c.user_id) ?? null,
+      business: bizMap.get(c.user_id) ?? null,
+    }));
+
+    return NextResponse.json({ queue });
   } catch (error: any) {
     console.error('[Admin GET /api/admin/verifications] Error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
