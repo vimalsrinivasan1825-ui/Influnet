@@ -111,4 +111,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_business_eligibility(UUID, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_business_eligibility(TEXT, UUID) TO authenticated;
