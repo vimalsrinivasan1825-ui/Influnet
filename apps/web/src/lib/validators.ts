@@ -160,6 +160,8 @@ export const ProfileUpdateSchema = z.object({
   availability_status: z.enum(['open', 'limited', 'paused']).optional(),
   engagement_rate: z.number().min(0).max(100).optional(),
   media_kit_url: z.string().url().optional().or(z.literal('')),
+  avatar_url: z.string().url().optional().or(z.literal('')),
+  cover_image_url: z.string().url().optional().or(z.literal('')),
   portfolio: z.array(z.object({ url: z.string(), title: z.string().optional() })).optional(),
   // Media-kit fields collected from settings (not signup — keeps signup light).
   pricing_min: z.number().min(0).max(100_000_000).optional(),
@@ -194,6 +196,8 @@ export const BusinessProfileUpdateSchema = z.object({
   instagram_handle: z.string().optional(),
   facebook_handle: z.string().optional(),
   linkedin_handle: z.string().optional(),
+  logo_url: z.string().url().optional().or(z.literal('')),
+  cover_image_url: z.string().url().optional().or(z.literal('')),
 });
 
 export const CollabRequestSchema = z.object({

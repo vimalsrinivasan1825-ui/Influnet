@@ -56,6 +56,8 @@ export async function GET(req: Request) {
           facebook_handle: biz.facebook_handle,
           linkedin_handle: biz.linkedin_handle,
           approval_status: biz.approval_status,
+          logo_url: biz.logo_url,
+          cover_image_url: biz.cover_image_url,
         });
       }
     } else if (p.role === 'influencer') {
@@ -87,6 +89,7 @@ export async function GET(req: Request) {
           linkedin_handle: inf.linkedin_handle,
           tiktok_handle: inf.tiktok_handle,
           avatar_url: inf.avatar_url,
+          cover_image_url: inf.cover_image_url,
           is_verified: inf.is_verified,
           availability_status: inf.availability_status,
           engagement_rate: inf.engagement_rate,

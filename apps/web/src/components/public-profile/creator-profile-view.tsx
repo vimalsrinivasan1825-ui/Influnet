@@ -1,4 +1,5 @@
 'use client';
+import { toast } from "sonner";
 
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
@@ -57,7 +58,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
   const [dark, setDark] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [toast, setToast] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
@@ -71,12 +72,12 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
       const res = await fetch('/api/profile/refresh', { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || 'Failed to refresh data');
+        toast.error(err.error || 'Failed to refresh data');
       } else {
         router.refresh();
       }
     } catch (err) {
-      alert('An error occurred while refreshing data.');
+      toast.error('An error occurred while refreshing data.');
     } finally {
       setRefreshing(false);
     }
@@ -99,8 +100,8 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
   const applyCustom = (v: string) => { setAccent(v); setAccent2(lighten(v, 0.22)); };
   const publish = () => {
     try { localStorage.setItem(storeKey, JSON.stringify({ accent, accent2, dark })); } catch { /* ignore */ }
-    setToast(true);
-    setTimeout(() => setToast(false), 2800);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2800);
   };
 
   const copyUrl = async () => {
@@ -389,7 +390,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
         </div>
       )}
 
-      <div className={`${styles.toast} ${toast ? styles.show : ''}`}><span className={styles.tk}><Check w={0.6} /></span>Published — your profile is live at influnet.com/@{data.username}</div>
+      <div className={`${styles.toast} ${showToast ? styles.show : ''}`}><span className={styles.tk}><Check w={0.6} /></span>Published — your profile is live at influnet.com/@{data.username}</div>
     </div>
   );
 }

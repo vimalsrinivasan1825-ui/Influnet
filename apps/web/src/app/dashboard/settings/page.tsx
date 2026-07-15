@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Check, ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
@@ -8,6 +9,7 @@ import { SectionCard } from "@/components/ui/section-card";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
+import { uploadToCloudinary } from "@/lib/storage/upload-client";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
 
@@ -37,6 +39,9 @@ interface Profile {
   pricing_max?: number | null;
   past_collaborations?: unknown[] | null;
   audience_demographics?: AudienceDemographics | null;
+  avatar_url?: string;
+  logo_url?: string;
+  cover_image_url?: string;
 }
 
 // Stored slices may arrive as {label,pct} objects; map to editable string rows.
@@ -98,29 +103,71 @@ function SliceEditor({
               value={row.pct}
               onChange={(e) => set(i, { pct: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })}
               placeholder="%"
-              inputMode="numeric"
-              className="w-16 text-center"
+              className="w-20"
             />
             <button
               type="button"
               onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
               aria-label="Remove"
-              className="shrink-0 rounded-lg p-2 text-content-muted transition-colors hover:bg-danger-soft hover:text-danger"
+              className="p-2 text-content-muted hover:text-danger"
+              title="Remove"
             >
-              <X className="size-4" />
+              <X size={16} />
             </button>
           </div>
         ))}
-        <button
-          type="button"
-          onClick={() => onChange([...rows, { label: "", pct: "" }])}
-          className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-hairline-strong bg-surface-muted px-3 py-1.5 text-xs font-bold text-content-soft transition-colors hover:border-brand hover:text-brand"
-        >
-          <Plus className="size-3.5" /> Add
-        </button>
+        {rows.length < 12 && (
+          <button
+            type="button"
+            onClick={() => onChange([...rows, { label: "", pct: "" }])}
+            className="flex items-center gap-1 self-start text-sm font-semibold text-brand hover:text-brand-strong"
+          >
+            <Plus size={14} /> Add row
+          </button>
+        )}
       </div>
-      {hint && <p className="mt-1.5 text-xs text-content-muted">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-content-muted">{hint}</p>}
     </div>
+  );
+}
+
+function ImageUploadField({ label, hint, value, onChange }: { label: string; hint?: string; value: string; onChange: (url: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      const { url } = await uploadToCloudinary(file, 'profile');
+      onChange(url);
+    } catch (err: any) {
+      toast.error(err.message || 'Upload failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Field label={label} hint={hint}>
+      <div className="flex items-center gap-4">
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value} alt={label} className="size-16 rounded-xl object-cover border border-hairline shadow-sm bg-surface-muted" />
+        ) : (
+          <div className="size-16 rounded-xl bg-surface-muted border border-hairline flex items-center justify-center text-content-muted shadow-sm">
+            <Plus size={24} />
+          </div>
+        )}
+        <div>
+          <label className="relative cursor-pointer rounded-lg bg-surface px-3 py-1.5 text-sm font-semibold text-content border border-hairline hover:bg-surface-muted transition-colors">
+            {busy ? <Loader2 size={16} className="animate-spin inline mr-2" /> : null}
+            {busy ? 'Uploading...' : 'Change image'}
+            <input type="file" className="hidden" accept="image/*" onChange={handleUpload} disabled={busy} />
+          </label>
+        </div>
+      </div>
+    </Field>
   );
 }
 
@@ -160,6 +207,10 @@ export default function SettingsPage() {
   const [headline, setHeadline] = useState("");
   const [instagram, setInstagram] = useState("");
   const [youtube, setYoutube] = useState("");
+  
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+
   // Media-kit fields (influencer)
   const [pricingMin, setPricingMin] = useState("");
   const [pricingMax, setPricingMax] = useState("");
@@ -178,6 +229,8 @@ export default function SettingsPage() {
         setName(p.name || "");
         setPhone(p.phone || "");
         setLocation(p.location || "");
+        setAvatarUrl((p.role === "business_owner" ? p.logo_url : p.avatar_url) || "");
+        setCoverImageUrl(p.cover_image_url || "");
         setCompanyName(p.company_name || "");
         setIndustry(p.industry || "");
         setBio(p.bio || "");
@@ -209,10 +262,14 @@ export default function SettingsPage() {
       if (profile?.role === "business_owner") {
         payload.company_name = companyName;
         payload.industry = industry;
+        if (avatarUrl) payload.logo_url = avatarUrl;
+        if (coverImageUrl) payload.cover_image_url = coverImageUrl;
         if (username) payload.username = username;
       } else if (profile?.role === "influencer") {
         payload.bio = bio;
         payload.headline = headline;
+        if (avatarUrl) payload.avatar_url = avatarUrl;
+        if (coverImageUrl) payload.cover_image_url = coverImageUrl;
         if (username) payload.username = username;
         payload.instagram_handle = instagram;
         payload.youtube_handle = youtube;
@@ -318,6 +375,8 @@ export default function SettingsPage() {
 
       <SectionCard title="Profile information">
         <div className="flex flex-col gap-4">
+          <ImageUploadField label="Profile picture" hint="Used as your avatar on Influnet." value={avatarUrl} onChange={setAvatarUrl} />
+          <ImageUploadField label="Public profile image" hint="Cover image shown on your public page or media kit." value={coverImageUrl} onChange={setCoverImageUrl} />
           <Field label="Full name">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
           </Field>
