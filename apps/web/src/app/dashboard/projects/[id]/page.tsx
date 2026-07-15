@@ -1,4 +1,5 @@
 'use client';
+import { toast } from "sonner";
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -23,15 +24,22 @@ import {
   Trash2, Save, Zap, Wallet, FileText, Camera, Scissors, Eye,
   RefreshCw, ThumbsUp, CreditCard, Award, Star,
   Check, Lock, ChevronRight, Loader2, Flag,
+  ListChecks, LayoutGrid, Hourglass, History,
+  UserPlus, Banknote, SkipForward, Pencil,
+  Send, Paperclip, Link2, Download,
+  Waypoints, PartyPopper,
 } from 'lucide-react';
 import type { ProjectCard } from '@/types';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
 import { STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
+import { STAGE_GUIDE, isMutualSignoffStage, stageSignoffAt, isSkippableStage, stageSkipProposal } from '@/lib/project-stage-guide';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui/input';
 import { PaymentGate } from '@/components/dashboard/payment-gate';
+import { ProjectFlow } from '@/components/dashboard/project-flow';
+import { uploadToCloudinary } from '@/lib/storage/upload-client';
 
 const ROW_HEIGHT = 64;
 const HEADER_HEIGHT = 44;
@@ -59,6 +67,11 @@ const STAGE_CONFIG: { key: string; label: string; color: string }[] = [
   { key: 'final_payment', label: 'Payment', color: '#10b981' },
   { key: 'project_completed', label: 'Completed', color: '#16a34a' },
 ];
+
+// In-app payments enabled? Mirrors PaymentGate — presence of the public key.
+// When true, payment gate items are opened only by a confirmed payment, never
+// by a manual tick.
+const PAYMENTS_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
 
 const CARD_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
@@ -739,6 +752,639 @@ function StagePipeline({
   );
 }
 
+// ─── Change requests (propose → accept/reject term edits) ───
+const CR_FIELD_LABEL: Record<string, string> = {
+  title: 'Title', budget: 'Budget', description: 'Description', deliverables: 'Deliverables',
+};
+function crFormatVal(key: string, v: unknown): string {
+  if (v == null || v === '') return '—';
+  if (key === 'budget') return `₹${Number(v).toLocaleString('en-IN')}`;
+  const s = String(v);
+  return s.length > 80 ? `${s.slice(0, 80)}…` : s;
+}
+
+function ChangeRequestsPanel({ requests, userId, onAct, onOpenPropose, busy }: {
+  requests: any[];
+  userId: string | null;
+  onAct: (id: string, action: 'accept' | 'reject' | 'withdraw', note?: string) => void;
+  onOpenPropose: () => void;
+  busy: boolean;
+}) {
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const pending = requests.filter((r) => r.status === 'pending');
+
+  return (
+    <div className="mb-4 flex flex-col gap-3">
+      {pending.map((cr) => {
+        const mine = cr.proposed_by === userId;
+        const keys = Object.keys(cr.changes || {});
+        return (
+          <div key={cr.id} className="rounded-2xl border border-brand/30 bg-brand-soft/30 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-extrabold text-content">
+              <Pencil size={15} className="text-brand" />
+              {mine ? 'You proposed a change' : 'A change was proposed'}
+            </div>
+            <div className="mb-3 flex flex-col gap-1.5">
+              {keys.map((k) => (
+                <div key={k} className="flex flex-wrap items-center gap-x-2 text-sm">
+                  <span className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">{CR_FIELD_LABEL[k] || k}</span>
+                  <span className="text-content-muted line-through">{crFormatVal(k, cr.before?.[k])}</span>
+                  <ChevronRight size={12} className="text-content-muted" />
+                  <span className="font-semibold text-content">{crFormatVal(k, cr.changes?.[k])}</span>
+                </div>
+              ))}
+            </div>
+            {mine ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-content-muted">Waiting for the other party to review.</span>
+                <Button variant="surface" size="sm" disabled={busy} onClick={() => onAct(cr.id, 'withdraw')}>Withdraw</Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Textarea
+                  rows={2}
+                  placeholder="Optional note if you reject (e.g. what to change)…"
+                  value={notes[cr.id] || ''}
+                  onChange={(e) => setNotes((n) => ({ ...n, [cr.id]: e.target.value }))}
+                />
+                <div className="flex gap-2">
+                  <Button variant="surface" size="sm" disabled={busy} onClick={() => onAct(cr.id, 'reject', notes[cr.id])} className="flex-1">
+                    <X size={14} /> Reject
+                  </Button>
+                  <Button variant="brand" size="sm" disabled={busy} onClick={() => onAct(cr.id, 'accept')} className="flex-1">
+                    <Check size={14} /> Accept
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <button
+        onClick={onOpenPropose}
+        className="flex items-center gap-1.5 self-start text-xs font-semibold text-content-muted transition-colors hover:text-content"
+      >
+        <Pencil size={13} /> Propose a change to the terms
+      </button>
+    </div>
+  );
+}
+
+function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
+  project: any;
+  onClose: () => void;
+  onSubmit: (changes: Record<string, unknown>) => void;
+  busy: boolean;
+}) {
+  const [title, setTitle] = useState(project?.title || '');
+  const [budget, setBudget] = useState(project?.budget != null ? String(project.budget) : '');
+  const [deliverables, setDeliverables] = useState(project?.deliverables || '');
+  const [description, setDescription] = useState(project?.description || '');
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = () => {
+    const changes: Record<string, unknown> = {};
+    if (title.trim() && title.trim() !== (project?.title || '')) changes.title = title.trim();
+    if (budget !== '' && Number(budget) !== Number(project?.budget)) changes.budget = Number(budget);
+    if (deliverables !== (project?.deliverables || '')) changes.deliverables = deliverables;
+    if (description !== (project?.description || '')) changes.description = description;
+    if (Object.keys(changes).length === 0) { setErr('Change at least one field.'); return; }
+    onSubmit(changes);
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-extrabold tracking-tight text-content">Propose a change</h3>
+          <button onClick={onClose} className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"><X size={16} /></button>
+        </div>
+        <p className="mb-4 text-xs text-content-muted">The other party has to accept before it takes effect.</p>
+        <div className="flex flex-col gap-3.5">
+          <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+          <div><Label>Budget (₹)</Label><Input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} /></div>
+          <div><Label>Deliverables</Label><Textarea rows={2} value={deliverables} onChange={(e) => setDeliverables(e.target.value)} placeholder="What the creator will deliver…" /></div>
+          <div><Label>Description</Label><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+          {err && <span className="text-xs font-semibold text-warn">{err}</span>}
+          <div className="flex justify-end gap-2">
+            <Button variant="surface" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="brand" size="sm" disabled={busy} onClick={submit}>
+              {busy ? <Loader2 className="animate-spin" /> : <Pencil />} Send proposal
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Compose a stage update (message + link + file) ───
+function StageUpdateModal({ stageLabel, onClose, onSubmit, busy }: {
+  stageLabel: string;
+  onClose: () => void;
+  onSubmit: (payload: { body?: string; link_url?: string; file?: File | null }) => void;
+  busy: boolean;
+}) {
+  const [body, setBody] = useState('');
+  const [link, setLink] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const submit = () => {
+    if (!body.trim() && !link.trim() && !file) { setErr('Add a message, a link, or a file.'); return; }
+    if (file && file.size > 25 * 1024 * 1024) { setErr('File is too large (max 25 MB).'); return; }
+    onSubmit({ body: body.trim() || undefined, link_url: link.trim() || undefined, file });
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-extrabold tracking-tight text-content">Send an update · {stageLabel}</h3>
+          <button onClick={onClose} className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"><X size={16} /></button>
+        </div>
+        <div className="flex flex-col gap-3.5">
+          <div>
+            <Label>Message</Label>
+            <Textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Share the work, ask a question, or leave a remark…" />
+          </div>
+          <div>
+            <Label>Link (optional)</Label>
+            <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://drive.google.com/…" />
+          </div>
+          <div>
+            <Label>File (Images only)</Label>
+            <input accept="image/*" ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <div className="flex items-center gap-2">
+              <Button variant="surface" size="sm" onClick={() => fileRef.current?.click()}><Paperclip size={14} /> Attach image</Button>
+              {file && (
+                <span className="flex items-center gap-1 text-xs font-semibold text-content">
+                  {file.name}
+                  <button onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ''; }} className="text-content-muted hover:text-danger"><X size={12} /></button>
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-content-muted">For videos or large files, upload to Google Drive and paste the link above.</p>
+          </div>
+          {err && <span className="text-xs font-semibold text-warn">{err}</span>}
+          <div className="flex justify-end gap-2">
+            <Button variant="surface" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="brand" size="sm" disabled={busy} onClick={submit}>
+              {busy ? <Loader2 className="animate-spin" /> : <Send />} Send
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Activity Timeline (the project log) ───
+const ACTIVITY_ICON: Record<string, { icon: React.ComponentType<any>; tone: string }> = {
+  project_created: { icon: UserPlus, tone: 'bg-brand-soft text-brand-strong' },
+  stage_advanced: { icon: ChevronRight, tone: 'bg-ok-soft text-ok' },
+  stage_signoff: { icon: Check, tone: 'bg-ok-soft text-ok' },
+  stage_skipped: { icon: SkipForward, tone: 'bg-surface-muted text-content-muted' },
+  revisions_requested: { icon: RefreshCw, tone: 'bg-warn-soft text-warn' },
+  draft_approved: { icon: ThumbsUp, tone: 'bg-ok-soft text-ok' },
+  terms_change_proposed: { icon: Pencil, tone: 'bg-brand-soft text-brand-strong' },
+  terms_change_accepted: { icon: Check, tone: 'bg-ok-soft text-ok' },
+  terms_change_rejected: { icon: X, tone: 'bg-danger-soft text-danger' },
+  payment_paid: { icon: Banknote, tone: 'bg-ok-soft text-ok' },
+  completion_confirmed: { icon: ThumbsUp, tone: 'bg-ok-soft text-ok' },
+  project_completed: { icon: Award, tone: 'bg-ok-soft text-ok' },
+  cancellation_requested: { icon: X, tone: 'bg-danger-soft text-danger' },
+  cancellation_declined: { icon: RefreshCw, tone: 'bg-surface-muted text-content-muted' },
+  cancellation_accepted: { icon: X, tone: 'bg-danger-soft text-danger' },
+};
+
+function activityFmt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  } catch { return ''; }
+}
+
+function ActivityTimeline({ activity, userId }: { activity: any[]; userId: string | null }) {
+  return (
+    <div className="mx-auto w-full max-w-2xl p-4 sm:p-6">
+      <div className="mb-4 text-xs font-bold uppercase tracking-[0.08em] text-brand">Activity</div>
+      {activity.length === 0 ? (
+        <p className="text-base text-content-muted">Nothing recorded yet.</p>
+      ) : (
+        <ol className="relative flex flex-col gap-3 pl-8">
+          <span className="absolute bottom-3 left-[18px] top-3 w-0.5 bg-hairline" aria-hidden />
+          {activity.map((ev) => {
+            const cfg = ACTIVITY_ICON[ev.type] || { icon: Circle, tone: 'bg-surface-muted text-content-muted' };
+            const Icon = cfg.icon;
+            const who = ev.actor ? (ev.actor.id === userId ? 'You' : ev.actor.name || 'Someone') : null;
+            const amount = ev.metadata?.amount_rupees;
+            return (
+              <li key={ev.id} className="relative">
+                <span className={`absolute -left-8 top-3 flex size-9 items-center justify-center rounded-full ring-4 ring-surface ${cfg.tone}`}>
+                  <Icon size={16} />
+                </span>
+                <div className="rounded-2xl border border-hairline bg-surface-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-base font-semibold text-content">
+                      {who && <span className="font-extrabold">{who} </span>}
+                      {who ? ev.summary.charAt(0).toLowerCase() + ev.summary.slice(1) : ev.summary}
+                    </span>
+                    {ev.type === 'payment_paid' && amount != null && (
+                      <Badge variant="success" size="md">₹{Number(amount).toLocaleString('en-IN')}</Badge>
+                    )}
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-content-muted">{activityFmt(ev.created_at)}</div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+// ─── Stage completion celebration (animated, dependency-free) ───
+function StageCelebration({ label, onClose }: { label: string; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4200);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  const confetti = Array.from({ length: 16 });
+  const colors = ['#ee3e96', '#10b981', '#f59e0b', '#6366f1', '#06b6d4', '#f43f5e'];
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[1100] flex items-center justify-center bg-content/40 p-5 backdrop-blur-sm">
+      <style>{`
+        @keyframes inf-pop { 0%{transform:scale(.7);opacity:0} 60%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
+        @keyframes inf-check { to { stroke-dashoffset: 0 } }
+        @keyframes inf-fall { 0%{transform:translateY(-20px) rotate(0);opacity:1} 100%{transform:translateY(320px) rotate(360deg);opacity:0} }
+      `}</style>
+      <div onClick={(e) => e.stopPropagation()} className="relative overflow-hidden rounded-3xl border border-hairline bg-surface-card px-8 py-9 text-center shadow-[var(--shadow-pop)]" style={{ animation: 'inf-pop .35s cubic-bezier(0.2,0,0,1) both', width: 'min(92vw, 380px)' }}>
+        {confetti.map((_, i) => (
+          <span key={i} aria-hidden style={{
+            position: 'absolute', top: 0, left: `${(i * 6.25 + 4)}%`,
+            width: 8, height: 8, borderRadius: i % 2 ? '50%' : 2,
+            background: colors[i % colors.length],
+            animation: `inf-fall ${1.6 + (i % 5) * 0.25}s ${(i % 7) * 0.12}s linear infinite`,
+          }} />
+        ))}
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-ok-soft">
+          <svg width="34" height="34" viewBox="0 0 52 52" fill="none">
+            <circle cx="26" cy="26" r="24" stroke="#10b981" strokeWidth="3" opacity="0.25" />
+            <path d="M15 27 l7 7 l15 -16" stroke="#10b981" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"
+              style={{ strokeDasharray: 44, strokeDashoffset: 44, animation: 'inf-check .5s .25s cubic-bezier(0.2,0,0,1) forwards' }} />
+          </svg>
+        </div>
+        <div className="flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ok">
+          <PartyPopper size={14} /> Stage complete
+        </div>
+        <h3 className="mt-1.5 text-xl font-extrabold text-content">Nice work!</h3>
+        <p className="mt-1 text-base font-medium text-content-soft">Moving on to <span className="font-extrabold text-brand-strong">{label}</span>.</p>
+        <Button variant="brand" size="sm" className="mt-5" onClick={onClose}>Continue</Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Guided Flow (step-by-step, bilateral sign-off) ───
+function GuidedFlow({
+  project, userId, userRole, currentStage, items, requiredDone,
+  advancing, advanceError, onToggleItem, onSignoff, onRevokeSignoff, onAdvance,
+  onProposeSkip, onConfirmSkip, onCancelSkip,
+  entries, onOpenCompose, onDeleteEntry,
+  isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
+  projectId, budget, onPaid, onPreviewImage,
+}: {
+  project: any;
+  userId: string | null;
+  userRole: 'business' | 'creator' | null;
+  currentStage?: string;
+  items: StageItem[];
+  requiredDone: boolean;
+  advancing: boolean;
+  advanceError: string | null;
+  onToggleItem: (item: StageItem, done: boolean) => void;
+  onSignoff: () => void;
+  onRevokeSignoff: () => void;
+  onAdvance: (stageKey?: string) => void;
+  onProposeSkip: () => void;
+  onConfirmSkip: () => void;
+  onCancelSkip: () => void;
+  entries: any[];
+  onOpenCompose: () => void;
+  onDeleteEntry: (id: string) => void;
+  isFinalPayment: boolean;
+  myConfirmed: boolean;
+  otherConfirmed: boolean;
+  onConfirmCompletion: () => void;
+  projectId: number | string;
+  budget?: number | string | null;
+  onPaid: () => void;
+  onPreviewImage: (url: string) => void;
+}) {
+  const roleLabel = (r: string) => (r === 'business' ? 'Brand' : r === 'creator' ? 'Creator' : 'Both');
+  const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
+  const stage = STAGE_CONFIG[currentIdx];
+  const nextStage = STAGE_CONFIG[currentIdx + 1];
+  const isComplete = currentStage === 'project_completed';
+  const isReviewFork = currentStage === 'sent_for_review';
+  const isAdvancePayment = currentStage === 'advance_payment';
+  const mutual = !!currentStage && isMutualSignoffStage(currentStage) && !isFinalPayment;
+  const guide = currentStage ? STAGE_GUIDE[currentStage as Stage] : undefined;
+
+  const otherRole = userRole === 'business' ? 'creator' : 'business';
+  const sp = project?.stage_progress as Record<string, any> | undefined;
+  const mySignoff = currentStage && userRole ? stageSignoffAt(sp, currentStage, userRole) : null;
+  const otherSignoff = currentStage ? stageSignoffAt(sp, currentStage, otherRole) : null;
+
+  // Skip-by-consent state for the current stage.
+  const skippable = !!currentStage && isSkippableStage(currentStage) && !isComplete;
+  const skipProposal = currentStage ? stageSkipProposal(sp, currentStage) : null;
+  const iProposedSkip = !!skipProposal && skipProposal.by === userId;
+
+  const myActions = guide ? (userRole === 'business' ? guide.brand : guide.creator) : [];
+  const partnerActions = guide ? (userRole === 'business' ? guide.creator : guide.brand) : [];
+
+  return (
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 p-4 sm:p-6">
+      {/* Stepper — all 12 stages, wrapped (never horizontally scrolling) */}
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-hairline bg-surface-card p-4">
+        {STAGE_CONFIG.map((s, i) => {
+          const state = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'upcoming';
+          return (
+            <div
+              key={s.key}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${
+                state === 'current' ? 'bg-brand text-white'
+                  : state === 'done' ? 'bg-ok-soft text-ok'
+                  : 'bg-surface-muted text-content-muted'
+              }`}
+              title={s.label}
+            >
+              <span className={`flex size-4 items-center justify-center rounded-full text-[0.625rem] font-bold ${state === 'current' ? 'bg-white/25' : state === 'done' ? 'bg-ok/15' : 'bg-content/5'}`}>
+                {state === 'done' ? <Check size={11} /> : i + 1}
+              </span>
+              {s.label}
+            </div>
+          );
+        })}
+      </div>
+
+      {isComplete ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-hairline bg-surface-card px-5 py-4 text-sm font-bold text-ok">
+          <Award size={18} /> Project completed — reviews are now open.
+        </div>
+      ) : stage && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-hairline bg-surface-card p-5">
+          {/* Stage header + summary */}
+          <div>
+            <div className="mb-1.5 flex items-center gap-2.5">
+              <span className="text-xs font-bold uppercase tracking-[0.08em] text-brand">
+                Step {currentIdx + 1} of {STAGE_CONFIG.length}
+              </span>
+              <span className="text-xl font-extrabold text-content">{stage.label}</span>
+            </div>
+            {guide && <p className="text-base font-medium leading-relaxed text-content-soft">{guide.summary}</p>}
+          </div>
+
+          {/* What each side does */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-brand/30 bg-brand-soft/40 p-4">
+              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-brand-strong">You ({roleLabel(userRole || 'both')})</div>
+              <ul className="flex flex-col gap-1.5">
+                {myActions.map((a, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm font-medium text-content"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" />{a}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-hairline bg-surface-muted p-4">
+              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-content-muted">Partner ({roleLabel(otherRole)})</div>
+              <ul className="flex flex-col gap-1.5">
+                {partnerActions.map((a, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm font-medium text-content-soft"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-content-muted" />{a}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Updates — the "mail" thread: send notes, links, files; both review */}
+          <div className="flex flex-col gap-2.5 rounded-xl border border-hairline bg-surface p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-content">Updates</span>
+              <Button variant="brand" size="sm" onClick={onOpenCompose}>
+                <Send size={14} /> Send an update
+              </Button>
+            </div>
+            {entries.length === 0 ? (
+              <p className="text-sm font-medium text-content-muted">No updates yet. Share the work, a link, or a file — the other side reviews it here before you both sign off.</p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {entries.map((e) => {
+                  const mine = e.author?.id === userId;
+                  return (
+                    <div key={e.id} className="rounded-xl border border-hairline bg-surface-card p-3">
+                      <div className="mb-1 flex items-center gap-2">
+                        <Avatar name={e.author?.name} size="sm" square />
+                        <span className="text-sm font-bold text-content">{mine ? 'You' : e.author?.name || 'Partner'}</span>
+                        <span className="text-xs font-medium text-content-muted">
+                          {(() => { try { return new Date(e.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch { return ''; } })()}
+                        </span>
+                        {mine && (
+                          <button onClick={() => onDeleteEntry(e.id)} className="ml-auto text-content-muted transition-colors hover:text-danger" title="Delete update">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                      {e.body && <p className="whitespace-pre-wrap text-sm font-medium text-content">{e.body}</p>}
+                      <div className="mt-1.5 flex flex-wrap gap-2">
+                        {e.link_url && (
+                          <a href={e.link_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 py-1 text-xs font-semibold text-brand-strong hover:bg-surface-muted">
+                            <Link2 size={13} /> {(() => { try { return new URL(e.link_url).hostname; } catch { return 'Link'; } })()}
+                          </a>
+                        )}
+                      </div>
+                      {e.file_url && (
+                        <div className="mt-2 w-full max-w-sm overflow-hidden rounded-lg border border-hairline">
+                          <button
+                            onClick={() => onPreviewImage(e.file_url)}
+                            className="block w-full cursor-zoom-in overflow-hidden bg-surface-muted"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={e.file_url}
+                              alt={e.file_name || 'Attachment'}
+                              className="h-auto w-full object-cover transition-all hover:scale-[1.02] hover:opacity-90"
+                            />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Checklist */}
+          {items.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <div className="text-xs font-bold uppercase tracking-wide text-content-muted">Steps in this stage</div>
+              {items.map((it) => {
+                const done = !!it.done_at;
+                // Only PAYMENT gate items open via a confirmed payment. Approval
+                // gates (concept / final approval) are ticked by hand as normal.
+                const isPaymentStage = currentStage === 'advance_payment' || currentStage === 'final_payment';
+                const paymentLocked = it.is_gate && isPaymentStage && PAYMENTS_CONFIGURED && !done;
+                const canToggleThis = (it.owner_role === 'both' || it.owner_role === userRole) && !paymentLocked;
+                return (
+                  <button
+                    key={it.id}
+                    disabled={!canToggleThis}
+                    onClick={() => onToggleItem(it, !done)}
+                    className={`group flex items-center gap-2.5 rounded-lg border border-hairline px-3 py-2.5 text-left text-base transition-colors ${
+                      canToggleThis ? 'hover:bg-surface-muted' : 'cursor-not-allowed opacity-80'
+                    }`}
+                    title={paymentLocked ? 'Opens automatically once the payment is confirmed' : canToggleThis ? 'Toggle done' : `Only the ${roleLabel(it.owner_role)} can mark this`}
+                  >
+                    <span className={`flex size-[18px] shrink-0 items-center justify-center rounded-md border ${done ? 'border-ok bg-ok text-white' : 'border-hairline-strong bg-surface'}`}>
+                      {done && <Check size={12} />}
+                    </span>
+                    <span className={`font-semibold ${done ? 'text-content-muted line-through' : 'text-content'}`}>{it.label}</span>
+                    {it.is_gate && <Badge variant="warning" size="sm" className="ml-0.5"><Lock size={9} /> Gate</Badge>}
+                    {it.is_required && !done && <span className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">Required</span>}
+                    <span className="ml-auto text-[0.625rem] font-semibold text-content-muted">{roleLabel(it.owner_role)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Payment gate on the advance-payment stage */}
+          {isAdvancePayment && (
+            <PaymentGate
+              projectId={projectId}
+              stageKey="advance_payment"
+              amountRupees={budget != null && budget !== '' ? Number(budget) : null}
+              userRole={userRole}
+              isDone={items.some((it) => it.is_gate && !!it.done_at)}
+              onPaid={onPaid}
+            />
+          )}
+
+          {/* Action zone */}
+          <div className="border-t border-hairline pt-4">
+            {isFinalPayment ? (
+              <div className="flex flex-col gap-2">
+                <Button variant={myConfirmed ? 'surface' : 'brand'} disabled={myConfirmed || advancing} onClick={onConfirmCompletion}>
+                  {advancing ? <Loader2 className="animate-spin" /> : myConfirmed ? <Check /> : <ThumbsUp />}
+                  {myConfirmed ? 'You confirmed completion' : 'Confirm completion'}
+                </Button>
+                <span className="text-xs text-content-muted">
+                  {otherConfirmed ? 'The other party has confirmed.' : `Waiting on the ${roleLabel(otherRole)} to also confirm.`} Both must confirm to complete the project.
+                </span>
+              </div>
+            ) : isReviewFork ? (
+              <div className="flex flex-col gap-2">
+                {STAGE_ACTOR[currentStage as Stage] === userRole ? (
+                  <>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button variant="surface" disabled={!requiredDone || advancing} onClick={() => onAdvance('revisions')} className="flex-1">
+                        {advancing ? <Loader2 className="animate-spin" /> : <RefreshCw />} Request revisions
+                      </Button>
+                      <Button variant="brand" disabled={!requiredDone || advancing} onClick={() => onAdvance('final_approval')} className="flex-1">
+                        {advancing ? <Loader2 className="animate-spin" /> : <ThumbsUp />} Approve draft
+                      </Button>
+                    </div>
+                    <span className="text-xs text-content-muted">Review the draft — send it back for changes, or approve it to move on.</span>
+                  </>
+                ) : (
+                  <span className="text-xs text-content-muted">
+                    Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to review the draft.
+                  </span>
+                )}
+              </div>
+            ) : mutual ? (
+              skipProposal ? (
+                /* A skip has been proposed — needs the other side's consent. */
+                <div className="flex flex-col gap-2 rounded-xl border border-warn/40 bg-warn-soft px-3 py-3">
+                  <div className="flex items-center gap-2 text-sm font-bold text-warn">
+                    <SkipForward size={16} />
+                    {iProposedSkip ? 'You proposed skipping this stage' : `The ${roleLabel(otherRole)} wants to skip this stage`}
+                  </div>
+                  {iProposedSkip ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-content-soft">Waiting for the {roleLabel(otherRole)} to confirm.</span>
+                      <Button variant="surface" size="sm" disabled={advancing} onClick={onCancelSkip}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs text-content-soft">If you agree it isn’t needed, confirm to move on. Otherwise reject and continue the stage.</span>
+                      <div className="flex gap-2">
+                        <Button variant="surface" size="sm" disabled={advancing} onClick={onCancelSkip} className="flex-1">Reject</Button>
+                        <Button variant="brand" size="sm" disabled={advancing} onClick={onConfirmSkip} className="flex-1">
+                          {advancing ? <Loader2 className="animate-spin" /> : <SkipForward />} Confirm skip
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {/* Both-sides confirmation status */}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${mySignoff ? 'border-ok/40 bg-ok-soft text-ok' : 'border-hairline bg-surface-muted text-content-muted'}`}>
+                      {mySignoff ? <CheckCircle2 size={16} /> : <Circle size={16} />} You {mySignoff ? 'confirmed' : 'not yet'}
+                    </div>
+                    <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${otherSignoff ? 'border-ok/40 bg-ok-soft text-ok' : 'border-hairline bg-surface-muted text-content-muted'}`}>
+                      {otherSignoff ? <CheckCircle2 size={16} /> : <Hourglass size={16} />} {roleLabel(otherRole)} {otherSignoff ? 'confirmed' : 'waiting'}
+                    </div>
+                  </div>
+
+                  {mySignoff ? (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs text-content-muted">
+                        {otherSignoff ? 'Both confirmed — moving on…' : `Waiting on the ${roleLabel(otherRole)} to confirm. The project advances once they do.`}
+                      </span>
+                      {!otherSignoff && (
+                        <Button variant="ghost" size="sm" disabled={advancing} onClick={onRevokeSignoff} className="self-start">
+                          Undo my confirmation
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <Button variant="brand" disabled={!requiredDone || advancing} onClick={onSignoff}>
+                        {advancing ? <Loader2 className="animate-spin" /> : <Check />}
+                        Confirm this stage{nextStage ? ` → ${nextStage.label}` : ''}
+                      </Button>
+                      {!requiredDone && <span className="text-xs text-warn">Finish the required steps above before confirming.</span>}
+                    </div>
+                  )}
+
+                  {/* Skip option — this stage isn't always needed */}
+                  {skippable && !mySignoff && !otherSignoff && (
+                    <button
+                      disabled={advancing}
+                      onClick={onProposeSkip}
+                      className="flex items-center gap-1.5 self-start text-xs font-semibold text-content-muted transition-colors hover:text-content disabled:opacity-60"
+                    >
+                      <SkipForward size={13} /> This stage isn’t needed — propose skipping it
+                    </button>
+                  )}
+                </div>
+              )
+            ) : null}
+            {advanceError && <span className="mt-2 block text-xs text-danger">{advanceError}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ───
 export default function ProjectKanbanPage() {
   const params = useParams();
@@ -755,6 +1401,16 @@ export default function ProjectKanbanPage() {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<ProjectCard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'guided' | 'board' | 'activity' | 'flow'>('guided');
+  const [activity, setActivity] = useState<any[]>([]);
+  const [celebrateLabel, setCelebrateLabel] = useState<string | null>(null);
+  const [changeRequests, setChangeRequests] = useState<any[]>([]);
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const [crBusy, setCrBusy] = useState(false);
+  const [stageEntries, setStageEntries] = useState<any[]>([]);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [entryBusy, setEntryBusy] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Reviews state
   const [reviews, setReviews] = useState<any[]>([]);
@@ -786,11 +1442,14 @@ export default function ProjectKanbanPage() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const [projRes, cardsRes, reviewsRes, itemsRes] = await Promise.all([
+      const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes] = await Promise.all([
         apiFetch<{ project: any }>(`/api/projects/${projectId}`),
         apiFetch<{ cards: ProjectCard[] }>(`/api/projects/${projectId}/cards`),
         apiFetch<{ reviews: any[] }>(`/api/projects/${projectId}/reviews`),
         apiFetch<{ items: StageItem[] }>(`/api/projects/${projectId}/stage-items`),
+        apiFetch<{ activity: any[] }>(`/api/projects/${projectId}/activity`),
+        apiFetch<{ change_requests: any[] }>(`/api/projects/${projectId}/change-requests`),
+        apiFetch<{ entries: any[] }>(`/api/projects/${projectId}/stage-entries`),
       ]);
       if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
       else { setError(projRes.error || 'Failed to load project'); }
@@ -798,6 +1457,9 @@ export default function ProjectKanbanPage() {
       else { setError(cardsRes.error || 'Failed to load cards'); }
       if (reviewsRes.ok && reviewsRes.data) { setReviews(reviewsRes.data.reviews || []); }
       if (itemsRes.ok && itemsRes.data) { setStageItems(itemsRes.data.items || []); }
+      if (activityRes.ok && activityRes.data) { setActivity(activityRes.data.activity || []); }
+      if (crRes.ok && crRes.data) { setChangeRequests(crRes.data.change_requests || []); }
+      if (entriesRes.ok && entriesRes.data) { setStageEntries(entriesRes.data.entries || []); }
     } catch (e) { console.error(e); setError('Network error'); }
     finally { setLoading(false); }
   }, [projectId]);
@@ -811,6 +1473,20 @@ export default function ProjectKanbanPage() {
     };
     init();
   }, [fetchData]);
+
+  // Celebrate whenever the project moves forward to a new stage.
+  const prevStageRef = useRef<string | null>(null);
+  useEffect(() => {
+    const cs = project?.current_stage as string | undefined;
+    if (!cs) return;
+    const prev = prevStageRef.current;
+    if (prev && prev !== cs) {
+      const prevIdx = STAGE_CONFIG.findIndex((s) => s.key === prev);
+      const nextIdx = STAGE_CONFIG.findIndex((s) => s.key === cs);
+      if (nextIdx > prevIdx) setCelebrateLabel(STAGE_CONFIG[nextIdx]?.label || cs);
+    }
+    prevStageRef.current = cs;
+  }, [project?.current_stage]);
 
   const cardsByStage = useMemo(() => {
     const grouped: Record<string, ProjectCard[]> = {};
@@ -846,7 +1522,7 @@ export default function ProjectKanbanPage() {
         method: 'PATCH',
         body: JSON.stringify({ item_id: item.id, done }),
       });
-      if (!res.ok) { await fetchData(); }
+      if (!res.ok) { setAdvanceError(res.error || 'Could not update that step.'); await fetchData(); }
     } catch (e) { console.error(e); await fetchData(); }
   };
 
@@ -863,6 +1539,102 @@ export default function ProjectKanbanPage() {
       else { setAdvanceError(res.error || 'Could not advance to the next stage.'); }
     } catch (e) { console.error(e); setAdvanceError('Network error while advancing.'); }
     finally { setAdvancing(false); }
+  };
+
+  // Bilateral stage sign-off (Guided mode). Each side confirms the current
+  // stage; the server auto-advances once both have confirmed.
+  const handleSignoff = async (action: 'signoff' | 'revoke_signoff') => {
+    if (!currentStage) return;
+    setAdvancing(true);
+    setAdvanceError(null);
+    try {
+      const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok && res.data) { setProject(res.data.project); }
+      else { setAdvanceError(res.error || 'Could not update your confirmation.'); }
+    } catch (e) { console.error(e); setAdvanceError('Network error while confirming.'); }
+    finally { setAdvancing(false); }
+  };
+
+  // Skip a stage by mutual consent (propose → the other confirms).
+  const handleSkip = async (action: 'propose_skip' | 'confirm_skip' | 'cancel_skip') => {
+    if (!currentStage) return;
+    setAdvancing(true);
+    setAdvanceError(null);
+    try {
+      const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok && res.data) { setProject(res.data.project); if (action === 'confirm_skip') void fetchData(); }
+      else { setAdvanceError(res.error || 'Could not update the skip.'); }
+    } catch (e) { console.error(e); setAdvanceError('Network error while updating the skip.'); }
+    finally { setAdvancing(false); }
+  };
+
+  // Change requests: propose an edit to the terms, or act on one.
+  const handleProposeChange = async (changes: Record<string, unknown>) => {
+    setCrBusy(true);
+    try {
+      const res = await apiFetch(`/api/projects/${projectId}/change-requests`, {
+        method: 'POST', body: JSON.stringify({ changes }),
+      });
+      if (res.ok) { setProposeOpen(false); await fetchData(); }
+      else { toast.error(res.error || 'Could not send the proposal.'); }
+    } catch (e) { console.error(e); }
+    finally { setCrBusy(false); }
+  };
+
+  const handleActOnChange = async (requestId: string, action: 'accept' | 'reject' | 'withdraw', note?: string) => {
+    setCrBusy(true);
+    try {
+      const res = await apiFetch(`/api/projects/${projectId}/change-requests`, {
+        method: 'PATCH', body: JSON.stringify({ request_id: requestId, action, note }),
+      });
+      if (res.ok) { await fetchData(); }
+      else { toast.error(res.error || 'Could not update the change request.'); }
+    } catch (e) { console.error(e); }
+    finally { setCrBusy(false); }
+  };
+
+  // Stage updates ("mail" thread). A file, if any, is uploaded to the private
+  // project-assets bucket first (RLS-scoped by the <project_id>/ path prefix),
+  // then the update row is recorded with its path.
+  const handlePostUpdate = async ({ body, link_url, file }: { body?: string; link_url?: string; file?: File | null }) => {
+    if (!currentStage) return;
+    setEntryBusy(true);
+    try {
+      let file_url: string | undefined;
+      let file_name: string | undefined;
+      let file_public_id: string | undefined;
+      if (file) {
+        try {
+          const up = await uploadToCloudinary(file, 'stage');
+          file_url = up.url;
+          file_public_id = up.publicId;
+          file_name = file.name;
+        } catch (upErr: any) {
+          toast.error(upErr?.message || 'File upload failed.');
+          return;
+        }
+      }
+      const res = await apiFetch(`/api/projects/${projectId}/stage-entries`, {
+        method: 'POST',
+        body: JSON.stringify({ stage_key: currentStage, body, link_url, file_url, file_name, file_public_id }),
+      });
+      if (res.ok) { setComposeOpen(false); await fetchData(); }
+      else { toast.error(res.error || 'Could not send the update.'); }
+    } catch (e) { console.error(e); toast.error('Something went wrong sending the update.'); }
+    finally { setEntryBusy(false); }
+  };
+
+  const handleDeleteUpdate = async (entryId: string) => {
+    try {
+      const res = await apiFetch(`/api/projects/${projectId}/stage-entries?entry_id=${entryId}`, { method: 'DELETE' });
+      if (res.ok) await fetchData();
+    } catch (e) { console.error(e); }
   };
 
   // Dual-confirm completion (both parties must confirm at final_payment).
@@ -1027,6 +1799,37 @@ export default function ProjectKanbanPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Guided ↔ Board view toggle */}
+          <div className="flex items-center gap-0.5 rounded-lg border border-hairline bg-surface-muted p-0.5">
+            <button
+              onClick={() => setView('guided')}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'guided' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              title="Step-by-step guided flow"
+            >
+              <ListChecks size={13} /> Guided
+            </button>
+            <button
+              onClick={() => setView('board')}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'board' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              title="Schedule board"
+            >
+              <LayoutGrid size={13} /> Board
+            </button>
+            <button
+              onClick={() => setView('activity')}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'activity' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              title="Activity timeline"
+            >
+              <History size={13} /> Activity
+            </button>
+            <button
+              onClick={() => setView('flow')}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'flow' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              title="Stage-by-stage recap"
+            >
+              <Waypoints size={13} /> Flow
+            </button>
+          </div>
           {project?.budget != null && project.budget !== '' && (
             <Badge variant="success" size="md">₹{Number(project.budget).toLocaleString()}</Badge>
           )}
@@ -1052,8 +1855,8 @@ export default function ProjectKanbanPage() {
         </div>
       </div>
 
-      {/* Stage Pipeline — the spine of the collaboration */}
-      {!loading && !error && project && (
+      {/* Stage Pipeline — the spine of the collaboration (board view only) */}
+      {view === 'board' && !loading && !error && project && (
         <StagePipeline
           currentStage={currentStage}
           items={currentStageItems}
@@ -1088,6 +1891,56 @@ export default function ProjectKanbanPage() {
         <div className="flex flex-1 flex-col items-center justify-center gap-3">
           <h2 className="text-base font-extrabold text-content">Project not found</h2>
           <ButtonLink href="/dashboard/projects" variant="brand">Back to projects</ButtonLink>
+        </div>
+      ) : view === 'guided' ? (
+        <div className="flex-1 overflow-auto bg-surface">
+          {currentStage !== 'project_completed' && (
+            <div className="mx-auto w-full max-w-3xl px-4 pt-4 sm:px-6">
+              <ChangeRequestsPanel
+                requests={changeRequests}
+                userId={userId}
+                onAct={handleActOnChange}
+                onOpenPropose={() => setProposeOpen(true)}
+                busy={crBusy}
+              />
+            </div>
+          )}
+          <GuidedFlow
+            project={project}
+            userId={userId}
+            userRole={userRole}
+            currentStage={currentStage}
+            items={currentStageItems}
+            requiredDone={gateBlocking.length === 0}
+            advancing={advancing}
+            advanceError={advanceError}
+            onToggleItem={handleToggleItem}
+            onSignoff={() => handleSignoff('signoff')}
+            onRevokeSignoff={() => handleSignoff('revoke_signoff')}
+            onAdvance={handleAdvance}
+            onProposeSkip={() => handleSkip('propose_skip')}
+            onConfirmSkip={() => handleSkip('confirm_skip')}
+            onCancelSkip={() => handleSkip('cancel_skip')}
+            entries={stageEntries.filter((e) => e.stage_key === currentStage)}
+            onOpenCompose={() => setComposeOpen(true)}
+            onDeleteEntry={handleDeleteUpdate}
+            isFinalPayment={currentStage === 'final_payment'}
+            myConfirmed={myConfirmed}
+            otherConfirmed={otherConfirmed}
+            onConfirmCompletion={handleConfirmCompletion}
+            projectId={projectId}
+            budget={project?.budget}
+            onPaid={() => { setTimeout(() => { void fetchData(); }, 2500); }}
+            onPreviewImage={setLightboxImage}
+          />
+        </div>
+      ) : view === 'activity' ? (
+        <div className="flex-1 overflow-auto bg-surface">
+          <ActivityTimeline activity={activity} userId={userId} />
+        </div>
+      ) : view === 'flow' ? (
+        <div className="flex-1 overflow-auto bg-surface">
+          <ProjectFlow project={project} entries={stageEntries} userId={userId} />
         </div>
       ) : (
         <div style={{ flex: 1, overflow: 'auto', display: 'flex', padding: '0 0 0 10px' }}>
@@ -1181,6 +2034,35 @@ export default function ProjectKanbanPage() {
         }}
       />
 
+      {proposeOpen && project && (
+        <ProposeChangeModal
+          project={project}
+          onClose={() => setProposeOpen(false)}
+          onSubmit={handleProposeChange}
+          busy={crBusy}
+        />
+      )}
+
+      {composeOpen && (
+        <StageUpdateModal
+          stageLabel={STAGE_CONFIG.find((s) => s.key === currentStage)?.label || 'Stage'}
+          onClose={() => setComposeOpen(false)}
+          onSubmit={handlePostUpdate}
+          busy={entryBusy}
+        />
+      )}
+
+      {lightboxImage && (
+        <div onClick={() => setLightboxImage(null)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm cursor-zoom-out">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightboxImage} alt="Expanded preview" className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" />
+        </div>
+      )}
+
+      {celebrateLabel && (
+        <StageCelebration label={celebrateLabel} onClose={() => setCelebrateLabel(null)} />
+      )}
+
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
@@ -1238,7 +2120,7 @@ export default function ProjectKanbanPage() {
                         }),
                       });
                       if (res.ok) { setReportDone(true); setReportDetails(''); }
-                      else { alert(res.error || 'Failed to submit report'); }
+                      else { toast.error(res.error || 'Failed to submit report'); }
                     } finally {
                       setSubmittingReport(false);
                     }
@@ -1313,7 +2195,7 @@ export default function ProjectKanbanPage() {
                         await fetchData();
                         setShowReviewModal(false);
                       } else {
-                        alert(res.error || 'Failed to submit review');
+                        toast.error(res.error || 'Failed to submit review');
                       }
                     } finally {
                       setSubmittingReview(false);

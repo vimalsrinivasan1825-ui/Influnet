@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowRight, CalendarDays, Search, Send, Trash2 } from "lucide-react";
@@ -56,7 +57,7 @@ export default function AdminCollabsPage() {
       if (!res.ok) throw new Error(res.error || "Failed to update");
       await fetchCollabs();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setActionId(null);
     }
@@ -73,7 +74,7 @@ export default function AdminCollabsPage() {
       setConfirmDelete(null);
       await fetchCollabs();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setActionId(null);
     }

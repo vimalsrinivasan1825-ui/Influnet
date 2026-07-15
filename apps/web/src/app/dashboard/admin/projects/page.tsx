@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowLeftRight, CalendarDays, FolderKanban, Search, Trash2 } from "lucide-react";
@@ -73,7 +74,7 @@ export default function AdminProjectsPage() {
       setConfirmDelete(null);
       await fetchProjects();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setDeletingId(null);
     }

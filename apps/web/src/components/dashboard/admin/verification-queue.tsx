@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 // Admin cockpit for the verification escalation queue. Everything the AI scorer
 // could not auto-approve (medium confidence, suspicious flags, or a provider
@@ -68,7 +69,7 @@ export function VerificationQueue() {
       if (!res.ok) throw new Error(res.error || "Failed to update");
       await load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setActingId(null);
     }

@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Building2, Check, CheckCircle2, Clock, MapPin, X } from "lucide-react";
@@ -59,7 +60,7 @@ export default function AdminApprovalsPage() {
       if (!res.ok) throw new Error(res.error || "Failed to update");
       await fetchBusinesses();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Something went wrong");
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setActionId(null);
     }

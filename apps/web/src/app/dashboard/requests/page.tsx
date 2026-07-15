@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, Handshake, Inbox } from "lucide-react";
@@ -84,7 +85,7 @@ export default function RequestsPage() {
       }
       await refreshRequests();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Something went wrong");
+      toast.error(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setActionIds((prev) => {
         const s = new Set(prev);

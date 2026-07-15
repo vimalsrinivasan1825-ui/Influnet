@@ -10,6 +10,7 @@ import './connections-workspace.css';
 import './projects-workspace.css';
 import './business-messages-standalone.css';
 import { cn } from "@/lib/utils";
+import { Toaster } from 'sonner';
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -55,6 +56,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );
