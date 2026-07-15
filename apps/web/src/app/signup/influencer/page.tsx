@@ -431,7 +431,7 @@ function InfluencerSignupContent() {
               </div>
               <div>
                 <Label>Instagram handle</Label>
-                <Input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@username" />
+                <Input value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ""))} placeholder="@username" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

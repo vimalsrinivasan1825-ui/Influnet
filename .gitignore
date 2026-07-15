@@ -19,3 +19,7 @@ node_modules/
 .turbo/
 *.tsbuildinfo
 *.local.txt
+
+# scratch / one-off session scripts — never commit
+scratch-*
+*.tmp

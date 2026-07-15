@@ -3,7 +3,12 @@ import { jsonError } from '@/lib/api';
 import { fetchInstagramProfile, InstagramProviderError } from '@/lib/instagram';
 import { enforceRateLimit } from '@/lib/rate-limit';
 
-export const maxDuration = 15;
+// The default provider (Apify) runs a synchronous actor via
+// run-sync-get-dataset-items, which routinely takes 20–50s on a cold start.
+// A 15s cap killed nearly every call with a platform 504 (a bad "Network error"
+// at signup) instead of letting the provider finish or fail gracefully (503).
+// 60s covers the common case; the provider's own AbortController is the backstop.
+export const maxDuration = 60;
 
 export async function GET(req: Request) {
   try {

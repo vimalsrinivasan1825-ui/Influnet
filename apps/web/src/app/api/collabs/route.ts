@@ -124,16 +124,38 @@ export async function PATCH(req: Request) {
 
     const { id, status } = result.data;
 
-    // Fetch the collab request before updating so we have both user IDs
+    // Fetch the collab request before updating so we have both user IDs + state.
     const { data: collab, error: fetchError } = await supabase
       .from('collab_requests')
-      .select('id, from_user_id, to_user_id, message, budget')
+      .select('id, from_user_id, to_user_id, status, message, budget')
       .eq('id', id)
       .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
       .single();
 
     if (fetchError || !collab) {
       return jsonError(404, 'Request not found or access denied', fetchError);
+    }
+
+    // State-machine guard. Without this a request could be declined/cancelled
+    // AFTER it was accepted (desyncing it from the project the accept created),
+    // or a party could act on the wrong side (sender declining, receiver
+    // cancelling). Accept is enforced separately in accept_collab_request().
+    const isSender = collab.from_user_id === user.id;
+    const isReceiver = collab.to_user_id === user.id;
+
+    if (status !== 'accepted') {
+      if (collab.status !== 'pending') {
+        return jsonError(409, `This request is already ${collab.status} and can no longer be changed.`);
+      }
+      if (status === 'declined' && !isReceiver) {
+        return jsonError(403, 'Only the recipient can decline a request.');
+      }
+      if (status === 'cancelled' && !isSender) {
+        return jsonError(403, 'Only the sender can cancel a request.');
+      }
+      if (status === 'pending') {
+        return jsonError(400, 'A request cannot be moved back to pending.');
+      }
     }
 
     let updated;
@@ -143,7 +165,7 @@ export async function PATCH(req: Request) {
         request_id: id
       });
       if (rpcError) return jsonError(500, 'Failed to accept collab request', rpcError);
-      
+
       // Fetch the updated collab to return
       const { data: fetchUpdated, error: refetchError } = await supabase
         .from('collab_requests')
@@ -153,7 +175,7 @@ export async function PATCH(req: Request) {
       if (refetchError) return jsonError(500, 'Failed to refetch updated collab', refetchError);
       updated = fetchUpdated;
     } else {
-      // Standard update for rejected or other statuses
+      // Standard update for declined / cancelled (guarded above).
       const { data: stdUpdated, error: updateError } = await supabase
         .from('collab_requests')
         .update({ status })

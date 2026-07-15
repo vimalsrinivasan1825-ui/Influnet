@@ -106,7 +106,7 @@ export async function GET(req: Request) {
         name: profileData?.name || 'Creator',
         username: inflData?.username || (profileData?.name || 'creator').toLowerCase().replace(/[^a-z0-9]/g, ''),
         niche: inflData?.niche || [],
-        is_verified: false,
+        is_verified: inflData?.is_verified ?? false,
         headline: inflData?.bio ? inflData.bio.substring(0, 50) + '...' : null,
         avatar_url: null,
         bio: inflData?.bio || null,

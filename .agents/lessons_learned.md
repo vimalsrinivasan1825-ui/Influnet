@@ -532,3 +532,14 @@ The Discover page had a `useEffect` that redirected to `/dashboard` if no `?requ
 
 #### Next Target
 * The codebase is now complete. The remaining gate is strictly infrastructure (Setting Supabase production keys, Upstash Redis keys). Proceed with deployment and infrastructure validation.
+
+### Advance Payment & Review Gate Fixes (2026-07-15)
+1. **Scope:** Implemented split payment logic (advance vs final payment) and fixed creator approval logic.
+2. **Broken & Resolved:** 
+   * **Broken:** The "Approve Draft" button was visible to creators during the `sent_for_review` stage.
+   * **Resolved:** Modified `StagePipeline` to strictly check `STAGE_ACTOR[currentStage as Stage] === userRole` instead of just `isReviewFork`. Now creators correctly see "Waiting on the Brand" while the business owner sees the action buttons.
+   * **Broken:** Advance payments weren't split.
+   * **Resolved:** Added `advance_amount` to the database, `ProposeTermsSchema`, and `EDITABLE_FIELDS`. The `PaymentGate` in `page.tsx` now dynamically calculates the final payment as `budget - advance_amount` and skips the final payment stage if the balance is 0.
+3. **Key Lessons:** 
+   * Component structures that wrap logical forks (like `StagePipeline`) must explicitly inherit role-based gates; relying on internal children states or loose `canToggleStage` booleans isn't enough for critical actions like approvals.
+4. **Next Target:** Continue tracking image duplicate uploads with Cloudinary and refine the system design for CAS content storage.
