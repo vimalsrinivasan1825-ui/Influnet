@@ -3,10 +3,11 @@ import { withAuth, jsonError } from '@/lib/api';
 import { z } from 'zod';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
 import { notifyUser } from '@/lib/notify';
+import { logActivity } from '@/lib/activity';
 import { logger, requestId } from '@/lib/logger';
 
 const PatchProjectActionSchema = z.object({
-  action: z.enum(['advance', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
+  action: z.enum(['advance', 'signoff', 'revoke_signoff', 'propose_skip', 'confirm_skip', 'cancel_skip', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
   stage_key: z.string().optional(),
   updates: z.any().optional(),
   title: z.string().optional(),
@@ -196,6 +197,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       // Audit trail: who moved which project from which stage to which.
       log.info('project stage advanced', { from: project.current_stage, to: nextStage, actor: userRole });
 
+      // Timeline entry. The review fork gets its own verbs.
+      const advanceActivity =
+        project.current_stage === 'sent_for_review' && nextStage === 'revisions'
+          ? { type: 'revisions_requested' as const, summary: 'Requested revisions on the draft' }
+          : project.current_stage === 'sent_for_review' && nextStage === 'final_approval'
+          ? { type: 'draft_approved' as const, summary: 'Approved the draft' }
+          : { type: 'stage_advanced' as const, summary: `Moved the project to ${STAGE_LABELS[nextStage] || nextStage}` };
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, ...advanceActivity,
+        metadata: { from: project.current_stage, to: nextStage },
+      });
+
       // Tell the counterparty the stage moved, and whether the ball is now in
       // their court. Best-effort — never blocks the response on a failed write.
       if (counterpartyId) {
@@ -212,6 +225,212 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         });
       }
 
+      return NextResponse.json({ project: updated });
+    }
+
+    // 1a) Bilateral stage sign-off (Guided mode). Each side confirms the current
+    // stage; when BOTH have confirmed (and the required checklist items are done)
+    // the project auto-advances to the next stage. Sign-off state lives in the
+    // stage_progress JSONB (owner_signoff_at / creator_signoff_at) so no new
+    // table/migration is needed. Special stages (review fork, final payment) keep
+    // their own controls and are rejected here.
+    if (action === 'signoff' || action === 'revoke_signoff') {
+      const { isMutualSignoffStage } = require('@/lib/project-stage-guide');
+      const currentStage = project.current_stage as string;
+      const currentIdx = STAGES.indexOf(currentStage);
+      if (currentIdx === -1) return jsonError(400, 'Invalid current stage');
+      if (!isMutualSignoffStage(currentStage)) {
+        return jsonError(400, `The ${STAGE_LABELS[currentStage] || currentStage} stage does not use sign-off.`);
+      }
+
+      const stageProgress = (project.stage_progress || {}) as Record<string, any>;
+      const entry = { ...(stageProgress[currentStage] || { status: 'current', started_at: new Date().toISOString() }) };
+      const myKey = userRole === 'business' ? 'owner_signoff_at' : 'creator_signoff_at';
+      const myByKey = userRole === 'business' ? 'owner_signoff_by' : 'creator_signoff_by';
+      const otherKey = userRole === 'business' ? 'creator_signoff_at' : 'owner_signoff_at';
+
+      if (action === 'revoke_signoff') {
+        entry[myKey] = null;
+        entry[myByKey] = null;
+        stageProgress[currentStage] = entry;
+        const { data: updated, error: updErr } = await supabase
+          .from('campaign_projects')
+          .update({ stage_progress: stageProgress, updated_at: new Date().toISOString() })
+          .eq('id', id).select().single();
+        if (updErr) return jsonError(500, 'Failed to revoke sign-off', updErr);
+        return NextResponse.json({ project: updated });
+      }
+
+      // Gate: required checklist items must be done before this side can sign off.
+      const { data: stageItems, error: itemsErr } = await supabase
+        .from('project_stage_items')
+        .select('*')
+        .eq('project_id', id)
+        .eq('stage_key', currentStage);
+      if (itemsErr) log.warn('stage checklist unavailable, skipping gate', { err: itemsErr.message });
+      const pending = itemsErr ? [] : blockingItems(currentStage, (stageItems || []) as StageItem[]);
+      if (pending.length > 0) {
+        return NextResponse.json(
+          { error: 'Complete the required steps before confirming this stage.', blocking: pending.map((it) => it.label) },
+          { status: 409 },
+        );
+      }
+
+      const now = new Date().toISOString();
+      entry[myKey] = entry[myKey] || now;
+      entry[myByKey] = user.id;
+      const bothSigned = !!entry[myKey] && !!entry[otherKey];
+
+      let nextStage: string | null = null;
+      if (bothSigned && currentIdx < STAGES.length - 1) {
+        // Both confirmed → complete this stage and move to the next one.
+        entry.status = 'completed';
+        entry.completed_at = now;
+        const ns = STAGES[currentIdx + 1] as string;
+        nextStage = ns;
+        stageProgress[currentStage] = entry;
+        stageProgress[ns] = {
+          ...(stageProgress[ns] || {}),
+          status: 'current',
+          started_at: now,
+        };
+      } else {
+        stageProgress[currentStage] = entry;
+      }
+
+      const { data: updated, error: updErr } = await supabase
+        .from('campaign_projects')
+        .update({
+          stage_progress: stageProgress,
+          ...(nextStage ? { current_stage: nextStage, status: nextStage === 'project_completed' ? 'completed' : 'active' } : {}),
+          updated_at: now,
+        })
+        .eq('id', id).select().single();
+      if (updErr) return jsonError(500, 'Failed to record sign-off', updErr);
+
+      log.info('project stage sign-off', { stage: currentStage, actor: userRole, bothSigned, advancedTo: nextStage });
+
+      if (nextStage) {
+        await logActivity(supabase, {
+          projectId: id, actorUserId: user.id, type: 'stage_advanced',
+          summary: `Confirmed ${STAGE_LABELS[currentStage] || currentStage} — both sides agreed, moved to ${STAGE_LABELS[nextStage] || nextStage}`,
+          metadata: { from: currentStage, to: nextStage, both: true },
+        });
+      } else {
+        await logActivity(supabase, {
+          projectId: id, actorUserId: user.id, type: 'stage_signoff',
+          summary: `Confirmed the ${STAGE_LABELS[currentStage] || currentStage} stage`,
+          metadata: { stage: currentStage },
+        });
+      }
+
+      if (counterpartyId) {
+        await notifyUser({
+          userId: counterpartyId,
+          type: 'project_stage',
+          title: nextStage
+            ? `${projectLabel} moved to ${STAGE_LABELS[nextStage] || nextStage}`
+            : `${projectLabel}: ${STAGE_LABELS[currentStage] || currentStage} confirmed`,
+          body: nextStage
+            ? 'Both sides confirmed — the project moved to the next stage.'
+            : `The ${userRole === 'business' ? 'brand' : 'creator'} confirmed this stage. Confirm on your side to move forward.`,
+          link: projectLink,
+        });
+      }
+
+      return NextResponse.json({ project: updated, both_confirmed: bothSigned });
+    }
+
+    // 1a-skip) Skip a stage by MUTUAL consent. One side proposes, the other
+    // confirms; only then does the project move past the (skippable) stage.
+    // Payment / final-approval / review / terminal stages can never be skipped.
+    if (action === 'propose_skip' || action === 'confirm_skip' || action === 'cancel_skip') {
+      const { isSkippableStage } = require('@/lib/project-stage-guide');
+      const currentStage = project.current_stage as string;
+      const currentIdx = STAGES.indexOf(currentStage);
+      if (currentIdx === -1) return jsonError(400, 'Invalid current stage');
+      if (!isSkippableStage(currentStage)) {
+        return jsonError(400, `The ${STAGE_LABELS[currentStage] || currentStage} stage can’t be skipped.`);
+      }
+
+      const stageProgress = (project.stage_progress || {}) as Record<string, any>;
+      const entry = { ...(stageProgress[currentStage] || { status: 'current', started_at: new Date().toISOString() }) };
+      const now = new Date().toISOString();
+
+      if (action === 'cancel_skip') {
+        entry.skip_proposed_by = null;
+        entry.skip_proposed_at = null;
+        stageProgress[currentStage] = entry;
+        const { data: updated, error: e } = await supabase
+          .from('campaign_projects')
+          .update({ stage_progress: stageProgress, updated_at: now })
+          .eq('id', id).select().single();
+        if (e) return jsonError(500, 'Failed to cancel the skip', e);
+        return NextResponse.json({ project: updated });
+      }
+
+      if (action === 'propose_skip') {
+        entry.skip_proposed_by = user.id;
+        entry.skip_proposed_at = now;
+        stageProgress[currentStage] = entry;
+        const { data: updated, error: e } = await supabase
+          .from('campaign_projects')
+          .update({ stage_progress: stageProgress, updated_at: now })
+          .eq('id', id).select().single();
+        if (e) return jsonError(500, 'Failed to propose the skip', e);
+        if (counterpartyId) {
+          await notifyUser({
+            userId: counterpartyId,
+            type: 'project_stage',
+            title: `${projectLabel}: skip proposed`,
+            body: `The ${userRole === 'business' ? 'brand' : 'creator'} suggested skipping the ${STAGE_LABELS[currentStage] || currentStage} stage. Confirm or reject it.`,
+            link: projectLink,
+          });
+        }
+        return NextResponse.json({ project: updated });
+      }
+
+      // confirm_skip — must be the OTHER party confirming a pending proposal.
+      const proposedBy = entry.skip_proposed_by;
+      if (!proposedBy) return jsonError(400, 'No skip has been proposed for this stage.');
+      if (proposedBy === user.id) return jsonError(400, 'The other party has to confirm the skip you proposed.');
+      if (currentIdx >= STAGES.length - 1) return jsonError(400, 'Already at the final stage');
+
+      const skipNext = STAGES[currentIdx + 1] as string;
+      entry.status = 'skipped';
+      entry.skipped_at = now;
+      entry.skip_confirmed_by = user.id;
+      entry.skip_proposed_by = null;
+      entry.skip_proposed_at = null;
+      stageProgress[currentStage] = entry;
+      stageProgress[skipNext] = { ...(stageProgress[skipNext] || {}), status: 'current', started_at: now };
+
+      const { data: updated, error: e } = await supabase
+        .from('campaign_projects')
+        .update({
+          stage_progress: stageProgress,
+          current_stage: skipNext,
+          status: skipNext === 'project_completed' ? 'completed' : 'active',
+          updated_at: now,
+        })
+        .eq('id', id).select().single();
+      if (e) return jsonError(500, 'Failed to skip the stage', e);
+
+      log.info('project stage skipped', { stage: currentStage, to: skipNext, by: userRole });
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'stage_skipped',
+        summary: `Skipped the ${STAGE_LABELS[currentStage] || currentStage} stage — both sides agreed`,
+        metadata: { from: currentStage, to: skipNext },
+      });
+      if (counterpartyId) {
+        await notifyUser({
+          userId: counterpartyId,
+          type: 'project_stage',
+          title: `${projectLabel} skipped ${STAGE_LABELS[currentStage] || currentStage}`,
+          body: `Both sides agreed to skip it — now on ${STAGE_LABELS[skipNext] || skipNext}.`,
+          link: projectLink,
+        });
+      }
       return NextResponse.json({ project: updated });
     }
 
@@ -263,6 +482,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (updateErr) return jsonError(500, 'Failed to confirm completion', updateErr);
 
       log.info('project completion confirmed', { actor: userRole, bothConfirmed });
+
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id,
+        type: bothConfirmed ? 'project_completed' : 'completion_confirmed',
+        summary: bothConfirmed ? 'Both sides confirmed — project completed' : 'Confirmed completion',
+        metadata: { bothConfirmed },
+      });
 
       if (counterpartyId) {
         await notifyUser({
@@ -346,6 +572,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .select()
         .single();
       if (updateErr) return jsonError(500, 'Failed to request cancellation', updateErr);
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'cancellation_requested',
+        summary: 'Requested to cancel the project',
+      });
       if (counterpartyId) {
         await notifyUser({
           userId: counterpartyId,
@@ -366,6 +596,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .select()
         .single();
       if (updateErr) return jsonError(500, 'Failed to decline cancellation', updateErr);
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'cancellation_declined',
+        summary: 'Declined the cancellation — project continues',
+      });
       if (counterpartyId) {
         await notifyUser({
           userId: counterpartyId,

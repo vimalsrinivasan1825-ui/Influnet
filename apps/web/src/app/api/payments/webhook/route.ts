@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { jsonError } from '@/lib/api';
 import { verifyWebhookSignature } from '@/lib/payments/razorpay';
 import { captureException } from '@/lib/observability';
+import { notifyUser } from '@/lib/notify';
+import { logActivity } from '@/lib/activity';
 
 // Razorpay posts server-to-server. We verify the HMAC signature over the RAW
 // body — so we must read req.text(), never req.json(), before parsing.
@@ -51,7 +53,7 @@ export async function POST(req: Request) {
     // Look up the ledger row created at checkout time.
     const { data: payment } = await admin
       .from('project_payments')
-      .select('id, project_id, stage_key, status')
+      .select('id, project_id, stage_key, status, amount, currency, payer_id')
       .eq('razorpay_order_id', orderId)
       .maybeSingle();
 
@@ -87,6 +89,42 @@ export async function POST(req: Request) {
         .from('project_stage_items')
         .update({ done_at: new Date().toISOString() })
         .eq('id', gateItem.id);
+    }
+
+    // Tell the creator the money landed, and log it to the timeline. Best-effort:
+    // a failure here must not make Razorpay retry a payment we already recorded.
+    try {
+      const rupees = Math.round((payment.amount || 0) / 100);
+      const amountLabel = `₹${rupees.toLocaleString('en-IN')}`;
+      const isAdvance = payment.stage_key === 'advance_payment';
+      const label = isAdvance ? 'advance' : 'final payment';
+
+      const { data: proj } = await admin
+        .from('campaign_projects')
+        .select('title, owner_user_id, counterparty_user_id')
+        .eq('id', payment.project_id)
+        .single();
+
+      if (proj?.counterparty_user_id) {
+        const projectLabel = proj.title ? `“${proj.title}”` : 'your project';
+        await notifyUser({
+          userId: proj.counterparty_user_id,
+          type: 'project_stage',
+          title: `${amountLabel} ${label} received`,
+          body: `The brand paid the ${label} for ${projectLabel}.`,
+          link: `/dashboard/projects/${payment.project_id}`,
+        });
+      }
+
+      await logActivity(admin, {
+        projectId: payment.project_id,
+        actorUserId: payment.payer_id ?? null,
+        type: 'payment_paid',
+        summary: `Paid the ${label}`,
+        metadata: { amount_paise: payment.amount, currency: payment.currency, stage_key: payment.stage_key, amount_rupees: rupees },
+      });
+    } catch (notifyErr: any) {
+      captureException(notifyErr, { tags: { orderId, route: 'payments/webhook', step: 'notify-log' } });
     }
 
     return NextResponse.json({ received: true, recorded: true });
