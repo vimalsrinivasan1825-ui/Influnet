@@ -354,11 +354,11 @@ export default function Hero() {
           <span className="text-2xl font-bold text-black tracking-tight">influnet</span>
         </Link>
         <div className="flex items-center gap-4">
-          <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+          <Link href={`${process.env.NEXT_PUBLIC_APP_URL}/login`} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
             Log in
           </Link>
           <Link
-            href="/signup"
+            href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
             className="px-5 py-2.5 bg-white text-black border border-gray-200 text-sm font-semibold rounded-full hover:bg-gray-50 transition-colors shadow-sm"
             style={{ color: 'black' }}
           >
@@ -419,7 +419,7 @@ export default function Hero() {
               className="flex flex-wrap gap-4"
             >
               <Link
-                href="/signup"
+                href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
                 className="group inline-flex items-center gap-2 px-7 py-4 bg-black font-semibold rounded-full hover:bg-gray-900 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 style={{ color: 'white' }}
               >

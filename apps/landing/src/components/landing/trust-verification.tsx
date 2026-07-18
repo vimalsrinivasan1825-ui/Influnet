@@ -554,7 +554,7 @@ export default function TrustVerification() {
             </div>
           </div>
           <Link
-            href="/signup/business"
+            href={`${process.env.NEXT_PUBLIC_APP_URL}/signup/business`}
             className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white font-black text-xs md:text-sm shadow-md shadow-pink-500/25 transition-all hover:-translate-y-0.5 active:scale-95 flex-shrink-0 cursor-pointer"
           >
             Start Your Campaign Today

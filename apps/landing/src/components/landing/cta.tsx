@@ -90,13 +90,13 @@ export default function Cta() {
         {/* Action Buttons with Forced Colors */}
         <div className="animate-on-scroll flex flex-col sm:flex-row gap-4 justify-center items-center opacity-0 translate-y-3 transition-all duration-600 delay-[460ms] [&.animate-in]:opacity-100 [&.animate-in]:translate-y-0">
           <Link
-            href="/signup"
+            href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
             className="w-full sm:w-auto min-w-[12rem] h-14 flex items-center justify-center px-8 rounded-2xl text-base font-black !text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
           >
             Get Started
           </Link>
           <Link
-            href="/login"
+            href={`${process.env.NEXT_PUBLIC_APP_URL}/login`}
             className="w-full sm:w-auto min-w-[12rem] h-14 flex items-center justify-center px-8 rounded-2xl text-base font-black !text-white border border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
           >
             Book a Demo

@@ -50,12 +50,12 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-gray-900 mb-4">Company</h3>
             <ul className="space-y-2.5">
               <li>
-                <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                <Link href={`${process.env.NEXT_PUBLIC_APP_URL}/login`} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
                   Log In
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                <Link href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
                   Sign Up
                 </Link>
               </li>

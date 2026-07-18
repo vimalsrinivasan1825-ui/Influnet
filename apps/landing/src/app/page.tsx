@@ -1,27 +1,25 @@
-import Nav from "@/components/nav";
-import Hero from "@/components/hero";
-import Stats from "@/components/stats";
-import Problem from "@/components/problem";
-import HowItWorks from "@/components/how-it-works";
-import Platform from "@/components/platform";
-import Trust from "@/components/trust";
-import Cta from "@/components/cta";
-import Footer from "@/components/footer";
+import Hero from '@/components/landing/hero';
+import HowItWorks from '@/components/landing/how-it-works';
+import TrustVerification from '@/components/landing/trust-verification';
+import CreatorCarousel from '@/components/landing/creator-carousel';
+import TrustCarousel from '@/components/landing/trust-carousel';
+import Vision from '@/components/landing/vision';
+import Cta from '@/components/landing/cta';
+import Footer from '@/components/landing/footer';
 
 export default function Home() {
   return (
-    <>
-      <Nav />
+    <div className="min-h-screen bg-white">
       <main>
         <Hero />
-        <Stats />
-        <Problem />
         <HowItWorks />
-        <Platform />
-        <Trust />
+        <TrustVerification />
+        <CreatorCarousel />
+        <TrustCarousel />
+        <Vision />
         <Cta />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

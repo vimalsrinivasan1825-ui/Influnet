@@ -169,7 +169,7 @@ export default function Verified() {
 
         <div className="text-center mt-12">
           <Link
-            href="/signup/influencer"
+            href={`${process.env.NEXT_PUBLIC_APP_URL}/signup/influencer`}
             className="inline-flex px-8 py-3.5 rounded-full text-base font-bold text-white bg-gray-900 shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 transition-all"
           >
             Join as Creator

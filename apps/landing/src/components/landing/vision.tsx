@@ -99,7 +99,7 @@ export default function Vision() {
 
               <div className="mb-6">
                 <Link
-                  href="/signup"
+                  href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
                   className="inline-flex items-center gap-2 px-7 py-4 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white font-black rounded-2xl shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer text-xs md:text-sm"
                 >
                   Join Influnet Today

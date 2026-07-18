@@ -54,13 +54,13 @@ export default function Header() {
 
           <div className="hidden md:flex items-center gap-3">
             <Link
-              href="/login"
+              href={`${process.env.NEXT_PUBLIC_APP_URL}/login`}
               className="text-sm text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors"
             >
               Log In
             </Link>
             <Link
-              href="/signup"
+              href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
               className="text-sm font-semibold text-black px-5 py-2.5 rounded-xl bg-white shadow-lg shadow-white/10 hover:shadow-white/20 hover:-translate-y-0.5 transition-all"
             >
               Get Started
@@ -107,14 +107,14 @@ export default function Header() {
             </Link>
             <div className="border-t border-white/5 pt-3 mt-3 space-y-2">
               <Link
-                href="/login"
+                href={`${process.env.NEXT_PUBLIC_APP_URL}/login`}
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white"
               >
                 Log In
               </Link>
               <Link
-                href="/signup"
+                href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#ee3e96] to-[#f26e59] rounded-xl text-center"
               >
