@@ -947,14 +947,15 @@ export default function HowItWorks() {
   const isCreatorFocused = true;
 
   return (
-    // Responsive scroll container height to lock viewport scroll transitions
-    <section className="relative w-full h-[550vh] bg-[#fcfcfd]" ref={containerRef}>
-      
-      {/* Sticky Viewport Container */}
-      <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden z-10 py-10 lg:py-16">
-        
-        {/* Scroll Progress Bar at the top of the sticky screen */}
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100 z-50">
+    // Desktop locks a 550vh scroll container for the sticky step transitions;
+    // on mobile the section is natural-height and the stacked layout flows normally.
+    <section className="relative w-full bg-[#fcfcfd] lg:h-[550vh]" ref={containerRef}>
+
+      {/* Sticky Viewport Container (sticky/pinned on desktop only) */}
+      <div className="relative w-full flex flex-col justify-center z-10 py-10 lg:sticky lg:top-0 lg:h-screen lg:overflow-hidden lg:py-16">
+
+        {/* Scroll Progress Bar at the top of the sticky screen (desktop only) */}
+        <div className="hidden lg:block absolute top-0 left-0 w-full h-1.5 bg-gray-100 z-50">
           <div 
             className="h-full bg-gradient-to-r from-pink-500 to-purple-500 transition-all duration-75"
             style={{ width: `${scrollProgress * 100}%` }}
@@ -998,7 +999,7 @@ export default function HowItWorks() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full flex flex-col justify-between h-[85vh] lg:h-[82vh]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full flex flex-col justify-between lg:h-[82vh]">
           
           {/* Header Title (Apple-style Typography) */}
           <div className="text-center">
@@ -1153,8 +1154,8 @@ export default function HowItWorks() {
 
           </div>
 
-          {/* Mobile Stack Layout (Ignores sticky constraints for natural responsiveness) */}
-          <div className="lg:hidden flex-grow overflow-y-auto pr-1">
+          {/* Mobile Stack Layout (natural document flow — no inner scroll) */}
+          <div className="lg:hidden">
             <div className="space-y-14 py-4">
               {STEPS.map((step) => {
                 const BusinessComp = BUSINESS_VISUALS[step.number] || BusinessSearch;
