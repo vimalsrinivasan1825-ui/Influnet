@@ -14,7 +14,7 @@ import {
   ChannelHeader,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/index.css";
-import { MessageSquare, Plus, FolderKanban, MoreVertical, Trash2, Loader2 } from "lucide-react";
+import { MessageSquare, Plus, FolderKanban, MoreVertical, Trash2, Loader2, ArrowLeft } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -277,8 +277,14 @@ function MessagesContent() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-surface">
-      {/* Sidebar */}
-      <div className="flex w-full max-w-[20rem] shrink-0 flex-col border-r border-hairline bg-surface-card max-md:max-w-[16rem]">
+      {/* Sidebar — full-width on mobile; hides when a conversation is open so
+          the chat gets the whole screen (single-pane). Two-pane on md+. */}
+      <div
+        className={cn(
+          "flex w-full max-w-[20rem] shrink-0 flex-col border-r border-hairline bg-surface-card max-md:max-w-none",
+          activeConvId && "max-md:hidden",
+        )}
+      >
         <div className="flex items-center justify-between px-4 pb-2 pt-4">
           <h2 className="text-base font-extrabold tracking-tight text-content">Messages</h2>
           {streamStatus === "connecting" && <Loader2 className="size-3.5 animate-spin text-content-muted" />}
@@ -405,8 +411,22 @@ function MessagesContent() {
         </div>
       </div>
 
-      {/* Chat area */}
-      <div className="str-chat flex min-w-0 flex-1 flex-col bg-surface-card">
+      {/* Chat area — on mobile it's hidden until a conversation is open, then
+          fills the screen. Always visible alongside the list on md+. */}
+      <div
+        className={cn(
+          "str-chat flex min-w-0 flex-1 flex-col bg-surface-card",
+          !activeConvId && "max-md:hidden",
+        )}
+      >
+        {activeConvId && (
+          <button
+            onClick={() => setActiveConvId(null)}
+            className="flex items-center gap-2 border-b border-hairline px-4 py-3 text-sm font-semibold text-content-soft transition-colors hover:text-content md:hidden"
+          >
+            <ArrowLeft className="size-4" /> Back to conversations
+          </button>
+        )}
         {!activeConvId ? (
           <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">
             <span className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-brand-soft text-brand">
