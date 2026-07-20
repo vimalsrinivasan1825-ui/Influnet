@@ -9,7 +9,8 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "http://192.168.1.5:3000"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",

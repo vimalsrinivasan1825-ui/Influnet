@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.influnet.app"
+      "bundleIdentifier": "com.influnet.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.influnet.app",
@@ -50,6 +53,12 @@
         "projectId": "edd0c6bd-e125-4fe4-956b-8c074ec576fb"
       }
     },
-    "owner": "vimalsrini"
+    "owner": "vimalsrini",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/edd0c6bd-e125-4fe4-956b-8c074ec576fb"
+    }
   }
 }
