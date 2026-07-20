@@ -1,0 +1,33 @@
+{
+  "removed_at": "2026-07-20T12-49-23-280Z",
+  "profiles": [
+    {
+      "id": "62b4a03a-bdfc-4cbe-afcb-d7047d58231b",
+      "email": "testbrand_183661@influnet.com",
+      "name": "Brand Corp 183661",
+      "role": "business_owner",
+      "created_at": "2026-07-20T12:41:54.311313+00:00"
+    },
+    {
+      "id": "cd0dbf6e-daa7-4f97-b9bb-9f091f81a89f",
+      "email": "testcreator_183661@influnet.com",
+      "name": "Creator Vimal 183661",
+      "role": "influencer",
+      "created_at": "2026-07-20T12:41:55.186086+00:00"
+    }
+  ],
+  "collab_requests": [
+    {
+      "id": "7b8181a0-2da7-4b74-ad0a-79cef782296e",
+      "from_user_id": "62b4a03a-bdfc-4cbe-afcb-d7047d58231b",
+      "to_user_id": "cd0dbf6e-daa7-4f97-b9bb-9f091f81a89f",
+      "message": "Festive Campaign 183661\n\nShoot 3 high-quality Instagram reels showcasing our brand packaging.",
+      "status": "accepted",
+      "budget": 25000
+    }
+  ],
+  "projects": [],
+  "conversation_ids": [
+    "58bc02b7-d32f-4560-b1a3-05ded707c216"
+  ]
+}
