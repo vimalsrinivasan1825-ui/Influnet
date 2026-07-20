@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 // GET all collaboration requests (admin view)
 export async function GET(req: Request) {
@@ -32,7 +33,7 @@ export async function DELETE(req: Request) {
   try {
     const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const { collab_id } = await req.json();
     if (!collab_id) {
@@ -58,6 +59,11 @@ export async function DELETE(req: Request) {
 
     if (deleteErr) throw deleteErr;
 
+    await auditAdmin({
+      actorId: user.id, actorEmail: user.email, action: 'collab_deleted',
+      targetId: String(collab_id), targetType: 'collab_request', req,
+    });
+
     return NextResponse.json({
       ok: true,
       deleted: true,
@@ -74,7 +80,7 @@ export async function PATCH(req: Request) {
   try {
     const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const body = await req.json();
     const { collab_id, status } = body;
@@ -95,6 +101,12 @@ export async function PATCH(req: Request) {
       .single();
 
     if (error) throw error;
+
+    await auditAdmin({
+      actorId: user.id, actorEmail: user.email, action: 'collab_deleted',
+      targetId: String(collab_id), targetType: 'collab_request',
+      metadata: { override_status: status }, req,
+    });
 
     return NextResponse.json({ collab: updated });
   } catch (error: any) {

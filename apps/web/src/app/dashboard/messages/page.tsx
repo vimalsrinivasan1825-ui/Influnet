@@ -16,6 +16,7 @@ import {
 import "stream-chat-react/dist/css/index.css";
 import { MessageSquare, Plus, FolderKanban, MoreVertical, Trash2, Loader2, ArrowLeft } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { DealPanel } from "@/components/dashboard/deal-panel";
 import { cn } from "@/lib/utils";
 
 const STREAM_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
@@ -426,6 +427,16 @@ function MessagesContent() {
           >
             <ArrowLeft className="size-4" /> Back to conversations
           </button>
+        )}
+        {/* The deal card rides above the chat: the request that started this
+            conversation, and the accept → negotiate → propose → start-project
+            steps, so nothing about the deal happens off-screen. */}
+        {activeConvId && (
+          <DealPanel
+            key={activeConvId}
+            conversationId={activeConvId}
+            onProjectCreated={fetchConversations}
+          />
         )}
         {!activeConvId ? (
           <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">

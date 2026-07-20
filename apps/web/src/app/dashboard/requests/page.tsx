@@ -2,7 +2,8 @@
 import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, Handshake, Inbox } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, Inbox, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/avatar";
@@ -33,6 +34,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function RequestsPage() {
+  const router = useRouter();
   const [requests, setRequests] = useState<CollabRequest[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,20 +70,45 @@ export default function RequestsPage() {
     if (res.ok && res.data) setRequests(res.data.collabs || []);
   };
 
+  // Fallback for accepted requests whose conversation predates this flow.
+  const ensureConversation = async (otherUserId: string) => {
+    const res = await apiFetch<{ conversation: { id: string } }>("/api/conversations", {
+      method: "POST",
+      body: JSON.stringify({ other_user_id: otherUserId }),
+    });
+    return res.ok ? (res.data?.conversation?.id ?? null) : null;
+  };
+
+  const openConversation = async (requestId: string, otherUserId: string) => {
+    setActionIds((prev) => new Set(prev).add(requestId));
+    const convId = await ensureConversation(otherUserId);
+    setActionIds((prev) => {
+      const s = new Set(prev);
+      s.delete(requestId);
+      return s;
+    });
+    router.push(convId ? `/dashboard/messages?conv=${convId}` : "/dashboard/messages");
+  };
+
+  // Accepting a request no longer creates a project — it opens the conversation
+  // where the two sides agree on terms and then create the project together.
   const handleAction = async (requestId: string, status: string, otherUserId: string) => {
     setActionIds((prev) => new Set(prev).add(requestId));
     try {
-      const res = await apiFetch("/api/collabs", {
+      const res = await apiFetch<{ conversation_id?: string | null }>("/api/collabs", {
         method: "PATCH",
         body: JSON.stringify({ id: requestId, status }),
       });
       if (!res.ok) throw new Error(res.error || "Failed to update request");
 
       if (status === "accepted") {
-        await apiFetch("/api/conversations", {
-          method: "POST",
-          body: JSON.stringify({ collab_request_id: requestId, other_user_id: otherUserId }),
-        }).catch(() => {});
+        const convId =
+          res.data?.conversation_id ?? (await ensureConversation(otherUserId));
+        toast.success("Accepted — talk it through, then create the project together.");
+        if (convId) {
+          router.push(`/dashboard/messages?conv=${convId}`);
+          return;
+        }
       }
       await refreshRequests();
     } catch (e) {
@@ -153,6 +180,7 @@ export default function RequestsPage() {
                   isSender={false}
                   acting={actionIds.has(r.id)}
                   onAction={handleAction}
+                  onOpenConversation={openConversation}
                 />
               ))}
             </RequestGroup>
@@ -171,6 +199,7 @@ export default function RequestsPage() {
                   isSender
                   acting={actionIds.has(r.id)}
                   onAction={handleAction}
+                  onOpenConversation={openConversation}
                 />
               ))}
             </RequestGroup>
@@ -213,11 +242,13 @@ function RequestCard({
   isSender,
   acting,
   onAction,
+  onOpenConversation,
 }: {
   r: CollabRequest;
   isSender: boolean;
   acting: boolean;
   onAction: (id: string, status: string, otherUserId: string) => void;
+  onOpenConversation: (id: string, otherUserId: string) => void;
 }) {
   const otherParty = isSender ? r.receiver : r.sender;
   const otherUserId = isSender ? r.to_user_id : r.from_user_id;
@@ -286,10 +317,17 @@ function RequestCard({
             </>
           )}
 
+          {/* Accepted means "we're talking", not "we're working" — the deal is
+              agreed and the project created from inside the conversation. */}
           {r.status === "accepted" && (
-            <Badge variant="success" size="md">
-              <Handshake /> Active
-            </Badge>
+            <Button
+              variant="brand"
+              size="sm"
+              disabled={acting}
+              onClick={() => onOpenConversation(r.id, otherUserId)}
+            >
+              <MessageSquare /> {acting ? "…" : "Open conversation"}
+            </Button>
           )}
           {r.status === "declined" && (
             <Badge variant="danger" size="md">

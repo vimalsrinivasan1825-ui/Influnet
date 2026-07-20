@@ -5,7 +5,7 @@ import { notifyUser } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
 
 // The deal terms that can be changed via the propose → confirm loop.
-const EDITABLE_FIELDS = ['title', 'description', 'deliverables', 'budget', 'advance_amount'] as const;
+const EDITABLE_FIELDS = ['title', 'description', 'deliverables', 'budget', 'advance_amount', 'due_date'] as const;
 type EditableField = typeof EDITABLE_FIELDS[number];
 
 const ChangesSchema = z.object({
@@ -13,6 +13,10 @@ const ChangesSchema = z.object({
   description: z.string().max(4000).optional(),
   deliverables: z.string().max(4000).optional(),
   budget: z.coerce.number().nonnegative().max(100_000_000).optional(),
+  // advance_amount and due_date are renegotiated as often as the headline
+  // budget is — leaving them out of the schema silently dropped them.
+  advance_amount: z.coerce.number().nonnegative().max(100_000_000).optional(),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 }).refine((c) => Object.keys(c).length > 0, { message: 'Propose at least one change.' });
 
 const PostSchema = z.object({ changes: ChangesSchema });
@@ -26,6 +30,8 @@ const PatchSchema = z.object({
 function describeChanges(changes: Record<string, unknown>): string {
   const parts: string[] = [];
   if ('budget' in changes) parts.push(`the budget to ₹${Number(changes.budget).toLocaleString('en-IN')}`);
+  if ('advance_amount' in changes) parts.push(`the advance to ₹${Number(changes.advance_amount).toLocaleString('en-IN')}`);
+  if ('due_date' in changes) parts.push(`the due date to ${changes.due_date}`);
   if ('title' in changes) parts.push(`the title to “${changes.title}”`);
   if ('deliverables' in changes) parts.push('the deliverables');
   if ('description' in changes) parts.push('the description');
@@ -35,7 +41,7 @@ function describeChanges(changes: Record<string, unknown>): string {
 async function loadParticipantProject(supabase: any, projectId: number, userId: string) {
   const { data: project, error } = await supabase
     .from('campaign_projects')
-    .select('id, title, owner_user_id, counterparty_user_id, description, deliverables, budget')
+    .select('id, title, owner_user_id, counterparty_user_id, description, deliverables, budget, advance_amount, due_date, conversation_id')
     .eq('id', projectId)
     .single();
   if (error || !project) return { error: jsonError(404, 'Project not found') };
@@ -183,8 +189,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         await notifyUser({
           userId: cr.proposed_by, type: 'project_stage',
           title: `${projectLabel}: change rejected`,
-          body: note ? `The ${actorRole} rejected your change: “${note}”` : `The ${actorRole} rejected your proposed change.`,
-          link: `/dashboard/projects/${projectId}`,
+          body: note
+            ? `The ${actorRole} rejected your change: “${note}” — talk it through in chat.`
+            : `The ${actorRole} rejected your proposed change. Talk it through in chat and propose new terms.`,
+          // Rejection means "let's discuss", so this drops them straight into
+          // the conversation rather than back onto the card they just lost.
+          link: project.conversation_id
+            ? `/dashboard/messages?conv=${project.conversation_id}`
+            : `/dashboard/projects/${projectId}`,
         });
       }
       await logActivity(supabase, {

@@ -112,9 +112,11 @@ export async function GET(req: Request) {
           id: collab.id,
           name: collab.influencer?.name || 'Creator',
           amount: collab.budget ? `₹${Number(collab.budget).toLocaleString()}` : 'TBD',
-          status: collab.status === 'pending' ? 'Negotiation'
-                : collab.status === 'accepted' ? 'In Progress'
-                : 'Completed',
+          // An accepted request means the two sides are TALKING — the project
+          // only exists once they agree terms, so this can't say "In Progress".
+          status: collab.status === 'pending' ? 'Awaiting reply'
+                : collab.status === 'accepted' ? 'In discussion'
+                : 'Closed',
           platform: inflProf?.instagram_handle ? 'Instagram' : 'Creator',
           reach: reachVal > 0 ? reachVal.toLocaleString() : '—',
         });

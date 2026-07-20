@@ -811,21 +811,23 @@ function StagePipeline({
 
 // ─── Change requests (propose → accept/reject term edits) ───
 const CR_FIELD_LABEL: Record<string, string> = {
-  title: 'Title', budget: 'Budget', description: 'Description', deliverables: 'Deliverables',
+  title: 'Title', budget: 'Budget', advance_amount: 'Advance', due_date: 'Due date',
+  description: 'Description', deliverables: 'Deliverables',
 };
 function crFormatVal(key: string, v: unknown): string {
   if (v == null || v === '') return '—';
-  if (key === 'budget') return `₹${Number(v).toLocaleString('en-IN')}`;
+  if (key === 'budget' || key === 'advance_amount') return `₹${Number(v).toLocaleString('en-IN')}`;
   const s = String(v);
   return s.length > 80 ? `${s.slice(0, 80)}…` : s;
 }
 
-function ChangeRequestsPanel({ requests, userId, onAct, onOpenPropose, busy }: {
+function ChangeRequestsPanel({ requests, userId, onAct, onOpenPropose, busy, conversationId }: {
   requests: any[];
   userId: string | null;
   onAct: (id: string, action: 'accept' | 'reject' | 'withdraw', note?: string) => void;
   onOpenPropose: () => void;
   busy: boolean;
+  conversationId?: string | null;
 }) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const pending = requests.filter((r) => r.status === 'pending');
@@ -851,6 +853,16 @@ function ChangeRequestsPanel({ requests, userId, onAct, onOpenPropose, busy }: {
                 </div>
               ))}
             </div>
+            {conversationId && (
+              <ButtonLink
+                href={`/dashboard/messages?conv=${conversationId}`}
+                variant="surface"
+                size="sm"
+                className="mb-2"
+              >
+                <MessageSquare size={13} /> Discuss in chat
+              </ButtonLink>
+            )}
             {mine ? (
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-content-muted">Waiting for the other party to review.</span>
@@ -898,6 +910,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
   const [advanceAmount, setAdvanceAmount] = useState(project?.advance_amount != null ? String(project.advance_amount) : '');
   const [deliverables, setDeliverables] = useState(project?.deliverables || '');
   const [description, setDescription] = useState(project?.description || '');
+  const [dueDate, setDueDate] = useState(project?.due_date || '');
   const [err, setErr] = useState<string | null>(null);
 
   const submit = () => {
@@ -905,6 +918,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
     if (title.trim() && title.trim() !== (project?.title || '')) changes.title = title.trim();
     if (budget !== '' && Number(budget) !== Number(project?.budget)) changes.budget = Number(budget);
     if (advanceAmount !== '' && Number(advanceAmount) !== Number(project?.advance_amount)) changes.advance_amount = Number(advanceAmount);
+    if (dueDate && dueDate !== (project?.due_date || '')) changes.due_date = dueDate;
     if (deliverables !== (project?.deliverables || '')) changes.deliverables = deliverables;
     if (description !== (project?.description || '')) changes.description = description;
     if (Object.keys(changes).length === 0) { setErr('Change at least one field.'); return; }
@@ -923,6 +937,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
           <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
           <div><Label>Budget (₹)</Label><Input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} /></div>
           <div><Label>Advance Payment (₹)</Label><Input type="number" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} placeholder="Leave blank for 100% advance" /></div>
+          <div><Label>Due date</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
           <div><Label>Deliverables</Label><Textarea rows={2} value={deliverables} onChange={(e) => setDeliverables(e.target.value)} placeholder="What the creator will deliver…" /></div>
           <div><Label>Description</Label><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
           {err && <span className="text-xs font-semibold text-warn">{err}</span>}
@@ -1466,6 +1481,66 @@ function GuidedFlow({
   );
 }
 
+// ─── Proposal Banner ───
+// Shown while a project is still just PROPOSED terms. The side that proposed it
+// waits; the other side accepts (project goes live) or declines (the proposal is
+// dropped and they go back to the chat to agree on something else).
+function ProposalBanner({
+  project,
+  userId,
+  onResolved,
+}: {
+  project: any;
+  userId: string | null;
+  onResolved: (deleted: boolean) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const mine = project.created_by_user_id === userId;
+
+  const respond = async (accept: boolean) => {
+    setBusy(true);
+    try {
+      const res = await apiFetch<{ deleted?: boolean }>(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: accept ? 'accept_proposal' : 'decline_proposal' }),
+      });
+      if (!res.ok) throw new Error(res.error || 'Could not respond to the proposal');
+      toast.success(accept ? 'Project started.' : 'Terms declined — pick it back up in chat.');
+      onResolved(!!res.data?.deleted);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-shrink-0 flex-col gap-2.5 border-b border-warn/30 bg-warn-soft px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-content">
+          {mine ? 'Waiting for the other side to accept these terms' : 'Review the proposed terms'}
+        </p>
+        <p className="mt-0.5 text-xs text-content-soft">
+          {mine
+            ? 'The project starts as soon as they accept. You can keep talking in the chat meanwhile.'
+            : 'Accept to start the project, or decline and keep negotiating in the chat.'}
+          {project.proposal_note ? ` · “${project.proposal_note}”` : ''}
+        </p>
+      </div>
+      {!mine && (
+        <div className="flex shrink-0 gap-2">
+          <Button variant="brand" size="sm" disabled={busy} onClick={() => respond(true)}>
+            <Check size={14} /> Accept & start
+          </Button>
+          <Button variant="surface" size="sm" disabled={busy} onClick={() => respond(false)}>
+            Decline
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ───
 export default function ProjectKanbanPage() {
   const params = useParams();
@@ -1955,6 +2030,20 @@ export default function ProjectKanbanPage() {
         </div>
       </div>
 
+      {/* Proposal gate — a project starts as terms one side put forward. Until
+          the other side accepts, nothing below can move, so say so plainly and
+          give both the accept and the "let's keep talking" exit. */}
+      {project?.status === 'pending_acceptance' && (
+        <ProposalBanner
+          project={project}
+          userId={userId}
+          onResolved={(deleted) => {
+            if (deleted) router.push(`/dashboard/messages?conv=${project.conversation_id ?? ''}`);
+            else void fetchData();
+          }}
+        />
+      )}
+
       {/* Stage Pipeline — the spine of the collaboration (board view only) */}
       {view === 'board' && !loading && !error && project && (
         <StagePipeline
@@ -2005,6 +2094,7 @@ export default function ProjectKanbanPage() {
                 onAct={handleActOnChange}
                 onOpenPropose={() => setProposeOpen(true)}
                 busy={crBusy}
+                conversationId={project?.conversation_id}
               />
             </div>
           )}

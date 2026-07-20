@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 // GET all business profiles (for admin review)
 export async function GET(req: Request) {
@@ -32,7 +33,7 @@ export async function PATCH(req: Request) {
   try {
     const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const body = await req.json();
     const { user_id, approval_status } = body;
@@ -53,6 +54,12 @@ export async function PATCH(req: Request) {
       .single();
 
     if (error) throw error;
+
+    await auditAdmin({
+      actorId: user.id, actorEmail: user.email, action: 'business_approval_changed',
+      targetId: user_id, targetType: 'business_profile',
+      metadata: { approval_status }, req,
+    });
 
     return NextResponse.json({ business: updated });
   } catch (error: any) {

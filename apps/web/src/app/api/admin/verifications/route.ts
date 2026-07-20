@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/api';
+import { withAdmin, withAuth } from '@/lib/api';
 import { VERIFICATION_NOTIFICATION } from '@/lib/verification';
+import { auditAdmin } from '@/lib/admin-audit';
 
 // GET: escalation queue — checks awaiting a human decision, both roles, newest
 // first, with the AI score/reason and the person's name.
@@ -63,11 +64,18 @@ export async function GET(req: Request) {
 const VALID = ['verified', 'rejected', 'needs_more_info'] as const;
 
 // PATCH: resolve an escalation. Admin can verify, reject, or ask for more info.
+//
+// This uses the CALLER'S client, not the service-role one the GET needs. The
+// work is done by admin_decide_verification(), a SECURITY DEFINER routine that
+// guards itself with is_admin() — and is_admin() resolves auth.uid() from the
+// JWT. A service-role client has no auth.uid(), so that guard saw NULL and
+// failed every decision with "Admin only". Business approvals were unaffected
+// only because they go through a plain table update on a different route.
 export async function PATCH(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withAuth(req, { role: 'admin' });
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const body = await req.json();
     const { user_id, status, notes } = body as { user_id?: string; status?: string; notes?: string };
@@ -89,6 +97,12 @@ export async function PATCH(req: Request) {
       p_notif_body: notif.body,
     });
     if (error) throw error;
+
+    await auditAdmin({
+      actorId: user.id, actorEmail: user.email, action: 'verification_decided',
+      targetId: user_id, targetType: 'profile',
+      metadata: { status, notes: notes ?? null }, req,
+    });
 
     return NextResponse.json({ result: data });
   } catch (error: any) {

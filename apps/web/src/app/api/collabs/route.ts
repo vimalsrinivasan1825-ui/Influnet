@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { CollabRequestSchema } from '@/lib/validators';
+import { notifyUser } from '@/lib/notify';
 import { z } from 'zod';
 
 // PATCH Collab Schema (since it only exists here for now)
@@ -96,6 +97,16 @@ export async function POST(req: Request) {
       return jsonError(500, 'Failed to insert collab request', error);
     }
 
+    await notifyUser({
+      userId: to_user_id,
+      type: 'collab_request',
+      title: 'New collaboration request',
+      body: project_title
+        ? `A brand reached out about “${project_title}”. Accept it to open a conversation and talk terms.`
+        : 'A brand reached out to collaborate. Accept it to open a conversation and talk terms.',
+      link: '/dashboard/requests',
+    });
+
     return NextResponse.json({ collab: data });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
@@ -158,12 +169,25 @@ export async function PATCH(req: Request) {
     }
 
     let updated;
+    let conversationId: string | null = null;
 
     if (status === 'accepted') {
+      // Accepting opens the CONVERSATION only. No project is created here —
+      // the two sides negotiate first and then either of them proposes a
+      // project with the agreed terms (POST /api/projects).
       const { data: rpcResult, error: rpcError } = await supabase.rpc('accept_collab_request', {
         request_id: id
       });
       if (rpcError) return jsonError(500, 'Failed to accept collab request', rpcError);
+      conversationId = (rpcResult?.conversation_id as string | undefined) ?? null;
+
+      await notifyUser({
+        userId: collab.from_user_id,
+        type: 'collab_accepted',
+        title: 'Your collaboration request was accepted',
+        body: 'The creator accepted — start the conversation to agree on scope and budget, then create the project.',
+        link: conversationId ? `/dashboard/messages?conv=${conversationId}` : '/dashboard/messages',
+      });
 
       // Fetch the updated collab to return
       const { data: fetchUpdated, error: refetchError } = await supabase
@@ -183,9 +207,19 @@ export async function PATCH(req: Request) {
         .single();
       if (updateError) return jsonError(500, 'Failed to update request status', updateError);
       updated = stdUpdated;
+
+      if (status === 'declined') {
+        await notifyUser({
+          userId: collab.from_user_id,
+          type: 'collab_declined',
+          title: 'Collaboration request declined',
+          body: 'The creator passed on this one.',
+          link: '/dashboard/requests',
+        });
+      }
     }
 
-    return NextResponse.json({ collab: updated });
+    return NextResponse.json({ collab: updated, conversation_id: conversationId });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }
