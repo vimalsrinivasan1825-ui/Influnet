@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
+import { notifyUser } from '@/lib/notify';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -59,51 +62,297 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       partnerSlug = biz?.username ?? null;
     }
 
-    const { data: request, error: reqErr } = await supabase
+    // Every collaboration request between this pair, newest first. A brand and
+    // a creator work together repeatedly, so the card shows the whole history —
+    // not just the most recent request.
+    const pairFilter =
+      `and(from_user_id.eq.${user.id},to_user_id.eq.${otherUserId}),` +
+      `and(from_user_id.eq.${otherUserId},to_user_id.eq.${user.id})`;
+
+    const { data: requests, error: reqErr } = await supabase
       .from('collab_requests')
       .select('id, from_user_id, to_user_id, status, message, budget, created_at')
+      .or(pairFilter)
+      .order('created_at', { ascending: false });
+
+    if (reqErr) return jsonError(500, 'Failed to load the collaboration requests', reqErr);
+
+    // Projects are matched on the PARTICIPANT PAIR rather than on
+    // collab_request_id: projects created before that column existed have it
+    // NULL, and looking them up by request made completed work invisible here.
+    const { data: projects, error: projErr } = await supabase
+      .from('campaign_projects')
+      .select('id, title, description, budget, advance_amount, due_date, status, current_stage, created_by_user_id, collab_request_id, owner_user_id, counterparty_user_id, created_at')
       .or(
-        `and(from_user_id.eq.${user.id},to_user_id.eq.${otherUserId}),` +
-          `and(from_user_id.eq.${otherUserId},to_user_id.eq.${user.id})`,
+        `and(owner_user_id.eq.${user.id},counterparty_user_id.eq.${otherUserId}),` +
+        `and(owner_user_id.eq.${otherUserId},counterparty_user_id.eq.${user.id})`,
       )
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
-    if (reqErr) return jsonError(500, 'Failed to load the collaboration request', reqErr);
+    if (projErr) return jsonError(500, 'Failed to load the projects', projErr);
 
-    // The project (proposed or live) that came out of this request.
-    let project = null;
-    if (request) {
-      const { data: proj } = await supabase
-        .from('campaign_projects')
-        .select('id, title, description, budget, advance_amount, due_date, status, current_stage, created_by_user_id, proposal_note, owner_user_id, counterparty_user_id')
-        .eq('collab_request_id', request.id)
-        .maybeSingle();
-      project = proj ?? null;
+    const latest = requests?.[0] ?? null;
+
+    // Terms on the table, plus the last set that was turned down.
+    //
+    // A decline used to make the terms disappear entirely: the other side got a
+    // notification and then found nothing — no record of what was refused, no
+    // reason, and no obvious way to try again. Both are returned so the
+    // conversation keeps its negotiating history.
+    //
+    // Degrades to null if migration 071 has not been applied yet, rather than
+    // failing the whole card.
+    let proposal = null;
+    let lastDeclined = null;
+    if (latest) {
+      const { data: props } = await supabase
+        .from('project_proposals')
+        .select('id, title, description, budget, advance_amount, due_date, note, review_note, status, proposed_by, resolved_by, resolved_at, created_at')
+        .eq('collab_request_id', latest.id)
+        .order('created_at', { ascending: false });
+
+      proposal = (props || []).find((p: any) => p.status === 'pending') ?? null;
+      lastDeclined = !proposal
+        ? (props || []).find((p: any) => p.status === 'declined' || p.status === 'withdrawn') ?? null
+        : null;
     }
 
-    const accepted = request?.status === 'accepted';
-    const isReceiver = request?.to_user_id === user.id;
+    // A 069-era project still awaiting acceptance is NOT a live project. It is
+    // surfaced as pending terms so it can never be mistaken for started work.
+    const legacyPending = (projects || []).find((p: any) => p.status === 'pending_acceptance') ?? null;
+    const liveProjects = (projects || []).filter((p: any) => p.status !== 'pending_acceptance');
+
+    // Only block a new proposal on work that is actually still running.
+    const openProject = liveProjects.find(
+      (p: any) => p.status !== 'completed' && p.status !== 'cancelled',
+    ) ?? null;
+
+    const accepted = latest?.status === 'accepted';
+    const isReceiver = latest?.to_user_id === user.id;
+    const theirProposal = !!proposal && proposal.proposed_by !== user.id;
+    const theirLegacyPending = !!legacyPending && legacyPending.created_by_user_id !== user.id;
 
     return NextResponse.json({
       other_user_id: otherUserId,
       partner: partner ? { ...partner, slug: partnerSlug } : null,
-      request: request ?? null,
-      project,
+      request: latest,
+      requests: requests ?? [],
+      projects: liveProjects,
+      proposal,
+      last_declined: lastDeclined,
+      legacy_pending: legacyPending,
       viewer: {
-        // Only the receiver of a still-pending request can accept or decline it.
-        can_respond_to_request: !!request && request.status === 'pending' && isReceiver,
-        can_cancel_request: !!request && request.status === 'pending' && !isReceiver,
-        // Either side may propose the project once both agreed to talk — but
-        // only one project per request.
-        can_create_project: accepted && !project,
-        // The proposer waits; the other side decides.
-        can_respond_to_project:
-          !!project && project.status === 'pending_acceptance' && project.created_by_user_id !== user.id,
-        awaiting_me:
-          !!project && project.status === 'pending_acceptance' && project.created_by_user_id !== user.id,
+        can_respond_to_request: !!latest && latest.status === 'pending' && isReceiver,
+        can_cancel_request: !!latest && latest.status === 'pending' && !isReceiver,
+        // New terms can go out once the pair have agreed to talk, provided
+        // nothing is already pending and no project is still running.
+        can_propose: accepted && !openProject && !proposal && !legacyPending,
+        can_respond_to_proposal: theirProposal,
+        can_withdraw_proposal: !!proposal && proposal.proposed_by === user.id,
+        can_respond_to_legacy_pending: theirLegacyPending,
+        awaiting_me: theirProposal || theirLegacyPending,
       },
+    });
+  } catch (error: any) {
+    return jsonError(500, 'Internal server error', error);
+  }
+}
+
+const ProposeSchema = z.object({
+  collab_request_id: z.string().uuid(),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().max(4000).optional(),
+  budget: z.coerce.number().nonnegative().max(100_000_000).optional(),
+  advance_amount: z.coerce.number().nonnegative().max(100_000_000).optional(),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  note: z.string().max(2000).optional(),
+});
+
+const RespondSchema = z.object({
+  proposal_id: z.string().uuid().optional(),
+  // A 069-era project stuck in 'pending_acceptance' is answered by project id.
+  legacy_project_id: z.number().int().positive().optional(),
+  action: z.enum(['accept', 'decline', 'withdraw']),
+  note: z.string().max(2000).optional(),
+}).refine((v) => !!v.proposal_id || !!v.legacy_project_id, {
+  message: 'proposal_id or legacy_project_id is required',
+});
+
+const PROPOSE_ERRORS: Record<string, [number, string]> = {
+  request_not_found: [404, 'That collaboration request no longer exists.'],
+  not_a_participant: [403, 'You are not part of this collaboration.'],
+  request_not_accepted: [409, 'Both sides have to accept the request before terms can be proposed.'],
+  project_already_exists: [409, 'This collaboration already has a project.'],
+  proposal_already_pending: [409, 'There are already terms awaiting a response.'],
+  title_required: [400, 'Give the project a title.'],
+};
+
+const RESPOND_ERRORS: Record<string, [number, string]> = {
+  proposal_not_found: [404, 'Those terms no longer exist.'],
+  proposal_not_pending: [409, 'These terms have already been resolved.'],
+  not_a_participant: [403, 'You are not part of this collaboration.'],
+  proposer_cannot_respond: [403, 'The other side has to accept the terms you proposed.'],
+  only_proposer_can_withdraw: [403, 'Only the person who proposed these terms can withdraw them.'],
+  no_business_participant: [400, 'A project needs a brand on one side of the collaboration.'],
+};
+
+function mapRpcError(message: string | undefined, table: Record<string, [number, string]>) {
+  const hit = Object.entries(table).find(([key]) => message?.includes(key));
+  return hit ? jsonError(hit[1][0], hit[1][1]) : null;
+}
+
+// POST — put proposed terms on the table.
+//
+// This writes a `project_proposals` row and NOTHING else. No campaign_project
+// exists until the other side accepts, so an un-agreed deal never shows up in
+// the projects list or the stage pipeline.
+export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
+    const { id } = await context.params;
+    if (!UUID_RE.test(id)) return jsonError(400, 'Invalid conversation ID format');
+
+    const limited = await enforceRateLimit(req, {
+      bucket: 'deal:propose', limit: 20, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
+
+    const parsed = ProposeSchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+    }
+    const { collab_request_id, title, description, budget, advance_amount, due_date, note } = parsed.data;
+
+    if (advance_amount != null && budget != null && advance_amount > budget) {
+      return jsonError(400, 'The advance can’t be more than the total budget.');
+    }
+
+    const { data: result, error } = await supabase.rpc('propose_project', {
+      p_collab_request_id: collab_request_id,
+      p_title: title,
+      p_description: description ?? '',
+      p_budget: budget ?? null,
+      p_advance_amount: advance_amount ?? null,
+      p_due_date: due_date ?? null,
+      p_note: note ?? null,
+    });
+    if (error) {
+      return mapRpcError(error.message, PROPOSE_ERRORS) ?? jsonError(500, 'Could not send the terms', error);
+    }
+
+    if (result?.awaiting_user_id) {
+      await notifyUser({
+        userId: result.awaiting_user_id as string,
+        type: 'collab_request',
+        title: `Terms proposed: “${title}”`,
+        body: budget != null
+          ? `₹${Number(budget).toLocaleString('en-IN')} on the table. Open the chat to accept them and start the project — or keep negotiating.`
+          : 'Open the chat to review the terms and start the project — or keep negotiating.',
+        // Deep-links to THIS conversation so the notification says exactly
+        // which chat to open.
+        link: `/dashboard/messages?conv=${id}`,
+      });
+    }
+
+    return NextResponse.json({ proposal_id: result?.proposal_id, status: result?.status });
+  } catch (error: any) {
+    return jsonError(500, 'Internal server error', error);
+  }
+}
+
+// PATCH — accept / decline / withdraw the proposed terms.
+// Accepting is the ONLY thing that creates a campaign_project.
+export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
+    const { id } = await context.params;
+    if (!UUID_RE.test(id)) return jsonError(400, 'Invalid conversation ID format');
+
+    const parsed = RespondSchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+    }
+    const { proposal_id, legacy_project_id, action, note } = parsed.data;
+
+    // Legacy path: answer a project that 069 created in 'pending_acceptance'.
+    // Accepting activates it; declining removes it, exactly as 069 intended.
+    if (legacy_project_id) {
+      const accepting = action === 'accept';
+      const { data: legacyResult, error: legacyErr } = await supabase.rpc('respond_to_project_proposal', {
+        p_project_id: legacy_project_id,
+        p_accept: accepting,
+        p_note: note ?? null,
+      });
+      if (legacyErr) {
+        return mapRpcError(legacyErr.message, RESPOND_ERRORS)
+          ?? jsonError(500, 'Could not respond to the terms', legacyErr);
+      }
+      const proposerId = legacyResult?.notify_user_id as string | undefined;
+      if (proposerId) {
+        await notifyUser({
+          userId: proposerId,
+          type: 'project_stage',
+          title: accepting ? 'Project started' : 'Terms declined',
+          body: accepting
+            ? 'Your terms were accepted — the project is now live.'
+            : 'Your terms were declined. Keep talking and propose new ones when you’re ready.',
+          link: accepting && legacyResult?.project_id
+            ? `/dashboard/projects/${legacyResult.project_id}`
+            : `/dashboard/messages?conv=${id}`,
+        });
+      }
+      return NextResponse.json({
+        ok: true, accepted: accepting, project_id: accepting ? legacy_project_id : null,
+      });
+    }
+
+    if (!proposal_id) return jsonError(400, 'proposal_id is required');
+
+    if (action === 'withdraw') {
+      const { error } = await supabase.rpc('withdraw_proposal', { p_proposal_id: proposal_id });
+      if (error) {
+        return mapRpcError(error.message, RESPOND_ERRORS) ?? jsonError(500, 'Could not withdraw the terms', error);
+      }
+      return NextResponse.json({ ok: true, withdrawn: true });
+    }
+
+    const accepting = action === 'accept';
+    const { data: result, error } = await supabase.rpc('respond_to_proposal', {
+      p_proposal_id: proposal_id,
+      p_accept: accepting,
+      p_note: note ?? null,
+    });
+    if (error) {
+      return mapRpcError(error.message, RESPOND_ERRORS) ?? jsonError(500, 'Could not respond to the terms', error);
+    }
+
+    const proposerId = result?.notify_user_id as string | undefined;
+    if (proposerId) {
+      await notifyUser({
+        userId: proposerId,
+        type: 'project_stage',
+        title: accepting ? 'Project started' : 'Terms declined',
+        body: accepting
+          ? 'Your terms were accepted — the project is now live.'
+          : note
+            ? `Your terms were declined: “${note}” — pick it back up in the chat.`
+            : 'Your terms were declined. Keep talking and propose new ones when you’re ready.',
+        link: accepting && result?.project_id
+          ? `/dashboard/projects/${result.project_id}`
+          : `/dashboard/messages?conv=${id}`,
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      accepted: accepting,
+      project_id: result?.project_id ?? null,
     });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);

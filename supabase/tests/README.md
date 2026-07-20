@@ -32,8 +32,13 @@ flow logic under test.
 
 ## Files
 
-- `deal_flow_test.sql` — request → accept → negotiate → propose project →
+- `proposal_flow_test.sql` — request → accept → negotiate → propose terms →
   bilateral acceptance, plus the decline/renegotiate loop and access control.
+  Its central assertion is that `campaign_projects` stays EMPTY until the other
+  side accepts: a proposal lives in `project_proposals`, attached to the
+  conversation, and only acceptance creates a project.
+  (Supersedes the old `deal_flow_test.sql`, removed with migration 071 which
+  dropped the `create_project_from_collab` RPC it exercised.)
 
 - `admin_security_test.sql` — privilege-escalation regression suite for migration
   070. Needs Supabase's default grants replicated before it runs:
@@ -49,3 +54,7 @@ flow logic under test.
 
   Without those grants the harness is *more* restrictive than production and the
   tests pass vacuously.
+
+- `cancellation_test.sql` — migration 072. Cancelling a project is a state
+  change, never a delete: the row, its payment ledger and its timeline survive,
+  both sides must agree, and a cancelled project is frozen against further edits.

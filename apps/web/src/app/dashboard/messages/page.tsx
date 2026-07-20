@@ -109,6 +109,10 @@ function MessagesContent() {
   const [menuOpenConv, setMenuOpenConv] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeChannel, setActiveChannel] = useState<ReturnType<StreamChat["channel"]> | null>(null);
+  // Who this conversation is with, resolved from our own tables. The Stream
+  // channel name is shared by both members, so it can never be the partner's
+  // name — that is what made each side see themselves in the header.
+  const [activePartner, setActivePartner] = useState<string | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
 
   const { client: streamClient, status: streamStatus } = useStreamConnect(userId);
@@ -133,11 +137,28 @@ function MessagesContent() {
     })();
   }, []);
 
+  // Deep-link from a notification (?conv=…). This has to wait for BOTH the
+  // conversation list and the Stream client: openConversation() resolves the
+  // other participant from `conversations`, so firing it on mount — while the
+  // list was still empty — selected nothing and left the pane stuck on
+  // "Loading conversation…" with no clue which chat was meant.
+  const deepLinked = useRef<string | null>(null);
   useEffect(() => {
     const convFromUrl = searchParams.get("conv");
-    if (convFromUrl) openConversation(convFromUrl);
+    if (!convFromUrl || loading || !streamClient) return;
+    if (deepLinked.current === convFromUrl) return;
+
+    const conv = conversations.find((c) => c.id === convFromUrl);
+    const project = projects.find((p) => p.conversation_id === convFromUrl);
+    const otherId =
+      conv?.participants?.find((p) => p.user_id !== userId)?.user_id ?? project?.partner?.id;
+    if (!conv && !project) return; // list not settled yet, or not ours
+
+    deepLinked.current = convFromUrl;
+    const other = conv?.participants?.find((p) => p.user_id !== userId)?.profile;
+    openConversation(convFromUrl, otherId, project?.title || other?.name || "Chat");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, loading, streamClient, conversations, projects, userId]);
 
   useEffect(() => {
     if (!streamClient || (conversations.length === 0 && projects.length === 0)) return;
@@ -194,12 +215,12 @@ function MessagesContent() {
     }
   };
 
-  const ensureChannel = async (convId: string, otherUserId: string, channelName?: string) => {
+  const ensureChannel = async (convId: string, otherUserId: string) => {
     if (!streamClient) return null;
     const channelId = `conv_${convId}`;
     await apiFetch("/api/stream/channel", {
       method: "POST",
-      body: JSON.stringify({ conversationId: convId, otherUserId, channelName: channelName || "Chat" }),
+      body: JSON.stringify({ conversationId: convId, otherUserId }),
     });
     const channel = streamClient.channel("messaging", channelId);
     await channel.watch();
@@ -210,14 +231,19 @@ function MessagesContent() {
     setActiveConvId(convId);
     if (title) setActiveProjectTitle(title);
 
+    const conv = conversations.find((c) => c.id === convId);
+    const otherProfile = conv?.participants?.find((p) => p.user_id !== userId)?.profile;
+    const projectPartner = projects.find((p) => p.conversation_id === convId)?.partner;
+    setActivePartner(
+      otherProfile?.name || projectPartner?.company_name || projectPartner?.name || null,
+    );
+
     if (!otherUserId) {
-      const conv = conversations.find((c) => c.id === convId);
-      const other = conv?.participants?.find((p) => p.user_id !== userId);
-      otherUserId = other?.user_id;
+      otherUserId = conv?.participants?.find((p) => p.user_id !== userId)?.user_id;
     }
     if (streamClient && otherUserId) {
       try {
-        const channel = await ensureChannel(convId, otherUserId, title || "Chat");
+        const channel = await ensureChannel(convId, otherUserId);
         if (channel) {
           setActiveChannel(channel);
           setActiveChannelId(`messaging:conv_${convId}`);
@@ -260,6 +286,7 @@ function MessagesContent() {
           setActiveChannelId(null);
           setActiveChannel(null);
           setActiveProjectTitle(null);
+          setActivePartner(null);
         }
         await fetchConversations();
       }
@@ -455,7 +482,12 @@ function MessagesContent() {
           <Chat client={streamClient}>
             <Channel channel={activeChannel}>
               <Window>
-                <ChannelHeader />
+                {/* Title comes from our data, not the channel, so each side
+                    sees the OTHER person. Falls back to a neutral label rather
+                    than undefined — that would let Stream fall through to the
+                    shared channel name, which is exactly the poisoned value
+                    this fix exists to bypass on already-created channels. */}
+                <ChannelHeader title={activePartner ?? "Chat"} />
                 <MessageList />
                 <MessageComposer />
               </Window>

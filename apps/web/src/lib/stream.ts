@@ -23,6 +23,15 @@ export function getStreamClient(): StreamChat {
 export async function ensureStreamUser(userId: string, name?: string | null) {
   const client = getStreamClient();
 
+  // Never overwrite a good display name with the raw UUID. Callers that don't
+  // know the name should leave the existing record alone rather than clobber
+  // it — that is how accounts ended up showing an id (or a stale name) as
+  // their sender label.
+  if (!name) {
+    const existing = await client.queryUsers({ id: userId }).catch(() => null);
+    if (existing?.users?.length) return { token: client.createToken(userId), userId };
+  }
+
   await client.upsertUser({
     id: userId,
     name: name || userId,
@@ -39,6 +48,16 @@ export async function ensureStreamUser(userId: string, name?: string | null) {
 export async function ensureStreamChannel(
   conversationId: string,
   memberIds: string[],
+  /**
+   * Shared channel title. MUST be viewer-independent — a project title, never a
+   * person's name.
+   *
+   * A channel has ONE name that both members see. Passing "the other person's
+   * name" meant whoever opened the chat last overwrote it with their own view,
+   * so the other party then saw THEIR OWN name in the header. For a 1:1
+   * conversation leave this undefined: the header is rendered from our own
+   * data, per viewer.
+   */
   channelName?: string,
 ) {
   const client = getStreamClient();

@@ -157,10 +157,6 @@ export default function ProjectsPage() {
             // 'sent_for_review' needs a choice (revisions vs approve), so send the
             // user into the project to decide rather than blindly advancing.
             const isFork = p.current_stage === "sent_for_review";
-            // Proposed terms, not a live project — nothing can advance until the
-            // other side accepts, so the card shows the decision, not the pipeline.
-            const isProposal = p.status === "pending_acceptance";
-            const myProposal = p.created_by_user_id === userId;
 
             return (
               <Reveal key={p.id}>
@@ -180,15 +176,7 @@ export default function ProjectsPage() {
                           With {counterparty?.name || "Partner"} (
                           {counterparty?.role === "influencer" ? "Creator" : "Brand"})
                         </span>
-                        {isProposal && (
-                          <>
-                            <span className="text-content-muted">·</span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-warn-soft px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-warn">
-                              {myProposal ? "Awaiting their acceptance" : "Terms to review"}
-                            </span>
-                          </>
-                        )}
-                        {!isProposal && !isCompleted && myTurn && (
+                        {!isCompleted && myTurn && (
                           <>
                             <span className="text-content-muted">·</span>
                             <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-brand-strong">
@@ -218,19 +206,7 @@ export default function ProjectsPage() {
                           </div>
                         </div>
                       )}
-                      {isProposal ? (
-                        <Button
-                          variant={myProposal ? "surface" : "brand"}
-                          size="lg"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/projects/${p.id}`);
-                          }}
-                        >
-                          {myProposal ? "View proposed terms" : "Review terms"}
-                          <ArrowRight />
-                        </Button>
-                      ) : isCompleted ? (
+                      {isCompleted ? (
                         <Badge variant="success" size="md">
                           <Check /> Completed
                         </Badge>

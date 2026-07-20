@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   X,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const CREATOR_NAV: NavItem[] = [
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
+  { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
 
 const BUSINESS_NAV: NavItem[] = [
@@ -43,6 +45,7 @@ const BUSINESS_NAV: NavItem[] = [
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
+  { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
 
 const ADMIN_NAV: NavItem[] = [

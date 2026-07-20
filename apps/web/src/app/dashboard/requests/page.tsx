@@ -3,12 +3,12 @@ import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, Inbox, MessageSquare } from "lucide-react";
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, History, Inbox, MessageSquare, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, statusVariant } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -18,6 +18,9 @@ import { Reveal } from "@/components/ui/motion";
 interface CollabRequest {
   id: string;
   status: string;
+  /** What became of this request — see deal_state in GET /api/collabs. */
+  deal_state?: string;
+  project?: { id: number; title: string; status: string } | null;
   message?: string | null;
   budget?: number | string | null;
   from_user_id: string;
@@ -26,11 +29,17 @@ interface CollabRequest {
   receiver?: { name?: string | null; avatar_url?: string | null } | null;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending",
-  accepted: "Accepted",
-  declined: "Declined",
-  cancelled: "Cancelled",
+// The badge describes the DEAL, not the request row. An "accepted" request
+// whose project finished should read as finished, not as something still
+// waiting on you.
+const DEAL_LABEL: Record<string, { label: string; variant: "success" | "brand" | "warning" | "neutral" | "danger" }> = {
+  pending: { label: "Awaiting reply", variant: "warning" },
+  declined: { label: "Declined", variant: "danger" },
+  cancelled: { label: "Cancelled", variant: "neutral" },
+  in_discussion: { label: "In discussion", variant: "brand" },
+  in_progress: { label: "Project ongoing", variant: "brand" },
+  completed: { label: "Completed", variant: "success" },
+  project_cancelled: { label: "Project cancelled", variant: "neutral" },
 };
 
 export default function RequestsPage() {
@@ -122,8 +131,13 @@ export default function RequestsPage() {
     }
   };
 
-  const sent = userId ? requests.filter((r) => r.from_user_id === userId) : [];
-  const received = userId ? requests.filter((r) => r.to_user_id === userId) : [];
+  // A request only belongs in the requests list while someone still has to act
+  // on it. Once it is accepted, declined or cancelled the decision is made —
+  // it becomes history, whatever later happened to the project it produced.
+  const open = userId ? requests.filter((r) => r.status === "pending") : [];
+  const sent = open.filter((r) => r.from_user_id === userId);
+  const received = open.filter((r) => r.to_user_id === userId);
+  const history = userId ? requests.filter((r) => r.status !== "pending") : [];
 
   if (errorMsg) {
     return (
@@ -154,7 +168,7 @@ export default function RequestsPage() {
     <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 sm:p-6">
       <PageHeader
         title="Collaboration requests"
-        subtitle="Track every incoming and outgoing collaboration request."
+        subtitle="Requests waiting on a decision, and everything you have collaborated on before."
       />
 
       {requests.length === 0 ? (
@@ -169,7 +183,7 @@ export default function RequestsPage() {
         <div className="flex flex-col gap-8">
           {received.length > 0 && (
             <RequestGroup
-              label="Incoming"
+              label="Waiting on you"
               icon={<ArrowDownLeft className="size-3.5" />}
               count={received.length}
             >
@@ -188,7 +202,7 @@ export default function RequestsPage() {
 
           {sent.length > 0 && (
             <RequestGroup
-              label="Sent"
+              label="Awaiting their reply"
               icon={<ArrowUpRight className="size-3.5" />}
               count={sent.length}
             >
@@ -197,6 +211,35 @@ export default function RequestsPage() {
                   key={r.id}
                   r={r}
                   isSender
+                  acting={actionIds.has(r.id)}
+                  onAction={handleAction}
+                  onOpenConversation={openConversation}
+                />
+              ))}
+            </RequestGroup>
+          )}
+
+          {open.length === 0 && (
+            <Card>
+              <EmptyState
+                icon={<Inbox />}
+                title="Nothing waiting on you"
+                description="Every request has been answered. Past collaborations are below."
+              />
+            </Card>
+          )}
+
+          {history.length > 0 && (
+            <RequestGroup
+              label="History"
+              icon={<History className="size-3.5" />}
+              count={history.length}
+            >
+              {history.map((r) => (
+                <RequestCard
+                  key={r.id}
+                  r={r}
+                  isSender={r.from_user_id === userId}
                   acting={actionIds.has(r.id)}
                   onAction={handleAction}
                   onOpenConversation={openConversation}
@@ -252,6 +295,8 @@ function RequestCard({
 }) {
   const otherParty = isSender ? r.receiver : r.sender;
   const otherUserId = isSender ? r.to_user_id : r.from_user_id;
+  const deal = DEAL_LABEL[r.deal_state || r.status] ?? { label: r.status, variant: "neutral" as const };
+  const finished = r.deal_state === "completed";
   const title = r.message?.split("\n")[0] || "Collaboration request";
   const detail = r.message?.includes("\n")
     ? r.message.split("\n\n").slice(1).join(" ")
@@ -267,12 +312,19 @@ function RequestCard({
               <span className="text-sm font-bold text-content">
                 {otherParty?.name || "Unknown"}
               </span>
-              <Badge variant={statusVariant(r.status)} size="sm" dot>
-                {STATUS_LABEL[r.status] || r.status}
+              <Badge variant={deal.variant} size="sm" dot>
+                {deal.label}
               </Badge>
             </div>
             <p className="mt-1 truncate text-sm font-semibold text-content">{title}</p>
             {detail && <p className="truncate text-xs text-content-soft">{detail}</p>}
+            {r.status === "declined" && (
+              <p className="mt-1 text-xs text-content-muted">
+                {isSender
+                  ? "They passed on this one. You can reach out again with revised terms."
+                  : "You passed on this one."}
+              </p>
+            )}
             {r.budget != null && r.budget !== "" && (
               <p className="mt-1 text-xs text-content-soft">
                 Budget:{" "}
@@ -321,24 +373,24 @@ function RequestCard({
               agreed and the project created from inside the conversation. */}
           {r.status === "accepted" && (
             <Button
-              variant="brand"
+              variant={finished ? "surface" : "brand"}
               size="sm"
               disabled={acting}
               onClick={() => onOpenConversation(r.id, otherUserId)}
             >
-              <MessageSquare /> {acting ? "…" : "Open conversation"}
+              <MessageSquare /> {acting ? "…" : finished ? "View conversation" : "Open conversation"}
             </Button>
           )}
-          {r.status === "declined" && (
-            <Badge variant="danger" size="md">
-              Declined
-            </Badge>
+
+          {/* Declining is not permanent. The sender can reach out again —
+              declining a request never creates a conversation, so a fresh
+              request is the only way back in. */}
+          {isSender && (r.status === "declined" || r.status === "cancelled") && (
+            <ButtonLink href={`/dashboard/requests/new?to=${otherUserId}`} variant="brand" size="sm">
+              <RotateCcw /> Send again
+            </ButtonLink>
           )}
-          {r.status === "cancelled" && (
-            <Badge variant="neutral" size="md">
-              Cancelled
-            </Badge>
-          )}
+
         </div>
       </Card>
     </Reveal>

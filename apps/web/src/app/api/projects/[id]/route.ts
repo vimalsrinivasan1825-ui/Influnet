@@ -7,7 +7,7 @@ import { logActivity } from '@/lib/activity';
 import { logger, requestId } from '@/lib/logger';
 
 const PatchProjectActionSchema = z.object({
-  action: z.enum(['accept_proposal', 'decline_proposal', 'advance', 'signoff', 'revoke_signoff', 'propose_skip', 'confirm_skip', 'cancel_skip', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
+  action: z.enum(['advance', 'signoff', 'revoke_signoff', 'propose_skip', 'confirm_skip', 'cancel_skip', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
   stage_key: z.string().optional(),
   updates: z.any().optional(),
   title: z.string().optional(),
@@ -16,13 +16,6 @@ const PatchProjectActionSchema = z.object({
   note: z.string().max(2000).optional(),
 });
 
-// Exceptions raised by respond_to_project_proposal(), mapped to user-facing text.
-const PROPOSAL_ERRORS: Record<string, [number, string]> = {
-  project_not_found: [404, 'That project no longer exists.'],
-  not_a_participant: [403, 'You are not part of this project.'],
-  project_not_pending: [409, 'This project is no longer awaiting acceptance.'],
-  proposer_cannot_respond: [403, 'The other side has to accept the project you proposed.'],
-};
 
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -114,6 +107,25 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     const { action } = result.data;
     const { STAGES, ALLOWED_TRANSITIONS, STAGE_ACTOR, STAGE_LABELS, Stage } = require('@/lib/project-lifecycle');
 
+    // Legacy safety net. Migration 071 stopped creating 'pending_acceptance'
+    // projects (terms now live in project_proposals until accepted), but rows
+    // created by 069 can still be sitting in that state on a database that
+    // hasn't caught up. Without this gate such a project renders as a normal
+    // live one and a single "Advance stage" click would start work neither
+    // side ever agreed to. Read separately so it degrades cleanly if the
+    // column isn't there.
+    const { data: statusRow } = await supabase
+      .from('campaign_projects')
+      .select('status')
+      .eq('id', id)
+      .maybeSingle();
+    if (statusRow?.status === 'pending_acceptance') {
+      return jsonError(
+        409,
+        'These terms have not been accepted by both sides yet, so this project cannot move. Accept or decline them from the conversation first.',
+      );
+    }
+
     // Get user's role in the project
     const userRole = project.owner_user_id === user.id ? 'business' : 'creator';
     // The other participant — the person to notify when this user acts.
@@ -122,77 +134,6 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     const recipientRole = userRole === 'business' ? 'creator' : 'business';
     const projectLabel = project.title ? `“${project.title}”` : 'Your project';
     const projectLink = `/dashboard/projects/${id}`;
-
-    // 0) Proposal gate. A project starts life as a PROPOSAL: one side fills in
-    // the terms they negotiated in chat, the other accepts it. Until that
-    // happens the project is not real yet, so the whole stage pipeline below is
-    // closed off — otherwise a proposer could advance stages, request payment or
-    // cancel a project the other party never agreed to.
-    // `status` is read separately so this route still works before migration 069.
-    const { data: proposalRow } = await supabase
-      .from('campaign_projects')
-      .select('status, created_by_user_id, conversation_id')
-      .eq('id', id)
-      .maybeSingle();
-    const isPendingProposal = proposalRow?.status === 'pending_acceptance';
-
-    if (action === 'accept_proposal' || action === 'decline_proposal') {
-      if (!proposalRow) {
-        return jsonError(400, 'Project proposals are not enabled yet. Apply migration 069.');
-      }
-      const accepting = action === 'accept_proposal';
-      const { data: rpcResult, error: rpcError } = await supabase.rpc('respond_to_project_proposal', {
-        p_project_id: Number(id),
-        p_accept: accepting,
-        p_note: result.data.note ?? null,
-      });
-      if (rpcError) {
-        const known = Object.entries(PROPOSAL_ERRORS).find(([key]) => rpcError.message?.includes(key));
-        if (known) return jsonError(known[1][0], known[1][1]);
-        return jsonError(500, 'Could not respond to the project proposal', rpcError);
-      }
-
-      log.info('project proposal answered', { accepted: accepting, actor: userRole });
-
-      const proposerId = rpcResult?.notify_user_id as string | undefined;
-      const convId = (rpcResult?.conversation_id as string | undefined) ?? proposalRow.conversation_id;
-      // Declines deep-link back to the conversation, not the (now deleted)
-      // project — the point of a decline is to go and renegotiate.
-      const backToChat = convId ? `/dashboard/messages?conv=${convId}` : '/dashboard/messages';
-
-      if (accepting) {
-        await logActivity(supabase, {
-          projectId: id, actorUserId: user.id, type: 'stage_advanced',
-          summary: 'Accepted the proposed terms — the project is now active',
-          metadata: { accepted: true },
-        });
-      }
-
-      if (proposerId) {
-        await notifyUser({
-          userId: proposerId,
-          type: 'project_stage',
-          title: accepting ? `${projectLabel} is live` : `${projectLabel}: terms declined`,
-          body: accepting
-            ? `The ${recipientRole === 'business' ? 'creator' : 'brand'} accepted the terms. The project has started.`
-            : result.data.note
-            ? `Your proposed terms were declined: “${result.data.note}” — pick it back up in chat.`
-            : 'Your proposed terms were declined. Pick it back up in chat to agree on new terms.',
-          link: accepting ? projectLink : backToChat,
-        });
-      }
-
-      return NextResponse.json({
-        ok: true,
-        accepted: accepting,
-        deleted: !!rpcResult?.deleted,
-        conversation_id: convId,
-      });
-    }
-
-    if (isPendingProposal) {
-      return jsonError(409, 'This project is still awaiting acceptance — the terms have to be agreed before it can move.');
-    }
 
     // 1) Advance to next stage
     if (action === 'advance') {
@@ -693,35 +634,45 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
 
     if (action === 'accept_cancellation') {
-      const { data: cancelProject, error: fetchCancelErr } = await supabase
-        .from('campaign_projects')
-        .select('cancel_requested_by')
-        .eq('id', id)
-        .single();
-      if (fetchCancelErr) return jsonError(500, 'Failed to fetch project', fetchCancelErr);
-      if (!cancelProject.cancel_requested_by) {
-        return jsonError(400, 'No active cancellation request found');
-      }
-      if (cancelProject.cancel_requested_by === user.id) {
-        return jsonError(400, 'Cannot accept your own cancellation request');
-      }
-
-      const { error: deleteErr } = await supabase
-        .from('campaign_projects')
-        .delete()
-        .eq('id', id);
-
-      if (deleteErr) return jsonError(500, 'Failed to delete project', deleteErr);
-      log.info('project cancellation accepted — project deleted', { actor: userRole });
-      // Notify the party who requested the cancellation that it was accepted.
-      await notifyUser({
-        userId: cancelProject.cancel_requested_by,
-        type: 'project_cancel',
-        title: `${projectLabel} was cancelled`,
-        body: 'Your cancellation request was accepted. The project has been closed.',
-        link: '/dashboard/projects',
+      // Cancelling is a STATE CHANGE, not a delete. The row, its payment
+      // ledger, its activity timeline and its assets all survive — both sides
+      // keep a read-only record of what was agreed and what was paid.
+      const { data: cancelResult, error: cancelErr } = await supabase.rpc('cancel_project', {
+        p_project_id: Number(id),
+        p_reason: result.data.note ?? null,
       });
-      return NextResponse.json({ ok: true, deleted: true });
+      if (cancelErr) {
+        const known: Record<string, [number, string]> = {
+          no_cancellation_requested: [400, 'No active cancellation request found.'],
+          requester_cannot_accept: [400, 'The other party has to accept the cancellation you requested.'],
+          already_cancelled: [409, 'This project is already cancelled.'],
+          cannot_cancel_completed: [409, 'A completed project cannot be cancelled.'],
+          not_a_participant: [403, 'You are not part of this project.'],
+        };
+        const hit = Object.entries(known).find(([k]) => cancelErr.message?.includes(k));
+        if (hit) return jsonError(hit[1][0], hit[1][1]);
+        return jsonError(500, 'Failed to cancel the project', cancelErr);
+      }
+
+      log.info('project cancelled by mutual agreement', { actor: userRole });
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'cancellation_accepted',
+        summary: 'Both sides agreed to cancel the project',
+        metadata: { reason: result.data.note ?? null },
+      });
+
+      const requesterId = cancelResult?.notify_user_id as string | undefined;
+      if (requesterId) {
+        await notifyUser({
+          userId: requesterId,
+          type: 'project_cancel',
+          title: `${projectLabel} was cancelled`,
+          body: 'Your cancellation request was accepted. The project is closed — the record and any payments stay available.',
+          link: projectLink,
+        });
+      }
+
+      return NextResponse.json({ ok: true, cancelled: true });
     }
 
     return jsonError(400, 'Unknown action');

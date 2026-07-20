@@ -1481,66 +1481,6 @@ function GuidedFlow({
   );
 }
 
-// ─── Proposal Banner ───
-// Shown while a project is still just PROPOSED terms. The side that proposed it
-// waits; the other side accepts (project goes live) or declines (the proposal is
-// dropped and they go back to the chat to agree on something else).
-function ProposalBanner({
-  project,
-  userId,
-  onResolved,
-}: {
-  project: any;
-  userId: string | null;
-  onResolved: (deleted: boolean) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const mine = project.created_by_user_id === userId;
-
-  const respond = async (accept: boolean) => {
-    setBusy(true);
-    try {
-      const res = await apiFetch<{ deleted?: boolean }>(`/api/projects/${project.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ action: accept ? 'accept_proposal' : 'decline_proposal' }),
-      });
-      if (!res.ok) throw new Error(res.error || 'Could not respond to the proposal');
-      toast.success(accept ? 'Project started.' : 'Terms declined — pick it back up in chat.');
-      onResolved(!!res.data?.deleted);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Something went wrong');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-shrink-0 flex-col gap-2.5 border-b border-warn/30 bg-warn-soft px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <p className="text-sm font-bold text-content">
-          {mine ? 'Waiting for the other side to accept these terms' : 'Review the proposed terms'}
-        </p>
-        <p className="mt-0.5 text-xs text-content-soft">
-          {mine
-            ? 'The project starts as soon as they accept. You can keep talking in the chat meanwhile.'
-            : 'Accept to start the project, or decline and keep negotiating in the chat.'}
-          {project.proposal_note ? ` · “${project.proposal_note}”` : ''}
-        </p>
-      </div>
-      {!mine && (
-        <div className="flex shrink-0 gap-2">
-          <Button variant="brand" size="sm" disabled={busy} onClick={() => respond(true)}>
-            <Check size={14} /> Accept & start
-          </Button>
-          <Button variant="surface" size="sm" disabled={busy} onClick={() => respond(false)}>
-            Decline
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main Page ───
 export default function ProjectKanbanPage() {
   const params = useParams();
@@ -2029,20 +1969,6 @@ export default function ProjectKanbanPage() {
           </Badge>
         </div>
       </div>
-
-      {/* Proposal gate — a project starts as terms one side put forward. Until
-          the other side accepts, nothing below can move, so say so plainly and
-          give both the accept and the "let's keep talking" exit. */}
-      {project?.status === 'pending_acceptance' && (
-        <ProposalBanner
-          project={project}
-          userId={userId}
-          onResolved={(deleted) => {
-            if (deleted) router.push(`/dashboard/messages?conv=${project.conversation_id ?? ''}`);
-            else void fetchData();
-          }}
-        />
-      )}
 
       {/* Stage Pipeline — the spine of the collaboration (board view only) */}
       {view === 'board' && !loading && !error && project && (

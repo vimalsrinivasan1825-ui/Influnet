@@ -33,7 +33,52 @@ export async function GET(req: Request) {
       return jsonError(500, 'Database query error', error);
     }
 
-    return NextResponse.json({ collabs });
+    // Annotate each request with what actually became of it. Without this the
+    // page shows a long-finished collaboration as a live "Accepted" request
+    // still needing attention.
+    const { data: projects } = await supabase
+      .from('campaign_projects')
+      .select('id, title, status, current_stage, owner_user_id, counterparty_user_id, collab_request_id, created_at')
+      .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`);
+
+    // Terms nobody has accepted are NOT this request's outcome. A brand and a
+    // creator reuse one request row across successive deals, so a brand-new
+    // proposal would otherwise relabel a collaboration that already finished —
+    // which is exactly how a completed Product-Launch came to read
+    // "Terms awaiting approval". Pending terms live in the conversation; they
+    // never describe the state of a past deal.
+    const realProjects = (projects || []).filter((p: any) => p.status !== 'pending_acceptance');
+
+    const pairKey = (a: string, b: string) => [a, b].sort().join('|');
+    const byPair = new Map<string, any[]>();
+    for (const p of realProjects) {
+      const key = pairKey(p.owner_user_id, p.counterparty_user_id);
+      if (!byPair.has(key)) byPair.set(key, []);
+      byPair.get(key)!.push(p);
+    }
+
+    const annotated = (collabs || []).map((c: any) => {
+      const mine = byPair.get(pairKey(c.from_user_id, c.to_user_id)) || [];
+      // Prefer the project this exact request produced; fall back to the pair's
+      // most recent one, since projects created before collab_request_id
+      // existed have it NULL.
+      const exact = mine.find((p) => p.collab_request_id === c.id);
+      const latest = [...mine].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+      const project = exact ?? latest ?? null;
+      const open = mine.find((p) => p.status !== 'completed' && p.status !== 'cancelled');
+      return {
+        ...c,
+        project: project ? { id: project.id, title: project.title, status: project.status } : null,
+        deal_state:
+          c.status !== 'accepted' ? c.status
+          : open ? 'in_progress'
+          : project?.status === 'completed' ? 'completed'
+          : project?.status === 'cancelled' ? 'project_cancelled'
+          : 'in_discussion',
+      };
+    });
+
+    return NextResponse.json({ collabs: annotated });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }

@@ -53,6 +53,9 @@ export async function GET(req: Request) {
         owner_user_id, counterparty_user_id, created_at
       `)
       .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`)
+      // Un-agreed terms are surfaced by the deal card inside the conversation,
+      // never as an active project in the sidebar.
+      .neq('status', 'pending_acceptance')
       .order('created_at', { ascending: false });
 
     if (projectsError) return jsonError(500, 'Failed to fetch projects', projectsError);
