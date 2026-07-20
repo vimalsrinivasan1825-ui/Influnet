@@ -1,6 +1,6 @@
 # Influnet Platform — Architecture & Module Reference
 
-> **Generated:** July 7, 2026  
+> **Generated:** July 18, 2026  
 > **Stack:** Next.js 16.2 (App Router) + React 19 + Supabase (PostgreSQL, Auth, RLS)  
 > **State:** Zustand | **Styling:** Tailwind v4 + shadcn/ui | **Validation:** Zod v4  
 > **Target:** ~2,000 users, moderate concurrency
@@ -39,7 +39,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      Vercel (Hosting)                         │
+│       Azure Container Apps / Railway (Hosting)               │
 │                                                              │
 │  ┌─────────────────────────────────────────┐                 │
 │  │         Next.js 16 App Router            │                 │

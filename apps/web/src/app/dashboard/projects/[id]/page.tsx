@@ -590,8 +590,8 @@ function StagePipeline({
 
   return (
     <div className="flex-shrink-0 border-b border-hairline bg-surface-card">
-      {/* Tracker */}
-      <div className="flex items-center gap-1 overflow-x-auto px-4 py-2.5">
+      {/* Tracker — full labelled pill strip on desktop */}
+      <div className="hidden items-center gap-1 overflow-x-auto px-4 py-2.5 lg:flex">
         {STAGE_CONFIG.map((s, i) => {
           const state = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'upcoming';
           return (
@@ -613,6 +613,38 @@ function StagePipeline({
             </div>
           );
         })}
+      </div>
+
+      {/* Tracker — compact fit-to-width meter on mobile (no horizontal scroll) */}
+      <div className="px-4 py-2.5 lg:hidden">
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+            Stage {currentIdx + 1}/{STAGE_CONFIG.length}
+          </span>
+          <span className="truncate text-sm font-extrabold text-content">
+            {isComplete ? 'Completed' : stage?.label}
+          </span>
+        </div>
+        <div
+          className="flex items-center gap-1"
+          role="progressbar"
+          aria-valuenow={currentIdx + 1}
+          aria-valuemin={1}
+          aria-valuemax={STAGE_CONFIG.length}
+          aria-label={`Stage ${currentIdx + 1} of ${STAGE_CONFIG.length}`}
+        >
+          {STAGE_CONFIG.map((s, i) => {
+            const filled = i <= currentIdx;
+            const active = i === currentIdx && !isComplete;
+            return (
+              <span
+                key={s.key}
+                title={s.label}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${filled ? 'bg-brand' : 'bg-hairline-strong'} ${active ? 'ring-2 ring-brand-soft' : ''}`}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {/* Current stage checklist + advance */}
@@ -1834,85 +1866,90 @@ export default function ProjectKanbanPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-surface">
       {/* Top Bar */}
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-hairline bg-surface-card px-4 py-2.5">
-        <div className="flex items-center gap-3">
-          <Button variant="surface" size="icon" onClick={() => router.push('/dashboard/projects')} aria-label="Back to projects">
+      <div className="flex flex-shrink-0 flex-col gap-2 border-b border-hairline bg-surface-card px-4 py-2.5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button variant="surface" size="icon" onClick={() => router.push('/dashboard/projects')} aria-label="Back to projects" className="shrink-0">
             <ArrowLeft size={16} />
           </Button>
-          <div className="flex items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             {project && (
               <Avatar
                 name={(project.owner_user_id === userId ? project.counterparty : project.owner)?.name}
                 size="sm"
                 square
+                className="shrink-0"
               />
             )}
-            <div>
-              <div className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">
+            <div className="min-w-0">
+              <div className="truncate text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">
                 {project && (project.owner_user_id === userId ? 'Client portal' : 'Creator portal')}
                 {project ? ` · With ${(project.owner_user_id === userId ? project.counterparty : project.owner)?.name || 'Partner'}` : ''}
               </div>
-              <h1 className="text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || 'Loading…'}</h1>
+              <h1 className="truncate text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || 'Loading…'}</h1>
             </div>
+            {/* Stage badge rides along on the identity row (mobile only) */}
+            <Badge variant="neutral" size="sm" className="ml-auto shrink-0 lg:hidden">
+              {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
+            </Badge>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Guided ↔ Board view toggle */}
-          <div className="flex items-center gap-0.5 rounded-lg border border-hairline bg-surface-muted p-0.5">
+          {/* Guided ↔ Board view toggle — full-width segmented on mobile */}
+          <div className="flex flex-1 items-center gap-0.5 rounded-lg border border-hairline bg-surface-muted p-0.5 lg:flex-none">
             <button
               onClick={() => setView('guided')}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'guided' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors lg:flex-none lg:py-1 ${view === 'guided' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
               title="Step-by-step guided flow"
             >
               <ListChecks size={13} /> Guided
             </button>
             <button
               onClick={() => setView('board')}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'board' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors lg:flex-none lg:py-1 ${view === 'board' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
               title="Schedule board"
             >
               <LayoutGrid size={13} /> Board
             </button>
             <button
               onClick={() => setView('activity')}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'activity' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors lg:flex-none lg:py-1 ${view === 'activity' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
               title="Activity timeline"
             >
               <History size={13} /> Activity
             </button>
             <button
               onClick={() => setView('flow')}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'flow' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors lg:flex-none lg:py-1 ${view === 'flow' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
               title="Stage-by-stage recap"
             >
               <Waypoints size={13} /> Flow
             </button>
           </div>
           {project?.budget != null && project.budget !== '' && (
-            <Badge variant="success" size="md">
-              ₹{Number(project.budget).toLocaleString()} 
-              {project?.advance_amount != null && project.advance_amount !== '' && Number(project.advance_amount) < Number(project.budget) 
-                ? ` (₹${Number(project.advance_amount).toLocaleString()} advance)` 
+            <Badge variant="success" size="md" className="hidden lg:inline-flex">
+              ₹{Number(project.budget).toLocaleString()}
+              {project?.advance_amount != null && project.advance_amount !== '' && Number(project.advance_amount) < Number(project.budget)
+                ? ` (₹${Number(project.advance_amount).toLocaleString()} advance)`
                 : ''}
             </Badge>
           )}
           {project?.conversation_id && (
-            <ButtonLink href={`/dashboard/messages?conv=${project.conversation_id}`} variant="surface" size="sm">
-              <MessageSquare size={14} /> Chat
+            <ButtonLink href={`/dashboard/messages?conv=${project.conversation_id}`} variant="surface" size="sm" className="shrink-0" aria-label="Open chat">
+              <MessageSquare size={14} /> <span className="hidden sm:inline">Chat</span>
             </ButtonLink>
           )}
           {project && (
-            <Button variant="surface" size="icon" onClick={() => setShowReportModal(true)} aria-label="Report this user" title="Report this user">
+            <Button variant="surface" size="icon" onClick={() => setShowReportModal(true)} aria-label="Report this user" title="Report this user" className="shrink-0">
               <Flag size={14} />
             </Button>
           )}
           {project?.status === 'completed' && (
-            <Button variant="surface" size="sm" onClick={() => setShowReviewModal(true)}>
-              <Star size={14} fill={reviews.some(r => r.from_user?.id === userId) ? "var(--brand)" : "none"} color="var(--brand)" /> 
-              {reviews.some(r => r.from_user?.id === userId) ? 'View Reviews' : 'Leave a Review'}
+            <Button variant="surface" size="sm" onClick={() => setShowReviewModal(true)} className="shrink-0">
+              <Star size={14} fill={reviews.some(r => r.from_user?.id === userId) ? "var(--brand)" : "none"} color="var(--brand)" />
+              <span className="hidden sm:inline">{reviews.some(r => r.from_user?.id === userId) ? 'View Reviews' : 'Leave a Review'}</span>
             </Button>
           )}
-          <Badge variant="neutral" size="md">
+          <Badge variant="neutral" size="md" className="hidden lg:inline-flex">
             Stage {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
           </Badge>
         </div>

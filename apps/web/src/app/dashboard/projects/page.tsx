@@ -241,33 +241,30 @@ export default function ProjectsPage() {
                     </div>
                   </div>
 
-                  {/* Stepper */}
-                  <div className="mt-5 flex items-center gap-0 overflow-x-auto pb-2">
+                  {/* Stage progress — a segmented meter that always fits the card
+                      width (no horizontal scroll). The textual "Stage X/12" below
+                      carries the detail. */}
+                  <div
+                    className="mt-5 flex items-center gap-1"
+                    role="progressbar"
+                    aria-valuenow={stageIndex + 1}
+                    aria-valuemin={1}
+                    aria-valuemax={STAGES.length}
+                    aria-label={`Stage ${stageIndex + 1} of ${STAGES.length}: ${currentStage.label}`}
+                  >
                     {STAGES.map((s, idx) => {
-                      const active = idx === stageIndex;
-                      const past = idx < stageIndex;
+                      const filled = idx <= stageIndex;
+                      const active = idx === stageIndex && !isCompleted;
                       return (
-                        <div key={s.key} className="flex min-w-[2.75rem] flex-1 items-center">
-                          <span
-                            title={s.label}
-                            className={cn(
-                              "flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-bold",
-                              active && "bg-brand text-white shadow-[0_0_0_4px_var(--brand-soft)]",
-                              past && "bg-brand text-white",
-                              !active && !past && "bg-surface-muted text-content-muted",
-                            )}
-                          >
-                            {past ? "✓" : idx + 1}
-                          </span>
-                          {idx < STAGES.length - 1 && (
-                            <span
-                              className={cn(
-                                "h-0.5 flex-1",
-                                past ? "bg-brand" : "bg-hairline-strong",
-                              )}
-                            />
+                        <span
+                          key={s.key}
+                          title={s.label}
+                          className={cn(
+                            "h-1.5 flex-1 rounded-full transition-colors",
+                            filled ? "bg-brand" : "bg-hairline-strong",
+                            active && "ring-2 ring-brand-soft",
                           )}
-                        </div>
+                        />
                       );
                     })}
                   </div>

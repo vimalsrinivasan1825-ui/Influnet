@@ -4,6 +4,32 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-18: Azure CI/CD Pipeline & Staging Environment
+
+**Branch**: `staging`
+
+### Scope
+Built a complete, automated GitHub Actions CI/CD pipeline to deploy the Next.js backend to Azure Container Apps whenever code is merged to the `staging` branch.
+
+### What broke
+- **Container Registry Auth**: Azure Container Apps failed to pull the newly built Docker image from the private Azure Container Registry with an `UNAUTHORIZED` error.
+- **Missing Runtime Env Vars**: Next.js threw a 500 Internal Server Error upon deployment because it lacked the runtime environment variables (Supabase keys) needed to connect to the database.
+
+### Fix
+- **Registry Auth**: Passed `registryUrl`, `registryUsername`, and `registryPassword` directly into the `azure/container-apps-deploy-action@v1` step in the GitHub workflow so the Container App receives the credentials during deployment.
+- **Runtime Env Vars**: Guided the user to manually input the `.env.local` variables directly into the Azure Container App's "Environment variables" tab via the Azure Portal UI, allowing the server to reboot and successfully initialize Supabase.
+
+### Key Lessons
+- GitHub Actions needs registry credentials to *push* the Docker image, but Azure Container Apps *also* needs those same credentials injected at deployment time to *pull* it.
+- Environment variables must be set in two places for Docker deployments: as `--build-arg` in the Dockerfile for build-time static generation, and as runtime environment variables inside the Container App for server-side API connections.
+- Always use isolated Supabase projects (Dev vs. Staging vs. Prod) by injecting environment-specific keys into the respective Azure Container App settings.
+
+### Next Target
+- Implement IP restrictions or password protection on the staging environment to block public users.
+- Configure DNS custom domains for `staging.influnet.io`.
+
+---
+
 ## Session — 2026-07-14: Auth Hardening, Data Leaks & Media Kit Settings
 
 **Branch**: `feat/public-profile-live-data`
