@@ -1,7 +1,16 @@
 # Influnet Mobile App — Analysis & Detailed Build Plan
 
-**Date:** 2026-07-20 · **Status:** Proposal (nothing built yet)
-**Companion doc:** [MOBILE_ARCHITECTURE_STRATEGY.md](MOBILE_ARCHITECTURE_STRATEGY.md) (the high-level strategy this report expands on)
+**Date:** 2026-07-20 · **Status:** Phases 0–5 built on `feat/mobile-app` — see [MOBILE_BUILD_STAGES.md](../operations/MOBILE_BUILD_STAGES.md)
+**Companion docs:** [MOBILE_ARCHITECTURE_STRATEGY.md](MOBILE_ARCHITECTURE_STRATEGY.md) (the strategy this expands on) · [MOBILE_BUILD_STAGES.md](../operations/MOBILE_BUILD_STAGES.md) (what actually got built + what's left)
+
+> **Where the build deviated from this plan.** Three decisions changed during
+> implementation, each recorded in [apps/mobile/README.md](../../apps/mobile/README.md):
+> **NativeWind → StyleSheet** (role accents re-tint at runtime, which is where
+> utility classes fight you, and it drops a Metro/Babel transform that has to
+> track every RN release); **stream-chat-expo → the existing `messages` table +
+> Supabase Realtime** (the API already owns that table, so a row-insert
+> subscription is the whole feature); and **victory-native deferred** (nothing
+> in the first pass needed a chart). Everything else below was built as written.
 
 This is a full analysis of the existing codebase and a screen-by-screen plan for building the Influnet mobile app with **React Native + Expo**. The guiding principle throughout: **the mobile app is a redesign, not a port**. No screen is a shrunken web page — every surface is rethought around thumb reach, one-column layouts, native navigation, and push-driven re-engagement.
 
