@@ -13,7 +13,9 @@
  *   pending    amber   — waiting on a decision, nothing has started
  *   cancelled  neutral — closed without completing; a record, not live work
  */
-export type DealState = 'completed' | 'active' | 'pending' | 'cancelled';
+import { type DealState, dealStateOf } from '@influnet/core';
+
+export { type DealState, dealStateOf };
 
 export interface StatusStyle {
   /** Badge variant from components/ui/badge. */
@@ -57,21 +59,6 @@ export const DEAL_STATE_STYLE: Record<DealState, StatusStyle> = {
     label: 'Cancelled',
   },
 };
-
-/** Normalise a raw campaign_projects.status into a deal state. */
-export function dealStateOf(status?: string | null): DealState {
-  switch (status) {
-    case 'completed':
-      return 'completed';
-    case 'cancelled':
-      return 'cancelled';
-    // 069-era terms nobody accepted. Not started work — never shown as active.
-    case 'pending_acceptance':
-      return 'pending';
-    default:
-      return 'active';
-  }
-}
 
 export const styleForStatus = (status?: string | null) => DEAL_STATE_STYLE[dealStateOf(status)];
 
