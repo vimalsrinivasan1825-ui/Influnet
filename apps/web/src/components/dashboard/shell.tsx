@@ -299,6 +299,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         <DashboardHeader
           userName={userName}
           avatarUrl={avatarUrl}
+          role={role}
           onOpenMobile={() => setMobileOpen(true)}
         />
         <main className="flex-1">

@@ -9,19 +9,24 @@ import { createClient } from "@/lib/supabase/client";
 import { useNotificationStore } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
 import { Avatar } from "@/components/ui/avatar";
+import { CommandPalette } from "@/components/dashboard/command-palette";
 import { cn } from "@/lib/utils";
+import type { UserRole } from "@/types";
 
 interface DashboardHeaderProps {
   userName: string;
   avatarUrl?: string | null;
+  role?: UserRole | null;
   onOpenMobile: () => void;
 }
 
 export default function DashboardHeader({
   userName,
   avatarUrl,
+  role = null,
   onOpenMobile,
 }: DashboardHeaderProps) {
+  const [searchOpen, setSearchOpen] = useState(false);
   const router = useRouter();
   const {
     summary,
@@ -44,6 +49,22 @@ export default function DashboardHeader({
     logout();
     router.push("/login");
   };
+
+  // The search affordance has always shown a "/" hint — wire it up. Ignored
+  // while typing in a field so it never swallows a real slash.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing =
+        !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -108,14 +129,28 @@ export default function DashboardHeader({
         <span className="font-bold text-content">{userName}</span>
       </p>
 
-      {/* Search — visual affordance, wired per-page */}
-      <div className="ml-auto hidden items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-sm text-content-muted lg:flex lg:w-64">
+      <button
+        onClick={() => setSearchOpen(true)}
+        aria-label="Search"
+        className="ml-auto hidden items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-sm text-content-muted transition-colors hover:border-hairline-strong hover:text-content-soft lg:flex lg:w-64"
+      >
         <Search className="size-4" />
         <span>Search…</span>
         <kbd className="ml-auto rounded border border-hairline-strong bg-surface-card px-1.5 py-0.5 text-[0.625rem] font-semibold">
           /
         </kbd>
-      </div>
+      </button>
+
+      {/* Mobile: the full bar doesn't fit, so just the icon. */}
+      <button
+        onClick={() => setSearchOpen(true)}
+        aria-label="Search"
+        className="ml-auto rounded-xl p-2.5 text-content-soft transition-colors hover:bg-surface-muted hover:text-content lg:hidden"
+      >
+        <Search className="size-5" />
+      </button>
+
+      <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} role={role} />
 
       <div className="ml-auto flex items-center gap-1 lg:ml-3">
         <Link

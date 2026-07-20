@@ -18,6 +18,8 @@ import {
   PanelLeft,
   X,
   History,
+  LayoutDashboard,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,7 +33,10 @@ type NavItem = {
 };
 
 const CREATOR_NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard/influencer", icon: Home },
+  // Home = who you are publicly + what's in flight. Dashboard = the numbers.
+  { label: "Home", href: "/dashboard/home", icon: Home },
+  { label: "Dashboard", href: "/dashboard/influencer", icon: LayoutDashboard },
+  { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
@@ -40,7 +45,9 @@ const CREATOR_NAV: NavItem[] = [
 ];
 
 const BUSINESS_NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard", icon: Home },
+  { label: "Home", href: "/dashboard/home", icon: Home },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
