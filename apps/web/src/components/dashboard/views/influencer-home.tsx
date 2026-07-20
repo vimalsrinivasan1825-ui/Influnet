@@ -31,7 +31,7 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 sm:p-6">
-      <WelcomeModal username={p.username} />
+      <WelcomeModal username={p.username} seen={p.welcome_seen} />
       <MediaKitNudge />
       {/* Header */}
       <Reveal className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

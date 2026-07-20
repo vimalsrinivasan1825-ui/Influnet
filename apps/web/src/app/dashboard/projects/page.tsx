@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
+import { dealStateOf } from "@/lib/project-status";
 
 const STAGES = [
   { key: "collaboration_started", label: "Started", desc: "Collaboration initiated between brand and creator." },
@@ -150,6 +151,9 @@ export default function ProjectsPage() {
             const stageIndex = STAGES.findIndex((s) => s.key === p.current_stage);
             const currentStage = STAGES[stageIndex] || STAGES[0];
             const isCompleted = p.current_stage === "completed" || stageIndex === STAGES.length - 1;
+            // Colour the whole card by its state, not just the badge, so a
+            // finished project reads as finished at a glance.
+            const state = dealStateOf(isCompleted ? "completed" : p.status);
             const isAdvancing = updatingId === p.id;
             const userRole: "business" | "creator" = isOwner ? "business" : "creator";
             const actor = STAGE_ACTOR[p.current_stage as Stage] || "either";
@@ -163,7 +167,11 @@ export default function ProjectsPage() {
                 <Card
                   interactive
                   onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                  className="cursor-pointer p-5 sm:p-6"
+                  className={cn(
+                    "cursor-pointer p-5 sm:p-6",
+                    state === "completed" && "border-ok/30 bg-ok-soft/40",
+                    state === "cancelled" && "border-hairline bg-surface-muted/60",
+                  )}
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -263,7 +271,7 @@ export default function ProjectsPage() {
                           title={s.label}
                           className={cn(
                             "h-1.5 flex-1 rounded-full transition-colors",
-                            filled ? "bg-brand" : "bg-hairline-strong",
+                            filled ? (state === "completed" ? "bg-ok" : "bg-brand") : "bg-hairline-strong",
                             active && "ring-2 ring-brand-soft",
                           )}
                         />
@@ -272,11 +280,20 @@ export default function ProjectsPage() {
                   </div>
 
                   {/* Current stage detail */}
-                  <div className="mt-1 rounded-xl border border-hairline bg-surface-muted px-4 py-3">
+                  <div
+                    className={cn(
+                      "mt-1 rounded-xl border px-4 py-3",
+                      state === "completed"
+                        ? "border-ok/25 bg-ok-soft/60"
+                        : "border-hairline bg-surface-muted",
+                    )}
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-bold text-content">
                         Stage {stageIndex + 1}/{STAGES.length}:{" "}
-                        <span className="text-brand-strong">{currentStage.label}</span>
+                        <span className={state === "completed" ? "text-ok" : "text-brand-strong"}>
+                          {currentStage.label}
+                        </span>
                       </span>
                       <span className="text-xs font-semibold text-content-muted">
                         Updated {new Date(p.updated_at).toLocaleDateString()}

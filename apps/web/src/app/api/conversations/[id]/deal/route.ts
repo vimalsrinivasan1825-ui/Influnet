@@ -169,13 +169,9 @@ const ProposeSchema = z.object({
 });
 
 const RespondSchema = z.object({
-  proposal_id: z.string().uuid().optional(),
-  // A 069-era project stuck in 'pending_acceptance' is answered by project id.
-  legacy_project_id: z.number().int().positive().optional(),
+  proposal_id: z.string().uuid(),
   action: z.enum(['accept', 'decline', 'withdraw']),
   note: z.string().max(2000).optional(),
-}).refine((v) => !!v.proposal_id || !!v.legacy_project_id, {
-  message: 'proposal_id or legacy_project_id is required',
 });
 
 const PROPOSE_ERRORS: Record<string, [number, string]> = {
@@ -278,40 +274,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
-    const { proposal_id, legacy_project_id, action, note } = parsed.data;
+    const { proposal_id, action, note } = parsed.data;
 
-    // Legacy path: answer a project that 069 created in 'pending_acceptance'.
-    // Accepting activates it; declining removes it, exactly as 069 intended.
-    if (legacy_project_id) {
-      const accepting = action === 'accept';
-      const { data: legacyResult, error: legacyErr } = await supabase.rpc('respond_to_project_proposal', {
-        p_project_id: legacy_project_id,
-        p_accept: accepting,
-        p_note: note ?? null,
-      });
-      if (legacyErr) {
-        return mapRpcError(legacyErr.message, RESPOND_ERRORS)
-          ?? jsonError(500, 'Could not respond to the terms', legacyErr);
-      }
-      const proposerId = legacyResult?.notify_user_id as string | undefined;
-      if (proposerId) {
-        await notifyUser({
-          userId: proposerId,
-          type: 'project_stage',
-          title: accepting ? 'Project started' : 'Terms declined',
-          body: accepting
-            ? 'Your terms were accepted — the project is now live.'
-            : 'Your terms were declined. Keep talking and propose new ones when you’re ready.',
-          link: accepting && legacyResult?.project_id
-            ? `/dashboard/projects/${legacyResult.project_id}`
-            : `/dashboard/messages?conv=${id}`,
-        });
-      }
-      return NextResponse.json({
-        ok: true, accepted: accepting, project_id: accepting ? legacy_project_id : null,
-      });
-    }
-
+    // NOTE: 069-era 'pending_acceptance' projects were answered here via
+    // respond_to_project_proposal(). Migration 071 DROPPED that function and
+    // converted every such row into a project_proposals row, so the path could
+    // only ever 500. Detection of those rows is kept in GET (and they stay
+    // excluded from project listings) purely as a safety net.
     if (!proposal_id) return jsonError(400, 'proposal_id is required');
 
     if (action === 'withdraw') {

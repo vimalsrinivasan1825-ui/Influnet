@@ -5,8 +5,22 @@ import confetti from "canvas-confetti";
 import { Copy, Check, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/motion";
+import { apiFetch } from "@/lib/api-client";
 
-export function WelcomeModal({ username }: { username: string }) {
+/**
+ * The one-time "Account created!" card.
+ *
+ * `seen` comes from the account (profiles.welcome_seen_at). It used to be
+ * tracked in localStorage alone, which is per-browser — so the card came back
+ * on every new device, in private windows, and after clearing site data. It
+ * also only recorded itself in the close handler, so navigating away meant it
+ * returned on the next login.
+ *
+ * `seen` is undefined until migration 074 is applied; the localStorage check is
+ * kept as the fallback for that window, and as a belt-and-braces guard against
+ * a flash before the flag is persisted.
+ */
+export function WelcomeModal({ username, seen }: { username: string; seen?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [link, setLink] = useState("");
@@ -14,34 +28,38 @@ export function WelcomeModal({ username }: { username: string }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     setLink(`${window.location.origin}/c/${username}`);
-    
+
+    // The account already knows this card has been shown.
+    if (seen) return;
+
     const key = `influnet_welcome_shown_${username}`;
-    if (localStorage.getItem(key) !== "true") {
-      setIsOpen(true);
-      
-      // Fire confetti 3 times
-      let count = 0;
-      const interval = setInterval(() => {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          zIndex: 1000,
-        });
-        count++;
-        if (count >= 3) clearInterval(interval);
-      }, 1000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [username]);
+    if (localStorage.getItem(key) === "true") return;
+
+    setIsOpen(true);
+    // Recorded as soon as it is SHOWN, not when it is dismissed — otherwise
+    // navigating away brings it back next time.
+    localStorage.setItem(key, "true");
+    void apiFetch("/api/profile/welcome", { method: "POST" });
+
+    // Fire confetti 3 times
+    let count = 0;
+    const interval = setInterval(() => {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        zIndex: 1000,
+      });
+      count++;
+      if (count >= 3) clearInterval(interval);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [username, seen]);
 
   if (!isOpen) return null;
 
-  const handleClose = () => {
-    localStorage.setItem(`influnet_welcome_shown_${username}`, "true");
-    setIsOpen(false);
-  };
+  const handleClose = () => setIsOpen(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(link);

@@ -10,6 +10,11 @@ export interface InfluencerHomeData {
     avatar_url: string | null;
     bio: string | null;
     location: string | null;
+    /**
+     * Whether the signup welcome card has already been shown to this ACCOUNT.
+     * Undefined when migration 074 is not applied yet.
+     */
+    welcome_seen?: boolean;
   };
   stats: {
     collab_requests: number;

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import styles from './creator-profile.module.css';
 import type { CreatorProfileView } from '@/lib/public-profile/creator-profile';
@@ -171,7 +172,10 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
 
       <div className={styles.wrap}>
         <div className={styles.topbar}>
-          <Link href="/" className={styles.brand}><span className={styles.blogo}>i</span>influnet</Link>
+          <Link href="/" className={styles.brand}>
+            <Image src="/influet_logo.png" alt="Influnet Logo" width={32} height={32} style={{ borderRadius: '9px' }} />
+            influnet
+          </Link>
           <div className={styles.url}>
             <Ic d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8" /><b>{displayUrl}</b>
             <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>

@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
     // 1. Fetch profiles
     const [profileRes, inflProfileRes] = await Promise.all([
-      supabase.from('profiles').select('name, location').eq('id', user.id).single(),
+      supabase.from('profiles').select('name, location, welcome_seen_at').eq('id', user.id).single(),
       supabase.from('influencer_profiles').select('*').eq('user_id', user.id).single()
     ]);
 
@@ -111,6 +111,10 @@ export async function GET(req: Request) {
         avatar_url: null,
         bio: inflData?.bio || null,
         location: profileData?.location || null,
+        // Undefined (rather than false) when migration 074 has not been applied,
+        // so the modal falls back to its localStorage behaviour instead of
+        // greeting every existing user as brand new.
+        welcome_seen: profileData ? profileData.welcome_seen_at != null : undefined,
       },
       stats: {
         collab_requests: pending,

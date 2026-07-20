@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { styleForStatus } from "@/lib/project-status";
 
 export interface ProjectSummary {
   id: number;
@@ -96,15 +97,6 @@ export interface DealState {
   };
 }
 
-// What the deal is actually doing right now, for the header chip. The collab
-// request's own status ("accepted") only ever means "we agreed to talk", so it
-// must never be shown as if it described the project.
-const PROJECT_STATE: Record<string, { label: string; variant: 'success' | 'brand' | 'neutral' }> = {
-  active: { label: 'Project ongoing', variant: 'brand' },
-  completed: { label: 'Project completed', variant: 'success' },
-  cancelled: { label: 'Project cancelled', variant: 'neutral' },
-};
-
 const money = (v: unknown) =>
   v == null || v === "" ? null : `₹${Number(v).toLocaleString("en-IN")}`;
 
@@ -173,14 +165,13 @@ export function DealPanel({
 
   const respondToProposal = async (action: "accept" | "decline" | "withdraw") => {
     const proposalId = deal?.proposal?.id;
-    const legacyId = deal?.legacy_pending?.id;
-    if (!proposalId && !legacyId) return;
+    if (!proposalId) return;
     setBusy(true);
     try {
       const res = await apiFetch(`/api/conversations/${conversationId}/deal`, {
         method: "PATCH",
         body: JSON.stringify({
-          ...(proposalId ? { proposal_id: proposalId } : { legacy_project_id: legacyId }),
+          proposal_id: proposalId,
           action,
           ...(action === "decline" && declineNote.trim() ? { note: declineNote.trim() } : {}),
         }),
@@ -252,9 +243,9 @@ export function DealPanel({
         <span className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-brand">
           The deal
         </span>
-        {openProject && PROJECT_STATE[openProject.status] && (
-          <Badge variant={PROJECT_STATE[openProject.status].variant} size="sm" dot>
-            {PROJECT_STATE[openProject.status].label}
+        {openProject && (
+          <Badge variant={styleForStatus(openProject.status).variant} size="sm" dot>
+            Project ongoing
           </Badge>
         )}
         {pendingTerms && (
@@ -350,32 +341,29 @@ export function DealPanel({
                 Projects with {partner?.name || "this partner"}
               </p>
               {projects.map((p) => {
-                const state = PROJECT_STATE[p.status];
-                const done = p.status === "completed";
+                const style = styleForStatus(p.status);
                 return (
                   <Link
                     key={p.id}
                     href={`/dashboard/projects/${p.id}`}
                     className={cn(
-                      "flex items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors",
-                      done
-                        ? "border-hairline bg-surface-muted hover:border-content-muted"
-                        : "border-ok/30 bg-ok-soft hover:border-ok/60",
+                      "flex items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors hover:brightness-[0.98]",
+                      style.surface,
                     )}
                   >
-                    <FolderKanban className={cn("size-4 shrink-0", done ? "text-content-muted" : "text-ok")} />
+                    <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", style.chip)}>
+                      <FolderKanban className="size-4" />
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold text-content">{p.title}</span>
                       <span className="block text-xs text-content-soft">
-                        {state?.label ?? p.status}
+                        {style.label}
                         {money(p.budget) ? ` · ${money(p.budget)}` : ""}
                       </span>
                     </span>
-                    {state && (
-                      <Badge variant={state.variant} size="sm">
-                        {done ? "Completed" : "Ongoing"}
-                      </Badge>
-                    )}
+                    <Badge variant={style.variant} size="sm">
+                      {style.label}
+                    </Badge>
                   </Link>
                 );
               })}
@@ -418,7 +406,7 @@ export function DealPanel({
                 <p className="mt-1.5 text-xs italic text-content-soft">“{proposal.note}”</p>
               )}
 
-              {viewer.can_respond_to_proposal || viewer.can_respond_to_legacy_pending ? (
+              {viewer.can_respond_to_proposal ? (
                 declining ? (
                   <div className="mt-2.5 flex flex-col gap-2">
                     <Input

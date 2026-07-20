@@ -184,6 +184,16 @@ export default function ActivityPage() {
             lastDay = day;
             const style = STYLE[e.kind] ?? { icon: History, tone: "muted" };
             const Icon = style.icon;
+            // Milestones are what people scan for, so they carry the state
+            // colour on the whole row rather than just the icon.
+            const milestone =
+              e.kind === "project_completed"
+                ? "border border-ok/30 bg-ok-soft"
+                : e.kind === "project_started" || e.kind === "terms_accepted"
+                  ? "border border-brand/20 bg-brand-soft/40"
+                  : e.kind === "project_cancelled"
+                    ? "border border-hairline bg-surface-muted"
+                    : null;
             const time = new Date(e.at).toLocaleTimeString(undefined, {
               hour: "2-digit",
               minute: "2-digit",
@@ -193,7 +203,8 @@ export default function ActivityPage() {
               <div
                 className={cn(
                   "flex items-start gap-3 rounded-2xl px-3 py-3 transition-colors",
-                  e.link && "hover:bg-surface-muted",
+                  milestone ?? (e.link ? "hover:bg-surface-muted" : ""),
+                  milestone && e.link && "hover:brightness-[0.98]",
                 )}
               >
                 {/* The rail: icon plus a connecting line, so the sequence reads

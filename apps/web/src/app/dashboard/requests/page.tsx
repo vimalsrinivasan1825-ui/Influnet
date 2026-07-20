@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/ui/motion";
+import { cn } from "@/lib/utils";
 
 interface CollabRequest {
   id: string;
@@ -38,6 +39,8 @@ const DEAL_LABEL: Record<string, { label: string; variant: "success" | "brand" |
   cancelled: { label: "Cancelled", variant: "neutral" },
   in_discussion: { label: "In discussion", variant: "brand" },
   in_progress: { label: "Project ongoing", variant: "brand" },
+  // Green means finished, consistently with the projects list, the deal card
+  // and the activity feed — see lib/project-status.ts.
   completed: { label: "Completed", variant: "success" },
   project_cancelled: { label: "Project cancelled", variant: "neutral" },
 };
@@ -304,7 +307,12 @@ function RequestCard({
 
   return (
     <Reveal>
-      <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <Card
+        className={cn(
+          "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5",
+          finished && "border-ok/30 bg-ok-soft/40",
+        )}
+      >
         <div className="flex min-w-0 gap-3">
           <Avatar name={otherParty?.name} src={otherParty?.avatar_url} size="md" />
           <div className="min-w-0">
