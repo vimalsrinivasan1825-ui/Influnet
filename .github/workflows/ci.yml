@@ -9,8 +9,22 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [dev, main, refactor/monorepo]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/ci.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
   pull_request:
     branches: [dev, main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/ci.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
 
 env:
   NODE_VERSION: '22'

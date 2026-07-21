@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-prod.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
 
 jobs:
   promote-and-deploy:

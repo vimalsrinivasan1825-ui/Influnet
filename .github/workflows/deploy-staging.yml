@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - staging
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-staging.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.REGISTRY_LOGIN_SERVER }}

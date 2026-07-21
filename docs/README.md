@@ -36,6 +36,8 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | **Canonical.** Module map, per-module deep-dives, data-flow diagrams, API reference, DB schema, RLS overview. |
 | [DATA_MODEL.md](architecture/DATA_MODEL.md) | User data model: what's captured at registration/onboarding/edit, per-table fields, field checklists. |
 | [architecture.html](architecture/architecture.html) | Living visual architecture page (module cards + status pills + update log). Keep in sync with shipped behavior. |
+| [MOBILE_ARCHITECTURE_STRATEGY.md](architecture/MOBILE_ARCHITECTURE_STRATEGY.md) | High-level strategy for adding a React Native (Expo) mobile app: shared Supabase, monorepo shape, code-sharing model. |
+| [MOBILE_APP_PLAN.md](architecture/MOBILE_APP_PLAN.md) | **The detailed mobile build plan.** Codebase analysis, package extraction, mobile design system + component library, screen-by-screen redesign (tabs, stage timeline replacing Kanban), phased roadmap, risks. |
 
 ### operations/ — *running, securing, deploying, testing*
 | Doc | What's in it |
@@ -43,6 +45,7 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [SECURITY.md](operations/SECURITY.md) | **Canonical.** Auth/data-access model, PII column lockdown, RLS conventions, and the full security-audit history (every finding + status). |
 | [DEPLOYMENT.md](operations/DEPLOYMENT.md) | Cloud deployment runbook: prod Supabase, env vars, host setup, edge functions, Stream webhook, post-deploy smoke test, infra to-dos (Sentry/Upstash/backups). |
 | [QA_AND_GO_LIVE.md](operations/QA_AND_GO_LIVE.md) | Manual QA / test script (step-by-step, expected results) + "path to a solid product" checklist. |
+| [MOBILE_BUILD_STAGES.md](operations/MOBILE_BUILD_STAGES.md) | Mobile app build log: what each stage shipped, how it was verified, the remaining stages in order, and the Metro/dependency gotchas. |
 | [E2E_SYSTEM_FLOW_TEST.md](operations/E2E_SYSTEM_FLOW_TEST.md) | **Deep "nothing hidden" walkthrough.** Every flow (signup→link→discover→request→accept→12-stage project→chat) broken down as user-sees / does / backend / DB rows / verify-SQL, plus negative tests and what was verified live. |
 | [LAUNCH_CONFIDENCE_2026-07-14.md](operations/LAUNCH_CONFIDENCE_2026-07-14.md) | Pre-launch readiness report: app-health verification, the HikerAPI verification integration, and the human-only prerequisites (API balance, migrations). |
 | [SUPABASE.md](operations/SUPABASE.md) | Supabase project setup, auth email templates, field mapping (UI → DB). |
