@@ -17,7 +17,7 @@
     "@influnet/core": "*",
     "@influnet/tokens": "*",
     "@influnet/types": "*",
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "3.1.1",
     "@supabase/supabase-js": "^2.110.7",
     "date-fns": "^4.4.0",
     "expo": "~57.0.7",
@@ -36,15 +36,15 @@
     "expo-updates": "~57.0.8",
     "expo-web-browser": "~57.0.1",
     "lucide-react-native": "^1.25.0",
-    "react": "19.2.3",
+    "react": "19.2.7",
     "react-native": "0.86.0",
-    "react-native-gesture-handler": "~2.32.0",
-    "react-native-reanimated": "4.5.0",
-    "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2",
-    "react-native-svg": "15.15.4",
+    "react-native-gesture-handler": "~3.1.0",
+    "react-native-reanimated": "4.5.2",
+    "react-native-safe-area-context": "~5.8.0",
+    "react-native-screens": "4.26.2",
+    "react-native-svg": "15.15.5",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-worklets": "^0.10.2",
+    "react-native-worklets": "^0.11.1",
     "semver": "^7.8.5",
     "stream-chat": "^9.50.2",
     "zod": "^4.4.3",
@@ -52,6 +52,6 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "typescript": "~7.0.2"
   }
 }
