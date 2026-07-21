@@ -39,14 +39,13 @@ const secureAdapter = {
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
 
-export const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl ?? '';
-export const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey ?? '';
+export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl;
+export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey;
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? extra.apiBaseUrl;
 
-/** The web app origin that serves /api/*. */
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? extra.apiBaseUrl ?? 'http://localhost:3000';
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !API_BASE_URL) {
+  throw new Error('Missing environment variables. Check your EXPO_PUBLIC_* configuration or EAS secrets.');
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

@@ -20,9 +20,6 @@
       },
       "ios": {
         "simulator": false
-      },
-      "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://192.168.1.5:3000"
       }
     },
     "production": {
