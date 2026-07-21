@@ -41,6 +41,9 @@ export function createEndpoints(api: ApiClient) {
 
     // ── Conversations & deals ──────────────────────────────────────
     listConversations: <T = unknown>() => api.get<T>('/api/conversations'),
+    /** Opens (or returns) the conversation with another user. */
+    createConversation: <T = unknown>(body: { other_user_id: string }) =>
+      api.post<T>('/api/conversations', body),
     getConversation: <T = unknown>(id: string) => api.get<T>(`/api/conversations/${id}`),
     listMessages: <T = unknown>(id: string) => api.get<T>(`/api/conversations/${id}/messages`),
     sendMessage: <T = unknown>(id: string, body: unknown) =>

@@ -39,7 +39,7 @@ export default function CreatorDetail() {
   // Discover's `id` filter returns exactly this creator, through the same
   // SECURITY DEFINER search the list uses — so no extra route is needed.
   const { data, error, loading, refreshing, refresh } = useFetch(() =>
-    endpoints.discover<{ results: CreatorResult[] }>(`id=${encodeURIComponent(id)}`)
+    endpoints.discover<{ results: CreatorResult[] }>(`id=${encodeURIComponent(id)}`), { cacheKey: `creator:${id}` }
   );
 
   const creator = data?.results?.[0];

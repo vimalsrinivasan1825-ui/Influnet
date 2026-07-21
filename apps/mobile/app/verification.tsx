@@ -41,7 +41,7 @@ export default function VerificationScreen() {
   const [copied, setCopied] = useState(false);
 
   const { data, error, loading, refresh } = useFetch(() =>
-    endpoints.checkOwnershipStatus<ClaimState>()
+    endpoints.checkOwnershipStatus<ClaimState>(), { cacheKey: 'verification' }
   );
 
   const verified = profile?.verified_badge || data?.status === 'verified';

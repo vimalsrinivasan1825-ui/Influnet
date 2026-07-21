@@ -1,15 +1,19 @@
 /**
  * First screen. The store listing is the marketing page, so this does one job:
  * say what Influnet is in a line and fork by who you are.
+ *
+ * Centred and mark-led, matching the launch animation that precedes it — the
+ * logo lands in roughly the place it just animated to, so the app opens as one
+ * continuous movement rather than a splash followed by an unrelated form.
  */
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Building2, Sparkles } from 'lucide-react-native';
 import { accents } from '@influnet/tokens';
 import { useTheme } from '@/lib/theme';
+import { AuthHeader } from '@/components/brand/auth-header';
 import { Button, Card, Screen, Txt } from '@/components/ui';
-import { Pressable } from 'react-native';
 
 function RoleCard({
   title,
@@ -68,20 +72,26 @@ export default function Welcome() {
   const insets = useSafeAreaInsets();
 
   return (
-    <Screen style={{ paddingTop: insets.top + t.spacing['4xl'] }}>
-      <View style={{ flex: 1, justifyContent: 'space-between', paddingBottom: insets.bottom + t.spacing.xl }}>
-        <View style={{ gap: t.spacing.md }}>
-          <Txt variant="display" style={{ letterSpacing: -0.8 }}>
-            Influnet
-          </Txt>
-          <Txt variant="title3" tone="soft" style={{ fontWeight: '400' }}>
-            Where brands and creators run campaigns end to end — discovery,
-            terms, delivery and payment in one place.
-          </Txt>
-        </View>
+    <Screen style={{ paddingTop: insets.top + t.spacing['3xl'] }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'space-between',
+          paddingBottom: insets.bottom + t.spacing.xl,
+        }}
+      >
+        <AuthHeader
+          title="Influnet"
+          subtitle="Where brands and creators run campaigns end to end — discovery, terms, delivery and payment in one place."
+        />
 
         <View style={{ gap: t.spacing.md }}>
-          <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+          <Txt
+            variant="caption"
+            tone="muted"
+            center
+            style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}
+          >
             Get started as
           </Txt>
 
@@ -102,9 +112,11 @@ export default function Welcome() {
           />
         </View>
 
-        <View style={{ gap: t.spacing.sm }}>
-          <Button label="I already have an account" variant="secondary" onPress={() => router.push('/login')} />
-        </View>
+        <Button
+          label="I already have an account"
+          variant="secondary"
+          onPress={() => router.push('/login')}
+        />
       </View>
     </Screen>
   );

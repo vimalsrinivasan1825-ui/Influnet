@@ -6,6 +6,7 @@ import { Pressable } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/session';
+import { AuthHeader } from '@/components/brand/auth-header';
 import { Button, Field, ScreenScroll, Txt } from '@/components/ui';
 
 export default function Login() {
@@ -52,8 +53,14 @@ export default function Login() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing.xl, gap: t.spacing.lg }}>
-        <Txt variant="title1">Welcome back</Txt>
+      <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing['2xl'], gap: t.spacing.lg }}>
+        <AuthHeader
+          title="Welcome back"
+          subtitle="Sign in to pick up where you left off."
+          compact
+        />
+
+        <View style={{ height: t.spacing.sm }} />
 
         <Field
           label="Email"
@@ -61,7 +68,13 @@ export default function Login() {
           onChangeText={setEmail}
           autoCapitalize="none"
           autoComplete="email"
-          keyboardType="email-address"
+          // No keyboardType. "email-address" was the only thing that made this
+          // field differ from the password field below — same component, same
+          // everything else — and it was the one where the caret went missing
+          // and text could not be repositioned. Android maps it to
+          // TYPE_TEXT_VARIATION_EMAIL_ADDRESS, which third-party keyboards
+          // handle inconsistently. The cost is the dedicated "@" key; autofill
+          // and lower-casing still work via autoComplete/autoCapitalize.
           placeholder="you@company.com"
           textContentType="emailAddress"
         />

@@ -5,13 +5,17 @@
  * daily drivers get tabs and the maintenance surfaces (connections, activity,
  * settings, verification) live under Profile as pushed screens.
  *
- * Creators get Requests — inbound demand is their job. Businesses get Discover
- * — outbound search is theirs. Everything else is shared.
+ * Both roles get the same five, because a collaboration request is one object
+ * seen from two ends — creators read the inbox, brands read the outbox. There
+ * is no Discover tab: the web has that feature switched off too (see
+ * business-home.tsx), and shipping a search surface here that the product
+ * doesn't stand behind would put mobile ahead of web on the one flow they
+ * must agree on.
  */
 import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import {
-  Compass,
   FolderKanban,
   Home,
   MessageSquare,
@@ -51,6 +55,13 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      // A tick under the thumb on every tab change. Selection feedback is the
+      // lightest haptic there is — right for something you do constantly.
+      screenListeners={{
+        tabPress: () => {
+          void Haptics.selectionAsync();
+        },
+      }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: t.color.brand,
@@ -76,21 +87,14 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
-        name="discover"
-        options={{
-          title: 'Discover',
-          // Creators don't search for creators.
-          href: isCreator ? null : '/discover',
-          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
-        }}
-      />
-
-      <Tabs.Screen
         name="requests"
         options={{
-          title: 'Requests',
-          href: isCreator ? '/requests' : null,
-          tabBarBadge: badge(summary?.pending_requests_count),
+          title: isCreator ? 'Requests' : 'Sent',
+          // Both roles get this tab now that Discover has gone: creators read
+          // the inbox, brands read their outbox. The badge stays creator-only —
+          // it counts requests awaiting *your* reply, and a brand's own
+          // outgoing requests are never waiting on them.
+          tabBarBadge: isCreator ? badge(summary?.pending_requests_count) : undefined,
           tabBarIcon: ({ color, size }) => <Send color={color} size={size} />,
         }}
       />

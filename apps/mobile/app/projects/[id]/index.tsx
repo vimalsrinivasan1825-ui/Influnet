@@ -40,7 +40,7 @@ export default function ProjectDetailScreen() {
   const me = useSession((s) => s.profile?.id);
 
   const { data, error, loading, refreshing, refresh } = useFetch(() =>
-    endpoints.getProject<{ project: ProjectDetail }>(id)
+    endpoints.getProject<{ project: ProjectDetail }>(id), { cacheKey: `project:${id}` }
   );
 
   const project = data?.project;

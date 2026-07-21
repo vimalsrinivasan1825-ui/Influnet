@@ -6,6 +6,7 @@ import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import { timeAgo } from '@/lib/format';
+import { toMobileHref } from '@/lib/notification-link';
 import {
   EmptyState,
   ErrorState,
@@ -29,11 +30,14 @@ export default function NotificationsScreen() {
   const t = useTheme();
   const router = useRouter();
 
+  // /api/notifications returns the rows as a bare array, not an envelope.
+  // Accept either so a later route change to { notifications } can't silently
+  // empty this screen again.
   const { data, error, loading, refreshing, refresh } = useFetch(() =>
-    endpoints.listNotifications<{ notifications: Notification[] }>()
+    endpoints.listNotifications<Notification[] | { notifications: Notification[] }>(), { cacheKey: 'notifications' }
   );
 
-  const notifications = data?.notifications ?? [];
+  const notifications = Array.isArray(data) ? data : (data?.notifications ?? []);
 
   // Opening the screen is the read receipt — no separate "mark all" chore.
   useEffect(() => {
@@ -42,7 +46,11 @@ export default function NotificationsScreen() {
   }, [notifications]);
 
   return (
-    <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
+    <ScreenScroll
+      refreshing={refreshing}
+      onRefresh={refresh}
+      centerShort={notifications.length <= 3}
+    >
       {loading ? (
         <SkeletonCard />
       ) : error ? (
@@ -55,26 +63,33 @@ export default function NotificationsScreen() {
         />
       ) : (
         <ListGroup>
-          {notifications.map((n, i) => (
-            <ListRow
-              key={n.id}
-              title={n.title ?? 'Update'}
-              subtitle={`${n.body ? `${n.body} · ` : ''}${timeAgo(n.created_at)}`}
-              left={
-                <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: n.read_at ? 'transparent' : t.color.brand,
-                  }}
-                />
-              }
-              showChevron={!!n.link}
-              style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
-              onPress={n.link ? () => router.push(n.link as never) : undefined}
-            />
-          ))}
+          {notifications.map((n, i) => {
+            // Stored links are web dashboard paths; only follow the ones that
+            // map onto a screen this app has.
+            const href = toMobileHref(n.link);
+
+            return (
+              <ListRow
+                key={n.id}
+                title={n.title ?? 'Update'}
+                subtitle={`${n.body ? `${n.body} · ` : ''}${timeAgo(n.created_at)}`}
+                left={
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: n.read_at ? 'transparent' : t.color.brand,
+                    }}
+                  />
+                }
+                showChevron={!!href}
+                index={i}
+                style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
+                onPress={href ? () => router.push(href) : undefined}
+              />
+            );
+          })}
         </ListGroup>
       )}
     </ScreenScroll>

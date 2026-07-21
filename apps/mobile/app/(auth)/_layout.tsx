@@ -13,8 +13,11 @@ export default function AuthLayout() {
       }}
     >
       <Stack.Screen name="welcome" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ title: 'Sign in' }} />
-      <Stack.Screen name="signup/index" options={{ title: 'Create account' }} />
+      {/* No header title on the two mark-led screens — the AuthHeader below it
+          already names the screen, and printing it twice looked like chrome
+          nobody designed. The bare chevron keeps the back gesture discoverable. */}
+      <Stack.Screen name="login" options={{ title: '' }} />
+      <Stack.Screen name="signup/index" options={{ title: '' }} />
       <Stack.Screen name="signup/creator" options={{ title: 'Creator sign-up' }} />
       <Stack.Screen name="signup/business" options={{ title: 'Business sign-up' }} />
       <Stack.Screen name="pending" options={{ headerShown: false }} />

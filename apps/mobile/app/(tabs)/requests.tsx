@@ -1,8 +1,14 @@
-import { useMemo, useState } from 'react';
+/**
+ * Collaboration requests.
+ *
+ * A request only ever travels one way — a brand asks a creator — so the two
+ * roles need opposite halves of the same list and never both. Creators see what
+ * came in; brands see what they sent. The Incoming/Sent toggle that used to sit
+ * here was offering everyone a tab that was always empty for them.
+ */
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Inbox } from 'lucide-react-native';
-import type { CollabRequest } from '@influnet/types';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -18,16 +24,29 @@ import {
   ListRow,
   Screen,
   ScreenScroll,
-  SegmentedControl,
   SkeletonCard,
-  VerifiedBadge,
 } from '@/components/ui';
 
-/** The list rows carry the annotations the collabs route adds. */
-type AnnotatedCollab = CollabRequest & {
-  deal_state: string;
+/**
+ * A row from /api/collabs.
+ *
+ * The route embeds the two profiles as `sender` and `receiver` — NOT as the
+ * `from_user` / `to_user` that @influnet/types declares. Reading the declared
+ * names is why every row rendered as "Someone". Each embed selects only
+ * `name, role`, so there is no avatar or company name to show here.
+ */
+interface CollabRow {
+  id: string;
+  from_user_id: string;
+  to_user_id: string;
+  budget: number | null;
+  status: string;
+  created_at: string;
+  sender?: { name: string | null; role: string | null } | null;
+  receiver?: { name: string | null; role: string | null } | null;
+  deal_state?: string;
   project: { id: string; title: string; status: string } | null;
-};
+}
 
 const STATE_TONE: Record<string, 'ok' | 'warn' | 'brand' | 'neutral' | 'danger'> = {
   pending: 'warn',
@@ -53,40 +72,26 @@ export default function RequestsScreen() {
   const t = useTheme();
   const router = useRouter();
   const me = useSession((s) => s.profile?.id);
-
-  const [tab, setTab] = useState<'incoming' | 'sent'>('incoming');
+  const isCreator = useSession((s) => s.profile?.role) === 'influencer';
 
   const { data, error, loading, refreshing, refresh } = useFetch(() =>
-    endpoints.listCollabs<{ collabs: AnnotatedCollab[] }>()
+    endpoints.listCollabs<{ collabs: CollabRow[] }>(), { cacheKey: 'requests' }
   );
 
-  const { incoming, sent } = useMemo(() => {
-    const all = data?.collabs ?? [];
-    return {
-      incoming: all.filter((c) => c.to_user_id === me),
-      sent: all.filter((c) => c.from_user_id === me),
-    };
-  }, [data, me]);
-
-  const rows = tab === 'incoming' ? incoming : sent;
-  const pendingIncoming = incoming.filter((c) => c.status === 'pending').length;
+  // Creators read the inbox; brands read their outbox. Falling back to "show
+  // everything" while the profile is still loading would flash the wrong half.
+  const rows = (data?.collabs ?? []).filter((c) =>
+    isCreator ? c.to_user_id === me : c.from_user_id === me
+  );
 
   return (
     <Screen padded={false}>
-      <AppHeader title="Requests" showBell={false} />
-
-      <View style={{ paddingHorizontal: t.spacing.screen, paddingBottom: t.spacing.sm }}>
-        <SegmentedControl
-          value={tab}
-          onChange={setTab}
-          segments={[
-            { value: 'incoming', label: 'Incoming', count: pendingIncoming },
-            { value: 'sent', label: 'Sent' },
-          ]}
-        />
-      </View>
-
-      <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
+      <ScreenScroll
+        header={<AppHeader title={isCreator ? 'Requests' : 'Sent requests'} showBell={false} />}
+        refreshing={refreshing}
+        onRefresh={refresh}
+        centerShort={rows.length <= 3}
+      >
         {loading ? (
           <>
             <SkeletonCard />
@@ -97,43 +102,37 @@ export default function RequestsScreen() {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={<Inbox size={24} color={t.color.brand} />}
-            title={tab === 'incoming' ? 'No requests yet' : "You haven't sent any requests"}
+            title={isCreator ? 'No requests yet' : "You haven't sent any requests"}
             body={
-              tab === 'incoming'
+              isCreator
                 ? 'When a brand wants to work with you, it lands here.'
-                : 'Find a creator who fits and send them the brief.'
+                : 'Requests you send to creators will show up here, with their replies.'
             }
-            actionLabel={tab === 'sent' ? 'Find creators' : undefined}
-            onAction={() => router.push('/discover')}
           />
         ) : (
           <ListGroup>
             {rows.map((c, i) => {
-              const other = tab === 'incoming' ? c.from_user : c.to_user;
+              // The other party is whichever end of the request isn't you.
+              const other = isCreator ? c.sender : c.receiver;
               const state = c.deal_state ?? c.status;
+
               return (
                 <ListRow
                   key={c.id}
-                  title={other?.company_name || other?.name || 'Someone'}
+                  title={other?.name || 'Someone'}
                   subtitle={`${c.budget ? `${formatCurrency(c.budget)} · ` : ''}${timeAgo(c.created_at)}`}
-                  left={
-                    <View>
-                      <Avatar uri={other?.avatar_url} name={other?.name ?? other?.company_name} />
-                      {other?.verified ? (
-                        <View style={{ position: 'absolute', bottom: -2, right: -2 }}>
-                          <VerifiedBadge size={14} />
-                        </View>
-                      ) : null}
+                  left={<Avatar name={other?.name ?? undefined} />}
+                  right={
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                      <Badge
+                        label={STATE_LABEL[state] ?? state}
+                        tone={STATE_TONE[state] ?? 'neutral'}
+                      />
                     </View>
                   }
-                  right={
-                    <Badge
-                      label={STATE_LABEL[state] ?? state}
-                      tone={STATE_TONE[state] ?? 'neutral'}
-                    />
-                  }
+                  index={i}
                   style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
-                  onPress={() => router.push(`/requests/${c.id}`)}
+                  onPress={() => router.push({ pathname: '/requests/[id]', params: { id: c.id } })}
                 />
               );
             })}

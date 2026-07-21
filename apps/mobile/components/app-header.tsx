@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Txt } from '@/components/ui';
+import { Logo } from '@/components/brand/logo';
 
 /** Large-title header with the notification bell. Used on tab roots. */
 export function AppHeader({
@@ -12,6 +13,7 @@ export function AppHeader({
   avatarUri,
   avatarName,
   showBell = true,
+  showLogo = true,
   unread,
 }: {
   title: string;
@@ -19,6 +21,8 @@ export function AppHeader({
   avatarUri?: string | null;
   avatarName?: string | null;
   showBell?: boolean;
+  /** The mark on the left. On by default — it's how the app signs its screens. */
+  showLogo?: boolean;
   unread?: number;
 }) {
   const t = useTheme();
@@ -28,22 +32,35 @@ export function AppHeader({
   return (
     <View
       style={{
-        paddingTop: insets.top + t.spacing.sm,
-        paddingBottom: t.spacing.md,
+        // Tight to the status bar. The large title carries the weight here, so
+        // extra padding above it just pushed content down the screen.
+        paddingTop: insets.top + 2,
+        paddingBottom: t.spacing.sm,
         paddingHorizontal: t.spacing.screen,
         flexDirection: 'row',
         alignItems: 'center',
         gap: t.spacing.md,
-        backgroundColor: t.color.surface,
+        // Deliberately transparent. An opaque fill here cut a grey band
+        // straight through the screen's gradient wash.
       }}
     >
+      {showLogo ? <Logo size={30} /> : null}
+
       <View style={{ flex: 1, gap: 2 }}>
         {subtitle ? (
           <Txt variant="footnote" tone="muted">
             {subtitle}
           </Txt>
         ) : null}
-        <Txt variant="title1" numberOfLines={1} style={{ letterSpacing: -0.4 }}>
+        {/* Long names get the next size down AND a second line rather than an
+            ellipsis. A person's own name truncated to "Vimalsrinivasan Rangan…"
+            in the largest type on the screen is the most conspicuous thing on
+            it — two lines costs a little height and reads correctly. */}
+        <Txt
+          variant={title.length > 16 ? 'title2' : 'title1'}
+          numberOfLines={2}
+          style={{ letterSpacing: -0.4 }}
+        >
           {title}
         </Txt>
       </View>

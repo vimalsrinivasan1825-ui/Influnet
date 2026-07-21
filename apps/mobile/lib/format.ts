@@ -7,6 +7,20 @@ export function formatCurrency(value?: number | null): string {
   return `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value)}`;
 }
 
+/**
+ * Compact money for chart labels, where "₹1,50,000" would not fit under a bar.
+ * Same Indian units as formatCount — lakh and crore, not millions.
+ */
+export function formatCompactCurrency(value?: number | null): string {
+  if (value === null || value === undefined) return '—';
+  if (value === 0) return '₹0';
+  const abs = Math.abs(value);
+  if (abs >= 10_000_000) return `₹${(value / 10_000_000).toFixed(1)}Cr`;
+  if (abs >= 100_000) return `₹${(value / 100_000).toFixed(1)}L`;
+  if (abs >= 1_000) return `₹${Math.round(value / 1_000)}K`;
+  return `₹${value}`;
+}
+
 /** Compact follower counts: 12.4K, 1.2M. */
 export function formatCount(value?: number | null): string {
   if (value === null || value === undefined) return '—';

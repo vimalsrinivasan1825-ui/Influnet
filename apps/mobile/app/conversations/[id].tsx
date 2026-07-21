@@ -6,24 +6,154 @@ import {
   Pressable,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Handshake, SendHorizontal } from 'lucide-react-native';
+import type { Channel, LocalMessage, MessageResponse } from 'stream-chat';
 import type { Message } from '@influnet/types';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
-import { supabase } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
+import { getConversationChannel, isStreamConfigured } from '@/lib/stream';
 import { formatCurrency, timeAgo } from '@/lib/format';
+
+/** Stream hands back slightly different message types by call site. */
+type StreamMessage = MessageResponse | LocalMessage;
 import { Button, Card, Field, Sheet, Txt, type SheetRef } from '@/components/ui';
 
+/**
+ * As /api/conversations/[id]/deal actually sends it.
+ *
+ * There is no `deal` key: the route reports the negotiation as its separate
+ * moving parts — a pending `proposal`, a `legacy_pending` project awaiting
+ * acceptance, the live `projects`, and a `viewer` block of permissions. Reading
+ * a `deal` object meant this card never appeared at all.
+ */
 interface DealPayload {
-  deal?: {
-    status?: string;
-    budget?: number | null;
-    deliverables?: string | null;
-    project_id?: string | null;
+  /** The person on the other end — needed to open the Stream channel. */
+  other_user_id?: string | null;
+  request?: { id: string; status: string } | null;
+  projects?: { id: string; title: string; budget: number | null; status: string }[];
+  proposal?: {
+    id: string;
+    title: string;
+    description: string | null;
+    budget: number | null;
+    proposed_by: string;
   } | null;
+  legacy_pending?: { id: string; title: string; budget: number | null } | null;
+  viewer?: { awaiting_me?: boolean; can_respond_to_proposal?: boolean };
+}
+
+/**
+ * One bubble, whichever backend it came from.
+ *
+ * Postgres holds the pre-Stream history and Stream holds everything since, so
+ * the list renders a single normalised shape rather than branching per source.
+ */
+interface ChatMessage {
+  id: string;
+  body: string;
+  sender_user_id: string;
+  created_at: string;
+  deleted: boolean;
+}
+
+function fromPostgres(m: Message): ChatMessage {
+  return {
+    id: m.id,
+    body: m.body,
+    sender_user_id: m.sender_user_id,
+    created_at: m.created_at,
+    deleted: !!m.deleted,
+  };
+}
+
+function fromStream(m: StreamMessage): ChatMessage {
+  const at = m.created_at;
+  return {
+    id: m.id,
+    body: m.text ?? '',
+    sender_user_id: m.user?.id ?? '',
+    created_at: at instanceof Date ? at.toISOString() : (at ?? new Date().toISOString()),
+    deleted: !!m.deleted_at || m.type === 'deleted',
+  };
+}
+
+/**
+ * Legacy history then live messages, in time order and deduped by id.
+ *
+ * The two sources don't overlap today, but ordering by timestamp rather than by
+ * source means they'd still interleave correctly if they ever did.
+ */
+function mergeMessages(legacy: ChatMessage[], live: ChatMessage[]): ChatMessage[] {
+  const byId = new Map<string, ChatMessage>();
+  for (const m of [...legacy, ...live]) byId.set(m.id, m);
+  return [...byId.values()].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+}
+
+/** What the card renders — folded down from the parts above. */
+interface DealSummary {
+  status: string;
+  budget: number | null;
+  deliverables: string | null;
+  projectId: string | null;
+  /** True when the other side has put something to you. */
+  awaitingMe: boolean;
+}
+
+/**
+ * Pick the one thing worth saying about this collaboration right now, most
+ * urgent first: terms on the table beat work in progress beats small talk.
+ */
+function summariseDeal(payload: DealPayload | null): DealSummary | null {
+  if (!payload) return null;
+  const awaitingMe = !!payload.viewer?.awaiting_me;
+
+  if (payload.proposal) {
+    return {
+      status: awaitingMe ? 'Terms proposed to you' : 'Terms sent — awaiting reply',
+      budget: payload.proposal.budget,
+      deliverables: payload.proposal.description,
+      projectId: null,
+      awaitingMe,
+    };
+  }
+
+  if (payload.legacy_pending) {
+    return {
+      status: awaitingMe ? 'Project awaiting your approval' : 'Project awaiting approval',
+      budget: payload.legacy_pending.budget,
+      deliverables: payload.legacy_pending.title,
+      projectId: null,
+      awaitingMe,
+    };
+  }
+
+  const live = payload.projects?.[0];
+  if (live) {
+    return {
+      status: 'Project in progress',
+      budget: live.budget,
+      deliverables: live.title,
+      projectId: live.id,
+      awaitingMe: false,
+    };
+  }
+
+  if (payload.request?.status === 'accepted') {
+    return {
+      status: 'Talking — no terms yet',
+      budget: null,
+      deliverables: null,
+      projectId: null,
+      awaitingMe: false,
+    };
+  }
+
+  return null;
 }
 
 export default function ConversationScreen() {
@@ -34,11 +164,18 @@ export default function ConversationScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const me = useSession((s) => s.profile?.id);
 
-  const listRef = useRef<FlatList<Message>>(null);
+  const listRef = useRef<FlatList<ChatMessage>>(null);
   const dealSheet = useRef<SheetRef>(null);
+  const channelRef = useRef<Channel | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [deal, setDeal] = useState<DealPayload['deal']>(null);
+  /** Pre-Stream history, read once from Postgres. */
+  const [legacy, setLegacy] = useState<ChatMessage[]>([]);
+  /** Live messages from the Stream channel. */
+  const [live, setLive] = useState<ChatMessage[]>([]);
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  const [deal, setDeal] = useState<DealSummary | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -46,62 +183,109 @@ export default function ConversationScreen() {
     navigation.setOptions({ title: name ?? 'Chat' });
   }, [navigation, name]);
 
+  const messages = mergeMessages(legacy, live);
+
+  /**
+   * Join the Stream channel this conversation maps to, and keep it live.
+   *
+   * Everything sent from the web dashboard lands here, not in Postgres — see
+   * lib/stream.ts. Failing to connect costs the live thread but leaves the
+   * legacy history and the deal card intact.
+   */
+  const connectChat = useCallback(
+    async (otherUserId: string) => {
+      if (channelRef.current) return;
+
+      if (!isStreamConfigured()) {
+        setChatError('Chat is not configured in this build.');
+        return;
+      }
+
+      const channel = await getConversationChannel(id, otherUserId);
+      if (!channel) {
+        setChatError("Couldn't connect to chat. Pull down to try again.");
+        return;
+      }
+
+      channelRef.current = channel;
+      setChatError(null);
+      setLive((channel.state.messages ?? []).map(fromStream));
+
+      const subscription = channel.on('message.new', (event) => {
+        if (!event.message) return;
+        const incoming = fromStream(event.message);
+        setLive((prev) =>
+          prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]
+        );
+      });
+      unsubscribeRef.current = subscription.unsubscribe;
+    },
+    [id]
+  );
+
+  /**
+   * Legacy history + the deal card. Both come from our own API and neither
+   * depends on Stream being reachable.
+   */
   const load = useCallback(async () => {
     const [msgRes, dealRes] = await Promise.all([
       endpoints.listMessages<{ messages: Message[] }>(id),
       endpoints.getDeal<DealPayload>(id),
     ]);
-    if (msgRes.ok) setMessages(msgRes.data?.messages ?? []);
-    if (dealRes.ok) setDeal(dealRes.data?.deal ?? null);
-  }, [id]);
+
+    if (msgRes.ok) setLegacy((msgRes.data?.messages ?? []).map(fromPostgres));
+    if (dealRes.ok) {
+      setDeal(summariseDeal(dealRes.data));
+      // other_user_id is the only place the API tells us who to open the
+      // channel with, so the chat connection hangs off this response.
+      const otherUserId = dealRes.data?.other_user_id;
+      if (otherUserId) void connectChat(otherUserId);
+    }
+  }, [id, connectChat]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  /**
-   * Live updates straight from Postgres. The messages table is the source of
-   * truth (the API just reads and writes it), so a Realtime subscription on
-   * the row insert is the whole feature — no polling, no extra service.
-   */
-  useEffect(() => {
-    const channel = supabase
-      .channel(`messages:${id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
-        (payload) => {
-          const incoming = payload.new as Message;
-          setMessages((prev) =>
-            prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]
-          );
-        }
-      )
-      .subscribe();
+  // Anything that landed while this screen was backgrounded — or while the
+  // socket was down on a flaky connection — is only picked up by re-reading.
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+      const channel = channelRef.current;
+      if (channel) {
+        void channel.watch().then(() => setLive((channel.state.messages ?? []).map(fromStream)));
+      }
+    }, [load])
+  );
 
+  // Leave the channel behind on the way out so its socket handlers don't
+  // outlive the screen.
+  useEffect(() => {
     return () => {
-      void supabase.removeChannel(channel);
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+      channelRef.current = null;
     };
   }, [id]);
 
   async function send() {
     const body = draft.trim();
-    if (!body) return;
+    const channel = channelRef.current;
+    if (!body || !channel) return;
 
     setSending(true);
     setDraft('');
 
-    const res = await endpoints.sendMessage<{ message: Message }>(id, { content: body });
-    setSending(false);
-
-    if (!res.ok) {
+    try {
+      // Stream echoes the sent message back through `message.new`, so there is
+      // nothing to append here.
+      await channel.sendMessage({ text: body });
+    } catch {
       // Put the text back rather than losing what they typed.
       setDraft(body);
-      return;
-    }
-    const sent = res.data?.message;
-    if (sent) {
-      setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]));
+    } finally {
+      setSending(false);
     }
   }
 
@@ -122,19 +306,39 @@ export default function ConversationScreen() {
               gap: t.spacing.sm,
               paddingHorizontal: t.spacing.screen,
               paddingVertical: t.spacing.md,
-              backgroundColor: t.color.brandSoft,
+              // Something waiting on you gets the warm tint; everything else
+              // stays in brand so the bar isn't crying wolf on every open.
+              backgroundColor: deal.awaitingMe ? t.color.warnSoft : t.color.brandSoft,
               borderBottomWidth: 1,
               borderBottomColor: t.color.hairline,
             }}
           >
-            <Handshake size={17} color={t.color.brand} />
-            <Txt variant="footnote" style={{ flex: 1, color: t.color.brandStrong }} numberOfLines={1}>
-              {deal.status === 'agreed' ? 'Terms agreed' : 'Negotiating'}
+            <Handshake size={17} color={deal.awaitingMe ? t.color.warn : t.color.brand} />
+            <Txt
+              variant="footnote"
+              style={{ flex: 1, color: deal.awaitingMe ? t.color.warn : t.color.brandStrong }}
+              numberOfLines={1}
+            >
+              {deal.status}
               {deal.budget ? ` · ${formatCurrency(deal.budget)}` : ''}
             </Txt>
-            <ChevronRight size={16} color={t.color.brand} />
+            <ChevronRight size={16} color={deal.awaitingMe ? t.color.warn : t.color.brand} />
           </View>
         </Pressable>
+      ) : null}
+
+      {chatError ? (
+        <View
+          style={{
+            paddingHorizontal: t.spacing.screen,
+            paddingVertical: t.spacing.sm,
+            backgroundColor: t.color.warnSoft,
+          }}
+        >
+          <Txt variant="footnote" tone="warn" center>
+            {chatError}
+          </Txt>
+        </View>
       ) : null}
 
       <FlatList
@@ -204,13 +408,15 @@ export default function ConversationScreen() {
           containerStyle={{ flex: 1 }}
           value={draft}
           onChangeText={setDraft}
-          placeholder="Write a message"
+          // Sending needs the channel, so say so rather than letting someone
+          // type a message that has nowhere to go.
+          placeholder={channelRef.current ? 'Write a message' : 'Connecting…'}
           multiline
           style={{ minHeight: 44, maxHeight: 120 }}
         />
         <Pressable
           onPress={send}
-          disabled={!draft.trim() || sending}
+          disabled={!draft.trim() || sending || !channelRef.current}
           accessibilityRole="button"
           accessibilityLabel="Send message"
           style={{
@@ -219,7 +425,8 @@ export default function ConversationScreen() {
             borderRadius: 23,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: draft.trim() ? t.color.brand : t.color.hairlineStrong,
+            backgroundColor:
+              draft.trim() && channelRef.current ? t.color.brand : t.color.hairlineStrong,
           }}
         >
           <SendHorizontal size={19} color={t.color.white} />
@@ -253,16 +460,19 @@ export default function ConversationScreen() {
         </Card>
 
         <Txt variant="footnote" tone="muted">
-          Nothing is committed until you both approve a project. Agree the scope
-          here first.
+          {deal?.awaitingMe
+            ? // Responding to terms is a web-only flow for now, and saying so
+              // beats a button that silently does nothing.
+              'Terms are waiting on you. Accept or decline them from the Influnet web app — that flow is not in the mobile app yet.'
+            : 'Nothing is committed until you both approve a project. Agree the scope here first.'}
         </Txt>
 
-        {deal?.project_id ? (
+        {deal?.projectId ? (
           <Button
             label="Open the project"
             onPress={() => {
               dealSheet.current?.close();
-              router.push(`/projects/${deal.project_id}`);
+              router.push({ pathname: '/projects/[id]', params: { id: deal.projectId! } });
             }}
           />
         ) : null}

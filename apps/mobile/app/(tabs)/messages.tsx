@@ -1,11 +1,28 @@
+/**
+ * Messages.
+ *
+ * Two sections, matching the web sidebar: the projects you're actively working
+ * on, then every chat. Mobile used to render conversations only and treat
+ * projects as mere enrichment, so a project whose chat hadn't been opened yet
+ * was invisible here — which is why this screen showed fewer rows than web.
+ *
+ * A project without a conversation_id has no chat yet. Web shows a "+" and
+ * creates one on tap; so does this.
+ */
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MessageSquare } from 'lucide-react-native';
-import type { Conversation } from '@influnet/types';
+import { FolderKanban, MessageSquare, Plus } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
-import { useFetch } from '@/lib/use-fetch';
+import { useFetch, invalidateFetchCache } from '@/lib/use-fetch';
 import { timeAgo } from '@/lib/format';
+import {
+  toConversationRows,
+  type RawConversation,
+  type RawConversationProject,
+} from '@/lib/conversations';
 import { AppHeader } from '@/components/app-header';
 import {
   Avatar,
@@ -15,26 +32,70 @@ import {
   ListRow,
   Screen,
   ScreenScroll,
+  SectionLabel,
   SkeletonCard,
   Txt,
-  VerifiedBadge,
 } from '@/components/ui';
 
 export default function MessagesScreen() {
   const t = useTheme();
   const router = useRouter();
+  const myUserId = useSession((s) => s.session?.user.id);
 
-  const { data, error, loading, refreshing, refresh } = useFetch(() =>
-    endpoints.listConversations<{ conversations: Conversation[] }>()
+  const [opening, setOpening] = useState<number | null>(null);
+
+  const { data, error, loading, refreshing, refresh } = useFetch(
+    () =>
+      endpoints.listConversations<{
+        conversations: RawConversation[];
+        projects: RawConversationProject[];
+      }>(),
+    { cacheKey: 'conversations' }
   );
 
-  const conversations = data?.conversations ?? [];
+  const chats = toConversationRows(data?.conversations, data?.projects, myUserId);
+  const projects = data?.projects ?? [];
+
+  /** Open a project's chat, creating the conversation if it doesn't exist yet. */
+  async function openProject(project: RawConversationProject) {
+    const partnerName = project.partner?.company_name || project.partner?.name || 'Chat';
+
+    if (project.conversation_id) {
+      router.push({
+        pathname: '/conversations/[id]',
+        params: { id: project.conversation_id, name: partnerName },
+      });
+      return;
+    }
+
+    if (!project.partner?.id) return;
+    setOpening(project.project_id);
+
+    const res = await endpoints.createConversation<{ conversation: { id: string } }>({
+      other_user_id: project.partner.id,
+    });
+    setOpening(null);
+
+    if (res.ok && res.data?.conversation?.id) {
+      // The list now has a conversation it didn't have a moment ago.
+      invalidateFetchCache('conversations');
+      router.push({
+        pathname: '/conversations/[id]',
+        params: { id: res.data.conversation.id, name: partnerName },
+      });
+    }
+  }
+
+  const isEmpty = chats.length === 0 && projects.length === 0;
 
   return (
     <Screen padded={false}>
-      <AppHeader title="Messages" showBell={false} />
-
-      <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
+      <ScreenScroll
+        header={<AppHeader title="Messages" showBell={false} />}
+        refreshing={refreshing}
+        onRefresh={refresh}
+        centerShort={isEmpty || chats.length + projects.length <= 3}
+      >
         {loading ? (
           <>
             <SkeletonCard />
@@ -42,88 +103,114 @@ export default function MessagesScreen() {
           </>
         ) : error ? (
           <ErrorState message={error} onRetry={refresh} />
-        ) : conversations.length === 0 ? (
+        ) : isEmpty ? (
           <EmptyState
             icon={<MessageSquare size={24} color={t.color.brand} />}
             title="No conversations yet"
             body="Accepting a collaboration request opens a chat. That's where you agree the terms."
           />
         ) : (
-          <ListGroup>
-            {conversations.map((c, i) => {
-              const other = c.other_user;
-              const unread = c.unread_count > 0;
+          <>
+            {projects.length > 0 ? (
+              <>
+                <SectionLabel>Active projects</SectionLabel>
+                <ListGroup>
+                  {projects.map((project, i) => {
+                    const partnerName =
+                      project.partner?.company_name || project.partner?.name || 'Partner';
 
-              return (
-                <ListRow
-                  key={c.id}
-                  title={other?.company_name || other?.name || 'Conversation'}
-                  subtitle={
-                    c.last_message?.deleted
-                      ? 'Message deleted'
-                      : (c.last_message?.body ?? 'Say hello')
-                  }
-                  left={
-                    <View>
-                      <Avatar uri={other?.avatar_url} name={other?.name} />
-                      {other?.is_verified ? (
-                        <View style={{ position: 'absolute', bottom: -2, right: -2 }}>
-                          <VerifiedBadge size={14} />
-                        </View>
-                      ) : null}
-                      {other?.is_online ? (
-                        <View
-                          style={{
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            width: 11,
-                            height: 11,
-                            borderRadius: 6,
-                            backgroundColor: t.color.ok,
-                            borderWidth: 2,
-                            borderColor: t.color.surfaceCard,
-                          }}
-                        />
-                      ) : null}
-                    </View>
-                  }
-                  right={
-                    <View style={{ alignItems: 'flex-end', gap: 5 }}>
-                      <Txt variant="caption" tone="muted">
-                        {timeAgo(c.last_message?.created_at ?? c.updated_at)}
-                      </Txt>
-                      {unread ? (
-                        <View
-                          style={{
-                            minWidth: 20,
-                            height: 20,
-                            paddingHorizontal: 6,
-                            borderRadius: 10,
-                            backgroundColor: t.color.brand,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Txt variant="caption" style={{ color: t.color.white, fontSize: 11 }}>
-                            {c.unread_count > 99 ? '99+' : c.unread_count}
-                          </Txt>
-                        </View>
-                      ) : null}
-                    </View>
-                  }
-                  showChevron={false}
-                  style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
-                  onPress={() =>
-                    router.push({
-                      pathname: `/conversations/${c.id}`,
-                      params: { name: other?.company_name || other?.name || 'Chat' },
-                    })
-                  }
-                />
-              );
-            })}
-          </ListGroup>
+                    return (
+                      <ListRow
+                        key={project.project_id}
+                        title={project.title}
+                        subtitle={partnerName}
+                        left={
+                          <View
+                            style={{
+                              width: 38,
+                              height: 38,
+                              borderRadius: 12,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: t.color.brandSoft,
+                            }}
+                          >
+                            <FolderKanban size={18} color={t.color.brand} />
+                          </View>
+                        }
+                        right={
+                          project.conversation_id ? undefined : (
+                            <Plus size={17} color={t.color.brand} />
+                          )
+                        }
+                        showChevron={!!project.conversation_id}
+                        index={i}
+                        style={
+                          i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined
+                        }
+                        onPress={
+                          opening === project.project_id ? undefined : () => void openProject(project)
+                        }
+                      />
+                    );
+                  })}
+                </ListGroup>
+              </>
+            ) : null}
+
+            {chats.length > 0 ? (
+              <>
+                <SectionLabel>Chats</SectionLabel>
+                <ListGroup>
+                  {chats.map((row, i) => {
+                    const title = row.name ?? 'Conversation';
+
+                    return (
+                      <ListRow
+                        key={row.id}
+                        title={title}
+                        subtitle={
+                          row.preview ??
+                          (row.projectTitle ? `About ${row.projectTitle}` : 'Say hello')
+                        }
+                        left={<Avatar name={row.name ?? undefined} />}
+                        right={
+                          <View style={{ alignItems: 'flex-end', gap: 5 }}>
+                            <Txt variant="caption" tone="muted">
+                              {timeAgo(row.lastMessageAt ?? row.updated_at)}
+                            </Txt>
+                            {/* The list route carries no read state, so this
+                                marks "they spoke last" — a nudge, not a count. */}
+                            {row.lastFromThem ? (
+                              <View
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: 4,
+                                  backgroundColor: t.color.brand,
+                                }}
+                              />
+                            ) : null}
+                          </View>
+                        }
+                        showChevron={false}
+                        index={i}
+                        style={
+                          i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined
+                        }
+                        onPress={() =>
+                          router.push({
+                            pathname: '/conversations/[id]',
+                            params: { id: row.id, name: title },
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </ListGroup>
+              </>
+            ) : null}
+          </>
         )}
       </ScreenScroll>
     </Screen>

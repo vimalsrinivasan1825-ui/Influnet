@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import type { CollabRequest } from '@influnet/types';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -18,9 +17,26 @@ import {
   SkeletonCard,
   StickyFooter,
   Txt,
-  VerifiedBadge,
   type SheetRef,
 } from '@/components/ui';
+
+/**
+ * As /api/collabs/[id] sends it. The two profiles are embedded as `sender` and
+ * `receiver` — the `from_user` / `to_user` names in @influnet/types are what a
+ * client would like to receive, not what this route returns — and each embed
+ * selects `name, role` only, so there's no avatar, handle or verified flag.
+ */
+interface CollabDetail {
+  id: string;
+  from_user_id: string;
+  to_user_id: string;
+  message: string;
+  budget: number | null;
+  status: string;
+  created_at: string;
+  sender?: { name: string | null; role: string | null } | null;
+  receiver?: { name: string | null; role: string | null } | null;
+}
 
 export default function RequestDetail() {
   const t = useTheme();
@@ -34,12 +50,13 @@ export default function RequestDetail() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const { data, error, loading, refreshing, refresh } = useFetch(() =>
-    endpoints.getCollab<{ collab: CollabRequest }>(id)
+    endpoints.getCollab<{ collab: CollabDetail }>(id), { cacheKey: `request:${id}` }
   );
 
   const collab = data?.collab;
   const isIncoming = collab?.to_user_id === me;
-  const other = isIncoming ? collab?.from_user : collab?.to_user;
+  const other = isIncoming ? collab?.sender : collab?.receiver;
+  const otherName = other?.name ?? null;
   const canAct = isIncoming && collab?.status === 'pending';
 
   async function setStatus(status: 'accepted' | 'declined') {
@@ -73,21 +90,13 @@ export default function RequestDetail() {
           <>
             <Card style={{ gap: t.spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
-                <Avatar
-                  uri={other?.avatar_url}
-                  name={other?.name ?? other?.company_name}
-                  size={52}
-                />
+                <Avatar name={otherName ?? undefined} size={52} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <Txt variant="title3" numberOfLines={1}>
-                      {other?.company_name || other?.name || 'Someone'}
-                    </Txt>
-                    {other?.verified ? <VerifiedBadge /> : null}
-                  </View>
+                  <Txt variant="title3" numberOfLines={1}>
+                    {otherName ?? 'Someone'}
+                  </Txt>
                   <Txt variant="footnote" tone="muted">
-                    {other?.display_role ?? ''}
-                    {other?.username ? ` · @${other.username}` : ''}
+                    {other?.role === 'business_owner' ? 'Business' : 'Creator'}
                   </Txt>
                 </View>
               </View>
@@ -135,9 +144,8 @@ export default function RequestDetail() {
 
       <Sheet ref={acceptSheet} title="Accept this request?">
         <Txt variant="body" tone="soft">
-          Accepting opens a conversation with{' '}
-          {other?.company_name || other?.name || 'them'}. You'll agree the scope, deliverables
-          and price there — nothing is committed until you both approve a project.
+          Accepting opens a conversation with {otherName ?? 'them'}. You'll agree the scope,
+          deliverables and price there — nothing is committed until you both approve a project.
         </Txt>
         <Button label="Accept" onPress={() => setStatus('accepted')} loading={busy} />
       </Sheet>

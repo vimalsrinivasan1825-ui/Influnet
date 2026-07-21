@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Check, Clock } from 'lucide-react-native';
+import { Check, Clock, Paperclip } from 'lucide-react-native';
 import {
   STAGES,
   STAGE_GUIDE,
@@ -27,6 +27,28 @@ import {
   Txt,
 } from '@/components/ui';
 
+/** A checklist row for a stage, from /api/projects/[id]/stage-items. */
+interface StageItem {
+  id: string;
+  stage_key: string;
+  label: string;
+  owner_role: 'business' | 'creator' | 'both' | string;
+  is_required: boolean;
+  is_gate: boolean;
+  done_at: string | null;
+}
+
+/** An update posted against a stage, from /api/projects/[id]/stage-entries. */
+interface StageEntry {
+  id: string;
+  stage_key: string;
+  author: { id: string; name: string | null } | null;
+  body: string | null;
+  link_url: string | null;
+  file_name: string | null;
+  created_at: string;
+}
+
 interface ProjectDetail {
   id: string;
   title: string;
@@ -47,11 +69,44 @@ export default function StageScreen() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { data, error, loading, refreshing, refresh } = useFetch(() =>
-    endpoints.getProject<{ project: ProjectDetail }>(id)
+  /**
+   * The stage's three sources at once: the project (for sign-off state), its
+   * checklist items, and the updates posted against it. The web project-flow
+   * shows all three; mobile was showing only the first, which is why a stage
+   * looked like static instructions rather than a place work happens.
+   *
+   * Only the project is essential — a missing checklist or feed costs a card,
+   * not the screen.
+   */
+  const { data, error, loading, refreshing, refresh } = useFetch(
+    async () => {
+      const [projectRes, itemsRes, entriesRes] = await Promise.all([
+        endpoints.getProject<{ project: ProjectDetail }>(id),
+        endpoints.listStageItems<{ items: StageItem[] }>(id),
+        endpoints.listStageEntries<{ entries: StageEntry[] }>(id),
+      ]);
+
+      if (!projectRes.ok || !projectRes.data) {
+        return { ok: false, status: projectRes.status, error: projectRes.error, data: null };
+      }
+
+      return {
+        ok: true,
+        status: projectRes.status,
+        error: null,
+        data: {
+          project: projectRes.data.project,
+          items: itemsRes.ok ? itemsRes.data?.items ?? [] : [],
+          entries: entriesRes.ok ? entriesRes.data?.entries ?? [] : [],
+        },
+      };
+    },
+    { cacheKey: `stage:${id}` }
   );
 
   const project = data?.project;
+  const stageItems = (data?.items ?? []).filter((item) => item.stage_key === stage);
+  const stageEntries = (data?.entries ?? []).filter((entry) => entry.stage_key === stage);
   const stageKey = stage as Stage;
   const guide = STAGE_GUIDE[stageKey];
 
@@ -147,6 +202,101 @@ export default function StageScreen() {
                 </View>
               ))}
             </Card>
+
+            {stageItems.length > 0 ? (
+              <Card style={{ gap: t.spacing.md }}>
+                <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Checklist
+                </Txt>
+
+                {stageItems.map((item) => (
+                  <View
+                    key={item.id}
+                    style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.sm }}
+                  >
+                    {item.done_at ? (
+                      <Check size={16} color={t.color.ok} style={{ marginTop: 2 }} />
+                    ) : (
+                      <View
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: 7,
+                          borderWidth: 1.5,
+                          borderColor: t.color.hairlineStrong,
+                          marginTop: 3,
+                          marginHorizontal: 1,
+                        }}
+                      />
+                    )}
+                    <View style={{ flex: 1, gap: 3 }}>
+                      <Txt variant="callout" tone={item.done_at ? 'muted' : 'default'}>
+                        {item.label}
+                      </Txt>
+                      {item.is_gate || !item.is_required ? (
+                        <View style={{ flexDirection: 'row', gap: t.spacing.xs }}>
+                          {item.is_gate ? <Badge label="Gate" tone="warn" /> : null}
+                          {!item.is_required ? <Badge label="Optional" tone="neutral" /> : null}
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                ))}
+
+                <Txt variant="footnote" tone="muted">
+                  Tick items off from the Influnet web app — this view is read-only for now.
+                </Txt>
+              </Card>
+            ) : null}
+
+            {stageEntries.length > 0 ? (
+              <Card style={{ gap: t.spacing.lg }}>
+                <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Updates
+                </Txt>
+
+                {stageEntries.map((entry) => (
+                  <View key={entry.id} style={{ gap: 5 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+                      <Txt variant="footnote" style={{ fontWeight: '600' }}>
+                        {entry.author?.name ?? 'Someone'}
+                      </Txt>
+                      <Txt variant="caption" tone="muted">
+                        {timeAgo(entry.created_at)}
+                      </Txt>
+                    </View>
+
+                    {entry.body ? (
+                      <Txt variant="callout" tone="soft">
+                        {entry.body}
+                      </Txt>
+                    ) : null}
+
+                    {entry.link_url ? (
+                      <Txt
+                        variant="footnote"
+                        tone="brand"
+                        numberOfLines={1}
+                        onPress={() => void Linking.openURL(entry.link_url!)}
+                      >
+                        {entry.link_url}
+                      </Txt>
+                    ) : null}
+
+                    {entry.file_name ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Paperclip size={13} color={t.color.contentMuted} />
+                        {/* The API returns a storage path, not a signed URL, so
+                            there is nothing safe to open from here. */}
+                        <Txt variant="footnote" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
+                          {entry.file_name}
+                        </Txt>
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+              </Card>
+            ) : null}
 
             {usesSignoff ? (
               <Card style={{ gap: t.spacing.md }}>

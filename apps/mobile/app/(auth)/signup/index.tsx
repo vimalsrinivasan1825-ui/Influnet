@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Building2, Sparkles } from 'lucide-react-native';
 import { accents } from '@influnet/tokens';
 import { useTheme } from '@/lib/theme';
+import { AuthHeader } from '@/components/brand/auth-header';
 import { Card, ScreenScroll, Txt } from '@/components/ui';
 import { Pressable } from 'react-native';
 
@@ -28,8 +29,12 @@ export default function SignupRoleFork() {
   ];
 
   return (
-    <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing.xl, gap: t.spacing.lg }}>
-      <Txt variant="title1">Which best describes you?</Txt>
+    <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing['2xl'], gap: t.spacing.xl }}>
+      <AuthHeader
+        title="Create your account"
+        subtitle="Which best describes you?"
+        compact
+      />
 
       <View style={{ gap: t.spacing.md }}>
         {options.map((o) => (

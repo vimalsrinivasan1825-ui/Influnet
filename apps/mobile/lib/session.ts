@@ -10,6 +10,8 @@ import type { Session } from '@supabase/supabase-js';
 import type { UserRole, ApprovalStatus } from '@influnet/types';
 import { supabase } from './supabase';
 import { endpoints } from './api';
+import { clearFetchCache } from './use-fetch';
+import { disconnectStream } from './stream';
 
 export interface MeProfile {
   id: string;
@@ -72,12 +74,20 @@ export const useSession = create<SessionState>((set, get) => ({
       return;
     }
     set({ loadingProfile: true });
-    const res = await endpoints.getProfile();
-    set({ profile: res.ok ? (res.data as MeProfile) : null, loadingProfile: false });
+    // /api/profile wraps the merged profile as { profile: {...} }. Storing the
+    // envelope instead of its contents leaves every field undefined, which
+    // reads as "signed in but nobody home" on every screen that uses the store.
+    const res = await endpoints.getProfile<{ profile: MeProfile }>();
+    set({ profile: res.ok ? (res.data?.profile ?? null) : null, loadingProfile: false });
   },
 
   signOut: async () => {
     await supabase.auth.signOut();
+    // The screen cache is keyed by screen, not by user — leaving it populated
+    // would paint the previous account's data to the next one. The Stream
+    // connection is per-user for the same reason.
+    clearFetchCache();
+    await disconnectStream();
     set({ session: null, profile: null });
   },
 

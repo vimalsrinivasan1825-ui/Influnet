@@ -9,4 +9,13 @@ export { Chip, ChipWrap, ChipRail } from './chip';
 export { Skeleton, SkeletonCard, EmptyState, ErrorState } from './feedback';
 export { SegmentedControl, type Segment } from './segmented';
 export { StatCard, StatGrid } from './stat-card';
+export {
+  TrendBars,
+  DonutChart,
+  ProgressRing,
+  ProgressBar,
+  type TrendPoint,
+  type BreakdownItem,
+} from './charts';
+export { GradientCard, GradientBackground } from './gradient';
 export { Sheet, StickyFooter, type SheetRef } from './sheet';

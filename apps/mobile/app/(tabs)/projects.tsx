@@ -43,7 +43,7 @@ export default function ProjectsScreen() {
   const me = useSession((s) => s.profile?.id);
 
   const { data, error, loading, refreshing, refresh } = useFetch(() =>
-    endpoints.listProjects<{ projects: ProjectRow[] }>()
+    endpoints.listProjects<{ projects: ProjectRow[] }>(), { cacheKey: 'projects' }
   );
 
   /**
@@ -99,6 +99,7 @@ export default function ProjectsScreen() {
             ) : null}
           </View>
         }
+        index={i}
         style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
         onPress={() => router.push(`/projects/${p.id}`)}
       />
@@ -110,9 +111,12 @@ export default function ProjectsScreen() {
 
   return (
     <Screen padded={false}>
-      <AppHeader title="Projects" showBell={false} />
-
-      <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
+      <ScreenScroll
+        header={<AppHeader title="Projects" showBell={false} />}
+        refreshing={refreshing}
+        onRefresh={refresh}
+        centerShort={groups.yours.length + groups.active.length + groups.closed.length <= 3}
+      >
         {loading ? (
           <>
             <SkeletonCard />

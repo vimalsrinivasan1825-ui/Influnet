@@ -127,7 +127,8 @@ export default function CreatorSignup() {
             label="Email"
             value={email}
             onChangeText={setEmail}
-            keyboardType="email-address"
+            // See the note on the sign-in email field: keyboardType
+            // "email-address" is what broke caret placement on Android.
             autoCapitalize="none"
             autoComplete="email"
             placeholder="you@example.com"

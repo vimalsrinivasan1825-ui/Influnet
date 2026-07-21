@@ -1,5 +1,6 @@
 import { Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import {
   BadgeCheck,
   History,
@@ -27,6 +28,7 @@ import {
   VerifiedBadge,
 } from '@/components/ui';
 import { AppHeader } from '@/components/app-header';
+import { Logo } from '@/components/brand/logo';
 
 export default function ProfileScreen() {
   const t = useTheme();
@@ -154,6 +156,15 @@ export default function ProfileScreen() {
             router.replace('/welcome');
           }}
         />
+
+        {/* Signs off the screen the way an About panel would — and gives the
+            mark a home on the one tab that is entirely about you. */}
+        <View style={{ alignItems: 'center', gap: t.spacing.xs, paddingTop: t.spacing.lg }}>
+          <Logo size={26} />
+          <Txt variant="caption" tone="muted">
+            Influnet {Constants.expoConfig?.version ?? ''}
+          </Txt>
+        </View>
       </ScreenScroll>
     </Screen>
   );

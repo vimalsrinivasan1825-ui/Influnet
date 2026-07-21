@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { useState, useRef, type ReactNode } from 'react';
+import { TextInput, View, Pressable, type TextInputProps, type ViewStyle } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { Txt } from './text';
 
@@ -25,6 +25,7 @@ export function Field({
 }: FieldProps) {
   const t = useTheme();
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const borderColor = error
     ? t.color.danger
@@ -40,7 +41,8 @@ export function Field({
         </Txt>
       ) : null}
 
-      <View
+      <Pressable
+        onPress={() => inputRef.current?.focus()}
         style={{
           flexDirection: 'row',
           alignItems: multiline ? 'flex-start' : 'center',
@@ -54,6 +56,7 @@ export function Field({
         }}
       >
         <TextInput
+          ref={inputRef}
           style={[
             {
               flex: 1,
@@ -65,6 +68,22 @@ export function Field({
             style,
           ]}
           placeholderTextColor={t.color.contentMuted}
+          // The caret itself, and the highlight drawn behind selected text.
+          // Android takes both from the system accent when unset, which against
+          // a white field left nothing visible to aim with.
+          cursorColor={t.color.brand}
+          selectionColor={t.color.brand}
+          /**
+           * The drag handle — Android's teardrop under the caret — is hidden.
+           *
+           * Tapping already puts the caret where you tapped, so the handle adds
+           * a large coloured blob over the text in exchange for a second way to
+           * do the same thing. Transparent rather than unset: leaving it out
+           * falls back to the system accent, which differs by device and is the
+           * very thing that made this invisible in the first place. Hidden is
+           * not disabled — it still drags, it just isn't painted.
+           */
+          selectionHandleColor="transparent"
           onFocus={(e) => {
             setFocused(true);
             rest.onFocus?.(e);
@@ -78,7 +97,7 @@ export function Field({
           {...rest}
         />
         {right ? <View style={{ marginLeft: t.spacing.sm }}>{right}</View> : null}
-      </View>
+      </Pressable>
 
       {error ? (
         <Txt variant="footnote" tone="danger">
