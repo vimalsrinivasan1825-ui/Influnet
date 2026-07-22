@@ -19,7 +19,7 @@
         "buildType": "apk"
       },
       "ios": {
-        "simulator": false
+        "simulator": true
       }
     },
     "production": {

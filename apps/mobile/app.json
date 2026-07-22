@@ -39,6 +39,14 @@
           "image": "./assets/logo-mark.png",
           "imageWidth": 124
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
       ]
     ],
     "experiments": {
