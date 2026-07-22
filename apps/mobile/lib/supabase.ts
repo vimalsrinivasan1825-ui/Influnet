@@ -39,13 +39,18 @@ const secureAdapter = {
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
 
-export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl;
-export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey;
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? extra.apiBaseUrl;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey;
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? extra.apiBaseUrl;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !API_BASE_URL) {
+if (!supabaseUrl || !supabaseAnonKey || !apiBaseUrl) {
   throw new Error('Missing environment variables. Check your EXPO_PUBLIC_* configuration or EAS secrets.');
 }
+
+// Re-exported after the guard so consumers see `string`, not `string | undefined`.
+export const SUPABASE_URL = supabaseUrl;
+export const SUPABASE_ANON_KEY = supabaseAnonKey;
+export const API_BASE_URL = apiBaseUrl;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
