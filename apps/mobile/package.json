@@ -3,6 +3,16 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "private": true,
+  "expo": {
+    "autolinking": {
+      "buildFromSource": [
+        "RNReanimated",
+        "RNWorklets",
+        "react-native-reanimated",
+        "react-native-worklets"
+      ]
+    }
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -21,7 +31,6 @@
     "@supabase/supabase-js": "^2.110.7",
     "date-fns": "^4.4.0",
     "expo": "~57.0.7",
-    "expo-build-properties": "^57.0.6",
     "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.6",
     "expo-glass-effect": "~57.0.1",
