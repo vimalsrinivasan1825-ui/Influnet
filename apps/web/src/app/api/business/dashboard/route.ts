@@ -44,11 +44,15 @@ export async function GET(req: Request) {
     // 3. Fetch campaign projects for completion tracking
     const { data: projects } = await supabase
       .from('campaign_projects')
-      .select('status')
+      .select('status, budget, counterparty_user_id')
       .eq('owner_user_id', user.id);
 
     const active_projects = projects?.filter(p => p.status === 'active').length || 0;
     const completed_projects = projects?.filter(p => p.status === 'completed').length || 0;
+
+    const completed_value = (projects || [])
+      .filter(p => p.status === 'completed')
+      .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
 
     // active_collabs_count = unique active engagements
     const active_collabs_count = Math.max(active_projects, accepted);
@@ -108,15 +112,22 @@ export async function GET(req: Request) {
           ? Math.max(inflProf.instagram_followers || 0, inflProf.youtube_subscribers || 0)
           : 0;
 
+        const matchingProj = (projects || []).find(p => p.counterparty_user_id === collab.influencer?.id);
+        let displayStatus = collab.status === 'pending' ? 'Awaiting reply'
+                          : collab.status === 'accepted' ? 'In discussion'
+                          : 'Closed';
+
+        if (matchingProj) {
+          if (matchingProj.status === 'completed') displayStatus = 'Completed';
+          else if (matchingProj.status === 'active') displayStatus = 'In Progress';
+          else if (matchingProj.status === 'pending_acceptance') displayStatus = 'Terms Proposed';
+        }
+
         recent_collabs.push({
           id: collab.id,
           name: collab.influencer?.name || 'Creator',
           amount: collab.budget ? `₹${Number(collab.budget).toLocaleString()}` : 'TBD',
-          // An accepted request means the two sides are TALKING — the project
-          // only exists once they agree terms, so this can't say "In Progress".
-          status: collab.status === 'pending' ? 'Awaiting reply'
-                : collab.status === 'accepted' ? 'In discussion'
-                : 'Closed',
+          status: displayStatus,
           platform: inflProf?.instagram_handle ? 'Instagram' : 'Creator',
           reach: reachVal > 0 ? reachVal.toLocaleString() : '—',
         });
@@ -134,6 +145,7 @@ export async function GET(req: Request) {
         completed_collabs_count: completed_projects,
         pending_collabs_count: pending,
         pipeline_value,
+        completed_value,
       },
       weekly_spend: weeklySpend,
       pipeline_data: pipelineData,

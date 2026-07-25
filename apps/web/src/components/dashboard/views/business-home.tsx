@@ -77,7 +77,7 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
         <StatCard
           label="Completed"
           value={s.completed_collabs_count}
-          hint="Delivered & settled"
+          hint={s.completed_value ? `₹${s.completed_value.toLocaleString()} delivered` : "Delivered & settled"}
           tone="success"
           icon={<CheckCircle2 />}
         />

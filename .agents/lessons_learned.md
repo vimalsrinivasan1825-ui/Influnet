@@ -16,21 +16,25 @@ This file tracks the current implementation state of each system module, issues 
 - **Push Notifications Pipeline**: Integrated Expo Push Notification fanning into `notifyUser()` (`apps/web/src/lib/notify.ts`), created mobile token registration client helper (`apps/mobile/lib/push.ts`), and backed storage via migration `079_expo_push_token.sql`. Applied migrations 075 through 079 to remote database.
 - **Discover Route Protection & Search Cleanup**: Removed the "Discover creators" navigation item from the Command Palette search bar (`command-palette.tsx`), protected `/dashboard/discover` with an immediate `notFound()` 404 response, and protected `/api/discover` to return 404 on general browsing queries while preserving single-id lookups needed for pitch previews.
 - **Frontend API Wrapper Normalization (`apiFetch`)**: Replaced raw browser `fetch()` calls to `/api/notifications` in `header.tsx` and `/api/profile/refresh` in `creator-profile-view.tsx` with `apiFetch`, resolving `401 Missing Authorization header` console warnings and Zod payload schema mismatches.
+- **Dashboard Analytics Completion Tracking & Status Mapping**: Upgraded both Influencer and Business dashboard endpoints (`/api/influencer/dashboard` and `/api/business/dashboard`) and frontend views (web + mobile) to include both active ongoing projects and completed project counts/values in the KPI cards and project roster list. Updated `statusVariant()` mappings in Roster lists to properly cross-reference `campaign_projects` statuses (`active` vs `completed`) instead of showing static labels.
 
 ### What broke
 - **Supabase Service Role Key Auth**: In `apps/web/.env.local`, `SUPABASE_SERVICE_ROLE_KEY` was accidentally populated with an access token (`sbp_...` format) instead of the actual service role JWT (`eyJ...`). This silently caused operations bypassing RLS (such as server-side push notification fanning in `notifyUser()`) to fail or skip inserts.
 - **Expo Push Go Limitation**: In Expo SDK 53+, remote push notification delivery is no longer supported inside the Expo Go app. Attempting to test notifications via Expo Go results in token generation errors.
 - **Missing Authorization Headers on Raw Fetch**: Using raw browser `fetch("/api/...")` from frontend components failed to attach the active Supabase bearer token, triggering `401 Missing Authorization header` server warnings on every dashboard mount and notification interaction.
+- **Dashboard Static Status Labels & Missing Completed Metrics**: Dashboard Roster cards previously rendered static "Active" badges and only counted ongoing pipeline budgets, leaving completed/settled projects hidden and making the dashboard less insightful for creators and brands tracking delivered value.
 
 ### Fix
 - **Service Role Key Format**: Validated and updated `SUPABASE_SERVICE_ROLE_KEY` with the proper service role JWT from the Supabase dashboard, moving the management access token to `SUPABASE_ACCESS_TOKEN`.
 - **Push Notification Verification Setup**: Identified that physical device testing via EAS Build (dev client or TestFlight / standalone apk) and APN key configuration in Apple Developer portal are required to verify push notifications end-to-end.
 - **API Fetch Wrapper**: Upgraded raw frontend fetch calls in `header.tsx`, `shell.tsx`, and `creator-profile-view.tsx` to use `apiFetch()`, ensuring automatic token injection and aligned Zod request body schemas (`action: "mark_read", notificationIds`).
+- **Completed Value & Roster Cross-Referencing**: Added `completed_value` calculation to both dashboard API routes and updated `influencer-home.tsx`, `business-home.tsx`, and mobile `home.tsx` to display both active pipeline and completed delivery metrics. Used `statusVariant(r.status || 'active')` in web and mobile rosters to render dynamic badges (`Completed` vs `Active`).
 
 ### Key Lessons
 - Always differentiate between Supabase personal/management access tokens (`sbp_...`), which are for CLI and Management API operations, and service role JWTs (`eyJ...`), which are required for backend server SDK clients to bypass Row Level Security.
 - When working with Expo SDK 53+, always plan for standalone EAS builds (dev client or production builds) early when developing or testing features dependent on native push notification tokens.
 - Never use raw browser `fetch()` for `/api/*` endpoints in web frontend components; always use the `apiFetch()` helper from `@/lib/api-client` to ensure the live Supabase bearer token is injected and JSON error bodies are parsed safely without throwing.
+- In dashboard analytics and Roster UI lists, never hardcode static badge text like "Active" or ignore completed states; always cross-reference `campaign_projects` status and pass dynamic labels to `Badge` so both ongoing and historical engagements are transparent and insightful.
 
 ---
 

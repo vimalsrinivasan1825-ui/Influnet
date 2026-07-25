@@ -88,24 +88,24 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
           />
         )}
         <StatCard
-          label="Agreed & in progress"
+          label="Active pipeline"
           value={`₹${s.pipeline_value.toLocaleString()}`}
-          hint="Budget of active projects"
-          tone="success"
+          hint={`Across ${s.active_projects} active project(s)`}
+          tone="brand"
           icon={<DollarSign />}
         />
         <StatCard
-          label="Active projects"
-          value={s.active_projects}
-          hint="In production"
-          tone="info"
-          icon={<FolderGit2 />}
+          label="Completed value"
+          value={`₹${(s.completed_value || 0).toLocaleString()}`}
+          hint={`${s.completed_projects || 0} project(s) delivered`}
+          tone="success"
+          icon={<BadgeCheck />}
         />
         <StatCard
           label="Open chats"
           value={s.active_discussions}
           hint="Ongoing conversations"
-          tone="brand"
+          tone="info"
           icon={<MessageSquare />}
         />
         <StatCard
@@ -153,23 +153,27 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       {/* Profile + activity */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.18}>
-          <SectionCard eyebrow="Brands" title="Active Roster" className="h-full">
+          <SectionCard eyebrow="Projects" title="Project Roster" className="h-full">
             {!data.active_roster || data.active_roster.length === 0 ? (
               <EmptyState
                 icon={<FolderGit2 />}
-                title="No active projects yet"
-                description="Brands you're currently working with will show up here once a project is agreed."
+                title="No projects yet"
+                description="Brands you work with will show up here once a project is agreed."
               />
             ) : (
               <div className="flex flex-col gap-4">
                 {data.active_roster.map((r) => (
-                  <div key={r.id} className="flex items-center gap-3">
-                    <Avatar name={r.brand_name} size="sm" square />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-content">{r.brand_name}</p>
-                      <p className="truncate text-xs text-content-muted">{r.project_title}</p>
+                  <div key={r.id} className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar name={r.brand_name} size="sm" square />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-content">{r.brand_name}</p>
+                        <p className="truncate text-xs text-content-muted">{r.project_title}</p>
+                      </div>
                     </div>
-                    <Badge variant="success" size="sm" dot>Active</Badge>
+                    <Badge variant={statusVariant(r.status || 'active')} size="sm" dot>
+                      {r.status === 'completed' ? 'Completed' : 'Active'}
+                    </Badge>
                   </div>
                 ))}
               </div>

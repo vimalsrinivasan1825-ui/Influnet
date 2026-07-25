@@ -28,6 +28,7 @@ export interface InfluencerHomeData {
     // brand's opening ask on every conversation accepting a request ever
     // opened, which may represent nothing more than a polite reply.
     pipeline_value: number;
+    completed_value?: number;
     // Terms a brand proposed that are waiting on THIS creator's response —
     // the one thing genuinely blocked on them, previously invisible here.
     proposals_awaiting_you: number;
@@ -39,7 +40,7 @@ export interface InfluencerHomeData {
     | { id: string; name: string; amount: string; status: string; sender_id: string }[]
     | null;
   active_roster:
-    | { id: number | string; brand_name: string; project_title: string }[]
+    | { id: number | string; brand_name: string; project_title: string; status?: string; budget?: number }[]
     | null;
 }
 
@@ -50,6 +51,7 @@ export interface BusinessHomeData {
     completed_collabs_count: number;
     pending_collabs_count: number;
     pipeline_value: number;
+    completed_value?: number;
   };
   weekly_spend: { week: string; spend: number }[];
   pipeline_data: { name: string; value: number; fill: string }[];

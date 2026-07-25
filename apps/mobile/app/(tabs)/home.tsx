@@ -94,7 +94,7 @@ interface HomePayload {
 
 /** The two role dashboards differ only in what they name the same two series. */
 interface DashboardPayload {
-  stats?: { pipeline_value?: number };
+  stats?: { pipeline_value?: number; completed_value?: number };
   earnings_trend?: { week: string; amount: number }[];
   weekly_spend?: { week: string; amount: number }[];
   request_breakdown?: { name: string; value: number }[];
@@ -195,6 +195,7 @@ export default function HomeScreen() {
   const trendSource = dashboard?.earnings_trend ?? dashboard?.weekly_spend ?? [];
   const moneyTrend: TrendPoint[] = trendSource.map((w) => ({ label: w.week, value: w.amount }));
   const pipelineValue = dashboard?.stats?.pipeline_value ?? 0;
+  const completedValue = dashboard?.stats?.completed_value ?? 0;
 
   const breakdownSource = dashboard?.request_breakdown ?? dashboard?.pipeline_data ?? [];
   const breakdown: BreakdownItem[] = breakdownSource.map((b) => ({
@@ -270,11 +271,18 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              <Txt variant="footnote" style={{ color: 'rgba(255,255,255,0.82)' }}>
-                {counts?.ongoing
-                  ? `Across ${counts.ongoing} active ${counts.ongoing === 1 ? 'project' : 'projects'}`
-                  : 'No active projects yet'}
-              </Txt>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Txt variant="footnote" style={{ color: 'rgba(255,255,255,0.82)' }}>
+                  {counts?.ongoing
+                    ? `Across ${counts.ongoing} active ${counts.ongoing === 1 ? 'project' : 'projects'}`
+                    : 'No active projects yet'}
+                </Txt>
+                {completedValue > 0 || (counts?.completed || 0) > 0 ? (
+                  <Txt variant="footnote" style={{ color: 'rgba(255,255,255,0.95)', fontWeight: '600' }}>
+                    {completedValue > 0 ? `${formatCurrency(completedValue)}` : `${counts?.completed || 0}`} completed
+                  </Txt>
+                ) : null}
+              </View>
             </GradientCard>
 
             {actions.length > 0 ? (

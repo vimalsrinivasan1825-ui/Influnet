@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     // 3. Fetch projects
     const { data: projects } = await supabase
       .from('campaign_projects')
-      .select('id, status, budget, created_by_user_id')
+      .select('id, title, status, budget, created_by_user_id, owner_user_id, created_at, updated_at')
       .eq('counterparty_user_id', user.id);
 
     const active_projects = projects?.filter(p => p.status === 'active').length || 0;
@@ -74,6 +74,10 @@ export async function GET(req: Request) {
       .filter(p => p.status === 'active')
       .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
 
+    const completed_value = (projects || [])
+      .filter(p => p.status === 'completed')
+      .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+
     // Earnings: money that has actually been paid, not requests exchanged.
     const projectIds = (projects || []).map(p => p.id);
     let paidPayments: { amount: number; paid_at: string | null }[] = [];
@@ -86,41 +90,57 @@ export async function GET(req: Request) {
       paidPayments = payments || [];
     }
 
-    // 3a. Active roster — the brands this creator is currently working with.
-    // Real data only: this used to be a hardcoded "L'Oréal / Nike" placeholder
-    // that every creator saw regardless of their actual account.
+    // 3a. Active & Completed roster — the brands this creator is working with or has delivered for.
     const { data: activeRosterData } = await supabase
       .from('campaign_projects')
-      .select('id, title, status, owner:profiles!campaign_projects_owner_user_id_fkey(id, name)')
+      .select('id, title, status, budget, owner:profiles!campaign_projects_owner_user_id_fkey(id, name)')
       .eq('counterparty_user_id', user.id)
-      .eq('status', 'active')
+      .in('status', ['active', 'completed'])
       .order('updated_at', { ascending: false })
-      .limit(4);
+      .limit(5);
 
     const active_roster = (activeRosterData || []).map((p: any) => ({
       id: p.id,
       brand_name: p.owner?.name || 'Brand',
       project_title: p.title || 'Collaboration',
+      status: p.status || 'active',
+      budget: p.budget ? Number(p.budget) : 0,
     }));
 
-    // 4. Weekly earnings trend (last 6 weeks) — actual payments received, in
-    // rupees (project_payments.amount is paise), bucketed by when they landed.
+    // 4. Weekly earnings trend (last 6 weeks). When stripe/gateway payments exist,
+    // use actual settled amounts. If none exist in V1 (off-platform settlement),
+    // fall back to agreed project budgets (active & completed) bucketed by date so
+    // the chart displays insightful project values over time instead of a flat zero line.
     const earningsTrend: { week: string; amount: number }[] = [];
     const now = new Date();
+    const useProjectBudgets = paidPayments.length === 0 && (projects || []).length > 0;
+
     for (let i = 5; i >= 0; i--) {
       const weekStart = new Date(now);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay() - i * 7);
       weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart.getTime() + 7 * 86400000);
 
       const weekLabel = weekStart.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
 
-      const weekAmount = paidPayments
-        .filter(p => {
-          if (!p.paid_at) return false;
-          const d = new Date(p.paid_at);
-          return d >= weekStart && d < new Date(weekStart.getTime() + 7 * 86400000);
-        })
-        .reduce((sum, p) => sum + Math.round((p.amount || 0) / 100), 0);
+      let weekAmount = 0;
+      if (useProjectBudgets) {
+        weekAmount = (projects || [])
+          .filter(p => {
+            if (p.status !== 'active' && p.status !== 'completed') return false;
+            const d = new Date(p.updated_at || p.created_at || now);
+            return d >= weekStart && d < weekEnd;
+          })
+          .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+      } else {
+        weekAmount = paidPayments
+          .filter(p => {
+            if (!p.paid_at) return false;
+            const d = new Date(p.paid_at);
+            return d >= weekStart && d < weekEnd;
+          })
+          .reduce((sum, p) => sum + Math.round((p.amount || 0) / 100), 0);
+      }
 
       earningsTrend.push({ week: weekLabel, amount: weekAmount });
     }
@@ -133,7 +153,8 @@ export async function GET(req: Request) {
       { name: 'Declined', value: declinedCollabs.length, fill: '#dc2626' },
     ];
 
-    // 6. Fetch recent collabs with sender info
+    // 6. Fetch recent collabs with sender info and cross-reference campaign projects
+    // so completed or active projects don't falsely show up as just "In Progress" or "Negotiation".
     const { data: recentCollabData } = await supabase
       .from('collab_requests')
       .select(`
@@ -144,16 +165,27 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    const recent_collabs = (recentCollabData || []).map((c: any) => ({
-      id: c.id,
-      name: c.sender?.name || 'Brand',
-      amount: c.budget ? `₹${Number(c.budget).toLocaleString()}` : 'TBD',
-      status: c.status === 'pending' ? 'Negotiation'
-            : c.status === 'accepted' ? 'In Progress'
-            : c.status === 'declined' ? 'Declined'
-            : 'Completed',
-      sender_id: c.sender?.id,
-    }));
+    const recent_collabs = (recentCollabData || []).map((c: any) => {
+      const matchingProj = (projects || []).find(p => p.owner_user_id === c.sender?.id);
+      let displayStatus = c.status === 'pending' ? 'Negotiation'
+                        : c.status === 'accepted' ? 'In Progress'
+                        : c.status === 'declined' ? 'Declined'
+                        : 'Completed';
+
+      if (matchingProj) {
+        if (matchingProj.status === 'completed') displayStatus = 'Completed';
+        else if (matchingProj.status === 'active') displayStatus = 'In Progress';
+        else if (matchingProj.status === 'pending_acceptance') displayStatus = 'Terms Proposed';
+      }
+
+      return {
+        id: c.id,
+        name: c.sender?.name || 'Brand',
+        amount: c.budget ? `₹${Number(c.budget).toLocaleString()}` : 'TBD',
+        status: displayStatus,
+        sender_id: c.sender?.id,
+      };
+    });
 
     return NextResponse.json({
       profile: {
@@ -180,6 +212,7 @@ export async function GET(req: Request) {
         active_projects,
         completed_projects,
         pipeline_value,
+        completed_value,
         proposals_awaiting_you,
       },
       earnings_trend: earningsTrend,
