@@ -14,6 +14,7 @@ This file tracks the current implementation state of each system module, issues 
 - **Mobile Stage Management**: Added client-side gating of checklist items by `owner_role` to match server checks, added confirm/cancel dialogs for counterparty stage skips, and added a verification removal reminder for Instagram bio link validation.
 - **Blocked Accounts UI & API**: Created blocked accounts screen and fixed API route (`removeBlock()`) to use JSON body parsing and embedded profile data in blocks lists.
 - **Push Notifications Pipeline**: Integrated Expo Push Notification fanning into `notifyUser()` (`apps/web/src/lib/notify.ts`), created mobile token registration client helper (`apps/mobile/lib/push.ts`), and backed storage via migration `079_expo_push_token.sql`. Applied migrations 075 through 079 to remote database.
+- **Discover Route Protection & Search Cleanup**: Removed the "Discover creators" navigation item from the Command Palette search bar (`command-palette.tsx`), protected `/dashboard/discover` with an immediate `notFound()` 404 response, and protected `/api/discover` to return 404 on general browsing queries while preserving single-id lookups needed for pitch previews.
 
 ### What broke
 - **Supabase Service Role Key Auth**: In `apps/web/.env.local`, `SUPABASE_SERVICE_ROLE_KEY` was accidentally populated with an access token (`sbp_...` format) instead of the actual service role JWT (`eyJ...`). This silently caused operations bypassing RLS (such as server-side push notification fanning in `notifyUser()`) to fail or skip inserts.

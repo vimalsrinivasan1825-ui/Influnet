@@ -44,15 +44,7 @@ const sections = (role: UserRole | null): Item[] => {
     { id: "s-act", label: "My activity", href: "/dashboard/activity", group: "Go to", icon: History },
     { id: "s-set", label: "Settings", href: "/dashboard/settings", group: "Go to", icon: Settings },
   ];
-  if (role === "business_owner") {
-    base.splice(6, 0, {
-      id: "s-disc",
-      label: "Discover creators",
-      href: "/dashboard/discover",
-      group: "Go to",
-      icon: Search,
-    });
-  }
+  // Discover creators option removed per client request — feature temporarily disabled for V1 launch.
   return base;
 };
 

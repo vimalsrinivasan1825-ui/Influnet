@@ -37,6 +37,12 @@ export async function GET(req: Request) {
     }
     const { q, niche, industry, location, cursor, id } = parsed.data;
 
+    // Discover browsing feature temporarily disabled for V1 launch per client request.
+    // Allow single-profile lookups (id present) for collaboration request previews.
+    if (!id) {
+      return jsonError(404, 'Not found: Discover feature is temporarily disabled');
+    }
+
     if (role !== 'business_owner' && role !== 'admin') {
       return jsonError(403, 'Forbidden: Discover is only available for businesses');
     }

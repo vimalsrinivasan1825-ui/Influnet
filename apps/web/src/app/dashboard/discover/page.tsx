@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams, usePathname, notFound } from "next/navigation";
 import { Check, Globe, MapPin, Rocket, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
@@ -505,19 +505,7 @@ function DiscoverContent() {
 }
 
 export default function DiscoverPage() {
-  return (
-    <React.Suspense
-      fallback={
-        <div className="mx-auto max-w-7xl p-4 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-56 w-full rounded-2xl" />
-            ))}
-          </div>
-        </div>
-      }
-    >
-      <DiscoverContent />
-    </React.Suspense>
-  );
+  // Discover feature temporarily disabled for V1 launch per client request.
+  // Return a clean 404 if accessed directly in the browser URL.
+  notFound();
 }
