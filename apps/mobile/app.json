@@ -39,6 +39,13 @@
           "image": "./assets/logo-mark.png",
           "imageWidth": 124
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#ffffff"
+        }
       ]
     ],
     "experiments": {

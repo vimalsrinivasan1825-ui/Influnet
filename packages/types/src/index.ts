@@ -232,6 +232,17 @@ export interface Database {
         Args: { p_username: string };
         Returns: boolean;
       };
+      record_profile_view: {
+        // Authenticated only (migration 075); p_viewer_user_id, if passed,
+        // must equal the caller's own auth.uid() — SQL default is NULL.
+        Args: { p_influencer_user_id: string; p_viewer_user_id: string | null };
+        Returns: void;
+      };
+      is_blocked_pair: {
+        // Migration 076 — true if either user has blocked the other.
+        Args: { a: string; b: string };
+        Returns: boolean;
+      };
     };
     Views: Record<string, never>;
     Enums: Record<string, never>;

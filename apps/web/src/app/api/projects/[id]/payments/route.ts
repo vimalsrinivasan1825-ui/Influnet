@@ -14,7 +14,10 @@ export const maxDuration = 30;
 
 const CreateOrderSchema = z.object({
   stage_key: z.enum(['advance_payment', 'final_payment']),
-  // Amount in rupees (whole units). Optional — falls back to the project budget.
+  // Amount is NEVER taken from the client — the gate represents the AGREED
+  // sum changing hands, so the payer doesn't get to choose it (see below).
+  // This field only exists so a mismatched value can be rejected outright
+  // rather than silently substituted, in case a caller sends one anyway.
   amount_rupees: z.number().positive().max(10_000_000).optional(),
 });
 
@@ -58,7 +61,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     // Only the project owner (business) is the payer, and only for their project.
     const { data: project, error: projErr } = await supabase
       .from('campaign_projects')
-      .select('id, owner_user_id, counterparty_user_id, budget')
+      .select('id, owner_user_id, counterparty_user_id, budget, advance_amount')
       .eq('id', projectId)
       .single();
     if (projErr || !project) return jsonError(404, 'Project not found');
@@ -66,12 +69,25 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       return jsonError(403, 'Only the business account can initiate a payment');
     }
 
-    // Resolve amount (paise). Prefer the explicit request, else the project budget.
-    const rupees = amount_rupees ?? Number(project.budget);
+    // Resolve amount (rupees) from the AGREED terms, never from the client —
+    // otherwise a payer could open the advance gate by paying ₹1 through a
+    // genuine Razorpay checkout while the creator waits on the real deposit.
+    // advance_payment = the agreed advance (or the full budget if no advance
+    // was set); final_payment = whatever of the budget the advance didn't cover.
+    const budget = Number(project.budget);
+    const advance = project.advance_amount != null ? Number(project.advance_amount) : budget;
+    const rupees = stage_key === 'advance_payment' ? advance : budget - advance;
+
     if (!Number.isFinite(rupees) || rupees <= 0) {
-      return jsonError(400, 'No payment amount set for this project — enter an amount.');
+      return jsonError(400, 'No agreed amount is set for this stage — agree the terms first.');
     }
     const amountPaise = Math.round(rupees * 100);
+
+    // If a caller sends an amount anyway, it must match what we just derived —
+    // reject rather than silently using either value.
+    if (amount_rupees != null && Math.round(amount_rupees * 100) !== amountPaise) {
+      return jsonError(400, `This stage requires the agreed amount of ₹${rupees.toLocaleString('en-IN')}.`);
+    }
 
     let order;
     try {

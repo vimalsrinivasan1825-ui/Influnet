@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { ChevronRight, Handshake, SendHorizontal } from 'lucide-react-native';
 import type { Channel, LocalMessage, MessageResponse } from 'stream-chat';
 import type { Message } from '@influnet/types';
@@ -42,7 +43,11 @@ interface DealPayload {
     proposed_by: string;
   } | null;
   legacy_pending?: { id: string; title: string; budget: number | null } | null;
-  viewer?: { awaiting_me?: boolean; can_respond_to_proposal?: boolean };
+  viewer?: {
+    awaiting_me?: boolean;
+    can_respond_to_proposal?: boolean;
+    can_withdraw_proposal?: boolean;
+  };
 }
 
 /**
@@ -102,6 +107,14 @@ interface DealSummary {
   projectId: string | null;
   /** True when the other side has put something to you. */
   awaitingMe: boolean;
+  /**
+   * Set only when `proposal` is the live thing on the table — the one case
+   * this screen can act on directly (accept / decline / withdraw). Legacy
+   * pending projects and live projects are informational only here.
+   */
+  proposalId: string | null;
+  canRespond: boolean;
+  canWithdraw: boolean;
 }
 
 /**
@@ -119,6 +132,9 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       deliverables: payload.proposal.description,
       projectId: null,
       awaitingMe,
+      proposalId: payload.proposal.id,
+      canRespond: !!payload.viewer?.can_respond_to_proposal,
+      canWithdraw: !!payload.viewer?.can_withdraw_proposal,
     };
   }
 
@@ -129,6 +145,9 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       deliverables: payload.legacy_pending.title,
       projectId: null,
       awaitingMe,
+      proposalId: null,
+      canRespond: false,
+      canWithdraw: false,
     };
   }
 
@@ -140,6 +159,9 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       deliverables: live.title,
       projectId: live.id,
       awaitingMe: false,
+      proposalId: null,
+      canRespond: false,
+      canWithdraw: false,
     };
   }
 
@@ -150,6 +172,9 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       deliverables: null,
       projectId: null,
       awaitingMe: false,
+      proposalId: null,
+      canRespond: false,
+      canWithdraw: false,
     };
   }
 
@@ -178,6 +203,8 @@ export default function ConversationScreen() {
   const [deal, setDeal] = useState<DealSummary | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [respondBusy, setRespondBusy] = useState(false);
+  const [respondError, setRespondError] = useState<string | null>(null);
 
   useEffect(() => {
     navigation.setOptions({ title: name ?? 'Chat' });
@@ -268,6 +295,28 @@ export default function ConversationScreen() {
       channelRef.current = null;
     };
   }, [id]);
+
+  /**
+   * Accept, decline, or withdraw the proposal currently on the table — the
+   * one deal action the web app had that mobile didn't: this sheet used to
+   * just point people at the web app to do it.
+   */
+  async function respondToProposal(action: 'accept' | 'decline' | 'withdraw') {
+    if (!deal?.proposalId) return;
+    setRespondBusy(true);
+    setRespondError(null);
+
+    const res = await endpoints.respondToDeal(id, { proposal_id: deal.proposalId, action });
+    setRespondBusy(false);
+
+    if (!res.ok) {
+      setRespondError(res.error);
+      return;
+    }
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    dealSheet.current?.close();
+    void load();
+  }
 
   async function send() {
     const body = draft.trim();
@@ -459,13 +508,42 @@ export default function ConversationScreen() {
           ) : null}
         </Card>
 
-        <Txt variant="footnote" tone="muted">
-          {deal?.awaitingMe
-            ? // Responding to terms is a web-only flow for now, and saying so
-              // beats a button that silently does nothing.
-              'Terms are waiting on you. Accept or decline them from the Influnet web app — that flow is not in the mobile app yet.'
-            : 'Nothing is committed until you both approve a project. Agree the scope here first.'}
-        </Txt>
+        {respondError ? (
+          <Card style={{ backgroundColor: t.color.dangerSoft, borderColor: t.color.danger }}>
+            <Txt variant="footnote" tone="danger">
+              {respondError}
+            </Txt>
+          </Card>
+        ) : null}
+
+        {deal?.canRespond ? (
+          <View style={{ gap: t.spacing.sm }}>
+            <Button
+              label="Accept these terms"
+              onPress={() => respondToProposal('accept')}
+              loading={respondBusy}
+            />
+            <Button
+              label="Decline"
+              variant="ghost"
+              onPress={() => respondToProposal('decline')}
+              loading={respondBusy}
+            />
+          </View>
+        ) : deal?.canWithdraw ? (
+          <Button
+            label="Withdraw these terms"
+            variant="secondary"
+            onPress={() => respondToProposal('withdraw')}
+            loading={respondBusy}
+          />
+        ) : (
+          <Txt variant="footnote" tone="muted">
+            {deal?.awaitingMe
+              ? 'Terms are waiting on you.'
+              : 'Nothing is committed until you both approve a project. Agree the scope here first.'}
+          </Txt>
+        )}
 
         {deal?.projectId ? (
           <Button

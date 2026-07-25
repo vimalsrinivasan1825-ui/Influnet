@@ -70,7 +70,7 @@ export function InstagramOwnershipPanel({
       });
       if (res.ok && res.data?.verified) {
         setStatus("verified");
-        setMsg({ kind: "ok", text: "Ownership confirmed. Running your verification…" });
+        setMsg({ kind: "ok", text: "Ownership confirmed — you can remove the code from your bio now. Running your verification…" });
         // Ownership proven → kick the metrics verification so the badge can be granted.
         apiFetch("/api/verification", { method: "POST" }).catch(() => {});
         onVerified?.();
@@ -122,10 +122,17 @@ export function InstagramOwnershipPanel({
 
         {status === "pending" && (
           <div className="flex flex-col gap-3">
+            {/* Lead with the two things people actually worry about before
+                touching their bio — that nothing gets posted, and that this
+                is a quick, time-boxed step — before asking them to do it. */}
+            <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-content-soft">
+              Takes about a minute — this code expires in 30 minutes. Nothing is posted to your
+              account; it's just a link in your bio we check for, and you can remove it right after.
+            </p>
             <ol className="flex flex-col gap-1.5 text-xs text-content-soft">
               <li>1. Copy the link below.</li>
               <li>2. Paste it into your Instagram bio (keep your account public).</li>
-              <li>3. Tap Verify. You can remove it afterwards.</li>
+              <li>3. Tap Verify, then remove it from your bio.</li>
             </ol>
             <div className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2">
               <code className="min-w-0 flex-1 truncate text-xs text-content">{verifyUrl || code}</code>

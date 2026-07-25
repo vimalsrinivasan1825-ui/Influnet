@@ -10,6 +10,7 @@ import {
   type RawPublicProfile,
 } from '@/lib/public-profile/creator-profile';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
+import { publicOrigin } from '@/lib/site';
 
 // Anon client for public profile reads.
 const supabaseAnon = createClient(
@@ -67,10 +68,17 @@ export default async function PublicProfilePage({
   const viewerRole = (viewerRes.data as { role: string } | null)?.role;
   const isOwner = !!user && user.id === profile.userId;
 
-  // Record the view (fire-and-forget).
-  supabaseAnon
-    .rpc('record_profile_view', { p_influencer_user_id: profile.userId, p_viewer_user_id: user?.id || null })
-    .then(() => {}, () => {});
+  // Record the view (fire-and-forget). The RPC is authenticated-only and
+  // records the CALLER's own auth.uid(), so this must run on `rsc` (carries
+  // the visitor's session) rather than the plain anon client, and only when
+  // there's a real signed-in visitor who isn't the profile's owner — a
+  // logged-out visit or the owner viewing their own page is never counted.
+  if (user && !isOwner) {
+    // rsc.rpc()'s Database generic doesn't resolve custom Functions entries
+    // cleanly through @supabase/ssr's createServerClient (same friction as
+    // the get_creator_collaborations call in dashboard/profile/page.tsx).
+    (rsc.rpc as any)('record_profile_view', { p_influencer_user_id: profile.userId }).then(() => {}, () => {});
+  }
 
   // Primary CTA. Anonymous visitors land on the entry screen (sign in OR sign
   // up) rather than straight into business signup — a returning brand may
@@ -125,7 +133,7 @@ export default async function PublicProfilePage({
   const hdrs = await headers();
   const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host');
   const proto = hdrs.get('x-forwarded-proto') ?? 'https';
-  const origin = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'https://influnet.app');
+  const origin = host ? `${proto}://${host}` : publicOrigin();
 
   // Brand names from real completed collaborations in-app — merged into the
   // profile's past-collaborations wall so they can't be faked.

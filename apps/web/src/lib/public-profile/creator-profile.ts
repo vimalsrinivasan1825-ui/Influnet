@@ -6,6 +6,8 @@
 // not-yet-available analytics with mock data, controlled by a flag. Flip the flag
 // off (or pass ?mock=0) once real `social_connections` data is wired in.
 
+import { publicOrigin } from '@/lib/site';
+
 export type SocialPlatform = 'instagram' | 'youtube' | 'tiktok';
 
 export interface ProfileStat {
@@ -425,7 +427,7 @@ export function buildCreatorProfileView(
   }
   const pastCollaborations = merged.length ? merged.slice(0, 24) : useMock ? MOCK.pastCollaborations : [];
 
-  const origin = (opts.origin || 'https://influnet.app').replace(/\/$/, '');
+  const origin = (opts.origin || publicOrigin()).replace(/\/$/, '');
 
   return {
     name: profile.name || (profile.username ? `@${profile.username}` : 'Creator'),

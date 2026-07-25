@@ -383,12 +383,15 @@ Validation
         { from_user_id, to_user_id, message, budget, status: 'pending' }
 ```
 
-**PATCH /api/collabs (Accept/Decline):**
+**PATCH /api/collabs (Accept/Decline/Undo):**
 ```
 Request: { id, status }
     │
     ├── Verify user is participant (sender or receiver)
     ├── Update collab_requests.status
+    │
+    ├── If status === 'pending' (undo decline):
+    │   └── Receiver can reopen a previously declined request back to pending
     │
     └── If status === 'accepted':
         ├── Auto-create campaign_project:
@@ -667,6 +670,7 @@ On mount:
 
 **Files:**
 - `src/store/notification-store.ts` — Zustand: `{ unread_messages_count, pending_requests_count }`
+- `src/lib/notify.ts` — Server-side notification helper `notifyUser()` (inserts DB rows + fans out push notifications via Expo Push API)
 - Integrated in `DashboardShell` — fetches summary on mount
 
 **Flow:**
@@ -676,6 +680,12 @@ DashboardShell mounts
     ├── FETCH (from separate notification API or collab/conversation count)
     │
     └── Update Zustand store → sidebar badges update reactively
+
+Push Notifications (Server-Side)
+    │
+    ├── Event occurs (new collab request, message, deal proposal)
+    ├── notifyUser() inserts into notifications table
+    └── Look up profiles.expo_push_token → POST https://exp.host/--/api/v2/push/send
 ```
 
 ---
@@ -859,7 +869,7 @@ conversations                  │
 
 | Table | Primary Key | Foreign Keys | Key Columns |
 |---|---|---|---|
-| `profiles` | `id` (UUID, → auth.users) | — | `role` (enum), `email`, `name` |
+| `profiles` | `id` (UUID, → auth.users) | — | `role` (enum), `email`, `name`, `expo_push_token` |
 | `business_profiles` | `user_id` (UUID) | → `profiles.id` | `company_name`, `approval_status` |
 | `influencer_profiles` | `user_id` (UUID) | → `profiles.id` | `username`, `niche`, `price_range` |
 | `collab_requests` | `id` (UUID) | → `profiles.id` (x2) | `from_user_id`, `to_user_id`, `status` |

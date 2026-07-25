@@ -4,6 +4,31 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-25: Mobile Parity & Core Flow Bug Fixes
+
+**Branch**: `dev`
+
+### Scope
+- **Decline Undo (`PATCH /api/collabs`)**: Enabled receivers (creators) to reopen a previously declined collaboration request back to `pending`, notifying the business owner. Previously, a declined request was terminal on both sides.
+- **Mobile Deal Sheet Closing**: Updated mobile deal sheet (`chat deal sheet`) to directly invoke deal endpoints (`accept`/`decline`/`withdraw`) via `PATCH` using a new `respondToDeal` helper, replacing the read-only web prompt.
+- **Mobile Stage Management**: Added client-side gating of checklist items by `owner_role` to match server checks, added confirm/cancel dialogs for counterparty stage skips, and added a verification removal reminder for Instagram bio link validation.
+- **Blocked Accounts UI & API**: Created blocked accounts screen and fixed API route (`removeBlock()`) to use JSON body parsing and embedded profile data in blocks lists.
+- **Push Notifications Pipeline**: Integrated Expo Push Notification fanning into `notifyUser()` (`apps/web/src/lib/notify.ts`), created mobile token registration client helper (`apps/mobile/lib/push.ts`), and backed storage via migration `079_expo_push_token.sql`. Applied migrations 075 through 079 to remote database.
+
+### What broke
+- **Supabase Service Role Key Auth**: In `apps/web/.env.local`, `SUPABASE_SERVICE_ROLE_KEY` was accidentally populated with an access token (`sbp_...` format) instead of the actual service role JWT (`eyJ...`). This silently caused operations bypassing RLS (such as server-side push notification fanning in `notifyUser()`) to fail or skip inserts.
+- **Expo Push Go Limitation**: In Expo SDK 53+, remote push notification delivery is no longer supported inside the Expo Go app. Attempting to test notifications via Expo Go results in token generation errors.
+
+### Fix
+- **Service Role Key Format**: Validated and updated `SUPABASE_SERVICE_ROLE_KEY` with the proper service role JWT from the Supabase dashboard, moving the management access token to `SUPABASE_ACCESS_TOKEN`.
+- **Push Notification Verification Setup**: Identified that physical device testing via EAS Build (dev client or TestFlight / standalone apk) and APN key configuration in Apple Developer portal are required to verify push notifications end-to-end.
+
+### Key Lessons
+- Always differentiate between Supabase personal/management access tokens (`sbp_...`), which are for CLI and Management API operations, and service role JWTs (`eyJ...`), which are required for backend server SDK clients to bypass Row Level Security.
+- When working with Expo SDK 53+, always plan for standalone EAS builds (dev client or production builds) early when developing or testing features dependent on native push notification tokens.
+
+---
+
 ## Session — 2026-07-18: Azure CI/CD Pipeline & Staging Environment
 
 **Branch**: `staging`

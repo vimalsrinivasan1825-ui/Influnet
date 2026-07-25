@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Linking, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
@@ -23,7 +23,6 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { profile, signOut } = useSession();
   const deleteSheet = useRef<SheetRef>(null);
-  const [blockedCount, setBlockedCount] = useState<number | null>(null);
 
   return (
     <ScreenScroll>
@@ -53,14 +52,9 @@ export default function SettingsScreen() {
       <ListGroup>
         <ListRow
           title="Blocked accounts"
-          subtitle={
-            blockedCount === null ? 'People who can’t contact you' : `${blockedCount} blocked`
-          }
+          subtitle="People who can’t contact you"
           left={<ShieldOff size={19} color={t.color.contentSoft} />}
-          onPress={async () => {
-            const res = await endpointsBlocksCount();
-            setBlockedCount(res);
-          }}
+          onPress={() => router.push('/blocked-accounts')}
         />
       </ListGroup>
 
@@ -120,11 +114,4 @@ export default function SettingsScreen() {
       </Sheet>
     </ScreenScroll>
   );
-}
-
-/** Reads the block list purely to show a count. */
-async function endpointsBlocksCount(): Promise<number> {
-  const { endpoints } = await import('@/lib/api');
-  const res = await endpoints.listBlocks<{ blocks?: unknown[] }>();
-  return res.data?.blocks?.length ?? 0;
 }

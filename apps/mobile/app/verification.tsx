@@ -124,6 +124,14 @@ export default function VerificationScreen() {
             Your Instagram account is confirmed as yours. The badge shows on your
             public profile and everywhere brands see you.
           </Txt>
+          {/* Only shown right after completing the flow in this session — code
+              being set means they just went through initiate + confirm, not
+              that they're revisiting an already-verified account. */}
+          {code ? (
+            <Txt variant="footnote" tone="muted" center>
+              Don't forget to remove the code from your bio — it's done its job.
+            </Txt>
+          ) : null}
         </Card>
       ) : (
         <>

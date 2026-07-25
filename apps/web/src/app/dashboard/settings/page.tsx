@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { uploadToCloudinary } from "@/lib/storage/upload-client";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
+import { publicProfileUrlDisplay } from "@/lib/site";
 
 type Slice = { label: string; pct: number };
 type SliceRow = { label: string; pct: string };
@@ -409,7 +410,7 @@ export default function SettingsPage() {
           }
         >
           <div className="flex flex-col gap-4">
-            <Field label="Platform username" hint={`Public URL: influnet.app/b/${username || "yourusername"}`}>
+            <Field label="Platform username" hint={`Public URL: ${publicProfileUrlDisplay("b", username || "yourusername")}`}>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
@@ -443,7 +444,7 @@ export default function SettingsPage() {
           }
         >
           <div className="flex flex-col gap-4">
-            <Field label="Platform username" hint={`Public URL: influnet.app/c/${username || "yourusername"}`}>
+            <Field label="Platform username" hint={`Public URL: ${publicProfileUrlDisplay("c", username || "yourusername")}`}>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}

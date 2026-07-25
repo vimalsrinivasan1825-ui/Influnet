@@ -58,8 +58,11 @@ export default function RequestDetail() {
   const other = isIncoming ? collab?.sender : collab?.receiver;
   const otherName = other?.name ?? null;
   const canAct = isIncoming && collab?.status === 'pending';
+  // The one path back for a creator who declined and changed their mind —
+  // Discover is business-only, so this is the only way to re-initiate.
+  const canReopen = isIncoming && collab?.status === 'declined';
 
-  async function setStatus(status: 'accepted' | 'declined') {
+  async function setStatus(status: 'accepted' | 'declined' | 'pending') {
     setBusy(true);
     setActionError(null);
 
@@ -140,6 +143,10 @@ export default function RequestDetail() {
           <Button label="Accept and start talking" onPress={() => acceptSheet.current?.expand()} />
           <Button label="Decline" variant="ghost" onPress={() => declineSheet.current?.expand()} />
         </StickyFooter>
+      ) : canReopen ? (
+        <StickyFooter>
+          <Button label="Changed your mind? Reopen" onPress={() => setStatus('pending')} loading={busy} />
+        </StickyFooter>
       ) : null}
 
       <Sheet ref={acceptSheet} title="Accept this request?">
@@ -152,7 +159,7 @@ export default function RequestDetail() {
 
       <Sheet ref={declineSheet} title="Decline this request?">
         <Txt variant="body" tone="soft">
-          They'll see that you passed. You can't undo this, but they can send a new request later.
+          They'll see that you passed. You can reopen it yourself later if you change your mind.
         </Txt>
         <Button label="Decline" variant="danger" onPress={() => setStatus('declined')} loading={busy} />
       </Sheet>

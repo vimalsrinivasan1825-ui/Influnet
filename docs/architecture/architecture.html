@@ -637,10 +637,10 @@
     </section>
 
     <section class="mod" id="m-notifications">
-      <header><h3>Notifications</h3><span class="pill warn">Partial</span></header>
-      <p>In-app summary works: <span class="mono">/api/notifications/summary</span> feeds the sidebar badges and bell counts. This is the product's core promise — "instant" delivery is the next milestone.</p>
-      <p class="paths">api/notifications/summary · store/notification-store.ts · components/dashboard/shell.tsx</p>
-      <p class="gap"><b>Missing:</b> notifications table + Supabase Realtime push (Task 2.1) and email via Resend (Task 2.2). Until then, creators only see requests when they open the app.</p>
+      <header><h3>Notifications</h3><span class="pill ok">Working</span></header>
+      <p>In-app summary works: <span class="mono">/api/notifications/summary</span> feeds the sidebar badges and bell counts. Server-side notification pipeline (<span class="mono">notifyUser</span>) inserts persistent rows and sends push notifications to mobile devices via Expo Push API.</p>
+      <p class="paths">api/notifications/summary · store/notification-store.ts · lib/notify.ts · apps/mobile/lib/push.ts</p>
+      <p class="gap"><b>Status:</b> Push notifications wired up across web and mobile (migration 079). Email notifications via Resend optional.</p>
     </section>
 
     <section class="mod" id="m-admin">
@@ -1192,6 +1192,11 @@
         <tr><th>Date</th><th>Change</th><th>Areas</th></tr>
       </thead>
       <tbody>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-25</td>
+          <td><strong>Mobile Parity & Core Flow Polish</strong>: Enabled creator undo decline in PATCH /api/collabs; added respondToDeal helper in mobile chat deal sheet to invoke deal endpoints directly via PATCH; client-side gated mobile checklist items by owner_role and added confirm/cancel for counterparty stage skips; created blocked accounts screen and embedded profile data in blocks list; integrated push notifications across web and mobile via Expo Push API; applied migrations 075 through 079; fixed SUPABASE_SERVICE_ROLE_KEY format in .env.local.</td>
+          <td>Mobile · Collabs · Projects · Notifications · Security</td>
+        </tr>
         <tr>
           <td class="mono" style="white-space:nowrap">2026-07-12</td>
           <td><strong>CI/CD Plumbing & Operations Setup</strong>: Created Next.js multi-stage Dockerfile and .dockerignore for staging/production containers; added standalone output configuration in next.config.ts; created /api/health endpoint for health monitoring; wrote scripts/smoke.mjs to perform automated route-health and auth-redirect post-deploy tests; added deploy-dev.yml (Vercel), deploy-staging.yml (Azure App Service Staging), and deploy-prod.yml (Azure App Service Prod image promotion with approval gate) workflows; added dependabot.yml and codeql.yml analysis. Fixed Kanban date-panel flex shrinking alignment bug. Disabled Discover navigation links on Business home & sidebar. Pushed migrations 051-056 successfully to the production database.</td>

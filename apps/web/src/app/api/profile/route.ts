@@ -29,6 +29,9 @@ export async function GET(req: Request) {
       verification_status: p.verification_status ?? 'unverified',
       verified_badge: p.verified_badge ?? false,
       verified_at: p.verified_at ?? null,
+      // Undefined (rather than null) when migration 077 hasn't been applied,
+      // so the nudge falls back to its localStorage behaviour for that window.
+      mediakit_nudge_dismissed_at: 'mediakit_nudge_dismissed_at' in p ? p.mediakit_nudge_dismissed_at : undefined,
     };
 
     // Get extended profile based on role.

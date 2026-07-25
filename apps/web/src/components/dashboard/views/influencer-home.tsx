@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import {
   BadgeCheck,
   DollarSign,
+  FileClock,
   FolderGit2,
   MapPin,
   MessageSquare,
@@ -22,17 +24,21 @@ import { WelcomeModal } from "./welcome-modal";
 import { MediaKitNudge } from "@/components/dashboard/media-kit-nudge";
 
 const earningsConfig: ChartConfig = {
-  amount: { label: "Pipeline", color: "var(--brand)" },
+  amount: { label: "Earnings", color: "var(--brand)" },
 };
 
 export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
   const p = data.profile;
   const s = data.stats;
+  // The welcome card and the media-kit nudge both compete for a first-time
+  // creator's attention. Hold the nudge back until the welcome card is out of
+  // the way — first impressions shouldn't be two overlapping asks at once.
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 sm:p-6">
-      <WelcomeModal username={p.username} seen={p.welcome_seen} />
-      <MediaKitNudge />
+      <WelcomeModal username={p.username} seen={p.welcome_seen} onOpenChange={setWelcomeOpen} />
+      {!welcomeOpen && <MediaKitNudge />}
       {/* Header */}
       <Reveal className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -49,7 +55,7 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
               )}
             </div>
             <p className="flex items-center gap-1.5 text-sm text-content-soft">
-              <span>@{p.username}</span>
+              {p.username ? <span>@{p.username}</span> : <span>Choose a username in Settings</span>}
               {p.location && (
                 <>
                   <span className="text-content-muted">·</span>
@@ -71,11 +77,20 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       </Reveal>
 
       {/* KPIs */}
-      <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4" start={0.05}>
+      <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-5" start={0.05}>
+        {s.proposals_awaiting_you > 0 && (
+          <StatCard
+            label="Terms awaiting you"
+            value={s.proposals_awaiting_you}
+            hint="A brand proposed a project"
+            tone="warning"
+            icon={<FileClock />}
+          />
+        )}
         <StatCard
-          label="Pipeline value"
+          label="Agreed & in progress"
           value={`₹${s.pipeline_value.toLocaleString()}`}
-          hint="From accepted requests"
+          hint="Budget of active projects"
           tone="success"
           icon={<DollarSign />}
         />
@@ -105,7 +120,7 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.1} className="lg:col-span-2">
-          <SectionCard eyebrow="Pipeline" title="Weekly pipeline trend" className="h-full">
+          <SectionCard eyebrow="Earnings" title="Weekly earnings" className="h-full">
             <AreaChart
               data={data.earnings_trend}
               config={earningsConfig}
@@ -139,35 +154,26 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.18}>
           <SectionCard eyebrow="Brands" title="Active Roster" className="h-full">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted border border-hairline">
-                  <span className="text-sm font-bold text-content">L'O</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-content">L'Oreal Paris</p>
-                  <p className="truncate text-xs text-content-muted">Skincare Campaign</p>
-                </div>
-                <Badge variant="success" size="sm" dot>Active</Badge>
+            {!data.active_roster || data.active_roster.length === 0 ? (
+              <EmptyState
+                icon={<FolderGit2 />}
+                title="No active projects yet"
+                description="Brands you're currently working with will show up here once a project is agreed."
+              />
+            ) : (
+              <div className="flex flex-col gap-4">
+                {data.active_roster.map((r) => (
+                  <div key={r.id} className="flex items-center gap-3">
+                    <Avatar name={r.brand_name} size="sm" square />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-content">{r.brand_name}</p>
+                      <p className="truncate text-xs text-content-muted">{r.project_title}</p>
+                    </div>
+                    <Badge variant="success" size="sm" dot>Active</Badge>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted border border-hairline">
-                  <span className="text-sm font-bold text-content">NK</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-content">Nike</p>
-                  <p className="truncate text-xs text-content-muted">Summer Athletics</p>
-                </div>
-                <Badge variant="info" size="sm" dot>Review</Badge>
-              </div>
-              
-              <div className="mt-2 flex items-center justify-between rounded-xl border border-hairline bg-surface-muted px-4 py-3">
-                <span className="text-sm font-semibold text-content-soft">Total Reach</span>
-                <span className="text-lg font-extrabold text-brand">
-                  1.2M+
-                </span>
-              </div>
-            </div>
+            )}
           </SectionCard>
         </Reveal>
 

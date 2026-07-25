@@ -11,10 +11,13 @@ export async function GET(req: Request) {
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
 
+    // Embed the blocked profile's name/role — a bare list of ids is useless to
+    // show anyone; every client that renders this needs a name to display.
     const { data, error } = await supabase
       .from('user_blocks')
-      .select('blocked_id, created_at')
-      .eq('blocker_id', user.id);
+      .select('blocked_id, created_at, blocked:profiles!user_blocks_blocked_id_fkey(id, name, role)')
+      .eq('blocker_id', user.id)
+      .order('created_at', { ascending: false });
 
     if (error) return jsonError(500, 'Failed to load blocks', error);
     return NextResponse.json({ blocks: data || [] });

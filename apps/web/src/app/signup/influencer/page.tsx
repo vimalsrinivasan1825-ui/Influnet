@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
 import { cn } from "@/lib/utils";
+import { publicProfileUrlDisplay } from "@/lib/site";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -108,6 +109,8 @@ function InfluencerSignupContent() {
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
 
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
   // Fail open on network/server errors — the register RPC is the source of truth
@@ -165,6 +168,38 @@ function InfluencerSignupContent() {
     }
   };
 
+  // Someone else took `username` between step 2 and here. Rather than dead-
+  // ending on the last step with a "go back to step 2" instruction the
+  // creator has to act on manually, jump the wizard back there ourselves,
+  // focus the field, and offer two alternatives that are actually free right
+  // now — asking someone to walk backwards through a wizard they just
+  // finished is exactly where signups get abandoned.
+  const recoverFromTakenUsername = async (message: string) => {
+    setError(message);
+    setStep(2);
+    setUsernameSuggestions([]);
+
+    const candidates = [
+      `${username}${Math.floor(10 + Math.random() * 90)}`,
+      `${username}_${(firstName || "creator").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6)}`,
+    ];
+    const checked = await Promise.all(
+      candidates.map(async (c) => {
+        try {
+          const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(c)}`);
+          const data = await res.json();
+          return data.available ? c : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    setUsernameSuggestions(checked.filter((c): c is string => !!c));
+
+    // Let the step-2 UI mount before focusing.
+    setTimeout(() => usernameInputRef.current?.focus(), 50);
+  };
+
   const handleSubmit = async () => {
     setError("");
     setIsLoading(true);
@@ -176,11 +211,11 @@ function InfluencerSignupContent() {
         const check = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
         const checkData = await check.json();
         if (checkData.valid === false || checkData.available === false) {
-          setError(
-            checkData.valid === false
-              ? checkData.reason || "That username isn’t allowed."
-              : "That username was just taken. Please pick another and go back to step 2.",
-          );
+          if (checkData.valid === false) {
+            setError(checkData.reason || "That username isn’t allowed.");
+          } else {
+            await recoverFromTakenUsername("That username was just taken by someone else — pick another.");
+          }
           return;
         }
       } catch {
@@ -392,8 +427,12 @@ function InfluencerSignupContent() {
                 <Label>Username</Label>
                 <div className="relative">
                   <Input
+                    ref={usernameInputRef}
                     value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                    onChange={(e) => {
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
+                      setUsernameSuggestions([]);
+                    }}
                     placeholder="Choose username"
                     className="pr-10"
                     aria-invalid={usernameStatus === "taken" || usernameStatus === "invalid"}
@@ -405,6 +444,24 @@ function InfluencerSignupContent() {
                     {(usernameStatus === "taken" || usernameStatus === "invalid") && <X className="size-4 text-danger" />}
                   </span>
                 </div>
+                {usernameSuggestions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-content-muted">Try:</span>
+                    {usernameSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          setUsername(s);
+                          setUsernameSuggestions([]);
+                        }}
+                        className="rounded-lg border border-hairline-strong bg-surface-muted px-2.5 py-1 text-xs font-bold text-brand-strong transition-colors hover:border-brand hover:bg-brand-soft"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {usernameMessage && (
                   <p
                     className={cn(
@@ -418,7 +475,7 @@ function InfluencerSignupContent() {
                   </p>
                 )}
                 <p className="mt-1 text-xs text-content-muted">
-                  Your public profile will be influnet.com/c/{username || "username"}
+                  Your public profile will be {publicProfileUrlDisplay("c", username || "username")}
                 </p>
               </div>
               <div>

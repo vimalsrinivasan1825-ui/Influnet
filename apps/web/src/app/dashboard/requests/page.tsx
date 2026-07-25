@@ -1,7 +1,7 @@
 "use client";
 import { toast } from "sonner";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, History, Inbox, MessageSquare, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/ui/motion";
+import { InboundBoostPanel } from "@/components/dashboard/inbound-boost-panel";
 import { cn } from "@/lib/utils";
 
 interface CollabRequest {
@@ -52,6 +53,20 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [actionIds, setActionIds] = useState<Set<string>>(new Set());
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Requests with a Decline in flight (undo window). Kept out of `open` so
+  // the card doesn't sit there mid-decline while the undo toast is showing.
+  const [decliningIds, setDecliningIds] = useState<Set<string>>(new Set());
+  const declineTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      // If the creator navigates away during the undo window, the decline
+      // never happened server-side — safer than silently committing an
+      // action they may have walked away from mid-thought. The request
+      // simply stays "pending" and shows up again next visit.
+      declineTimers.current.forEach((t) => clearTimeout(t));
+    };
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -121,6 +136,8 @@ export default function RequestsPage() {
           router.push(`/dashboard/messages?conv=${convId}`);
           return;
         }
+      } else if (status === "pending") {
+        toast.success("Reopened — they've been notified.");
       }
       await refreshRequests();
     } catch (e) {
@@ -134,10 +151,63 @@ export default function RequestsPage() {
     }
   };
 
+  // Decline is terminal on the recipient's side — once sent, the creator has
+  // no way back to this exact request (the sender can send a fresh one, but
+  // the creator can't undo a mis-tap themselves). A confirmation naming the
+  // brand and budget, plus a short undo window before it actually commits,
+  // gives them a real way to catch a mistake on a decision with real money
+  // attached.
+  const DECLINE_UNDO_MS = 6000;
+  const declineWithConfirm = (
+    requestId: string,
+    otherUserId: string,
+    brandName: string,
+    budget?: number | string | null,
+  ) => {
+    const budgetLabel = budget != null && budget !== "" ? ` (₹${Number(budget).toLocaleString()})` : "";
+    const confirmed = window.confirm(
+      `Decline ${brandName}'s request${budgetLabel}? You won't be able to undo this after a few seconds.`,
+    );
+    if (!confirmed) return;
+
+    setDecliningIds((prev) => new Set(prev).add(requestId));
+    const timer = setTimeout(() => {
+      declineTimers.current.delete(requestId);
+      handleAction(requestId, "declined", otherUserId).finally(() => {
+        setDecliningIds((prev) => {
+          const s = new Set(prev);
+          s.delete(requestId);
+          return s;
+        });
+      });
+    }, DECLINE_UNDO_MS);
+    declineTimers.current.set(requestId, timer);
+
+    toast(`Declining ${brandName}'s request…`, {
+      duration: DECLINE_UNDO_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          const t = declineTimers.current.get(requestId);
+          if (t) {
+            clearTimeout(t);
+            declineTimers.current.delete(requestId);
+          }
+          setDecliningIds((prev) => {
+            const s = new Set(prev);
+            s.delete(requestId);
+            return s;
+          });
+          toast.success("Kept the request — no changes made.");
+        },
+      },
+    });
+  };
+
   // A request only belongs in the requests list while someone still has to act
   // on it. Once it is accepted, declined or cancelled the decision is made —
   // it becomes history, whatever later happened to the project it produced.
-  const open = userId ? requests.filter((r) => r.status === "pending") : [];
+  const open = userId ? requests.filter((r) => r.status === "pending" && !decliningIds.has(r.id)) : [];
   const sent = open.filter((r) => r.from_user_id === userId);
   const received = open.filter((r) => r.to_user_id === userId);
   const history = userId ? requests.filter((r) => r.status !== "pending") : [];
@@ -180,6 +250,7 @@ export default function RequestsPage() {
             icon={<Inbox />}
             title="No requests yet"
             description="Requests will show up here once you start collaborating."
+            action={<InboundBoostPanel />}
           />
         </Card>
       ) : (
@@ -197,6 +268,7 @@ export default function RequestsPage() {
                   isSender={false}
                   acting={actionIds.has(r.id)}
                   onAction={handleAction}
+                  onDecline={declineWithConfirm}
                   onOpenConversation={openConversation}
                 />
               ))}
@@ -228,6 +300,7 @@ export default function RequestsPage() {
                 icon={<Inbox />}
                 title="Nothing waiting on you"
                 description="Every request has been answered. Past collaborations are below."
+                action={<InboundBoostPanel />}
               />
             </Card>
           )}
@@ -288,12 +361,14 @@ function RequestCard({
   isSender,
   acting,
   onAction,
+  onDecline,
   onOpenConversation,
 }: {
   r: CollabRequest;
   isSender: boolean;
   acting: boolean;
   onAction: (id: string, status: string, otherUserId: string) => void;
+  onDecline?: (id: string, otherUserId: string, brandName: string, budget?: number | string | null) => void;
   onOpenConversation: (id: string, otherUserId: string) => void;
 }) {
   const otherParty = isSender ? r.receiver : r.sender;
@@ -330,7 +405,7 @@ function RequestCard({
               <p className="mt-1 text-xs text-content-muted">
                 {isSender
                   ? "They passed on this one. You can reach out again with revised terms."
-                  : "You passed on this one."}
+                  : "You passed on this one. Changed your mind? You can reopen it."}
               </p>
             )}
             {r.budget != null && r.budget !== "" && (
@@ -366,11 +441,15 @@ function RequestCard({
               >
                 <Check /> {acting ? "…" : "Accept"}
               </Button>
+              {/* A confirmed, undoable decline — this is a real decision with
+                  money attached and, once it commits, the creator can't take
+                  it back themselves. Visually distinct (ghost, not "surface")
+                  so it doesn't read as equally weighted against Accept. */}
               <Button
-                variant="surface"
+                variant="ghost"
                 size="sm"
                 disabled={acting}
-                onClick={() => onAction(r.id, "declined", otherUserId)}
+                onClick={() => onDecline?.(r.id, otherUserId, otherParty?.name || "This brand", r.budget)}
               >
                 Decline
               </Button>
@@ -397,6 +476,22 @@ function RequestCard({
             <ButtonLink href={`/dashboard/requests/new?to=${otherUserId}`} variant="brand" size="sm">
               <RotateCcw /> Send again
             </ButtonLink>
+          )}
+
+          {/* The one path back for a creator who declined and changed their
+              mind. Creators can't initiate contact themselves (Discover is
+              business-only), so without this a decline was terminal on their
+              own side too — the sender could send a fresh request, but the
+              creator who made the mistake had no way to undo it. */}
+          {!isSender && r.status === "declined" && (
+            <Button
+              variant="surface"
+              size="sm"
+              disabled={acting}
+              onClick={() => onAction(r.id, "pending", otherUserId)}
+            >
+              <RotateCcw /> {acting ? "…" : "Reopen"}
+            </Button>
           )}
 
         </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Check, Clock, Paperclip } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import {
   STAGE_GUIDE,
   isMutualSignoffStage,
   isSkippableStage,
+  stageSkipProposal,
   type Stage,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
@@ -68,6 +69,8 @@ export default function StageScreen() {
 
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [itemBusyId, setItemBusyId] = useState<string | null>(null);
+  const [itemError, setItemError] = useState<string | null>(null);
 
   /**
    * The stage's three sources at once: the project (for sign-off state), its
@@ -125,11 +128,34 @@ export default function StageScreen() {
   const isPast = project ? STAGES.indexOf(stageKey) < STAGES.indexOf(project.current_stage as Stage) : false;
   const usesSignoff = isMutualSignoffStage(stageKey);
 
+  const skipProposal = stageSkipProposal(project?.stage_progress, stageKey);
+  const iProposedSkip = !!skipProposal && skipProposal.by === me;
+  const theyProposedSkip = !!skipProposal && !iProposedSkip;
+
   // My side's instructions come first — this screen is about what I do next.
   const myTasks = isOwner ? guide.brand : guide.creator;
   const theirTasks = isOwner ? guide.creator : guide.brand;
 
-  async function act(action: 'signoff' | 'revoke_signoff' | 'propose_skip') {
+  const myRole: 'business' | 'creator' = isOwner ? 'business' : 'creator';
+
+  async function toggleItem(item: StageItem) {
+    setItemBusyId(item.id);
+    setItemError(null);
+
+    const res = await endpoints.updateStageItem(id, { item_id: item.id, done: !item.done_at });
+    setItemBusyId(null);
+
+    if (!res.ok) {
+      setItemError(res.error);
+      return;
+    }
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    refresh();
+  }
+
+  async function act(
+    action: 'signoff' | 'revoke_signoff' | 'propose_skip' | 'confirm_skip' | 'cancel_skip'
+  ) {
     setBusy(true);
     setActionError(null);
 
@@ -209,43 +235,64 @@ export default function StageScreen() {
                   Checklist
                 </Txt>
 
-                {stageItems.map((item) => (
-                  <View
-                    key={item.id}
-                    style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.sm }}
-                  >
-                    {item.done_at ? (
-                      <Check size={16} color={t.color.ok} style={{ marginTop: 2 }} />
-                    ) : (
-                      <View
-                        style={{
-                          width: 14,
-                          height: 14,
-                          borderRadius: 7,
-                          borderWidth: 1.5,
-                          borderColor: t.color.hairlineStrong,
-                          marginTop: 3,
-                          marginHorizontal: 1,
-                        }}
-                      />
-                    )}
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <Txt variant="callout" tone={item.done_at ? 'muted' : 'default'}>
-                        {item.label}
-                      </Txt>
-                      {item.is_gate || !item.is_required ? (
-                        <View style={{ flexDirection: 'row', gap: t.spacing.xs }}>
-                          {item.is_gate ? <Badge label="Gate" tone="warn" /> : null}
-                          {!item.is_required ? <Badge label="Optional" tone="neutral" /> : null}
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
-                ))}
+                {stageItems.map((item) => {
+                  // Mirrors the server's owner_role gate (stage-items/route.ts)
+                  // so a row that can't actually be toggled doesn't invite a tap.
+                  const mine = item.owner_role === 'both' || item.owner_role === myRole;
+                  const rowBusy = itemBusyId === item.id;
 
-                <Txt variant="footnote" tone="muted">
-                  Tick items off from the Influnet web app — this view is read-only for now.
-                </Txt>
+                  return (
+                    <Pressable
+                      key={item.id}
+                      disabled={!mine || rowBusy}
+                      onPress={() => toggleItem(item)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: !!item.done_at, disabled: !mine }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
+                        gap: t.spacing.sm,
+                        opacity: rowBusy ? 0.5 : pressed && mine ? 0.7 : 1,
+                      })}
+                    >
+                      {item.done_at ? (
+                        <Check size={16} color={t.color.ok} style={{ marginTop: 2 }} />
+                      ) : (
+                        <View
+                          style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: 7,
+                            borderWidth: 1.5,
+                            borderColor: t.color.hairlineStrong,
+                            marginTop: 3,
+                            marginHorizontal: 1,
+                          }}
+                        />
+                      )}
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <Txt variant="callout" tone={item.done_at ? 'muted' : 'default'}>
+                          {item.label}
+                        </Txt>
+                        {item.is_gate || !item.is_required || !mine ? (
+                          <View style={{ flexDirection: 'row', gap: t.spacing.xs }}>
+                            {item.is_gate ? <Badge label="Gate" tone="warn" /> : null}
+                            {!item.is_required ? <Badge label="Optional" tone="neutral" /> : null}
+                            {!mine ? (
+                              <Badge label={`${item.owner_role === 'business' ? 'Brand' : 'Creator'} marks this`} tone="neutral" />
+                            ) : null}
+                          </View>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+
+                {itemError ? (
+                  <Txt variant="footnote" tone="danger">
+                    {itemError}
+                  </Txt>
+                ) : null}
               </Card>
             ) : null}
 
@@ -352,7 +399,32 @@ export default function StageScreen() {
 
       {isCurrent && usesSignoff ? (
         <StickyFooter>
-          {mySignoff ? (
+          {theyProposedSkip ? (
+            <>
+              <Txt variant="footnote" tone="muted" center>
+                {partner} suggested skipping this stage.
+              </Txt>
+              <Button label="Confirm skip" onPress={() => act('confirm_skip')} loading={busy} />
+              <Button
+                label="Keep this stage"
+                variant="secondary"
+                onPress={() => act('cancel_skip')}
+                loading={busy}
+              />
+            </>
+          ) : iProposedSkip ? (
+            <>
+              <Txt variant="footnote" tone="muted" center>
+                Waiting for {partner} to confirm the skip.
+              </Txt>
+              <Button
+                label="Cancel skip proposal"
+                variant="secondary"
+                onPress={() => act('cancel_skip')}
+                loading={busy}
+              />
+            </>
+          ) : mySignoff ? (
             <>
               <Txt variant="footnote" tone="muted" center>
                 {theirSignoff
@@ -367,17 +439,18 @@ export default function StageScreen() {
               />
             </>
           ) : (
-            <Button label="Confirm this stage" onPress={() => act('signoff')} loading={busy} />
+            <>
+              <Button label="Confirm this stage" onPress={() => act('signoff')} loading={busy} />
+              {isSkippableStage(stageKey) ? (
+                <Button
+                  label="Propose skipping this stage"
+                  variant="ghost"
+                  onPress={() => act('propose_skip')}
+                  loading={busy}
+                />
+              ) : null}
+            </>
           )}
-
-          {isSkippableStage(stageKey) && !mySignoff ? (
-            <Button
-              label="Propose skipping this stage"
-              variant="ghost"
-              onPress={() => act('propose_skip')}
-              loading={busy}
-            />
-          ) : null}
         </StickyFooter>
       ) : null}
     </View>

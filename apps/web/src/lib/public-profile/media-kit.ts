@@ -13,6 +13,7 @@ import {
   type InstagramSnapshotView,
   type RawPublicProfile,
 } from './creator-profile';
+import { publicOrigin } from '@/lib/site';
 
 export interface MediaKitStat {
   label: string;
@@ -278,7 +279,7 @@ export function buildMediaKitView(
     languages: (profile.languages ?? []).slice(0, 4),
     niches: (profile.niche ?? []).slice(0, 8),
     topAudience: topAudienceOf(age),
-    profileUrl: `${opts.origin ?? 'https://influnet.app'}/c/${username}`,
+    profileUrl: `${opts.origin ?? publicOrigin()}/c/${username}`,
     snapshotAge: relativeAge(instagram?.fetchedAt ?? null),
   };
 }

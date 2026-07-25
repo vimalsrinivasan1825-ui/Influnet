@@ -9,7 +9,7 @@ import type { InfluencerHomeData } from "@/components/dashboard/views/types";
 const FALLBACK: InfluencerHomeData = {
   profile: {
     name: "Creator",
-    username: "",
+    username: null,
     niche: [],
     is_verified: false,
     headline: null,
@@ -23,10 +23,12 @@ const FALLBACK: InfluencerHomeData = {
     active_projects: 0,
     completed_projects: 0,
     pipeline_value: 0,
+    proposals_awaiting_you: 0,
   },
   earnings_trend: [],
   request_breakdown: [],
   recent_collabs: null,
+  active_roster: null,
 };
 
 export default function InfluencerDashboardPage() {

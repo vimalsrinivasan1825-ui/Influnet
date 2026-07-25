@@ -119,7 +119,18 @@ export async function POST(req: Request) {
     }
 
     const { to_user_id, project_title, project_description, budget } = result.data;
-    
+
+    // A block stops contact in BOTH directions — the RLS RESTRICTIVE policy
+    // (migration 076) enforces this regardless, but checking here first gives
+    // a clear message instead of a bare RLS violation surfacing as a 500.
+    const { data: blocked } = await supabase.rpc('is_blocked_pair', {
+      a: user.id,
+      b: to_user_id,
+    });
+    if (blocked) {
+      return jsonError(403, 'You can no longer send requests to this account.');
+    }
+
     // Combine project_title + message into the `message` field for storage
     const messageText = [project_title, project_description].filter(Boolean).join('\n\n');
 
@@ -198,7 +209,20 @@ export async function PATCH(req: Request) {
     const isSender = collab.from_user_id === user.id;
     const isReceiver = collab.to_user_id === user.id;
 
-    if (status !== 'accepted') {
+    if (status === 'pending') {
+      // Reopening: the one path back for a creator who declined a request and
+      // changed their mind. A brand can already reach a creator again with a
+      // brand-new request — creators can't initiate contact at all (Discover
+      // is business-only), so without this a decline was permanently terminal
+      // from their side. Only the receiver may reopen, and only a request
+      // they themselves declined; accepted/cancelled requests stay terminal.
+      if (collab.status !== 'declined') {
+        return jsonError(400, 'Only a declined request can be reopened.');
+      }
+      if (!isReceiver) {
+        return jsonError(403, 'Only the recipient can reopen a request they declined.');
+      }
+    } else if (status !== 'accepted') {
       if (collab.status !== 'pending') {
         return jsonError(409, `This request is already ${collab.status} and can no longer be changed.`);
       }
@@ -207,9 +231,6 @@ export async function PATCH(req: Request) {
       }
       if (status === 'cancelled' && !isSender) {
         return jsonError(403, 'Only the sender can cancel a request.');
-      }
-      if (status === 'pending') {
-        return jsonError(400, 'A request cannot be moved back to pending.');
       }
     }
 
@@ -243,14 +264,22 @@ export async function PATCH(req: Request) {
       if (refetchError) return jsonError(500, 'Failed to refetch updated collab', refetchError);
       updated = fetchUpdated;
     } else {
-      // Standard update for declined / cancelled (guarded above).
+      // Standard update for declined / cancelled / reopened (guarded above).
       const { data: stdUpdated, error: updateError } = await supabase
         .from('collab_requests')
         .update({ status })
         .eq('id', id)
         .select()
         .single();
-      if (updateError) return jsonError(500, 'Failed to update request status', updateError);
+      if (updateError) {
+        // Reopening can collide with the one-pending-per-pair unique index if
+        // the sender already sent a fresh request to this creator in the
+        // meantime — that new request is the live one to act on instead.
+        if (updateError.code === '23505' && status === 'pending') {
+          return jsonError(409, 'There’s already a newer pending request between you two — respond to that one instead.');
+        }
+        return jsonError(500, 'Failed to update request status', updateError);
+      }
       updated = stdUpdated;
 
       if (status === 'declined') {
@@ -259,6 +288,16 @@ export async function PATCH(req: Request) {
           type: 'collab_declined',
           title: 'Collaboration request declined',
           body: 'The creator passed on this one.',
+          link: '/dashboard/requests',
+        });
+      }
+
+      if (status === 'pending') {
+        await notifyUser({
+          userId: collab.from_user_id,
+          type: 'collab_request',
+          title: 'A creator reopened your request',
+          body: 'They changed their mind — it’s back on. Accept it to open a conversation.',
           link: '/dashboard/requests',
         });
       }

@@ -3,7 +3,10 @@
 export interface InfluencerHomeData {
   profile: {
     name: string;
-    username: string;
+    // Null when the creator hasn't picked a username yet — never a slug
+    // guessed from their display name, which routinely doesn't match the
+    // real /c/[username] row and hands out a link that 404s.
+    username: string | null;
     niche: string[];
     is_verified: boolean;
     headline: string | null;
@@ -21,12 +24,22 @@ export interface InfluencerHomeData {
     active_discussions: number;
     active_projects: number;
     completed_projects: number;
+    // Budget of AGREED, in-progress projects (status='active') — not the
+    // brand's opening ask on every conversation accepting a request ever
+    // opened, which may represent nothing more than a polite reply.
     pipeline_value: number;
+    // Terms a brand proposed that are waiting on THIS creator's response —
+    // the one thing genuinely blocked on them, previously invisible here.
+    proposals_awaiting_you: number;
   };
+  // Real payments received (project_payments, status='paid'), not requests exchanged.
   earnings_trend: { week: string; amount: number }[];
   request_breakdown: { name: string; value: number; fill: string }[];
   recent_collabs:
     | { id: string; name: string; amount: string; status: string; sender_id: string }[]
+    | null;
+  active_roster:
+    | { id: number | string; brand_name: string; project_title: string }[]
     | null;
 }
 

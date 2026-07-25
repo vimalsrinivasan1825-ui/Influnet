@@ -21,6 +21,8 @@ interface ProfileShape {
     age?: unknown[];
     gender?: unknown[];
   } | null;
+  // Undefined until migration 077 is applied — see the fallback below.
+  mediakit_nudge_dismissed_at?: string | null;
 }
 
 const DISMISS_KEY = "influnet_mediakit_nudge_dismissed";
@@ -39,28 +41,42 @@ function missingBits(p: ProfileShape): string[] {
 
 export function MediaKitNudge() {
   const [missing, setMissing] = useState<string[] | null>(null);
+  // Starts dismissed; the fetch below is the only thing that can un-hide it,
+  // so there's no flash of the nudge before the account's real state is known.
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    if (localStorage.getItem(DISMISS_KEY) === "1") return;
-    setDismissed(false);
     (async () => {
       const res = await apiFetch<{ profile: ProfileShape }>("/api/profile");
-      if (res.ok && res.data?.profile?.role === "influencer") {
-        setMissing(missingBits(res.data.profile));
-      }
+      if (!res.ok || res.data?.profile?.role !== "influencer") return;
+
+      const profile = res.data.profile;
+      // The account remembers this once migration 077 is applied. Until then,
+      // fall back to the old per-browser flag rather than showing the nudge
+      // to someone who already dismissed it (on this browser, at least).
+      const accountDismissed =
+        profile.mediakit_nudge_dismissed_at !== undefined
+          ? profile.mediakit_nudge_dismissed_at != null
+          : localStorage.getItem(DISMISS_KEY) === "1";
+      if (accountDismissed) return;
+
+      setDismissed(false);
+      setMissing(missingBits(profile));
     })();
   }, []);
 
   if (dismissed || !missing || missing.length === 0) return null;
 
   const dismiss = () => {
+    setDismissed(true);
     try {
       localStorage.setItem(DISMISS_KEY, "1");
     } catch {
       /* ignore */
     }
-    setDismissed(true);
+    // Best-effort — if migration 077 isn't applied yet this 404s/no-ops
+    // server-side and the localStorage flag above is what carries it.
+    void apiFetch("/api/profile/mediakit-nudge", { method: "POST" });
   };
 
   const list =

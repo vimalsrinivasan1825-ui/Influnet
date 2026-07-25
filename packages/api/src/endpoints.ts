@@ -24,6 +24,9 @@ export function createEndpoints(api: ApiClient) {
     updateProfile: <T = unknown>(body: unknown) => api.patch<T>('/api/profile', body),
     refreshProfile: <T = unknown>() => api.post<T>('/api/profile/refresh'),
     dismissWelcome: <T = unknown>() => api.post<T>('/api/profile/welcome'),
+    /** Registers (token) or clears (null) this device's Expo push token. */
+    registerPushToken: <T = unknown>(token: string | null) =>
+      api.post<T>('/api/profile/push-token', { token }),
     checkUsername: <T = unknown>(username: string) =>
       api.get<T>(`/api/auth/check-username?username=${encodeURIComponent(username)}`),
     register: <T = unknown>(body: unknown) => api.post<T>('/api/auth/register', body),
@@ -49,8 +52,12 @@ export function createEndpoints(api: ApiClient) {
     sendMessage: <T = unknown>(id: string, body: unknown) =>
       api.post<T>(`/api/conversations/${id}/messages`, body),
     getDeal: <T = unknown>(id: string) => api.get<T>(`/api/conversations/${id}/deal`),
+    /** Proposes new terms — POST creates a project_proposals row. */
     updateDeal: <T = unknown>(id: string, body: unknown) =>
       api.post<T>(`/api/conversations/${id}/deal`, body),
+    /** Accept / decline / withdraw the terms currently on the table. */
+    respondToDeal: <T = unknown>(id: string, body: { proposal_id: string; action: 'accept' | 'decline' | 'withdraw'; note?: string }) =>
+      api.patch<T>(`/api/conversations/${id}/deal`, body),
 
     // ── Projects ───────────────────────────────────────────────────
     listProjects: <T = unknown>() => api.get<T>('/api/projects'),
@@ -64,6 +71,9 @@ export function createEndpoints(api: ApiClient) {
     listStageItems: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/stage-items`),
     createStageItem: <T = unknown>(id: string, body: unknown) =>
       api.post<T>(`/api/projects/${id}/stage-items`, body),
+    /** Toggle a single checklist item done/undone. */
+    updateStageItem: <T = unknown>(id: string, body: { item_id: string; done: boolean }) =>
+      api.patch<T>(`/api/projects/${id}/stage-items`, body),
     listChangeRequests: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/change-requests`),
     createChangeRequest: <T = unknown>(id: string, body: unknown) =>
       api.post<T>(`/api/projects/${id}/change-requests`, body),
@@ -82,7 +92,11 @@ export function createEndpoints(api: ApiClient) {
     // ── Trust & safety ─────────────────────────────────────────────
     listBlocks: <T = unknown>() => api.get<T>('/api/blocks'),
     createBlock: <T = unknown>(body: unknown) => api.post<T>('/api/blocks', body),
-    removeBlock: <T = unknown>(id: string) => api.del<T>(`/api/blocks?id=${encodeURIComponent(id)}`),
+    // DELETE /api/blocks reads { blocked_id } from the JSON body (see
+    // apps/web/src/app/api/blocks/route.ts) — a query string is never read
+    // there, so this has to send a body rather than use api.del().
+    removeBlock: <T = unknown>(blockedId: string) =>
+      api.request<T>('/api/blocks', { method: 'DELETE', body: JSON.stringify({ blocked_id: blockedId }) }),
     createReport: <T = unknown>(body: unknown) => api.post<T>('/api/reports', body),
 
     // ── Verification ───────────────────────────────────────────────

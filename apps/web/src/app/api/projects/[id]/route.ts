@@ -539,11 +539,22 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(400, `Invalid stage key: ${stage_key}`);
       }
 
-      // Sanitize updates to prevent tampering with stage status/dates directly
-      const sanitizedUpdates = { ...updates };
-      delete sanitizedUpdates.status;
-      delete sanitizedUpdates.started_at;
-      delete sanitizedUpdates.completed_at;
+      // Allow-list, not a deny-list: stage_progress[stage_key] is also where
+      // sign-off consent state lives (owner_signoff_at, creator_signoff_at,
+      // skip_proposed_by, ...). A deny-list of just status/started_at/
+      // completed_at left those forgeable — either party could write the
+      // COUNTERPARTY's sign-off/skip-proposal into their own entry and then
+      // satisfy the "both sides agreed" check alone. Only presentational
+      // fields may be merged here.
+      const ALLOWED_STAGE_FIELDS = ['notes', 'meeting_link', 'deliverables'] as const;
+      const sanitizedUpdates = Object.fromEntries(
+        Object.entries(updates as Record<string, unknown>).filter(([k]) =>
+          (ALLOWED_STAGE_FIELDS as readonly string[]).includes(k),
+        ),
+      );
+      if (Object.keys(sanitizedUpdates).length === 0) {
+        return jsonError(400, 'No updatable fields provided.');
+      }
 
       const stageProgress = (project.stage_progress || {}) as Record<string, any>;
       stageProgress[stage_key] = {
@@ -565,9 +576,42 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ project: updated });
     }
 
-    // 3) Update project title / description / deliverables
+    // 3) Update project title / description / deliverables.
+    //
+    // These are exactly the fields the propose -> notify -> accept loop in
+    // /api/projects/[id]/change-requests exists to protect: any change is
+    // meant to be proposed, snapshotted against its previous value, and
+    // notified to the other side before it takes effect. Editing them
+    // directly here bypassed all of that — no consent, no notification, no
+    // activity entry, and no length limit (change-requests caps these at
+    // 4000 chars). The only safe direct edit is the proposer tidying up terms
+    // nobody has accepted yet; once a project is active, this must go through
+    // a change request instead.
     if (action === 'update_project') {
-      const { title, description, deliverables } = result.data;
+      const { data: statusForEdit } = await supabase
+        .from('campaign_projects')
+        .select('status, created_by_user_id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (statusForEdit?.status !== 'pending_acceptance' || statusForEdit?.created_by_user_id !== user.id) {
+        return jsonError(
+          409,
+          'Agreed terms can only be changed through a change request, so the other side can review it.',
+        );
+      }
+
+      const EditableTermsSchema = z.object({
+        title: z.string().trim().min(1).max(200).optional(),
+        description: z.string().max(4000).optional(),
+        deliverables: z.string().max(4000).optional(),
+      });
+      const termsResult = EditableTermsSchema.safeParse(result.data);
+      if (!termsResult.success) {
+        return NextResponse.json({ error: 'Validation failed', details: termsResult.error.format() }, { status: 400 });
+      }
+      const { title, description, deliverables } = termsResult.data;
+
       const updateData: any = { updated_at: new Date().toISOString() };
       if (title !== undefined) updateData.title = title;
       if (description !== undefined) updateData.description = description;
@@ -581,6 +625,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .single();
 
       if (updateErr) return jsonError(500, 'Failed to update project details', updateErr);
+
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'terms_edited',
+        summary: 'Edited the proposed terms before they were accepted',
+      });
+
       return NextResponse.json({ project: updated });
     }
 

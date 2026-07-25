@@ -33,9 +33,12 @@ type NavItem = {
 };
 
 const CREATOR_NAV: NavItem[] = [
-  // Home = who you are publicly + what's in flight. Dashboard = the numbers.
-  { label: "Home", href: "/dashboard/home", icon: Home },
-  { label: "Dashboard", href: "/dashboard/influencer", icon: LayoutDashboard },
+  // These used to both be labelled generically ("Home" / "Dashboard"), which
+  // gave no clue which one held a given number — people clicked both to find
+  // out. "Today" is the action feed (what's in flight, what needs a reply);
+  // "Insights" is the KPI/analytics view.
+  { label: "Today", href: "/dashboard/home", icon: Home },
+  { label: "Insights", href: "/dashboard/influencer", icon: LayoutDashboard },
   { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
@@ -45,8 +48,8 @@ const CREATOR_NAV: NavItem[] = [
 ];
 
 const BUSINESS_NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard/home", icon: Home },
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Today", href: "/dashboard/home", icon: Home },
+  { label: "Insights", href: "/dashboard", icon: LayoutDashboard },
   { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },

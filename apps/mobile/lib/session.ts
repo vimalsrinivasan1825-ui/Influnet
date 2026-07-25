@@ -12,6 +12,7 @@ import { supabase } from './supabase';
 import { endpoints } from './api';
 import { clearFetchCache } from './use-fetch';
 import { disconnectStream } from './stream';
+import { clearPushToken } from './push';
 
 export interface MeProfile {
   id: string;
@@ -82,6 +83,10 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   signOut: async () => {
+    // Before signOut() drops the token this request authenticates with —
+    // otherwise a shared or reset device would keep receiving the outgoing
+    // account's pushes after the next person signs in.
+    clearPushToken();
     await supabase.auth.signOut();
     // The screen cache is keyed by screen, not by user — leaving it populated
     // would paint the previous account's data to the next one. The Stream

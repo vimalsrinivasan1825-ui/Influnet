@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { fetchInstagramProfile, normalizeHandle, InstagramProviderError } from '@/lib/instagram';
+import { publicOrigin } from '@/lib/site';
 
 // The confirm step scrapes the live bio (Apify actor ~15s).
 export const maxDuration = 60;
@@ -20,8 +21,7 @@ function newCode(): string {
 }
 
 function verifyUrl(code: string): string {
-  const base = (process.env.NEXT_PUBLIC_APP_URL || 'https://influnet.app').replace(/\/$/, '');
-  return `${base}/vf/${code}`;
+  return `${publicOrigin()}/vf/${code}`;
 }
 
 // GET: current ownership-claim status for the caller's handle (drives the UI).
@@ -90,8 +90,11 @@ export async function POST(req: Request) {
         code,
         verify_url: verifyUrl(code),
         expires_in: TTL_SECONDS,
+        // Lead with the two things people worry about before touching their
+        // bio — nothing gets posted, and it's quick and time-boxed — before
+        // asking them to do it.
         instructions:
-          `Add this link (or just the code ${code}) to your Instagram bio, keep your account public, then tap Verify. You can remove it once verified.`,
+          `Takes about a minute — this code expires in ${Math.round(TTL_SECONDS / 60)} minutes and nothing is posted to your account. Add this link (or just the code ${code}) to your Instagram bio, keep your account public, tap Verify, then remove it from your bio.`,
       });
     }
 

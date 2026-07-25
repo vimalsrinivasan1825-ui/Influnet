@@ -68,6 +68,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, already: true });
     }
 
+    // Defense in depth: the order route now derives the amount from the
+    // project's agreed terms rather than trusting the client, so this should
+    // already match — but never open a payment gate on less than the ledger
+    // row says was ordered, in case terms changed between order creation and
+    // capture or the ledger row was created out of band.
+    const capturedPaise = Number(entity?.amount);
+    if (!Number.isFinite(capturedPaise) || capturedPaise < Number(payment.amount)) {
+      captureException(new Error('Payment webhook: captured amount below ledger amount'), {
+        tags: { orderId, expected: payment.amount, captured: capturedPaise },
+      });
+      return NextResponse.json({ received: true, warning: 'amount-mismatch' });
+    }
+
     await admin
       .from('project_payments')
       .update({ status: 'paid', razorpay_payment_id: paymentId, paid_at: new Date().toISOString() })

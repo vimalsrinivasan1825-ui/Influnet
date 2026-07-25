@@ -88,6 +88,30 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
     const { item_id, done } = parsed.data;
 
+    // Ownership gate: the dashboard disables this control unless
+    // it.owner_role is 'both' or matches the caller's project role — but that
+    // was UI-only. Enforce the same rule here, or either party can tick the
+    // OTHER side's approval gate (e.g. a creator marking "Brand approved the
+    // concept" done themselves).
+    const { data: project } = await supabase
+      .from('campaign_projects')
+      .select('owner_user_id, counterparty_user_id')
+      .eq('id', projectId)
+      .single();
+    if (!project) return jsonError(404, 'Project not found');
+    const userRole: 'business' | 'creator' = project.owner_user_id === user.id ? 'business' : 'creator';
+
+    const { data: item } = await supabase
+      .from('project_stage_items')
+      .select('owner_role, is_gate, stage_key')
+      .eq('id', item_id)
+      .eq('project_id', projectId)
+      .single();
+    if (!item) return jsonError(404, 'Checklist item not found');
+    if (item.owner_role !== 'both' && item.owner_role !== userRole) {
+      return jsonError(403, `Only the ${item.owner_role} can mark this step done.`);
+    }
+
     // Payment integrity: when in-app payments are configured, a payment GATE item
     // (advance/final "received") may NOT be ticked by hand — it opens only when a
     // real Razorpay payment is confirmed by the signed webhook. This closes the
@@ -95,15 +119,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // unaffected: there the tick means "I've sent it" and the counterparty still
     // has to sign off the stage to advance.
     if (done && isRazorpayConfigured()) {
-      const { data: item } = await supabase
-        .from('project_stage_items')
-        .select('is_gate, stage_key')
-        .eq('id', item_id)
-        .eq('project_id', projectId)
-        .single();
       // Only PAYMENT gates open via a confirmed payment. Approval gates
       // (content_confirmation, final_approval) are ticked by hand as normal.
-      const isPaymentGate = item?.is_gate && (item.stage_key === 'advance_payment' || item.stage_key === 'final_payment');
+      const isPaymentGate = item.is_gate && (item.stage_key === 'advance_payment' || item.stage_key === 'final_payment');
       if (isPaymentGate) {
         const { data: paid } = await supabase
           .from('project_payments')

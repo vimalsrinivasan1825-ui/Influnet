@@ -1026,6 +1026,7 @@ const ACTIVITY_ICON: Record<string, { icon: React.ComponentType<any>; tone: stri
   terms_change_proposed: { icon: Pencil, tone: 'bg-brand-soft text-brand-strong' },
   terms_change_accepted: { icon: Check, tone: 'bg-ok-soft text-ok' },
   terms_change_rejected: { icon: X, tone: 'bg-danger-soft text-danger' },
+  terms_edited: { icon: Pencil, tone: 'bg-brand-soft text-brand-strong' },
   payment_paid: { icon: Banknote, tone: 'bg-ok-soft text-ok' },
   completion_confirmed: { icon: ThumbsUp, tone: 'bg-ok-soft text-ok' },
   project_completed: { icon: Award, tone: 'bg-ok-soft text-ok' },

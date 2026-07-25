@@ -8,6 +8,7 @@ import { palette } from '@influnet/tokens';
 import { ThemeProvider } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { setUnauthorizedHandler } from '@/lib/api';
+import { syncPushToken, usePushNotificationRouting } from '@/lib/push';
 import { BrandSplash } from '@/components/brand/splash';
 
 // Hold the native splash so the OS screen hands straight over to the animated
@@ -37,6 +38,15 @@ export default function RootLayout() {
   const appReady = ready && !(session && !profile && loadingProfile);
 
   useEffect(() => init(), [init]);
+
+  // Register (or re-register) this device's push token whenever a session
+  // becomes active — covers first sign-in, a later app open with a stored
+  // session, and switching accounts on the same device.
+  useEffect(() => {
+    if (session) void syncPushToken();
+  }, [session]);
+
+  usePushNotificationRouting(router, appReady);
 
   // Drop the native splash as soon as there is something of ours to show. The
   // animated splash stays on top until it has played out, so the session read
@@ -77,6 +87,7 @@ export default function RootLayout() {
             <Stack.Screen name="activity" options={{ title: 'My activity' }} />
             <Stack.Screen name="connections" options={{ title: 'Connections' }} />
             <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+            <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
             <Stack.Screen name="verification" options={{ title: 'Verify Instagram' }} />
             <Stack.Screen name="creator/[id]" options={{ title: '' }} />
             <Stack.Screen name="requests/new" options={{ title: 'Send a request' }} />
