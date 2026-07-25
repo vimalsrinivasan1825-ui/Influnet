@@ -11,6 +11,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { Avatar } from "@/components/ui/avatar";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-client";
 import type { UserRole } from "@/types";
 
 interface DashboardHeaderProps {
@@ -69,9 +70,10 @@ export default function DashboardHeader({
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/notifications");
-        const json = await res.json();
-        if (json.data) setNotifications(json.data);
+        const res = await apiFetch<any[]>("/api/notifications");
+        if (res.ok && Array.isArray(res.data)) {
+          setNotifications(res.data);
+        }
       } catch (err) {
         console.error("Failed to fetch notifications:", err);
       }
@@ -100,10 +102,9 @@ export default function DashboardHeader({
       if (unreadIds.length > 0) {
         markAsRead(unreadIds);
         try {
-          await fetch("/api/notifications", {
+          await apiFetch("/api/notifications", {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ids: unreadIds }),
+            body: JSON.stringify({ action: "mark_read", notificationIds: unreadIds }),
           });
         } catch (err) {
           console.error("Failed to mark notifications as read", err);

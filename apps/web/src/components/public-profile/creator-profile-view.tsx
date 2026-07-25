@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import styles from './creator-profile.module.css';
 import type { CreatorProfileView } from '@/lib/public-profile/creator-profile';
+import { apiFetch } from '@/lib/api-client';
 
 const PRESETS: { name: string; a: string; b: string }[] = [
   { name: 'Violet', a: '#7C6BF6', b: '#9E92FF' },
@@ -91,10 +92,9 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
     if (refreshing) return;
     setRefreshing(true);
     try {
-      const res = await fetch('/api/profile/refresh', { method: 'POST' });
+      const res = await apiFetch('/api/profile/refresh', { method: 'POST' });
       if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.error || 'Failed to refresh data');
+        toast.error(res.error || 'Failed to refresh data');
       } else {
         router.refresh();
       }

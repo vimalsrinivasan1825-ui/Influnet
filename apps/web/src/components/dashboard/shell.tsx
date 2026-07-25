@@ -129,15 +129,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         setIsLoaded(true);
 
         if (token) {
-          const notifRes = await fetch("/api/notifications/summary", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (notifRes.ok) {
-            const notifData = await notifRes.json();
+          const notifRes = await apiFetch<any>("/api/notifications/summary");
+          if (notifRes.ok && notifRes.data) {
             // The message count is owned by the Stream effect below; the server
             // always returns 0 for it, so don't let this clobber a live count.
             setSummary({
-              ...notifData,
+              ...notifRes.data,
               unread_messages_count:
                 useNotificationStore.getState().summary.unread_messages_count,
             });
