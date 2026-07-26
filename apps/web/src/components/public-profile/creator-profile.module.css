@@ -1,22 +1,23 @@
 /* Creator public profile — animated premium redesign */
 
   .stage{
-    --bg:#F4F3F8; --card:#FFFFFF; --tile:#F5F4F8; --soft:#FCE6F0;
+    --bg:#FAF8FF; --card:#FFFFFF; --tile:#F7F5FC; --soft:#FCE6F0;
     --ink:#16182A; --ink-2:#585F73; --ink-3:#8F94A6;
-    --line:#EDECF3; --line-2:#E1E0EA;
-    --accent:#EC2C7A; --accent-2:#FF6FA6; --accent-ink:#C51E63;
+    --line:#EDE9F5; --line-2:#E0DBEE;
+    --accent:#7B4FE0; --accent-2:#A27FFF; --accent-ink:#5C35C5;
     --ok:#12B981; --wa:#25D366;
-    --c1:var(--accent); --c2:var(--ink-2); --c3:#F5A623; --c4:var(--ok);
+    --c1:#EC2C7A; --c2:#F58529; --c3:#F5A623; --c4:var(--ok);
     --ig:linear-gradient(135deg,#F58529,#DD2A7B,#8134AF); --yt:#FF0033; --tt:#010101;
-    --shadow:0 16px 40px -26px rgba(60,30,80,.30); --shadow-sm:0 6px 18px -12px rgba(60,30,80,.25);
-    --r:12px; --r-sm:9px; --r-xs:6px;
+    --shadow:0 16px 40px -26px rgba(80,40,160,.22); --shadow-sm:0 6px 18px -12px rgba(80,40,160,.18);
+    --r:14px; --r-sm:10px; --r-xs:6px;
     --font:var(--font-plus-jakarta,system-ui),-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     font-family:var(--font);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
     position:relative;overflow:hidden;
     background:
-      radial-gradient(44rem 22rem at 92% -6%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 60%),
-      radial-gradient(34rem 20rem at 2% 4%,color-mix(in srgb,var(--c2) 12%,transparent),transparent 55%),
-      var(--bg);
+      radial-gradient(ellipse 65% 50% at 88% 0%,  rgba(236,100,170,.28) 0%, rgba(200,120,255,.14) 45%, transparent 70%),
+      radial-gradient(ellipse 45% 35% at 0% 100%, rgba(130,80,220,.15) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(170,140,255,.08) 0%, transparent 70%),
+      linear-gradient(160deg, #FFF5FB 0%, #F9F7FF 55%, #F3F1FF 100%);
     padding:clamp(1rem,2vw,1.4rem) clamp(1.5rem,3vw,3rem) 1.4rem;
   }
   .stage.dark{
@@ -29,13 +30,18 @@
   .ico{width:1em;height:1em;display:inline-block;vertical-align:-.12em;}
   .wrap{max-width:1280px;margin:0 auto;position:relative;z-index:1;}
   .bg{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
-  .blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.45;}
-  .b1{width:30rem;height:30rem;top:-11rem;right:-7rem;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 55%,transparent),transparent 70%);animation:drift 24s ease-in-out infinite;}
-  .b2{width:24rem;height:24rem;bottom:-9rem;left:-7rem;background:radial-gradient(circle,color-mix(in srgb,var(--c2) 45%,transparent),transparent 70%);animation:drift 30s ease-in-out infinite reverse;}
-  .b3{width:18rem;height:18rem;top:45%;left:45%;background:radial-gradient(circle,color-mix(in srgb,var(--accent-2) 30%,transparent),transparent 70%);animation:drift 20s ease-in-out infinite 5s;opacity:.28;}
-  /* Wave bar at the bottom of the bg */
-  .bwave{position:absolute;bottom:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--accent),var(--accent-2),#8134AF,var(--accent));background-size:200%;animation:wavemove 6s linear infinite;opacity:.35;}
-  @keyframes drift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-2.5rem,1.5rem) scale(1.12);}}
+  .blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.55;}
+  /* Soft pink bloom top-right — matches the reference image */
+  .b1{width:38rem;height:28rem;top:-10rem;right:-6rem;background:radial-gradient(circle,rgba(240,130,190,.55),rgba(180,100,255,.25) 55%,transparent 78%);animation:drift 22s ease-in-out infinite;}
+  /* Soft purple bloom bottom-left */
+  .b2{width:26rem;height:26rem;bottom:-10rem;left:-6rem;background:radial-gradient(circle,rgba(130,80,220,.30),rgba(160,100,255,.15) 55%,transparent 76%);animation:drift 28s ease-in-out infinite reverse;}
+  /* Faint center warmth */
+  .b3{width:22rem;height:16rem;top:35%;left:38%;background:radial-gradient(circle,rgba(250,180,230,.20),transparent 70%);animation:drift 18s ease-in-out infinite 3s;opacity:.4;}
+  /* Animated gradient wave bar at bottom */
+  .bwave{position:absolute;bottom:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#7B4FE0,#DD2A7B,#F58529,#7B4FE0);background-size:200%;animation:wavemove 5s linear infinite;opacity:.4;}
+  /* SVG silk-wave canvas */
+  .waves{position:absolute;inset:0;width:100%;height:100%;opacity:1;pointer-events:none;}
+  @keyframes drift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-2rem,1.5rem) scale(1.1);}}
   @keyframes wavemove{0%{background-position:0 50%;}100%{background-position:200% 50%;}}
   @keyframes spin{to{transform:rotate(360deg);}}
   @keyframes spinreverse{to{transform:rotate(-360deg);}}
@@ -45,21 +51,25 @@
   @keyframes igring2{0%{transform:rotate(0);}100%{transform:rotate(-360deg);}}
   @keyframes igfloat{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
   @keyframes slidein{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  /* Silk wave line drift */
+  @keyframes silkdrift{0%{transform:translateX(0) translateY(0);}50%{transform:translateX(18px) translateY(-10px);}100%{transform:translateX(0) translateY(0);}}
+  @keyframes silkdrift2{0%{transform:translateX(0) translateY(0);}50%{transform:translateX(-14px) translateY(8px);}100%{transform:translateX(0) translateY(0);}}
 
   .topbar{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;}
   .brand{display:flex;align-items:center;gap:.5rem;font-weight:800;letter-spacing:-.01em;text-decoration:none;color:var(--ink);font-size:1.05rem;flex-shrink:0;}
-  /* Premium URL pill — gradient border, glasslike feel */
+  /* Premium URL pill — animated gradient border */
   .url{
     display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:var(--ink-2);
-    background:var(--card);
+    background:rgba(255,255,255,.85);
+    backdrop-filter:blur(8px);
     border:1.5px solid transparent;
     background-clip:padding-box;
-    border-radius:999px;padding:.45rem .9rem;box-shadow:var(--shadow-sm);margin:0 auto;max-width:50%;
+    border-radius:999px;padding:.45rem .9rem;box-shadow:0 4px 16px -6px rgba(120,80,220,.18);margin:0 auto;max-width:50%;
     position:relative;
   }
   .url::before{
     content:"";position:absolute;inset:-1.5px;border-radius:999px;
-    background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 40%,transparent),color-mix(in srgb,var(--accent-2) 30%,transparent),color-mix(in srgb,var(--accent) 40%,transparent));
+    background:linear-gradient(90deg,rgba(123,79,224,.5),rgba(221,42,123,.3),rgba(123,79,224,.5));
     background-size:200%;animation:wavemove 4s linear infinite;z-index:-1;
   }
   @media(max-width:760px){
@@ -108,16 +118,14 @@
   .ctitle .ci{color:var(--accent);display:inline-flex;}
   .viewall{font-size:.78rem;font-weight:600;color:var(--accent-ink);cursor:pointer;}
 
-  /* ── HERO ────────────────────────────────────────────────────────────*/
+  /* Hero card — glass feel so the bg waves show through */
   .hero{
-    background:
-      linear-gradient(135deg,
-        color-mix(in srgb,var(--accent) 13%,var(--card)) 0%,
-        color-mix(in srgb,var(--accent) 5%,var(--card)) 42%,
-        var(--card) 100%);
-    border:1px solid color-mix(in srgb,var(--accent) 16%,var(--line));
+    background:rgba(255,255,255,.72);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    border:1px solid rgba(255,255,255,.85);
     border-radius:calc(var(--r) * 1.6);
-    box-shadow:var(--shadow-sm);
+    box-shadow:0 8px 40px -12px rgba(120,60,200,.16), 0 2px 0 rgba(255,255,255,.9) inset;
     padding:clamp(1.1rem,2.2vw,1.7rem);
     overflow:hidden;
     animation:slidein .5s ease both;
@@ -184,17 +192,17 @@
   .hstat b{display:block;font-size:1.4rem;font-weight:720;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.05;}
   .hstat small{display:block;font-size:.74rem;color:var(--ink-3);font-weight:500;margin-top:.1rem;}
 
-  /* Avatar with multiple rotating rings */
+  /* Silk wave lines on the avatar halo */
   .havatar{position:relative;aspect-ratio:1;max-width:220px;width:100%;margin:0 auto;display:grid;place-items:center;}
   @media(max-width:640px){.havatar{max-width:160px;}}
   /* Inner dashed slow ring */
-  .halo{position:absolute;inset:0%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--accent) 35%,transparent);animation:spin 30s linear infinite;}
-  /* Mid gradient ring — faster, opposite dir */
-  .halo2{position:absolute;inset:-9%;border-radius:50%;border:2px solid transparent;background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(135deg,var(--accent),transparent 50%,var(--accent-2)) border-box;animation:spin 8s linear infinite reverse;}
-  /* Outer dotted slow ring */
-  .halo3{position:absolute;inset:-18%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--accent-2) 22%,transparent);animation:spin 45s linear infinite;}
-  .haloglow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent) 28%,transparent),transparent 66%);animation:pulse 4s ease-in-out infinite;}
-  .avatar{width:78%;aspect-ratio:1;border-radius:50%;padding:5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;box-shadow:var(--shadow);}
+  .halo{position:absolute;inset:0%;border-radius:50%;border:2px solid transparent;background:linear-gradient(white,white) padding-box,linear-gradient(135deg,#DD2A7B,#8134AF,#405DE6) border-box;animation:spin 8s linear infinite;}
+  /* Mid gradient ring */
+  .halo2{position:absolute;inset:-9%;border-radius:50%;border:1.5px dashed rgba(123,79,224,.3);animation:spin 20s linear infinite reverse;}
+  /* Outer faint ring */
+  .halo3{position:absolute;inset:-18%;border-radius:50%;border:1px dashed rgba(221,42,123,.15);animation:spin 35s linear infinite;}
+  .haloglow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,rgba(123,79,224,.22),transparent 66%);animation:pulse 4s ease-in-out infinite;}
+  .avatar{width:78%;aspect-ratio:1;border-radius:50%;padding:4px;background:linear-gradient(135deg,#F58529,#DD2A7B,#8134AF,#405DE6);position:relative;box-shadow:0 8px 30px -8px rgba(123,79,224,.45);}
   .avimg{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;background:var(--tile);}
   .avfallback{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--tile);font-size:2.4rem;font-weight:800;color:var(--ink-3);}
   .fi{width:30px;height:30px;border-radius:var(--r-xs);display:grid;place-items:center;color:#fff;flex-shrink:0;}
@@ -386,10 +394,10 @@
   /* Sidebar cards */
   .side h3{margin:0 0 .1rem;font-size:1rem;font-weight:660;}
   .share-title{text-align:center;} .share-title p{margin:.15rem 0 0;font-size:.78rem;color:var(--ink-3);}
-  /* URL mini — unique shortlink style */
+  /* URL mini — unique shortlink pill */
   .urlmini{
     display:flex;align-items:center;gap:.5rem;font-size:.76rem;color:var(--ink-2);
-    background:var(--tile);
+    background:rgba(123,79,224,.06);
     border:1.5px solid transparent;
     background-clip:padding-box;
     border-radius:var(--r-sm);padding:.45rem .7rem;
@@ -397,7 +405,7 @@
   }
   .urlmini::before{
     content:"";position:absolute;inset:-1.5px;border-radius:var(--r-sm);
-    background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 30%,transparent),color-mix(in srgb,var(--accent-2) 20%,transparent));
+    background:linear-gradient(90deg,rgba(123,79,224,.3),rgba(221,42,123,.15));
     z-index:-1;
   }
   .divlabel{text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:.9rem 0 .6rem;}
@@ -419,7 +427,7 @@
     .halo,.halo2,.halo3,.blob,.b3{animation:none;}
     .rail{scroll-behavior:auto;}
     .haloglow{animation:none;}
-    .igcardbg::after,.bwave,.url::before{animation:none;}
+    .igcardbg::after,.bwave,.url::before,.waves{animation:none;}
   }
 
   .stage.editing .card, .stage.editing .hero, .stage.editing .hleft, .stage.editing .havatar { outline: 1.5px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 6px; }
