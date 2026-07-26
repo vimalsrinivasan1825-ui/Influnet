@@ -27,13 +27,8 @@ function lighten(hex: string, amt: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-// Donut palettes — shared between the ring gradient and its legend so colours
-// always line up. Ordered for maximum contrast between adjacent slices: --c1
-// (the accent) defaults to the same violet as --c2, so they must never sit next
-// to each other or the two biggest segments blur into one solid ring.
 const AGE_PALETTE = ['var(--c1)', 'var(--c3)', 'var(--c4)', 'var(--c2)'];
 
-/** Build a conic-gradient from real slice percentages, normalised to a full ring. */
 function buildConic(slices: { label: string; pct: number }[], palette: string[]): string {
   const total = slices.reduce((sum, s) => sum + Math.max(0, s.pct), 0);
   if (total <= 0) return palette[0] ?? 'var(--c1)';
@@ -69,16 +64,6 @@ const YtPlay = ({ s = 16 }: { s?: number }) => (
   <svg viewBox="0 0 24 24" width={s} height={s} fill="#fff"><path d="M8 5v14l11-7z" /></svg>
 );
 
-/**
- * A titled, horizontally scrolling content strip.
- *
- * Owns its own header so the arrow controls can sit beside the section label
- * rather than floating above the tiles. The strip previously crammed all six
- * items into six columns at every width, so on a laptop each tile was a sliver
- * and on a phone the overflow was simply unreachable. Scroll-snap makes it work
- * by touch and keyboard; the arrows are for mouse users and remove themselves
- * entirely when everything already fits.
- */
 function Rail({
   children,
   label,
@@ -182,7 +167,6 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
     }
   };
 
-  // Restore the owner's saved appearance (per-browser for now).
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storeKey);
@@ -218,17 +202,12 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
     } catch { /* dismissed */ }
   };
 
-  // Human-readable form of the real shareable URL (protocol + trailing slash
-  // stripped), e.g. "influnet.app/c/username". Derived from data.profileUrl so
-  // the displayed link always matches what Copy/Share actually use.
   const displayUrl = data.profileUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   const styleVars = { ['--accent']: accent, ['--accent-2']: accent2 } as CSSProperties;
   const rootClass = [styles.stage, dark ? styles.dark : '', previewing ? styles.previewing : '', editing ? styles.editing : ''].filter(Boolean).join(' ');
 
   const audience = data.audience;
-  // Gender reads as a comparison, not a distribution — two numbers side by side
-  // is faster than mapping colours back to a legend.
   const genderPair = audience?.genders.slice(0, 2) ?? [];
 
   return (
@@ -261,15 +240,11 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
           <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
         </div>
 
+        {/* ── TOP ROW: Hero (left, stretches to sidebar height) + Sidebar (right) ── */}
         <div className={styles.layout}>
+          {/* HERO — fills 100% of the layout row height */}
           <div className={styles.main}>
-            {/* ── HERO ─────────────────────────────────────────────────
-                One card: identity, how to reach them, the avatar, the
-                per-platform column, and the three headline numbers as a
-                footer strip. Previously the numbers were three detached
-                cards below the fold of the hero, so the page opened with a
-                name and no evidence. */}
-            <section className={styles.hero}>
+            <section className={`${styles.hero} ${styles.herofull}`}>
               <div className={styles.herotop}>
                 <div className={styles.hleft}>
                   <span className={styles.eyebrow}>
@@ -309,6 +284,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                   </div>
                 </div>
 
+                {/* Right column: avatar on top, 2×2 platform cards below */}
                 <div className={styles.hmid}>
                   <div className={styles.havatar}>
                     <span className={styles.haloglow} /><span className={styles.halo} />
@@ -357,233 +333,9 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                 ))}
               </div>
             </section>
-
-            {/* FEATURED CONTENT */}
-            {data.featured.length > 0 && (
-              <section className={`${styles.card} ${styles.pad}`} id="featured">
-                <Rail
-                  label="featured content"
-                  title="Featured content"
-                  icon={<Ic d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0Z M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" />}
-                  meta={data.snapshotAge ? <span className={styles.viewall}>Live from Instagram · {data.snapshotAge}</span> : null}
-                >
-                  {data.featured.map((p, i) => (
-                    <a key={p.href || i} className={styles.th} style={{ backgroundImage: `url(${p.imageUrl})` }} href={p.href || '#'} target="_blank" rel="noopener noreferrer">
-                      {p.isVideo && <span className={styles.play}><Play /></span>}
-                      <span className={styles.ov}>
-                        {p.isVideo ? <Play /> : <Heart />}
-                        {p.views}
-                      </span>
-                    </a>
-                  ))}
-                </Rail>
-              </section>
-            )}
-
-            {/* LATEST VIDEOS — real uploads from the creator's channel */}
-            {data.videos.length > 0 && (
-              <section className={`${styles.card} ${styles.pad}`} id="videos">
-                <Rail
-                  label="latest videos"
-                  title="Latest videos"
-                  icon={<Ic d="M22 8.6a3 3 0 0 0-2.1-2.1C18.1 6 12 6 12 6s-6.1 0-7.9.5A3 3 0 0 0 2 8.6 31 31 0 0 0 2 12a31 31 0 0 0 .1 3.4 3 3 0 0 0 2.1 2.1C6 18 12 18 12 18s6.1 0 7.9-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.1-3.4ZM10 15V9l5 3Z" />}
-                  meta={<span className={styles.viewall}>From YouTube</span>}
-                >
-                  {data.videos.map((v) => (
-                    <a key={v.url} className={styles.vid} href={v.url} target="_blank" rel="noopener noreferrer">
-                      <span className={styles.vthumb} style={{ backgroundImage: v.thumbUrl ? `url(${v.thumbUrl})` : undefined }}>
-                        <span className={styles.vplay}><YtPlay s={13} /></span>
-                        {v.views && <span className={styles.vviews}><Play />{v.views}</span>}
-                      </span>
-                      <span className={styles.vtitle}>{v.title}</span>
-                    </a>
-                  ))}
-                </Rail>
-              </section>
-            )}
-
-            {/* RATINGS — from completed collaborations on Influnet only */}
-            {data.reviews && (
-              <section className={`${styles.card} ${styles.pad}`} id="reviews">
-                <div className={styles.chead}>
-                  <div className={styles.ctitle}><span className={styles.ci}><Ic d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" /></span>Brand ratings</div>
-                  <span className={styles.viewall}>From completed projects</span>
-                </div>
-                <div className={styles.ratehead}>
-                  {data.reviews.average != null && <span className={styles.ratebig}>{data.reviews.average.toFixed(1)}</span>}
-                  <span className={styles.stars} aria-label={`${data.reviews.average ?? 0} out of 5`}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <Ic key={n} d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" fill={n <= Math.round(data.reviews!.average ?? 0)} />
-                    ))}
-                  </span>
-                  <span className={styles.ratecount}>
-                    {data.reviews.count} {data.reviews.count === 1 ? 'review' : 'reviews'}
-                  </span>
-                </div>
-                {data.reviews.items.length > 0 && (
-                  <div className={styles.revlist}>
-                    {data.reviews.items.map((r) => (
-                      <div className={styles.rev} key={r.id}>
-                        <div className={styles.revtop}>
-                          <span className={styles.revwho}>{r.reviewerName}</span>
-                          <span className={styles.stars} aria-label={`${r.rating} out of 5`}>
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <Ic key={n} d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" fill={n <= r.rating} w={0.72} />
-                            ))}
-                          </span>
-                        </div>
-                        {r.comment && <p className={styles.revtext}>{r.comment}</p>}
-                        <span className={styles.revmeta}>
-                          {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : null}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {/* AUDIENCE INSIGHTS */}
-            {audience && (
-              <section className={`${styles.card} ${styles.pad}`}>
-                <div className={styles.chead}>
-                  <div className={styles.ctitle}><span className={styles.ci}><Ic d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></span>Audience insights</div>
-                  <span className={styles.viewall}>Reported by the creator</span>
-                </div>
-                <div className={styles.aud}>
-                  {audience.locations.length > 0 && (
-                    <div className={styles.subcard}>
-                      <h4>Top locations</h4>
-                      {audience.locations.map((loc, i) => (
-                        <div className={styles.bar} key={loc.label}>
-                          <span className={styles.barlabel}>{loc.label}</span>
-                          <span className={styles.track}><span className={styles.fill} style={{ width: `${loc.pct}%` }} /></span>
-                          <span className={styles.pct}>{loc.pct}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {audience.ages.length > 0 && (
-                    <div className={styles.subcard}>
-                      <h4>Age range</h4>
-                      <div className={styles.donutwrap}>
-                        <div className={styles.donut} style={{ background: buildConic(audience.ages, AGE_PALETTE) }}>
-                          <span className={styles.donutmid}>
-                            <b>{audience.ages[0].label}</b>
-                            <small>largest</small>
-                          </span>
-                        </div>
-                        <div className={styles.legend}>
-                          {audience.ages.map((a, i) => (
-                            <div key={a.label}>
-                              <span className={styles.dot} style={{ background: AGE_PALETTE[i % AGE_PALETTE.length] }} />
-                              {a.label}<b>{a.pct}%</b>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {genderPair.length > 0 && (
-                    <div className={styles.subcard}>
-                      <h4>Gender</h4>
-                      <div className={styles.genders}>
-                        {genderPair.map((g, i) => (
-                          <div className={styles.gcell} key={g.label}>
-                            <span className={`${styles.gicon} ${i === 0 ? styles.gA : styles.gB}`}>
-                              <Ic d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" />
-                            </span>
-                            <b>{g.pct}%</b>
-                            <small>{g.label}</small>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {audience.interests.length > 0 && (
-                    <div className={styles.subcard}>
-                      <h4>Audience interests</h4>
-                      <div className={styles.chips}>
-                        {audience.interests.map((t) => (
-                          <span className={styles.tchip} key={t.label}>
-                            {t.label}<b>{t.pct}%</b>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {/* PAST COLLABORATIONS */}
-            {data.pastCollaborations.length > 0 && (
-              <section className={`${styles.card} ${styles.pad}`}>
-                <div className={styles.chead}><div className={styles.ctitle}>Past collaborations</div></div>
-                <div className={styles.brands}>
-                  {data.pastCollaborations.map(b => (
-                    <div className={styles['brand-c']} key={b} style={b.length > 8 ? { fontSize: '.62rem' } : {}}>{b}</div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ── WORK WITH ME ────────────────────────────────────────
-                What the creator will actually make, beside a real sample
-                of it. The old version was a price card whose amount
-                rendered the raw tier slug ("pro"). */}
-            {(data.collabTypes.length > 0 || data.postPreview) && (
-              <section className={`${styles.card} ${styles.collab}`}>
-                <div className={styles.collableft}>
-                  <h3>Work with me</h3>
-                  <p>Formats I take on for brand campaigns.</p>
-                  {data.collabTypes.length > 0 && (
-                    <ul className={styles.formats}>
-                      {data.collabTypes.map((c) => (
-                        <li key={c}><span className={styles.ck}><Check w={0.62} /></span>{c}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {data.priceLabel && (
-                    <p className={styles.rate}>
-                      Typical rate <b>{data.priceLabel}</b>
-                    </p>
-                  )}
-                  <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
-                </div>
-
-                {data.postPreview && (
-                  <a
-                    className={styles.postcard}
-                    href={data.postPreview.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span className={styles.pchead}>
-                      {data.avatarUrl
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={data.avatarUrl} alt="" className={styles.pcav} />
-                        : <span className={styles.pcav} />}
-                      <b>@{data.username}</b>
-                      <span className={styles.pcig}><IgLogo s={14} /></span>
-                    </span>
-                    <span className={styles.pcimg} style={{ backgroundImage: `url(${data.postPreview.imageUrl})` }} />
-                    <span className={styles.pcfoot}>
-                      {data.postPreview.likes && (
-                        <span className={styles.pclikes}><Heart />{data.postPreview.likes} likes</span>
-                      )}
-                      <span className={styles.pcview}>View post</span>
-                    </span>
-                  </a>
-                )}
-              </section>
-            )}
           </div>
 
-          {/* SIDEBAR */}
+          {/* SIDEBAR — 4 cards that set the row height */}
           <div className={styles.side}>
             <div className={`${styles.card} ${styles.pad}`}>
               <div className={styles['share-title']}><h3>Let&apos;s connect</h3><p>Share my profile instantly</p></div>
@@ -628,6 +380,224 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
               <Link className={`${styles.btn} ${styles.accent} ${styles.wide} ${styles.sm}`} href={ctaHref}><Send />{ctaLabel}</Link>
             </div>
           </div>
+        </div>
+
+        {/* ── FULL-WIDTH CONTENT ─────────────────────────────────────────
+            All content sections (Featured Instagram, YouTube videos,
+            Reviews, Audience, Collaborations, Work-with-me) span the
+            full page width below the hero + sidebar row. */}
+        <div className={styles.fullcontent}>
+          {/* FEATURED CONTENT */}
+          {data.featured.length > 0 && (
+            <section className={`${styles.card} ${styles.pad}`} id="featured">
+              <Rail
+                label="featured content"
+                title="Featured content"
+                icon={<Ic d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0Z M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" />}
+                meta={data.snapshotAge ? <span className={styles.viewall}>Live from Instagram · {data.snapshotAge}</span> : null}
+              >
+                {data.featured.map((p, i) => (
+                  <a key={p.href || i} className={styles.th} style={{ backgroundImage: `url(${p.imageUrl})` }} href={p.href || '#'} target="_blank" rel="noopener noreferrer">
+                    {p.isVideo && <span className={styles.play}><Play /></span>}
+                    <span className={styles.ov}>
+                      {p.isVideo ? <Play /> : <Heart />}
+                      {p.views}
+                    </span>
+                  </a>
+                ))}
+              </Rail>
+            </section>
+          )}
+
+          {/* LATEST VIDEOS */}
+          {data.videos.length > 0 && (
+            <section className={`${styles.card} ${styles.pad}`} id="videos">
+              <Rail
+                label="latest videos"
+                title="Latest videos"
+                icon={<Ic d="M22 8.6a3 3 0 0 0-2.1-2.1C18.1 6 12 6 12 6s-6.1 0-7.9.5A3 3 0 0 0 2 8.6 31 31 0 0 0 2 12a31 31 0 0 0 .1 3.4 3 3 0 0 0 2.1 2.1C6 18 12 18 12 18s6.1 0 7.9-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.1-3.4ZM10 15V9l5 3Z" />}
+                meta={<span className={styles.viewall}>From YouTube</span>}
+              >
+                {data.videos.map((v) => (
+                  <a key={v.url} className={styles.vid} href={v.url} target="_blank" rel="noopener noreferrer">
+                    <span className={styles.vthumb} style={{ backgroundImage: v.thumbUrl ? `url(${v.thumbUrl})` : undefined }}>
+                      <span className={styles.vplay}><YtPlay s={13} /></span>
+                      {v.views && <span className={styles.vviews}><Play />{v.views}</span>}
+                    </span>
+                    <span className={styles.vtitle}>{v.title}</span>
+                  </a>
+                ))}
+              </Rail>
+            </section>
+          )}
+
+          {/* BRAND RATINGS */}
+          {data.reviews && (
+            <section className={`${styles.card} ${styles.pad}`} id="reviews">
+              <div className={styles.chead}>
+                <div className={styles.ctitle}><span className={styles.ci}><Ic d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" /></span>Brand ratings</div>
+                <span className={styles.viewall}>From completed projects</span>
+              </div>
+              <div className={styles.ratehead}>
+                {data.reviews.average != null && <span className={styles.ratebig}>{data.reviews.average.toFixed(1)}</span>}
+                <span className={styles.stars} aria-label={`${data.reviews.average ?? 0} out of 5`}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Ic key={n} d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" fill={n <= Math.round(data.reviews!.average ?? 0)} />
+                  ))}
+                </span>
+                <span className={styles.ratecount}>
+                  {data.reviews.count} {data.reviews.count === 1 ? 'review' : 'reviews'}
+                </span>
+              </div>
+              {data.reviews.items.length > 0 && (
+                <div className={styles.revlist}>
+                  {data.reviews.items.map((r) => (
+                    <div className={styles.rev} key={r.id}>
+                      <div className={styles.revtop}>
+                        <span className={styles.revwho}>{r.reviewerName}</span>
+                        <span className={styles.stars} aria-label={`${r.rating} out of 5`}>
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <Ic key={n} d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" fill={n <= r.rating} w={0.72} />
+                          ))}
+                        </span>
+                      </div>
+                      {r.comment && <p className={styles.revtext}>{r.comment}</p>}
+                      <span className={styles.revmeta}>
+                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* AUDIENCE INSIGHTS */}
+          {audience && (
+            <section className={`${styles.card} ${styles.pad}`}>
+              <div className={styles.chead}>
+                <div className={styles.ctitle}><span className={styles.ci}><Ic d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></span>Audience insights</div>
+                <span className={styles.viewall}>Reported by the creator</span>
+              </div>
+              <div className={styles.aud}>
+                {audience.locations.length > 0 && (
+                  <div className={styles.subcard}>
+                    <h4>Top locations</h4>
+                    {audience.locations.map((loc) => (
+                      <div className={styles.bar} key={loc.label}>
+                        <span className={styles.barlabel}>{loc.label}</span>
+                        <span className={styles.track}><span className={styles.fill} style={{ width: `${loc.pct}%` }} /></span>
+                        <span className={styles.pct}>{loc.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {audience.ages.length > 0 && (
+                  <div className={styles.subcard}>
+                    <h4>Age range</h4>
+                    <div className={styles.donutwrap}>
+                      <div className={styles.donut} style={{ background: buildConic(audience.ages, AGE_PALETTE) }}>
+                        <span className={styles.donutmid}>
+                          <b>{audience.ages[0].label}</b>
+                          <small>largest</small>
+                        </span>
+                      </div>
+                      <div className={styles.legend}>
+                        {audience.ages.map((a, i) => (
+                          <div key={a.label}>
+                            <span className={styles.dot} style={{ background: AGE_PALETTE[i % AGE_PALETTE.length] }} />
+                            {a.label}<b>{a.pct}%</b>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {genderPair.length > 0 && (
+                  <div className={styles.subcard}>
+                    <h4>Gender</h4>
+                    <div className={styles.genders}>
+                      {genderPair.map((g, i) => (
+                        <div className={styles.gcell} key={g.label}>
+                          <span className={`${styles.gicon} ${i === 0 ? styles.gA : styles.gB}`}>
+                            <Ic d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" />
+                          </span>
+                          <b>{g.pct}%</b>
+                          <small>{g.label}</small>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {audience.interests.length > 0 && (
+                  <div className={styles.subcard}>
+                    <h4>Audience interests</h4>
+                    <div className={styles.chips}>
+                      {audience.interests.map((t) => (
+                        <span className={styles.tchip} key={t.label}>
+                          {t.label}<b>{t.pct}%</b>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* PAST COLLABORATIONS */}
+          {data.pastCollaborations.length > 0 && (
+            <section className={`${styles.card} ${styles.pad}`}>
+              <div className={styles.chead}><div className={styles.ctitle}>Past collaborations</div></div>
+              <div className={styles.brands}>
+                {data.pastCollaborations.map(b => (
+                  <div className={styles['brand-c']} key={b} style={b.length > 8 ? { fontSize: '.62rem' } : {}}>{b}</div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* WORK WITH ME */}
+          {(data.collabTypes.length > 0 || data.postPreview) && (
+            <section className={`${styles.card} ${styles.collab}`}>
+              <div className={styles.collableft}>
+                <h3>Work with me</h3>
+                <p>Formats I take on for brand campaigns.</p>
+                {data.collabTypes.length > 0 && (
+                  <ul className={styles.formats}>
+                    {data.collabTypes.map((c) => (
+                      <li key={c}><span className={styles.ck}><Check w={0.62} /></span>{c}</li>
+                    ))}
+                  </ul>
+                )}
+                {data.priceLabel && (
+                  <p className={styles.rate}>
+                    Typical rate <b>{data.priceLabel}</b>
+                  </p>
+                )}
+                <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
+              </div>
+              {data.postPreview && (
+                <a className={styles.postcard} href={data.postPreview.href} target="_blank" rel="noopener noreferrer">
+                  <span className={styles.pchead}>
+                    {data.avatarUrl
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={data.avatarUrl} alt="" className={styles.pcav} />
+                      : <span className={styles.pcav} />}
+                    <b>@{data.username}</b>
+                    <span className={styles.pcig}><IgLogo s={14} /></span>
+                  </span>
+                  <span className={styles.pcimg} style={{ backgroundImage: `url(${data.postPreview.imageUrl})` }} />
+                  <span className={styles.pcfoot}>
+                    {data.postPreview.likes && (
+                      <span className={styles.pclikes}><Heart />{data.postPreview.likes} likes</span>
+                    )}
+                    <span className={styles.pcview}>View post</span>
+                  </span>
+                </a>
+              )}
+            </section>
+          )}
         </div>
       </div>
 

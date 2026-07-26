@@ -71,10 +71,13 @@
   .previewbanner span{display:inline-flex;align-items:center;gap:.5rem;font-size:.84rem;font-weight:600;color:var(--accent-ink);}
   .stage.previewing .previewbanner{display:flex;} .stage.previewing .toolbar{display:none;}
 
-  .layout{display:grid;grid-template-columns:1fr 300px;gap:1.2rem;align-items:start;}
+  /* Layout: hero + sidebar share the same row; hero stretches to sidebar height */
+  .layout{display:grid;grid-template-columns:1fr 300px;gap:1.2rem;align-items:stretch;}
   @media(max-width:900px){.layout{grid-template-columns:1fr;}}
-  .main{display:flex;flex-direction:column;gap:1.2rem;min-width:0;}
+  .main{display:flex;flex-direction:column;gap:1.2rem;min-width:0;height:100%;}
   .side{display:flex;flex-direction:column;gap:1.2rem;}
+  /* Full-width content sections below the hero+sidebar row */
+  .fullcontent{display:flex;flex-direction:column;gap:1.2rem;margin-top:1.2rem;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);}
   .pad{padding:1.1rem 1.2rem;}
   .chead{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;}
@@ -98,6 +101,9 @@
     padding:clamp(1.1rem,2.2vw,1.7rem);
     overflow:hidden;
   }
+  /* herofull: the hero fills the full height of its .main column so it
+     aligns with the sidebar cards that drive the row height */
+  .herofull{height:100%;display:flex;flex-direction:column;justify-content:space-between;}
   /* Hero: 2-column — identity text on the left, avatar + 2×2 platform cards on the right */
   .herotop{
     display:grid;
