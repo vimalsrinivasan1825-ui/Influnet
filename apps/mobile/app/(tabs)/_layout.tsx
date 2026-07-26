@@ -12,7 +12,7 @@
  * doesn't stand behind would put mobile ahead of web on the one flow they
  * must agree on.
  */
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
@@ -22,34 +22,20 @@ import {
   Send,
   UserRound,
 } from 'lucide-react-native';
-import type { NotificationSummary } from '@influnet/types';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
-import { endpoints } from '@/lib/api';
+import { useNotificationSummary } from '@/lib/notification-summary';
 
 export default function TabsLayout() {
   const t = useTheme();
   const role = useSession((s) => s.profile?.role);
   const isCreator = role === 'influencer';
 
-  const [summary, setSummary] = useState<NotificationSummary | null>(null);
-
-  // Badge counts, polled on a slow cadence. Push (Phase 4 of the plan) will
-  // eventually make this event-driven; until then a 60s refresh is enough to
-  // keep the dots honest without draining the battery.
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      const res = await endpoints.notificationSummary();
-      if (alive && res.ok) setSummary(res.data as NotificationSummary);
-    };
-    void load();
-    const timer = setInterval(load, 60_000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
+  // Badge counts, polled on a slow cadence by the shared store so the header
+  // bell on Home reads the same numbers these tabs do.
+  const summary = useNotificationSummary((s) => s.summary);
+  const start = useNotificationSummary((s) => s.start);
+  useEffect(() => start(), [start]);
 
   const badge = (n?: number) => (n && n > 0 ? (n > 99 ? '99+' : String(n)) : undefined);
 

@@ -24,6 +24,7 @@ import { STAGES, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
+import { useNotificationSummary } from '@/lib/notification-summary';
 import { useFetch } from '@/lib/use-fetch';
 import {
   formatCompactCurrency,
@@ -177,6 +178,11 @@ export default function HomeScreen() {
   const t = useTheme();
   const router = useRouter();
   const profile = useSession((s) => s.profile);
+  // Drives the dot on the header bell. Without this the bell was decorative —
+  // AppHeader accepts `unread`, and nothing ever gave it a number.
+  const unreadNotifications = useNotificationSummary(
+    (s) => s.summary?.unread_notifications_count ?? 0,
+  );
 
   /**
    * Home first, then the dashboard its `role` selects. Sequential rather than
@@ -284,6 +290,7 @@ export default function HomeScreen() {
         title={home?.profile.name ?? profile?.name ?? 'Home'}
         avatarUri={avatar}
         avatarName={profile?.name}
+        unread={unreadNotifications}
       />
 
       <ScreenScroll refreshing={refreshing} onRefresh={refresh}>

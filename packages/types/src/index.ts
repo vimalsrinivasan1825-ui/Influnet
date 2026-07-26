@@ -482,6 +482,12 @@ export interface UserPresence {
 }
 
 export interface NotificationSummary {
+  /**
+   * Unread rows in `notifications` — what the bell shows. /api/notifications/summary
+   * has always returned this; leaving it off this type is why the mobile bell
+   * had no count to render.
+   */
+  unread_notifications_count: number;
   unread_messages_count: number;
   pending_requests_count: number;
 }

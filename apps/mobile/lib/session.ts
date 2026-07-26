@@ -13,6 +13,7 @@ import { endpoints } from './api';
 import { clearFetchCache } from './use-fetch';
 import { disconnectStream } from './stream';
 import { clearPushToken } from './push';
+import { clearNotificationSummary } from './notification-summary';
 
 export interface MeProfile {
   id: string;
@@ -92,6 +93,7 @@ export const useSession = create<SessionState>((set, get) => ({
     // would paint the previous account's data to the next one. The Stream
     // connection is per-user for the same reason.
     clearFetchCache();
+    clearNotificationSummary();
     await disconnectStream();
     set({ session: null, profile: null });
   },

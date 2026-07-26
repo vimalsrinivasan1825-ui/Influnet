@@ -5,9 +5,8 @@ import type { Database } from '@/types';
 
 /**
  * GetStream Webhook Receiver
- * To enable this, you must configure the webhook URL in the GetStream Dashboard:
- * Dashboard -> App -> Chat -> Overview -> Webhooks
- * Set the URL to your production URL (or ngrok URL for local dev) + /api/stream/webhook
+ * Configured via scripts/setup-stream-webhook.mjs, which registers this URL as
+ * a v2 event hook (Dashboard -> App -> Chat -> Event Hooks).
  */
 export async function POST(req: Request) {
   try {
@@ -16,25 +15,43 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing x-signature header' }, { status: 401 });
     }
 
-    const rawBody = await req.text();
+    /**
+     * Read the body as BYTES, not text.
+     *
+     * Stream gzips webhook payloads on the wire but signs the *uncompressed*
+     * JSON. Reading with req.text() decodes those gzip bytes as UTF-8 — 0x8b in
+     * the gzip magic number is not valid UTF-8, so it becomes a replacement
+     * character and the body is corrupted before it is ever hashed. Every real
+     * delivery then failed the signature check and Stream got a 401, which is
+     * why messages arrived in the chat but never produced a notification.
+     *
+     * verifyAndParseWebhook gunzips when the body starts with the gzip magic
+     * bytes and passes it through untouched when it does not, so this stays
+     * correct for uncompressed deliveries and behind any middleware that
+     * decompresses the request for us.
+     */
+    const rawBody = Buffer.from(await req.arrayBuffer());
     const client = getStreamClient();
 
-    // Verify that the request actually came from GetStream
-    const valid = client.verifyWebhook(rawBody, signature);
-    if (!valid) {
-      console.error('[Stream Webhook] Invalid signature');
+    let event: Record<string, any>;
+    try {
+      event = client.verifyAndParseWebhook(rawBody, signature) as Record<string, any>;
+    } catch (err) {
+      console.error('[Stream Webhook] Invalid signature:', (err as Error).message);
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
-    const event = JSON.parse(rawBody);
-
     // We only care about new messages to persist them to our Postgres DB
     if (event.type === 'message.new') {
-      const channelId = event.channel_id; // e.g., 'conv_UUID'
+      // Event hooks carry `channel_id`, but `cid` ("messaging:conv_UUID") is the
+      // field that is always present — fall back to it rather than silently
+      // dropping the event when only the cid is sent.
+      const channelId: string | undefined =
+        event.channel_id ?? (typeof event.cid === 'string' ? event.cid.split(':')[1] : undefined);
       const message = event.message;
-      const senderId = message.user?.id;
-      const messageText = message.text;
-      
+      const senderId = message?.user?.id;
+      const messageText = message?.text;
+
       if (!channelId || !channelId.startsWith('conv_') || !senderId || !messageText) {
         return NextResponse.json({ ok: true }); // Malformed but acknowledged
       }
@@ -47,7 +64,16 @@ export async function POST(req: Request) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
 
-      // Insert message into our local database
+      /**
+       * Mirror the message into Postgres.
+       *
+       * A failure here is logged and then deliberately ignored rather than
+       * returned as a 500. Stream is the source of truth for chat (this table
+       * is a history mirror), and returning 500 made the notification a hostage
+       * to the mirror: the handler returned before the notify block below, so a
+       * single bad row meant the recipient was never told at all. It also meant
+       * Stream retried the delivery, which would re-notify on every attempt.
+       */
       const { error: insertError } = await supabaseAdmin
         .from('messages')
         .insert({
@@ -58,10 +84,7 @@ export async function POST(req: Request) {
         });
 
       if (insertError) {
-        console.error('[Stream Webhook] Failed to insert message:', insertError);
-        // We return 200 anyway so Stream doesn't keep retrying excessively if it's our DB fault,
-        // but typically you might return 500. Let's return 500 to allow Stream to retry.
-        return NextResponse.json({ error: 'Database insert failed' }, { status: 500 });
+        console.error('[Stream Webhook] Failed to mirror message:', insertError);
       }
 
       // Update the conversation's updated_at timestamp to bump it to the top
@@ -81,6 +104,16 @@ export async function POST(req: Request) {
           .select('user_id')
           .eq('conversation_id', conversationId)
           .neq('user_id', senderId);
+
+        // A conversation with no other participant row is a broken conversation,
+        // not a quiet no-op — say so, because the symptom (chat works, nothing
+        // is ever announced) is otherwise indistinguishable from this handler
+        // never running.
+        if (!participants || participants.length === 0) {
+          console.warn(
+            `[Stream Webhook] No recipient participants for conversation ${conversationId} — nobody notified`,
+          );
+        }
 
         if (participants && participants.length > 0) {
           const { data: senderProfile } = await supabaseAdmin

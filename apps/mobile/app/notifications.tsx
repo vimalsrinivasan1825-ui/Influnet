@@ -7,6 +7,7 @@ import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import { timeAgo } from '@/lib/format';
 import { toMobileHref } from '@/lib/notification-link';
+import { useNotificationSummary } from '@/lib/notification-summary';
 import {
   EmptyState,
   ErrorState,
@@ -40,9 +41,14 @@ export default function NotificationsScreen() {
   const notifications = Array.isArray(data) ? data : (data?.notifications ?? []);
 
   // Opening the screen is the read receipt — no separate "mark all" chore.
+  // Refresh the shared summary afterwards so the bell's dot clears now rather
+  // than on the next 60s poll.
   useEffect(() => {
     const unread = notifications.filter((n) => !n.read_at).map((n) => n.id);
-    if (unread.length) void endpoints.markNotificationsRead({ ids: unread });
+    if (!unread.length) return;
+    void endpoints
+      .markNotificationsRead({ ids: unread })
+      .then(() => useNotificationSummary.getState().refresh());
   }, [notifications]);
 
   return (

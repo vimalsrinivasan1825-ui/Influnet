@@ -80,7 +80,7 @@ describe('AuthStore', () => {
 describe('NotificationStore', () => {
   beforeEach(() => {
     useNotificationStore.setState({
-      summary: { unread_messages_count: 0, pending_requests_count: 0 },
+      summary: { unread_notifications_count: 0, unread_messages_count: 0, pending_requests_count: 0 },
       isLoading: false,
     });
   });
@@ -92,13 +92,13 @@ describe('NotificationStore', () => {
   });
 
   it('should set summary', () => {
-    useNotificationStore.getState().setSummary({ unread_messages_count: 3, pending_requests_count: 2 });
+    useNotificationStore.getState().setSummary({ unread_notifications_count: 0, unread_messages_count: 3, pending_requests_count: 2 });
     expect(useNotificationStore.getState().summary.unread_messages_count).toBe(3);
     expect(useNotificationStore.getState().summary.pending_requests_count).toBe(2);
   });
 
   it('should decrement unread messages', () => {
-    useNotificationStore.getState().setSummary({ unread_messages_count: 5, pending_requests_count: 0 });
+    useNotificationStore.getState().setSummary({ unread_notifications_count: 0, unread_messages_count: 5, pending_requests_count: 0 });
     useNotificationStore.getState().decrementUnreadMessages();
     expect(useNotificationStore.getState().summary.unread_messages_count).toBe(4);
   });
@@ -109,7 +109,7 @@ describe('NotificationStore', () => {
   });
 
   it('should decrement pending requests', () => {
-    useNotificationStore.getState().setSummary({ unread_messages_count: 0, pending_requests_count: 3 });
+    useNotificationStore.getState().setSummary({ unread_notifications_count: 0, unread_messages_count: 0, pending_requests_count: 3 });
     useNotificationStore.getState().decrementPendingRequests();
     expect(useNotificationStore.getState().summary.pending_requests_count).toBe(2);
   });

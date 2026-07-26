@@ -68,6 +68,13 @@ async function sendPush(
         title,
         body,
         sound: 'default',
+        // Android routes by channel; 'default' is the one the app creates at
+        // MAX importance (apps/mobile/lib/push.ts). Without naming it here the
+        // notification can land on a lower-importance fallback channel and
+        // never show a heads-up banner. `priority: high` is the FCM-side
+        // equivalent — it also lets the message wake a dozing device.
+        channelId: 'default',
+        priority: 'high',
         // The mobile app reads this on tap to deep-link — see
         // lib/notification-link.ts's toMobileHref().
         data: link ? { link } : undefined,
@@ -75,6 +82,24 @@ async function sendPush(
     });
     if (!res.ok) {
       console.error('[notify] Expo push request failed:', res.status, await res.text().catch(() => ''));
+      return;
+    }
+
+    /**
+     * Expo answers 200 even when it refuses the message — the verdict is in
+     * the ticket. DeviceNotRegistered (app uninstalled, token rotated) is the
+     * common one, and left in place it means every later push for this user is
+     * silently dropped, so the dead token is cleared here.
+     */
+    const ticket = (await res.json().catch(() => null)) as
+      | { data?: { status?: string; message?: string; details?: { error?: string } } }
+      | null;
+    const status = ticket?.data?.status;
+    if (status && status !== 'ok') {
+      console.error('[notify] Expo push ticket error:', ticket?.data?.message, ticket?.data?.details);
+      if (ticket?.data?.details?.error === 'DeviceNotRegistered') {
+        await sb.from('profiles').update({ expo_push_token: null }).eq('id', userId);
+      }
     }
   } catch (err) {
     console.error('[notify] exception while sending push:', err);

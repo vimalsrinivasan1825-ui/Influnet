@@ -36,12 +36,20 @@ Notifications.setNotificationHandler({
 
 async function getExpoPushToken(): Promise<string | null> {
   // Simulators/emulators have no push service to register with.
-  if (!Device.isDevice) return null;
+  if (!Device.isDevice) {
+    console.warn('[push] not a physical device — push tokens are unavailable here');
+    return null;
+  }
 
   if (Platform.OS === 'android') {
+    // MAX, not DEFAULT. Android only shows a heads-up banner for HIGH and
+    // above; at DEFAULT a new message lands silently in the shade, which for a
+    // chat notification reads as nothing having happened at all.
     await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      name: 'Messages and updates',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+      vibrationPattern: [0, 250, 250, 250],
     });
   }
 
@@ -51,7 +59,10 @@ async function getExpoPushToken(): Promise<string | null> {
     const requested = await Notifications.requestPermissionsAsync();
     status = requested.status;
   }
-  if (status !== 'granted') return null;
+  if (status !== 'granted') {
+    console.warn(`[push] notification permission not granted (status: ${status})`);
+    return null;
+  }
 
   const projectId: string | undefined =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
@@ -64,7 +75,16 @@ async function getExpoPushToken(): Promise<string | null> {
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
     return data;
   } catch (err) {
-    // Expected in Expo Go on SDK 53+, and on a simulator without APNs.
+    /**
+     * The three ways this realistically fails, all silent until now:
+     *   - Expo Go on SDK 53+, which can no longer receive remote pushes;
+     *   - an Android build with no FCM credentials (no google-services.json /
+     *     no `expo.android.googleServicesFile`), so there is no FCM sender to
+     *     register with;
+     *   - iOS without an APNs key on the build.
+     * Each leaves expo_push_token NULL server-side, and the only visible
+     * symptom is "pushes don't arrive" — so name it loudly here.
+     */
     console.warn('[push] could not get an Expo push token:', err);
     return null;
   }
@@ -73,7 +93,17 @@ async function getExpoPushToken(): Promise<string | null> {
 /** Registers this device's token with the server. Safe to call repeatedly — e.g. on every app open. */
 export async function syncPushToken(): Promise<void> {
   const token = await getExpoPushToken();
-  if (token) void endpoints.registerPushToken(token);
+  if (!token) return;
+
+  // The result was previously discarded, which hid the case where the column
+  // is missing server-side — the app looked registered while the server had
+  // nothing to push to.
+  const res = await endpoints.registerPushToken<{ ok?: boolean; migration_pending?: boolean }>(token);
+  if (!res.ok || res.data?.migration_pending) {
+    console.warn('[push] server did not store the push token', res.error ?? res.data);
+    return;
+  }
+  console.log('[push] registered device token with the server');
 }
 
 /** Clears the server-side token on sign-out, so a shared or reset device stops receiving the previous account's pushes. */
