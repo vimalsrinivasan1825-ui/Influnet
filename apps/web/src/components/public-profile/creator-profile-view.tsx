@@ -215,65 +215,6 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
       <div className={styles.bg}>
         <span className={`${styles.blob} ${styles.b1}`} />
         <span className={`${styles.blob} ${styles.b2}`} />
-        <span className={`${styles.blob} ${styles.b3}`} />
-        <span className={styles.bwave} />
-        {/* Silk wave lines — flowing curved ribbons like the reference image */}
-        <svg
-          className={styles.waves}
-          viewBox="0 0 1400 700"
-          preserveAspectRatio="xMidYMid slice"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id="wg1" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(221,42,123,0)" />
-              <stop offset="40%" stopColor="rgba(221,42,123,0.25)" />
-              <stop offset="70%" stopColor="rgba(123,79,224,0.18)" />
-              <stop offset="100%" stopColor="rgba(123,79,224,0)" />
-            </linearGradient>
-            <linearGradient id="wg2" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(123,79,224,0)" />
-              <stop offset="30%" stopColor="rgba(123,79,224,0.2)" />
-              <stop offset="65%" stopColor="rgba(221,42,123,0.14)" />
-              <stop offset="100%" stopColor="rgba(221,42,123,0)" />
-            </linearGradient>
-            <linearGradient id="wg3" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(245,133,41,0)" />
-              <stop offset="50%" stopColor="rgba(221,42,123,0.12)" />
-              <stop offset="100%" stopColor="rgba(245,133,41,0)" />
-            </linearGradient>
-          </defs>
-
-          {/* Wave 1 — wide sweep top-right area */}
-          <path d="M-200,80 C150,20 400,160 700,90 S1100,40 1600,130" fill="none" stroke="url(#wg1)" strokeWidth="1.6">
-            <animateTransform attributeName="transform" type="translate" values="0,0; 20,-12; 0,0" dur="18s" repeatCount="indefinite" />
-          </path>
-          {/* Wave 2 */}
-          <path d="M-100,160 C200,100 500,220 800,150 S1200,80 1600,200" fill="none" stroke="url(#wg2)" strokeWidth="1.2">
-            <animateTransform attributeName="transform" type="translate" values="0,0; -16,10; 0,0" dur="22s" repeatCount="indefinite" />
-          </path>
-          {/* Wave 3 — mid height */}
-          <path d="M-150,260 C100,200 380,300 650,240 S1050,180 1500,290" fill="none" stroke="url(#wg1)" strokeWidth="1.4">
-            <animateTransform attributeName="transform" type="translate" values="0,0; 22,-8; 0,0" dur="26s" repeatCount="indefinite" />
-          </path>
-          {/* Wave 4 */}
-          <path d="M-80,340 C220,280 480,380 780,310 S1180,250 1580,360" fill="none" stroke="url(#wg2)" strokeWidth="1">
-            <animateTransform attributeName="transform" type="translate" values="0,0; -12,14; 0,0" dur="30s" repeatCount="indefinite" />
-          </path>
-          {/* Wave 5 — lower section, warm tone */}
-          <path d="M-200,420 C100,360 380,460 680,390 S1100,330 1600,440" fill="none" stroke="url(#wg3)" strokeWidth="1.2">
-            <animateTransform attributeName="transform" type="translate" values="0,0; 18,-6; 0,0" dur="24s" repeatCount="indefinite" />
-          </path>
-          {/* Wave 6 — very subtle lower */}
-          <path d="M-120,510 C180,450 450,540 750,470 S1150,400 1620,520" fill="none" stroke="url(#wg1)" strokeWidth="0.9">
-            <animateTransform attributeName="transform" type="translate" values="0,0; -10,12; 0,0" dur="34s" repeatCount="indefinite" />
-          </path>
-          {/* Wave 7 — near bottom faint */}
-          <path d="M-200,590 C150,530 420,620 700,555 S1080,490 1600,600" fill="none" stroke="url(#wg2)" strokeWidth="0.7">
-            <animateTransform attributeName="transform" type="translate" values="0,0; 14,-10; 0,0" dur="28s" repeatCount="indefinite" />
-          </path>
-        </svg>
       </div>
 
       {isOwner && (
