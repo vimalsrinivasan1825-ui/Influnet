@@ -7,9 +7,16 @@ import { refreshYouTubeSnapshot } from '@/lib/youtube';
 
 export async function POST(req: Request) {
   try {
+    console.log('[DEBUG] POST /api/profile/refresh called');
+    const authHeader = req.headers.get('Authorization');
+    console.log('[DEBUG] Authorization Header:', authHeader ? `${authHeader.substring(0, 20)}...` : 'NONE');
     const auth = await withAuth(req);
-    if (!auth.ok) return auth.res;
+    if (!auth.ok) {
+      console.log('[DEBUG] withAuth check FAILED:', auth.res.status);
+      return auth.res;
+    }
     const { supabase, user } = auth;
+    console.log('[DEBUG] withAuth succeeded for user:', user.id);
 
     // 2. Get the creator's connected handles. They live on influencer_profiles
     //    (keyed by user_id), NOT the base profiles table. Checked BEFORE the rate
