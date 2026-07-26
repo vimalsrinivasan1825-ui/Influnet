@@ -111,7 +111,15 @@ export async function resolveChannel(
   const html = await fetchText(`https://www.youtube.com/@${encodeURIComponent(handle)}`);
   if (!html) return null;
 
+  // YouTube channel pages carry featured/linked channel IDs in the HTML,
+  // which can appear before the owner's ID. Parse explicit metadata tags
+  // (canonical link, og:url, itemprop) to guarantee we match the owner.
   const idMatch =
+    html.match(/<meta\s+itemprop="channelId"\s+content="(UC[A-Za-z0-9_-]{22})"/i) ??
+    html.match(/itemprop="channelId"\s+content="(UC[A-Za-z0-9_-]{22})"/i) ??
+    html.match(/<link\s+rel="canonical"\s+href="https:\/\/www\.youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})"/i) ??
+    html.match(/<meta\s+property="og:url"\s+content="https:\/\/www\.youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})"/i) ??
+    html.match(/<meta\s+name="twitter:app:url:googleplay"\s+content="https:\/\/www\.youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})"/i) ??
     html.match(/"channelId"\s*:\s*"(UC[A-Za-z0-9_-]{22})"/) ??
     html.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})/);
   if (!idMatch) return null;
