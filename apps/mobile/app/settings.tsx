@@ -21,12 +21,24 @@ import {
   type SheetRef,
 } from '@/components/ui';
 
+// Only accounts in this list (or admins) will see internal diagnostic tools in Settings.
+const DEVELOPER_EMAILS = [
+  'vimal@gmail.com',
+  'admin@influnet.com',
+  'vnkamalesh@gmail.com',
+  'kamalesh@tecstellar.com',
+];
+
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
   const { profile, signOut } = useSession();
   const deleteSheet = useRef<SheetRef>(null);
   const [testingPush, setTestingPush] = useState(false);
+
+  const showDiagnostics =
+    profile?.role === 'admin' ||
+    (Boolean(profile?.email) && DEVELOPER_EMAILS.includes(String(profile?.email).toLowerCase()));
 
   async function testPushRegistration() {
     setTestingPush(true);
@@ -95,15 +107,19 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
-      <SectionLabel>Diagnostics</SectionLabel>
-      <ListGroup>
-        <ListRow
-          title="Test Push Notifications"
-          subtitle={testingPush ? "Registering and verifying token..." : "Verify FCM token registration with server"}
-          left={<Bell size={19} color={t.color.brand} />}
-          onPress={testPushRegistration}
-        />
-      </ListGroup>
+      {showDiagnostics ? (
+        <>
+          <SectionLabel>Diagnostics (Developer Only)</SectionLabel>
+          <ListGroup>
+            <ListRow
+              title="Test Push Notifications"
+              subtitle={testingPush ? "Registering and verifying token..." : "Verify FCM token registration with server"}
+              left={<Bell size={19} color={t.color.brand} />}
+              onPress={testPushRegistration}
+            />
+          </ListGroup>
+        </>
+      ) : null}
 
       <SectionLabel>Privacy</SectionLabel>
       <ListGroup>
