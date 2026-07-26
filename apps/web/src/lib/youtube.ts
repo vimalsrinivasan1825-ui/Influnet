@@ -88,11 +88,15 @@ async function fetchText(url: string): Promise<string | null> {
  */
 export function parseSubscriberCount(text: string | null | undefined): number | null {
   if (!text) return null;
-  const m = text.match(/([\d.,]+)\s*([KMB])?\s*subscriber/i);
+  const m = text.match(/([\d.,]+)\s*(million|billion|thousand|[KMB])?\s*subscriber/i);
   if (!m) return null;
   const n = Number(m[1].replace(/,/g, ''));
   if (!Number.isFinite(n)) return null;
-  const mult = m[2]?.toUpperCase() === 'B' ? 1e9 : m[2]?.toUpperCase() === 'M' ? 1e6 : m[2]?.toUpperCase() === 'K' ? 1e3 : 1;
+  const unit = m[2]?.toLowerCase();
+  let mult = 1;
+  if (unit === 'b' || unit === 'billion') mult = 1e9;
+  else if (unit === 'm' || unit === 'million') mult = 1e6;
+  else if (unit === 'k' || unit === 'thousand') mult = 1e3;
   return Math.round(n * mult);
 }
 
@@ -125,8 +129,12 @@ export async function resolveChannel(
   if (!idMatch) return null;
 
   const subsMatch =
-    html.match(/"subscriberCountText"\s*:\s*\{\s*"simpleText"\s*:\s*"([^"]+)"/) ??
-    html.match(/([\d.,]+[KMB]?\s*subscribers)/i);
+    html.match(/"metadataParts"\s*:\s*\[\s*\{\s*"text"\s*:\s*\{\s*"content"\s*:\s*"([^"]*subscribers[^"]*)"/i) ??
+    html.match(/"subtitle"\s*:\s*\{\s*"content"\s*:\s*"([^"]*subscribers[^"]*)"/i) ??
+    html.match(/"accessibilityLabel"\s*:\s*"([^"]*subscribers)"/i) ??
+    html.match(/"subscriberCountText"\s*:\s*\{\s*"simpleText"\s*:\s*"([^"]+)"/i) ??
+    html.match(/"subscriberCountText"\s*:\s*\{\s*"accessibility"\s*:\s*\{\s*"accessibilityData"\s*:\s*\{\s*"label"\s*:\s*"([^"]+)"/i) ??
+    html.match(/([\d.,]+\s*[KMB]?(?:\s*million|\s*billion|\s*thousand)?\s*subscribers?)/i);
 
   return {
     channelId: idMatch[1],
