@@ -11,7 +11,8 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "setup:webhook": "node scripts/setup-stream-webhook.mjs"
   },
   "devDependencies": {
     "expo": "~57.0.7",

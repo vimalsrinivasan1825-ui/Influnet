@@ -1194,7 +1194,7 @@
       <tbody>
         <tr>
           <td class="mono" style="white-space:nowrap">2026-07-26</td>
-          <td><strong>Chat & Push Notifications Sync</strong>: Integrated `notifyUser` call in `/api/stream/webhook` and `POST /api/conversations/[id]/messages` to trigger Expo push notifications and in-app notifications on every new chat message; updated `/api/notifications/summary` to query real unread message counts from Stream Chat SDK and fall back to database notification counts; enriched `/api/conversations` list endpoint to merge latest messages and timestamps from Stream Chat channels when ahead of Postgres.</td>
+          <td><strong>Chat & Push Notifications Sync</strong>: Integrated `notifyUser` call in `/api/stream/webhook` and `POST /api/conversations/[id]/messages` to trigger Expo push notifications and in-app notifications on every new chat message; updated `/api/notifications/summary` to query real unread message counts from Stream Chat SDK and fall back to database notification counts; enriched `/api/conversations` list endpoint to merge latest messages and timestamps from Stream Chat channels when ahead of Postgres; created `scripts/setup-stream-webhook.mjs` and configured Stream Chat v2 event hooks (`message.new`, `message.updated`, `message.deleted`) to point to `https://dev.influnet.io/api/stream/webhook`.</td>
           <td>Messaging · Notifications · Mobile · Stream</td>
         </tr>
         <tr>

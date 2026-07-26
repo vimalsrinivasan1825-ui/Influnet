@@ -12,19 +12,23 @@ This file tracks the current implementation state of each system module, issues 
 - **Chat Push & In-App Notification Fanning (`/api/stream/webhook` and `POST /api/conversations/[id]/messages`)**: Integrated `notifyUser` calls so whenever a chat message arrives via Stream webhook or REST endpoint, all conversation participants receive an Expo push notification and an in-app notification row.
 - **Unread Message Badge Sync (`/api/notifications/summary`)**: Replaced hardcoded `unreadMessages = 0` with live server-side Stream Chat SDK queries (`streamClient.queryUsers({ id: user.id })`) to retrieve `total_unread_count`, falling back to unread database notification counts of type `message` when Stream is unreachable or returns zero.
 - **Conversation Preview Enrichment (`GET /api/conversations`)**: Added server-side Stream Chat channel queries (`queryChannels`) when fetching conversation lists so message previews and timestamps reflect live Stream data immediately without waiting for database webhook ingestion or clicking into the chat.
+- **Stream Chat Webhook Configuration (`scripts/setup-stream-webhook.mjs`)**: Created helper script and configured Stream Chat v2 event hooks (`hook_type: 'webhook'`, `webhook_url: 'https://dev.influnet.io/api/stream/webhook'`, `enabled: true`) to ensure Stream actively calls our webhook when new messages arrive.
 
 ### What broke
 - **Missing Push & In-App Indications for Chat**: Sending messages via Stream Chat from web or mobile never triggered push notifications or updated the notification bell / badge because neither the Stream webhook nor the message REST endpoint invoked `notifyUser`.
 - **Zeroed Unread Message Badges**: Mobile and web header message badges always showed zero because `/api/notifications/summary` returned a hardcoded `const unreadMessages = 0;`.
 - **Stale Conversation List Previews**: When a message was sent via Stream, the conversation list preview did not update until the user tapped into the conversation because `GET /api/conversations` only queried Postgres `messages`, which lags behind Stream if webhooks are delayed or not configured in local development.
+- **Unconfigured Stream Webhook**: Even after adding notification fanning to `/api/stream/webhook`, chat messages were not triggering push notifications because Stream Chat app settings had zero event hooks configured (`event_hooks: []`), so Stream never sent webhook HTTP requests to our server.
 
 ### Fix
 - **Webhook & REST Notification Triggering**: Injected `notifyUser({ userId, type: 'message', title: 'New message from...', link: '/dashboard/messages?conv=' + id })` in `/api/stream/webhook` (service role) and `POST /api/conversations/[id]/messages`.
 - **Live Stream Unread Querying**: Upgraded `/api/notifications/summary` to query `getStreamClient().queryUsers()` for `total_unread_count`, with a database query fallback against `notifications` where `type = 'message'`.
 - **Stream Channel Preview Reconciliation**: Updated `/api/conversations` to query `getStreamClient().queryChannels({ id: { $in: channelIds } })` and override message bodies and `updated_at` timestamps whenever Stream has a newer timestamp than Postgres.
+- **Stream Event Hook Setup**: Added `scripts/setup-stream-webhook.mjs` and executed it against `https://dev.influnet.io/api/stream/webhook`, enabling live webhook delivery for `message.new`, `message.updated`, and `message.deleted`.
 
 ### Key Lessons
 - When using a hosted chat transport like Stream Chat alongside a local relational database, never rely solely on asynchronous webhooks for immediate UI feedback; always enrich list endpoints and summary badges by querying the hosted service SDK server-side.
+- In Stream Chat v2 hook architecture, `webhook_url` at the top app level is deprecated; you must configure webhooks via `client.updateAppSettings({ event_hooks: [{ hook_type: 'webhook', webhook_url: '...', enabled: true, event_types: [...] }] })`. Note that new event hooks default to `enabled: false` unless explicitly set to `true`.
 - In-app and push notification fanning for messaging should be triggered both at the webhook receiving layer (for messages sent directly via external SDKs) and at any REST fallback endpoints to guarantee delivery across all client platforms.
 
 ---
