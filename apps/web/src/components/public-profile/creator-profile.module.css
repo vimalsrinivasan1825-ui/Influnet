@@ -36,8 +36,17 @@
   @keyframes drift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-2.5rem,1.5rem) scale(1.12);}}
 
   .topbar{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;}
-  .brand{display:flex;align-items:center;gap:.5rem;font-weight:800;letter-spacing:-.01em;text-decoration:none;color:var(--ink);font-size:1.05rem;}
+  .brand{display:flex;align-items:center;gap:.5rem;font-weight:800;letter-spacing:-.01em;text-decoration:none;color:var(--ink);font-size:1.05rem;flex-shrink:0;}
   .url{display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.45rem .9rem;box-shadow:var(--shadow-sm);margin:0 auto;max-width:50%;}
+  /* Below the sidebar breakpoint the centred URL pill has nowhere to go — it
+     overlapped the wordmark and forced the CTA to wrap onto three lines. The
+     same link is always available from the "Let's connect" card, so the pill
+     is the thing that gives way. */
+  @media(max-width:760px){
+    .topbar{gap:.6rem;}
+    .url{display:none;}
+    .topbar .btn{margin-left:auto;white-space:nowrap;}
+  }
   .url b{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
   .url .cp{cursor:pointer;color:var(--ink-3);display:grid;place-items:center;flex-shrink:0;}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;font-size:.86rem;font-weight:600;cursor:pointer;border-radius:var(--r-sm);padding:.6rem 1rem;border:1px solid var(--line-2);background:var(--card);color:var(--ink);text-decoration:none;}
@@ -73,63 +82,174 @@
   .ctitle .ci{color:var(--accent);display:inline-flex;}
   .viewall{font-size:.78rem;font-weight:600;color:var(--accent-ink);cursor:pointer;}
 
-  .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:1.2rem;align-items:center;}
-  @media(max-width:640px){.hero{grid-template-columns:1fr;}}
+  /* ── HERO ────────────────────────────────────────────────────────────
+     One tinted card carrying identity, avatar, the platform column and a
+     footer strip of headline numbers. The tint is built from the live
+     --accent so the owner's colour picker still drives the whole page. */
+  .hero{
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb,var(--accent) 13%,var(--card)) 0%,
+        color-mix(in srgb,var(--accent) 5%,var(--card)) 42%,
+        var(--card) 100%);
+    border:1px solid color-mix(in srgb,var(--accent) 16%,var(--line));
+    border-radius:calc(var(--r) * 1.6);
+    box-shadow:var(--shadow-sm);
+    padding:clamp(1.1rem,2.2vw,1.7rem);
+    overflow:hidden;
+  }
+  /* Hero: 2-column — identity text on the left, avatar + 2×2 platform cards on the right */
+  .herotop{
+    display:grid;
+    grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+    gap:clamp(.8rem,2vw,1.6rem);
+    align-items:center;
+  }
+  /* The right column stacks avatar on top, 2×2 grid of platform cards below */
+  .hmid{display:flex;flex-direction:column;align-items:center;gap:.8rem;}
+  @media(max-width:800px){
+    .herotop{grid-template-columns:1fr;}
+    .hmid{flex-direction:row;justify-content:center;gap:1rem;}
+  }
+  @media(max-width:480px){
+    .hmid{flex-direction:column;}
+  }
+  .hleft{min-width:0;}
   .eyebrow{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-ink);background:var(--soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);padding:.32rem .7rem;border-radius:999px;}
-  .hero h1{font-size:clamp(2rem,4.4vw,2.9rem);margin:.7rem 0 .15rem;letter-spacing:-.03em;font-weight:720;line-height:1.03;}
-  .subtitle{font-size:clamp(1.1rem,2.2vw,1.4rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
+  .hero h1{font-size:clamp(1.9rem,4.2vw,2.8rem);margin:.7rem 0 .15rem;letter-spacing:-.03em;font-weight:720;line-height:1.03;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
+  /* The tick sits with the name, where a reader looks for it, rather than
+     floating over the avatar as a separate labelled pill. */
+  .vtick{width:.62em;height:.62em;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:inline-grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm);}
+  .subtitle{font-size:clamp(1.05rem,2.1vw,1.32rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
   .grad{background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .tag{color:var(--ink-2);font-size:.95rem;margin:.7rem 0 0;max-width:42ch;}
-  .cta{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;}
+  .tag{color:var(--ink-2);font-size:.92rem;margin:.7rem 0 0;max-width:46ch;}
 
-  .havatar{position:relative;aspect-ratio:1;max-width:380px;margin:0 auto;display:grid;place-items:center;}
+  /* Contact rows lifted out of the bio prose. */
+  .contact{list-style:none;margin:.85rem 0 0;padding:0;display:flex;flex-direction:column;gap:.4rem;}
+  .contact li{display:flex;align-items:center;gap:.5rem;font-size:.86rem;min-width:0;}
+  .contact .ci2{color:var(--accent);display:inline-flex;flex-shrink:0;}
+  .contact a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .contact a:hover{color:var(--accent-ink);}
+  .contact a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .cta{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem;}
+
+  /* Platform cards: 2×2 grid so all 4 cards align symmetrically on the right */
+  .pstack{
+    list-style:none;margin:0;padding:0;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:.45rem;
+    width:100%;
+  }
+  .pcard{
+    display:flex;align-items:center;gap:.5rem;
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r-sm);padding:.5rem .65rem;
+    box-shadow:var(--shadow-sm);min-width:0;
+  }
+  .pmeta{min-width:0;}
+  .pcard b{display:block;font-size:.88rem;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+  .pcard small{display:block;font-size:.62rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* On very narrow widths collapse to single column */
+  @media(max-width:380px){.pstack{grid-template-columns:1fr;}}
+
+  /* Headline numbers, as a strip inside the hero rather than detached cards. */
+  .herostats{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;
+    margin-top:clamp(1rem,2vw,1.5rem);padding-top:clamp(.9rem,1.8vw,1.2rem);
+    border-top:1px solid color-mix(in srgb,var(--accent) 14%,var(--line));
+  }
+  @media(max-width:560px){.herostats{grid-template-columns:1fr;}}
+  .hstat{display:flex;align-items:center;gap:.65rem;min-width:0;}
+  .hstat .si{width:38px;height:38px;border-radius:var(--r-sm);background:var(--card);border:1px solid var(--line);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm);}
+  .hsmeta{min-width:0;}
+  .hstat b{display:block;font-size:1.4rem;font-weight:720;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.05;}
+  .hstat small{display:block;font-size:.74rem;color:var(--ink-3);font-weight:500;margin-top:.1rem;}
+
+  .havatar{position:relative;aspect-ratio:1;max-width:200px;width:100%;margin:0 auto;display:grid;place-items:center;}
+  /* On mobile the avatar is the only thing in its row so constrain it further */
+  @media(max-width:640px){.havatar{max-width:160px;}}
   .halo{position:absolute;inset:6%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--accent) 30%,transparent);animation:spin 30s linear infinite;}
   .haloglow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 66%);}
   @keyframes spin{to{transform:rotate(360deg);}}
-  .avatar{width:56%;aspect-ratio:1;border-radius:50%;padding:5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;box-shadow:var(--shadow);}
+  .avatar{width:78%;aspect-ratio:1;border-radius:50%;padding:5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;box-shadow:var(--shadow);}
   .avimg{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;background:var(--tile);}
-  .vbadge{position:absolute;bottom:6%;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:.45rem;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.3rem .65rem .3rem .35rem;box-shadow:var(--shadow-sm);white-space:nowrap;}
-  .vbadge .vi{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:800;font-size:.8rem;}
-  .vbadge b{font-size:.78rem;} .vbadge small{font-size:.62rem;color:var(--ink-3);display:block;line-height:1;}
-  .fstack{position:absolute;right:-4%;top:14%;display:flex;flex-direction:column;gap:.55rem;}
-  .fcard{display:flex;align-items:center;gap:.5rem;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:.4rem .6rem;box-shadow:var(--shadow-sm);animation:bob 5.5s ease-in-out infinite;}
-  .fcard:nth-child(2){animation-delay:.5s;} .fcard:nth-child(3){animation-delay:1s;}
-  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
-  .fi{width:28px;height:28px;border-radius:var(--r-xs);display:grid;place-items:center;color:#fff;flex-shrink:0;}
-  .fcard b{display:block;font-size:.82rem;line-height:1.1;font-variant-numeric:tabular-nums;} .fcard small{display:block;font-size:.6rem;color:var(--ink-3);}
-  .fIg{position:absolute;bottom:0;left:50%;transform:translateX(-50%);z-index:2;}
-  .fYt{position:absolute;bottom:14%;left:-4%;z-index:2;}
+  .avfallback{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--tile);font-size:2.4rem;font-weight:800;color:var(--ink-3);}
+  .fi{width:30px;height:30px;border-radius:var(--r-xs);display:grid;place-items:center;color:#fff;flex-shrink:0;}
 
-  .statchips{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;}
-  @media(max-width:520px){.statchips{grid-template-columns:1fr;}}
-  .statchips .card{padding:1rem 1.1rem;}
-  .stat .si{width:36px;height:36px;border-radius:var(--r-sm);background:var(--soft);color:var(--accent-ink);display:grid;place-items:center;margin-bottom:.6rem;}
-  .stat .sn{font-size:1.55rem;font-weight:720;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1;}
-  .stat .sl{font-size:.78rem;color:var(--ink-3);margin-top:.3rem;font-weight:500;}
+  /* ── Horizontal rails ────────────────────────────────────────────────
+     Content strips scroll instead of cramming every tile into the row.
+     Snap points keep a tile edge aligned after a swipe or an arrow nudge. */
+  .cmeta{display:flex;align-items:center;gap:.7rem;}
+  .railnav{display:inline-flex;gap:.3rem;}
+  .railnav button{
+    width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+    border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);cursor:pointer;padding:0;
+  }
+  .railnav button:hover:not(:disabled){color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,transparent);}
+  .railnav button:disabled{opacity:.35;cursor:default;}
+  .railnav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .rail{
+    display:grid;grid-auto-flow:column;gap:.55rem;
+    overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;
+    grid-auto-columns:calc((100% - 5 * .55rem) / 6);
+    padding-bottom:.15rem;
+  }
+  .rail::-webkit-scrollbar{display:none;}
+  .rail > *{scroll-snap-align:start;}
+  @media(max-width:900px){.rail{grid-auto-columns:calc((100% - 3 * .55rem) / 4);}}
+  @media(max-width:720px){.rail{grid-auto-columns:calc((100% - 2 * .55rem) / 3);}}
+  @media(max-width:460px){.rail{grid-auto-columns:calc((100% - .55rem) / 2);}}
+  /* Videos are wider than stills — a title needs the room. */
+  .rail:has(.vid){grid-auto-columns:calc((100% - 2 * .55rem) / 3);}
+  @media(max-width:900px){.rail:has(.vid){grid-auto-columns:calc((100% - .55rem) / 2);}}
+  @media(max-width:560px){.rail:has(.vid){grid-auto-columns:86%;}}
 
-  .thumbs6{display:grid;grid-template-columns:repeat(6,1fr);gap:.55rem;}
-  @media(max-width:720px){.thumbs6{grid-template-columns:repeat(3,1fr);}}
   .th{position:relative;aspect-ratio:3/4;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line);background-size:cover;background-position:center;}
   .th::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.5));}
   .th .ov{position:absolute;left:.4rem;bottom:.4rem;z-index:1;font-size:.68rem;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);display:inline-flex;align-items:center;gap:.2rem;}
   .th .dur{position:absolute;right:.4rem;bottom:.4rem;z-index:1;font-size:.62rem;font-weight:700;color:#fff;background:rgba(0,0,0,.78);border-radius:4px;padding:0 .28rem;}
   .th .play{position:absolute;inset:0;margin:auto;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.45);display:grid;place-items:center;color:#fff;z-index:1;}
 
-  .aud3{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;}
-  @media(max-width:720px){.aud3{grid-template-columns:1fr;}}
+  /* Auto-fit rather than a fixed 3 or 4: the number of panels depends on
+     which breakdowns the creator actually filled in, so the grid has to
+     look right at two, three or four without a hardcoded column count. */
+  .aud{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.7rem;}
   .subcard{background:var(--tile);border:1px solid var(--line);border-radius:var(--r-sm);padding:.9rem;}
-  .subcard h4{margin:0 0 .7rem;font-size:.82rem;font-weight:660;}
-  .bar{display:grid;grid-template-columns:2.2rem 1fr 2rem;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.72rem;color:var(--ink-2);}
+  .subcard h4{margin:0 0 .75rem;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);}
+  .bar{display:grid;grid-template-columns:minmax(3.2rem,auto) 1fr 2.1rem;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.74rem;color:var(--ink-2);}
+  .barlabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bar .track{height:7px;border-radius:99px;background:var(--line-2);overflow:hidden;}
   .bar .fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-2));}
   .bar .pct{text-align:right;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+
   .donutwrap{display:flex;align-items:center;gap:.8rem;}
-  .donut{width:82px;height:82px;border-radius:50%;flex-shrink:0;position:relative;}
-  .donut::after{content:"";position:absolute;inset:24%;border-radius:50%;background:var(--tile);}
-  .legend{display:flex;flex-direction:column;gap:.3rem;font-size:.72rem;flex:1;}
+  .donut{width:88px;height:88px;border-radius:50%;flex-shrink:0;position:relative;display:grid;place-items:center;}
+  .donut::after{content:"";position:absolute;inset:22%;border-radius:50%;background:var(--tile);}
+  /* The hole carries the takeaway instead of being empty decoration. */
+  .donutmid{position:relative;z-index:1;text-align:center;line-height:1.05;}
+  .donutmid b{display:block;font-size:.76rem;font-weight:720;letter-spacing:-.01em;}
+  .donutmid small{display:block;font-size:.55rem;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;}
+  .legend{display:flex;flex-direction:column;gap:.3rem;font-size:.72rem;flex:1;min-width:0;}
   .legend div{display:flex;align-items:center;gap:.4rem;color:var(--ink-2);}
   .legend .dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
   .legend b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums;}
+
+  /* Gender: a two-way comparison, so two figures rather than a ring. */
+  .genders{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
+  .gcell{text-align:center;}
+  .gicon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;margin:0 auto .4rem;color:#fff;}
+  .gA{background:linear-gradient(135deg,var(--accent),var(--accent-2));}
+  .gB{background:var(--ink-3);}
+  .gcell b{display:block;font-size:1.15rem;font-weight:720;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1;}
+  .gcell small{display:block;font-size:.68rem;color:var(--ink-3);margin-top:.15rem;}
+
+  /* Interests: labels with a number, not another bar chart — five more
+     bars beside the locations panel would read as one repeated pattern. */
+  .chips{display:flex;flex-wrap:wrap;gap:.35rem;}
+  .tchip{display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.28rem .6rem;}
+  .tchip b{color:var(--accent-ink);font-variant-numeric:tabular-nums;}
 
   /* YouTube uploads. Wider tiles than .thumbs6 because a video has a title
      worth reading — 16:9 thumbnail, two lines of title underneath. */
@@ -160,18 +280,48 @@
   @media(max-width:720px){.brands{grid-template-columns:repeat(3,1fr);}}
   .brand-c{display:grid;place-items:center;height:56px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);font-weight:800;font-size:.82rem;letter-spacing:.02em;color:var(--ink-2);text-align:center;padding:.3rem;}
 
-  .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;}
-  @media(max-width:720px){.prices{grid-template-columns:1fr;}}
-  .price{border:1px solid var(--line);border-radius:var(--r);padding:1rem;background:var(--card);position:relative;}
-  .price.feat{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent);}
-  .price .ph{display:flex;align-items:center;gap:.5rem;font-weight:660;font-size:.9rem;}
-  .price .plogo{width:28px;height:28px;border-radius:var(--r-xs);display:grid;place-items:center;color:#fff;}
-  .price .pdesc{font-size:.76rem;color:var(--ink-3);margin:.5rem 0;}
-  .price .amt{font-size:1.3rem;font-weight:720;letter-spacing:-.02em;}
-  .price ul{list-style:none;margin:.6rem 0 .9rem;padding:0;display:flex;flex-direction:column;gap:.35rem;}
-  .price li{font-size:.76rem;color:var(--ink-2);display:flex;align-items:center;gap:.4rem;}
-  .price li .ck{color:var(--accent);font-weight:800;}
-  .note{text-align:center;font-size:.76rem;color:var(--ink-3);margin-top:.9rem;}
+  /* ── WORK WITH ME ────────────────────────────────────────────────────
+     What the creator makes, next to a real example of it. Replaces the
+     price-card grid, whose amount printed the raw tier slug. */
+  .collab{
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr);
+    gap:clamp(1rem,2.4vw,1.8rem);align-items:center;
+    padding:clamp(1.1rem,2.2vw,1.6rem);
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb,var(--accent) 11%,var(--card)) 0%,
+        var(--card) 60%);
+    border-color:color-mix(in srgb,var(--accent) 16%,var(--line));
+    border-radius:calc(var(--r) * 1.6);
+  }
+  @media(max-width:760px){.collab{grid-template-columns:1fr;}}
+  .collableft h3{margin:0;font-size:1.15rem;font-weight:700;letter-spacing:-.02em;}
+  .collableft > p{margin:.3rem 0 0;font-size:.86rem;color:var(--ink-2);}
+  .formats{list-style:none;margin:1rem 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.45rem .8rem;}
+  .formats li{display:flex;align-items:center;gap:.5rem;font-size:.84rem;font-weight:600;color:var(--ink);min-width:0;}
+  .ck{width:17px;height:17px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0;}
+  .rate{font-size:.84rem;color:var(--ink-2);margin:1rem 0 0;}
+  .rate b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;}
+  .collableft .btn{margin-top:1.1rem;}
+
+  /* A real post, framed the way the creator's audience already sees it. */
+  .postcard{
+    display:block;text-decoration:none;color:inherit;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:var(--shadow);overflow:hidden;max-width:330px;width:100%;margin:0 auto;
+    transition:transform .25s ease,box-shadow .25s ease;
+  }
+  .postcard:hover{transform:translateY(-3px);}
+  .postcard:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+  .pchead{display:flex;align-items:center;gap:.5rem;padding:.6rem .7rem;font-size:.8rem;}
+  .pcav{width:26px;height:26px;border-radius:50%;object-fit:cover;background:var(--tile);flex-shrink:0;}
+  .pchead b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pcig{margin-left:auto;width:22px;height:22px;border-radius:var(--r-xs);background:var(--ig);display:grid;place-items:center;flex-shrink:0;}
+  .pcimg{display:block;aspect-ratio:1;background-size:cover;background-position:center;background-color:var(--tile);}
+  .pcfoot{display:flex;align-items:center;gap:.5rem;padding:.6rem .7rem;font-size:.76rem;color:var(--ink-2);}
+  .pclikes{display:inline-flex;align-items:center;gap:.3rem;color:var(--accent-ink);font-weight:700;font-variant-numeric:tabular-nums;}
+  .pcview{margin-left:auto;font-weight:600;color:var(--ink-3);}
+  @media(prefers-reduced-motion:reduce){.postcard{transition:none;}.postcard:hover{transform:none;}}
 
   .side h3{margin:0 0 .1rem;font-size:1rem;font-weight:660;}
   .share-title{text-align:center;} .share-title p{margin:.15rem 0 0;font-size:.78rem;color:var(--ink-3);}
@@ -199,9 +349,14 @@
   .mkfooter{max-width:1180px;margin:1.4rem auto 0;padding-top:1.1rem;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;font-size:.78rem;color:var(--ink-3);position:relative;z-index:1;}
   footer .flinks{display:flex;gap:1.1rem;} footer .fsoc{display:flex;gap:.7rem;}
 
-  @media(prefers-reduced-motion:reduce){.halo,.fcard,.blob{animation:none;}}
+  /* `.fcard` used to be listed here; the bobbing platform badges it animated
+     are gone, replaced by the static .pstack column. */
+  @media(prefers-reduced-motion:reduce){
+    .halo,.blob{animation:none;}
+    .rail{scroll-behavior:auto;}
+  }
 
-  .stage.editing .card, .stage.editing .hleft, .stage.editing .havatar { outline: 1.5px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 6px; border-radius: var(--r-card); }
+  .stage.editing .card, .stage.editing .hero, .stage.editing .hleft, .stage.editing .havatar { outline: 1.5px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 6px; }
 
   .previewbanner { display: none; align-items: center; justify-content: space-between; gap: 1rem; max-width: 1180px; margin: 0 auto 1rem;
     background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card));
