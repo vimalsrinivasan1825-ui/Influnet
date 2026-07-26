@@ -51,9 +51,16 @@ export default function SettingsScreen() {
         return;
       }
       const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-      const res = await endpoints.registerPushToken(token);
-      if (!res.ok) {
-        Alert.alert("Server Registration Failed", res.error ?? "Server did not accept push token.");
+      const res = await endpoints.registerPushToken<{ ok?: boolean; reason?: string }>(token);
+      // The route answers 200 even when it could not STORE the token, so the
+      // body is the verdict — checking res.ok alone reported success on a
+      // write that never happened.
+      if (!res.ok || res.data?.ok !== true) {
+        Alert.alert(
+          'Server Registration Failed',
+          `Got a token from Expo, but the server did not store it.\n\n` +
+            `Reason: ${res.data?.reason ?? res.error ?? 'unknown'}\n\nToken: ${token.slice(0, 30)}...`,
+        );
         return;
       }
       Alert.alert("Push Registered Successfully! 🎉", `Token: ${token.slice(0, 30)}...\n\nYour device is now registered to receive push notifications! Check 'npm run check:push' now.`);

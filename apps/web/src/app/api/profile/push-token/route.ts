@@ -28,14 +28,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .update({ expo_push_token: parsed.data.token })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .select('id');
 
-    // Migration 079 not applied yet — push registration silently no-ops
-    // rather than breaking sign-in/app-open for everyone.
-    if (error) return NextResponse.json({ ok: false, migration_pending: true });
+    /**
+     * Never fail the request — a push token is a bonus, not a precondition for
+     * using the app — but do report honestly whether it was STORED.
+     *
+     * This used to return only `{ ok: false, migration_pending: true }`, which
+     * left every cause looking like a pending migration and, because the HTTP
+     * status stayed 200, let callers that only check `res.ok` report a
+     * successful registration when nothing had been written.
+     */
+    if (error) {
+      console.error('[push-token] failed to store token for', user.id, error.message);
+      return NextResponse.json({ ok: false, reason: 'write_failed' });
+    }
+
+    // Zero rows means RLS silently filtered the update — the row exists but the
+    // session isn't allowed to touch it, which returns no error at all.
+    if (!data || data.length === 0) {
+      console.error('[push-token] update matched no rows for', user.id, '— RLS or missing profile');
+      return NextResponse.json({ ok: false, reason: 'no_rows_updated' });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {

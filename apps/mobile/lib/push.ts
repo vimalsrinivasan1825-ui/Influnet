@@ -98,9 +98,9 @@ export async function syncPushToken(): Promise<void> {
   // The result was previously discarded, which hid the case where the column
   // is missing server-side — the app looked registered while the server had
   // nothing to push to.
-  const res = await endpoints.registerPushToken<{ ok?: boolean; migration_pending?: boolean }>(token);
-  if (!res.ok || res.data?.migration_pending) {
-    console.warn('[push] server did not store the push token', res.error ?? res.data);
+  const res = await endpoints.registerPushToken<{ ok?: boolean; reason?: string }>(token);
+  if (!res.ok || res.data?.ok !== true) {
+    console.warn('[push] server did not store the push token:', res.data?.reason ?? res.error);
     return;
   }
   console.log('[push] registered device token with the server');
