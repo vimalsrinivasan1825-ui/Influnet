@@ -17,7 +17,9 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:push": "node ../../scripts/check-push-tokens.mjs",
+    "setup:webhook": "node ../../scripts/setup-stream-webhook.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.6",
