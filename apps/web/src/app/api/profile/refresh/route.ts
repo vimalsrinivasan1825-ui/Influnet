@@ -1,19 +1,15 @@
 import { NextResponse } from 'next/server';
 import { enforceRateLimit } from '@/lib/rate-limit';
-import { createRSCClient } from '@/lib/supabase/server-rsc';
+import { withAuth, jsonError } from '@/lib/api';
 import { getInstagramUser } from '@/lib/apify-instagram';
 import { captureInstagramSnapshot } from '@/lib/social-snapshot';
 import { refreshYouTubeSnapshot } from '@/lib/youtube';
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createRSCClient();
-
-    // 1. Authenticate user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
 
     // 2. Get the creator's connected handles. They live on influencer_profiles
     //    (keyed by user_id), NOT the base profiles table. Checked BEFORE the rate
