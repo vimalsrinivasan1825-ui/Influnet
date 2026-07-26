@@ -9,7 +9,16 @@ const DEFAULT_ORIGIN = 'http://localhost:3000';
 
 /** Full origin, e.g. "https://influnet.app". No trailing slash. */
 export function publicOrigin(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || DEFAULT_ORIGIN).replace(/\/$/, '');
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return DEFAULT_ORIGIN;
 }
 
 /** Origin with the protocol stripped, for compact display: "influnet.app". */
