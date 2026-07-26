@@ -270,20 +270,16 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
 
                   <p className={styles.tag}>{data.tagline}</p>
 
-                  {data.contact.length > 0 && (
-                    <ul className={styles.contact}>
-                      {data.contact.map((c) => (
-                        <li key={c.value}>
-                          <span className={styles.ci2}>{c.kind === 'email' ? <Mail /> : <Phone />}</span>
-                          <a href={c.href}>{c.value}</a>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
                   <div className={styles.cta}>
                     <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
-                    <a className={`${styles.btn} ${styles.ghost}`} href="#featured"><Play />View my work</a>
+                    <a
+                      className={`${styles.btn} ${styles.ghost}`}
+                      href="#featured"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                    ><Play />View my work</a>
                   </div>
                 </div>
 

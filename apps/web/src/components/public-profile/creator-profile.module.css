@@ -138,8 +138,8 @@
     overflow:hidden;
     animation:slidein .5s ease both;
   }
-  /* herofull: fills the full height to match sidebar */
-  .herofull{height:100%;display:flex;flex-direction:column;justify-content:space-between;}
+  /* herofull: fills height, but content stacks naturally without forced gaps */
+  .herofull{height:100%;display:flex;flex-direction:column;gap:1.4rem;}
   /* Hero: 2-column — identity text on the left, avatar + platform cards on the right */
   .herotop{
     display:grid;
@@ -155,11 +155,11 @@
   @media(max-width:480px){.hmid{flex-direction:column;}}
   .hleft{min-width:0;}
   .eyebrow{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-ink);background:var(--soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);padding:.32rem .7rem;border-radius:999px;}
-  .hero h1{font-size:clamp(1.9rem,4.2vw,2.8rem);margin:.7rem 0 .15rem;letter-spacing:-.03em;font-weight:720;line-height:1.03;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
+  .hero h1{font-size:clamp(2.2rem,4.8vw,3.2rem);margin:.7rem 0 .2rem;letter-spacing:-.035em;font-weight:740;line-height:1.0;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
   .vtick{width:.62em;height:.62em;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:inline-grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm);}
-  .subtitle{font-size:clamp(1.05rem,2.1vw,1.32rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
+  .subtitle{font-size:clamp(1.1rem,2.3vw,1.45rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
   .grad{background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .tag{color:var(--ink-2);font-size:.92rem;margin:.7rem 0 0;max-width:46ch;}
+  .tag{color:var(--ink-2);font-size:.98rem;margin:.8rem 0 0;max-width:48ch;line-height:1.55;}
 
   .contact{list-style:none;margin:.85rem 0 0;padding:0;display:flex;flex-direction:column;gap:.4rem;}
   .contact li{display:flex;align-items:center;gap:.5rem;font-size:.86rem;min-width:0;}
@@ -169,29 +169,30 @@
   .contact a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   .cta{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem;}
 
-  /* Platform cards: 2×2 grid */
+  /* Platform cards — bigger and more spacious */
   .pstack{
     list-style:none;margin:0;padding:0;
-    display:grid;grid-template-columns:1fr 1fr;gap:.45rem;width:100%;
+    display:grid;grid-template-columns:1fr 1fr;gap:.5rem;width:100%;
   }
   .pcard{
-    display:flex;align-items:center;gap:.5rem;
+    display:flex;align-items:center;gap:.6rem;
     background:var(--card);border:1px solid var(--line);
-    border-radius:var(--r-sm);padding:.5rem .65rem;
+    border-radius:var(--r-sm);padding:.65rem .8rem;
     box-shadow:var(--shadow-sm);min-width:0;
     transition:transform .2s,box-shadow .2s;
   }
   .pcard:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
   .pmeta{min-width:0;}
-  .pcard b{display:block;font-size:.88rem;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-  .pcard small{display:block;font-size:.62rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pcard b{display:block;font-size:1rem;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.01em;font-weight:720;}
+  .pcard small{display:block;font-size:.68rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;}
   @media(max-width:380px){.pstack{grid-template-columns:1fr;}}
 
-  /* Headline stats strip */
+  /* Stats strip — compact, no forced margin so it hugs the content above */
   .herostats{
     display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;
-    margin-top:clamp(1rem,2vw,1.5rem);padding-top:clamp(.9rem,1.8vw,1.2rem);
+    padding-top:clamp(.8rem,1.6vw,1.1rem);
     border-top:1px solid color-mix(in srgb,var(--accent) 14%,var(--line));
+    margin-top:auto;
   }
   @media(max-width:560px){.herostats{grid-template-columns:1fr;}}
   .hstat{display:flex;align-items:center;gap:.65rem;min-width:0;}
@@ -200,9 +201,9 @@
   .hstat b{display:block;font-size:1.4rem;font-weight:720;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.05;}
   .hstat small{display:block;font-size:.74rem;color:var(--ink-3);font-weight:500;margin-top:.1rem;}
 
-  /* Silk wave lines on the avatar halo */
-  .havatar{position:relative;aspect-ratio:1;max-width:220px;width:100%;margin:0 auto;display:grid;place-items:center;}
-  @media(max-width:640px){.havatar{max-width:160px;}}
+  /* Avatar — bigger with extra rings */
+  .havatar{position:relative;aspect-ratio:1;max-width:260px;width:100%;margin:0 auto;display:grid;place-items:center;}
+  @media(max-width:640px){.havatar{max-width:190px;}}
   /* Inner dashed slow ring */
   .halo{position:absolute;inset:0%;border-radius:50%;border:2px solid transparent;background:linear-gradient(white,white) padding-box,linear-gradient(135deg,#DD2A7B,#8134AF,#405DE6) border-box;animation:spin 8s linear infinite;}
   /* Mid gradient ring */
