@@ -58,3 +58,18 @@ flow logic under test.
 - `cancellation_test.sql` — migration 072. Cancelling a project is a state
   change, never a delete: the row, its payment ledger and its timeline survive,
   both sides must agree, and a cancelled project is frozen against further edits.
+
+- `consent_integrity_test.sql` — migrations 081 and 082, plus the public-ratings
+  RPC from 080. The rules being tested (both sides sign off a stage, both sides
+  confirm completion, terms only move through an accepted change request) used to
+  live only in the API route, so they applied only to callers who chose to use
+  it — RLS authorises the row, not the columns or the values, and both apps ship
+  the anon key. This suite drives the table directly, the way a PATCH to
+  PostgREST would, and asserts **both** halves: eleven forgeries are refused, and
+  twelve legitimate flows still go through. The second half is the one that
+  matters — a rule that blocks honest users is worse than the hole it closed.
+
+  **Run this suite on a fresh database, or first.** `proposal_flow_test.sql`
+  asserts a *global* `count(*) = 0` on `campaign_projects`, so any suite that
+  leaves rows behind will fail it. Nothing is wrong when that happens; the order
+  is.

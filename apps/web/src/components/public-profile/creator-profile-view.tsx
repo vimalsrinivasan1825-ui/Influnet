@@ -263,6 +263,68 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
               </section>
             )}
 
+            {/* LATEST VIDEOS — real uploads from the creator's channel */}
+            {data.videos.length > 0 && (
+              <section className={`${styles.card} ${styles.pad}`} id="videos">
+                <div className={styles.chead}>
+                  <div className={styles.ctitle}><span className={styles.ci}><Ic d="M22 8.6a3 3 0 0 0-2.1-2.1C18.1 6 12 6 12 6s-6.1 0-7.9.5A3 3 0 0 0 2 8.6 31 31 0 0 0 2 12a31 31 0 0 0 .1 3.4 3 3 0 0 0 2.1 2.1C6 18 12 18 12 18s6.1 0 7.9-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.1-3.4ZM10 15V9l5 3Z" /></span>Latest Videos</div>
+                  <span className={styles.viewall}>From YouTube</span>
+                </div>
+                <div className={styles.vids}>
+                  {data.videos.map((v) => (
+                    <a key={v.url} className={styles.vid} href={v.url} target="_blank" rel="noopener noreferrer">
+                      <span className={styles.vthumb} style={{ backgroundImage: v.thumbUrl ? `url(${v.thumbUrl})` : undefined }}>
+                        <span className={styles.vplay}><YtPlay s={13} /></span>
+                        {v.views && <span className={styles.vviews}><Play />{v.views}</span>}
+                      </span>
+                      <span className={styles.vtitle}>{v.title}</span>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* RATINGS — from completed collaborations on Influnet only */}
+            {data.reviews && (
+              <section className={`${styles.card} ${styles.pad}`} id="reviews">
+                <div className={styles.chead}>
+                  <div className={styles.ctitle}><span className={styles.ci}><Ic d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" /></span>Brand Ratings</div>
+                  <span className={styles.viewall}>From completed projects</span>
+                </div>
+                <div className={styles.ratehead}>
+                  {data.reviews.average != null && <span className={styles.ratebig}>{data.reviews.average.toFixed(1)}</span>}
+                  <span className={styles.stars} aria-label={`${data.reviews.average ?? 0} out of 5`}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Ic key={n} d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" fill={n <= Math.round(data.reviews!.average ?? 0)} />
+                    ))}
+                  </span>
+                  <span className={styles.ratecount}>
+                    {data.reviews.count} {data.reviews.count === 1 ? 'review' : 'reviews'}
+                  </span>
+                </div>
+                {data.reviews.items.length > 0 && (
+                  <div className={styles.revlist}>
+                    {data.reviews.items.map((r) => (
+                      <div className={styles.rev} key={r.id}>
+                        <div className={styles.revtop}>
+                          <span className={styles.revwho}>{r.reviewerName}</span>
+                          <span className={styles.stars} aria-label={`${r.rating} out of 5`}>
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <Ic key={n} d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9Z" fill={n <= r.rating} w={0.72} />
+                            ))}
+                          </span>
+                        </div>
+                        {r.comment && <p className={styles.revtext}>{r.comment}</p>}
+                        <span className={styles.revmeta}>
+                          {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : null}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* AUDIENCE INSIGHTS */}
             {data.audience && (
               <section className={`${styles.card} ${styles.pad}`}>

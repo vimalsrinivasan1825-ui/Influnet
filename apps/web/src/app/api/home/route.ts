@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
+import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
+import { getPublicReviews } from '@/lib/public-profile/get-reviews';
+import { parseAudience } from '@/lib/public-profile/creator-profile';
 
 /**
  * The Home screen: who you are publicly, and what is currently in flight.
@@ -28,16 +31,36 @@ export async function GET(req: Request) {
     // thumbnails — the same source the public page renders from, so Home shows
     // what a brand actually sees rather than a parallel set of figures.
     let social: Awaited<ReturnType<typeof getInstagramSnapshot>> = null;
+    let youtube: Awaited<ReturnType<typeof getYouTubeSnapshot>> = null;
+    let reviews: Awaited<ReturnType<typeof getPublicReviews>> = null;
+    let audience: ReturnType<typeof parseAudience> = null;
+    let pastCollaborations: string[] = [];
 
     if (role === 'influencer') {
       const { data: infl } = await supabase
         .from('influencer_profiles')
-        .select('username, bio, niche, instagram_handle, youtube_handle, instagram_followers, youtube_subscribers, is_verified')
+        .select('username, bio, niche, instagram_handle, youtube_handle, instagram_followers, youtube_subscribers, is_verified, audience_demographics')
         .eq('user_id', user.id)
         .maybeSingle();
 
       publicPath = infl?.username ? `/c/${infl.username}` : null;
-      social = await getInstagramSnapshot(user.id);
+
+      // Everything a brand sees on /c/[username], read from the same sources.
+      // A creator's own dashboard showing a different set of numbers than their
+      // public page is the fastest way to make both look untrustworthy.
+      const [ig, yt, revs, collabs] = await Promise.all([
+        getInstagramSnapshot(user.id),
+        getYouTubeSnapshot(user.id),
+        getPublicReviews(user.id),
+        // Cast: the RPC (migration 067) is newer than the generated types.
+        (supabase.rpc as any)('get_creator_collaborations', { p_user_id: user.id }),
+      ]);
+      social = ig;
+      youtube = yt;
+      reviews = revs;
+      audience = parseAudience((infl as any)?.audience_demographics ?? null);
+      pastCollaborations = Array.isArray(collabs?.data) ? (collabs.data as string[]) : [];
+
       publicProfile = {
         username: infl?.username ?? null,
         bio: infl?.bio ?? null,
@@ -46,7 +69,7 @@ export async function GET(req: Request) {
         youtube_handle: infl?.youtube_handle ?? null,
         // Prefer the live snapshot; fall back to the self-reported figure.
         instagram_followers: social?.followerCount ?? infl?.instagram_followers ?? null,
-        youtube_subscribers: infl?.youtube_subscribers ?? null,
+        youtube_subscribers: youtube?.subscriberCount ?? infl?.youtube_subscribers ?? null,
         is_verified: infl?.is_verified ?? false,
         avatar_url: social?.profilePicUrl ?? null,
       };
@@ -121,6 +144,21 @@ export async function GET(req: Request) {
             posts: social.posts.slice(0, 6),
           }
         : null,
+      youtube: youtube
+        ? {
+            subscribers: youtube.subscriberCount,
+            avg_views: youtube.avgViews,
+            handle: youtube.handle,
+            fetched_at: youtube.fetchedAt,
+            videos: youtube.videos.slice(0, 6),
+          }
+        : null,
+      // Self-reported demographics, parsed the same way the public page parses
+      // them, so the two can never disagree about the split.
+      audience,
+      // Brands from real completed projects — the wall a visitor sees.
+      past_collaborations: pastCollaborations,
+      reviews,
       ongoing: ongoing.map((p: any) => ({
         id: p.id,
         title: p.title,
@@ -128,6 +166,17 @@ export async function GET(req: Request) {
         current_stage: p.current_stage,
         budget: p.budget,
         updated_at: p.updated_at,
+        partner:
+          p.owner_user_id === user.id ? p.counterparty?.name ?? null : p.owner?.name ?? null,
+      })),
+      // Finished work, for both roles. Completion used to be a number on a tile
+      // and nothing else: neither side could see WHAT they had delivered or with
+      // whom, which is the half of the record that has any value afterwards.
+      completed: completed.slice(0, 8).map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        budget: p.budget,
+        completed_at: p.updated_at,
         partner:
           p.owner_user_id === user.id ? p.counterparty?.name ?? null : p.owner?.name ?? null,
       })),

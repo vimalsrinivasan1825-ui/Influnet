@@ -58,6 +58,9 @@ interface ProjectDetail {
   owner_user_id: string;
   counterparty_user_id: string;
   stage_progress: Record<string, StageProgressEntry> | null;
+  /** Dual-confirm completion flags (migration 056). */
+  owner_confirmed_complete?: boolean | null;
+  counterparty_confirmed_complete?: boolean | null;
   owner?: { name?: string } | null;
   counterparty?: { name?: string } | null;
 }
@@ -128,6 +131,18 @@ export default function StageScreen() {
   const isPast = project ? STAGES.indexOf(stageKey) < STAGES.indexOf(project.current_stage as Stage) : false;
   const usesSignoff = isMutualSignoffStage(stageKey);
 
+  // Completion is its own control, not a sign-off (NON_SIGNOFF_STAGES). Without
+  // this branch the final stage rendered NO footer at all, so a project started
+  // on the phone could be carried all the way to final payment and then never
+  // finished — 'signoff' is rejected outright by the API for this stage.
+  const isCompletionStage = stageKey === 'final_payment';
+  const iConfirmedCompletion = isOwner
+    ? !!project?.owner_confirmed_complete
+    : !!project?.counterparty_confirmed_complete;
+  const theyConfirmedCompletion = isOwner
+    ? !!project?.counterparty_confirmed_complete
+    : !!project?.owner_confirmed_complete;
+
   const skipProposal = stageSkipProposal(project?.stage_progress, stageKey);
   const iProposedSkip = !!skipProposal && skipProposal.by === me;
   const theyProposedSkip = !!skipProposal && !iProposedSkip;
@@ -154,7 +169,13 @@ export default function StageScreen() {
   }
 
   async function act(
-    action: 'signoff' | 'revoke_signoff' | 'propose_skip' | 'confirm_skip' | 'cancel_skip'
+    action:
+      | 'signoff'
+      | 'revoke_signoff'
+      | 'propose_skip'
+      | 'confirm_skip'
+      | 'cancel_skip'
+      | 'confirm_completion'
   ) {
     setBusy(true);
     setActionError(null);
@@ -397,7 +418,30 @@ export default function StageScreen() {
         )}
       </ScreenScroll>
 
-      {isCurrent && usesSignoff ? (
+      {isCurrent && isCompletionStage ? (
+        <StickyFooter>
+          {iConfirmedCompletion ? (
+            <Txt variant="footnote" tone="muted" center>
+              {theyConfirmedCompletion
+                ? 'Both sides confirmed — this project is complete.'
+                : `You've confirmed completion. Waiting for ${partner}.`}
+            </Txt>
+          ) : (
+            <>
+              <Txt variant="footnote" tone="muted" center>
+                {theyConfirmedCompletion
+                  ? `${partner} has confirmed the project is done.`
+                  : 'Confirm once the final payment has settled and the work is delivered.'}
+              </Txt>
+              <Button
+                label="Confirm completion"
+                onPress={() => act('confirm_completion')}
+                loading={busy}
+              />
+            </>
+          )}
+        </StickyFooter>
+      ) : isCurrent && usesSignoff ? (
         <StickyFooter>
           {theyProposedSkip ? (
             <>

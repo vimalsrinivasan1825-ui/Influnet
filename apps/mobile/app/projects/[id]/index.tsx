@@ -8,6 +8,7 @@ import { useFetch } from '@/lib/use-fetch';
 import { styleForStatus } from '@/lib/deal-state-style';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
+import { ProjectReviews } from '@/components/project-reviews';
 import {
   Badge,
   Card,
@@ -88,6 +89,14 @@ export default function ProjectDetailScreen() {
               onOpenStage={(stage) => router.push(`/projects/${id}/stage/${stage}`)}
             />
           </Card>
+
+          {/* Rating is only possible once the work is done — and until now it
+              was only possible on the web, so a brand working from their phone
+              could finish a project and never rate the creator. Those ratings
+              are what the creator's public profile shows. */}
+          {project.status === 'completed' ? (
+            <ProjectReviews projectId={id} partner={partner} />
+          ) : null}
         </>
       ) : null}
     </ScreenScroll>

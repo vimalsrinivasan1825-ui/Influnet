@@ -16,6 +16,10 @@ import {
   PlaySquare,
   Play,
   Heart,
+
+  Star,
+  Users,
+  CheckCircle2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/avatar";
@@ -48,6 +52,13 @@ interface HomeData {
     budget: number | string | null;
     partner: string | null;
   }[];
+  completed: {
+    id: number;
+    title: string;
+    budget: number | string | null;
+    completed_at: string | null;
+    partner: string | null;
+  }[];
   social: {
     followers: number | null;
     posts_count: number | null;
@@ -60,6 +71,37 @@ interface HomeData {
       views: number | null;
       likes: number | null;
       type: string;
+    }[];
+  } | null;
+  youtube: {
+    subscribers: number | null;
+    avg_views: number | null;
+    handle: string | null;
+    fetched_at: string | null;
+    videos: {
+      url: string;
+      title: string;
+      thumbUrl: string | null;
+      views: number | null;
+      likes: number | null;
+      publishedAt: string | null;
+    }[];
+  } | null;
+  audience: {
+    locations: { label: string; pct: number }[];
+    ages: { label: string; pct: number }[];
+    genders: { label: string; pct: number }[];
+  } | null;
+  past_collaborations: string[];
+  reviews: {
+    count: number;
+    average: number | null;
+    items: {
+      id: string;
+      rating: number;
+      comment: string | null;
+      reviewerName: string;
+      createdAt: string | null;
     }[];
   } | null;
   counts: {
@@ -135,9 +177,13 @@ export default function HomePage() {
   const needsMe = data.counts.awaiting_me + data.counts.pending_requests;
 
   const social = data.social;
+  const youtube = data.youtube;
   // Instagram gives us posts we could not cache a thumbnail for. Showing those
   // as blank placeholder tiles reads as broken, so only fetched images appear.
   const thumbedPosts = (social?.posts ?? []).filter((p) => p.thumbUrl);
+  const videos = (youtube?.videos ?? []).filter((v) => v.thumbUrl);
+  const audience = data.audience;
+  const reviews = data.reviews;
 
   // The headline numbers a brand judges you on, straight from the captured
   // snapshot the public page renders — not a second set of figures.
@@ -150,6 +196,7 @@ export default function HomePage() {
         },
         { label: "Avg views", value: compact(social?.avg_views) },
         { label: "Posts", value: compact(social?.posts_count) },
+        { label: "Subscribers", value: compact(youtube?.subscribers ?? pp.youtube_subscribers) },
       ].filter((s) => s.value)
     : [];
 
@@ -411,7 +458,11 @@ export default function HomePage() {
             <div
               className={cn(
                 "grid divide-x divide-hairline",
-                analytics.length >= 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2",
+                analytics.length >= 5
+                  ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+                  : analytics.length >= 4
+                    ? "grid-cols-2 sm:grid-cols-4"
+                    : "grid-cols-2",
               )}
             >
               {analytics.map((a) => (
@@ -473,6 +524,221 @@ export default function HomePage() {
               </div>
             </div>
           )}
+          </Card>
+        </Reveal>
+      )}
+
+      {/* YouTube uploads — the same grid the public profile shows, so a creator
+          can see their channel through a brand's eyes without leaving the app. */}
+      {isCreator && videos.length > 0 && (
+        <Reveal>
+          <Card className="p-4 sm:p-5">
+            <div className="mb-2.5 flex items-center justify-between">
+              <p className="inline-flex items-center gap-1.5 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+                <PlaySquare className="size-3.5" /> Latest videos
+              </p>
+              {youtube?.fetched_at && (
+                <span className="text-[0.6875rem] text-content-muted">
+                  Updated {new Date(youtube.fetched_at).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {videos.map((v) => (
+                <a
+                  key={v.url}
+                  href={v.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex flex-col gap-1.5"
+                >
+                  <span className="relative block aspect-video overflow-hidden rounded-xl border border-hairline bg-surface-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={v.thumbUrl!}
+                      alt=""
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    {v.views != null && (
+                      <span className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 text-[0.6875rem] font-semibold text-white">
+                        <Play className="size-3" /> {compact(v.views)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="line-clamp-2 text-xs font-semibold leading-snug text-content-soft">
+                    {v.title}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </Card>
+        </Reveal>
+      )}
+
+      {/* Audience split — self-reported, and labelled as such so it is never
+          mistaken for platform-measured data. */}
+      {isCreator && audience && (audience.locations.length > 0 || audience.ages.length > 0 || audience.genders.length > 0) && (
+        <Reveal>
+          <Card className="p-4 sm:p-5">
+            <p className="mb-3 inline-flex items-center gap-1.5 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+              <Users className="size-3.5" /> Your audience
+              <span className="font-medium normal-case tracking-normal text-content-muted">
+                · as shown on your public profile
+              </span>
+            </p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {([
+                ["Top locations", audience.locations],
+                ["Age range", audience.ages],
+                ["Gender", audience.genders],
+              ] as const)
+                .filter(([, slices]) => slices.length > 0)
+                .map(([label, slices]) => (
+                  <div key={label}>
+                    <p className="mb-2 text-xs font-bold text-content">{label}</p>
+                    <div className="flex flex-col gap-1.5">
+                      {slices.map((s) => (
+                        <div key={s.label} className="flex items-center gap-2 text-xs">
+                          <span className="w-16 shrink-0 truncate text-content-soft">{s.label}</span>
+                          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                            <span
+                              className="block h-full rounded-full bg-brand"
+                              style={{ width: `${Math.min(100, s.pct)}%` }}
+                            />
+                          </span>
+                          <span className="w-8 shrink-0 text-right font-bold tabular-nums text-content">
+                            {s.pct}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </Card>
+        </Reveal>
+      )}
+
+      {/* Ratings earned on completed projects. Same source as the public page. */}
+      {isCreator && reviews && (
+        <Reveal>
+          <Card className="p-4 sm:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="inline-flex items-center gap-1.5 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+                <Star className="size-3.5" /> Brand ratings
+              </p>
+              <span className="flex items-center gap-1.5">
+                <span className="text-lg font-extrabold tabular-nums text-content">
+                  {reviews.average?.toFixed(1) ?? "—"}
+                </span>
+                <span className="flex">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      className={cn(
+                        "size-3.5",
+                        n <= Math.round(reviews.average ?? 0)
+                          ? "fill-warn text-warn"
+                          : "text-content-muted",
+                      )}
+                    />
+                  ))}
+                </span>
+                <span className="text-xs text-content-muted">
+                  ({reviews.count})
+                </span>
+              </span>
+            </div>
+            {reviews.items.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {reviews.items.slice(0, 4).map((r) => (
+                  <div
+                    key={r.id}
+                    className="rounded-xl border border-hairline bg-surface-muted p-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-xs font-bold text-content">{r.reviewerName}</span>
+                      <span className="shrink-0 text-xs font-bold tabular-nums text-warn">
+                        {r.rating}/5
+                      </span>
+                    </div>
+                    {r.comment && (
+                      <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-content-soft">
+                        {r.comment}
+                      </p>
+                    )}
+                    {r.createdAt && (
+                      <p className="mt-1 truncate text-[0.6875rem] text-content-muted">
+                        {new Date(r.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </Reveal>
+      )}
+
+      {/* Delivered work — what completion actually left behind, for both roles. */}
+      {data.completed?.length > 0 && (
+        <section>
+          <div className="mb-2.5 flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-content-muted">
+              Completed work
+            </h2>
+            {isCreator && data.past_collaborations?.length > 0 && (
+              <span className="text-xs text-content-muted">
+                Shown on your public profile
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            {data.completed.slice(0, 4).map((p) => (
+              <Link key={p.id} href={`/dashboard/projects/${p.id}`}>
+                <Card interactive className="flex items-center gap-3 p-4">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-ok-soft text-ok">
+                    <CheckCircle2 className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-content">{p.title}</p>
+                    <p className="truncate text-xs text-content-soft">
+                      {p.partner ? `With ${p.partner}` : "Collaboration"}
+                      {p.completed_at
+                        ? ` · ${new Date(p.completed_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}`
+                        : ""}
+                    </p>
+                  </div>
+                  {p.budget != null && p.budget !== "" && (
+                    <span className="hidden shrink-0 text-sm font-extrabold text-content sm:block">
+                      ₹{Number(p.budget).toLocaleString("en-IN")}
+                    </span>
+                  )}
+                  <Badge variant="success" size="sm">
+                    Completed
+                  </Badge>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Brands the creator has actually delivered for — the wall on /c/. */}
+      {isCreator && data.past_collaborations?.length > 0 && (
+        <Reveal>
+          <Card className="p-4 sm:p-5">
+            <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+              Brands you&apos;ve worked with
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {data.past_collaborations.map((b) => (
+                <Badge key={b} variant="outline" size="sm">
+                  {b}
+                </Badge>
+              ))}
+            </div>
           </Card>
         </Reveal>
       )}

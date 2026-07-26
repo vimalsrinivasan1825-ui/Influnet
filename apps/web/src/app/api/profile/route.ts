@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { ProfileUpdateSchema, BusinessProfileUpdateSchema } from '@/lib/validators';
+import { refreshYouTubeSnapshot } from '@/lib/youtube';
 
 // GET current user's profile (both base profile + extended profile)
 export async function GET(req: Request) {
@@ -184,6 +185,19 @@ export async function PATCH(req: Request) {
       if (infError) {
         if (infError.code === '23505') return jsonError(409, 'That username is already taken');
         return jsonError(500, 'Failed to update influencer profile', infError);
+      }
+
+      // Connecting a YouTube channel should populate the profile straight away —
+      // a creator who saves their handle and sees an empty video grid assumes it
+      // didn't work. The capture is two public fetches (channel page + Atom
+      // feed), so it runs AFTER the response rather than making a settings save
+      // wait several seconds for it. Failure is silent by design: lib/youtube.ts
+      // never throws, and the creator can still refresh manually.
+      if (infUpdates.youtube_handle) {
+        const handle = infUpdates.youtube_handle;
+        after(async () => {
+          await refreshYouTubeSnapshot(user.id, handle);
+        });
       }
     }
 

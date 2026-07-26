@@ -81,6 +81,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, warning: 'amount-mismatch' });
     }
 
+    // An amount is meaningless without its unit. The ledger records the currency
+    // the order was placed in, but nothing compared it to what actually came
+    // back — so a capture denominated in a weaker currency would clear a gate
+    // worth several times more. Compare when the event tells us; a missing
+    // currency on the event is not treated as a mismatch.
+    const capturedCurrency = (entity?.currency ?? '').toString().toUpperCase();
+    const ledgerCurrency = (payment.currency ?? 'INR').toString().toUpperCase();
+    if (capturedCurrency && capturedCurrency !== ledgerCurrency) {
+      captureException(new Error('Payment webhook: captured currency differs from ledger'), {
+        tags: { orderId, expected: ledgerCurrency, captured: capturedCurrency },
+      });
+      return NextResponse.json({ received: true, warning: 'currency-mismatch' });
+    }
+
     await admin
       .from('project_payments')
       .update({ status: 'paid', razorpay_payment_id: paymentId, paid_at: new Date().toISOString() })

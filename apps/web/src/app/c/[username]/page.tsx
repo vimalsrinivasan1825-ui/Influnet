@@ -10,6 +10,8 @@ import {
   type RawPublicProfile,
 } from '@/lib/public-profile/creator-profile';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
+import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
+import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 import { publicOrigin } from '@/lib/site';
 
 // Anon client for public profile reads.
@@ -142,10 +144,19 @@ export default async function PublicProfilePage({
   });
   const autoCollaborations = Array.isArray(autoCollabs) ? (autoCollabs as string[]) : [];
 
-  const instagram = await getInstagramSnapshot(profile.userId);
+  // Instagram, YouTube and ratings are independent reads — one being empty (or
+  // its migration unapplied) must never hold up or break the others.
+  const [instagram, youtube, reviews] = await Promise.all([
+    getInstagramSnapshot(profile.userId),
+    getYouTubeSnapshot(profile.userId),
+    getPublicReviews(profile.userId),
+  ]);
+
   const view = buildCreatorProfileView(profile, {
     useMock: resolveMockMode(sp.mock),
     instagram,
+    youtube,
+    reviews,
     origin,
     autoCollaborations,
   });

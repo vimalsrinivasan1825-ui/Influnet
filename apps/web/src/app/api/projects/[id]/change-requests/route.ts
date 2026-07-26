@@ -207,23 +207,38 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ change_request: updated });
     }
 
-    // ACCEPT — apply the changes to the project, then close the request.
+    // ACCEPT — apply the changes and close the request, in one call.
+    //
+    // This goes through apply_change_request (migration 082) rather than
+    // updating campaign_projects here. Agreed terms are locked at the database
+    // level: without that lock, either participant could PATCH PostgREST
+    // directly and move the budget on a live project with no proposal and no
+    // trace. The RPC is the one sanctioned writer, and it re-checks consent
+    // itself — the checks above are for the error messages, not the security.
     const changes = (cr.changes || {}) as Record<string, unknown>;
-    const apply: Record<string, unknown> = { updated_at: now };
-    for (const key of EDITABLE_FIELDS) {
-      if (key in changes) apply[key] = changes[key];
+
+    // Cast: this RPC is newer than the generated Supabase types.
+    const { error: applyErr } = await (supabase.rpc as any)('apply_change_request', {
+      p_request_id: request_id,
+    });
+    if (applyErr) {
+      // The function's own guards, mapped back to something a user can act on.
+      const msg = applyErr.message || '';
+      if (msg.includes('proposer_cannot_accept')) {
+        return jsonError(403, 'The other party has to review the change you proposed.');
+      }
+      if (msg.includes('change_request_already_resolved')) {
+        return jsonError(409, 'This change request has already been resolved.');
+      }
+      if (msg.includes('not_a_participant')) return jsonError(403, 'Forbidden');
+      return jsonError(500, 'Could not apply the change to the project', applyErr);
     }
-    const { error: applyErr } = await supabase
-      .from('campaign_projects')
-      .update(apply)
-      .eq('id', projectId);
-    if (applyErr) return jsonError(500, 'Could not apply the change to the project', applyErr);
 
     const { data: updated, error: upErr } = await supabase
       .from('project_change_requests')
-      .update({ status: 'accepted', reviewed_by: user.id, resolved_at: now })
-      .eq('id', request_id).eq('project_id', projectId).select().single();
-    if (upErr) return jsonError(500, 'Could not close the change request', upErr);
+      .select()
+      .eq('id', request_id).eq('project_id', projectId).single();
+    if (upErr) return jsonError(500, 'Could not read back the change request', upErr);
 
     if (cr.proposed_by) {
       await notifyUser({

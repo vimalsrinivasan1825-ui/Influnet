@@ -187,6 +187,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         nextStage = STAGES[currentIdx + 1];
       }
 
+      // Completion is DUAL-CONFIRM (see 1b and migration 056) — but this older
+      // `advance` path could still walk straight into 'project_completed', and
+      // STAGE_ACTOR['final_payment'] is 'business'. That meant a brand alone
+      // could close a project the creator never agreed was finished, which ends
+      // the change-request window, locks the workspace, and now also publishes
+      // the collaboration and a rating on the creator's public profile.
+      // Completion has exactly one door, and it is confirm_completion.
+      if (nextStage === 'project_completed') {
+        return jsonError(
+          400,
+          'Completion needs both sides. Use “Confirm completion” — the project closes once you and the other party have both confirmed.',
+        );
+      }
+
       // Mark current stage as completed in stage_progress
       const stageProgress = (project.stage_progress || {}) as Record<string, any>;
       stageProgress[project.current_stage] = {

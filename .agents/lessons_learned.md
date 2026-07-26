@@ -4,6 +4,27 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-26: Mobile OTA Automation & Supabase Service Role Audit
+
+**Branch**: `dev`
+
+### Scope
+- **Automated Mobile OTA CI/CD Pipeline (`mobile-update.yml`)**: Created a dedicated GitHub Actions workflow to monitor changes in `apps/mobile/**` and `packages/**`. When code is pushed to `dev` or `staging`, it automatically publishes an Over-The-Air (OTA) update to Expo's `preview` channel using `eas-cli update`. When pushed to `main`, it publishes to `production` channel.
+- **Service Role Key Verification**: Audited and confirmed that `apps/web/.env.local` uses the required `service_role` secret JWT (`eyJ...`) to enable server-side analytics ingestion (YouTube and Instagram snapshots), distinguishing it from the legacy management access token (`sbp_...`).
+- **OTA Update Strategy Documentation**: Clarified for mobile deployment that EAS OTA updates (`expo-updates`) push JavaScript/React Native UI changes (such as deal acceptance and checklist interactivity) without altering the native app store version number (`v1.0.0`), applying updates silently on app restart.
+
+### What broke
+- **Manual Mobile Deployments**: Previously, pushing mobile fixes required running manual terminal commands (`eas update`) for each environment, creating potential drift between web backend deployments and mobile JS bundles.
+
+### Fix
+- **GitHub Actions Integration**: Added `.github/workflows/mobile-update.yml` with path filters and non-interactive `eas-cli` execution authenticated via repository secret `EXPO_TOKEN`.
+
+### Key Lessons
+- Over-The-Air (OTA) updates in Expo modify the bundle timestamp/hash within the installed runtime (`policy: appVersion`) without requiring a version increment in `app.json` or new app store submissions, unless native modules or permissions change.
+- Automated CI/CD pipelines for monorepos should use precise path filtering (`apps/mobile/**`, `packages/**`) so mobile OTA builds only trigger when mobile-relevant code changes.
+
+---
+
 ## Session — 2026-07-25: Mobile Parity & Core Flow Bug Fixes
 
 **Branch**: `dev`

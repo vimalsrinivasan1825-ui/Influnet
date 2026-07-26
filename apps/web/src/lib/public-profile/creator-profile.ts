@@ -34,6 +34,32 @@ export interface FloatingBadge {
   label: string;
 }
 
+/** One YouTube upload, ready for display. */
+export interface YouTubeVideoItem {
+  url: string;
+  title: string;
+  thumbUrl: string | null;
+  /** Formatted view count, e.g. "210K"; null when YouTube didn't report one. */
+  views: string | null;
+  publishedAt: string | null;
+}
+
+/** A rating left by a brand on a completed project (migration 080). */
+export interface ReviewItem {
+  id: string;
+  rating: number;
+  comment: string | null;
+  reviewerName: string;
+  createdAt: string | null;
+}
+
+export interface ReviewSummary {
+  count: number;
+  /** Mean rating to one decimal, or null when there are no reviews. */
+  average: number | null;
+  items: ReviewItem[];
+}
+
 export interface CreatorProfileView {
   name: string;
   username: string;
@@ -59,6 +85,10 @@ export interface CreatorProfileView {
   } | null;
   pastCollaborations: string[];
   pricing: { title: string; desc: string; amount: string; features: string[] }[];
+  /** Recent uploads from the captured YouTube snapshot; null when unconnected. */
+  videos: YouTubeVideoItem[];
+  /** Ratings from completed in-app projects; null when there are none. */
+  reviews: ReviewSummary | null;
   usingMock: boolean;
   profileUrl: string;
   snapshotAge: string | null;
@@ -290,25 +320,38 @@ const MOCK = {
   ]
 };
 
+/** Snapshot of a creator's YouTube channel, as read by get-youtube-snapshot.ts. */
+export interface YouTubeSnapshotInput {
+  subscriberCount: number | null;
+  avgViews: number | null;
+  videos: { url: string; title: string; thumbUrl: string | null; views: number | null; publishedAt: string | null }[];
+  fetchedAt: string | null;
+}
+
 export function buildCreatorProfileView(
   profile: RawPublicProfile,
   opts: {
     useMock: boolean;
     instagram?: InstagramSnapshotView | null;
+    youtube?: YouTubeSnapshotInput | null;
+    reviews?: ReviewSummary | null;
     origin?: string;
     /** Brand names from completed collaborations in-app; merged with self-reported. */
     autoCollaborations?: string[];
   },
 ): CreatorProfileView {
   const ig = opts.instagram ?? null;
+  const yt = opts.youtube ?? null;
   // A captured snapshot beats mock data: once real analytics exist, always show
   // them. Mock remains only the development placeholder for snapshot-less accounts.
-  const useMock = opts.useMock && !ig;
+  const useMock = opts.useMock && !ig && !yt;
   const { lead, accent } = splitSubtitle(profile);
   const username = cleanHandle(profile.username);
 
   const igFollowersReal = ig?.followerCount ?? profile.instagramFollowers ?? 0;
-  const ytSubsReal = profile.youtubeSubscribers ?? 0;
+  // A captured channel beats the self-reported number — the creator types the
+  // latter and it goes stale the day after they type it.
+  const ytSubsReal = yt?.subscriberCount ?? profile.youtubeSubscribers ?? 0;
   let reachReal = igFollowersReal + ytSubsReal + (profile.tiktokFollowers ?? 0);
   
   if (ig && ig.posts.length > 0) {
@@ -393,7 +436,7 @@ export function buildCreatorProfileView(
       label: 'Instagram',
     });
   }
-  const hasYt = useMock || !!profile.youtubeHandle || ytSubsReal > 0;
+  const hasYt = useMock || !!profile.youtubeHandle || ytSubsReal > 0 || !!yt;
   if (hasYt) {
     floating.push({
       platform: 'youtube',
@@ -455,6 +498,21 @@ export function buildCreatorProfileView(
       amount: profile.priceRange || `$${profile.pricingMin.toLocaleString()}`,
       features: ['Permanent post', 'Brand tagging'],
     }] : (useMock ? MOCK.pricing : []),
+    // Videos are their own section rather than merged into `featured`: a
+    // YouTube upload has a title worth reading, an Instagram tile doesn't.
+    videos: (yt?.videos ?? [])
+      .filter((v) => v.thumbUrl)
+      .slice(0, 6)
+      .map((v) => ({
+        url: v.url,
+        title: v.title,
+        thumbUrl: v.thumbUrl,
+        views: v.views != null ? formatCount(v.views) : null,
+        publishedAt: v.publishedAt,
+      })),
+    // Never synthesised: a fabricated rating is the one number on this page a
+    // brand would make a spending decision on.
+    reviews: opts.reviews && opts.reviews.count > 0 ? opts.reviews : null,
     usingMock: useMock,
     profileUrl: `${origin}/c/${username}`,
     snapshotAge: relativeAge(ig?.fetchedAt ?? null),

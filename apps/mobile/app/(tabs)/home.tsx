@@ -17,6 +17,7 @@ import {
   Handshake,
   Inbox,
   Send,
+  Star,
   TrendingUp,
 } from 'lucide-react-native';
 import { STAGES, type Stage } from '@influnet/core';
@@ -34,6 +35,7 @@ import {
 import { styleForStatus } from '@/lib/deal-state-style';
 import { AppHeader } from '@/components/app-header';
 import { ActionCard } from '@/components/action-card';
+import { PostGrid, VideoList } from '@/components/content-grid';
 import {
   Badge,
   Card,
@@ -56,11 +58,29 @@ import {
   type TrendPoint,
 } from '@/components/ui';
 
+/**
+ * Note the camelCase `takenAt`: /api/home passes the snapshot view straight
+ * through (lib/public-profile/get-instagram-snapshot.ts), so it is NOT the
+ * database's `taken_at`. Declaring the snake_case name here silently produced
+ * `undefined` for every date, which is why the reach chart used to label its
+ * bars "#1…#6" instead of showing when each post went out.
+ */
 interface SocialPost {
-  taken_at: string | null;
+  url: string;
+  thumbUrl: string | null;
+  takenAt: string | null;
   likes: number | null;
   comments: number | null;
   views: number | null;
+  type?: string;
+}
+
+interface YouTubeVideo {
+  url: string;
+  title: string;
+  thumbUrl: string | null;
+  views: number | null;
+  publishedAt: string | null;
 }
 
 interface HomePayload {
@@ -72,7 +92,33 @@ interface HomePayload {
     engagement_rate: number;
     avg_views: number;
     posts_count: number | null;
+    fetched_at?: string | null;
     posts?: SocialPost[];
+  } | null;
+  youtube: {
+    subscribers: number | null;
+    avg_views: number | null;
+    handle: string | null;
+    fetched_at: string | null;
+    videos: YouTubeVideo[];
+  } | null;
+  audience: {
+    locations: { label: string; pct: number }[];
+    ages: { label: string; pct: number }[];
+    genders: { label: string; pct: number }[];
+  } | null;
+  past_collaborations?: string[];
+  reviews: {
+    count: number;
+    average: number | null;
+    items: {
+      id: string;
+      rating: number;
+      comment: string | null;
+      reviewerName: string;
+      projectTitle: string | null;
+      createdAt: string | null;
+    }[];
   } | null;
   ongoing: {
     id: string;
@@ -81,6 +127,13 @@ interface HomePayload {
     current_stage: string;
     budget: number | null;
     updated_at: string;
+    partner: string | null;
+  }[];
+  completed?: {
+    id: string;
+    title: string;
+    budget: number | null;
+    completed_at: string | null;
     partner: string | null;
   }[];
   counts: {
@@ -210,11 +263,16 @@ export default function HomeScreen() {
     .slice(0, 6)
     .reverse()
     .map((post, i) => ({
-      label: post.taken_at
-        ? new Date(post.taken_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+      label: post.takenAt
+        ? new Date(post.takenAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
         : `#${i + 1}`,
       value: post.views ?? (post.likes ?? 0) + (post.comments ?? 0),
     }));
+
+  const posts = home?.social?.posts ?? [];
+  const videos = home?.youtube?.videos ?? [];
+  const audience = home?.audience ?? null;
+  const reviews = home?.reviews ?? null;
 
   const focus = home?.ongoing?.[0];
   const focusProgress = focus ? stageProgress(focus.current_stage) : null;
@@ -412,6 +470,117 @@ export default function HomeScreen() {
                       emptyLabel="Connect Instagram to see how your recent posts performed"
                     />
                   </View>
+                </Card>
+              </>
+            ) : null}
+
+            {/* ── The actual posts, not just their numbers ─────────── */}
+            {/* Same thumbnails the public profile shows a brand. Without them
+                the app reported metrics for work the creator couldn't see. */}
+            {isCreator && posts.some((p) => p.thumbUrl) ? (
+              <>
+                <SectionLabel>Your recent posts</SectionLabel>
+                <Card>
+                  <PostGrid posts={posts} />
+                </Card>
+              </>
+            ) : null}
+
+            {isCreator && videos.some((v) => v.thumbUrl) ? (
+              <>
+                <SectionLabel>Latest videos</SectionLabel>
+                <Card>
+                  <VideoList videos={videos} />
+                </Card>
+              </>
+            ) : null}
+
+            {/* ── Who is watching ──────────────────────────────────── */}
+            {isCreator && audience && audience.locations.length + audience.ages.length + audience.genders.length > 0 ? (
+              <>
+                <SectionLabel>Audience breakdown</SectionLabel>
+                <Card style={{ gap: t.spacing.lg }}>
+                  {(
+                    [
+                      ['Top locations', audience.locations],
+                      ['Age range', audience.ages],
+                      ['Gender', audience.genders],
+                    ] as const
+                  )
+                    .filter(([, slices]) => slices.length > 0)
+                    .map(([label, slices]) => (
+                      <View key={label} style={{ gap: t.spacing.sm }}>
+                        <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                          {label}
+                        </Txt>
+                        {slices.map((s) => (
+                          <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+                            <Txt variant="footnote" tone="soft" style={{ width: 74 }} numberOfLines={1}>
+                              {s.label}
+                            </Txt>
+                            <View style={{ flex: 1 }}>
+                              <ProgressBar progress={Math.min(1, s.pct / 100)} />
+                            </View>
+                            <Txt variant="footnote" style={{ width: 38, textAlign: 'right', fontVariant: ['tabular-nums'] }}>
+                              {s.pct}%
+                            </Txt>
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                </Card>
+              </>
+            ) : null}
+
+            {/* ── What brands said after the work shipped ───────────── */}
+            {isCreator && reviews && reviews.count > 0 ? (
+              <>
+                <SectionLabel>Brand ratings</SectionLabel>
+                <Card style={{ gap: t.spacing.md }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+                    <Txt variant="title2" style={{ fontVariant: ['tabular-nums'] }}>
+                      {reviews.average != null ? reviews.average.toFixed(1) : '—'}
+                    </Txt>
+                    <View style={{ flexDirection: 'row', gap: 2 }}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star
+                          key={n}
+                          size={13}
+                          color={n <= Math.round(reviews.average ?? 0) ? t.color.warn : t.color.contentMuted}
+                          fill={n <= Math.round(reviews.average ?? 0) ? t.color.warn : 'transparent'}
+                        />
+                      ))}
+                    </View>
+                    <Txt variant="footnote" tone="muted">
+                      {reviews.count} {reviews.count === 1 ? 'review' : 'reviews'}
+                    </Txt>
+                  </View>
+
+                  {reviews.items.slice(0, 3).map((r) => (
+                    <View
+                      key={r.id}
+                      style={{
+                        gap: 3,
+                        borderTopWidth: 1,
+                        borderTopColor: t.color.hairline,
+                        paddingTop: t.spacing.sm,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: t.spacing.sm }}>
+                        <Txt variant="footnote" style={{ fontWeight: '600', flex: 1 }} numberOfLines={1}>
+                          {r.reviewerName}
+                        </Txt>
+                        <Txt variant="footnote" tone="muted" style={{ fontVariant: ['tabular-nums'] }}>
+                          {r.rating}/5
+                        </Txt>
+                      </View>
+                      {r.comment ? (
+                        <Txt variant="footnote" tone="soft" numberOfLines={3}>
+                          {r.comment}
+                        </Txt>
+                      ) : null}
+                    </View>
+                  ))}
                 </Card>
               </>
             ) : null}

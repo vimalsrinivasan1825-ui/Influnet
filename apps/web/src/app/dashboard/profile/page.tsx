@@ -6,6 +6,8 @@ import { createRSCClient } from '@/lib/supabase/server-rsc';
 import CreatorProfileViewComponent from '@/components/public-profile/creator-profile-view';
 import { buildCreatorProfileView, type RawPublicProfile } from '@/lib/public-profile/creator-profile';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
+import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
+import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 
 export const metadata = { title: 'Your public profile | Influnet' };
 
@@ -128,19 +130,29 @@ export default async function MyPublicProfilePage() {
     );
   }
 
-  const instagram = await getInstagramSnapshot(profile.userId);
+  // Every source the real public page reads, read the same way. This screen
+  // claims to be "how brands see you", so any divergence here is a lie: it
+  // previously called get_creator_collaborations with `p_creator_user_id` and
+  // mapped the result as `{brand_name}` objects, but the RPC (migration 067)
+  // takes `p_user_id` and returns a flat array of brand-name strings — so the
+  // call errored, the array came back empty, and this page showed no past
+  // collaborations while /c/[username] showed them all.
+  const [instagram, youtube, reviews, collabsRes] = await Promise.all([
+    getInstagramSnapshot(profile.userId),
+    getYouTubeSnapshot(profile.userId),
+    getPublicReviews(profile.userId),
+    (rsc.rpc as any)('get_creator_collaborations', { p_user_id: profile.userId }),
+  ]);
 
-  // Brand names from completed collaborations, same as the public page.
-  const { data: collabs } = await (rsc.rpc as any)('get_creator_collaborations', {
-    p_creator_user_id: profile.userId,
-  });
-  const autoCollaborations = Array.isArray(collabs)
-    ? (collabs as { brand_name?: string }[]).map((c) => c.brand_name).filter(Boolean) as string[]
+  const autoCollaborations = Array.isArray(collabsRes?.data)
+    ? (collabsRes.data as string[])
     : [];
 
   const view = buildCreatorProfileView(profile, {
     useMock: false,
     instagram,
+    youtube,
+    reviews,
     autoCollaborations,
   });
 

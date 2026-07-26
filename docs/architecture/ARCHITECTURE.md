@@ -1039,7 +1039,8 @@ The codebase implements a complete 4-tier branch-to-environment lifecycle:
 2. **Dev Deployment (`deploy-dev.yml`)**: Automatically triggers on pushes to `dev` to compile and deploy preview builds to Vercel.
 3. **Staging Deployment (`deploy-staging.yml`)**: Automatically triggers on pushes to `staging`. Builds a optimized multi-stage Docker container (using Next.js standalone output tracing), pushes it to Azure Container Registry (ACR), deploys it to the Staging Azure App Service, and executes the post-deploy smoke test (`scripts/smoke.mjs`).
 4. **Production Deployment (`deploy-prod.yml`)**: Triggers on pushes to `main`. It promotes the exact container image built and tested in staging (by pulling and re-tagging `staging-latest` to `prod-latest`), deploys it to the Production Azure App Service under a manual-approval gate environment, and executes the post-deploy smoke test.
-5. **Security & Dependency Audits (`codeql.yml` & `dependabot.yml`)**: CodeQL static analysis runs on all PRs to scan for vulnerabilities. Dependabot runs weekly scans to create dependency update PRs.
+5. **Mobile OTA Deployment (`mobile-update.yml`)**: Automatically triggers on pushes to `dev`, `staging`, or `main` when files in `apps/mobile/**` or `packages/**` change. Executes `eas-cli update` non-interactively to publish Over-The-Air (OTA) JavaScript bundle updates to Expo's `preview` channel (on `dev`/`staging`) or `production` channel (on `main`) without altering native app store version numbers.
+6. **Security & Dependency Audits (`codeql.yml` & `dependabot.yml`)**: CodeQL static analysis runs on all PRs to scan for vulnerabilities. Dependabot runs weekly scans to create dependency update PRs.
 
 ### Deployment Health Check & Smoke Test
 - **`/api/health`**: A lightweight server endpoint returning `200 OK` if the app is active and can reach the Supabase database.
