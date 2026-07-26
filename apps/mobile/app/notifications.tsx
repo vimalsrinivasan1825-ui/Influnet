@@ -46,8 +46,11 @@ export default function NotificationsScreen() {
   useEffect(() => {
     const unread = notifications.filter((n) => !n.read_at).map((n) => n.id);
     if (!unread.length) return;
+    // The route's schema is { action, notificationIds } and `action` is
+    // required — the old `{ ids }` body failed validation with a 400 every
+    // time, so nothing was ever marked read and the unread count only grew.
     void endpoints
-      .markNotificationsRead({ ids: unread })
+      .markNotificationsRead({ action: 'mark_read', notificationIds: unread })
       .then(() => useNotificationSummary.getState().refresh());
   }, [notifications]);
 

@@ -87,6 +87,9 @@ export function createEndpoints(api: ApiClient) {
     // ── Notifications ──────────────────────────────────────────────
     listNotifications: <T = unknown>() => api.get<T>('/api/notifications'),
     markNotificationsRead: <T = unknown>(body: unknown) => api.patch<T>('/api/notifications', body),
+    /** Clears the message notifications for one conversation — see the chat screen. */
+    markConversationNotificationsRead: <T = unknown>(conversationId: string) =>
+      api.patch<T>('/api/notifications', { action: 'mark_read', conversationId }),
     notificationSummary: <T = unknown>() => api.get<T>('/api/notifications/summary'),
 
     // ── Trust & safety ─────────────────────────────────────────────

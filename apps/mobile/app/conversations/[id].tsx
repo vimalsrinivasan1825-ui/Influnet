@@ -16,6 +16,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { getConversationChannel, isStreamConfigured } from '@/lib/stream';
+import { useNotificationSummary } from '@/lib/notification-summary';
 import { formatCurrency, timeAgo } from '@/lib/format';
 
 /** Stream hands back slightly different message types by call site. */
@@ -83,6 +84,33 @@ function fromStream(m: StreamMessage): ChatMessage {
     created_at: at instanceof Date ? at.toISOString() : (at ?? new Date().toISOString()),
     deleted: !!m.deleted_at || m.type === 'deleted',
   };
+}
+
+/**
+ * Tell Stream — and our own notification rows — that this thread has been read.
+ *
+ * `channel.watch()` does NOT do this. Subscribing to a channel and reading it
+ * are different things to Stream, so without an explicit markRead() a user's
+ * `last_read` never moves: the unread count that feeds the Messages tab badge
+ * climbed forever and never came back down, no matter how many times the thread
+ * was opened. (It sat frozen at one date for three days.)
+ *
+ * The notification rows are cleared alongside it because a `type: 'message'`
+ * notification is about a message you have now read — leaving those unread
+ * meant the bell kept its own parallel, permanently-stale message count.
+ */
+async function markConversationRead(channel: Channel): Promise<void> {
+  try {
+    await channel.markRead();
+  } catch (err) {
+    // Never let a read receipt break the thread you are trying to read.
+    console.warn('[chat] could not mark channel read:', err);
+  }
+  try {
+    await endpoints.markConversationNotificationsRead(channel.id?.replace('conv_', '') ?? '');
+  } catch (err) {
+    console.warn('[chat] could not clear message notifications:', err);
+  }
 }
 
 /**
@@ -238,12 +266,19 @@ export default function ConversationScreen() {
       setChatError(null);
       setLive((channel.state.messages ?? []).map(fromStream));
 
+      // Reading the screen IS reading the messages.
+      void markConversationRead(channel);
+
       const subscription = channel.on('message.new', (event) => {
         if (!event.message) return;
         const incoming = fromStream(event.message);
         setLive((prev) =>
           prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]
         );
+        // A message that arrives while you are looking at the thread has been
+        // read on arrival — without this the badge climbs back up the moment
+        // the other person replies to an open conversation.
+        void markConversationRead(channel);
       });
       unsubscribeRef.current = subscription.unsubscribe;
     },
@@ -281,8 +316,16 @@ export default function ConversationScreen() {
       void load();
       const channel = channelRef.current;
       if (channel) {
-        void channel.watch().then(() => setLive((channel.state.messages ?? []).map(fromStream)));
+        void channel.watch().then(() => {
+          setLive((channel.state.messages ?? []).map(fromStream));
+          void markConversationRead(channel);
+        });
       }
+      // On the way out, push the freshly-cleared counts to the badges rather
+      // than leaving a stale number sitting there for up to a minute.
+      return () => {
+        void useNotificationSummary.getState().refresh();
+      };
     }, [load])
   );
 

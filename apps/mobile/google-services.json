@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "536583090127",
+    "project_id": "influnet-d4d44",
+    "storage_bucket": "influnet-d4d44.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536583090127:android:148a8eb8a0c2aa9c846cba",
+        "android_client_info": {
+          "package_name": "com.influnet.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRe-oSC4SmkssMGglhwY2LNeMq45j26Ik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

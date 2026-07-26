@@ -73,21 +73,34 @@ export function AppHeader({
           accessibilityLabel="Notifications"
           style={{ padding: 6 }}
         >
-          <Bell size={22} color={t.color.contentSoft} />
+          <Bell size={22} color={unread ? t.color.brand : t.color.contentSoft} />
+          {/* A number, not a 9px dot. The dot was easy to miss entirely next to
+              the numbered tab-bar badges, and "how many" is the thing you want
+              to know before deciding whether to tap. */}
           {unread && unread > 0 ? (
             <View
               style={{
                 position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 9,
-                height: 9,
-                borderRadius: 5,
+                top: -1,
+                right: -1,
+                minWidth: 17,
+                height: 17,
+                paddingHorizontal: 4,
+                borderRadius: 9,
+                alignItems: 'center',
+                justifyContent: 'center',
                 backgroundColor: t.color.brand,
                 borderWidth: 1.5,
                 borderColor: t.color.surface,
               }}
-            />
+            >
+              <Txt
+                variant="caption"
+                style={{ color: t.color.white, fontSize: 10, lineHeight: 12, fontWeight: '700' }}
+              >
+                {unread > 99 ? '99+' : unread}
+              </Txt>
+            </View>
           ) : null}
         </Pressable>
       ) : null}
