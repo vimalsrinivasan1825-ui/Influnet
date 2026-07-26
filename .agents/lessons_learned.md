@@ -4,7 +4,50 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-26: Public Profile Layout & Visual Polish Redesign
+
+**Branch**: `dev`
+
+### Scope
+- **Hero & Card Layout Refinement (`creator-profile-view.tsx` & `creator-profile.module.css`)**:
+  - **Sizing & Space Cleanup**: Enlarged avatar size (`havatar` max-width 260px), increased hero header text sizes (`h1` clamp 2.2rem-3.2rem, `subtitle` clamp 1.1rem-1.45rem), and eliminated vertical gap between hero top and stats strip by removing `justify-content: space-between` from `.herofull` and using `margin-top: auto` on `.herostats`.
+  - **Contact Info Removal**: Removed email and phone number listings from the hero left column as requested so visitors proceed directly through the connection CTAs.
+  - **Smooth Scroll CTA**: Updated "View my work" CTA button to trigger smooth scrolling (`element.scrollIntoView({ behavior: 'smooth' })`) down to `#featured`.
+  - **Card Aesthetic Polish**: Applied subtle dual radial gradient corner tints on cards and glassmorphic hero background, completely removing noisy background wave SVG lines for a clean, modern aesthetic.
+
+### What broke
+- **Dead Vertical Space in Hero**: When the hero layout shared a row with the sidebar, `justify-content: space-between` forced a large empty gap between the hero description text and the bottom stat strip.
+- **Instant Jump on Anchor**: Clicking "View my work" jumped instantly down the page without animation.
+
+### Fix
+- **Flex Layout Fix**: Replaced `justify-content: space-between` with natural flex column layout and anchored `.herostats` to `margin-top: auto` with tighter padding.
+- **Smooth Scroll Handler**: Intercepted link click on "View my work" with `onClick={(e) => { e.preventDefault(); document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}`.
+
+### Key Lessons
+- In grid flex containers with dynamic heights, avoid `justify-content: space-between` on column children if content density varies, as it introduces ugly vertical whitespace. `margin-top: auto` on the footer/stats element provides predictable alignment.
+
+---
+
+## Session — 2026-07-26: Public Profile Hero Layout Redesign
+
+**Branch**: `dev`
+
+### Scope
+- **Hero Section Grid Redesign (`components/public-profile/creator-profile-view.tsx` + `creator-profile.module.css`)**: Converted the hero from a 3-column grid (hleft | avatar | pstack) to a clean 2-column layout (hleft | hmid). The right column (`.hmid`) now stacks the avatar on top and platform stat cards in a **2×2 CSS grid** below — all 4 cards align symmetrically without any dead space. The Instagram / YouTube featured content rails continue to live as full-width sections in the main content column below the hero, so no horizontal gap is created beside the content.
+
+### Key Lessons
+- **3-col → 2-col hero**: Moving the platform cards from a standalone 3rd grid column into `.hmid` as a nested `grid-template-columns: 1fr 1fr` eliminates the orphaned right column and ensures the cards are always anchored to the avatar width.
+- **Avatar max-width matters**: Setting `max-width: 200px` on `.havatar` keeps the right column proportional. At 300px the column was too wide and the cards stretched.
+- **Content rails must be full-width**: Featured content (Instagram/YouTube) should never share a row with the hero's right column — they live in `.main` (flex-direction column) underneath the hero card, so this is already correct structurally.
+
+### Next Target
+- Optionally animate the platform card 2×2 grid entrance (stagger-in effect) for a premium first impression.
+- Consider showing a skeleton placeholder for platform cards when data is still loading.
+
+---
+
 ## Session — 2026-07-26: Chat & Push Notifications Sync
+
 
 **Branch**: `dev`
 
