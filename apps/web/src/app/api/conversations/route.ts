@@ -42,6 +42,53 @@ export async function GET(req: Request) {
 
       if (convError) return jsonError(500, 'Failed to fetch conversations', convError);
       conversations = convData || [];
+
+      // Enrich conversation previews with Stream Chat latest messages if available
+      try {
+        if (process.env.NEXT_PUBLIC_STREAM_API_KEY && process.env.STREAM_API_SECRET && conversations.length > 0) {
+          const { getStreamClient } = await import('@/lib/stream');
+          const streamClient = getStreamClient();
+          const channelIds = conversations.map((c: any) => `conv_${c.id}`);
+          const channelsRes = await streamClient.queryChannels(
+            { id: { $in: channelIds } },
+            { last_message_at: -1 },
+            { message_limit: 1 }
+          );
+
+          const streamMap = new Map<string, any>();
+          for (const ch of channelsRes || []) {
+            if (ch.id && ch.state?.messages?.length > 0) {
+              const lastMsg = ch.state.messages[ch.state.messages.length - 1];
+              const convId = ch.id.replace('conv_', '');
+              streamMap.set(convId, lastMsg);
+            }
+          }
+
+          for (const conv of conversations) {
+            const streamMsg = streamMap.get(conv.id);
+            if (streamMsg) {
+              const streamTime = new Date(streamMsg.created_at || streamMsg.updated_at).getTime();
+              const dbMsg = conv.messages?.[0];
+              const dbTime = dbMsg ? new Date(dbMsg.created_at).getTime() : 0;
+              if (streamTime > dbTime) {
+                conv.messages = [{
+                  id: streamMsg.id,
+                  body: streamMsg.text,
+                  created_at: streamMsg.created_at || streamMsg.updated_at,
+                  sender_user_id: streamMsg.user?.id || ''
+                }];
+                if (streamTime > new Date(conv.updated_at).getTime()) {
+                  conv.updated_at = new Date(streamTime).toISOString();
+                }
+              }
+            }
+          }
+          // Re-sort conversations by updated_at in case Stream updated timestamps
+          conversations.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        }
+      } catch (streamErr) {
+        console.error('[Conversations API] Failed to enrich from Stream:', streamErr);
+      }
     }
 
     // Also fetch active projects that may not have a conversation

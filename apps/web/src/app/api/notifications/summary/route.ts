@@ -16,8 +16,28 @@ export async function GET(req: Request) {
 
     if (notifError) throw notifError;
 
-    // 2. Unread Stream Chat messages (client-side handles Stream Chat unread counts via Stream SDK)
-    const unreadMessages = 0;
+    // 2. Unread Stream Chat messages and message notifications
+    let unreadMessages = 0;
+    try {
+      if (process.env.NEXT_PUBLIC_STREAM_API_KEY && process.env.STREAM_API_SECRET) {
+        const { getStreamClient } = await import('@/lib/stream');
+        const streamClient = getStreamClient();
+        const res = await streamClient.queryUsers({ id: user.id });
+        const streamUser = res.users?.[0] as { total_unread_count?: number; unread_count?: number } | undefined;
+        unreadMessages = streamUser?.total_unread_count ?? streamUser?.unread_count ?? 0;
+      }
+    } catch {
+      // Ignore stream error and fallback to db notifications
+    }
+    if (!unreadMessages) {
+      const { count: msgNotifCount } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('type', 'message')
+        .is('read_at', null);
+      unreadMessages = msgNotifCount ?? 0;
+    }
 
     // 3. Pending collab_requests count.
     //    Real table: `collab_requests` with `from_user_id` / `to_user_id`.

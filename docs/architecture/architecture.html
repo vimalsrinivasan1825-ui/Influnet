@@ -1193,6 +1193,11 @@
       </thead>
       <tbody>
         <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-26</td>
+          <td><strong>Chat & Push Notifications Sync</strong>: Integrated `notifyUser` call in `/api/stream/webhook` and `POST /api/conversations/[id]/messages` to trigger Expo push notifications and in-app notifications on every new chat message; updated `/api/notifications/summary` to query real unread message counts from Stream Chat SDK and fall back to database notification counts; enriched `/api/conversations` list endpoint to merge latest messages and timestamps from Stream Chat channels when ahead of Postgres.</td>
+          <td>Messaging · Notifications · Mobile · Stream</td>
+        </tr>
+        <tr>
           <td class="mono" style="white-space:nowrap">2026-07-25</td>
           <td><strong>Mobile Parity & Core Flow Polish</strong>: Enabled creator undo decline in PATCH /api/collabs; added respondToDeal helper in mobile chat deal sheet to invoke deal endpoints directly via PATCH; client-side gated mobile checklist items by owner_role and added confirm/cancel for counterparty stage skips; created blocked accounts screen and embedded profile data in blocks list; integrated push notifications across web and mobile via Expo Push API; applied migrations 075 through 079; fixed SUPABASE_SERVICE_ROLE_KEY format in .env.local.</td>
           <td>Mobile · Collabs · Projects · Notifications · Security</td>

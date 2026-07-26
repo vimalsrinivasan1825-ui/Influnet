@@ -73,6 +73,38 @@ export async function POST(req: Request) {
       if (updateError) {
         console.error('[Stream Webhook] Failed to update conversation:', updateError);
       }
+
+      // Notify the recipient(s) via push and in-app notifications
+      try {
+        const { data: participants } = await supabaseAdmin
+          .from('conversation_participants')
+          .select('user_id')
+          .eq('conversation_id', conversationId)
+          .neq('user_id', senderId);
+
+        if (participants && participants.length > 0) {
+          const { data: senderProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('name')
+            .eq('id', senderId)
+            .maybeSingle();
+
+          const senderName = senderProfile?.name || message.user?.name || 'A user';
+          const { notifyUser } = await import('@/lib/notify');
+
+          for (const p of participants) {
+            await notifyUser({
+              userId: p.user_id,
+              type: 'message',
+              title: `New message from ${senderName}`,
+              body: messageText.length > 100 ? messageText.slice(0, 97) + '...' : messageText,
+              link: `/dashboard/messages?conv=${conversationId}`,
+            });
+          }
+        }
+      } catch (notifErr) {
+        console.error('[Stream Webhook] Failed to notify user:', notifErr);
+      }
     }
 
     // Acknowledge receipt of the webhook (important for Stream to stop retrying)
