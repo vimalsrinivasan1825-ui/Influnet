@@ -1,11 +1,14 @@
-import { useRef } from 'react';
-import { Linking, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, Linking, Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { LogOut, Mail, ShieldOff, Trash2 } from 'lucide-react-native';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import { Bell, LogOut, Mail, ShieldOff, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
+import { endpoints } from '@/lib/api';
 import {
   Button,
   Card,
@@ -23,6 +26,43 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { profile, signOut } = useSession();
   const deleteSheet = useRef<SheetRef>(null);
+  const [testingPush, setTestingPush] = useState(false);
+
+  async function testPushRegistration() {
+    setTestingPush(true);
+    try {
+      if (!Device.isDevice) {
+        Alert.alert("Push Error", "This is not a physical device. Push tokens require a physical Android or iOS device.");
+        return;
+      }
+      const existing = await Notifications.getPermissionsAsync();
+      let status = existing.status;
+      if (status !== 'granted') {
+        const requested = await Notifications.requestPermissionsAsync();
+        status = requested.status;
+      }
+      if (status !== 'granted') {
+        Alert.alert("Permission Denied", `Notification permission is '${status}'. Please go to Android Settings -> Apps -> Influnet and turn on Notifications.`);
+        return;
+      }
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      if (!projectId) {
+        Alert.alert("Configuration Error", "No EAS projectId configured in this build.");
+        return;
+      }
+      const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+      const res = await endpoints.registerPushToken(token);
+      if (!res.ok) {
+        Alert.alert("Server Registration Failed", res.error ?? "Server did not accept push token.");
+        return;
+      }
+      Alert.alert("Push Registered Successfully! 🎉", `Token: ${token.slice(0, 30)}...\n\nYour device is now registered to receive push notifications! Check 'npm run check:push' now.`);
+    } catch (err: any) {
+      Alert.alert("Push Registration Error", err?.message ?? String(err));
+    } finally {
+      setTestingPush(false);
+    }
+  }
 
   return (
     <ScreenScroll>
@@ -47,6 +87,16 @@ export default function SettingsScreen() {
           </Txt>
         </View>
       </Card>
+
+      <SectionLabel>Diagnostics</SectionLabel>
+      <ListGroup>
+        <ListRow
+          title="Test Push Notifications"
+          subtitle={testingPush ? "Registering and verifying token..." : "Verify FCM token registration with server"}
+          left={<Bell size={19} color={t.color.brand} />}
+          onPress={testPushRegistration}
+        />
+      </ListGroup>
 
       <SectionLabel>Privacy</SectionLabel>
       <ListGroup>
