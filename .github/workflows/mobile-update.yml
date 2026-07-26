@@ -39,7 +39,11 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          EXPO_PUBLIC_API_BASE_URL: "https://influnet-staging.icysky-7414f4c6.southindia.azurecontainerapps.io"
+          # Must match the branch being published, or the app talks to a backend
+          # that does not have the code you just pushed. A dev-branch update was
+          # pointing testers at the Azure staging container — which also has no
+          # STREAM_API_SECRET configured, so chat tokens fail there outright.
+          EXPO_PUBLIC_API_BASE_URL: ${{ github.ref == 'refs/heads/dev' && 'https://dev.influnet.io' || 'https://influnet-staging.icysky-7414f4c6.southindia.azurecontainerapps.io' }}
 
   update-production:
     name: Publish OTA Update (Production Channel)
