@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.influnet.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png"
