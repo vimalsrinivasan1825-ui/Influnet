@@ -212,7 +212,12 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
 
   return (
     <div className={rootClass} style={styleVars}>
-      <div className={styles.bg}><span className={`${styles.blob} ${styles.b1}`} /><span className={`${styles.blob} ${styles.b2}`} /></div>
+      <div className={styles.bg}>
+        <span className={`${styles.blob} ${styles.b1}`} />
+        <span className={`${styles.blob} ${styles.b2}`} />
+        <span className={`${styles.blob} ${styles.b3}`} />
+        <span className={styles.bwave} />
+      </div>
 
       {isOwner && (
         <div className={styles.previewbanner}>
@@ -287,7 +292,10 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                 {/* Right column: avatar on top, 2×2 platform cards below */}
                 <div className={styles.hmid}>
                   <div className={styles.havatar}>
-                    <span className={styles.haloglow} /><span className={styles.halo} />
+                    <span className={styles.haloglow} />
+                    <span className={styles.halo} />
+                    <span className={styles.halo2} />
+                    <span className={styles.halo3} />
                     <div className={styles.avatar}>
                       {data.avatarUrl
                         // eslint-disable-next-line @next/next/no-img-element
@@ -394,7 +402,12 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                 label="featured content"
                 title="Featured content"
                 icon={<Ic d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0Z M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" />}
-                meta={data.snapshotAge ? <span className={styles.viewall}>Live from Instagram · {data.snapshotAge}</span> : null}
+                meta={
+                  <span className={styles.igbadge}>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" strokeWidth="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.6" cy="6.4" r="1.1" fill="#fff" stroke="none" /></svg>
+                    Instagram{data.snapshotAge ? ` · ${data.snapshotAge}` : ''}
+                  </span>
+                }
               >
                 {data.featured.map((p, i) => (
                   <a key={p.href || i} className={styles.th} style={{ backgroundImage: `url(${p.imageUrl})` }} href={p.href || '#'} target="_blank" rel="noopener noreferrer">
@@ -517,15 +530,20 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                   <div className={styles.subcard}>
                     <h4>Gender</h4>
                     <div className={styles.genders}>
-                      {genderPair.map((g, i) => (
-                        <div className={styles.gcell} key={g.label}>
-                          <span className={`${styles.gicon} ${i === 0 ? styles.gA : styles.gB}`}>
-                            <Ic d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8" />
-                          </span>
-                          <b>{g.pct}%</b>
-                          <small>{g.label}</small>
-                        </div>
-                      ))}
+                      {genderPair.map((g, i) => {
+                          const isMale = g.label?.toLowerCase().includes('male') && !g.label?.toLowerCase().includes('female');
+                          return (
+                          <div className={styles.gcell} key={g.label}>
+                            <span className={`${styles.gicon} ${isMale ? styles.gA : styles.gB}`}>
+                              {isMale
+                                ? <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><circle cx="10" cy="10" r="6" /><path d="M20 4l-6 6M14 4h6v6" /></svg>
+                                : <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="10" r="6" /><path d="M12 16v6M9 19h6" /></svg>
+                              }
+                            </span>
+                            <b>{g.pct}%</b>
+                            <small>{g.label}</small>
+                          </div>);
+                        })}
                     </div>
                   </div>
                 )}
@@ -577,25 +595,41 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                 )}
                 <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
               </div>
-              {data.postPreview && (
-                <a className={styles.postcard} href={data.postPreview.href} target="_blank" rel="noopener noreferrer">
-                  <span className={styles.pchead}>
-                    {data.avatarUrl
-                      // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={data.avatarUrl} alt="" className={styles.pcav} />
-                      : <span className={styles.pcav} />}
-                    <b>@{data.username}</b>
-                    <span className={styles.pcig}><IgLogo s={14} /></span>
+              {/* Animated Instagram promo card — replaces the static post thumbnail */}
+              <a
+                className={styles.igcard}
+                href={data.postPreview?.href ?? `https://instagram.com/${data.username}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`View @${data.username} on Instagram`}
+              >
+                <div className={styles.igcardbg} />
+                {/* Floating particles */}
+                <span className={`${styles.igp} ${styles.igp1}`} />
+                <span className={`${styles.igp} ${styles.igp2}`} />
+                <span className={`${styles.igp} ${styles.igp3}`} />
+                <span className={`${styles.igp} ${styles.igp4}`} />
+                {/* Rotating rings + IG logo */}
+                <div className={styles.iglogozone}>
+                  <span className={styles.igring1} />
+                  <span className={styles.igring2} />
+                  <div className={styles.iglogobox}>
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#fff" strokeWidth="2">
+                      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+                      <circle cx="12" cy="12" r="4" />
+                      <circle cx="17.6" cy="6.4" r="1.5" fill="#fff" stroke="none" />
+                    </svg>
+                  </div>
+                </div>
+                {/* Bottom info */}
+                <div className={styles.iginfo}>
+                  <span className={styles.iguname}>@{data.username}</span>
+                  <span className={styles.igcta}>
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><circle cx="12" cy="12" r="4" /></svg>
+                    View on Instagram
                   </span>
-                  <span className={styles.pcimg} style={{ backgroundImage: `url(${data.postPreview.imageUrl})` }} />
-                  <span className={styles.pcfoot}>
-                    {data.postPreview.likes && (
-                      <span className={styles.pclikes}><Heart />{data.postPreview.likes} likes</span>
-                    )}
-                    <span className={styles.pcview}>View post</span>
-                  </span>
-                </a>
-              )}
+                </div>
+              </a>
             </section>
           )}
         </div>

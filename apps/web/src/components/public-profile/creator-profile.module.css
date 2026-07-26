@@ -1,13 +1,12 @@
-/* Creator media kit — ported from docs/product/mockups/creator-media-kit.html.
-   Keep visual parity with the mockup; only selector scoping changed for CSS modules. */
+/* Creator public profile — animated premium redesign */
 
   .stage{
-    --bg:#F6F5F9; --card:#FFFFFF; --tile:#F5F4F8; --soft:#FCE6F0;
+    --bg:#F4F3F8; --card:#FFFFFF; --tile:#F5F4F8; --soft:#FCE6F0;
     --ink:#16182A; --ink-2:#585F73; --ink-3:#8F94A6;
     --line:#EDECF3; --line-2:#E1E0EA;
     --accent:#EC2C7A; --accent-2:#FF6FA6; --accent-ink:#C51E63;
     --ok:#12B981; --wa:#25D366;
-    --c1:var(--accent); --c2:var(--ink-2); --c3:var(--ink-3); --c4:var(--line-2);
+    --c1:var(--accent); --c2:var(--ink-2); --c3:#F5A623; --c4:var(--ok);
     --ig:linear-gradient(135deg,#F58529,#DD2A7B,#8134AF); --yt:#FF0033; --tt:#010101;
     --shadow:0 16px 40px -26px rgba(60,30,80,.30); --shadow-sm:0 6px 18px -12px rgba(60,30,80,.25);
     --r:12px; --r-sm:9px; --r-xs:6px;
@@ -18,7 +17,7 @@
       radial-gradient(44rem 22rem at 92% -6%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 60%),
       radial-gradient(34rem 20rem at 2% 4%,color-mix(in srgb,var(--c2) 12%,transparent),transparent 55%),
       var(--bg);
-    padding:clamp(1rem,2vw,1.4rem) clamp(1rem,2.5vw,1.6rem) 1.4rem;
+    padding:clamp(1rem,2vw,1.4rem) clamp(1.5rem,3vw,3rem) 1.4rem;
   }
   .stage.dark{
     --bg:#0B0D16;--card:#141826;--tile:#1B1F30;--soft:#2A1622;
@@ -28,28 +27,51 @@
   .stage *{box-sizing:border-box;}
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
   .ico{width:1em;height:1em;display:inline-block;vertical-align:-.12em;}
-  .wrap{max-width:1180px;margin:0 auto;position:relative;z-index:1;}
+  .wrap{max-width:1280px;margin:0 auto;position:relative;z-index:1;}
   .bg{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
   .blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.45;}
   .b1{width:30rem;height:30rem;top:-11rem;right:-7rem;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 55%,transparent),transparent 70%);animation:drift 24s ease-in-out infinite;}
   .b2{width:24rem;height:24rem;bottom:-9rem;left:-7rem;background:radial-gradient(circle,color-mix(in srgb,var(--c2) 45%,transparent),transparent 70%);animation:drift 30s ease-in-out infinite reverse;}
+  .b3{width:18rem;height:18rem;top:45%;left:45%;background:radial-gradient(circle,color-mix(in srgb,var(--accent-2) 30%,transparent),transparent 70%);animation:drift 20s ease-in-out infinite 5s;opacity:.28;}
+  /* Wave bar at the bottom of the bg */
+  .bwave{position:absolute;bottom:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--accent),var(--accent-2),#8134AF,var(--accent));background-size:200%;animation:wavemove 6s linear infinite;opacity:.35;}
   @keyframes drift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-2.5rem,1.5rem) scale(1.12);}}
+  @keyframes wavemove{0%{background-position:0 50%;}100%{background-position:200% 50%;}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes spinreverse{to{transform:rotate(-360deg);}}
+  @keyframes pulse{0%,100%{opacity:.6;transform:scale(1);}50%{opacity:1;transform:scale(1.06);}}
+  @keyframes floatup{0%,100%{transform:translateY(0) rotate(0deg);opacity:.7;}50%{transform:translateY(-14px) rotate(8deg);opacity:1;}}
+  @keyframes igring1{0%{transform:rotate(0) scale(1);}50%{transform:rotate(180deg) scale(1.05);}100%{transform:rotate(360deg) scale(1);}}
+  @keyframes igring2{0%{transform:rotate(0);}100%{transform:rotate(-360deg);}}
+  @keyframes igfloat{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+  @keyframes slidein{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 
   .topbar{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;}
   .brand{display:flex;align-items:center;gap:.5rem;font-weight:800;letter-spacing:-.01em;text-decoration:none;color:var(--ink);font-size:1.05rem;flex-shrink:0;}
-  .url{display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.45rem .9rem;box-shadow:var(--shadow-sm);margin:0 auto;max-width:50%;}
-  /* Below the sidebar breakpoint the centred URL pill has nowhere to go — it
-     overlapped the wordmark and forced the CTA to wrap onto three lines. The
-     same link is always available from the "Let's connect" card, so the pill
-     is the thing that gives way. */
+  /* Premium URL pill — gradient border, glasslike feel */
+  .url{
+    display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:var(--ink-2);
+    background:var(--card);
+    border:1.5px solid transparent;
+    background-clip:padding-box;
+    border-radius:999px;padding:.45rem .9rem;box-shadow:var(--shadow-sm);margin:0 auto;max-width:50%;
+    position:relative;
+  }
+  .url::before{
+    content:"";position:absolute;inset:-1.5px;border-radius:999px;
+    background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 40%,transparent),color-mix(in srgb,var(--accent-2) 30%,transparent),color-mix(in srgb,var(--accent) 40%,transparent));
+    background-size:200%;animation:wavemove 4s linear infinite;z-index:-1;
+  }
   @media(max-width:760px){
     .topbar{gap:.6rem;}
     .url{display:none;}
     .topbar .btn{margin-left:auto;white-space:nowrap;}
   }
   .url b{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
-  .url .cp{cursor:pointer;color:var(--ink-3);display:grid;place-items:center;flex-shrink:0;}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;font-size:.86rem;font-weight:600;cursor:pointer;border-radius:var(--r-sm);padding:.6rem 1rem;border:1px solid var(--line-2);background:var(--card);color:var(--ink);text-decoration:none;}
+  .url .cp{cursor:pointer;color:var(--ink-3);display:grid;place-items:center;flex-shrink:0;transition:color .2s;}
+  .url .cp:hover{color:var(--accent-ink);}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;font-size:.86rem;font-weight:600;cursor:pointer;border-radius:var(--r-sm);padding:.6rem 1rem;border:1px solid var(--line-2);background:var(--card);color:var(--ink);text-decoration:none;transition:transform .18s,box-shadow .18s;}
+  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--shadow);}
   .btn.accent{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border:none;box-shadow:var(--shadow-sm);}
   .btn.ghost{background:transparent;}
   .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
@@ -78,17 +100,15 @@
   .side{display:flex;flex-direction:column;gap:1.2rem;}
   /* Full-width content sections below the hero+sidebar row */
   .fullcontent{display:flex;flex-direction:column;gap:1.2rem;margin-top:1.2rem;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);transition:box-shadow .2s;}
+  .card:hover{box-shadow:var(--shadow);}
   .pad{padding:1.1rem 1.2rem;}
   .chead{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;}
   .ctitle{display:flex;align-items:center;gap:.5rem;font-size:1.02rem;font-weight:660;letter-spacing:-.01em;}
   .ctitle .ci{color:var(--accent);display:inline-flex;}
   .viewall{font-size:.78rem;font-weight:600;color:var(--accent-ink);cursor:pointer;}
 
-  /* ── HERO ────────────────────────────────────────────────────────────
-     One tinted card carrying identity, avatar, the platform column and a
-     footer strip of headline numbers. The tint is built from the live
-     --accent so the owner's colour picker still drives the whole page. */
+  /* ── HERO ────────────────────────────────────────────────────────────*/
   .hero{
     background:
       linear-gradient(135deg,
@@ -100,67 +120,58 @@
     box-shadow:var(--shadow-sm);
     padding:clamp(1.1rem,2.2vw,1.7rem);
     overflow:hidden;
+    animation:slidein .5s ease both;
   }
-  /* herofull: the hero fills the full height of its .main column so it
-     aligns with the sidebar cards that drive the row height */
+  /* herofull: fills the full height to match sidebar */
   .herofull{height:100%;display:flex;flex-direction:column;justify-content:space-between;}
-  /* Hero: 2-column — identity text on the left, avatar + 2×2 platform cards on the right */
+  /* Hero: 2-column — identity text on the left, avatar + platform cards on the right */
   .herotop{
     display:grid;
     grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
     gap:clamp(.8rem,2vw,1.6rem);
     align-items:center;
   }
-  /* The right column stacks avatar on top, 2×2 grid of platform cards below */
   .hmid{display:flex;flex-direction:column;align-items:center;gap:.8rem;}
   @media(max-width:800px){
     .herotop{grid-template-columns:1fr;}
     .hmid{flex-direction:row;justify-content:center;gap:1rem;}
   }
-  @media(max-width:480px){
-    .hmid{flex-direction:column;}
-  }
+  @media(max-width:480px){.hmid{flex-direction:column;}}
   .hleft{min-width:0;}
   .eyebrow{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-ink);background:var(--soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);padding:.32rem .7rem;border-radius:999px;}
   .hero h1{font-size:clamp(1.9rem,4.2vw,2.8rem);margin:.7rem 0 .15rem;letter-spacing:-.03em;font-weight:720;line-height:1.03;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
-  /* The tick sits with the name, where a reader looks for it, rather than
-     floating over the avatar as a separate labelled pill. */
   .vtick{width:.62em;height:.62em;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:inline-grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm);}
   .subtitle{font-size:clamp(1.05rem,2.1vw,1.32rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
   .grad{background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
   .tag{color:var(--ink-2);font-size:.92rem;margin:.7rem 0 0;max-width:46ch;}
 
-  /* Contact rows lifted out of the bio prose. */
   .contact{list-style:none;margin:.85rem 0 0;padding:0;display:flex;flex-direction:column;gap:.4rem;}
   .contact li{display:flex;align-items:center;gap:.5rem;font-size:.86rem;min-width:0;}
   .contact .ci2{color:var(--accent);display:inline-flex;flex-shrink:0;}
   .contact a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .contact a:hover{color:var(--accent-ink);}
   .contact a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-
   .cta{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem;}
 
-  /* Platform cards: 2×2 grid so all 4 cards align symmetrically on the right */
+  /* Platform cards: 2×2 grid */
   .pstack{
     list-style:none;margin:0;padding:0;
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:.45rem;
-    width:100%;
+    display:grid;grid-template-columns:1fr 1fr;gap:.45rem;width:100%;
   }
   .pcard{
     display:flex;align-items:center;gap:.5rem;
     background:var(--card);border:1px solid var(--line);
     border-radius:var(--r-sm);padding:.5rem .65rem;
     box-shadow:var(--shadow-sm);min-width:0;
+    transition:transform .2s,box-shadow .2s;
   }
+  .pcard:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
   .pmeta{min-width:0;}
   .pcard b{display:block;font-size:.88rem;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
   .pcard small{display:block;font-size:.62rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  /* On very narrow widths collapse to single column */
   @media(max-width:380px){.pstack{grid-template-columns:1fr;}}
 
-  /* Headline numbers, as a strip inside the hero rather than detached cards. */
+  /* Headline stats strip */
   .herostats{
     display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;
     margin-top:clamp(1rem,2vw,1.5rem);padding-top:clamp(.9rem,1.8vw,1.2rem);
@@ -173,26 +184,25 @@
   .hstat b{display:block;font-size:1.4rem;font-weight:720;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.05;}
   .hstat small{display:block;font-size:.74rem;color:var(--ink-3);font-weight:500;margin-top:.1rem;}
 
-  .havatar{position:relative;aspect-ratio:1;max-width:200px;width:100%;margin:0 auto;display:grid;place-items:center;}
-  /* On mobile the avatar is the only thing in its row so constrain it further */
+  /* Avatar with multiple rotating rings */
+  .havatar{position:relative;aspect-ratio:1;max-width:220px;width:100%;margin:0 auto;display:grid;place-items:center;}
   @media(max-width:640px){.havatar{max-width:160px;}}
-  .halo{position:absolute;inset:6%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--accent) 30%,transparent);animation:spin 30s linear infinite;}
-  .haloglow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 66%);}
-  @keyframes spin{to{transform:rotate(360deg);}}
+  /* Inner dashed slow ring */
+  .halo{position:absolute;inset:0%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--accent) 35%,transparent);animation:spin 30s linear infinite;}
+  /* Mid gradient ring — faster, opposite dir */
+  .halo2{position:absolute;inset:-9%;border-radius:50%;border:2px solid transparent;background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(135deg,var(--accent),transparent 50%,var(--accent-2)) border-box;animation:spin 8s linear infinite reverse;}
+  /* Outer dotted slow ring */
+  .halo3{position:absolute;inset:-18%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--accent-2) 22%,transparent);animation:spin 45s linear infinite;}
+  .haloglow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent) 28%,transparent),transparent 66%);animation:pulse 4s ease-in-out infinite;}
   .avatar{width:78%;aspect-ratio:1;border-radius:50%;padding:5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;box-shadow:var(--shadow);}
   .avimg{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;background:var(--tile);}
   .avfallback{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--tile);font-size:2.4rem;font-weight:800;color:var(--ink-3);}
   .fi{width:30px;height:30px;border-radius:var(--r-xs);display:grid;place-items:center;color:#fff;flex-shrink:0;}
 
-  /* ── Horizontal rails ────────────────────────────────────────────────
-     Content strips scroll instead of cramming every tile into the row.
-     Snap points keep a tile edge aligned after a swipe or an arrow nudge. */
+  /* ── Rails ────────────────────────────────────────────────────────── */
   .cmeta{display:flex;align-items:center;gap:.7rem;}
   .railnav{display:inline-flex;gap:.3rem;}
-  .railnav button{
-    width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
-    border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);cursor:pointer;padding:0;
-  }
+  .railnav button{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);cursor:pointer;padding:0;}
   .railnav button:hover:not(:disabled){color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,transparent);}
   .railnav button:disabled{opacity:.35;cursor:default;}
   .railnav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
@@ -207,22 +217,32 @@
   @media(max-width:900px){.rail{grid-auto-columns:calc((100% - 3 * .55rem) / 4);}}
   @media(max-width:720px){.rail{grid-auto-columns:calc((100% - 2 * .55rem) / 3);}}
   @media(max-width:460px){.rail{grid-auto-columns:calc((100% - .55rem) / 2);}}
-  /* Videos are wider than stills — a title needs the room. */
   .rail:has(.vid){grid-auto-columns:calc((100% - 2 * .55rem) / 3);}
   @media(max-width:900px){.rail:has(.vid){grid-auto-columns:calc((100% - .55rem) / 2);}}
   @media(max-width:560px){.rail:has(.vid){grid-auto-columns:86%;}}
 
-  .th{position:relative;aspect-ratio:3/4;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line);background-size:cover;background-position:center;}
+  /* Instagram badge on featured header */
+  .igbadge{display:inline-flex;align-items:center;gap:.35rem;font-size:.74rem;font-weight:700;color:#fff;background:var(--ig);border-radius:999px;padding:.28rem .65rem;}
+  .igbadge svg{flex-shrink:0;}
+
+  .th{position:relative;aspect-ratio:3/4;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line);background-size:cover;background-position:center;transition:transform .2s;}
+  .th:hover{transform:scale(1.03);}
   .th::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.5));}
   .th .ov{position:absolute;left:.4rem;bottom:.4rem;z-index:1;font-size:.68rem;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);display:inline-flex;align-items:center;gap:.2rem;}
   .th .dur{position:absolute;right:.4rem;bottom:.4rem;z-index:1;font-size:.62rem;font-weight:700;color:#fff;background:rgba(0,0,0,.78);border-radius:4px;padding:0 .28rem;}
   .th .play{position:absolute;inset:0;margin:auto;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.45);display:grid;place-items:center;color:#fff;z-index:1;}
 
-  /* Auto-fit rather than a fixed 3 or 4: the number of panels depends on
-     which breakdowns the creator actually filled in, so the grid has to
-     look right at two, three or four without a hardcoded column count. */
+  /* ── Audience insights ─────────────────────────────────────────────── */
   .aud{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.7rem;}
-  .subcard{background:var(--tile);border:1px solid var(--line);border-radius:var(--r-sm);padding:.9rem;}
+  .subcard{
+    background:var(--tile);border:1px solid var(--line);border-radius:var(--r-sm);padding:.9rem;
+    border-left:3px solid var(--accent);
+    transition:transform .2s;
+  }
+  .subcard:hover{transform:translateY(-2px);}
+  .subcard:nth-child(2){border-left-color:#F5A623;}
+  .subcard:nth-child(3){border-left-color:#2E90FA;}
+  .subcard:nth-child(4){border-left-color:var(--ok);}
   .subcard h4{margin:0 0 .75rem;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);}
   .bar{display:grid;grid-template-columns:minmax(3.2rem,auto) 1fr 2.1rem;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.74rem;color:var(--ink-2);}
   .barlabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -231,9 +251,8 @@
   .bar .pct{text-align:right;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
 
   .donutwrap{display:flex;align-items:center;gap:.8rem;}
-  .donut{width:88px;height:88px;border-radius:50%;flex-shrink:0;position:relative;display:grid;place-items:center;}
+  .donut{width:96px;height:96px;border-radius:50%;flex-shrink:0;position:relative;display:grid;place-items:center;}
   .donut::after{content:"";position:absolute;inset:22%;border-radius:50%;background:var(--tile);}
-  /* The hole carries the takeaway instead of being empty decoration. */
   .donutmid{position:relative;z-index:1;text-align:center;line-height:1.05;}
   .donutmid b{display:block;font-size:.76rem;font-weight:720;letter-spacing:-.01em;}
   .donutmid small{display:block;font-size:.55rem;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;}
@@ -242,23 +261,20 @@
   .legend .dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
   .legend b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums;}
 
-  /* Gender: a two-way comparison, so two figures rather than a ring. */
+  /* Gender: vivid blue for male, vivid pink for female */
   .genders{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
   .gcell{text-align:center;}
-  .gicon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;margin:0 auto .4rem;color:#fff;}
-  .gA{background:linear-gradient(135deg,var(--accent),var(--accent-2));}
-  .gB{background:var(--ink-3);}
-  .gcell b{display:block;font-size:1.15rem;font-weight:720;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1;}
+  .gicon{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;margin:0 auto .4rem;color:#fff;box-shadow:0 4px 12px -4px currentColor;}
+  .gA{background:linear-gradient(135deg,#2E90FA,#6AB6FF);color:#2E90FA;} /* Male — blue */
+  .gB{background:linear-gradient(135deg,#EC2C7A,#FF6FA6);color:#EC2C7A;} /* Female — pink */
+  .gcell b{display:block;font-size:1.2rem;font-weight:720;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1;}
   .gcell small{display:block;font-size:.68rem;color:var(--ink-3);margin-top:.15rem;}
 
-  /* Interests: labels with a number, not another bar chart — five more
-     bars beside the locations panel would read as one repeated pattern. */
   .chips{display:flex;flex-wrap:wrap;gap:.35rem;}
   .tchip{display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.28rem .6rem;}
   .tchip b{color:var(--accent-ink);font-variant-numeric:tabular-nums;}
 
-  /* YouTube uploads. Wider tiles than .thumbs6 because a video has a title
-     worth reading — 16:9 thumbnail, two lines of title underneath. */
+  /* YouTube video tiles */
   .vids{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;}
   @media(max-width:720px){.vids{grid-template-columns:repeat(2,1fr);}}
   @media(max-width:460px){.vids{grid-template-columns:1fr;}}
@@ -269,7 +285,7 @@
   .vviews{position:absolute;left:.4rem;bottom:.4rem;z-index:1;font-size:.68rem;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);display:inline-flex;align-items:center;gap:.22rem;}
   .vtitle{font-size:.76rem;font-weight:640;line-height:1.35;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 
-  /* Ratings from completed collaborations (migration 080). */
+  /* Ratings */
   .ratehead{display:flex;align-items:baseline;gap:.5rem;}
   .ratebig{font-size:1.6rem;font-weight:760;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;}
   .ratecount{font-size:.76rem;color:var(--ink-3);}
@@ -286,9 +302,7 @@
   @media(max-width:720px){.brands{grid-template-columns:repeat(3,1fr);}}
   .brand-c{display:grid;place-items:center;height:56px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);font-weight:800;font-size:.82rem;letter-spacing:.02em;color:var(--ink-2);text-align:center;padding:.3rem;}
 
-  /* ── WORK WITH ME ────────────────────────────────────────────────────
-     What the creator makes, next to a real example of it. Replaces the
-     price-card grid, whose amount printed the raw tier slug. */
+  /* ── WORK WITH ME ─────────────────────────────────────────────────── */
   .collab{
     display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr);
     gap:clamp(1rem,2.4vw,1.8rem);align-items:center;
@@ -310,61 +324,107 @@
   .rate b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;}
   .collableft .btn{margin-top:1.1rem;}
 
-  /* A real post, framed the way the creator's audience already sees it. */
-  .postcard{
-    display:block;text-decoration:none;color:inherit;
-    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-    box-shadow:var(--shadow);overflow:hidden;max-width:330px;width:100%;margin:0 auto;
+  /* ── Animated Instagram promo card ───────────────────────────────── */
+  .igcard{
+    position:relative;overflow:hidden;
+    border-radius:var(--r);max-width:320px;width:100%;margin:0 auto;
+    aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    cursor:pointer;text-decoration:none;color:#fff;
+    box-shadow:0 20px 50px -16px rgba(221,42,123,.5);
     transition:transform .25s ease,box-shadow .25s ease;
   }
-  .postcard:hover{transform:translateY(-3px);}
-  .postcard:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
-  .pchead{display:flex;align-items:center;gap:.5rem;padding:.6rem .7rem;font-size:.8rem;}
-  .pcav{width:26px;height:26px;border-radius:50%;object-fit:cover;background:var(--tile);flex-shrink:0;}
-  .pchead b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .pcig{margin-left:auto;width:22px;height:22px;border-radius:var(--r-xs);background:var(--ig);display:grid;place-items:center;flex-shrink:0;}
-  .pcimg{display:block;aspect-ratio:1;background-size:cover;background-position:center;background-color:var(--tile);}
-  .pcfoot{display:flex;align-items:center;gap:.5rem;padding:.6rem .7rem;font-size:.76rem;color:var(--ink-2);}
-  .pclikes{display:inline-flex;align-items:center;gap:.3rem;color:var(--accent-ink);font-weight:700;font-variant-numeric:tabular-nums;}
-  .pcview{margin-left:auto;font-weight:600;color:var(--ink-3);}
-  @media(prefers-reduced-motion:reduce){.postcard{transition:none;}.postcard:hover{transform:none;}}
+  .igcard:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 28px 60px -16px rgba(221,42,123,.6);}
+  /* Gradient background */
+  .igcardbg{
+    position:absolute;inset:0;
+    background:linear-gradient(145deg,#F58529 0%,#DD2A7B 45%,#8134AF 80%,#405DE6 100%);
+    z-index:0;
+  }
+  /* Animated overlay shimmer */
+  .igcardbg::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.12) 50%,transparent 70%);
+    background-size:200%;animation:wavemove 3s linear infinite;
+  }
+  /* Floating particles */
+  .igp{position:absolute;border-radius:50%;background:rgba(255,255,255,.18);animation:floatup 3s ease-in-out infinite;z-index:1;}
+  .igp1{width:40px;height:40px;top:12%;left:10%;animation-delay:0s;}
+  .igp2{width:24px;height:24px;top:20%;right:14%;animation-delay:1s;}
+  .igp3{width:16px;height:16px;top:60%;left:22%;animation-delay:2s;}
+  .igp4{width:30px;height:30px;bottom:28%;right:8%;animation-delay:.5s;}
+  /* Ring container wrapping the IG logo */
+  .iglogozone{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:2;top:-10%;
+  }
+  .igring1{
+    position:absolute;width:120px;height:120px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.35);
+    animation:igring1 8s linear infinite;
+  }
+  .igring2{
+    position:absolute;width:90px;height:90px;border-radius:50%;
+    border:1.5px dashed rgba(255,255,255,.5);
+    animation:igring2 5s linear infinite;
+  }
+  .iglogobox{
+    width:56px;height:56px;border-radius:18px;
+    background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);
+    display:grid;place-items:center;
+    animation:igfloat 3s ease-in-out infinite;
+    backdrop-filter:blur(4px);
+  }
+  /* Bottom info overlay */
+  .iginfo{
+    position:relative;z-index:3;width:100%;
+    background:linear-gradient(transparent,rgba(0,0,0,.55));
+    padding:1.2rem 1rem .9rem;text-align:center;
+  }
+  .iguname{display:block;font-size:.92rem;font-weight:700;margin-bottom:.2rem;text-shadow:0 1px 6px rgba(0,0,0,.4);}
+  .igcta{display:inline-flex;align-items:center;gap:.3rem;font-size:.76rem;font-weight:600;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:.28rem .7rem;backdrop-filter:blur(4px);}
 
+  /* Sidebar cards */
   .side h3{margin:0 0 .1rem;font-size:1rem;font-weight:660;}
   .share-title{text-align:center;} .share-title p{margin:.15rem 0 0;font-size:.78rem;color:var(--ink-3);}
-  .qrbox{margin:.9rem auto;width:180px;height:180px;background:#fff;border:3px solid var(--accent);box-shadow:0 8px 24px -8px var(--accent);border-radius:24px;display:grid;place-items:center;position:relative;padding:10px;}
-  .qrbox svg{width:100%;height:100%;}
-  .qrlogo{position:absolute;inset:0;margin:auto;width:48px;height:48px;display:grid;place-items:center;}
-  .urlmini{display:flex;align-items:center;justify-content:center;gap:.5rem;font-size:.78rem;color:var(--ink-2);background:var(--tile);border:1px solid var(--line);border-radius:var(--r-sm);padding:.45rem .7rem;}
+  /* URL mini — unique shortlink style */
+  .urlmini{
+    display:flex;align-items:center;gap:.5rem;font-size:.76rem;color:var(--ink-2);
+    background:var(--tile);
+    border:1.5px solid transparent;
+    background-clip:padding-box;
+    border-radius:var(--r-sm);padding:.45rem .7rem;
+    position:relative;
+  }
+  .urlmini::before{
+    content:"";position:absolute;inset:-1.5px;border-radius:var(--r-sm);
+    background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 30%,transparent),color-mix(in srgb,var(--accent-2) 20%,transparent));
+    z-index:-1;
+  }
   .divlabel{text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:.9rem 0 .6rem;}
   .sharevia{display:flex;justify-content:center;gap:.6rem;}
-  .svbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;border:none;cursor:pointer;}
+  .svbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;border:none;cursor:pointer;transition:transform .18s,filter .18s;}
+  .svbtn:hover{transform:scale(1.12);filter:brightness(1.1);}
   .aboutlist{display:flex;flex-direction:column;gap:.6rem;margin-top:.8rem;}
   .aboutlist div{display:flex;align-items:center;gap:.55rem;font-size:.82rem;color:var(--ink-2);}
   .aboutlist .ai{color:var(--ink-3);display:inline-flex;} .aboutlist b{color:var(--ink);font-weight:600;}
   .createpills{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.8rem;}
   .cpill{font-size:.76rem;font-weight:600;color:var(--accent-ink);background:var(--soft);border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);border-radius:999px;padding:.28rem .7rem;}
   .collabtxt{font-size:.82rem;color:var(--ink-2);margin:.6rem 0 .9rem;}
-  .quote{position:relative;padding-top:.4rem;}
-  .quote .qm{font-family:Georgia,serif;font-size:2rem;color:var(--accent);line-height:0;opacity:.4;}
-  .quote p{font-size:.84rem;color:var(--ink-2);font-style:italic;margin:.3rem 0 .6rem;}
-  .quote .qa{font-size:.78rem;font-weight:700;}
-  .dots{display:flex;gap:.3rem;margin-top:.7rem;}
-  .dots span{width:6px;height:6px;border-radius:50%;background:var(--line-2);} .dots span.on{background:var(--accent);width:16px;border-radius:99px;}
   .growcard{text-align:center;} .growcard p{font-size:.82rem;color:var(--ink-2);margin:.5rem 0 .9rem;}
 
-  .mkfooter{max-width:1180px;margin:1.4rem auto 0;padding-top:1.1rem;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;font-size:.78rem;color:var(--ink-3);position:relative;z-index:1;}
+  .mkfooter{max-width:1280px;margin:1.4rem auto 0;padding-top:1.1rem;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;font-size:.78rem;color:var(--ink-3);position:relative;z-index:1;}
   footer .flinks{display:flex;gap:1.1rem;} footer .fsoc{display:flex;gap:.7rem;}
 
-  /* `.fcard` used to be listed here; the bobbing platform badges it animated
-     are gone, replaced by the static .pstack column. */
   @media(prefers-reduced-motion:reduce){
-    .halo,.blob{animation:none;}
+    .halo,.halo2,.halo3,.blob,.b3{animation:none;}
     .rail{scroll-behavior:auto;}
+    .haloglow{animation:none;}
+    .igcardbg::after,.bwave,.url::before{animation:none;}
   }
 
   .stage.editing .card, .stage.editing .hero, .stage.editing .hleft, .stage.editing .havatar { outline: 1.5px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 6px; }
 
-  .previewbanner { display: none; align-items: center; justify-content: space-between; gap: 1rem; max-width: 1180px; margin: 0 auto 1rem;
+  .previewbanner { display: none; align-items: center; justify-content: space-between; gap: 1rem; max-width: 1280px; margin: 0 auto 1rem;
     background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card));
     border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-radius: var(--r); padding: .6rem .9rem; position: relative; z-index: 2; box-shadow: var(--shadow-sm); }
   .previewbanner span { display: inline-flex; align-items: center; gap: .5rem; font-size: .86rem; font-weight: 600; color: var(--accent-ink); }
