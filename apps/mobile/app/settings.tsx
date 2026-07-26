@@ -21,12 +21,9 @@ import {
   type SheetRef,
 } from '@/components/ui';
 
-// Only accounts in this list (or admins) will see internal diagnostic tools in Settings.
+// Only accounts in this list will see internal diagnostic tools in Settings.
 const DEVELOPER_EMAILS = [
   'vimal@gmail.com',
-  'admin@influnet.com',
-  'vnkamalesh@gmail.com',
-  'kamalesh@tecstellar.com',
 ];
 
 export default function SettingsScreen() {
@@ -37,8 +34,7 @@ export default function SettingsScreen() {
   const [testingPush, setTestingPush] = useState(false);
 
   const showDiagnostics =
-    profile?.role === 'admin' ||
-    (Boolean(profile?.email) && DEVELOPER_EMAILS.includes(String(profile?.email).toLowerCase()));
+    Boolean(profile?.email) && DEVELOPER_EMAILS.includes(String(profile?.email).toLowerCase());
 
   async function testPushRegistration() {
     setTestingPush(true);

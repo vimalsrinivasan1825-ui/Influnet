@@ -54,6 +54,7 @@
     },
     "extra": {
       "apiBaseUrl": "http://localhost:3000",
+      "streamApiKey": "kw5uagr7nxs7",
       "router": {},
       "eas": {
         "projectId": "edd0c6bd-e125-4fe4-956b-8c074ec576fb"
