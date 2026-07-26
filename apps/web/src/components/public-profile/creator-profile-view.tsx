@@ -187,12 +187,49 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
     setTimeout(() => setShowToast(false), 2800);
   };
 
+  // Human-readable form of the shareable URL, e.g. "influnet.app/c/username".
+  // Declared before copyUrl because the failure path quotes it.
+  const displayUrl = data.profileUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+  /**
+   * Put the profile URL on the clipboard.
+   *
+   * The address is no longer displayed anywhere in the "Let's connect" card, so
+   * this button is the only way to get it — a silent failure would leave a
+   * visitor with nothing to fall back on. The async Clipboard API is refused in
+   * a few real situations (no permission, a non-secure origin, an embedded
+   * frame), so a failure falls back to the old execCommand path and, only if
+   * that also fails, says so instead of doing nothing.
+   */
   const copyUrl = async () => {
+    const confirmCopied = () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
     try {
       await navigator.clipboard.writeText(data.profileUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch { /* clipboard blocked */ }
+      confirmCopied();
+      return;
+    } catch { /* fall through to the legacy path */ }
+
+    try {
+      const field = document.createElement('textarea');
+      field.value = data.profileUrl;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(field);
+      if (ok) {
+        confirmCopied();
+        return;
+      }
+    } catch { /* nothing left to try */ }
+
+    toast.error(`Couldn't copy automatically. The link is ${displayUrl}`);
   };
 
   const shareMore = async () => {
@@ -201,8 +238,6 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
       else await copyUrl();
     } catch { /* dismissed */ }
   };
-
-  const displayUrl = data.profileUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   const styleVars = { ['--accent']: accent, ['--accent-2']: accent2 } as CSSProperties;
   const rootClass = [styles.stage, dark ? styles.dark : '', previewing ? styles.previewing : '', editing ? styles.editing : ''].filter(Boolean).join(' ');
@@ -231,16 +266,32 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
       )}
 
       <div className={styles.wrap}>
+        {/* Masthead: the platform's name centred, and one share action.
+            The primary CTA used to live here too, which meant "Work with me"
+            appeared four times on a single page — masthead, hero, sidebar and
+            the collaborate card. The three that sit next to the creator's own
+            work are the ones that earn the click; this one just competed with
+            them. The address itself is gone for the same reason it left the
+            sidebar: nobody retypes a URL off a screen. */}
         <div className={styles.topbar}>
+          <span className={styles.topspacer} aria-hidden="true" />
+
           <Link href="/" className={styles.brand}>
-            <Image src="/influet_logo.png" alt="Influnet Logo" width={32} height={32} style={{ borderRadius: '9px' }} />
+            <Image src="/influet_logo.png" alt="" width={42} height={42} style={{ borderRadius: '11px' }} />
             influnet
           </Link>
-          <div className={styles.url}>
-            <Ic d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8" /><b>{displayUrl}</b>
-            <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>
+
+          <div className={styles.topactions}>
+            <button
+              type="button"
+              className={`${styles.copytop} ${copied ? styles.done : ''}`}
+              onClick={copyUrl}
+              aria-live="polite"
+            >
+              {copied ? <Check w={0.95} /> : <Copy />}
+              <span className={styles.copylabel}>{copied ? 'Link copied' : 'Copy link'}</span>
+            </button>
           </div>
-          <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
         </div>
 
         {/* ── TOP ROW: Hero (left, stretches to sidebar height) + Sidebar (right) ── */}
@@ -341,12 +392,21 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
           <div className={styles.side}>
             <div className={`${styles.card} ${styles.pad}`}>
               <div className={styles['share-title']}><h3>Let&apos;s connect</h3><p>Share my profile instantly</p></div>
-              <div className={styles.urlmini} style={{ fontWeight: 600 }}>
-                {displayUrl}
-                <span className={styles.cp} role="button" tabIndex={0} onClick={copyUrl} onKeyDown={(e) => e.key === 'Enter' && copyUrl()}><Copy /> {copied ? 'Copied' : 'Copy'}</span>
-              </div>
+              {/* Copy joins the share row as a fourth destination rather than
+                  repeating the masthead's button. Both were visible at once on
+                  a desktop screen, which is the same duplication that pushed
+                  the CTA out of the masthead. */}
               <div className={styles.divlabel}>Share via</div>
               <div className={styles.sharevia}>
+                <button
+                  type="button"
+                  className={`${styles.svbtn} ${copied ? styles.svdone : styles.svcopy}`}
+                  aria-label={copied ? 'Link copied to clipboard' : 'Copy profile link'}
+                  title={copied ? 'Link copied' : 'Copy link'}
+                  onClick={copyUrl}
+                >
+                  {copied ? <Check w={0.95} /> : <Copy />}
+                </button>
                 <a className={styles.svbtn} style={{ background: 'var(--wa)' }} aria-label="Share on WhatsApp" href={`https://wa.me/?text=${encodeURIComponent(data.profileUrl)}`} target="_blank" rel="noopener noreferrer">
                   <Ic d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.2-.7-2.7-1.1-4.4-3.8-4.5-4-.1-.2-1.1-1.4-1.1-2.7 0-1.3.7-1.9.9-2.2.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.5.7 1.8.8 1.9.1.1.1.3 0 .5-.3.6-.6.7-.8 1-.2.2-.3.4-.1.7.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1.2-.2.7-.8.9-1.1.2-.3.4-.2.6-.1.2.1 1.5.7 1.7.9.2.1.4.1.4.2.1.2.1.7-.1 1.3Z" fill />
                 </a>
