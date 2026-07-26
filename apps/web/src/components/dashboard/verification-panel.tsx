@@ -47,7 +47,7 @@ export function VerificationPanel() {
   };
 
   const status = data?.status ?? "unverified";
-  const canRun = !running && ["unverified", "needs_more_info", "rejected"].includes(status);
+  const canRun = !running && ["unverified", "needs_more_info", "rejected", "verified"].includes(status);
   const isBusy = status === "pending" || status === "in_review";
 
   return (
@@ -81,7 +81,7 @@ export function VerificationPanel() {
         <div className="flex items-center gap-2">
           <Button variant="brand" size="sm" disabled={!canRun} onClick={runVerification}>
             {running ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
-            {status === "verified" ? "Verified" : isBusy ? "In progress…" : "Run verification"}
+            {status === "verified" ? "Re-verify & Refresh Data" : isBusy ? "In progress…" : "Run verification"}
           </Button>
           {isBusy && <span className="text-xs text-content-muted">Runs in the background — nothing is blocked.</span>}
         </div>

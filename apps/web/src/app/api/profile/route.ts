@@ -178,23 +178,25 @@ export async function PATCH(req: Request) {
       }
     } else if (role === 'influencer' && Object.keys(validatedData).length > 0) {
       const infUpdates: any = { ...validatedData, updated_at: new Date().toISOString() };
-      const { error: infError } = await supabase
+      const { data: infRow, error: infError } = await supabase
         .from('influencer_profiles')
         .update(infUpdates)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select('youtube_handle')
+        .maybeSingle();
       if (infError) {
         if (infError.code === '23505') return jsonError(409, 'That username is already taken');
         return jsonError(500, 'Failed to update influencer profile', infError);
       }
 
-      // Connecting a YouTube channel should populate the profile straight away —
+      // Connecting or updating a YouTube channel should populate the profile straight away —
       // a creator who saves their handle and sees an empty video grid assumes it
       // didn't work. The capture is two public fetches (channel page + Atom
       // feed), so it runs AFTER the response rather than making a settings save
       // wait several seconds for it. Failure is silent by design: lib/youtube.ts
       // never throws, and the creator can still refresh manually.
-      if (infUpdates.youtube_handle) {
-        const handle = infUpdates.youtube_handle;
+      if (infRow?.youtube_handle) {
+        const handle = infRow.youtube_handle;
         after(async () => {
           await refreshYouTubeSnapshot(user.id, handle);
         });

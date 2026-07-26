@@ -4,6 +4,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { buildSignals } from '@/lib/verification-scraper';
 import { enrichWithLiveData } from '@/lib/verification-live';
 import { captureInstagramSnapshot } from '@/lib/social-snapshot';
+import { refreshYouTubeSnapshot } from '@/lib/youtube';
 import { normalizeHandle } from '@/lib/instagram';
 import { decide, VERIFICATION_NOTIFICATION, type Role } from '@/lib/verification';
 
@@ -108,6 +109,9 @@ export async function POST(req: Request) {
     // snapshot failure must never affect the verification outcome.
     if (role === 'influencer' && liveProfile) {
       await captureInstagramSnapshot(user.id, liveProfile);
+    }
+    if (role === 'influencer' && (input as any).youtube_handle) {
+      await refreshYouTubeSnapshot(user.id, (input as any).youtube_handle);
     }
 
     // Ownership gate: has the user PROVEN control of this Instagram handle via the
