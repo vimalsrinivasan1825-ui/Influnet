@@ -4,6 +4,26 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-27: Mobile Staging & Production API Target (`https://dev.influnet.io`)
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Target Configuration (`apps/mobile/app.json` & `apps/mobile/eas.json`)**:
+  - Updated `extra.apiBaseUrl` in `apps/mobile/app.json` from `http://localhost:3000` to `https://dev.influnet.io`, and added fallback `supabaseUrl` and `supabaseAnonKey` entries to ensure standalone mobile builds target the live staging server even when environment secrets are omitted.
+  - Updated `eas.json` profiles (`preview`, `preview-device`, `production`) to explicitly declare `EXPO_PUBLIC_API_BASE_URL: "https://dev.influnet.io"`, `EXPO_PUBLIC_SUPABASE_URL`, and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+
+### What broke
+- **Physical Phone API Failures**: When testing a compiled mobile app or OTA bundle on a physical mobile phone, API calls failed with network errors because `extra.apiBaseUrl` defaulted to `http://localhost:3000`. On a physical phone, `localhost` points to the phone's loopback interface (`127.0.0.1`), where no backend server exists.
+
+### Fix
+- **Staging URL Default**: Configured `https://dev.influnet.io` as the default API target across `app.json` extra properties and `eas.json` build profiles.
+
+### Key Lessons
+- Never leave `extra.apiBaseUrl` set to `http://localhost:3000` in `app.json` because OTA updates or standalone APKs built without explicit `EXPO_PUBLIC_API_BASE_URL` flags will attempt to connect to the phone's own loopback interface rather than your remote staging/production backend.
+
+---
+
 ## Session — 2026-07-27: Mobile Android OkHttp Header Newline & Control Character Sanitization
 
 **Branch**: `dev`

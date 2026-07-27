@@ -17,6 +17,11 @@
       "distribution": "internal",
       "environment": "preview",
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://dev.influnet.io",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jaajosocopoicmqcffuu.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_zbfMv-IHhMwsLBj_wAXbng_b6byZL5x"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -28,6 +33,11 @@
       "extends": "preview",
       "environment": "preview",
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://dev.influnet.io",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jaajosocopoicmqcffuu.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_zbfMv-IHhMwsLBj_wAXbng_b6byZL5x"
+      },
       "ios": {
         "simulator": false
       }
@@ -37,6 +47,11 @@
       "environment": "production",
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://dev.influnet.io",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jaajosocopoicmqcffuu.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_zbfMv-IHhMwsLBj_wAXbng_b6byZL5x"
+      },
       "android": {
         "buildType": "app-bundle"
       }
