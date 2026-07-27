@@ -4,6 +4,26 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-27: Mobile Sign-out Navigation Transition & Logging Guide
+
+**Branch**: `dev`
+
+### Scope
+- **Sign-out Navigation Sequence (`apps/mobile/app/settings.tsx` & `apps/mobile/app/_layout.tsx`)**:
+  - Reordered the logout flow so `router.replace('/welcome')` or `router.replace('/login')` executes before clearing the user session in Zustand and Supabase.
+  - Resolved visual glitching and flashing on sign-out caused by simultaneous stack route unmounting and session state wipe.
+
+### What broke
+- **Sign-out Animation Glitch**: Tapping "Sign out" in mobile Settings caused the login/welcome screen to glitch and flash. This occurred because `signOut()` destroyed the Supabase session token first, causing `index.tsx` (the root stack entry gate) to trigger an automatic `<Redirect href="/welcome" />` while `settings.tsx` was simultaneously executing `router.replace('/welcome')` and unmounting mid-animation.
+
+### Fix
+- **Pre-transition Navigation**: Called `router.replace('/welcome')` prior to invoking `await signOut()`, allowing Expo Router to execute a smooth screen transition before the session and active tab stores are reset.
+
+### Key Lessons
+- When implementing sign-out in mobile stack navigators, always initiate the screen navigation transition *before* destroying the session token or clearing shared state stores. Otherwise, reactive entry gate screens (like `<Redirect />` or `onAuthStateChange`) will fire simultaneously with the user's manual navigation call, causing screen flashing and unmount glitches.
+
+---
+
 ## Session — 2026-07-27: Mobile Staging & Production API Target (`https://dev.influnet.io`)
 
 **Branch**: `dev`

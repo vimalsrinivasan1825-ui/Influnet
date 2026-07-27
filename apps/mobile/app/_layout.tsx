@@ -59,8 +59,8 @@ export default function RootLayout() {
   // the user to sign-in rather than leaving screens showing stale data.
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      void useSession.getState().signOut();
       router.replace('/login');
+      void useSession.getState().signOut();
     });
     return () => setUnauthorizedHandler(null);
   }, [router]);

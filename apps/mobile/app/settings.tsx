@@ -152,8 +152,8 @@ export default function SettingsScreen() {
         variant="secondary"
         icon={<LogOut size={16} color={t.color.content} />}
         onPress={async () => {
-          await signOut();
           router.replace('/welcome');
+          await signOut();
         }}
       />
 
