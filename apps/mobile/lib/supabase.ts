@@ -39,9 +39,11 @@ const secureAdapter = {
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey;
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? extra.apiBaseUrl;
+const sanitize = (val?: string) => (val ?? '').replace(/[\r\n\s]+/g, '');
+
+const supabaseUrl = sanitize(process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl);
+const supabaseAnonKey = sanitize(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey);
+const apiBaseUrl = sanitize(process.env.EXPO_PUBLIC_API_BASE_URL ?? extra.apiBaseUrl);
 
 if (!supabaseUrl || !supabaseAnonKey || !apiBaseUrl) {
   throw new Error('Missing environment variables. Check your EXPO_PUBLIC_* configuration or EAS secrets.');

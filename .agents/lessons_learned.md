@@ -4,6 +4,29 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-27: Mobile Android OkHttp Header Newline & Control Character Sanitization
+
+**Branch**: `dev`
+
+### Scope
+- **Environment & Auth Header Sanitization (`apps/mobile/lib/supabase.ts`, `@influnet/api/src/client.ts`, `apps/mobile/.env.local`)**:
+  - Sanitized `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and `EXPO_PUBLIC_API_BASE_URL` in `apps/mobile/lib/supabase.ts` using `val.replace(/[\r\n\s]+/g, '')` to prevent newlines or trailing whitespace from reaching the Supabase client.
+  - Sanitized access tokens and request headers in `packages/api/src/client.ts` to strip control characters (`\r`, `\n`) before constructing `Authorization` headers.
+  - Formatted `apps/mobile/.env.local` to strip spaces around assignment operators and ensure clean environment variable values.
+
+### What broke
+- **Android Sign-in Crash (`java.lang.IllegalArgumentException: Unexpected char 0x0a at 53 in Authorization value`)**:
+  - Tapping "Sign in" on Android raised `fetch failed: Call to function 'NativeRequest.start' has been rejected. Caused by: java.lang.IllegalArgumentException: Unexpected char 0x0a at 53 in Authorization value`.
+  - Android's native OkHttp HTTP client strictly validates header values against ASCII control characters (`0x00`-`0x1f`). Index 53 (`Bearer ` [7 chars] + `sb_publishable...` [46 chars] = 53) contained an un-trimmed newline `0x0a` (`\n`) present at the end of the `SUPABASE_ANON_KEY` or `access_token` string, causing native Android OkHttp to reject the request before sending it.
+
+### Fix
+- **Control Character Stripping**: Added global `sanitize` helper in `apps/mobile/lib/supabase.ts` and token/header cleaner in `packages/api/src/client.ts` to strip all `\r`, `\n`, and whitespace characters from environment variables and `Authorization` tokens prior to initializing the Supabase client or dispatching fetch calls.
+
+### Key Lessons
+- Unlike web browsers (which silently strip trailing newlines in HTTP headers), React Native Android uses Java's `okhttp3.Headers`, which throws a hard `java.lang.IllegalArgumentException` if any header contains `0x0a` (`\n`) or `0x0d` (`\r`). Always sanitize environment variables and auth tokens with `.replace(/[\r\n\s]+/g, '')` before passing them to native HTTP clients or SDK initializers.
+
+---
+
 ## Session — 2026-07-26: Public Profile Layout & Visual Polish Redesign
 
 **Branch**: `dev`

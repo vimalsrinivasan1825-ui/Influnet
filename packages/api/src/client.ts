@@ -40,11 +40,16 @@ export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiC
     path: string,
     options: RequestInit = {}
   ): Promise<ApiResult<T>> {
-    const token = await getToken();
+    const rawToken = await getToken();
+    const token = rawToken?.replace(/[\r\n\s]+/g, '') ?? null;
 
-    const headers: Record<string, string> = {
-      ...(options.headers as Record<string, string> | undefined),
-    };
+    const headers: Record<string, string> = {};
+    if (options.headers) {
+      for (const [k, v] of Object.entries(options.headers as Record<string, string>)) {
+        if (typeof v === 'string') headers[k] = v.replace(/[\r\n]+/g, '');
+      }
+    }
+
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
 
