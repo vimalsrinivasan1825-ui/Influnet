@@ -4,6 +4,22 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-27: Production Structured Logging & Observability Guide
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Structured Logging Utility (`apps/mobile/lib/logger.ts`)**:
+  - Created a zero-dependency structured logger for React Native matching `apps/web/src/lib/logger.ts`.
+  - Outputs structured JSON log lines containing `level`, `time`, `msg`, `platform`, `userId`, `route`, and serializable Error stack traces.
+- **Production Observability Documentation**:
+  - Outlined integration patterns for Sentry (exception tracing), PostHog (session recordings & product analytics), Axiom/Better Stack (log aggregation), and structured JSON logging.
+
+### Key Lessons
+- Avoid raw unstructured `console.log("something failed")` in production applications. Emitting structured JSON logs (`logger.info("payment_processed", { amount, userId })`) enables automated log platforms (Axiom, CloudWatch, Datadog, Railway) to index and filter logs by `userId`, `status`, or `traceId` instantly.
+
+---
+
 ## Session — 2026-07-27: Mobile Sign-out Navigation Transition & Logging Guide
 
 **Branch**: `dev`
