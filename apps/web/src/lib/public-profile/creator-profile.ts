@@ -132,6 +132,8 @@ export interface CreatorProfileView {
   usingMock: boolean;
   profileUrl: string;
   snapshotAge: string | null;
+  instagramHandle?: string | null;
+  youtubeHandle?: string | null;
 }
 
 /** Loosely-typed shape of the `get_public_influencer` RPC payload. */
@@ -673,5 +675,7 @@ export function buildCreatorProfileView(
     usingMock: useMock,
     profileUrl: `${origin}/c/${username}`,
     snapshotAge: relativeAge(ig?.fetchedAt ?? null),
+    instagramHandle: cleanHandle(profile.instagramHandle ?? null),
+    youtubeHandle: cleanHandle(profile.youtubeHandle ?? (yt as any)?.handle ?? null),
   };
 }

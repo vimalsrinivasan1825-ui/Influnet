@@ -277,7 +277,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
           <span className={styles.topspacer} aria-hidden="true" />
 
           <Link href="/" className={styles.brand}>
-            <Image src="/influet_logo.png" alt="" width={42} height={42} style={{ borderRadius: '11px' }} />
+            <Image src="/influet_logo.png" alt="Influnet Logo" width={40} height={40} style={{ borderRadius: '11px', objectFit: 'contain' }} />
             influnet
           </Link>
 
@@ -288,6 +288,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
               onClick={copyUrl}
               aria-live="polite"
             >
+              <span className={styles.livepulse} />
               {copied ? <Check w={0.95} /> : <Copy />}
               <span className={styles.copylabel}>{copied ? 'Link copied' : 'Copy link'}</span>
             </button>
@@ -630,7 +631,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
           )}
 
           {/* WORK WITH ME */}
-          {(data.collabTypes.length > 0 || data.postPreview) && (
+          {(data.collabTypes.length > 0 || data.postPreview || data.youtubeHandle) && (
             <section className={`${styles.card} ${styles.collab}`}>
               <div className={styles.collableft}>
                 <h3>Work with me</h3>
@@ -649,41 +650,73 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                 )}
                 <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
               </div>
-              {/* Animated Instagram promo card — replaces the static post thumbnail */}
-              <a
-                className={styles.igcard}
-                href={data.postPreview?.href ?? `https://instagram.com/${data.username}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`View @${data.username} on Instagram`}
-              >
-                <div className={styles.igcardbg} />
-                {/* Floating particles */}
-                <span className={`${styles.igp} ${styles.igp1}`} />
-                <span className={`${styles.igp} ${styles.igp2}`} />
-                <span className={`${styles.igp} ${styles.igp3}`} />
-                <span className={`${styles.igp} ${styles.igp4}`} />
-                {/* Rotating rings + IG logo */}
-                <div className={styles.iglogozone}>
-                  <span className={styles.igring1} />
-                  <span className={styles.igring2} />
-                  <div className={styles.iglogobox}>
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#fff" strokeWidth="2">
-                      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-                      <circle cx="12" cy="12" r="4" />
-                      <circle cx="17.6" cy="6.4" r="1.5" fill="#fff" stroke="none" />
-                    </svg>
+
+              {/* Promo cards grid holding both Instagram & YouTube animated cards */}
+              <div className={styles.promogrid}>
+                {/* Animated Instagram promo card */}
+                <a
+                  className={styles.igcard}
+                  href={data.postPreview?.href ?? `https://instagram.com/${data.instagramHandle || data.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`View @${data.instagramHandle || data.username} on Instagram`}
+                >
+                  <div className={styles.igcardbg} />
+                  <span className={`${styles.igp} ${styles.igp1}`} />
+                  <span className={`${styles.igp} ${styles.igp2}`} />
+                  <span className={`${styles.igp} ${styles.igp3}`} />
+                  <span className={`${styles.igp} ${styles.igp4}`} />
+                  <div className={styles.iglogozone}>
+                    <span className={styles.igring1} />
+                    <span className={styles.igring2} />
+                    <div className={styles.iglogobox}>
+                      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#fff" strokeWidth="2">
+                        <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+                        <circle cx="12" cy="12" r="4" />
+                        <circle cx="17.6" cy="6.4" r="1.5" fill="#fff" stroke="none" />
+                      </svg>
+                    </div>
                   </div>
-                </div>
-                {/* Bottom info */}
-                <div className={styles.iginfo}>
-                  <span className={styles.iguname}>@{data.username}</span>
-                  <span className={styles.igcta}>
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><circle cx="12" cy="12" r="4" /></svg>
-                    View on Instagram
-                  </span>
-                </div>
-              </a>
+                  <div className={styles.iginfo}>
+                    <span className={styles.iguname}>@{data.instagramHandle || data.username}</span>
+                    <span className={styles.igcta}>
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><circle cx="12" cy="12" r="4" /></svg>
+                      View on Instagram
+                    </span>
+                  </div>
+                </a>
+
+                {/* Animated YouTube promo card */}
+                {data.youtubeHandle && (
+                  <a
+                    className={styles.ytcard}
+                    href={`https://youtube.com/@${data.youtubeHandle.replace(/^@/, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`View @${data.youtubeHandle} on YouTube`}
+                  >
+                    <div className={styles.ytcardbg} />
+                    <span className={`${styles.ytp} ${styles.ytp1}`} />
+                    <span className={`${styles.ytp} ${styles.ytp2}`} />
+                    <span className={`${styles.ytp} ${styles.ytp3}`} />
+                    <span className={`${styles.ytp} ${styles.ytp4}`} />
+                    <div className={styles.ytlogozone}>
+                      <span className={styles.ytring1} />
+                      <span className={styles.ytring2} />
+                      <div className={styles.ytlogobox}>
+                        <YtPlay s={24} />
+                      </div>
+                    </div>
+                    <div className={styles.ytinfo}>
+                      <span className={styles.ytuname}>@{data.youtubeHandle.replace(/^@/, '')}</span>
+                      <span className={styles.ytcta}>
+                        <YtPlay s={12} />
+                        View on YouTube
+                      </span>
+                    </div>
+                  </a>
+                )}
+              </div>
             </section>
           )}
         </div>

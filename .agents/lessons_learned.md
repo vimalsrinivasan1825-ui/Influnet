@@ -4,6 +4,22 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: Mobile Public Profile Layout Refinements & YouTube Promo Card
+
+**Branch**: `dev`
+
+### Scope
+- **Public Profile Mobile UI (`apps/web/src/components/public-profile/`)**:
+  - Fixed logo image sizing and aspect ratio in topbar (`object-fit: contain`) to prevent stretching.
+  - Added an animated live green pulse indicator (`.livepulse`) to the top-right share/copy link button.
+  - Centered hero stats cards (`.hstat`) on mobile viewports (`@media(max-width:560px)`) to balance card content and eliminate right-hand whitespace.
+  - Added an animated **YouTube Promo Card** (`.ytcard`) alongside the Instagram card in the **Work with me** promo grid (`.promogrid`).
+
+### Key Lessons
+- When rendering mobile stats cards with single-column stacked grids, center card items (`justify-content: center; text-align: center`) so metric values sit balanced within wide card boundaries.
+
+---
+
 ## Session — 2026-07-28: Mobile Verification Access & Profile Refresh Cache Invalidation
 
 **Branch**: `dev`
