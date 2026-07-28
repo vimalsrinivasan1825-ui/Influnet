@@ -3,15 +3,21 @@
  *
  * Deliberately a lookup, not a browse feed — mirrors the web topbar: nothing is
  * shown until the query looks like a username, and the match is username-only
- * (see apps/web/src/app/api/discover/route.ts). Selecting a result opens the
- * creator's public profile in-app — never a web link out of the app.
+ * (see apps/web/src/app/api/discover/route.ts).
+ *
+ * Selecting a result opens the creator's REAL public profile page
+ * (apps/web/src/app/c/[username]/page.tsx) in an in-app browser sheet — the
+ * same page a brand sees on web, not a native re-interpretation of it. A
+ * hand-built native copy drifts from the web page the moment either one
+ * changes; this can't.
  */
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { Search as SearchIcon } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
+import { API_BASE_URL } from '@/lib/supabase';
 import { Avatar, EmptyState, Field, ListGroup, ListRow, ScreenScroll, VerifiedBadge } from '@/components/ui';
 
 interface CreatorResult {
@@ -24,7 +30,6 @@ interface CreatorResult {
 
 export default function SearchScreen() {
   const t = useTheme();
-  const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CreatorResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,7 +86,7 @@ export default function SearchScreen() {
               right={r.verified_badge ? <VerifiedBadge size={16} /> : undefined}
               index={i}
               style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
-              onPress={() => router.push({ pathname: '/creator/[username]', params: { username: r.username } })}
+              onPress={() => WebBrowser.openBrowserAsync(`${API_BASE_URL}/c/${r.username}`)}
             />
           ))}
         </ListGroup>
