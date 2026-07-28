@@ -4,6 +4,26 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: YouTube Owner Subscriber Count Extraction Fix
+
+**Branch**: `dev`
+
+### Scope
+- **YouTube Channel Scraper (`apps/web/src/lib/youtube.ts`)**:
+  - Updated `resolveChannel` to parse YouTube's `ytInitialData` header JSON (`pageHeaderRenderer` -> `pageHeaderViewModel` -> `metadataRows`) before falling back to generic HTML regex matches.
+  - Resolved incorrect subscriber count parsing for channels with featured/recommended channels on their layout (e.g. A2D channel parsing 568K instead of 2.51M).
+
+### What broke
+- **Incorrect YouTube Subscriber Count (2.51M parsed as 568K)**: When scraping YouTube channel pages like `@a2dchannel`, fallback regex matched subscriber counts from featured/recommended channels (like 568K) that appeared early in the HTML string before reaching the channel owner's subscriber count (2.51M).
+
+### Fix
+- **Header JSON Parsing**: Extracted `ytInitialData` from the raw HTML payload and traversed `headerObj.pageHeaderRenderer.content.pageHeaderViewModel.metadata.contentMetadataViewModel.metadataRows` to extract the owner's exact subscriber count string directly from YouTube's canonical header structure.
+
+### Key Lessons
+- YouTube channel page HTML embeds subscriber counts for featured/sidebar channels in the body. Always parse the canonical channel header JSON structure (`pageHeaderViewModel` / `c4TabbedHeaderRenderer`) inside `ytInitialData` to guarantee subscriber count extraction belongs to the channel owner.
+
+---
+
 ## Session — 2026-07-27: Production Structured Logging & Observability Guide
 
 **Branch**: `dev`

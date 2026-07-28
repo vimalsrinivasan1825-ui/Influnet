@@ -128,17 +128,51 @@ export async function resolveChannel(
     html.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})/);
   if (!idMatch) return null;
 
-  const subsMatch =
-    html.match(/"metadataParts"\s*:\s*\[\s*\{\s*"text"\s*:\s*\{\s*"content"\s*:\s*"([^"]*subscribers[^"]*)"/i) ??
-    html.match(/"subtitle"\s*:\s*\{\s*"content"\s*:\s*"([^"]*subscribers[^"]*)"/i) ??
-    html.match(/"accessibilityLabel"\s*:\s*"([^"]*subscribers)"/i) ??
-    html.match(/"subscriberCountText"\s*:\s*\{\s*"simpleText"\s*:\s*"([^"]+)"/i) ??
-    html.match(/"subscriberCountText"\s*:\s*\{\s*"accessibility"\s*:\s*\{\s*"accessibilityData"\s*:\s*\{\s*"label"\s*:\s*"([^"]+)"/i) ??
-    html.match(/([\d.,]+\s*[KMB]?(?:\s*million|\s*billion|\s*thousand)?\s*subscribers?)/i);
+  let subscriberCount: number | null = null;
+  const ytDataMatch = html.match(/var ytInitialData = ({[\s\S]*?});<\/script>/);
+  if (ytDataMatch) {
+    try {
+      const data = JSON.parse(ytDataMatch[1]);
+      const headerObj = data.header;
+
+      // Modern YouTube header (pageHeaderViewModel)
+      const metadataRows =
+        headerObj?.pageHeaderRenderer?.content?.pageHeaderViewModel?.metadata?.contentMetadataViewModel?.metadataRows ?? [];
+      for (const row of metadataRows) {
+        for (const part of (row.metadataParts ?? [])) {
+          const text = part.text?.content || part.accessibilityLabel;
+          if (text && /subscribers?/i.test(text)) {
+            subscriberCount = parseSubscriberCount(text);
+            break;
+          }
+        }
+        if (subscriberCount !== null) break;
+      }
+
+      // Legacy YouTube header (c4TabbedHeaderRenderer)
+      if (subscriberCount === null && headerObj?.c4TabbedHeaderRenderer?.subscriberCountText) {
+        const text =
+          headerObj.c4TabbedHeaderRenderer.subscriberCountText.simpleText ||
+          headerObj.c4TabbedHeaderRenderer.subscriberCountText.accessibility?.accessibilityData?.label;
+        subscriberCount = parseSubscriberCount(text);
+      }
+    } catch {
+      // JSON parse error — fall through to regex fallback
+    }
+  }
+
+  // Fallback regex if ytInitialData header did not yield a result
+  if (subscriberCount === null) {
+    const subsMatch =
+      html.match(/"text"\s*:\s*\{\s*"content"\s*:\s*"([^"]*subscribers[^"]*)"/i) ??
+      html.match(/"accessibilityLabel"\s*:\s*"([^"]*subscribers[^"]*)"/i) ??
+      html.match(/([\d.,]+\s*[KMB]?(?:\s*million|\s*billion|\s*thousand)?\s*subscribers?)/i);
+    subscriberCount = parseSubscriberCount(subsMatch?.[1]);
+  }
 
   return {
     channelId: idMatch[1],
-    subscriberCount: parseSubscriberCount(subsMatch?.[1]),
+    subscriberCount,
   };
 }
 
