@@ -59,11 +59,11 @@
   .topactions{justify-self:end;display:flex;align-items:center;gap:.5rem;}
   .brand{
     justify-self:center;
-    display:flex;align-items:center;gap:.6rem;
-    font-weight:800;letter-spacing:-.015em;text-decoration:none;color:var(--ink);
-    font-size:1.55rem;
+    display:flex;align-items:center;gap:.75rem;
+    font-weight:800;letter-spacing:-.025em;text-decoration:none;color:var(--ink);
+    font-size:1.85rem;
   }
-  .brand img{width:46px;height:46px;}
+  .brand img{width:48px;height:48px;object-fit:contain;border-radius:12px;}
   .brand:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:var(--r-xs);}
 
   /* Copy link — the one action in the masthead, so it carries the accent fill
@@ -108,11 +108,11 @@
 
   @media(max-width:560px){
     .topbar{gap:.5rem;}
-    .brand{font-size:1.2rem;}
-    .brand img{width:36px;height:36px;object-fit:contain;}
+    .brand{font-size:1.55rem;gap:.55rem;}
+    .brand img{width:42px;height:42px;object-fit:contain;}
     /* Icon-only, but kept to a comfortable thumb target rather than shrinking
        to the glyph — 32px cleared the WCAG minimum and still felt fiddly. */
-    .copytop{padding:0;gap:0;min-width:42px;min-height:42px;justify-content:center;}
+    .copytop{padding:0;gap:0;min-width:44px;min-height:44px;justify-content:center;}
     /* Icon-only on a phone — the label is the first thing worth losing when
        it would otherwise push the wordmark off centre. */
     .copylabel{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}

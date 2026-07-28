@@ -277,7 +277,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
           <span className={styles.topspacer} aria-hidden="true" />
 
           <Link href="/" className={styles.brand}>
-            <Image src="/influet_logo.png" alt="Influnet Logo" width={40} height={40} style={{ borderRadius: '11px', objectFit: 'contain' }} />
+            <Image src="/influet_logo.png" alt="Influnet Logo" width={48} height={48} style={{ borderRadius: '12px', objectFit: 'contain' }} />
             influnet
           </Link>
 

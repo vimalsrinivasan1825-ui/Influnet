@@ -4,6 +4,20 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: Topbar Brand Logo & Wordmark Sizing Enlargement
+
+**Branch**: `dev`
+
+### Scope
+- **Brand Logo & Wordmark (`apps/web/src/components/public-profile/` & `apps/mobile/components/app-header.tsx`)**:
+  - Enlarged the topbar Influnet logo image (from `40px` to `48px` on desktop, `36px` to `42px` on mobile web, `30px` to `38px` in mobile app `AppHeader`).
+  - Enlarged the brand title text font size (`1.85rem` desktop, `1.55rem` mobile web with `font-weight: 800`).
+
+### Key Lessons
+- Prominent topbar branding establishes immediate visual recognition across both web and native app views without crowding header controls.
+
+---
+
 ## Session — 2026-07-28: Mobile Herostats Horizontal 3-Card Grid
 
 **Branch**: `dev`

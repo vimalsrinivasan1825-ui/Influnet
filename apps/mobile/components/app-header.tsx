@@ -44,7 +44,7 @@ export function AppHeader({
         // straight through the screen's gradient wash.
       }}
     >
-      {showLogo ? <Logo size={30} /> : null}
+      {showLogo ? <Logo size={38} /> : null}
 
       <View style={{ flex: 1, gap: 2 }}>
         {subtitle ? (
