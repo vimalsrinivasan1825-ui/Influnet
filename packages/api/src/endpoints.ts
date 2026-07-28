@@ -33,6 +33,9 @@ export function createEndpoints(api: ApiClient) {
 
     // ── Discovery ──────────────────────────────────────────────────
     discover: <T = unknown>(query: string) => api.get<T>(`/api/discover${query ? `?${query}` : ''}`),
+    /** Full public-profile view model for one creator, by username — same shape the web overlay renders. */
+    getCreatorProfile: <T = unknown>(username: string) =>
+      api.get<T>(`/api/creators/${encodeURIComponent(username)}`),
 
     // ── Collaboration requests ─────────────────────────────────────
     listCollabs: <T = unknown>() => api.get<T>('/api/collabs'),

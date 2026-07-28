@@ -24,6 +24,12 @@ export interface ContentPost {
   views?: number | null;
   likes?: number | null;
   type?: string;
+  /**
+   * Already-formatted metric ("1.2K"), for callers whose source hands out
+   * display strings rather than raw counts — the public-profile view model
+   * (apps/web/src/lib/public-profile/creator-profile.ts) formats server-side.
+   */
+  metricLabel?: string | null;
 }
 
 export interface ContentVideo {
@@ -32,6 +38,8 @@ export interface ContentVideo {
   thumbUrl: string | null;
   views?: number | null;
   publishedAt?: string | null;
+  /** Already-formatted view count ("210K"); see ContentPost.metricLabel. */
+  viewsLabel?: string | null;
 }
 
 const open = (url: string) => {
@@ -50,7 +58,8 @@ export function PostGrid({ posts }: { posts: ContentPost[] }) {
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.xs }}>
       {withThumbs.map((post) => {
         const metric = post.views ?? post.likes;
-        const isViews = post.views != null;
+        const metricText = post.metricLabel ?? (metric != null ? formatCount(metric) : null);
+        const isViews = post.views != null || post.type === 'Video';
         return (
           <Pressable
             key={post.url}
@@ -73,7 +82,7 @@ export function PostGrid({ posts }: { posts: ContentPost[] }) {
               contentFit="cover"
               transition={150}
             />
-            {metric != null ? (
+            {metricText ? (
               <View
                 style={{
                   position: 'absolute',
@@ -94,7 +103,7 @@ export function PostGrid({ posts }: { posts: ContentPost[] }) {
                   <Heart size={10} color={t.color.white} fill={t.color.white} />
                 )}
                 <Txt variant="caption" style={{ color: t.color.white, fontWeight: '600' }}>
-                  {formatCount(metric)}
+                  {metricText}
                 </Txt>
               </View>
             ) : null}
@@ -166,7 +175,11 @@ export function VideoList({ videos }: { videos: ContentVideo[] }) {
             </Txt>
             <Txt variant="caption" tone="muted">
               {[
-                video.views != null ? `${formatCount(video.views)} views` : null,
+                video.viewsLabel
+                  ? `${video.viewsLabel} views`
+                  : video.views != null
+                    ? `${formatCount(video.views)} views`
+                    : null,
                 video.publishedAt
                   ? new Date(video.publishedAt).toLocaleDateString('en-IN', {
                       day: 'numeric',

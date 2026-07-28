@@ -5,11 +5,9 @@
  * shown until the query looks like a username, and the match is username-only
  * (see apps/web/src/app/api/discover/route.ts).
  *
- * Selecting a result pushes to creator/[username], which embeds the creator's
- * REAL public profile page (apps/web/src/app/c/[username]/page.tsx) via
- * react-native-webview — the same page a brand sees on web, rendered inside
- * our own screen. Never a hand-built native copy, never a hand-off to the
- * system browser.
+ * Selecting a result pushes to creator/[username], which renders the profile
+ * natively from the same view model the web page is built from — inside our own
+ * screen, never a hand-off to the system browser.
  */
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
