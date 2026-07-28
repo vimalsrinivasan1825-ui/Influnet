@@ -93,4 +93,27 @@ describe('computeInstagramMetrics', () => {
     expect(m.avgViews).toBe(500_000);
     expect(m.engagementRate).toBe(5);
   });
+
+  it('discards a view count that is lower than the like count', () => {
+    // What Apify actually returned for @a2d_army: a placeholder `1` on a reel
+    // with 29,234 likes. Averaged in, it published "1 avg view per post" on a
+    // 636K-follower profile. A post cannot be seen fewer times than it is liked.
+    const m = computeInstagramMetrics(
+      user({
+        followerCount: 635_547,
+        recentPosts: [
+          post({ type: 'Video', views: 1, likes: 29_234, comments: 61 }),
+          post({ type: 'Video', views: null, likes: 13_378, comments: 137 }),
+        ],
+      }),
+    );
+    expect(m.avgViews).toBeNull();
+  });
+
+  it('keeps a genuine view count that sits just above likes', () => {
+    const m = computeInstagramMetrics(
+      user({ followerCount: 1000, recentPosts: [post({ type: 'Video', views: 101, likes: 100 })] }),
+    );
+    expect(m.avgViews).toBe(101);
+  });
 });

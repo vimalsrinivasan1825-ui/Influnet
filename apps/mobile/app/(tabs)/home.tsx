@@ -89,9 +89,9 @@ interface HomePayload {
   profile: { name: string; location: string | null; verified: boolean; verification_status: string };
   public_path: string | null;
   social: {
-    followers: number;
-    engagement_rate: number;
-    avg_views: number;
+    followers: number | null;
+    engagement_rate: number | null;
+    avg_views: number | null;
     posts_count: number | null;
     fetched_at?: string | null;
     posts?: SocialPost[];
@@ -449,7 +449,12 @@ export default function HomeScreen() {
                           ? `${home.social.engagement_rate.toFixed(1)}%`
                           : '—',
                       },
-                      { label: 'Avg views', value: formatCount(home.social.avg_views) },
+                      // Instagram's scraper rarely returns a usable view count;
+                      // YouTube's feed always does.
+                      {
+                        label: 'Avg views',
+                        value: formatCount(home.social.avg_views ?? home.youtube?.avg_views ?? null),
+                      },
                     ].map((stat) => (
                       <View key={stat.label} style={{ gap: 2 }}>
                         <Txt variant="caption" tone="muted">

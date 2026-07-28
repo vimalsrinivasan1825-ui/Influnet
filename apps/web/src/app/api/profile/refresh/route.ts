@@ -32,7 +32,20 @@ export async function POST(req: Request) {
     }
 
     const igHandle: string | null = profile.instagram_handle || null;
-    const ytHandle: string | null = profile.youtube_handle || null;
+    // A channel we have captured before stays refreshable even if the profile
+    // column is empty: creators reach this route from "Refresh", expecting the
+    // numbers on their page to update, and silently skipping the YouTube leg is
+    // how a stale subscriber count survives every refresh the creator tries.
+    let ytHandle: string | null = profile.youtube_handle || null;
+    if (!ytHandle) {
+      const { data: captured } = await supabase
+        .from('social_snapshots')
+        .select('handle')
+        .eq('user_id', user.id)
+        .eq('platform', 'youtube')
+        .maybeSingle();
+      ytHandle = (captured as { handle: string | null } | null)?.handle || null;
+    }
 
     if (!igHandle && !ytHandle) {
       return NextResponse.json({ error: 'No Instagram or YouTube handle connected' }, { status: 400 });

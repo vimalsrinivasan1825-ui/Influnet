@@ -64,18 +64,38 @@ function isChannelId(handle: string): boolean {
   return /^UC[A-Za-z0-9_-]{22}$/.test(handle);
 }
 
-async function fetchText(url: string): Promise<string | null> {
+/**
+ * Consent cookies. From a datacenter IP — which is every deployment of this app
+ * — YouTube answers the channel page with a consent interstitial instead of the
+ * channel, and the interstitial carries no header, no channel id and no
+ * subscriber count. A browser gets past it by holding these cookies; a fetch has
+ * to send them itself. This is why a scrape that works on a laptop returns
+ * nothing in production.
+ */
+const CONSENT_COOKIE = 'CONSENT=YES+cb; SOCS=CAI';
+
+async function fetchText(url: string, label: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
       cache: 'no-store',
-      headers: { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9' },
+      headers: {
+        'User-Agent': UA,
+        'Accept-Language': 'en-US,en;q=0.9',
+        Cookie: CONSENT_COOKIE,
+      },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Logged, not swallowed: silence here is what made a stale subscriber
+      // count look like a parsing bug for two days.
+      logger.warn('[youtube] fetch returned a non-OK status', { label, status: res.status });
+      return null;
+    }
     return await res.text();
-  } catch {
+  } catch (err) {
+    logger.warn('[youtube] fetch failed', { label, err: String(err) });
     return null;
   } finally {
     clearTimeout(timer);
@@ -101,6 +121,100 @@ export function parseSubscriberCount(text: string | null | undefined): number | 
 }
 
 /**
+ * Pull a top-level JSON object out of an inline script, e.g. `var ytInitialData
+ * = {…};`.
+ *
+ * A `{[\s\S]*?};</script>` regex looks equivalent but isn't: the blob is over a
+ * megabyte of nested JSON and any `};</script>` sequence inside one of its
+ * STRINGS ends the match early, so JSON.parse throws and the caller silently
+ * falls back to guessing. Scanning braces (while tracking string/escape state)
+ * always ends on the object's real closing brace.
+ */
+export function extractInlineJson(html: string, marker: string): any | null {
+  const at = html.indexOf(marker);
+  if (at === -1) return null;
+  const start = html.indexOf('{', at + marker.length);
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < html.length; i++) {
+    const ch = html[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}' && --depth === 0) {
+      try {
+        return JSON.parse(html.slice(start, i + 1));
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The owner's subscriber count, and only the owner's.
+ *
+ * A channel page embeds the subscriber count of every OTHER channel it links to
+ * — featured channels, the shelves of collaborators — so "the first number next
+ * to the word subscribers" is a coin flip. On @a2dchannel it picked a featured
+ * channel's 568K and published it in place of the owner's 2.51M.
+ *
+ * Every source below is owner-scoped by construction: the page header renderers
+ * describe the channel whose page this is, and the last-resort regex only
+ * accepts a string that names the channel's own handle. When none of them
+ * match we return null — a missing number degrades to "keep the last known
+ * value", whereas a confident wrong one gets published to brands.
+ *
+ * Exported for tests: this is the format most likely to drift.
+ */
+export function extractOwnerSubscriberCount(html: string, handle: string): number | null {
+  const data = extractInlineJson(html, 'var ytInitialData = ');
+  const header = data?.header;
+
+  // Modern header (pageHeaderViewModel). accessibilityLabel first: it spells the
+  // unit out ("2.51 million subscribers") where content abbreviates it.
+  const metadataRows =
+    header?.pageHeaderRenderer?.content?.pageHeaderViewModel?.metadata?.contentMetadataViewModel
+      ?.metadataRows ?? [];
+  for (const row of metadataRows) {
+    for (const part of row?.metadataParts ?? []) {
+      const text = part?.accessibilityLabel || part?.text?.content;
+      if (text && /subscribers?/i.test(text)) {
+        const n = parseSubscriberCount(text);
+        if (n !== null) return n;
+      }
+    }
+  }
+
+  // Legacy header (c4TabbedHeaderRenderer), still served to some clients.
+  const legacy = header?.c4TabbedHeaderRenderer?.subscriberCountText;
+  if (legacy) {
+    const n = parseSubscriberCount(
+      legacy.simpleText || legacy.accessibility?.accessibilityData?.label,
+    );
+    if (n !== null) return n;
+  }
+
+  // Last resort: the header subtitle, which reads "@handle • 2.51M subscribers".
+  // Requiring the handle in the same string is what keeps a featured channel's
+  // count out — without it this line is the bug it is here to prevent.
+  const escaped = handle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const subtitle = html.match(
+    new RegExp(`@${escaped}[^"]{0,40}?subscribers?`, 'i'),
+  );
+  return parseSubscriberCount(subtitle?.[0]);
+}
+
+/**
  * Handle → channel id. Returns the id plus whatever the page told us about
  * subscribers, since we already paid for the fetch.
  */
@@ -112,13 +226,22 @@ export async function resolveChannel(
     return { channelId: handle, subscriberCount: null };
   }
 
-  const html = await fetchText(`https://www.youtube.com/@${encodeURIComponent(handle)}`);
+  // hl/gl pin the response to English: the parsers below match the word
+  // "subscribers", and a server geolocated elsewhere gets served its own locale.
+  const html = await fetchText(
+    `https://www.youtube.com/@${encodeURIComponent(handle)}?hl=en&gl=US`,
+    'channel-page',
+  );
   if (!html) return null;
 
-  // YouTube channel pages carry featured/linked channel IDs in the HTML,
-  // which can appear before the owner's ID. Parse explicit metadata tags
-  // (canonical link, og:url, itemprop) to guarantee we match the owner.
+  // YouTube channel pages carry featured/linked channel IDs in the HTML, which
+  // can appear before the owner's ID. channelMetadataRenderer.externalId is the
+  // page's own declaration of whose channel this is; the meta tags after it say
+  // the same thing in markup, and only then do we fall back to guessing.
+  const externalId: string | undefined =
+    extractInlineJson(html, 'var ytInitialData = ')?.metadata?.channelMetadataRenderer?.externalId;
   const idMatch =
+    (isChannelId(externalId ?? '') ? [null, externalId] : null) ??
     html.match(/<meta\s+itemprop="channelId"\s+content="(UC[A-Za-z0-9_-]{22})"/i) ??
     html.match(/itemprop="channelId"\s+content="(UC[A-Za-z0-9_-]{22})"/i) ??
     html.match(/<link\s+rel="canonical"\s+href="https:\/\/www\.youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})"/i) ??
@@ -126,54 +249,14 @@ export async function resolveChannel(
     html.match(/<meta\s+name="twitter:app:url:googleplay"\s+content="https:\/\/www\.youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})"/i) ??
     html.match(/"channelId"\s*:\s*"(UC[A-Za-z0-9_-]{22})"/) ??
     html.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})/);
-  if (!idMatch) return null;
+  if (!idMatch?.[1]) return null;
 
-  let subscriberCount: number | null = null;
-  const ytDataMatch = html.match(/var ytInitialData = ({[\s\S]*?});<\/script>/);
-  if (ytDataMatch) {
-    try {
-      const data = JSON.parse(ytDataMatch[1]);
-      const headerObj = data.header;
-
-      // Modern YouTube header (pageHeaderViewModel)
-      const metadataRows =
-        headerObj?.pageHeaderRenderer?.content?.pageHeaderViewModel?.metadata?.contentMetadataViewModel?.metadataRows ?? [];
-      for (const row of metadataRows) {
-        for (const part of (row.metadataParts ?? [])) {
-          const text = part.text?.content || part.accessibilityLabel;
-          if (text && /subscribers?/i.test(text)) {
-            subscriberCount = parseSubscriberCount(text);
-            break;
-          }
-        }
-        if (subscriberCount !== null) break;
-      }
-
-      // Legacy YouTube header (c4TabbedHeaderRenderer)
-      if (subscriberCount === null && headerObj?.c4TabbedHeaderRenderer?.subscriberCountText) {
-        const text =
-          headerObj.c4TabbedHeaderRenderer.subscriberCountText.simpleText ||
-          headerObj.c4TabbedHeaderRenderer.subscriberCountText.accessibility?.accessibilityData?.label;
-        subscriberCount = parseSubscriberCount(text);
-      }
-    } catch {
-      // JSON parse error — fall through to regex fallback
-    }
-  }
-
-  // Fallback regex if ytInitialData header did not yield a result
+  const subscriberCount = extractOwnerSubscriberCount(html, handle);
   if (subscriberCount === null) {
-    const subsMatch =
-      html.match(/"text"\s*:\s*\{\s*"content"\s*:\s*"([^"]*subscribers[^"]*)"/i) ??
-      html.match(/"accessibilityLabel"\s*:\s*"([^"]*subscribers[^"]*)"/i) ??
-      html.match(/([\d.,]+\s*[KMB]?(?:\s*million|\s*billion|\s*thousand)?\s*subscribers?)/i);
-    subscriberCount = parseSubscriberCount(subsMatch?.[1]);
+    logger.warn('[youtube] channel page yielded no owner subscriber count', { handle });
   }
 
-  return {
-    channelId: idMatch[1],
-    subscriberCount,
-  };
+  return { channelId: idMatch[1], subscriberCount };
 }
 
 const attr = (xml: string, name: string): string | null => {
@@ -245,6 +328,7 @@ export async function getYouTubeChannel(rawHandle: string | null | undefined): P
 
     const xml = await fetchText(
       `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(resolved.channelId)}`,
+      'video-feed',
     );
     if (!xml) return null;
 
@@ -287,12 +371,27 @@ export async function captureYouTubeSnapshot(userId: string, channel: YouTubeCha
     ? Math.round(viewCounts.reduce((a, b) => a + b, 0) / viewCounts.length)
     : null;
 
+  // A page whose header we couldn't read tells us nothing about the channel's
+  // size — it must not erase what we already knew. Blanking the count would
+  // drop the creator's public profile from "2.5M subscribers" to nothing on a
+  // single bad fetch, which is a worse failure than showing yesterday's number.
+  let followerCount = channel.subscriberCount;
+  if (followerCount === null) {
+    const { data: prior } = await supabase
+      .from('social_snapshots')
+      .select('follower_count')
+      .eq('user_id', userId)
+      .eq('platform', 'youtube')
+      .maybeSingle();
+    followerCount = (prior as { follower_count: number | null } | null)?.follower_count ?? null;
+  }
+
   const { error } = await supabase.from('social_snapshots').upsert(
     {
       user_id: userId,
       platform: 'youtube',
       handle: channel.handle.toLowerCase(),
-      follower_count: channel.subscriberCount,
+      follower_count: followerCount,
       posts_count: null,
       avg_views: avgViews,
       engagement_rate: null,

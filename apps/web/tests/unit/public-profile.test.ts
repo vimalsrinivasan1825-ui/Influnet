@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildCreatorProfileView,
+  computeReachStat,
   extractContact,
   formatCount,
   resolveMockMode,
@@ -127,9 +128,12 @@ describe('buildCreatorProfileView — real mode', () => {
     expect(view.stats.map((s) => s.label)).not.toContain('Engagement');
   });
 
-  it('total reach sums real platform counts', () => {
-    const reach = view.stats.find((s) => s.label === '30-Day Reach');
-    expect(reach?.value).toBe('340K'); // 248000 + 92400 = 340400 -> 340K
+  it('calls audience size by its name when no platform reports views', () => {
+    // Follower counts are not reach. With no captured posts there is nothing to
+    // measure, so the stat shows the audience and says that is what it is.
+    expect(view.stats.find((s) => s.label === '30-Day Reach')).toBeUndefined();
+    const audience = view.stats.find((s) => s.label === 'Total Audience');
+    expect(audience?.value).toBe('340K'); // 248000 + 92400 = 340400 -> 340K
   });
 
   it('omits a platform entirely when there is no handle or followers', () => {
@@ -179,11 +183,14 @@ describe('buildCreatorProfileView — live Instagram snapshot', () => {
     expect(view.featured[1].views).toBe('8.4M');
   });
 
-  it('shows the real engagement chip and snapshot-driven reach', () => {
+  it('shows the real engagement chip, and never counts likes as reach', () => {
     const view = buildCreatorProfileView(baseProfile, { useMock: false, instagram: snapshot });
     expect(view.stats.find((s) => s.label === 'Engagement')?.value).toBe('3.3%');
-    // reach = sum of views/likes in recent posts when no dates are available = 14.9M
-    expect(view.stats.find((s) => s.label === '30-Day Reach')?.value).toBe('14.9M');
+    // These posts carry no dates, so none of them fall inside the 30-day window
+    // and there is no reach to report. The old code summed likes here and
+    // published the total as "30-Day Reach".
+    expect(view.stats.find((s) => s.label === '30-Day Reach')).toBeUndefined();
+    expect(view.stats.find((s) => s.label === 'Total Audience')?.value).toBe('87.8M');
   });
 
   it('falls back to the cached profile pic when no avatar is set', () => {
@@ -278,5 +285,44 @@ describe('buildCreatorProfileView — contact and rate', () => {
   it('has no rate at all when the creator never set one', () => {
     const view = buildCreatorProfileView(baseProfile, { useMock: false });
     expect(view.priceLabel).toBeNull();
+  });
+});
+
+describe('computeReachStat', () => {
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+
+  it('sums real views from both platforms inside the window', () => {
+    const stat = computeReachStat(
+      [{ views: 200_000, takenAt: daysAgo(3) }],
+      [
+        { views: 300_000, publishedAt: daysAgo(6) },
+        { views: 500_000, publishedAt: daysAgo(10) },
+      ],
+      3_000_000,
+    );
+    // 1M views over a 10-day window, scaled to 30 days.
+    expect(stat.label).toBe('30-Day Reach');
+    expect(stat.value).toBe('3M');
+  });
+
+  it('barely moves a figure that already covers the whole window', () => {
+    const stat = computeReachStat([], [{ views: 900_000, publishedAt: daysAgo(30) }], 100);
+    expect(stat.value).toBe('900K');
+  });
+
+  it('ignores likes, and content older than the window', () => {
+    const stat = computeReachStat(
+      // A post with no view count contributes nothing, however many likes it has.
+      [{ views: null, takenAt: daysAgo(1) }],
+      [{ views: 9_000_000, publishedAt: daysAgo(45) }],
+      420_000,
+    );
+    expect(stat).toEqual({ label: 'Total Audience', value: '420K' });
+  });
+
+  it('reports the raw total when the sample is too thin to project', () => {
+    const stat = computeReachStat([{ views: 50_000, takenAt: daysAgo(1) }], [], 10_000);
+    // One day of content scaled by 30 would claim 1.5M — the sum is the honest figure.
+    expect(stat).toEqual({ label: '30-Day Reach', value: '50K' });
   });
 });

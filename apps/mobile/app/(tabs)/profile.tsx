@@ -78,6 +78,7 @@ interface ProfilePayload {
   } | null;
   youtube: {
     subscribers: number | null;
+    avg_views: number | null;
     videos: { url: string; title: string; thumbUrl: string | null; views: number | null; publishedAt: string | null }[];
   } | null;
   past_collaborations?: string[];
@@ -128,7 +129,9 @@ export default function ProfileScreen() {
           label: 'Engagement',
           value: data?.social?.engagement_rate != null ? `${data.social.engagement_rate}%` : '—',
         },
-        { label: 'Avg views', value: formatCount(data?.social?.avg_views ?? null) },
+        // Instagram's scraper rarely returns a usable view count; YouTube's feed
+        // always does, so the tile shows real views instead of disappearing.
+        { label: 'Avg views', value: formatCount(data?.social?.avg_views ?? data?.youtube?.avg_views ?? null) },
         { label: 'Subscribers', value: formatCount(data?.youtube?.subscribers ?? pp.youtube_subscribers ?? null) },
       ]
         // formatCount renders an em dash for "not known" — a tile reading "—"

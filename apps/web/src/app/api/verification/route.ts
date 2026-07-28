@@ -110,8 +110,21 @@ export async function POST(req: Request) {
     if (role === 'influencer' && liveProfile) {
       await captureInstagramSnapshot(user.id, liveProfile);
     }
-    if (role === 'influencer' && (input as any).youtube_handle) {
-      await refreshYouTubeSnapshot(user.id, (input as any).youtube_handle);
+    // Same fallback as /api/profile/refresh: creators re-run verification to get
+    // their public numbers updated, so a channel we have captured before must
+    // refresh even when the profile column has since been cleared.
+    if (role === 'influencer') {
+      let ytHandle: string | null = (input as any).youtube_handle || null;
+      if (!ytHandle) {
+        const { data: captured } = await supabase
+          .from('social_snapshots')
+          .select('handle')
+          .eq('user_id', user.id)
+          .eq('platform', 'youtube')
+          .maybeSingle();
+        ytHandle = (captured as { handle: string | null } | null)?.handle || null;
+      }
+      if (ytHandle) await refreshYouTubeSnapshot(user.id, ytHandle);
     }
 
     // Ownership gate: has the user PROVEN control of this Instagram handle via the

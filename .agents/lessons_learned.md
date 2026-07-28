@@ -4,6 +4,21 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: YouTube Scraper & Social Snapshot Unit Test Suite Expansion
+
+**Branch**: `dev`
+
+### Scope
+- **Scraper & Snapshot Testing (`apps/web/tests/unit/`)**:
+  - Added unit test suite `youtube.test.ts` covering YouTube handle resolution (`pageHeaderViewModel` JSON & fallback regexes), subscriber parsing (`parseSubscriberCount`), and error handling.
+  - Updated `public-profile.test.ts` and `social-snapshot.test.ts` to assert owner subscriber count priority over featured sidebar channels.
+  - Verified 166 passing unit tests across 14 test suites in Vitest.
+
+### Key Lessons
+- Unit tests mocking raw YouTube HTML with featured channels ensure scraper regex changes do not regression-parse sidebar subscriber counts.
+
+---
+
 ## Session — 2026-07-28: Public Profile Work With Me Section Overhaul (Media-Kit Package Cards)
 
 **Branch**: `dev`
