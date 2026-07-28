@@ -94,7 +94,7 @@ export async function GET(req: Request) {
           tiktok_handle: inf.tiktok_handle,
           avatar_url: inf.avatar_url,
           cover_image_url: inf.cover_image_url,
-          is_verified: inf.is_verified,
+          is_verified: p.verified_badge ?? inf.is_verified,
           availability_status: inf.availability_status,
           engagement_rate: inf.engagement_rate,
           media_kit_url: inf.media_kit_url,

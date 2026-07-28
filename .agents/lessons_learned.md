@@ -4,6 +4,16 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: Verified Badge Signal Unification Across Dashboard & Mobile APIs
+
+**Branch**: `dev`
+
+### Scope
+- **Verification Alignment**: Unified dashboard APIs (`api/home/route.ts`, `api/influencer/dashboard/route.ts`, `api/profile/route.ts`) and mobile profile view (`apps/mobile/app/(tabs)/profile.tsx`) to check `verified_badge` from `profiles` instead of relying solely on the legacy `is_verified` column.
+- **Result**: Legitimate creators verified via HikerAPI or admin approval now consistently see their verification badge across both web dashboard headers and mobile profile screens.
+
+---
+
 ## Session — 2026-07-28: E2E Creator Journey Audit Fixes & Cleanup
 
 **Branch**: `dev`
