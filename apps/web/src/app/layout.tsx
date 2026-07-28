@@ -54,7 +54,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("h-full", "antialiased", inter.variable, plusJakarta.variable, "font-sans", geist.variable)}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-[100dvh] flex flex-col bg-background text-foreground">
         {children}
         <Toaster richColors position="top-right" />
       </body>
