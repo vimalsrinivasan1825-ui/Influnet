@@ -14,6 +14,7 @@
 import { Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
+import * as WebBrowser from 'expo-web-browser';
 import {
   BadgeCheck,
   Eye,
@@ -343,12 +344,18 @@ export default function ProfileScreen() {
 
         <SectionLabel>Manage</SectionLabel>
         <ListGroup>
-          {isCreator && username ? (
+          {/* Previewing your own profile opens the WEB page, not the in-app
+              screen: the whole point here is "what a brand actually sees", and
+              a brand most often arrives via a shared link. The web page is also
+              the fuller one — pricing packages and the media kit live only
+              there. The in-app screen is still what other users get when they
+              tap you in search. */}
+          {isCreator && publicUrl ? (
             <ListRow
               title="Preview public profile"
-              subtitle="See exactly what a brand sees when they find you"
+              subtitle="Opens the web page a brand sees when they find you"
               left={<Eye size={19} color={t.color.contentSoft} />}
-              onPress={() => router.push({ pathname: '/creator/[username]', params: { username } })}
+              onPress={() => WebBrowser.openBrowserAsync(publicUrl)}
             />
           ) : null}
           {isCreator ? (

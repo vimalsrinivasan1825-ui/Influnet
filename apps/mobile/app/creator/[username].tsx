@@ -9,10 +9,12 @@
  */
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 // Lucide dropped brand marks, so channels are labelled rather than logo'd.
-import { AtSign, Link2 } from 'lucide-react-native';
+import { AtSign, Globe, Link2 } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
+import { API_BASE_URL } from '@/lib/supabase';
 import { useFetch } from '@/lib/use-fetch';
 import { PostGrid, VideoList } from '@/components/content-grid';
 import {
@@ -23,6 +25,8 @@ import {
   Chip,
   ChipWrap,
   ErrorState,
+  ListGroup,
+  ListRow,
   ScreenScroll,
   SectionLabel,
   SkeletonCard,
@@ -249,6 +253,23 @@ export default function CreatorDetail() {
                 </View>
               </Card>
             ) : null}
+
+            {/* The web page carries more than this screen does — pricing
+                packages, the media kit, the share sheet — so it stays one tap
+                away rather than becoming a second entry point people have to
+                choose between before they've seen anything. */}
+            <ListGroup>
+              <ListRow
+                title="Open web version"
+                subtitle="Packages, media kit and the full brand-facing page"
+                left={<Globe size={19} color={t.color.contentSoft} />}
+                onPress={() =>
+                  WebBrowser.openBrowserAsync(
+                    `${API_BASE_URL}/c/${encodeURIComponent(creator.username)}`,
+                  )
+                }
+              />
+            </ListGroup>
           </>
         )}
       </ScreenScroll>
