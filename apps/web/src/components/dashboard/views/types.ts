@@ -8,7 +8,7 @@ export interface InfluencerHomeData {
     // real /c/[username] row and hands out a link that 404s.
     username: string | null;
     niche: string[];
-    is_verified: boolean;
+    verified_badge: boolean;
     headline: string | null;
     avatar_url: string | null;
     bio: string | null;

@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     if (role === 'influencer') {
       const { data: infl } = await supabase
         .from('influencer_profiles')
-        .select('username, bio, niche, instagram_handle, youtube_handle, instagram_followers, youtube_subscribers, is_verified, audience_demographics')
+        .select('username, bio, niche, instagram_handle, youtube_handle, instagram_followers, youtube_subscribers, audience_demographics')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -70,7 +70,7 @@ export async function GET(req: Request) {
         // Prefer the live snapshot; fall back to the self-reported figure.
         instagram_followers: social?.followerCount ?? infl?.instagram_followers ?? null,
         youtube_subscribers: youtube?.subscriberCount ?? infl?.youtube_subscribers ?? null,
-        is_verified: profile?.verified_badge ?? infl?.is_verified ?? false,
+        verified_badge: profile?.verified_badge ?? false,
         avatar_url: social?.profilePicUrl ?? null,
       };
     } else if (role === 'business_owner') {

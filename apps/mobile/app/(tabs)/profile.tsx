@@ -111,7 +111,7 @@ export default function ProfileScreen() {
   // locally-stored one is only a fallback for a creator with no snapshot yet.
   const avatar = isCreator ? pp.avatar_url ?? profile?.avatar_url : pp.logo_url ?? profile?.logo_url;
   const username = pp.username ?? profile?.username ?? null;
-  const verified = profile?.verified_badge || data?.profile.verified || data?.profile.verification_status === 'verified' || profile?.is_verified;
+  const verified = profile?.verified_badge || data?.profile.verified || data?.profile.verification_status === 'verified';
 
   const publicUrl = username
     ? `${API_BASE_URL}/${isCreator ? 'c' : 'b'}/${username}`

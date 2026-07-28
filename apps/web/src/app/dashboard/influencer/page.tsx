@@ -11,7 +11,7 @@ const FALLBACK: InfluencerHomeData = {
     name: "Creator",
     username: null,
     niche: [],
-    is_verified: false,
+    verified_badge: false,
     headline: null,
     avatar_url: null,
     bio: null,

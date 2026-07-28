@@ -196,7 +196,7 @@ export async function GET(req: Request) {
         // the creator to pick a username instead of showing a broken one.
         username: inflData?.username || null,
         niche: inflData?.niche || [],
-        is_verified: profileData?.verified_badge ?? inflData?.is_verified ?? false,
+        verified_badge: profileData?.verified_badge ?? false,
         headline: inflData?.bio ? inflData.bio.substring(0, 50) + '...' : null,
         avatar_url: inflData?.avatar_url || null,
         bio: inflData?.bio || null,

@@ -53,7 +53,7 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
               <h1 className="truncate text-2xl font-extrabold tracking-tight text-content sm:text-3xl">
                 Welcome back, {p.name.split(' ')[0]}!
               </h1>
-              {p.is_verified && (
+              {p.verified_badge && (
                 <Badge variant="success" size="sm" className="hidden sm:inline-flex">
                   <BadgeCheck className="size-3" />
                 </Badge>
