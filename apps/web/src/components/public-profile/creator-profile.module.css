@@ -247,7 +247,7 @@
   }
   @media(max-width:560px){
     .herostats{grid-template-columns:1fr;gap:.65rem;}
-    .hstat{justify-content:center;text-align:center;padding:1.1rem 1rem;}
+    .hstat{justify-content:flex-start;text-align:left;padding:1.1rem 1.4rem;}
   }
   .hstat{
     display:flex;align-items:center;gap:.85rem;min-width:0;

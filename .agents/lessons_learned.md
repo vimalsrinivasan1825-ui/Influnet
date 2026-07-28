@@ -4,6 +4,20 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: Mobile Herostats Vertical Alignment Fix
+
+**Branch**: `dev`
+
+### Scope
+- **Public Profile CSS (`apps/web/src/components/public-profile/creator-profile.module.css`)**:
+  - Replaced variable group centering (`justify-content: center`) on mobile `.hstat` cards with consistent left alignment (`justify-content: flex-start; padding: 1.1rem 1.4rem;`).
+  - Guaranteed that all stat icons and numerals (Reach, Followers, Engagement) align along a single ruler-straight vertical axis across all cards on mobile screens.
+
+### Key Lessons
+- Centering flex items with varying label lengths across stacked cards causes icons to shift horizontally between rows. Use fixed left margins (`justify-content: flex-start`) with consistent padding for stacked metric cards to keep icons and numerals aligned vertically.
+
+---
+
 ## Session — 2026-07-28: Mobile Public Profile Layout Refinements & YouTube Promo Card
 
 **Branch**: `dev`
