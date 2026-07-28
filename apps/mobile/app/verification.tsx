@@ -104,7 +104,7 @@ export default function VerificationScreen() {
   return (
     <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing.lg, gap: t.spacing.lg }}>
       {verified ? (
-        <Card style={{ alignItems: 'center', gap: t.spacing.md, paddingVertical: t.spacing['3xl'] }}>
+        <Card style={{ alignItems: 'center', gap: t.spacing.md, paddingVertical: t.spacing['2xl'] }}>
           <View
             style={{
               width: 56,
@@ -124,14 +124,22 @@ export default function VerificationScreen() {
             Your Instagram account is confirmed as yours. The badge shows on your
             public profile and everywhere brands see you.
           </Txt>
-          {/* Only shown right after completing the flow in this session — code
-              being set means they just went through initiate + confirm, not
-              that they're revisiting an already-verified account. */}
-          {code ? (
-            <Txt variant="footnote" tone="muted" center>
-              Don't forget to remove the code from your bio — it's done its job.
-            </Txt>
-          ) : null}
+          <Button
+            label={busy ? "Refreshing..." : "Re-verify & Refresh Data"}
+            size="md"
+            variant="secondary"
+            loading={busy}
+            onPress={async () => {
+              setBusy(true);
+              try {
+                await endpoints.refreshProfile();
+                await loadProfile();
+                refresh();
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
         </Card>
       ) : (
         <>

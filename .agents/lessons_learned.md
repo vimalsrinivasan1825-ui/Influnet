@@ -4,6 +4,21 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: Mobile Verification Access & Profile Refresh Cache Invalidation
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Verification & Profile Refresh (`apps/mobile/app/(tabs)/profile.tsx` & `apps/mobile/app/verification.tsx`)**:
+  - Added a **"Re-verify & Refresh Data"** button to `apps/mobile/app/verification.tsx` so verified creators can trigger re-verification and social count updates on mobile anytime.
+  - Added a permanent **"Verification & Trust Badge"** row under the **Manage** section in `ProfileScreen` so verified users can always tap into `/verification`.
+  - Added `invalidateFetchCache('profile-public')` inside `refreshSocial()` in `ProfileScreen` so tapping **"Refresh my numbers"** purges the in-memory cache and refetches live social data immediately.
+
+### Key Lessons
+- Mobile in-memory fetch caches (`useFetch` with `cacheKey`) preserve payload snapshots across screen mounts. When performing backend data refresh mutations (like `refreshProfile()`), always invalidate the associated cache key (`invalidateFetchCache(key)`) before refetching so stale cached data is purged.
+
+---
+
 ## Session — 2026-07-28: YouTube Owner Subscriber Count Extraction Fix
 
 **Branch**: `dev`

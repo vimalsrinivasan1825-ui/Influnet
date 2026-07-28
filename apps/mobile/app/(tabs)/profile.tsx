@@ -29,7 +29,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
-import { useFetch } from '@/lib/use-fetch';
+import { invalidateFetchCache, useFetch } from '@/lib/use-fetch';
 import { formatCount } from '@/lib/format';
 import {
   Avatar,
@@ -150,6 +150,7 @@ export default function ProfileScreen() {
     setRefreshingSocial(true);
     try {
       await endpoints.refreshProfile();
+      invalidateFetchCache('profile-public');
       await refresh();
     } finally {
       setRefreshingSocial(false);
@@ -339,16 +340,25 @@ export default function ProfileScreen() {
         <SectionLabel>Manage</SectionLabel>
         <ListGroup>
           {isCreator ? (
-            <ListRow
-              title={refreshingSocial ? 'Refreshing…' : 'Refresh my numbers'}
-              subtitle={
-                data?.social?.fetched_at
-                  ? `Last updated ${new Date(data.social.fetched_at).toLocaleDateString()}`
-                  : 'Pull the latest from your linked accounts'
-              }
-              left={<RefreshCw size={19} color={t.color.contentSoft} />}
-              onPress={refreshSocial}
-            />
+            <>
+              <ListRow
+                title={refreshingSocial ? 'Refreshing…' : 'Refresh my numbers'}
+                subtitle={
+                  data?.social?.fetched_at
+                    ? `Last updated ${new Date(data.social.fetched_at).toLocaleDateString()}`
+                    : 'Pull the latest from your linked accounts'
+                }
+                left={<RefreshCw size={19} color={t.color.contentSoft} />}
+                onPress={refreshSocial}
+              />
+              <ListRow
+                title="Verification & Trust Badge"
+                subtitle={verified ? 'Verified account · Re-verify & Refresh' : 'Get verified'}
+                left={<BadgeCheck size={19} color={verified ? t.color.brand : t.color.contentSoft} />}
+                style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
+                onPress={() => router.push('/verification')}
+              />
+            </>
           ) : null}
           <ListRow
             title="Connections"
