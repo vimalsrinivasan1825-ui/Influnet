@@ -4,6 +4,20 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: Mobile Herostats Horizontal 3-Card Grid
+
+**Branch**: `dev`
+
+### Scope
+- **Public Profile CSS (`apps/web/src/components/public-profile/creator-profile.module.css`)**:
+  - Transformed `.herostats` into a compact **3-card side-by-side horizontal grid (`repeat(3, 1fr)`)** on mobile screens (`@media(max-width:560px)`).
+  - Aligned each card vertically (`flex-direction: column; align-items: center`): Icon at top, numeral in middle (`1.15rem`), and label below (`0.68rem`).
+
+### Key Lessons
+- For mobile hero metric rows, fitting 3 cards side-by-side with top-aligned icon and centered numerals gives a compact, modern app aesthetic while zeroing out vertical scroll length.
+
+---
+
 ## Session — 2026-07-28: Mobile Herostats Vertical Alignment Fix
 
 **Branch**: `dev`

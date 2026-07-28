@@ -246,8 +246,27 @@
     display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;
   }
   @media(max-width:560px){
-    .herostats{grid-template-columns:1fr;gap:.65rem;}
-    .hstat{justify-content:flex-start;text-align:left;padding:1.1rem 1.4rem;}
+    .herostats{grid-template-columns:repeat(3,1fr);gap:.4rem;}
+    .hstat{
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      padding:.75rem .35rem;
+      gap:.35rem;
+      border-radius:var(--r-sm);
+    }
+    .hstat .si{
+      width:34px;height:34px;font-size:.9rem;
+      border-radius:var(--r-xs);margin:0 auto;
+    }
+    .hsmeta{text-align:center;width:100%;}
+    .hstat b{font-size:1.15rem;line-height:1.1;letter-spacing:-.02em;}
+    .hstat small{
+      font-size:.68rem;margin-top:.15rem;font-weight:500;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      display:block;width:100%;
+    }
   }
   .hstat{
     display:flex;align-items:center;gap:.85rem;min-width:0;
