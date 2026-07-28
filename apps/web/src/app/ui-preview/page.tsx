@@ -24,7 +24,7 @@ const influencer: InfluencerHomeData = {
     name: "Priya Sharma",
     username: "priyacreates",
     niche: ["Beauty", "Skincare", "Lifestyle"],
-    is_verified: true,
+    verified_badge: true,
     headline: "Beauty & skincare creator helping brands reach Gen-Z in South India.",
     avatar_url: null,
     bio: null,
