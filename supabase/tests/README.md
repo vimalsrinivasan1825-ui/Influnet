@@ -73,3 +73,15 @@ flow logic under test.
   asserts a *global* `count(*) = 0` on `campaign_projects`, so any suite that
   leaves rows behind will fail it. Nothing is wrong when that happens; the order
   is.
+
+- `influencer_verification_test.sql` — migration 083. The mirror of the admin
+  suite for `influencer_profiles`: before 083 that table kept Supabase's stock
+  table-wide UPDATE grant and its UPDATE policy had no WITH CHECK and no column
+  restriction, so any creator could PATCH `is_verified` directly and forge the
+  public "Verified creator" badge. Asserts both halves — the forgery is refused
+  (and, crucially, a *stale/forged* legacy flag no longer produces a public
+  badge, because `get_public_influencer` now reads the real pipeline's
+  `profiles.verified_badge`), while a legitimately verified creator still gets
+  it and ordinary self-edits still go through. Self-contained: it replicates the
+  stock grants and re-applies the 083 lockdown itself, and its fixtures reset in
+  place so it is safe to re-run.

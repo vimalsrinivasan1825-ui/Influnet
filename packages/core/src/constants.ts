@@ -63,5 +63,5 @@ export const BUSINESS_TYPES = [
 ];
 
 export const BUDGET_RANGES = [
-  'Under ₹25K/month', '₹25K – ₹50K', '₹50K – ₹1L', '₹50K – ₹100K', '₹1L – ₹5L', '₹5L – ₹10L', '₹10L+', 'Other',
+  'Under ₹25K/month', '₹25K – ₹50K', '₹50K – ₹1L', '₹1L – ₹5L', '₹5L – ₹10L', '₹10L+', 'Other',
 ];

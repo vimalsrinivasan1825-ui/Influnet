@@ -255,7 +255,10 @@ function BusinessSignupContent() {
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
-                {password.length > 0 && (() => {
+                {password.length > 72 && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">Password must be 72 characters or fewer</p>
+                )}
+                {password.length > 0 && password.length <= 72 && (() => {
                   const s = passwordStrength(password);
                   return (
                     <div className="mt-2">
@@ -270,9 +273,7 @@ function BusinessSignupContent() {
                           />
                         ))}
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-content-muted">
-                        {passwordOk ? `Password strength: ${s.label}` : "Use at least 8 characters"}
-                      </p>
+                      <p className="mt-1 text-[0.6875rem] font-semibold text-content-muted">{s.label}</p>
                     </div>
                   );
                 })()}
@@ -282,22 +283,22 @@ function BusinessSignupContent() {
 
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Company information</h2>
-              <div>
-                <Label>Business type</Label>
-                <Select value={businessType} onChange={(e) => setBusinessType(e.target.value)}>
-                  <option value="">Select business type</option>
-                  {BUSINESS_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </Select>
-              </div>
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Company details</h2>
               <div>
                 <Label>Industry</Label>
                 <Select value={industry} onChange={(e) => setIndustry(e.target.value)}>
                   <option value="">Select industry</option>
                   {INDUSTRIES.map((ind) => (
                     <option key={ind} value={ind}>{ind}</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label>Business type</Label>
+                <Select value={businessType} onChange={(e) => setBusinessType(e.target.value)}>
+                  <option value="">Select business type</option>
+                  {BUSINESS_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
                   ))}
                 </Select>
               </div>
@@ -362,7 +363,7 @@ function BusinessSignupContent() {
               </div>
               <div className="rounded-xl border border-brand/15 bg-brand-soft px-4 py-3">
                 <p className="text-sm leading-relaxed text-content-soft">
-                  Your account will be reviewed by our team. You&rsquo;ll get dashboard access once approved.
+                  Your account will be reviewed by our team. Outbound campaign requests unlock once approved.
                 </p>
               </div>
             </div>

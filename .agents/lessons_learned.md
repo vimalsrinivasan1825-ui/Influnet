@@ -4,6 +4,20 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: E2E Creator Journey Audit Fixes & Cleanup
+
+**Branch**: `dev`
+
+### Scope
+- **Verification & Security (#1 & #2)**: Verified migration `083_influencer_verified_badge_lockdown.sql` locked down `influencer_profiles.is_verified` column updates and pointed `get_public_influencer` badge at the real `profiles.verified_badge` pipeline.
+- **Budget Ranges (#5)**: Removed duplicate `'₹50K – ₹100K'` entry from `packages/core/src/constants.ts`.
+- **Password Length & Review Gate Copy (#4 & #6)**: Added step 1 validation error for passwords >72 chars and updated signup copy to correctly state *"Outbound campaign requests unlock once approved"*.
+
+### Key Lessons
+- Aligning signup copy with exact RLS/RPC gating ensures user expectations match live app capabilities.
+
+---
+
 ## Session — 2026-07-28: YouTube Scraper & Social Snapshot Unit Test Suite Expansion
 
 **Branch**: `dev`
