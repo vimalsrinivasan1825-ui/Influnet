@@ -15,6 +15,12 @@ const badgeVariants = cva(
         danger: "bg-danger-soft text-danger",
         outline: "border border-hairline-strong text-content-soft",
         solid: "bg-brand text-white",
+        // Ownership-verification trust mark — fixed brand pink, deliberately
+        // distinct from the generic "success" green used for unrelated
+        // positive states (payments, approvals, etc.) and from `brand`
+        // (which recolors per role/theme). A verified badge should read as
+        // "Influnet confirmed this," not blend into ordinary UI chrome.
+        verified: "bg-[#FFE4F3] text-[#FF0B8D]",
       },
       size: {
         sm: "px-2 py-0.5 text-[0.625rem]",

@@ -6,6 +6,15 @@
     --line:#EDE9F5; --line-2:#E0DBEE;
     --accent:#7B4FE0; --accent-2:#A27FFF; --accent-ink:#5C35C5;
     --ok:#12B981; --wa:#25D366;
+    /* Ownership-verification trust mark — fixed, sampled from the Influnet
+       logo mark itself. Deliberately NOT --accent: the accent recolors by
+       role/theme elsewhere in the app, but "verified by Influnet" must look
+       identical to every viewer, and must not be mistaken for ordinary brand
+       chrome (buttons, tags, gradient text all already use --accent on this
+       page). Stays constant in dark mode too — see .stage.dark below for
+       only the soft background tint being adjusted for contrast. */
+    --verified:#FF0B8D; --verified-soft:#FFE4F3;
+    --attn:#E23744; --attn-soft:#FDEBEC;
     --c1:#EC2C7A; --c2:#F58529; --c3:#F5A623; --c4:var(--ok);
     --ig:linear-gradient(135deg,#F58529,#DD2A7B,#8134AF); --yt:#FF0033; --tt:#010101;
     --shadow:0 16px 40px -26px rgba(80,40,160,.22); --shadow-sm:0 6px 18px -12px rgba(80,40,160,.18);
@@ -24,6 +33,8 @@
     --bg:#0B0D16;--card:#141826;--tile:#1B1F30;--soft:#2A1622;
     --ink:#EEF0F8;--ink-2:#A2A8C0;--ink-3:#727890;--line:#242840;--line-2:#333856;--accent-ink:#FF8FBB;
     --shadow:0 24px 50px -26px rgba(0,0,0,.75);--shadow-sm:0 10px 26px -14px rgba(0,0,0,.7);
+    --verified-soft:#3A1428;
+    --attn-soft:#3A1418;
   }
   .stage *{box-sizing:border-box;}
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
@@ -206,9 +217,44 @@
   }
   @media(max-width:480px){.hmid{flex-direction:column;}}
   .hleft{min-width:0;}
-  .eyebrow{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-ink);background:var(--soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);padding:.32rem .7rem;border-radius:999px;}
+  /* Verified state — solid brand-pink, not the soft pastel every other pill
+     on this page uses, so "confirmed by Influnet" reads as its own distinct
+     trust mark rather than blending into ordinary UI chrome. */
+  .eyebrow{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--verified);background:var(--verified-soft);border:1px solid color-mix(in srgb,var(--verified) 35%,transparent);padding:.32rem .7rem;border-radius:999px;}
+  /* Neutral variant for the unverified state — "not yet done", not a warning. */
+  .eyebrowNeutral{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);background:var(--tile);border:1px solid var(--line);padding:.32rem .7rem;border-radius:999px;}
   .hero h1{font-size:clamp(2.2rem,4.8vw,3.2rem);margin:.7rem 0 .2rem;letter-spacing:-.035em;font-weight:740;line-height:1.0;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
-  .vtick{width:.62em;height:.62em;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;display:inline-grid;place-items:center;flex-shrink:0;box-shadow:var(--shadow-sm);}
+  /* The mark is now self-contained (seal shape + fill baked in), so this is
+     just sizing/position — no background/border-radius needed here anymore. */
+  .vtick{width:.8em;height:.8em;display:inline-grid;place-items:center;flex-shrink:0;}
+  .eyebrowMark{width:.9em;height:.9em;display:inline-block;flex-shrink:0;}
+  .vtickMark{width:100%;height:100%;display:inline-block;}
+
+  /* "Why is this unverified?" — a small info button on the neutral chip that
+     reveals an explainer card on hover (desktop) or tap (touch; handled via
+     the infoCardOpen class in JS, since touch devices never fire :hover). */
+  .infoWrap{position:relative;display:inline-flex;margin-left:.05rem;}
+  .infoBtn{
+    width:1.15em;height:1.15em;border-radius:50%;flex-shrink:0;
+    display:grid;place-items:center;padding:0;
+    font-size:.7em;font-weight:800;line-height:1;font-family:inherit;text-transform:none;letter-spacing:0;
+    color:var(--attn);background:var(--attn-soft);border:1px solid color-mix(in srgb,var(--attn) 40%,transparent);
+    cursor:help;transition:filter .15s ease;
+  }
+  .infoBtn:hover,.infoBtn:focus-visible{filter:brightness(0.92);}
+  .infoBtn:focus-visible{outline:2px solid var(--attn);outline-offset:2px;}
+  .infoCard{
+    position:absolute;bottom:calc(100% + .5rem);left:0;z-index:50;
+    width:max-content;max-width:min(260px,80vw);
+    background:var(--card);color:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    box-shadow:var(--shadow);padding:.65rem .75rem;
+    font-size:.72rem;font-weight:500;line-height:1.5;text-transform:none;letter-spacing:0;
+    opacity:0;visibility:hidden;pointer-events:none;transform:translateY(4px);
+    transition:opacity .15s ease,transform .15s ease;
+  }
+  .infoWrap:hover .infoCard,.infoWrap:focus-within .infoCard,.infoCardOpen{
+    opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0);
+  }
   .subtitle{font-size:clamp(1.1rem,2.3vw,1.45rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
   .grad{background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
   .tag{color:var(--ink-2);font-size:.98rem;margin:.8rem 0 0;max-width:48ch;line-height:1.55;}

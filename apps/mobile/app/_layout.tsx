@@ -89,7 +89,8 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ title: 'Settings' }} />
             <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
             <Stack.Screen name="verification" options={{ title: 'Verify Instagram' }} />
-            <Stack.Screen name="creator/[id]" options={{ title: '' }} />
+            <Stack.Screen name="search" options={{ title: 'Search' }} />
+            <Stack.Screen name="creator/[username]" options={{ title: '' }} />
             <Stack.Screen name="requests/new" options={{ title: 'Send a request' }} />
             <Stack.Screen name="requests/[id]" options={{ title: 'Request' }} />
             <Stack.Screen name="conversations/[id]" options={{ title: '' }} />

@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import {
   BadgeCheck,
+  Eye,
   History,
   LogOut,
   RefreshCw,
@@ -342,10 +343,19 @@ export default function ProfileScreen() {
 
         <SectionLabel>Manage</SectionLabel>
         <ListGroup>
+          {isCreator && username ? (
+            <ListRow
+              title="Preview public profile"
+              subtitle="See exactly what a brand sees when they find you"
+              left={<Eye size={19} color={t.color.contentSoft} />}
+              onPress={() => router.push({ pathname: '/creator/[username]', params: { username } })}
+            />
+          ) : null}
           {isCreator ? (
             <>
               <ListRow
                 title={refreshingSocial ? 'Refreshing…' : 'Refresh my numbers'}
+                style={username ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
                 subtitle={
                   data?.social?.fetched_at
                     ? `Last updated ${new Date(data.social.fetched_at).toLocaleDateString()}`

@@ -21,7 +21,7 @@ import { formatCurrency, timeAgo } from '@/lib/format';
 
 /** Stream hands back slightly different message types by call site. */
 type StreamMessage = MessageResponse | LocalMessage;
-import { Button, Card, Field, Sheet, Txt, type SheetRef } from '@/components/ui';
+import { Badge, Button, Card, Field, Sheet, Txt, VerifiedBadge, type SheetRef } from '@/components/ui';
 
 /**
  * As /api/conversations/[id]/deal actually sends it.
@@ -34,6 +34,7 @@ import { Button, Card, Field, Sheet, Txt, type SheetRef } from '@/components/ui'
 interface DealPayload {
   /** The person on the other end — needed to open the Stream channel. */
   other_user_id?: string | null;
+  partner?: { id: string; name?: string | null; role?: string | null; verified_badge?: boolean | null } | null;
   request?: { id: string; status: string } | null;
   projects?: { id: string; title: string; budget: number | null; status: string }[];
   proposal?: {
@@ -229,6 +230,7 @@ export default function ConversationScreen() {
   const [chatError, setChatError] = useState<string | null>(null);
 
   const [deal, setDeal] = useState<DealSummary | null>(null);
+  const [partner, setPartner] = useState<DealPayload['partner']>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [respondBusy, setRespondBusy] = useState(false);
@@ -298,6 +300,7 @@ export default function ConversationScreen() {
     if (msgRes.ok) setLegacy((msgRes.data?.messages ?? []).map(fromPostgres));
     if (dealRes.ok) {
       setDeal(summariseDeal(dealRes.data));
+      setPartner(dealRes.data?.partner ?? null);
       // other_user_id is the only place the API tells us who to open the
       // channel with, so the chat connection hangs off this response.
       const otherUserId = dealRes.data?.other_user_id;
@@ -526,6 +529,28 @@ export default function ConversationScreen() {
       </View>
 
       <Sheet ref={dealSheet} title="Deal terms">
+        {/* Ownership trust signal — only meaningful when the other side is a
+            creator, i.e. only a business viewer ever sees this. */}
+        {partner?.role === 'influencer' ? (
+          partner.verified_badge ? (
+            <Badge
+              label="Verified by Influnet"
+              tone="verified"
+              icon={<VerifiedBadge size={13} />}
+            />
+          ) : (
+            <Card style={{ backgroundColor: t.color.warnSoft, borderColor: t.color.warn, gap: 2 }}>
+              <Txt variant="footnote" style={{ fontWeight: '700', color: t.color.warn }}>
+                Ownership not verified
+              </Txt>
+              <Txt variant="footnote" style={{ color: t.color.warn }}>
+                {partner.name || 'This creator'} hasn&apos;t confirmed they control the
+                social accounts on their profile.
+              </Txt>
+            </Card>
+          )
+        ) : null}
+
         <Card style={{ gap: t.spacing.sm }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Txt variant="footnote" tone="muted">

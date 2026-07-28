@@ -4,6 +4,21 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: Bio Link Ownership Verification & Brand Safety Disclaimer System
+
+**Branch**: `dev`
+
+### Scope
+- **Ownership Verification Engine & Scraper (`apps/web/src/lib/`, `supabase/migrations/`)**:
+  - Added migrations `084_search_influencers_verified_badge.sql`, `085_ownership_nudge_dismissed.sql`, and `086_admin_verify_requires_ownership.sql` enforcing verified badge integrity across search and admin review.
+  - Implemented creator bio link verification nudge (`VerifyOwnershipNudge`) on Creator Dashboard with copyable Influnet link (`influnet.com/c/[username]`), visual guide, and dismiss persistence.
+  - Built creator profile overlay preview and updated search & collaboration request flows with verified owner badges & brand safety disclaimers.
+
+### Key Lessons
+- Providing zero-cost bio-link verification nudges right on the dashboard gives creators immediate actionable path to verification without blocking initial signup friction.
+
+---
+
 ## Session — 2026-07-28: Verified Badge Signal Unification Across Dashboard & Mobile APIs
 
 **Branch**: `dev`

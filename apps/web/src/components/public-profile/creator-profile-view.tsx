@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import styles from './creator-profile.module.css';
 import type { CreatorProfileView } from '@/lib/public-profile/creator-profile';
 import { apiFetch } from '@/lib/api-client';
+import { VerifiedMark } from '@/components/icons/verified-mark';
 
 const PRESETS: { name: string; a: string; b: string }[] = [
   { name: 'Violet', a: '#7C6BF6', b: '#9E92FF' },
@@ -146,9 +147,23 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
   const [showToast, setShowToast] = useState(false);
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [unverifiedInfoOpen, setUnverifiedInfoOpen] = useState(false);
+  const unverifiedInfoRef = useRef<HTMLSpanElement>(null);
   const router = useRouter();
 
   const storeKey = `influnet:profile-appearance:${data.username}`;
+
+  // Tap-to-open on touch (no hover) + tap-outside-to-close. Desktop hover is
+  // handled entirely in CSS (:hover/:focus-within), so this only matters on
+  // touch devices where hover never fires.
+  useEffect(() => {
+    if (!unverifiedInfoOpen) return;
+    const onOutside = (e: PointerEvent) => {
+      if (!unverifiedInfoRef.current?.contains(e.target as Node)) setUnverifiedInfoOpen(false);
+    };
+    document.addEventListener('pointerdown', onOutside);
+    return () => document.removeEventListener('pointerdown', onOutside);
+  }, [unverifiedInfoOpen]);
 
   const handleRefresh = async () => {
     if (refreshing) return;
@@ -302,16 +317,39 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
             <section className={`${styles.hero} ${styles.herofull}`}>
               <div className={styles.herotop}>
                 <div className={styles.hleft}>
-                  <span className={styles.eyebrow}>
-                    <Ic d="M12 2l2.4 6.9L21 9.2l-5.2 4.2 1.9 6.6L12 16.6 6.3 20l1.9-6.6L3 9.2l6.6-.3z" fill />
-                    {data.isVerified ? 'Verified creator' : 'Creator'}
+                  <span className={data.isVerified ? styles.eyebrow : styles.eyebrowNeutral}>
+                    {data.isVerified ? (
+                      <VerifiedMark className={styles.eyebrowMark} />
+                    ) : (
+                      <Ic d="M12 2l2.4 6.9L21 9.2l-5.2 4.2 1.9 6.6L12 16.6 6.3 20l1.9-6.6L3 9.2l6.6-.3z" fill />
+                    )}
+                    {data.isVerified ? 'Verified creator' : 'Ownership not verified'}
+                    {!data.isVerified && (
+                      <span className={styles.infoWrap} ref={unverifiedInfoRef}>
+                        <button
+                          type="button"
+                          className={styles.infoBtn}
+                          aria-label="Why is this unverified?"
+                          aria-expanded={unverifiedInfoOpen}
+                          onClick={() => setUnverifiedInfoOpen((v) => !v)}
+                        >
+                          ?
+                        </button>
+                        <span
+                          role="tooltip"
+                          className={`${styles.infoCard} ${unverifiedInfoOpen ? styles.infoCardOpen : ''}`}
+                        >
+                          {`${data.name} hasn't added their Influnet verification link to their Instagram bio yet, so we can't confirm they own this account. This updates automatically once they do.`}
+                        </span>
+                      </span>
+                    )}
                   </span>
 
                   <h1>
                     {data.name}
                     {data.isVerified && (
                       <span className={styles.vtick} title="Verified by Influnet" aria-label="Verified by Influnet">
-                        <Check w={0.62} />
+                        <VerifiedMark className={styles.vtickMark} />
                       </span>
                     )}
                   </h1>

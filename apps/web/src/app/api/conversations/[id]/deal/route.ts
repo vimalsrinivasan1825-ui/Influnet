@@ -46,7 +46,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 
     const { data: partner } = await supabase
       .from('profiles')
-      .select('id, name, role')
+      .select('id, name, role, verified_badge')
       .eq('id', otherUserId)
       .maybeSingle();
 

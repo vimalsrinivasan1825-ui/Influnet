@@ -10,6 +10,7 @@ import { useNotificationStore } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
 import { Avatar } from "@/components/ui/avatar";
 import { CommandPalette } from "@/components/dashboard/command-palette";
+import { CreatorProfileOverlay } from "@/components/dashboard/creator-profile-overlay";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import type { UserRole } from "@/types";
@@ -28,6 +29,7 @@ export default function DashboardHeader({
   onOpenMobile,
 }: DashboardHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [previewUsername, setPreviewUsername] = useState<string | null>(null);
   const router = useRouter();
   const {
     summary,
@@ -40,6 +42,7 @@ export default function DashboardHeader({
   const [openPanel, setOpenPanel] = useState<"notif" | "user" | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
     try {
@@ -89,6 +92,9 @@ export default function DashboardHeader({
       ) {
         setOpenPanel(null);
       }
+      if (!searchRef.current?.contains(t)) {
+        setSearchOpen(false);
+      }
     };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
@@ -116,6 +122,7 @@ export default function DashboardHeader({
   const unreadMessages = summary.unread_messages_count || 0;
 
   return (
+    <>
     <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-hairline bg-surface-card/85 px-3 backdrop-blur-xl sm:px-5">
       <button
         onClick={onOpenMobile}
@@ -130,28 +137,35 @@ export default function DashboardHeader({
         <span className="font-bold text-content">{userName}</span>
       </p>
 
-      <button
-        onClick={() => setSearchOpen(true)}
-        aria-label="Search"
-        className="ml-auto hidden items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-sm text-content-muted transition-colors hover:border-hairline-strong hover:text-content-soft lg:flex lg:w-64"
-      >
-        <Search className="size-4" />
-        <span>Search…</span>
-        <kbd className="ml-auto rounded border border-hairline-strong bg-surface-card px-1.5 py-0.5 text-[0.625rem] font-semibold">
-          /
-        </kbd>
-      </button>
+      <div className="relative ml-auto" ref={searchRef}>
+        <button
+          onClick={() => setSearchOpen((v) => !v)}
+          aria-label="Search"
+          className="hidden items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-3 py-2 text-sm text-content-muted transition-colors hover:border-hairline-strong hover:text-content-soft lg:flex lg:w-64"
+        >
+          <Search className="size-4" />
+          <span>Search…</span>
+          <kbd className="ml-auto rounded border border-hairline-strong bg-surface-card px-1.5 py-0.5 text-[0.625rem] font-semibold">
+            /
+          </kbd>
+        </button>
 
-      {/* Mobile: the full bar doesn't fit, so just the icon. */}
-      <button
-        onClick={() => setSearchOpen(true)}
-        aria-label="Search"
-        className="ml-auto rounded-xl p-2.5 text-content-soft transition-colors hover:bg-surface-muted hover:text-content lg:hidden"
-      >
-        <Search className="size-5" />
-      </button>
+        {/* Mobile: the full bar doesn't fit, so just the icon. */}
+        <button
+          onClick={() => setSearchOpen((v) => !v)}
+          aria-label="Search"
+          className="rounded-xl p-2.5 text-content-soft transition-colors hover:bg-surface-muted hover:text-content lg:hidden"
+        >
+          <Search className="size-5" />
+        </button>
 
-      <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} role={role} />
+        <CommandPalette
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          role={role}
+          onOpenCreator={setPreviewUsername}
+        />
+      </div>
 
       <div className="ml-auto flex items-center gap-1 lg:ml-3">
         <Link
@@ -267,5 +281,8 @@ export default function DashboardHeader({
         </div>
       </div>
     </header>
+
+    <CreatorProfileOverlay username={previewUsername} onClose={() => setPreviewUsername(null)} />
+    </>
   );
 }

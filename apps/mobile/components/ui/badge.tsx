@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { View, type ViewStyle } from 'react-native';
-import { BadgeCheck } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Txt } from './text';
+import { VerifiedMark } from './verified-mark';
 
-type Tone = 'brand' | 'ok' | 'warn' | 'danger' | 'info' | 'neutral';
+type Tone = 'brand' | 'ok' | 'warn' | 'danger' | 'info' | 'neutral' | 'verified';
 
 export function Badge({
   label,
@@ -31,6 +31,9 @@ export function Badge({
     danger: { fg: t.color.danger, bg: t.color.dangerSoft },
     info: { fg: t.color.info, bg: t.color.infoSoft },
     neutral: { fg: t.color.contentSoft, bg: t.color.surfaceMuted },
+    // Ownership-verification trust mark — fixed brand pink, not the per-role
+    // `brand` accent. See packages/tokens for why.
+    verified: { fg: t.color.verified, bg: t.color.verifiedSoft },
   };
 
   const c = { fg: fg ?? tones[tone].fg, bg: bg ?? tones[tone].bg };
@@ -59,15 +62,11 @@ export function Badge({
   );
 }
 
-/** The trust mark. Same meaning as the web's verified-badge. */
-export function VerifiedBadge({ size = 15 }: { size?: number }) {
-  const t = useTheme();
-  return (
-    <BadgeCheck
-      size={size}
-      color={t.color.white}
-      fill={t.color.info}
-      accessibilityLabel="Verified"
-    />
-  );
+/**
+ * The trust mark. Same meaning as the web's verified-badge — a checkmark
+ * inside a scalloped seal, self-contained (fixed pink + white baked into the
+ * mark itself), so no wrapping background is needed here.
+ */
+export function VerifiedBadge({ size = 20 }: { size?: number }) {
+  return <VerifiedMark size={size} />;
 }

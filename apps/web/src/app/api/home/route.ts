@@ -70,7 +70,7 @@ export async function GET(req: Request) {
         // Prefer the live snapshot; fall back to the self-reported figure.
         instagram_followers: social?.followerCount ?? infl?.instagram_followers ?? null,
         youtube_subscribers: youtube?.subscriberCount ?? infl?.youtube_subscribers ?? null,
-        is_verified: profileData?.verified_badge ?? infl?.is_verified ?? false,
+        is_verified: profile?.verified_badge ?? infl?.is_verified ?? false,
         avatar_url: social?.profilePicUrl ?? null,
       };
     } else if (role === 'business_owner') {

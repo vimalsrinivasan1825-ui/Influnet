@@ -22,6 +22,7 @@ import { AreaChart, DonutChart, type ChartConfig } from "@/components/ui/chart";
 import type { InfluencerHomeData } from "./types";
 import { WelcomeModal } from "./welcome-modal";
 import { MediaKitNudge } from "@/components/dashboard/media-kit-nudge";
+import { VerifyOwnershipNudge } from "@/components/dashboard/verify-ownership-nudge";
 
 const earningsConfig: ChartConfig = {
   amount: { label: "Earnings", color: "var(--brand)" },
@@ -30,15 +31,19 @@ const earningsConfig: ChartConfig = {
 export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
   const p = data.profile;
   const s = data.stats;
-  // The welcome card and the media-kit nudge both compete for a first-time
-  // creator's attention. Hold the nudge back until the welcome card is out of
-  // the way — first impressions shouldn't be two overlapping asks at once.
+  // The welcome card, the ownership nudge, and the media-kit nudge all compete
+  // for a first-time creator's attention. Hold both nudges back until the
+  // welcome card is out of the way, and show at most one nudge at a time —
+  // ownership takes priority since it gates auto-verification and the
+  // business-facing trust signal, which the media kit doesn't.
   const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [ownershipNudgeVisible, setOwnershipNudgeVisible] = useState(false);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 sm:p-6">
       <WelcomeModal username={p.username} seen={p.welcome_seen} onOpenChange={setWelcomeOpen} />
-      {!welcomeOpen && <MediaKitNudge />}
+      {!welcomeOpen && <VerifyOwnershipNudge onVisibilityChange={setOwnershipNudgeVisible} />}
+      {!welcomeOpen && !ownershipNudgeVisible && <MediaKitNudge />}
       {/* Header */}
       <Reveal className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">

@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { VerifiedMark } from "@/components/icons/verified-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -51,7 +52,7 @@ export interface ProposalSummary {
 
 export interface DealState {
   other_user_id: string | null;
-  partner: { id: string; name?: string | null; role?: string | null; slug?: string | null } | null;
+  partner: { id: string; name?: string | null; role?: string | null; slug?: string | null; verified_badge?: boolean | null } | null;
   request: {
     id: string;
     from_user_id: string;
@@ -284,6 +285,24 @@ export function DealPanel({
             >
               <Building2 className="size-3" /> View brand profile
             </Link>
+          )}
+
+          {/* Ownership trust signal — only meaningful when the other side is a
+              creator, i.e. only a business viewer ever sees this. */}
+          {partner?.role === "influencer" && (
+            partner.verified_badge ? (
+              <Badge variant="verified" size="sm" className="mb-2">
+                <VerifiedMark className="size-3" /> Verified by Influnet
+              </Badge>
+            ) : (
+              <div className="mb-2 rounded-xl border border-warn/30 bg-warn-soft p-3 text-xs text-warn">
+                <p className="font-bold">Ownership not verified</p>
+                <p className="mt-0.5 text-warn/90">
+                  {partner.name || "This creator"} hasn&apos;t confirmed they control the
+                  social accounts on their profile.
+                </p>
+              </div>
+            )
           )}
 
           {/* The originating request. Hidden once the projects list below

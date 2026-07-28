@@ -93,7 +93,7 @@ export function InstagramOwnershipPanel({
   };
 
   return (
-    <SectionCard title="Verify Instagram ownership">
+    <SectionCard id="instagram-ownership" title="Verify Instagram ownership">
       <div className="flex flex-col gap-4">
         <p className="-mt-1 text-xs text-content-muted">
           Prove the account is yours so we can grant your verified badge. No password needed — you just

@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
     // 1. Fetch profiles
     const [profileRes, inflProfileRes] = await Promise.all([
-      supabase.from('profiles').select('name, location, welcome_seen_at').eq('id', user.id).single(),
+      supabase.from('profiles').select('name, location, welcome_seen_at, verified_badge').eq('id', user.id).single(),
       supabase.from('influencer_profiles').select('*').eq('user_id', user.id).single()
     ]);
 

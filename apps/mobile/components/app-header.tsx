@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell } from 'lucide-react-native';
+import { Bell, Search } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Txt } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
@@ -13,6 +13,7 @@ export function AppHeader({
   avatarUri,
   avatarName,
   showBell = true,
+  showSearch = true,
   showLogo = true,
   unread,
 }: {
@@ -21,6 +22,8 @@ export function AppHeader({
   avatarUri?: string | null;
   avatarName?: string | null;
   showBell?: boolean;
+  /** Look up a creator by username and view their public profile in-app. */
+  showSearch?: boolean;
   /** The mark on the left. On by default — it's how the app signs its screens. */
   showLogo?: boolean;
   unread?: number;
@@ -64,6 +67,18 @@ export function AppHeader({
           {title}
         </Txt>
       </View>
+
+      {showSearch ? (
+        <Pressable
+          onPress={() => router.push('/search')}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Search for a creator"
+          style={{ padding: 6 }}
+        >
+          <Search size={22} color={t.color.contentSoft} />
+        </Pressable>
+      ) : null}
 
       {showBell ? (
         <Pressable

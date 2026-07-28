@@ -30,6 +30,15 @@ export const palette = {
   danger: '#dc2626',
   dangerSoft: '#fef2f2',
 
+  // Ownership-verification trust mark. Fixed and role-independent — sampled
+  // from the Influnet logo mark itself, deliberately NOT tied to `brand`
+  // (which recolors per role: pink for business, purple for creator). A
+  // verified badge must look the same to everyone, and must read as
+  // "Influnet confirmed this," not as generic UI chrome or the ordinary
+  // `ok`/success green used for unrelated positive states.
+  verified: '#FF0B8D',
+  verifiedSoft: '#FFE4F3',
+
   white: '#ffffff',
   black: '#000000',
   transparent: 'transparent',

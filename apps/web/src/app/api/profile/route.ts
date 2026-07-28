@@ -33,6 +33,8 @@ export async function GET(req: Request) {
       // Undefined (rather than null) when migration 077 hasn't been applied,
       // so the nudge falls back to its localStorage behaviour for that window.
       mediakit_nudge_dismissed_at: 'mediakit_nudge_dismissed_at' in p ? p.mediakit_nudge_dismissed_at : undefined,
+      // Same undefined-until-migration-085 fallback for the ownership nudge.
+      ownership_nudge_dismissed_at: 'ownership_nudge_dismissed_at' in p ? p.ownership_nudge_dismissed_at : undefined,
     };
 
     // Get extended profile based on role.

@@ -26,9 +26,11 @@ interface Item {
   label: string;
   sub?: string;
   href: string;
-  group: "Go to" | "Projects" | "People";
+  group: "Go to" | "Projects" | "People" | "Creators";
   icon?: React.ElementType;
   avatar?: string;
+  /** Set on "Creators" items — opens the in-app profile overlay instead of navigating. */
+  username?: string;
 }
 
 const sections = (role: UserRole | null): Item[] => {
@@ -44,32 +46,36 @@ const sections = (role: UserRole | null): Item[] => {
     { id: "s-act", label: "My activity", href: "/dashboard/activity", group: "Go to", icon: History },
     { id: "s-set", label: "Settings", href: "/dashboard/settings", group: "Go to", icon: Settings },
   ];
-  // Discover creators option removed per client request — feature temporarily disabled for V1 launch.
   return base;
 };
 
 /**
- * Search across the app: jump to a section, or find one of your own projects or
- * collaborators by name.
+ * Search across the app: jump to a section, find one of your own projects or
+ * collaborators by name, or look up any creator by name/username to preview
+ * their public profile in-app.
  *
- * Scoped deliberately to things the signed-in user already has access to — it
- * reuses the existing projects/conversations endpoints rather than exposing a
- * new platform-wide search surface.
+ * Sections/projects/conversations are matched locally against data already
+ * fetched for the signed-in user. Creator matches are the exception — they're
+ * looked up server-side (debounced) via /api/discover, which is the only
+ * platform-wide search surface exposed here.
  */
 export function CommandPalette({
   open,
   onClose,
   role,
+  onOpenCreator,
 }: {
   open: boolean;
   onClose: () => void;
   role: UserRole | null;
+  onOpenCreator: (username: string) => void;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const [records, setRecords] = useState<Item[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [creatorItems, setCreatorItems] = useState<Item[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -128,16 +134,52 @@ export function CommandPalette({
     if (open) {
       setQuery("");
       setCursor(0);
+      setCreatorItems([]);
       // Focus after paint so the dialog is mounted.
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
 
+  // Creator lookup is server-side and debounced — everything else here is
+  // matched instantly against data already in memory.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setCreatorItems([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const res = await apiFetch<{ results: any[] }>(
+        `/api/discover?q=${encodeURIComponent(q)}`,
+      );
+      if (cancelled) return;
+      const list = res.ok ? (res.data?.results ?? []) : [];
+      setCreatorItems(
+        list.slice(0, 6).map(
+          (r): Item => ({
+            id: `creator-${r.user_id}`,
+            label: r.profile?.name || r.username,
+            sub: r.headline ? r.headline : r.username ? `@${r.username}` : undefined,
+            href: `/c/${r.username}`,
+            group: "Creators",
+            avatar: r.profile?.name || r.username,
+            username: r.username,
+          }),
+        ),
+      );
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
   const results = useMemo(() => {
     const pool = [...sections(role), ...records];
     const q = query.trim().toLowerCase();
     if (!q) return pool.filter((i) => i.group === "Go to").slice(0, 8);
-    return pool
+    const local = pool
       .filter(
         (i) => i.label.toLowerCase().includes(q) || (i.sub ?? "").toLowerCase().includes(q),
       )
@@ -149,16 +191,21 @@ export function CommandPalette({
         return ap - bp;
       })
       .slice(0, 12);
-  }, [query, records, role]);
+    return [...local, ...creatorItems];
+  }, [query, records, role, creatorItems]);
 
   useEffect(() => setCursor(0), [query]);
 
   const go = useCallback(
     (item: Item) => {
       onClose();
+      if (item.group === "Creators" && item.username) {
+        onOpenCreator(item.username);
+        return;
+      }
       router.push(item.href);
     },
-    [onClose, router],
+    [onClose, router, onOpenCreator],
   );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -190,82 +237,75 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-start justify-center bg-content/40 p-4 pt-[10vh] backdrop-blur-sm"
-      onClick={onClose}
-      role="presentation"
+      role="dialog"
+      aria-modal="false"
+      aria-label="Search"
+      className="absolute right-0 top-full z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)] sm:w-96"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Search"
-        className="w-full max-w-lg overflow-hidden rounded-2xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)]"
-      >
-        <div className="flex items-center gap-2.5 border-b border-hairline px-4 py-3">
-          <Search className="size-4 shrink-0 text-content-muted" />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Search sections, projects and people…"
-            className="w-full bg-transparent text-sm text-content outline-none placeholder:text-content-muted"
-          />
-          <kbd className="rounded border border-hairline-strong bg-surface-muted px-1.5 py-0.5 text-[0.625rem] font-semibold text-content-muted">
-            esc
-          </kbd>
-        </div>
+      <div className="flex items-center gap-2.5 border-b border-hairline px-4 py-3">
+        <Search className="size-4 shrink-0 text-content-muted" />
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Search sections, projects, people, or any creator…"
+          className="w-full bg-transparent text-sm text-content outline-none placeholder:text-content-muted"
+        />
+        <kbd className="rounded border border-hairline-strong bg-surface-muted px-1.5 py-0.5 text-[0.625rem] font-semibold text-content-muted">
+          esc
+        </kbd>
+      </div>
 
-        <div ref={listRef} className="max-h-[22rem] overflow-y-auto p-1.5">
-          {results.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-content-muted">
-              Nothing matches “{query}”.
-            </p>
-          ) : (
-            results.map((item, i) => {
-              const showGroup = item.group !== lastGroup;
-              lastGroup = item.group;
-              const Icon = item.icon;
-              return (
-                <div key={item.id}>
-                  {showGroup && (
-                    <div className="px-3 pb-1 pt-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
-                      {item.group}
-                    </div>
+      <div ref={listRef} className="max-h-[22rem] overflow-y-auto p-1.5">
+        {results.length === 0 ? (
+          <p className="px-3 py-6 text-center text-sm text-content-muted">
+            Nothing matches “{query}”.
+          </p>
+        ) : (
+          results.map((item, i) => {
+            const showGroup = item.group !== lastGroup;
+            lastGroup = item.group;
+            const Icon = item.icon;
+            return (
+              <div key={item.id}>
+                {showGroup && (
+                  <div className="px-3 pb-1 pt-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+                    {item.group}
+                  </div>
+                )}
+                <button
+                  data-row
+                  onMouseEnter={() => setCursor(i)}
+                  onClick={() => go(item)}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors",
+                    i === cursor ? "bg-brand-soft" : "hover:bg-surface-muted",
                   )}
-                  <button
-                    data-row
-                    onMouseEnter={() => setCursor(i)}
-                    onClick={() => go(item)}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors",
-                      i === cursor ? "bg-brand-soft" : "hover:bg-surface-muted",
-                    )}
-                  >
-                    {item.avatar ? (
-                      <Avatar name={item.avatar} size="sm" />
-                    ) : (
-                      Icon && (
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-content-soft">
-                          <Icon className="size-4" />
-                        </span>
-                      )
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-content">
-                        {item.label}
+                >
+                  {item.avatar ? (
+                    <Avatar name={item.avatar} size="sm" />
+                  ) : (
+                    Icon && (
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-content-soft">
+                        <Icon className="size-4" />
                       </span>
-                      {item.sub && (
-                        <span className="block truncate text-xs text-content-muted">{item.sub}</span>
-                      )}
+                    )
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-content">
+                      {item.label}
                     </span>
-                    {i === cursor && <ArrowRight className="size-3.5 shrink-0 text-brand" />}
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </div>
+                    {item.sub && (
+                      <span className="block truncate text-xs text-content-muted">{item.sub}</span>
+                    )}
+                  </span>
+                  {i === cursor && <ArrowRight className="size-3.5 shrink-0 text-brand" />}
+                </button>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

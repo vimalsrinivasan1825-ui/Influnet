@@ -13,9 +13,13 @@ const QuerySchema = z.object({
   id: z.string().uuid().optional(),
 });
 
-// Discover creators (for businesses) or brands (for influencers).
-// Search/filtering/pagination run server-side in SECURITY DEFINER RPCs
-// (see migration 048) so only curated public fields ever leave the DB.
+// Creator lookup, open to any signed-in role (used by the topbar command palette).
+// Deliberately a lookup, not a discovery/browse tool — the client wants this
+// reachable only by someone who already knows the creator's username, not a way
+// to stumble onto creators via name/niche/bio. The RPC (migration 048) matches
+// broader fields for its other callers, so results are filtered down to
+// username-prefix/substring matches here before they ever reach the client.
+
 export async function GET(req: Request) {
   try {
     const auth = await withAuth(req);
@@ -37,16 +41,6 @@ export async function GET(req: Request) {
     }
     const { q, niche, industry, location, cursor, id } = parsed.data;
 
-    // Discover browsing feature temporarily disabled for V1 launch per client request.
-    // Allow single-profile lookups (id present) for collaboration request previews.
-    if (!id) {
-      return jsonError(404, 'Not found: Discover feature is temporarily disabled');
-    }
-
-    if (role !== 'business_owner' && role !== 'admin') {
-      return jsonError(403, 'Forbidden: Discover is only available for businesses');
-    }
-
     const { data, error } = await supabase.rpc('search_influencers', {
       p_q: q ?? null,
       p_niche: niche ?? null,
@@ -57,7 +51,12 @@ export async function GET(req: Request) {
     });
     if (error) return jsonError(500, 'Failed to fetch creators', error);
 
-    const results = (data as any[]) || [];
+    let results = (data as any[]) || [];
+    // Username-only lookup: drop any row that only matched on name/headline/bio.
+    if (q && !id) {
+      const needle = q.trim().toLowerCase();
+      results = results.filter((r) => (r.username ?? '').toLowerCase().includes(needle));
+    }
     return NextResponse.json({
       userRole: role,
       results,
