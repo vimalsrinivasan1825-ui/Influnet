@@ -14,7 +14,6 @@
 import { Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import * as WebBrowser from 'expo-web-browser';
 import {
   BadgeCheck,
   Eye,
@@ -344,12 +343,12 @@ export default function ProfileScreen() {
 
         <SectionLabel>Manage</SectionLabel>
         <ListGroup>
-          {isCreator && publicUrl ? (
+          {isCreator && username ? (
             <ListRow
               title="Preview public profile"
               subtitle="See exactly what a brand sees when they find you"
               left={<Eye size={19} color={t.color.contentSoft} />}
-              onPress={() => WebBrowser.openBrowserAsync(publicUrl)}
+              onPress={() => router.push({ pathname: '/creator/[username]', params: { username } })}
             />
           ) : null}
           {isCreator ? (

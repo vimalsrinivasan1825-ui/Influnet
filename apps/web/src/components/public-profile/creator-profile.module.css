@@ -244,16 +244,26 @@
   .infoBtn:hover,.infoBtn:focus-visible{filter:brightness(0.92);}
   .infoBtn:focus-visible{outline:2px solid var(--attn);outline-offset:2px;}
   .infoCard{
-    position:absolute;bottom:calc(100% + .5rem);left:0;z-index:50;
-    width:max-content;max-width:min(260px,80vw);
+    /* Opens downward, not upward — .hero clips overflow, and this sits near
+       its top edge with too little padding above to ever show a card that
+       expands upward; it was rendering fully clipped/invisible.
+       Centered on the button rather than anchored to either edge: the "?"
+       sits well into the "Ownership not verified" pill, which on a narrow
+       viewport already spans most of the width. Anchoring left OR right grows
+       a ~260px card almost entirely to one side, and there's rarely 260px of
+       room on either side alone — it pushed past the screen edge and forced
+       the whole page to scroll horizontally to reveal it. Centered on the
+       button, it only needs ~130px clear on each side, which fits. */
+    position:absolute;top:calc(100% + .5rem);left:50%;z-index:50;
+    width:max-content;max-width:min(260px,calc(100vw - 2.5rem));
     background:var(--card);color:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-sm);
     box-shadow:var(--shadow);padding:.65rem .75rem;
     font-size:.72rem;font-weight:500;line-height:1.5;text-transform:none;letter-spacing:0;
-    opacity:0;visibility:hidden;pointer-events:none;transform:translateY(4px);
+    opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,4px);
     transition:opacity .15s ease,transform .15s ease;
   }
   .infoWrap:hover .infoCard,.infoWrap:focus-within .infoCard,.infoCardOpen{
-    opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0);
+    opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0);
   }
   .subtitle{font-size:clamp(1.1rem,2.3vw,1.45rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
   .grad{background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
