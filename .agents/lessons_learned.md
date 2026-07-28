@@ -4,6 +4,20 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-28: Public Profile Work With Me Section Overhaul (Media-Kit Package Cards)
+
+**Branch**: `dev`
+
+### Scope
+- **Public Profile UI (`apps/web/src/components/public-profile/`)**:
+  - Replaced simple formats list in the public profile's **Work With Me** section with the 3-column interactive **Media-Kit Package Cards** (`.prices`, `.price`, `.ph`, `.amt`).
+  - Added `packages: ProfilePackage[]` data construction in `creator-profile.ts` with platform logo icons, custom pricing tags (`₹25,000+`), feature checkmark lists (`✓`), highlighted featured middle card (`.feat`), and direct `Select` CTA buttons.
+
+### Key Lessons
+- Reusing high-performing UI patterns (like the Media Kit's interactive package cards) across both public profile and media kit views maintains design consistency and boosts brand conversion.
+
+---
+
 ## Session — 2026-07-28: Topbar Brand Logo & Wordmark Sizing Enlargement
 
 **Branch**: `dev`

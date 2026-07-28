@@ -630,92 +630,58 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
             </section>
           )}
 
-          {/* WORK WITH ME */}
-          {(data.collabTypes.length > 0 || data.postPreview || data.youtubeHandle) && (
-            <section className={`${styles.card} ${styles.collab}`}>
-              <div className={styles.collableft}>
-                <h3>Work with me</h3>
-                <p>Formats I take on for brand campaigns.</p>
-                {data.collabTypes.length > 0 && (
-                  <ul className={styles.formats}>
-                    {data.collabTypes.map((c) => (
-                      <li key={c}><span className={styles.ck}><Check w={0.62} /></span>{c}</li>
-                    ))}
-                  </ul>
-                )}
-                {data.priceLabel && (
-                  <p className={styles.rate}>
-                    Typical rate <b>{data.priceLabel}</b>
-                  </p>
-                )}
-                <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
+          {/* WORK WITH ME — Interactive Package Cards */}
+          {data.packages && data.packages.length > 0 && (
+            <section className={`${styles.card} ${styles.pad}`} id="work-with-me">
+              <div className={styles.chead}>
+                <div className={styles.ctitle}>Work With Me</div>
               </div>
 
-              {/* Promo cards grid holding both Instagram & YouTube animated cards */}
-              <div className={styles.promogrid}>
-                {/* Animated Instagram promo card */}
-                <a
-                  className={styles.igcard}
-                  href={data.postPreview?.href ?? `https://instagram.com/${data.instagramHandle || data.username}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`View @${data.instagramHandle || data.username} on Instagram`}
-                >
-                  <div className={styles.igcardbg} />
-                  <span className={`${styles.igp} ${styles.igp1}`} />
-                  <span className={`${styles.igp} ${styles.igp2}`} />
-                  <span className={`${styles.igp} ${styles.igp3}`} />
-                  <span className={`${styles.igp} ${styles.igp4}`} />
-                  <div className={styles.iglogozone}>
-                    <span className={styles.igring1} />
-                    <span className={styles.igring2} />
-                    <div className={styles.iglogobox}>
-                      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#fff" strokeWidth="2">
-                        <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-                        <circle cx="12" cy="12" r="4" />
-                        <circle cx="17.6" cy="6.4" r="1.5" fill="#fff" stroke="none" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className={styles.iginfo}>
-                    <span className={styles.iguname}>@{data.instagramHandle || data.username}</span>
-                    <span className={styles.igcta}>
-                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><circle cx="12" cy="12" r="4" /></svg>
-                      View on Instagram
-                    </span>
-                  </div>
-                </a>
-
-                {/* Animated YouTube promo card */}
-                {data.youtubeHandle && (
-                  <a
-                    className={styles.ytcard}
-                    href={`https://youtube.com/@${data.youtubeHandle.replace(/^@/, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`View @${data.youtubeHandle} on YouTube`}
-                  >
-                    <div className={styles.ytcardbg} />
-                    <span className={`${styles.ytp} ${styles.ytp1}`} />
-                    <span className={`${styles.ytp} ${styles.ytp2}`} />
-                    <span className={`${styles.ytp} ${styles.ytp3}`} />
-                    <span className={`${styles.ytp} ${styles.ytp4}`} />
-                    <div className={styles.ytlogozone}>
-                      <span className={styles.ytring1} />
-                      <span className={styles.ytring2} />
-                      <div className={styles.ytlogobox}>
-                        <YtPlay s={24} />
-                      </div>
-                    </div>
-                    <div className={styles.ytinfo}>
-                      <span className={styles.ytuname}>@{data.youtubeHandle.replace(/^@/, '')}</span>
-                      <span className={styles.ytcta}>
-                        <YtPlay s={12} />
-                        View on YouTube
+              <div className={styles.prices}>
+                {data.packages.map((p) => (
+                  <div className={`${styles.price} ${p.featured ? styles.feat : ''}`} key={p.title}>
+                    <div className={styles.ph}>
+                      <span
+                        className={styles.plogo}
+                        style={{
+                          background:
+                            p.platform === 'youtube'
+                              ? 'var(--yt)'
+                              : p.platform === 'instagram'
+                              ? 'var(--ig)'
+                              : 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+                        }}
+                      >
+                        {p.platform === 'youtube' ? <YtPlay s={15} /> : <IgLogo s={15} />}
                       </span>
+                      {p.title}
                     </div>
-                  </a>
-                )}
+
+                    <div className={styles.pdesc}>{p.description}</div>
+
+                    <div className={styles.amt}>{p.priceLabel}</div>
+
+                    <ul>
+                      {p.perks.map((perk) => (
+                        <li key={perk}>
+                          <span className={styles.ck}>✓</span>
+                          {perk}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Link
+                      className={`${styles.btn} ${p.featured ? styles.accent : ''} ${styles.wide} ${styles.sm}`}
+                      href={ctaHref}
+                    >
+                      Select
+                    </Link>
+                  </div>
+                ))}
+              </div>
+
+              <div className={styles.note}>
+                Packages are customizable. Let&apos;s discuss what works best for your brand!
               </div>
             </section>
           )}

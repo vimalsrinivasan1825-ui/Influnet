@@ -404,28 +404,32 @@
   @media(max-width:720px){.brands{grid-template-columns:repeat(3,1fr);}}
   .brand-c{display:grid;place-items:center;height:56px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);font-weight:800;font-size:.82rem;letter-spacing:.02em;color:var(--ink-2);text-align:center;padding:.3rem;}
 
-  /* ── WORK WITH ME ─────────────────────────────────────────────────── */
-  .collab{
-    display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr);
-    gap:clamp(1rem,2.4vw,1.8rem);align-items:center;
-    padding:clamp(1.1rem,2.2vw,1.6rem);
-    background:
-      linear-gradient(135deg,
-        color-mix(in srgb,var(--accent) 11%,var(--card)) 0%,
-        var(--card) 60%);
-    border-color:color-mix(in srgb,var(--accent) 16%,var(--line));
-    border-radius:calc(var(--r) * 1.6);
+  /* ── WORK WITH ME (Pricing Cards) ─────────────────────────────────── */
+  .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+  @media(max-width:760px){.prices{grid-template-columns:1fr;}}
+  .price{
+    border:1px solid var(--line);border-radius:var(--r);
+    padding:1.25rem 1.15rem;background:var(--card);position:relative;
+    display:flex;flex-direction:column;
+    box-shadow:var(--shadow-sm);
+    transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
   }
-  .collab{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1.4rem;align-items:center;}
-  @media(max-width:760px){.collab{grid-template-columns:1fr;}}
-  .collableft h3{margin:0;font-size:1.15rem;font-weight:700;letter-spacing:-.02em;}
-  .collableft > p{margin:.3rem 0 0;font-size:.86rem;color:var(--ink-2);}
-  .formats{list-style:none;margin:1rem 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.45rem .8rem;}
-  .formats li{display:flex;align-items:center;gap:.5rem;font-size:.84rem;font-weight:600;color:var(--ink);min-width:0;}
-  .ck{width:17px;height:17px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0;}
-  .rate{font-size:.84rem;color:var(--ink-2);margin:1rem 0 0;}
-  .rate b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;}
-  .collableft .btn{margin-top:1.1rem;}
+  .price:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+  .price.feat{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent), var(--shadow-sm);
+  }
+  .price .ph{display:flex;align-items:center;gap:.65rem;font-weight:720;font-size:1.08rem;color:var(--ink);}
+  .price .plogo{
+    width:34px;height:34px;border-radius:var(--r-xs);
+    display:grid;place-items:center;color:#fff;flex-shrink:0;
+  }
+  .price .pdesc{font-size:.82rem;color:var(--ink-2);margin:.6rem 0 .9rem;line-height:1.45;min-height:2.6em;}
+  .price .amt{font-size:1.6rem;font-weight:800;letter-spacing:-.025em;color:var(--ink);margin-bottom:.4rem;}
+  .price ul{list-style:none;margin:.8rem 0 1.2rem;padding:0;display:flex;flex-direction:column;gap:.45rem;flex:1;}
+  .price li{font-size:.82rem;color:var(--ink-2);display:flex;align-items:center;gap:.5rem;font-weight:500;}
+  .price li .ck{color:var(--accent);font-weight:800;font-size:.92rem;}
+  .note{text-align:center;font-size:.8rem;color:var(--ink-3);margin-top:1.1rem;font-weight:500;}
 
   .promogrid{
     display:flex;gap:1rem;justify-content:center;align-items:stretch;

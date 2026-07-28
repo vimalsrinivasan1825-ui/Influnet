@@ -91,6 +91,15 @@ export interface PostPreview {
   likes: string | null;
 }
 
+export interface ProfilePackage {
+  platform: 'instagram' | 'youtube' | 'other';
+  title: string;
+  description: string;
+  perks: string[];
+  priceLabel: string;
+  featured?: boolean;
+}
+
 export interface CreatorProfileView {
   name: string;
   username: string;
@@ -134,6 +143,7 @@ export interface CreatorProfileView {
   snapshotAge: string | null;
   instagramHandle?: string | null;
   youtubeHandle?: string | null;
+  packages: ProfilePackage[];
 }
 
 /** Loosely-typed shape of the `get_public_influencer` RPC payload. */
@@ -449,6 +459,58 @@ export interface YouTubeSnapshotInput {
   fetchedAt: string | null;
 }
 
+const DAY_MS = 86_400_000;
+/** Below this many days of captured content, a monthly run-rate is noise. */
+const MIN_DAYS_TO_EXTRAPOLATE = 5;
+
+/**
+ * The headline reach figure, across every connected platform.
+ *
+ * This used to sum Instagram LIKES (falling back to them whenever views were
+ * missing, which is always — see postViews in apify-instagram.ts), drop the
+ * three oldest posts on the guess that they might be pinned, and scale the rest
+ * to 30 days. It reported 886K for a creator whose actual monthly views run to
+ * several million, and the number it reported wasn't views at all.
+ *
+ * Now: real view counts only, from posts and videos published inside the
+ * window. When no platform reports views we say so by relabelling the stat —
+ * audience size is a fact worth showing, but it is not reach, and captioning it
+ * as reach is the thing brands would have priced against.
+ */
+export function computeReachStat(
+  posts: { views: number | null; takenAt?: string | null }[],
+  videos: { views: number | null; publishedAt: string | null }[],
+  audienceSize: number,
+): ProfileStat {
+  const now = Date.now();
+  const cutoff = now - 30 * DAY_MS;
+  let total = 0;
+  let oldest = Infinity;
+
+  const consider = (views: number | null, when: string | null | undefined) => {
+    if (typeof views !== 'number' || views <= 0) return;
+    const t = when ? Date.parse(when) : NaN;
+    if (!Number.isFinite(t) || t < cutoff || t > now) return;
+    total += views;
+    oldest = Math.min(oldest, t);
+  };
+  for (const p of posts) consider(p.views, p.takenAt);
+  for (const v of videos) consider(v.views, v.publishedAt);
+
+  if (total === 0) return { label: 'Total Audience', value: formatCount(audienceSize) };
+
+  // Both feeds carry a fixed number of recent items, so a creator who posts
+  // daily gives us a window far shorter than a month; scaling to 30 days is
+  // what makes two creators comparable. The cutoff above caps daysCovered at
+  // 30, so this only ever scales up — and only from a sample wide enough to
+  // mean anything, since one big day times thirty is a fantasy, not a forecast.
+  const daysCovered = Math.max((now - oldest) / DAY_MS, 1);
+  const value =
+    daysCovered >= MIN_DAYS_TO_EXTRAPOLATE ? Math.round((total / daysCovered) * 30) : total;
+
+  return { label: '30-Day Reach', value: formatCount(value) };
+}
+
 export function buildCreatorProfileView(
   profile: RawPublicProfile,
   opts: {
@@ -473,33 +535,12 @@ export function buildCreatorProfileView(
   // A captured channel beats the self-reported number — the creator types the
   // latter and it goes stale the day after they type it.
   const ytSubsReal = yt?.subscriberCount ?? profile.youtubeSubscribers ?? 0;
-  let reachReal = igFollowersReal + ytSubsReal + (profile.tiktokFollowers ?? 0);
-  
-  if (ig && ig.posts.length > 0) {
-    // Attempt to calculate 30-day reach from scraped views
-    const postsWithDates = ig.posts.filter(p => p.takenAt).sort((a, b) => Date.parse(b.takenAt!) - Date.parse(a.takenAt!));
-    const totalViews = ig.posts.reduce((sum, p) => sum + (p.views || p.likes || 0), 0);
-    if (postsWithDates.length >= 4) {
-      // Drop the oldest 3 posts assuming they might be old pinned posts
-      const recent = postsWithDates.slice(0, postsWithDates.length - 3);
-      const recentViews = recent.reduce((sum, p) => sum + (p.views || p.likes || 0), 0);
-      const newestDate = Date.parse(recent[0].takenAt!);
-      const oldestDate = Date.parse(recent[recent.length - 1].takenAt!);
-      const daysDiff = Math.max((newestDate - oldestDate) / (1000 * 60 * 60 * 24), 1);
-      reachReal = Math.round((recentViews / daysDiff) * 30);
-    } else if (postsWithDates.length >= 2) {
-      const newestDate = Date.parse(postsWithDates[0].takenAt!);
-      const oldestDate = Date.parse(postsWithDates[postsWithDates.length - 1].takenAt!);
-      const daysDiff = Math.max((newestDate - oldestDate) / (1000 * 60 * 60 * 24), 1);
-      reachReal = Math.round((totalViews / daysDiff) * 30);
-    } else {
-      reachReal = totalViews;
-    }
-  }
+  const audienceSize = igFollowersReal + ytSubsReal + (profile.tiktokFollowers ?? 0);
+  const reachStat = computeReachStat(ig?.posts ?? [], yt?.videos ?? [], audienceSize);
 
   // Hero stat chips
   const heroStats: ProfileStat[] = [
-    { label: '30-Day Reach', value: useMock ? MOCK.reach : formatCount(reachReal) },
+    useMock ? { label: '30-Day Reach', value: MOCK.reach } : reachStat,
     {
       label: 'Followers',
       value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal),
@@ -557,7 +598,7 @@ export function buildCreatorProfileView(
 
   // Main stat cards
   const stats: ProfileStat[] = [
-    { label: '30-Day Reach', value: useMock ? MOCK.reach : formatCount(reachReal) },
+    useMock ? { label: '30-Day Reach', value: MOCK.reach } : reachStat,
     { label: 'Followers', value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal) },
   ];
   if (ig?.engagementRate != null) {
@@ -566,6 +607,9 @@ export function buildCreatorProfileView(
     stats.push({ label: 'Engagement', value: MOCK.engagement });
   } else if (ig?.avgViews != null) {
     stats.push({ label: 'Avg Views', value: formatCount(ig.avgViews) });
+  } else if (yt?.avgViews != null) {
+    // Instagram rarely reports usable view counts; YouTube's feed always does.
+    stats.push({ label: 'Avg Views', value: formatCount(yt.avgViews) });
   }
 
   // Featured Content (6 tiles max)
@@ -677,5 +721,69 @@ export function buildCreatorProfileView(
     snapshotAge: relativeAge(ig?.fetchedAt ?? null),
     instagramHandle: cleanHandle(profile.instagramHandle ?? null),
     youtubeHandle: cleanHandle(profile.youtubeHandle ?? (yt as any)?.handle ?? null),
+    packages: buildProfilePackages(profile),
   };
+}
+
+const PACKAGE_COPY: Record<string, Omit<ProfilePackage, 'priceLabel' | 'featured'>> = {
+  Post: {
+    platform: 'instagram',
+    title: 'Instagram Post',
+    description: 'Single image post with caption featuring your brand.',
+    perks: ['1 feed post', 'Caption + tags', 'Story mention'],
+  },
+  Reel: {
+    platform: 'instagram',
+    title: 'Instagram Reel',
+    description: 'Engaging reel to showcase your product or service.',
+    perks: ['1 reel (15–60s)', 'Caption + tags', '2 story mentions'],
+  },
+  Story: {
+    platform: 'instagram',
+    title: 'Instagram Story',
+    description: 'Story feature with link sticker and brand mention.',
+    perks: ['2 story frames', 'Link sticker', 'Brand tag'],
+  },
+  'YouTube Video': {
+    platform: 'youtube',
+    title: 'YouTube Video',
+    description: 'Dedicated video review or integration.',
+    perks: ['1 YouTube video', 'Description + links', 'Community post'],
+  },
+  'Event Appearance': {
+    platform: 'other',
+    title: 'Event Appearance',
+    description: 'In-person appearance, launch, or meet-and-greet.',
+    perks: ['On-site appearance', 'Social coverage', 'Audience meet & greet'],
+  },
+};
+
+function priceLabelOf(profile: RawPublicProfile): string {
+  const min = profile.pricingMin;
+  const max = profile.pricingMax;
+  const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+  if (min != null && max != null) return `${inr(min)} – ${inr(max)}`;
+  if (min != null) return `${inr(min)}+`;
+  const PRICE_RANGE_LABEL: Record<string, string> = {
+    entry: '₹1K – ₹5K',
+    standard: '₹5K – ₹10K',
+    premium: '₹10K – ₹25K',
+    pro: '₹25K+',
+  };
+  const range = (profile.priceRange ?? '').toLowerCase();
+  return PRICE_RANGE_LABEL[range] ?? '₹25,000+';
+}
+
+function buildProfilePackages(profile: RawPublicProfile): ProfilePackage[] {
+  let types = (profile.collabTypes ?? []).filter((t) => PACKAGE_COPY[t]);
+  if (types.length === 0) {
+    types = ['YouTube Video', 'Event Appearance', 'Post'];
+  }
+  const priceLabel = priceLabelOf(profile);
+  const featuredIdx = types.length >= 3 ? 1 : types.length - 1;
+  return types.slice(0, 3).map((t, i) => ({
+    ...PACKAGE_COPY[t],
+    priceLabel,
+    featured: i === featuredIdx,
+  }));
 }
