@@ -1,23 +1,34 @@
 /**
- * Home.
+ * Home — the action console.
  *
- * Reads in one pass down the screen: what needs a decision from you, what your
- * money is doing, then what's in flight. The charts are all fed by endpoints
- * that already existed — /api/{influencer,business}/dashboard carry a six-week
- * trend and a pipeline breakdown that this screen previously ignored, which is
- * why it read as a list of bare numbers next to the web dashboard.
+ * This screen used to render the creator's recent posts, latest videos,
+ * audience split and brand ratings. All four are *identity* content, all four
+ * already live on Profile, and none of them answer the only question Home is
+ * for: what do I have to do next? Home was a second copy of the public profile
+ * with a couple of numbers on top.
+ *
+ * It now reads top-down as: what is waiting on me → which projects need my
+ * move → who I'm waiting on → what the money is doing. The showcase content
+ * moved to Profile, where a creator goes to see how they look.
+ *
+ * "Whose move is it" comes from the API (`turn` / `next_action` per project),
+ * which derives it from STAGE_ACTOR plus each side's sign-off in stage_progress
+ * — see projectTurn() in @influnet/core.
  */
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
+  AlertCircle,
+  ArrowDownRight,
+  ArrowUpRight,
   BadgeCheck,
   ChevronRight,
-  Eye,
+  Clock,
   FolderKanban,
   Handshake,
   Inbox,
+  MessageCircle,
   Send,
-  Star,
   TrendingUp,
 } from 'lucide-react-native';
 import { STAGES, type Stage } from '@influnet/core';
@@ -28,17 +39,13 @@ import { useNotificationSummary } from '@/lib/notification-summary';
 import { useFetch } from '@/lib/use-fetch';
 import {
   formatCompactCurrency,
-  formatCount,
   formatCurrency,
   humanizeStage,
   timeAgo,
 } from '@/lib/format';
-import { styleForStatus } from '@/lib/deal-state-style';
 import { AppHeader } from '@/components/app-header';
 import { ActionCard } from '@/components/action-card';
-import { PostGrid, VideoList } from '@/components/content-grid';
 import {
-  Badge,
   Card,
   DonutChart,
   ErrorState,
@@ -59,87 +66,65 @@ import {
   type TrendPoint,
 } from '@/components/ui';
 
-/**
- * Note the camelCase `takenAt`: /api/home passes the snapshot view straight
- * through (lib/public-profile/get-instagram-snapshot.ts), so it is NOT the
- * database's `taken_at`. Declaring the snake_case name here silently produced
- * `undefined` for every date, which is why the reach chart used to label its
- * bars "#1…#6" instead of showing when each post went out.
- */
-interface SocialPost {
-  url: string;
-  thumbUrl: string | null;
-  takenAt: string | null;
-  likes: number | null;
-  comments: number | null;
-  views: number | null;
-  type?: string;
-}
-
-interface YouTubeVideo {
-  url: string;
+/** One active project, with the API's verdict on whose move it is. */
+interface OngoingProject {
+  id: string;
   title: string;
-  thumbUrl: string | null;
-  views: number | null;
-  publishedAt: string | null;
+  status: string;
+  current_stage: string;
+  budget: number | null;
+  updated_at: string;
+  partner: string | null;
+  my_side: 'business' | 'creator';
+  /** 'you' — actionable now. 'them' — waiting. 'none' — finished. */
+  turn: 'you' | 'them' | 'none';
+  /** Short imperative for whoever the turn belongs to. */
+  next_action: string;
+  /** Days since anything happened on this project. */
+  idle_days: number;
 }
 
+/**
+ * The figures that answer "how is it actually going?" — computed server-side
+ * in /api/home from rows it already had, so this costs no extra round trip.
+ */
+interface HomeAnalytics {
+  month: {
+    current: number;
+    previous: number;
+    /** Null when last month was zero — a percentage off nothing is not insight. */
+    delta_pct: number | null;
+    label: string;
+  };
+  avg_deal_size: number | null;
+  /** Active work grouped into Setup / Production / Review / Payment. */
+  phases: { label: string; value: number }[];
+  /** Active projects nobody has touched in a week or more, worst first. */
+  stalled: { id: string; title: string; partner: string | null; idle_days: number; turn: string }[];
+  funnel: {
+    received: number;
+    accepted: number;
+    completed: number;
+    accept_rate: number | null;
+    completion_rate: number | null;
+  };
+}
+
+/**
+ * Only what Home reads. The endpoint still returns the social snapshot, the
+ * audience split and the reviews — Profile is what renders those now, and
+ * listing them here again invites them back onto this screen.
+ */
 interface HomePayload {
   role: string;
   profile: { name: string; location: string | null; verified: boolean; verification_status: string };
-  public_path: string | null;
-  social: {
-    followers: number | null;
-    engagement_rate: number | null;
-    avg_views: number | null;
-    posts_count: number | null;
-    fetched_at?: string | null;
-    posts?: SocialPost[];
-  } | null;
-  youtube: {
-    subscribers: number | null;
-    avg_views: number | null;
-    handle: string | null;
-    fetched_at: string | null;
-    videos: YouTubeVideo[];
-  } | null;
-  audience: {
-    locations: { label: string; pct: number }[];
-    ages: { label: string; pct: number }[];
-    genders: { label: string; pct: number }[];
-  } | null;
-  past_collaborations?: string[];
-  reviews: {
-    count: number;
-    average: number | null;
-    items: {
-      id: string;
-      rating: number;
-      comment: string | null;
-      reviewerName: string;
-      projectTitle: string | null;
-      createdAt: string | null;
-    }[];
-  } | null;
-  ongoing: {
-    id: string;
-    title: string;
-    status: string;
-    current_stage: string;
-    budget: number | null;
-    updated_at: string;
-    partner: string | null;
-  }[];
-  completed?: {
-    id: string;
-    title: string;
-    budget: number | null;
-    completed_at: string | null;
-    partner: string | null;
-  }[];
+  ongoing: OngoingProject[];
+  /** Absent on an older backend; every reader below tolerates undefined. */
+  analytics?: HomeAnalytics;
   counts: {
     ongoing: number;
     completed: number;
+    your_turn: number;
     awaiting_me: number;
     awaiting_them: number;
     pending_requests: number;
@@ -183,6 +168,7 @@ export default function HomeScreen() {
   const unreadNotifications = useNotificationSummary(
     (s) => s.summary?.unread_notifications_count ?? 0,
   );
+  const unreadMessages = useNotificationSummary((s) => s.summary?.unread_messages_count ?? 0);
 
   /**
    * Home first, then the dashboard its `role` selects. Sequential rather than
@@ -216,7 +202,14 @@ export default function HomeScreen() {
   const isCreator = (home?.role ?? profile?.role) === 'influencer';
   const avatar = isCreator ? profile?.avatar_url : profile?.logo_url;
 
-  // Everything that needs a decision from this user, most urgent first.
+  // ── Whose move ──────────────────────────────────────────────────
+  // Older builds of the API don't send `turn`; those projects fall into the
+  // actionable list rather than vanishing from the screen entirely.
+  const ongoing = home?.ongoing ?? [];
+  const yourMove = ongoing.filter((p) => (p.turn ?? 'you') === 'you');
+  const theirMove = ongoing.filter((p) => p.turn === 'them');
+
+  // Decisions that live outside a project, most urgent first.
   const actions = [
     counts?.awaiting_me
       ? {
@@ -233,9 +226,19 @@ export default function HomeScreen() {
           key: 'requests',
           icon: <Inbox size={18} color={t.color.warn} />,
           title: `${counts.pending_requests} new collaboration ${counts.pending_requests === 1 ? 'request' : 'requests'}`,
-          body: 'A brand wants to work with you.',
+          body: isCreator ? 'A brand wants to work with you.' : 'Waiting for your reply.',
           tone: 'warn' as const,
           onPress: () => router.push('/requests'),
+        }
+      : null,
+    unreadMessages
+      ? {
+          key: 'messages',
+          icon: <MessageCircle size={18} color={t.color.brand} />,
+          title: `${unreadMessages} unread ${unreadMessages === 1 ? 'message' : 'messages'}`,
+          body: 'Someone is waiting on a reply.',
+          tone: 'brand' as const,
+          onPress: () => router.push('/messages'),
         }
       : null,
     isCreator && home && !home.profile.verified
@@ -263,25 +266,16 @@ export default function HomeScreen() {
   }));
   const breakdownTotal = breakdown.reduce((sum, b) => sum + b.value, 0);
 
-  // Reach across the creator's most recent posts. Views is the honest measure
-  // where Instagram reports it; likes+comments is the fallback for stills.
-  const postTrend: TrendPoint[] = (home?.social?.posts ?? [])
-    .slice(0, 6)
-    .reverse()
-    .map((post, i) => ({
-      label: post.takenAt
-        ? new Date(post.takenAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-        : `#${i + 1}`,
-      value: post.views ?? (post.likes ?? 0) + (post.comments ?? 0),
-    }));
+  // ── Analytics ───────────────────────────────────────────────────
+  const analytics = home?.analytics;
+  const stalled = analytics?.stalled ?? [];
+  const phaseTrend: TrendPoint[] = (analytics?.phases ?? []).map((p) => ({
+    label: p.label,
+    value: p.value,
+  }));
+  const funnel = analytics?.funnel;
 
-  const posts = home?.social?.posts ?? [];
-  const videos = home?.youtube?.videos ?? [];
-  const audience = home?.audience ?? null;
-  const reviews = home?.reviews ?? null;
-
-  const focus = home?.ongoing?.[0];
-  const focusProgress = focus ? stageProgress(focus.current_stage) : null;
+  const nothingPending = actions.length === 0 && yourMove.length === 0;
 
   return (
     <Screen padded={false}>
@@ -350,6 +344,7 @@ export default function HomeScreen() {
               </View>
             </GradientCard>
 
+            {/* ── Decisions that aren't tied to a project ───────────── */}
             {actions.length > 0 ? (
               <>
                 <SectionLabel>Needs you</SectionLabel>
@@ -366,18 +361,197 @@ export default function HomeScreen() {
                   ))}
                 </View>
               </>
-            ) : (
+            ) : null}
+
+            {/* ── The heart of the screen: projects held up by you ─── */}
+            {/* Each row names the concrete next step for this stage, so the
+                answer to "what now?" is on the row rather than two taps in. */}
+            {yourMove.length > 0 ? (
+              <>
+                <SectionLabel>
+                  {yourMove.length === 1 ? 'Your move' : `Your move · ${yourMove.length}`}
+                </SectionLabel>
+                <View style={{ gap: t.spacing.sm }}>
+                  {yourMove.map((p) => {
+                    const { index, ratio } = stageProgress(p.current_stage);
+
+                    return (
+                      <Pressable
+                        key={p.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${p.title}. Your move: ${p.next_action}`}
+                        onPress={() => router.push(`/projects/${p.id}`)}
+                        style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+                      >
+                        <Card raised style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.lg }}>
+                          <ProgressRing
+                            progress={ratio}
+                            size={54}
+                            label={`${index + 1}/${STAGES.length}`}
+                            caption="stage"
+                          />
+                          <View style={{ flex: 1, gap: 3 }}>
+                            <Txt variant="bodyStrong" numberOfLines={1}>
+                              {p.next_action}
+                            </Txt>
+                            <Txt variant="footnote" tone="soft" numberOfLines={1}>
+                              {p.title}
+                            </Txt>
+                            <Txt variant="caption" tone="muted" numberOfLines={1}>
+                              {p.partner ?? 'Partner'} · {humanizeStage(p.current_stage)}
+                            </Txt>
+                          </View>
+                          <ChevronRight size={18} color={t.color.contentMuted} />
+                        </Card>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+
+            {/* ── Going quiet ───────────────────────────────────────── */}
+            {/* Ranked by silence, not by stage. A week of nothing is the
+                clearest early signal that a collaboration is dying, and it is
+                invisible in every other view — a stalled project still looks
+                perfectly healthy sitting in its stage. */}
+            {stalled.length > 0 ? (
+              <>
+                <SectionLabel>Going quiet</SectionLabel>
+                <ListGroup>
+                  {stalled.map((p, i) => (
+                    <ListRow
+                      key={p.id}
+                      title={p.title}
+                      subtitle={
+                        p.turn === 'you'
+                          ? `${p.partner ?? 'Partner'} · waiting on you`
+                          : `${p.partner ?? 'Partner'} · nudge them`
+                      }
+                      index={i}
+                      left={<AlertCircle size={18} color={t.color.warn} />}
+                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
+                      right={
+                        <Txt variant="caption" style={{ color: t.color.warn, fontWeight: '600' }}>
+                          {p.idle_days}d quiet
+                        </Txt>
+                      }
+                      onPress={() => router.push(`/projects/${p.id}`)}
+                    />
+                  ))}
+                </ListGroup>
+              </>
+            ) : null}
+
+            {nothingPending ? (
               <Card style={{ gap: 4 }}>
                 <Txt variant="bodyStrong">You're all caught up</Txt>
                 <Txt variant="footnote" tone="muted">
-                  {isCreator
-                    ? 'No requests or approvals waiting. Keep your profile fresh so brands can find you.'
-                    : "Nothing waiting on you. Here's where your campaigns stand."}
+                  {theirMove.length > 0
+                    ? 'Nothing is waiting on you right now — the projects below are with your partners.'
+                    : isCreator
+                      ? 'No requests or approvals waiting. Keep your profile fresh so brands can find you.'
+                      : "Nothing waiting on you. Here's where your campaigns stand."}
                 </Txt>
               </Card>
-            )}
+            ) : null}
 
-            {/* ── The six weeks behind that number ─────────────────── */}
+            {/* ── Live, but not yours to move ───────────────────────── */}
+            {theirMove.length > 0 ? (
+              <>
+                <SectionLabel>Waiting on others</SectionLabel>
+                <ListGroup>
+                  {theirMove.map((p, i) => (
+                    <ListRow
+                      key={p.id}
+                      title={p.title}
+                      subtitle={`${p.partner ?? 'Partner'} · ${p.next_action}`}
+                      index={i}
+                      left={<Clock size={18} color={t.color.contentMuted} />}
+                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
+                      right={
+                        <Txt variant="caption" tone="muted">
+                          {timeAgo(p.updated_at)}
+                        </Txt>
+                      }
+                      below={
+                        <ProgressBar
+                          progress={stageProgress(p.current_stage).ratio}
+                          style={{ marginTop: t.spacing.sm }}
+                        />
+                      }
+                      onPress={() => router.push(`/projects/${p.id}`)}
+                    />
+                  ))}
+                </ListGroup>
+              </>
+            ) : null}
+
+            {/* ── This month, against last ─────────────────────────── */}
+            {/* The delta is the point: an absolute figure tells you nothing
+                about direction, and direction is what a creator checking their
+                phone actually wants to know. */}
+            {analytics ? (
+              <>
+                <SectionLabel>{analytics.month.label}</SectionLabel>
+                <Card style={{ gap: t.spacing.lg }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <View style={{ gap: 3, flex: 1 }}>
+                      <Txt variant="caption" tone="muted">
+                        {isCreator ? 'Delivered this month' : 'Paid out this month'}
+                      </Txt>
+                      <Txt
+                        variant="title2"
+                        style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.4 }}
+                      >
+                        {formatCurrency(analytics.month.current)}
+                      </Txt>
+
+                      {analytics.month.delta_pct != null ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                          {analytics.month.delta_pct >= 0 ? (
+                            <ArrowUpRight size={13} color={t.color.ok} />
+                          ) : (
+                            <ArrowDownRight size={13} color={t.color.danger} />
+                          )}
+                          <Txt
+                            variant="caption"
+                            style={{
+                              fontWeight: '600',
+                              color: analytics.month.delta_pct >= 0 ? t.color.ok : t.color.danger,
+                            }}
+                          >
+                            {Math.abs(analytics.month.delta_pct)}% vs last month
+                          </Txt>
+                        </View>
+                      ) : (
+                        <Txt variant="caption" tone="muted">
+                          {analytics.month.previous > 0
+                            ? `${formatCurrency(analytics.month.previous)} last month`
+                            : 'First month with completed work'}
+                        </Txt>
+                      )}
+                    </View>
+
+                    {analytics.avg_deal_size ? (
+                      <View style={{ gap: 3, alignItems: 'flex-end' }}>
+                        <Txt variant="caption" tone="muted">
+                          Avg deal
+                        </Txt>
+                        <Txt
+                          variant="title3"
+                          style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.3 }}
+                        >
+                          {formatCompactCurrency(analytics.avg_deal_size)}
+                        </Txt>
+                      </View>
+                    ) : null}
+                  </View>
+                </Card>
+              </>
+            ) : null}
+
+            {/* ── The six weeks behind the headline number ─────────── */}
             <SectionLabel>
               {isCreator ? 'Earnings · last 6 weeks' : 'Spend · last 6 weeks'}
             </SectionLabel>
@@ -395,76 +569,40 @@ export default function HomeScreen() {
               </View>
             </Card>
 
-            {/* ── The one project most worth looking at right now ── */}
-            {focus && focusProgress ? (
+            {/* ── Where the live work is sitting ────────────────────── */}
+            {/* Four phases, not twelve stages: twelve bars on a phone is a wall
+                of noise, and the useful question is which part of the process
+                is backed up, not which exact step. */}
+            {phaseTrend.some((p) => p.value > 0) ? (
               <>
-                <SectionLabel>Current focus</SectionLabel>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => router.push(`/projects/${focus.id}`)}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-                >
-                  <Card
-                    raised
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: t.spacing.lg,
-                    }}
-                  >
-                    <ProgressRing
-                      progress={focusProgress.ratio}
-                      size={62}
-                      label={`${focusProgress.index + 1}/${STAGES.length}`}
-                      caption="stage"
-                    />
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Txt variant="bodyStrong" numberOfLines={1}>
-                        {focus.title}
-                      </Txt>
-                      <Txt variant="footnote" tone="soft" numberOfLines={1}>
-                        {humanizeStage(focus.current_stage)}
-                      </Txt>
-                      <Txt variant="caption" tone="muted" numberOfLines={1}>
-                        {focus.partner ?? 'Partner'} · {timeAgo(focus.updated_at)}
-                      </Txt>
-                    </View>
-                    <ChevronRight size={18} color={t.color.contentMuted} />
-                  </Card>
-                </Pressable>
+                <SectionLabel>Where your work is sitting</SectionLabel>
+                <Card>
+                  <TrendBars
+                    data={phaseTrend}
+                    formatValue={(v) => String(v)}
+                    emptyLabel="No active projects to place"
+                  />
+                </Card>
               </>
             ) : null}
 
-            {/* ── Creator reach, from the cached Instagram snapshot ── */}
-            {isCreator && home?.social ? (
+            {/* ── Conversion ───────────────────────────────────────── */}
+            {funnel && funnel.received > 0 ? (
               <>
-                <SectionLabel>Your audience</SectionLabel>
-                <Card style={{ gap: t.spacing.lg }}>
+                <SectionLabel>{isCreator ? 'Requests to delivered' : 'Outreach to delivered'}</SectionLabel>
+                <Card style={{ gap: t.spacing.md }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     {[
-                      { label: 'Followers', value: formatCount(home.social.followers) },
-                      {
-                        label: 'Engagement',
-                        value: home.social.engagement_rate
-                          ? `${home.social.engagement_rate.toFixed(1)}%`
-                          : '—',
-                      },
-                      // Instagram's scraper rarely returns a usable view count;
-                      // YouTube's feed always does.
-                      {
-                        label: 'Avg views',
-                        value: formatCount(home.social.avg_views ?? home.youtube?.avg_views ?? null),
-                      },
-                    ].map((stat) => (
-                      <View key={stat.label} style={{ gap: 2 }}>
+                      { label: 'Received', value: funnel.received },
+                      { label: 'Accepted', value: funnel.accepted },
+                      { label: 'Delivered', value: funnel.completed },
+                    ].map((step) => (
+                      <View key={step.label} style={{ gap: 2 }}>
                         <Txt variant="caption" tone="muted">
-                          {stat.label}
+                          {step.label}
                         </Txt>
-                        <Txt
-                          variant="title3"
-                          style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.3 }}
-                        >
-                          {stat.value}
+                        <Txt variant="title3" style={{ fontVariant: ['tabular-nums'] }}>
+                          {step.value}
                         </Txt>
                       </View>
                     ))}
@@ -473,126 +611,31 @@ export default function HomeScreen() {
                   <View style={{ height: 1, backgroundColor: t.color.hairline }} />
 
                   <View style={{ gap: t.spacing.sm }}>
-                    <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                      Reach per recent post
-                    </Txt>
-                    <TrendBars
-                      data={postTrend}
-                      formatValue={formatCount}
-                      emptyLabel="Connect Instagram to see how your recent posts performed"
-                    />
-                  </View>
-                </Card>
-              </>
-            ) : null}
-
-            {/* ── The actual posts, not just their numbers ─────────── */}
-            {/* Same thumbnails the public profile shows a brand. Without them
-                the app reported metrics for work the creator couldn't see. */}
-            {isCreator && posts.some((p) => p.thumbUrl) ? (
-              <>
-                <SectionLabel>Your recent posts</SectionLabel>
-                <Card>
-                  <PostGrid posts={posts} />
-                </Card>
-              </>
-            ) : null}
-
-            {isCreator && videos.some((v) => v.thumbUrl) ? (
-              <>
-                <SectionLabel>Latest videos</SectionLabel>
-                <Card>
-                  <VideoList videos={videos} />
-                </Card>
-              </>
-            ) : null}
-
-            {/* ── Who is watching ──────────────────────────────────── */}
-            {isCreator && audience && audience.locations.length + audience.ages.length + audience.genders.length > 0 ? (
-              <>
-                <SectionLabel>Audience breakdown</SectionLabel>
-                <Card style={{ gap: t.spacing.lg }}>
-                  {(
-                    [
-                      ['Top locations', audience.locations],
-                      ['Age range', audience.ages],
-                      ['Gender', audience.genders],
-                    ] as const
-                  )
-                    .filter(([, slices]) => slices.length > 0)
-                    .map(([label, slices]) => (
-                      <View key={label} style={{ gap: t.spacing.sm }}>
-                        <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                          {label}
-                        </Txt>
-                        {slices.map((s) => (
-                          <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
-                            <Txt variant="footnote" tone="soft" style={{ width: 74 }} numberOfLines={1}>
-                              {s.label}
+                    {[
+                      { label: 'Accepted', pct: funnel.accept_rate, of: 'of requests received' },
+                      { label: 'Delivered', pct: funnel.completion_rate, of: 'of accepted deals' },
+                    ]
+                      // A rate with a zero denominator is hidden rather than
+                      // shown as 0% — "0% delivered" with nothing accepted yet
+                      // reads as failure where the truth is "not applicable".
+                      .filter((r) => r.pct != null)
+                      .map((r) => (
+                        <View key={r.label} style={{ gap: 4 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Txt variant="footnote" tone="soft">
+                              {r.label} · {r.of}
                             </Txt>
-                            <View style={{ flex: 1 }}>
-                              <ProgressBar progress={Math.min(1, s.pct / 100)} />
-                            </View>
-                            <Txt variant="footnote" style={{ width: 38, textAlign: 'right', fontVariant: ['tabular-nums'] }}>
-                              {s.pct}%
+                            <Txt
+                              variant="footnote"
+                              style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}
+                            >
+                              {r.pct}%
                             </Txt>
                           </View>
-                        ))}
-                      </View>
-                    ))}
-                </Card>
-              </>
-            ) : null}
-
-            {/* ── What brands said after the work shipped ───────────── */}
-            {isCreator && reviews && reviews.count > 0 ? (
-              <>
-                <SectionLabel>Brand ratings</SectionLabel>
-                <Card style={{ gap: t.spacing.md }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
-                    <Txt variant="title2" style={{ fontVariant: ['tabular-nums'] }}>
-                      {reviews.average != null ? reviews.average.toFixed(1) : '—'}
-                    </Txt>
-                    <View style={{ flexDirection: 'row', gap: 2 }}>
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <Star
-                          key={n}
-                          size={13}
-                          color={n <= Math.round(reviews.average ?? 0) ? t.color.warn : t.color.contentMuted}
-                          fill={n <= Math.round(reviews.average ?? 0) ? t.color.warn : 'transparent'}
-                        />
+                          <ProgressBar progress={Math.min(1, (r.pct ?? 0) / 100)} />
+                        </View>
                       ))}
-                    </View>
-                    <Txt variant="footnote" tone="muted">
-                      {reviews.count} {reviews.count === 1 ? 'review' : 'reviews'}
-                    </Txt>
                   </View>
-
-                  {reviews.items.slice(0, 3).map((r) => (
-                    <View
-                      key={r.id}
-                      style={{
-                        gap: 3,
-                        borderTopWidth: 1,
-                        borderTopColor: t.color.hairline,
-                        paddingTop: t.spacing.sm,
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: t.spacing.sm }}>
-                        <Txt variant="footnote" style={{ fontWeight: '600', flex: 1 }} numberOfLines={1}>
-                          {r.reviewerName}
-                        </Txt>
-                        <Txt variant="footnote" tone="muted" style={{ fontVariant: ['tabular-nums'] }}>
-                          {r.rating}/5
-                        </Txt>
-                      </View>
-                      {r.comment ? (
-                        <Txt variant="footnote" tone="soft" numberOfLines={3}>
-                          {r.comment}
-                        </Txt>
-                      ) : null}
-                    </View>
-                  ))}
                 </Card>
               </>
             ) : null}
@@ -614,6 +657,12 @@ export default function HomeScreen() {
             <SectionLabel>At a glance</SectionLabel>
             <StatGrid>
               <StatCard
+                label="Needs your move"
+                value={counts?.your_turn ?? yourMove.length}
+                icon={<Handshake size={15} color={t.color.contentMuted} />}
+                onPress={() => router.push('/projects')}
+              />
+              <StatCard
                 label="Active projects"
                 value={counts?.ongoing ?? 0}
                 icon={<FolderKanban size={15} color={t.color.contentMuted} />}
@@ -624,66 +673,19 @@ export default function HomeScreen() {
                 value={counts?.completed ?? 0}
                 icon={<BadgeCheck size={15} color={t.color.contentMuted} />}
               />
-              {isCreator ? (
-                <StatCard
-                  label="Posts"
-                  value={home?.social?.posts_count ?? '—'}
-                  icon={<Eye size={15} color={t.color.contentMuted} />}
-                />
-              ) : (
-                <StatCard
-                  label="Awaiting them"
-                  value={counts?.awaiting_them ?? 0}
-                  icon={<Send size={15} color={t.color.contentMuted} />}
-                />
-              )}
               <StatCard
                 label={isCreator ? 'Open requests' : 'Proposals out'}
-                value={counts?.pending_requests ?? 0}
-                icon={<Inbox size={15} color={t.color.contentMuted} />}
+                value={(isCreator ? counts?.pending_requests : counts?.awaiting_them) ?? 0}
+                icon={
+                  isCreator ? (
+                    <Inbox size={15} color={t.color.contentMuted} />
+                  ) : (
+                    <Send size={15} color={t.color.contentMuted} />
+                  )
+                }
                 onPress={() => router.push(isCreator ? '/requests' : '/projects')}
               />
             </StatGrid>
-
-            {home?.ongoing?.length ? (
-              <>
-                <SectionLabel>In flight</SectionLabel>
-                <ListGroup>
-                  {home.ongoing.slice(0, 5).map((p, i) => {
-                    const s = styleForStatus(p.status, t.color);
-                    const { index, ratio } = stageProgress(p.current_stage);
-
-                    return (
-                      <ListRow
-                        key={p.id}
-                        title={p.title}
-                        subtitle={`${p.partner ?? 'Partner'} · ${humanizeStage(p.current_stage)}`}
-                        index={i}
-                        style={
-                          i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined
-                        }
-                        right={
-                          <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                            {p.budget ? (
-                              <Txt variant="footnote" tone="soft" style={{ fontVariant: ['tabular-nums'] }}>
-                                {formatCurrency(p.budget)}
-                              </Txt>
-                            ) : (
-                              <Badge label={s.label} fg={s.fg} bg={s.bg} />
-                            )}
-                            <Txt variant="caption" tone="muted">
-                              step {index + 1} of {STAGES.length}
-                            </Txt>
-                          </View>
-                        }
-                        below={<ProgressBar progress={ratio} style={{ marginTop: t.spacing.sm }} />}
-                        onPress={() => router.push(`/projects/${p.id}`)}
-                      />
-                    );
-                  })}
-                </ListGroup>
-              </>
-            ) : null}
           </>
         )}
       </ScreenScroll>

@@ -8,8 +8,10 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import styles from './creator-profile.module.css';
 import type { CreatorProfileView } from '@/lib/public-profile/creator-profile';
+import { formatCount } from '@/lib/public-profile/creator-profile';
 import { apiFetch } from '@/lib/api-client';
 import { VerifiedMark } from '@/components/icons/verified-mark';
+import { Link2 } from 'lucide-react';
 
 const PRESETS: { name: string; a: string; b: string }[] = [
   { name: 'Violet', a: '#7C6BF6', b: '#9E92FF' },
@@ -652,6 +654,80 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                     </div>
                   </div>
                 )}
+              </div>
+            </section>
+          )}
+
+          {/* PORTFOLIO — past work, with provenance on every card */}
+          {data.portfolio.length > 0 && (
+            <section className={`${styles.card} ${styles.pad}`}>
+              <div className={styles.chead}><div className={styles.ctitle}>Portfolio</div></div>
+              <div className={styles.pfgrid}>
+                {data.portfolio.map((item) => {
+                  const meta = [
+                    item.views != null ? `${formatCount(item.views)} views` : null,
+                    item.happenedAt
+                      ? new Date(item.happenedAt).toLocaleDateString('en-IN', {
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : null,
+                  ].filter(Boolean).join(' · ');
+
+                  const inner = (
+                    <>
+                      <div className={styles.pfthumb}>
+                        {item.thumbnailUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.thumbnailUrl} alt="" loading="lazy" />
+                        ) : item.verified ? (
+                          <VerifiedMark className={styles.pfseal} />
+                        ) : (
+                          <Link2 size={22} />
+                        )}
+                      </div>
+                      <div className={styles.pfbody}>
+                        <div className={styles.pftitle}>{item.title}</div>
+                        {item.brandName && <div className={styles.pfbrand}>{item.brandName}</div>}
+
+                        {item.verified ? (
+                          <span className={`${styles.pfprov} ${styles['pfprov--verified']}`}>
+                            <VerifiedMark className={styles.pfmark} />
+                            Verified on Influnet
+                          </span>
+                        ) : (
+                          <span className={`${styles.pfprov} ${styles['pfprov--self']}`}>
+                            <Link2 size={11} aria-hidden="true" />
+                            Self-reported
+                          </span>
+                        )}
+
+                        {meta && <div className={styles.pfmeta}>{meta}</div>}
+                      </div>
+                    </>
+                  );
+
+                  // Platform entries are a project record, not a post — there is
+                  // nothing to link to, so they render as a plain card.
+                  return item.contentUrl ? (
+                    <a
+                      key={item.id}
+                      className={`${styles.pfcard} ${item.verified ? styles['pfcard--verified'] : ''}`}
+                      href={item.contentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                    >
+                      {inner}
+                    </a>
+                  ) : (
+                    <div
+                      key={item.id}
+                      className={`${styles.pfcard} ${item.verified ? styles['pfcard--verified'] : ''}`}
+                    >
+                      {inner}
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}

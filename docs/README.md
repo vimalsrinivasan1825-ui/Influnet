@@ -49,6 +49,7 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [E2E_SYSTEM_FLOW_TEST.md](operations/E2E_SYSTEM_FLOW_TEST.md) | **Deep "nothing hidden" walkthrough.** Every flow (signup→link→discover→request→accept→12-stage project→chat) broken down as user-sees / does / backend / DB rows / verify-SQL, plus negative tests and what was verified live. |
 | [LAUNCH_CONFIDENCE_2026-07-14.md](operations/LAUNCH_CONFIDENCE_2026-07-14.md) | Pre-launch readiness report: app-health verification, the HikerAPI verification integration, and the human-only prerequisites (API balance, migrations). |
 | [PRODUCT_CONFIDENCE_2026-07-26.md](operations/PRODUCT_CONFIDENCE_2026-07-26.md) | **Latest readiness report.** What a completed project leaves on both profiles, creator-visibility parity (web/mobile), the consent loopholes found and closed (incl. migration 081), live migration-state probe, and per-area confidence. |
+| [HOME_ACTION_CONSOLE_2026-07-28.md](operations/HOME_ACTION_CONSOLE_2026-07-28.md) | Mobile Home rebuilt as a "whose move is it" console: the `projectTurn()` model, the stage-by-stage table of what each side sees, the two defects the stage-matrix sweep caught (deadlock + passive action text), and the portfolio work agreed for next round. |
 | [SUPABASE.md](operations/SUPABASE.md) | Supabase project setup, auth email templates, field mapping (UI → DB). |
 | [PHONE_OTP.md](operations/PHONE_OTP.md) | 2Factor SMS OTP setup: migration, edge-function deploy, client flows, security limits. |
 

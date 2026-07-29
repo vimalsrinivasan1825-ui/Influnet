@@ -29,6 +29,20 @@ export function createEndpoints(api: ApiClient) {
       api.post<T>('/api/profile/push-token', { token }),
     checkUsername: <T = unknown>(username: string) =>
       api.get<T>(`/api/auth/check-username?username=${encodeURIComponent(username)}`),
+
+    // ── Portfolio ──────────────────────────────────────────────────
+    /** Manual entries merged with completed platform projects (migration 087). */
+    listPortfolio: <T = unknown>() => api.get<T>('/api/portfolio'),
+    /** `url` is the only required field — platform, thumbnail and (for YouTube) title are derived from it. */
+    addPortfolioItem: <T = unknown>(body: {
+      url: string;
+      title?: string;
+      brand_name?: string;
+      description?: string;
+      published_at?: string;
+    }) => api.post<T>('/api/portfolio', body),
+    deletePortfolioItem: <T = unknown>(id: string) =>
+      api.del<T>(`/api/portfolio?id=${encodeURIComponent(id)}`),
     register: <T = unknown>(body: unknown) => api.post<T>('/api/auth/register', body),
 
     // ── Discovery ──────────────────────────────────────────────────

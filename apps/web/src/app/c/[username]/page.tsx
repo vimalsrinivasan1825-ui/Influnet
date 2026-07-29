@@ -12,6 +12,7 @@ import {
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
+import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
 import { publicOrigin } from '@/lib/site';
 
 // Anon client for public profile reads.
@@ -146,10 +147,11 @@ export default async function PublicProfilePage({
 
   // Instagram, YouTube and ratings are independent reads — one being empty (or
   // its migration unapplied) must never hold up or break the others.
-  const [instagram, youtube, reviews] = await Promise.all([
+  const [instagram, youtube, reviews, portfolio] = await Promise.all([
     getInstagramSnapshot(profile.userId),
     getYouTubeSnapshot(profile.userId),
     getPublicReviews(profile.userId),
+    getCreatorPortfolio(supabaseAnon, profile.userId),
   ]);
 
   const view = buildCreatorProfileView(profile, {
@@ -159,6 +161,7 @@ export default async function PublicProfilePage({
     reviews,
     origin,
     autoCollaborations,
+    portfolio,
   });
 
   return <CreatorProfileViewComponent data={view} isOwner={isOwner} ctaHref={ctaHref} ctaLabel={ctaLabel} />;

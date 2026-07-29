@@ -8,6 +8,7 @@
 
 import { PRICE_TIERS } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
+import type { PublicPortfolioItem } from './get-portfolio';
 
 export type SocialPlatform = 'instagram' | 'youtube' | 'tiktok';
 
@@ -128,6 +129,12 @@ export interface CreatorProfileView {
     interests: { label: string; pct: number }[];
   } | null;
   pastCollaborations: string[];
+  /**
+   * Past work as cards, replacing the bare brand-name chips above. Carries its
+   * own `verified` flag per item: platform-completed projects are vouched for,
+   * self-added entries are not, and the UI must keep the two distinguishable.
+   */
+  portfolio: PublicPortfolioItem[];
   /** The formats this creator takes on, from `collab_types`. */
   collabTypes: string[];
   /** Human-readable rate, e.g. "₹25K+". Null when the creator hasn't set one. */
@@ -521,6 +528,8 @@ export function buildCreatorProfileView(
     origin?: string;
     /** Brand names from completed collaborations in-app; merged with self-reported. */
     autoCollaborations?: string[];
+    /** Portfolio cards from get_creator_portfolio (migration 087). */
+    portfolio?: PublicPortfolioItem[];
   },
 ): CreatorProfileView {
   const ig = opts.instagram ?? null;
@@ -701,6 +710,9 @@ export function buildCreatorProfileView(
     featured: featured.slice(0, 6),
     audience,
     pastCollaborations,
+    // Never mocked: an invented portfolio would put fake work on a real
+    // creator's page, and every card here is a claim about a specific post.
+    portfolio: opts.portfolio ?? [],
     // Videos are their own section rather than merged into `featured`: a
     // YouTube upload has a title worth reading, an Instagram tile doesn't.
     videos: (yt?.videos ?? [])

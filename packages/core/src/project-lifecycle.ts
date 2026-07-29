@@ -52,6 +52,38 @@ export const stageProgressPercent = (s: Stage) => {
   return Math.round((index / (STAGES.length - 1)) * 100);
 };
 
+/**
+ * The 12 stages collapsed into the four things that actually happen in a
+ * collaboration. Twelve bars on a phone is a wall of noise; four answers the
+ * question a dashboard is for — where is my work piling up?
+ *
+ * Grouped by what the stage is FOR, not by who acts in it: 'Review' covers the
+ * whole approval loop (submit → revisions → final sign-off) because a project
+ * bouncing between those three is stuck in one place from the outside.
+ */
+export const STAGE_PHASES = ['Setup', 'Production', 'Review', 'Payment'] as const;
+export type StagePhase = typeof STAGE_PHASES[number];
+
+export const STAGE_PHASE: Record<Stage, StagePhase | null> = {
+  collaboration_started: 'Setup',
+  project_discussion: 'Setup',
+  advance_payment: 'Setup',
+  content_planning: 'Production',
+  content_confirmation: 'Production',
+  shooting_in_progress: 'Production',
+  editing_in_progress: 'Production',
+  sent_for_review: 'Review',
+  revisions: 'Review',
+  final_approval: 'Review',
+  final_payment: 'Payment',
+  // Terminal: a finished project is not sitting in any phase.
+  project_completed: null,
+};
+
+export function phaseOf(stage: string): StagePhase | null {
+  return STAGE_PHASE[stage as Stage] ?? null;
+}
+
 export const STAGE_LABELS: Record<Stage, string> = {
   collaboration_started: 'Collaboration Started',
   project_discussion: 'Discussion',

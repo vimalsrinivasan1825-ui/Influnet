@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { projectTurn, STAGE_PHASES, phaseOf } from '@influnet/core';
 import { withAuth, jsonError } from '@/lib/api';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
@@ -6,11 +7,21 @@ import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 import { parseAudience } from '@/lib/public-profile/creator-profile';
 
 /**
- * The Home screen: who you are publicly, and what is currently in flight.
+ * The Home screen: what needs you, and how the work is actually going.
  *
- * Deliberately narrow — Home answers "how do I look, and what needs me?".
- * The full metric breakdown stays on Dashboard, which has its own endpoint.
+ * Home answers "what do I do now?" — whose move each project is on, what has
+ * gone quiet, and the handful of figures that tell a creator or a brand whether
+ * things are trending up. The exhaustive metric breakdown stays on Dashboard,
+ * which has its own endpoint.
  */
+
+/** Whole days between a timestamp and now. Negative clock skew reads as 0. */
+function daysSince(iso: string | null | undefined): number {
+  if (!iso) return 0;
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return 0;
+  return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
+}
 export async function GET(req: Request) {
   try {
     const auth = await withAuth(req);
@@ -96,7 +107,7 @@ export async function GET(req: Request) {
     const { data: projects } = await supabase
       .from('campaign_projects')
       .select(`
-        id, title, status, current_stage, budget, updated_at,
+        id, title, status, current_stage, budget, updated_at, stage_progress,
         owner_user_id, counterparty_user_id,
         owner:profiles!campaign_projects_owner_user_id_fkey(id, name),
         counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name)
@@ -108,6 +119,140 @@ export async function GET(req: Request) {
     const all = projects ?? [];
     const ongoing = all.filter((p: any) => p.status === 'active');
     const completed = all.filter((p: any) => p.status === 'completed');
+
+    // Which side of the deal the caller is on decides whose move it is: the
+    // owner is always the paying brand, the counterparty the creator.
+    const ongoingRows = ongoing.map((p: any) => {
+      const side = p.owner_user_id === user.id ? 'business' : 'creator';
+      const { turn, action } = projectTurn({
+        stage: p.current_stage,
+        side,
+        stageProgress: p.stage_progress,
+      });
+
+      return {
+        id: p.id,
+        title: p.title,
+        status: p.status,
+        current_stage: p.current_stage,
+        budget: p.budget,
+        updated_at: p.updated_at,
+        partner: side === 'business' ? p.counterparty?.name ?? null : p.owner?.name ?? null,
+        // "Whose move is it" — the one thing Home needs and never had. Computed
+        // here rather than on the client because it reads stage_progress, which
+        // is far too heavy to ship to a phone for every project.
+        my_side: side,
+        turn,
+        next_action: action,
+        // Days since anything happened on this project. The single most useful
+        // number for "what should I chase today" — a stage nobody has touched
+        // in a fortnight is the thing quietly killing a collaboration.
+        idle_days: daysSince(p.updated_at),
+      };
+    });
+
+    // ── Analytics ───────────────────────────────────────────────────
+    // Everything below is derived from rows already fetched above. Home
+    // deliberately does not run a second wave of aggregate queries: it is the
+    // first screen after launch and its budget is one round trip.
+
+    const monthWindow = (monthsAgo: number) => {
+      const start = new Date();
+      start.setMonth(start.getMonth() - monthsAgo, 1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+      return { start, end };
+    };
+
+    /**
+     * Value of work COMPLETED in a window. Completion is the honest revenue
+     * event on both sides: a budget agreed in January and delivered in March is
+     * March's money, and `updated_at` on a completed project is when it closed.
+     */
+    const completedValueIn = (start: Date, end: Date) =>
+      completed
+        .filter((p: any) => {
+          const d = new Date(p.updated_at);
+          return d >= start && d < end;
+        })
+        .reduce((sum: number, p: any) => sum + (Number(p.budget) || 0), 0);
+
+    const thisMonth = monthWindow(0);
+    const lastMonth = monthWindow(1);
+    const monthCurrent = completedValueIn(thisMonth.start, thisMonth.end);
+    const monthPrevious = completedValueIn(lastMonth.start, lastMonth.end);
+
+    // Percentage change is meaningless against a zero baseline — "up ∞%" from
+    // one completed project is not insight. Null tells the UI to show the
+    // figure without a delta rather than invent one.
+    const monthDeltaPct =
+      monthPrevious > 0 ? Math.round(((monthCurrent - monthPrevious) / monthPrevious) * 100) : null;
+
+    const valuedProjects = [...ongoing, ...completed].filter((p: any) => Number(p.budget) > 0);
+    const avgDealSize = valuedProjects.length
+      ? Math.round(
+          valuedProjects.reduce((sum: number, p: any) => sum + Number(p.budget), 0) /
+            valuedProjects.length,
+        )
+      : null;
+
+    // Where live work is piling up, in the four phases rather than 12 stages.
+    const phaseCounts = new Map<string, number>(STAGE_PHASES.map((p) => [p, 0]));
+    for (const p of ongoing) {
+      const phase = phaseOf(p.current_stage);
+      if (phase) phaseCounts.set(phase, (phaseCounts.get(phase) ?? 0) + 1);
+    }
+
+    /**
+     * Stalled work, worst first. Seven days is the threshold because the
+     * pipeline has stages that legitimately take a while (a shoot, an edit) but
+     * none where a week of total silence is healthy.
+     */
+    const stalled = (ongoingRows as { id: string; title: string; partner: string | null; idle_days: number; turn: string }[])
+      .filter((p) => p.idle_days >= 7)
+      .sort((a, b) => b.idle_days - a.idle_days)
+      .slice(0, 3)
+      .map((p) => ({
+        id: p.id,
+        title: p.title,
+        partner: p.partner,
+        idle_days: p.idle_days,
+        turn: p.turn,
+      }));
+
+    // The funnel, counted over every request this user has ever received.
+    const { data: allRequests } = await supabase
+      .from('collab_requests')
+      .select('id, status')
+      .eq('to_user_id', user.id);
+
+    const requestsReceived = (allRequests ?? []).length;
+    const requestsAccepted = (allRequests ?? []).filter((r: any) => r.status === 'accepted').length;
+
+    const rate = (num: number, denom: number) =>
+      denom > 0 ? Math.round((num / denom) * 100) : null;
+
+    const analytics = {
+      month: {
+        current: monthCurrent,
+        previous: monthPrevious,
+        delta_pct: monthDeltaPct,
+        label: thisMonth.start.toLocaleDateString('en-IN', { month: 'long' }),
+      },
+      avg_deal_size: avgDealSize,
+      phases: STAGE_PHASES.map((label) => ({ label, value: phaseCounts.get(label) ?? 0 })),
+      stalled,
+      funnel: {
+        received: requestsReceived,
+        accepted: requestsAccepted,
+        completed: completed.length,
+        // Of the requests that came in, how many turned into an agreed deal...
+        accept_rate: rate(requestsAccepted, requestsReceived),
+        // ...and of those, how many were actually delivered.
+        completion_rate: rate(completed.length, requestsAccepted),
+      },
+    };
 
     // Terms waiting on somebody — the other half of "what needs me".
     const { data: proposals } = await supabase
@@ -158,17 +303,10 @@ export async function GET(req: Request) {
       audience,
       // Brands from real completed projects — the wall a visitor sees.
       past_collaborations: pastCollaborations,
+      // Momentum, bottlenecks and the funnel. See the derivation above.
+      analytics,
       reviews,
-      ongoing: ongoing.map((p: any) => ({
-        id: p.id,
-        title: p.title,
-        status: p.status,
-        current_stage: p.current_stage,
-        budget: p.budget,
-        updated_at: p.updated_at,
-        partner:
-          p.owner_user_id === user.id ? p.counterparty?.name ?? null : p.owner?.name ?? null,
-      })),
+      ongoing: ongoingRows,
       // Finished work, for both roles. Completion used to be a number on a tile
       // and nothing else: neither side could see WHAT they had delivered or with
       // whom, which is the half of the record that has any value afterwards.
@@ -183,6 +321,8 @@ export async function GET(req: Request) {
       counts: {
         ongoing: ongoing.length,
         completed: completed.length,
+        // Active projects sitting on a move only this user can make.
+        your_turn: ongoingRows.filter((p: { turn: string }) => p.turn === 'you').length,
         // Proposals RLS already limits these to the caller's collaborations.
         awaiting_me: (proposals ?? []).filter((p: any) => p.proposed_by !== user.id).length,
         awaiting_them: (proposals ?? []).filter((p: any) => p.proposed_by === user.id).length,

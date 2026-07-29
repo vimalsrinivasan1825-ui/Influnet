@@ -460,6 +460,41 @@
   @media(max-width:720px){.brands{grid-template-columns:repeat(3,1fr);}}
   .brand-c{display:grid;place-items:center;height:56px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);font-weight:800;font-size:.82rem;letter-spacing:.02em;color:var(--ink-2);text-align:center;padding:.3rem;}
 
+  /* ── PORTFOLIO ─────────────────────────────────────────────────────
+     Two provenances share this grid and must never be mistaken for one
+     another: platform cards carry the verified mark and a border in the
+     trust colour, self-reported ones are plainly labelled as a claim. The
+     difference is drawn in border, label AND icon — colour alone fails for
+     anyone who cannot distinguish it. */
+  .pfgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;}
+  @media(max-width:760px){.pfgrid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:420px){.pfgrid{grid-template-columns:1fr;}}
+
+  .pfcard{
+    display:flex;flex-direction:column;border:1px solid var(--line);
+    border-radius:var(--r-sm);background:var(--card);overflow:hidden;
+    text-decoration:none;color:inherit;transition:border-color .16s ease,transform .16s ease;
+  }
+  a.pfcard:hover{border-color:var(--line-2);transform:translateY(-2px);}
+  .pfcard--verified{border-color:color-mix(in srgb,var(--verified) 38%,transparent);}
+
+  .pfthumb{aspect-ratio:16/10;background:var(--tile);position:relative;display:grid;place-items:center;}
+  .pfthumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pfthumb svg{opacity:.4;}
+
+  .pfbody{padding:.7rem .75rem .8rem;display:flex;flex-direction:column;gap:.28rem;}
+  .pftitle{font-size:.82rem;font-weight:700;line-height:1.35;color:var(--ink);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .pfbrand{font-size:.72rem;color:var(--ink-2);}
+  .pfmeta{font-size:.68rem;color:var(--ink-3);font-variant-numeric:tabular-nums;}
+
+  .pfprov{display:inline-flex;align-items:center;gap:.28rem;font-size:.66rem;font-weight:700;
+    letter-spacing:.02em;margin-top:.1rem;}
+  .pfprov--verified{color:var(--verified);}
+  .pfmark{width:.86rem;height:.86rem;flex:none;}
+  .pfseal{width:30px;height:30px;opacity:.85;}
+  .pfprov--self{color:var(--ink-3);font-weight:600;}
+
   /* ── WORK WITH ME (Pricing Cards) ─────────────────────────────────── */
   .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
   @media(max-width:760px){.prices{grid-template-columns:1fr;}}

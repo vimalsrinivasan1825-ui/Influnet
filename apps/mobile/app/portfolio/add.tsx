@@ -1,0 +1,156 @@
+/**
+ * Add past work to the portfolio.
+ *
+ * One required field: the link. Everything the server can work out from it —
+ * which platform it is, the thumbnail, and for YouTube the real video title —
+ * is derived on POST (lib/portfolio-link.ts), so the common case is paste,
+ * name the brand, save.
+ *
+ * The screen is deliberately explicit that this is self-reported. A creator
+ * adding their own work is making a claim, and the card it produces says so;
+ * pretending otherwise would put unverified entries next to real completed
+ * projects with nothing to tell them apart.
+ */
+import { useState } from 'react';
+import { View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { BadgeCheck, Info } from 'lucide-react-native';
+import { useTheme } from '@/lib/theme';
+import { endpoints } from '@/lib/api';
+import { invalidateFetchCache } from '@/lib/use-fetch';
+import {
+  Button,
+  Card,
+  Field,
+  Screen,
+  ScreenScroll,
+  Txt,
+} from '@/components/ui';
+
+/** Mirrors the hosts lib/portfolio-link.ts accepts, for the pre-flight hint. */
+function platformHint(url: string): string | null {
+  const u = url.trim().toLowerCase();
+  if (!u) return null;
+  if (u.includes('youtube.com') || u.includes('youtu.be')) {
+    return 'YouTube — we’ll pull the title and thumbnail automatically.';
+  }
+  if (u.includes('instagram.com')) {
+    return 'Instagram — give it a title below; Instagram doesn’t hand out thumbnails to apps.';
+  }
+  return null;
+}
+
+export default function AddPortfolioItemScreen() {
+  const t = useTheme();
+  const router = useRouter();
+
+  const [url, setUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [brand, setBrand] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const hint = platformHint(url);
+  const canSave = url.trim().length > 3 && !saving;
+
+  async function save() {
+    if (!canSave) return;
+    setSaving(true);
+    setError(null);
+
+    const res = await endpoints.addPortfolioItem<{ item?: unknown; error?: string }>({
+      url: url.trim(),
+      title: title.trim() || undefined,
+      brand_name: brand.trim() || undefined,
+    });
+
+    setSaving(false);
+
+    if (!res.ok) {
+      // The route returns creator-facing sentences for every 4xx (bad link,
+      // duplicate, portfolio full), so show what it said rather than a generic
+      // failure — "That post is already in your portfolio" is actionable.
+      setError(res.error || 'Could not add this work. Check the link and try again.');
+      return;
+    }
+
+    // Profile reads its portfolio through the same cache key.
+    invalidateFetchCache('portfolio');
+    invalidateFetchCache('profile-public');
+    router.back();
+  }
+
+  return (
+    <Screen padded={false}>
+      <ScreenScroll>
+        <Card style={{ gap: t.spacing.lg }}>
+          <Field
+            label="Link to the post or video"
+            placeholder="https://youtube.com/watch?v=…"
+            value={url}
+            onChangeText={(v) => {
+              setUrl(v);
+              if (error) setError(null);
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            error={error}
+            hint={hint ?? 'Paste the Instagram post, reel, or YouTube video you made.'}
+          />
+
+          <Field
+            label="Title"
+            placeholder="What was this piece of work?"
+            value={title}
+            onChangeText={setTitle}
+            hint="Optional for YouTube — we’ll use the video’s own title."
+          />
+
+          <Field
+            label="Brand"
+            placeholder="Who was it for?"
+            value={brand}
+            onChangeText={setBrand}
+            hint="Optional. Leave empty for your own content."
+          />
+        </Card>
+
+        {/* Saying this here, before they save, is the honest version of the
+            rule the grid enforces visually. */}
+        <Card style={{ gap: t.spacing.sm, flexDirection: 'row', alignItems: 'flex-start' }}>
+          <Info size={17} color={t.color.contentMuted} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Txt variant="footnote" style={{ fontWeight: '600' }}>
+              This shows as self-reported
+            </Txt>
+            <Txt variant="caption" tone="muted">
+              Work you add yourself is labelled as your own claim. Projects you complete
+              through Influnet carry the verified mark automatically — brands can tell the
+              difference, which is what makes the mark worth having.
+            </Txt>
+          </View>
+        </Card>
+
+        <Card style={{ gap: t.spacing.sm, flexDirection: 'row', alignItems: 'flex-start' }}>
+          <BadgeCheck size={17} color={t.color.verified} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Txt variant="footnote" style={{ fontWeight: '600' }}>
+              Already added for you
+            </Txt>
+            <Txt variant="caption" tone="muted">
+              Every collaboration you finish on Influnet appears in your portfolio on its
+              own, with the brand and date taken from the project itself.
+            </Txt>
+          </View>
+        </Card>
+
+        <Button
+          label={saving ? 'Adding…' : 'Add to portfolio'}
+          onPress={save}
+          disabled={!canSave}
+        />
+      </ScreenScroll>
+    </Screen>
+  );
+}

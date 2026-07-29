@@ -20,6 +20,7 @@ import {
   Eye,
   History,
   LogOut,
+  Plus,
   RefreshCw,
   Settings,
   Share2,
@@ -42,16 +43,20 @@ import {
   Chip,
   ListGroup,
   ListRow,
+  ProgressBar,
   Screen,
   ScreenScroll,
   SectionLabel,
   SkeletonCard,
+  TrendBars,
   Txt,
   VerifiedBadge,
+  type TrendPoint,
 } from '@/components/ui';
 import { AppHeader } from '@/components/app-header';
 import { Logo } from '@/components/brand/logo';
 import { PostGrid, VideoList } from '@/components/content-grid';
+import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
 
 interface ProfilePayload {
   role: string;
@@ -76,7 +81,16 @@ interface ProfilePayload {
     avg_views: number | null;
     posts_count: number | null;
     fetched_at?: string | null;
-    posts?: { url: string; thumbUrl: string | null; views: number | null; likes: number | null }[];
+    // camelCase `takenAt`: /api/home passes the snapshot view straight through
+    // (lib/public-profile/get-instagram-snapshot.ts), so it is NOT `taken_at`.
+    posts?: {
+      url: string;
+      thumbUrl: string | null;
+      views: number | null;
+      likes: number | null;
+      comments?: number | null;
+      takenAt?: string | null;
+    }[];
   } | null;
   youtube: {
     subscribers: number | null;
@@ -84,6 +98,12 @@ interface ProfilePayload {
     videos: { url: string; title: string; thumbUrl: string | null; views: number | null; publishedAt: string | null }[];
   } | null;
   past_collaborations?: string[];
+  /** Self-reported demographics, parsed exactly as the public page parses them. */
+  audience: {
+    locations: { label: string; pct: number }[];
+    ages: { label: string; pct: number }[];
+    genders: { label: string; pct: number }[];
+  } | null;
   reviews: {
     count: number;
     average: number | null;
@@ -101,6 +121,15 @@ export default function ProfileScreen() {
   const { data, loading, refreshing, refresh } = useFetch<ProfilePayload>(
     () => endpoints.home<ProfilePayload>(),
     { cacheKey: 'profile-public' },
+  );
+
+  /**
+   * Separate fetch rather than another field on /api/home: the portfolio is
+   * Profile-only, and Home — which shares that endpoint — has no use for it.
+   */
+  const { data: portfolio, refresh: refreshPortfolio } = useFetch<{ items: PortfolioItem[] }>(
+    () => endpoints.listPortfolio<{ items: PortfolioItem[] }>(),
+    { cacheKey: 'portfolio' },
   );
 
   const isCreator = (data?.role ?? profile?.role) === 'influencer';
@@ -122,6 +151,29 @@ export default function ProfileScreen() {
   const videos = data?.youtube?.videos ?? [];
   const reviews = data?.reviews ?? null;
   const collabs = data?.past_collaborations ?? [];
+  const audience = data?.audience ?? null;
+  const hasAudience =
+    !!audience && audience.locations.length + audience.ages.length + audience.genders.length > 0;
+  const portfolioItems = portfolio?.items ?? [];
+
+  /** Removes a manual entry. Platform-derived cards have no row to delete. */
+  async function removePortfolioItem(item: PortfolioItem) {
+    await endpoints.deletePortfolioItem(item.id);
+    invalidateFetchCache('portfolio');
+    await refreshPortfolio();
+  }
+
+  // Reach across the most recent posts. Views is the honest measure where
+  // Instagram reports it; likes+comments is the fallback for stills.
+  const postTrend: TrendPoint[] = posts
+    .slice(0, 6)
+    .reverse()
+    .map((post, i) => ({
+      label: post.takenAt
+        ? new Date(post.takenAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+        : `#${i + 1}`,
+      value: post.views ?? (post.likes ?? 0) + (post.comments ?? 0),
+    }));
 
   // Exactly the figures on the public page, in the same order.
   const stats = isCreator
@@ -243,11 +295,27 @@ export default function ProfileScreen() {
           </Card>
         ) : null}
 
+        {/* ── Content, and how it performed ───────────────────────── */}
+        {/* Both of these used to sit on Home, where they answered a question
+            nobody opens Home to ask. They belong with the rest of the public
+            profile — this is the screen for "how do I look to a brand?". */}
         {isCreator && posts.some((p) => p.thumbUrl) ? (
           <>
             <SectionLabel>Recent posts</SectionLabel>
-            <Card>
+            <Card style={{ gap: t.spacing.lg }}>
               <PostGrid posts={posts} />
+              {postTrend.some((p) => p.value > 0) ? (
+                <View style={{ gap: t.spacing.sm }}>
+                  <Txt
+                    variant="caption"
+                    tone="muted"
+                    style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}
+                  >
+                    Reach per recent post
+                  </Txt>
+                  <TrendBars data={postTrend} formatValue={formatCount} />
+                </View>
+              ) : null}
             </Card>
           </>
         ) : null}
@@ -257,6 +325,53 @@ export default function ProfileScreen() {
             <SectionLabel>Latest videos</SectionLabel>
             <Card>
               <VideoList videos={videos} />
+            </Card>
+          </>
+        ) : null}
+
+        {/* ── Who is watching ─────────────────────────────────────── */}
+        {isCreator && hasAudience ? (
+          <>
+            <SectionLabel>Audience breakdown</SectionLabel>
+            <Card style={{ gap: t.spacing.lg }}>
+              {(
+                [
+                  ['Top locations', audience!.locations],
+                  ['Age range', audience!.ages],
+                  ['Gender', audience!.genders],
+                ] as const
+              )
+                .filter(([, slices]) => slices.length > 0)
+                .map(([label, slices]) => (
+                  <View key={label} style={{ gap: t.spacing.sm }}>
+                    <Txt
+                      variant="caption"
+                      tone="muted"
+                      style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}
+                    >
+                      {label}
+                    </Txt>
+                    {slices.map((s) => (
+                      <View
+                        key={s.label}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}
+                      >
+                        <Txt variant="footnote" tone="soft" style={{ width: 74 }} numberOfLines={1}>
+                          {s.label}
+                        </Txt>
+                        <View style={{ flex: 1 }}>
+                          <ProgressBar progress={Math.min(1, s.pct / 100)} />
+                        </View>
+                        <Txt
+                          variant="footnote"
+                          style={{ width: 38, textAlign: 'right', fontVariant: ['tabular-nums'] }}
+                        >
+                          {s.pct}%
+                        </Txt>
+                      </View>
+                    ))}
+                  </View>
+                ))}
             </Card>
           </>
         ) : null}
@@ -305,6 +420,56 @@ export default function ProfileScreen() {
                 </View>
               ))}
             </Card>
+          </>
+        ) : null}
+
+        {/* ── Portfolio: past work, with proof where we have it ───── */}
+        {/* Sits above the brand-name chips because it supersedes them — a grid
+            of actual work is what the chips were always a stand-in for. */}
+        {isCreator ? (
+          <>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <SectionLabel>Portfolio</SectionLabel>
+              {portfolioItems.length > 0 ? (
+                <Button
+                  label="Add"
+                  size="md"
+                  variant="ghost"
+                  inline
+                  haptic={false}
+                  icon={<Plus size={15} color={t.color.brand} />}
+                  onPress={() => router.push('/portfolio/add')}
+                />
+              ) : null}
+            </View>
+
+            {portfolioItems.length > 0 ? (
+              <Card>
+                <PortfolioGrid items={portfolioItems} onDelete={removePortfolioItem} />
+              </Card>
+            ) : (
+              <Card style={{ gap: t.spacing.sm }}>
+                <Txt variant="bodyStrong">Show the work you've already done</Txt>
+                <Txt variant="footnote" tone="muted">
+                  Paste a link to any Instagram post or YouTube video you've made and it
+                  becomes a card here. Collaborations you complete on Influnet are added
+                  automatically, with the verified mark.
+                </Txt>
+                <Button
+                  label="Add past work"
+                  size="md"
+                  variant="secondary"
+                  icon={<Plus size={16} color={t.color.content} />}
+                  onPress={() => router.push('/portfolio/add')}
+                />
+              </Card>
+            )}
           </>
         ) : null}
 
