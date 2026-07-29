@@ -9,14 +9,15 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShieldCheck } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-import { useSession } from '@/lib/session';
+import { useSession, useSignOutAction } from '@/lib/session';
 import { Button, Card, Screen, Txt } from '@/components/ui';
 
 export default function PendingApproval() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile, loadProfile, signOut, loadingProfile } = useSession();
+  const { profile, loadProfile, loadingProfile } = useSession();
+  const { signOut, signingOut } = useSignOutAction();
 
   async function recheck() {
     await loadProfile();
@@ -69,10 +70,10 @@ export default function PendingApproval() {
           <Button
             label="Sign out"
             variant="secondary"
-            onPress={async () => {
-              await signOut();
-              router.replace('/welcome');
-            }}
+            // Navigation, error handling and the busy state come from
+            // useSignOutAction — see the hook.
+            loading={signingOut}
+            onPress={signOut}
           />
         </View>
       </View>

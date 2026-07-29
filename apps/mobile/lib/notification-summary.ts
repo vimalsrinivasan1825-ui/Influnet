@@ -26,16 +26,33 @@ interface SummaryState {
 
 let timer: ReturnType<typeof setInterval> | null = null;
 let subscribers = 0;
+/**
+ * Set by stopNotificationSummary() on sign-out. Without it a poll that was
+ * already in flight when the session went away could land afterwards and write
+ * the outgoing account's counts back into a store we just cleared.
+ */
+let stopped = false;
+
+function clearTimer(): void {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+}
 
 export const useNotificationSummary = create<SummaryState>((set) => ({
   summary: null,
 
   refresh: async () => {
+    if (stopped) return;
     const res = await endpoints.notificationSummary<NotificationSummary>();
+    if (stopped) return;
     if (res.ok && res.data) set({ summary: res.data });
   },
 
   start: () => {
+    // A sign-in after a sign-out re-arms the store.
+    stopped = false;
     subscribers += 1;
     void useNotificationSummary.getState().refresh();
     if (!timer) {
@@ -45,16 +62,30 @@ export const useNotificationSummary = create<SummaryState>((set) => ({
       subscribers -= 1;
       // Only the last screen to unmount tears the poll down, otherwise
       // navigating away from one tab would stop the badges updating everywhere.
-      if (subscribers <= 0 && timer) {
-        clearInterval(timer);
-        timer = null;
+      if (subscribers <= 0) {
+        clearTimer();
         subscribers = 0;
       }
     };
   },
 }));
 
-/** Clears counts on sign-out so the next account doesn't inherit stale badges. */
-export function clearNotificationSummary(): void {
+/**
+ * Stops the poll and clears counts on sign-out.
+ *
+ * The timer teardown is the important half. This used to only null the data,
+ * so the 60s interval kept firing against an account that no longer had a
+ * token — one unauthenticated request per minute, each of which the 401 handler
+ * turned into another sign-out and another navigation. That was the visible
+ * "sign-in screen glitching again and again".
+ *
+ * `subscribers` is reset too: the tab layout's cleanup runs *after* sign-out has
+ * navigated away, and without a reset it would leave the counter negative, so
+ * the next session's start() would never own the timer it created.
+ */
+export function stopNotificationSummary(): void {
+  stopped = true;
+  clearTimer();
+  subscribers = 0;
   useNotificationSummary.setState({ summary: null });
 }

@@ -15,6 +15,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
+import { useProjectLive } from '@/lib/realtime';
 import { humanizeStage, timeAgo } from '@/lib/format';
 import type { StageProgressEntry } from '@/components/stage-timeline';
 import {
@@ -84,7 +85,7 @@ export default function StageScreen() {
    * Only the project is essential — a missing checklist or feed costs a card,
    * not the screen.
    */
-  const { data, error, loading, refreshing, refresh } = useFetch(
+  const { data, error, loading, refreshing, refresh, revalidate } = useFetch(
     async () => {
       const [projectRes, itemsRes, entriesRes] = await Promise.all([
         endpoints.getProject<{ project: ProjectDetail }>(id),
@@ -109,6 +110,13 @@ export default function StageScreen() {
     },
     { cacheKey: `stage:${id}` }
   );
+
+  // Live: the other side ticking a checklist item, posting a stage update or
+  // signing off repaints this screen instead of waiting for a pull-to-refresh.
+  // `revalidate`, not `refresh` — nobody asked for a spinner. All three of this
+  // screen's sources move together here, which is why the whole composite
+  // fetcher re-runs rather than a slice: it is one round trip either way.
+  useProjectLive(id, revalidate);
 
   const project = data?.project;
   const stageItems = (data?.items ?? []).filter((item) => item.stage_key === stage);

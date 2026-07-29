@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,6 +8,7 @@ import { palette } from '@influnet/tokens';
 import { ThemeProvider } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { setUnauthorizedHandler } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import { syncPushToken, usePushNotificationRouting } from '@/lib/push';
 import { BrandSplash } from '@/components/brand/splash';
 
@@ -55,12 +56,61 @@ export default function RootLayout() {
     void SplashScreen.hideAsync();
   }, []);
 
-  // A 401 from anywhere means the session died server-side. Clear it and send
-  // the user to sign-in rather than leaving screens showing stale data.
+  /**
+   * A 401 on a request that carried a token means the session died server-side.
+   * Clear it and send the user back through the entry gate rather than leaving
+   * screens showing stale data.
+   *
+   * Three guards, because a dying session produces a *burst* of 401s (every
+   * mounted screen revalidates at once) and the naive version turned each one
+   * into its own sign-out + navigation — the flicker loop:
+   *
+   *   1. handling — at most one teardown is ever in flight.
+   *   2. no session — if the store is already empty we are either mid-sign-out
+   *      or signed out, and there is nothing left to react to.
+   *   3. same session — the rejected token must still be the one we are using.
+   *
+   * Guard 3 is the subtle one. "Is there a session?" is not the same question as
+   * "is it *this* session?". A request issued just before sign-out can take
+   * seconds to come back; by then the next account may already be signed in, and
+   * that stale 401 would sign the innocent new session out — a user who just
+   * logged in gets bounced to the welcome screen for a request that was never
+   * theirs. Comparing the token the request actually carried against the current
+   * one makes the handler act only on its own session's failure.
+   *
+   * Destination is '/', not '/login': app/index.tsx is the single place that
+   * decides where a given auth state belongs (signed out -> /welcome, pending
+   * business -> /pending). Hard-coding a second destination here is what made
+   * '/welcome' and '/login' fight each other. Sign-out completes *before* the
+   * navigation so the gate reads a settled store — and the navigation is in
+   * `finally`, because signOut() clears the store whether or not it throws, so
+   * skipping the replace would strand the user on a session-less screen.
+   *
+   * The `catch` is not decoration. `try/finally` without one re-throws, so the
+   * version that had only `finally` still produced the unhandled rejection it
+   * was meant to remove — and inside a `void (async …)` there is nothing above
+   * it to catch. Swallowed *and* logged: the navigation has to happen anyway,
+   * but a teardown failure nobody can see is one nobody will fix.
+   */
+  const handlingUnauthorized = useRef(false);
   useEffect(() => {
-    setUnauthorizedHandler(() => {
-      router.replace('/login');
-      void useSession.getState().signOut();
+    setUnauthorizedHandler((token: string) => {
+      if (handlingUnauthorized.current) return;
+      const session = useSession.getState().session;
+      if (!session) return;
+      if (session.access_token !== token) return;
+
+      handlingUnauthorized.current = true;
+      void (async () => {
+        try {
+          await useSession.getState().signOut();
+        } catch (err) {
+          logger.error('sign out after 401 failed', { err });
+        } finally {
+          router.replace('/');
+          handlingUnauthorized.current = false;
+        }
+      })();
     });
     return () => setUnauthorizedHandler(null);
   }, [router]);

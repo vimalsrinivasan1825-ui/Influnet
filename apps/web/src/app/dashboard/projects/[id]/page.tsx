@@ -5,6 +5,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { apiFetch } from '@/lib/api-client';
+import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh';
 import {
   DndContext, DragOverlay, useSensor, useSensors,
   PointerSensor, useDraggable, useDroppable,
@@ -1570,6 +1571,16 @@ function GuidedFlow({
   );
 }
 
+/**
+ * The independently refreshable parts of this page.
+ *
+ * The initial load fetches eight endpoints in one go (fetchData); these are the
+ * subset a live event can invalidate. Cards, reviews and the payment config are
+ * absent on purpose — nothing a realtime watch on this page can observe changes
+ * them, so they stay on the load-on-mount / load-on-action path.
+ */
+type Slice = 'project' | 'activity' | 'change_requests' | 'stage_items' | 'stage_entries';
+
 // ─── Main Page ───
 export default function ProjectKanbanPage() {
   const params = useParams();
@@ -1673,6 +1684,126 @@ export default function ProjectKanbanPage() {
     init();
   }, [fetchData]);
 
+  // ─── Live updates (Supabase Realtime) ───
+  //
+  // This page used to load once and never listen. A stage advanced, skipped or
+  // signed off by the other side (or by you in another tab) only appeared after
+  // a manual reload, which is what made the chat message land instantly while
+  // the workspace behind it stayed on the old stage.
+  //
+  // Deliberately NOT wired to fetchData(): that fans out to eight endpoints, and
+  // a project is a page people sit on for weeks. Re-running all eight on every
+  // checklist tick from the other side would be a self-inflicted stampede. Each
+  // watched table refreshes only the slices it can actually invalidate, worked
+  // out from the writers in src/app/api/projects/[id]/**:
+  //
+  //   campaign_projects       — every stage action (advance / signoff / skip /
+  //                             cancellation / completion) writes current_stage
+  //                             + stage_progress here, and each of those also
+  //                             writes an activity row. Accepting a change
+  //                             request lands here too, via apply_change_request
+  //                             (082), which is why the change-request list is
+  //                             refreshed as well — the accepted proposal has to
+  //                             stop showing as pending on the other side.
+  //                             Cards, reviews and the payment config cannot be
+  //                             touched by any of those paths, so they are not
+  //                             refetched.
+  //   project_change_requests — proposal raised / rejected / withdrawn: the list,
+  //                             plus activity (each action logs one) and the
+  //                             project itself for the accept path.
+  //   project_stage_items     — a checklist tick. Nothing else moves: the items
+  //                             are seeded for every stage on first load
+  //                             (buildDefaultStageItems), so advancing never
+  //                             creates one, and PATCH writes no activity row.
+  //   project_stage_entries   — a stage update posted. Writes no activity row
+  //                             either (stage-entries/route.ts notifies but does
+  //                             not log), so the entries are the whole story.
+  //
+  // The three child tables need migration 091 to be in the publication. Until it
+  // is applied their listeners subscribe and never fire, exactly as 090's did
+  // before it was applied — the page keeps working, those slices just stay on
+  // the old load-on-action behaviour.
+  const refreshSlices = useCallback(async (slices: readonly Slice[]) => {
+    // A background refresh nobody asked for must never take the page down: on
+    // failure we keep what we have and log, unlike fetchData() which is allowed
+    // to raise a full error state because the user is waiting on it.
+    const jobs: Array<Promise<void>> = [];
+    const want = new Set(slices);
+    if (want.has('project')) jobs.push((async () => {
+      const r = await apiFetch<{ project: any }>(`/api/projects/${projectId}`);
+      if (r.ok && r.data) setProject(r.data.project);
+    })());
+    if (want.has('activity')) jobs.push((async () => {
+      const r = await apiFetch<{ activity: any[] }>(`/api/projects/${projectId}/activity`);
+      if (r.ok && r.data) setActivity(r.data.activity || []);
+    })());
+    if (want.has('change_requests')) jobs.push((async () => {
+      const r = await apiFetch<{ change_requests: any[] }>(`/api/projects/${projectId}/change-requests`);
+      if (r.ok && r.data) setChangeRequests(r.data.change_requests || []);
+    })());
+    if (want.has('stage_items')) jobs.push((async () => {
+      const r = await apiFetch<{ items: StageItem[] }>(`/api/projects/${projectId}/stage-items`);
+      if (r.ok && r.data) setStageItems(r.data.items || []);
+    })());
+    if (want.has('stage_entries')) jobs.push((async () => {
+      const r = await apiFetch<{ entries: any[] }>(`/api/projects/${projectId}/stage-entries`);
+      if (r.ok && r.data) setStageEntries(r.data.entries || []);
+    })());
+    try { await Promise.all(jobs); }
+    catch (e) { console.error('[project live refresh]', e); }
+  }, [projectId]);
+
+  // Busy gate. This page is full of optimistic local state, and a refetch that
+  // lands mid-action would repaint the very thing the user is changing: the
+  // checklist tick applied optimistically before its PATCH returns, the project
+  // row a stage action is about to replace with the server's own copy. The hook
+  // retries rather than drops, so a deferred update still arrives once idle.
+  //
+  // `itemToggles` is a ref counter rather than state because handleToggleItem
+  // has no busy flag of its own by design — the tick is meant to feel instant —
+  // and giving it one would re-render the checklist on every toggle.
+  const itemTogglesRef = useRef(0);
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = advancing || cancelBusy || crBusy || entryBusy;
+  }, [advancing, cancelBusy, crBusy, entryBusy]);
+
+  useRealtimeRefresh({
+    channelName: `project-detail-live-${projectId}`,
+    enabled: !!projectId,
+    // One filter per table: the project id is exact, and both participants sit
+    // on the same row / the same project_id, so there is no "either side" split
+    // to do here the way the list pages have to.
+    watches: projectId
+      ? [
+          { table: 'campaign_projects', filters: [`id=eq.${projectId}`] },
+          { table: 'project_stage_items', filters: [`project_id=eq.${projectId}`] },
+          { table: 'project_stage_entries', filters: [`project_id=eq.${projectId}`] },
+          { table: 'project_change_requests', filters: [`project_id=eq.${projectId}`] },
+        ]
+      : [],
+    onChange: (changed) => {
+      const slices = new Set<Slice>();
+      // Empty means the notification backstop fired, which knows a type but not
+      // a table — refresh the core stage slices rather than guessing.
+      if (changed.size === 0) { slices.add('project'); slices.add('activity'); }
+      if (changed.has('campaign_projects')) {
+        slices.add('project'); slices.add('activity'); slices.add('change_requests');
+      }
+      if (changed.has('project_change_requests')) {
+        slices.add('change_requests'); slices.add('activity'); slices.add('project');
+      }
+      if (changed.has('project_stage_items')) slices.add('stage_items');
+      if (changed.has('project_stage_entries')) slices.add('stage_entries');
+      void refreshSlices([...slices]);
+    },
+    shouldDefer: () => busyRef.current || itemTogglesRef.current > 0,
+    // Backstop for a page channel that failed to subscribe while the shell's
+    // notifications channel is healthy. Same hook, so it shares this debounce
+    // window and the gate above instead of racing past them.
+    notifyTypes: ['project_stage', 'project_cancel'],
+  });
+
   // Celebrate whenever the project moves forward to a new stage.
   const prevStageRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1716,6 +1847,10 @@ export default function ProjectKanbanPage() {
       ? { ...it, done_at: done ? new Date().toISOString() : null, done_by: done ? userId : null }
       : it));
     setAdvanceError(null);
+    // Counted, not a boolean: ticks are fast enough to overlap, and a boolean
+    // would let the first one to return open the gate while the second is still
+    // in flight. Kept in a ref so the optimistic tick stays a single re-render.
+    itemTogglesRef.current += 1;
     try {
       const res = await apiFetch<{ item: StageItem }>(`/api/projects/${projectId}/stage-items`, {
         method: 'PATCH',
@@ -1723,6 +1858,7 @@ export default function ProjectKanbanPage() {
       });
       if (!res.ok) { setAdvanceError(res.error || 'Could not update that step.'); await fetchData(); }
     } catch (e) { console.error(e); await fetchData(); }
+    finally { itemTogglesRef.current -= 1; }
   };
 
   const handleAdvance = async (stageKey?: string) => {

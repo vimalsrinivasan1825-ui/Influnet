@@ -6,7 +6,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Bell, LogOut, Mail, ShieldOff, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-import { useSession } from '@/lib/session';
+import { useSession, useSignOutAction } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
 import {
@@ -29,7 +29,8 @@ const DEVELOPER_EMAILS = [
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { profile, signOut } = useSession();
+  const { profile } = useSession();
+  const { signOut, signingOut } = useSignOutAction();
   const deleteSheet = useRef<SheetRef>(null);
   const [testingPush, setTestingPush] = useState(false);
 
@@ -151,10 +152,13 @@ export default function SettingsScreen() {
         label="Sign out"
         variant="secondary"
         icon={<LogOut size={16} color={t.color.content} />}
-        onPress={async () => {
-          router.replace('/welcome');
-          await signOut();
-        }}
+        // Sign out first, then navigate — never the other way round. Navigating
+        // while the session is still live re-mounts screens that immediately
+        // fetch, and those requests then 401 as the token disappears under
+        // them. useSignOutAction owns that ordering, the '/' destination, the
+        // error handling and the busy state, so every Sign out button agrees.
+        loading={signingOut}
+        onPress={signOut}
       />
 
       <Txt variant="caption" tone="muted" center>

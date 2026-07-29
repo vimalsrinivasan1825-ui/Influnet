@@ -44,6 +44,13 @@ export interface FetchState<T> {
   loading: boolean;
   refreshing: boolean;
   refresh: () => void;
+  /**
+   * Refetch with no visible state change — no skeleton, no pull-to-refresh
+   * spinner. For updates the user did not ask for (a realtime event, an app
+   * resume): showing them a spinner for something they didn't trigger reads as
+   * the app being busy rather than as their data being current.
+   */
+  revalidate: () => void;
   /** Replace local data without a round trip, e.g. after a mutation. */
   setData: (updater: T | null | ((prev: T | null) => T | null)) => void;
 }
@@ -128,6 +135,7 @@ export function useFetch<T>(
     loading,
     refreshing,
     refresh: () => void run('pull'),
+    revalidate: () => void run('silent'),
     setData: (updater) =>
       setData((prev) => {
         const next =

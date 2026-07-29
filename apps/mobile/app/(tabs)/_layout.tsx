@@ -13,7 +13,7 @@
  * must agree on.
  */
 import { useEffect } from 'react';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   FolderKanban,
@@ -25,17 +25,54 @@ import {
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { useNotificationSummary } from '@/lib/notification-summary';
+import { startRealtime, stopRealtime } from '@/lib/realtime';
 
 export default function TabsLayout() {
   const t = useTheme();
   const role = useSession((s) => s.profile?.role);
+  const ready = useSession((s) => s.ready);
+  const session = useSession((s) => s.session);
   const isCreator = role === 'influencer';
+  const signedOut = ready && !session;
 
   // Badge counts, polled on a slow cadence by the shared store so the header
-  // bell on Home reads the same numbers these tabs do.
+  // bell on Home reads the same numbers these tabs do. Not started (and torn
+  // down immediately) once there is no session — a poll without a token is a
+  // request nobody can answer.
   const summary = useNotificationSummary((s) => s.summary);
   const start = useNotificationSummary((s) => s.start);
-  useEffect(() => start(), [start]);
+  useEffect(() => {
+    if (signedOut) return;
+    return start();
+  }, [start, signedOut]);
+
+  /**
+   * Supabase Realtime, sharing the poll's lifecycle. The poll above is now the
+   * fallback rather than the only path: a badge that used to take up to 60s to
+   * move updates as soon as the row is written, and the requests/projects
+   * screens refetch themselves instead of waiting for a navigation.
+   *
+   * Not torn down here on sign-out — signOut() in lib/session.ts already calls
+   * stopRealtime() while the token is still valid, which is the only ordering
+   * that avoids a channel reconnecting against a dead session. The cleanup
+   * below is for the ordinary unmount (this whole tree also unmounts on
+   * sign-out, so a second stopRealtime() is a harmless no-op).
+   */
+  const userId = useSession((s) => s.session?.user.id);
+  useEffect(() => {
+    if (signedOut || !userId) return;
+    startRealtime(userId);
+    return () => stopRealtime();
+  }, [userId, signedOut]);
+
+  /**
+   * The tab tree must not survive its session. Sign-out from a screen that is
+   * itself a tab would otherwise leave all five mounted behind the new route,
+   * each one revalidating on focus with no token. Unmounting the whole group
+   * the moment the session goes is what makes "no stray requests after
+   * sign-out" structural rather than a matter of getting every screen right.
+   */
+  if (signedOut) return <Redirect href="/" />;
 
   const badge = (n?: number) => (n && n > 0 ? (n > 99 ? '99+' : String(n)) : undefined);
 

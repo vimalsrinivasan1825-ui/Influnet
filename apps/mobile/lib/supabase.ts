@@ -54,11 +54,41 @@ export const SUPABASE_URL = supabaseUrl;
 export const SUPABASE_ANON_KEY = supabaseAnonKey;
 export const API_BASE_URL = apiBaseUrl;
 
+/**
+ * Where the session actually lives.
+ *
+ * Passed explicitly rather than left to supabase-js, so `clearPersistedAuth()`
+ * below can address the same key without reaching into client internals. The
+ * value is byte-for-byte the library's own default (`sb-<ref>-auth-token`, see
+ * SupabaseClient's constructor), so setting it does NOT orphan the sessions of
+ * builds already installed on people's phones.
+ */
+export const AUTH_STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: secureAdapter,
+    storageKey: AUTH_STORAGE_KEY,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
   },
 });
+
+/**
+ * Drop the stored session without asking the network.
+ *
+ * The escape hatch for a sign-out whose `/logout` round-trip never came back.
+ * `supabase.auth.signOut()` — including `{ scope: 'local' }`, which still POSTs
+ * to `/logout` — only calls its internal removeCurrentSession() *after* that
+ * request settles, so a black-holed network leaves the session on disk and the
+ * next cold start restores an account the user already signed out of.
+ *
+ * Only the persisted copy is cleared here; auth-js keeps its own in-memory
+ * session until its pending signOut() finally settles, and the app's own store
+ * is emptied by signOut() in session.ts regardless. See the call site there.
+ */
+export async function clearPersistedAuth(): Promise<void> {
+  await secureAdapter.removeItem(AUTH_STORAGE_KEY).catch(() => {});
+  await secureAdapter.removeItem(`${AUTH_STORAGE_KEY}-code-verifier`).catch(() => {});
+}

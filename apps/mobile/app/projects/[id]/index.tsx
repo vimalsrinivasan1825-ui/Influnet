@@ -14,6 +14,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch, invalidateFetchCache } from '@/lib/use-fetch';
+import { useProjectLive } from '@/lib/realtime';
 import { styleForStatus } from '@/lib/deal-state-style';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
@@ -58,9 +59,14 @@ export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useSession((s) => s.profile?.id);
 
-  const { data, error, loading, refreshing, refresh } = useFetch(() =>
+  const { data, error, loading, refreshing, refresh, revalidate } = useFetch(() =>
     endpoints.getProject<{ project: ProjectDetail }>(id), { cacheKey: `project:${id}` }
   );
+
+  // Live: a stage advanced, skipped or cancelled on the other side moves the
+  // timeline here without a reload. `revalidate`, not `refresh` — a background
+  // update must not raise the pull-to-refresh spinner.
+  useProjectLive(id, revalidate);
 
   const project = data?.project;
   const isOwner = project?.owner_user_id === me;

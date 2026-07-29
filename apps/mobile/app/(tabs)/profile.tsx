@@ -29,7 +29,7 @@ import {
 } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTheme } from '@/lib/theme';
-import { useSession } from '@/lib/session';
+import { useSession, useSignOutAction } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
 import { invalidateFetchCache, useFetch } from '@/lib/use-fetch';
@@ -117,7 +117,8 @@ interface ProfilePayload {
 export default function ProfileScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { profile, signOut } = useSession();
+  const { profile } = useSession();
+  const { signOut, signingOut } = useSignOutAction();
   const [refreshingSocial, setRefreshingSocial] = useState(false);
 
   const { data, loading, refreshing, refresh } = useFetch<ProfilePayload>(
@@ -645,10 +646,11 @@ export default function ProfileScreen() {
           label="Sign out"
           variant="secondary"
           icon={<LogOut size={16} color={t.color.content} />}
-          onPress={async () => {
-            await signOut();
-            router.replace('/welcome');
-          }}
+          // Navigation, error handling and the busy state all live in
+          // useSignOutAction so every Sign out button in the app behaves the
+          // same — see the hook for why each part is there.
+          loading={signingOut}
+          onPress={signOut}
         />
 
         {/* Signs off the screen the way an About panel would — and gives the

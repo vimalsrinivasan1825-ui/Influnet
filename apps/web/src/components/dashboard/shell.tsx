@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
+import { toast } from "sonner";
 import { Clock, XCircle, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { StreamChat } from "stream-chat";
@@ -19,8 +20,28 @@ const THEME_CLASS: Record<UserRole, string> = {
   admin: "theme-admin",
 };
 
+/**
+ * Which notification types are worth interrupting someone for.
+ *
+ * 'message' is deliberately absent: Stream Chat already surfaces new messages
+ * (badge, and the conversation itself if it's open), so a toast per chat
+ * message would be a second, noisier copy of something the user can already
+ * see. Everything else here is a state change on a deal that the user cannot
+ * find out about any other way without reloading.
+ *
+ * Keys mirror NotificationType in @/lib/notify.
+ */
+const TOASTABLE: Record<string, string> = {
+  collab_request: "New collaboration request",
+  collab_accepted: "Request accepted",
+  collab_declined: "Request declined",
+  project_stage: "Project updated",
+  project_cancel: "Project cancellation",
+};
+
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, token, setUser, setToken, setLoading } = useAuthStore();
   const { summary, setSummary, setUnreadMessages, addNotification } = useNotificationStore();
   const [role, setRole] = useState<UserRole | null>(null);
@@ -150,6 +171,23 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     loadSession();
   }, [router, setUser, setToken, setLoading, setSummary]);
 
+  // Read inside the realtime handler without making the subscription depend on
+  // it — otherwise every navigation would tear down and rebuild the channel.
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  // Same treatment, same reason. The effect below owns the Stream Chat
+  // connection as well as the realtime channel, so anything in its dependency
+  // list can force a chat reconnect. `router` is only ever used inside a toast
+  // callback; listing it would let a router identity change disconnect and
+  // re-establish the chat client for no reason at all.
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
   useEffect(() => {
     if (!user?.id || !token) return;
     const sb = createClient();
@@ -197,8 +235,35 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          addNotification(payload.new as NotificationItem);
+          const notif = payload.new as NotificationItem;
+          addNotification(notif);
           refreshSummary();
+
+          // An in-app toast is the only thing that tells someone already using
+          // the app that the other side just moved. The bell count changing is
+          // too quiet to notice; a push notification isn't delivered to a
+          // foregrounded browser tab.
+          const heading = TOASTABLE[notif.type];
+          if (!heading) return; // 'message' and anything unknown: stay quiet.
+
+          // Don't toast about the page they're already looking at — they can
+          // see the change happen. Compare paths only, so a query string
+          // (?conv=…) doesn't defeat the check.
+          const target = notif.link ? notif.link.split("?")[0].split("#")[0] : null;
+          if (target && target === pathnameRef.current) return;
+
+          toast(notif.title || heading, {
+            description: notif.body || undefined,
+            duration: 6000,
+            ...(notif.link
+              ? {
+                  action: {
+                    label: "View",
+                    onClick: () => routerRef.current.push(notif.link as string),
+                  },
+                }
+              : {}),
+          });
         },
       )
       .subscribe();

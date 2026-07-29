@@ -106,9 +106,17 @@ export async function syncPushToken(): Promise<void> {
   console.log('[push] registered device token with the server');
 }
 
-/** Clears the server-side token on sign-out, so a shared or reset device stops receiving the previous account's pushes. */
-export function clearPushToken(): void {
-  void endpoints.registerPushToken(null);
+/**
+ * Clears the server-side token on sign-out, so a shared or reset device stops
+ * receiving the previous account's pushes.
+ *
+ * Awaitable on purpose. Fired and forgotten, this request raced
+ * supabase.auth.signOut() and usually reached the network *after* the token was
+ * gone — so it neither cleared anything server-side nor authenticated, and the
+ * resulting 401 was one of the strays that kept re-triggering sign-out.
+ */
+export async function clearPushToken(): Promise<void> {
+  await endpoints.registerPushToken(null);
 }
 
 /**

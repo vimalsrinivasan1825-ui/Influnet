@@ -7,6 +7,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
+import { useLiveRefresh } from '@/lib/realtime';
 import { styleForStatus } from '@/lib/deal-state-style';
 import { formatCurrency, humanizeStage, timeAgo } from '@/lib/format';
 import { AppHeader } from '@/components/app-header';
@@ -42,9 +43,14 @@ export default function ProjectsScreen() {
   const router = useRouter();
   const me = useSession((s) => s.profile?.id);
 
-  const { data, error, loading, refreshing, refresh } = useFetch(() =>
+  const { data, error, loading, refreshing, refresh, revalidate } = useFetch(() =>
     endpoints.listProjects<{ projects: ProjectRow[] }>(), { cacheKey: 'projects' }
   );
+
+  // A stage advanced or signed off on the other side moves this list's "Your
+  // move" bucket without waiting for a navigation. Silent, so it can't be
+  // mistaken for a refresh the user triggered.
+  useLiveRefresh('projects', revalidate);
 
   /**
    * Three buckets, and "Your move" comes first — the whole point of the mobile

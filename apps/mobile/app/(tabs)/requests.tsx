@@ -13,6 +13,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
+import { useLiveRefresh } from '@/lib/realtime';
 import { formatCurrency, timeAgo } from '@/lib/format';
 import { AppHeader } from '@/components/app-header';
 import {
@@ -74,9 +75,15 @@ export default function RequestsScreen() {
   const me = useSession((s) => s.profile?.id);
   const isCreator = useSession((s) => s.profile?.role) === 'influencer';
 
-  const { data, error, loading, refreshing, refresh } = useFetch(() =>
+  const { data, error, loading, refreshing, refresh, revalidate } = useFetch(() =>
     endpoints.listCollabs<{ collabs: CollabRow[] }>(), { cacheKey: 'requests' }
   );
+
+  // A request answered on the other side (or a new one arriving) repaints this
+  // list while the user is looking at it, instead of on the next navigation.
+  // Silent by design — nobody asked for this refresh, so it must not raise the
+  // pull-to-refresh spinner.
+  useLiveRefresh('requests', revalidate);
 
   // Creators read the inbox; brands read their outbox. Falling back to "show
   // everything" while the profile is still loading would flash the wrong half.

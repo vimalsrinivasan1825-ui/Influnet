@@ -9,10 +9,18 @@
 import { createApiClient, createEndpoints } from '@influnet/api';
 import { API_BASE_URL, supabase } from './supabase';
 
-let onUnauthorizedHandler: (() => void) | null = null;
+type UnauthorizedHandler = (token: string) => void;
 
-/** Registered by the root layout so a 401 anywhere bounces to sign-in. */
-export function setUnauthorizedHandler(fn: (() => void) | null) {
+let onUnauthorizedHandler: UnauthorizedHandler | null = null;
+
+/**
+ * Registered by the root layout so a 401 anywhere bounces to sign-in.
+ *
+ * The handler is given the access token the rejected request carried, so it can
+ * confirm the 401 belongs to the session that is live *now* before signing
+ * anyone out. See the note in app/_layout.tsx.
+ */
+export function setUnauthorizedHandler(fn: UnauthorizedHandler | null) {
   onUnauthorizedHandler = fn;
 }
 
@@ -22,7 +30,7 @@ export const api = createApiClient({
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? null;
   },
-  onUnauthorized: () => onUnauthorizedHandler?.(),
+  onUnauthorized: (token) => onUnauthorizedHandler?.(token),
 });
 
 export const endpoints = createEndpoints(api);

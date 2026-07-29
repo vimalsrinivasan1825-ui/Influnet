@@ -29,8 +29,25 @@ export interface ApiClientOptions {
    * a cached copy is one XSS away from being stolen.
    */
   getToken: () => Promise<string | null>;
-  /** Called on any 401 so the app can bounce to the login screen. */
-  onUnauthorized?: () => void;
+  /**
+   * Called when a request that *did* carry a token came back 401 — i.e. the
+   * session expired or was revoked server-side.
+   *
+   * Deliberately NOT called when getToken() returned null. A tokenless request
+   * 401s because we are signed out, which is a state the app already knows
+   * about; treating it as an auth failure is how sign-out turned into a loop
+   * (stray request -> 401 -> sign out + navigate -> re-render -> more requests).
+   *
+   * Receives the token the rejected request actually carried, so the handler
+   * can tell "the session I am in right now died" from "a request belonging to
+   * a session that already ended finally came back". The latter must be ignored:
+   * a slow request issued before sign-out can land after the *next* account has
+   * signed in, and acting on it signs that innocent new session out.
+   *
+   * The parameter is optional to callers — an existing `() => void` handler
+   * still type-checks and still behaves exactly as before.
+   */
+  onUnauthorized?: (token: string) => void;
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
@@ -70,7 +87,12 @@ export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiC
       // empty or non-JSON body — leave data null
     }
 
-    if (res.status === 401) onUnauthorized?.();
+    // Only a token we actually sent can have been rejected. A 401 on a request
+    // with no Authorization header just means "signed out" — see the note on
+    // onUnauthorized above.
+    // The token is passed on so the handler can check it is still the current
+    // one before tearing anything down.
+    if (res.status === 401 && token) onUnauthorized?.(token);
 
     const errorMessage =
       (data as { error?: string } | null)?.error ?? `Request failed (${res.status})`;

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, History, Inbox, MessageSquare, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -96,6 +97,34 @@ export default function RequestsPage() {
     const res = await apiFetch<{ collabs: CollabRequest[] }>("/api/collabs");
     if (res.ok && res.data) setRequests(res.data.collabs || []);
   };
+
+  // Live updates: the other side accepting, declining, cancelling or sending a
+  // new request rewrites this list without a reload. Two filters because a
+  // postgres_changes listener takes one filter and a request is interesting
+  // from either end.
+  //
+  // The refetch is held off while this page has an action of its own in flight,
+  // including the decline undo window below — a refetch mid-undo would repaint
+  // the card the user is currently un-declining. `shouldDefer` retries rather
+  // than drops, so the update still lands once the page is idle.
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = actionIds.size > 0 || decliningIds.size > 0;
+  }, [actionIds, decliningIds]);
+  useRealtimeRefresh({
+    channelName: "dashboard-requests-live",
+    enabled: !!userId,
+    watches: userId
+      ? [
+          {
+            table: "collab_requests",
+            filters: [`from_user_id=eq.${userId}`, `to_user_id=eq.${userId}`],
+          },
+        ]
+      : [],
+    onChange: refreshRequests,
+    shouldDefer: () => busyRef.current,
+  });
 
   // Fallback for accepted requests whose conversation predates this flow.
   const ensureConversation = async (otherUserId: string) => {

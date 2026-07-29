@@ -1,11 +1,12 @@
 "use client";
 import { toast } from "sonner";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowRight, Check, Clock, Eye, Rocket } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 import { STAGE_ACTOR, type Stage } from "@/lib/project-lifecycle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,42 @@ export default function ProjectsPage() {
     if (!res.ok || !res.data) throw new Error(res.error || "Failed to load projects");
     setProjects(res.data.projects || []);
   };
+
+  // Live updates: the other side advancing a stage, signing off, completing or
+  // cancelling a project repaints this list without a reload. Two filters
+  // because a postgres_changes listener takes one filter and a project is
+  // interesting from either end (owner and counterparty).
+  //
+  // Held off while an advance of our own is in flight so the optimistic
+  // "Updating…" state isn't yanked out from under the button; the refetch is
+  // retried, not dropped. A failed background refresh is swallowed on purpose —
+  // the user asked for nothing, so a full-page error state would be wrong.
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = updatingId !== null;
+  }, [updatingId]);
+  useRealtimeRefresh({
+    channelName: "dashboard-projects-live",
+    enabled: !!userId,
+    watches: userId
+      ? [
+          {
+            table: "campaign_projects",
+            filters: [`owner_user_id=eq.${userId}`, `counterparty_user_id=eq.${userId}`],
+          },
+        ]
+      : [],
+    onChange: () => {
+      void fetchProjects().catch((e) => console.error("[projects live refresh]", e));
+    },
+    shouldDefer: () => busyRef.current,
+    // Backstop for the case where this page's own channel failed to subscribe
+    // while the shell's notifications channel is still healthy. Same hook, so
+    // it shares the debounce and the `shouldDefer` gate above instead of
+    // double-fetching past them — a stage write produces both a
+    // campaign_projects UPDATE and a notifications INSERT.
+    notifyTypes: ["project_stage", "project_cancel"],
+  });
 
   const handleAdvanceStage = async (projectId: string, currentStage: string) => {
     const currentIndex = STAGES.findIndex((s) => s.key === currentStage);
