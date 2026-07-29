@@ -12,6 +12,8 @@ This file tracks the current implementation state of each system module, issues 
 - **Android Distribution Documentation (`docs/operations/ANDROID_DISTRIBUTION.md`, `docs/README.md`)**:
   - Authored a comprehensive runbook outlining Android App Bundle (.aab) building using EAS CLI (`eas build --platform android --profile production`), Google Play Console app setup, internal testing tracks, tester email list invitations, and the Google Play 20-tester closed beta policy.
   - Linked the new document into the primary documentation registry map in `docs/README.md`.
+- **Real-Time Architecture & Design Documentation (`docs/architecture/REALTIME_COMMUNICATION.md`)**:
+  - Compiled our full discussion on pull-based (polling) vs. push-based (SSE, WebSockets) architectures, traditional database setups (PostgreSQL LISTEN/NOTIFY), and the detailed problem/solution analysis for the Influnet dynamic dashboard updating.
 - **Zustand & Supabase Realtime Architecture Analysis**:
   - Analyzed and documented the project's real-time communication layout, comparing Stream Chat (messages), Supabase Realtime subscriptions in `shell.tsx`, and database notification fanning in `notify.ts`.
   - Pinpointed the current page reload bugs and outlined a phased fix plan to wire up direct `collab_requests` table triggers using Supabase Postgres CDC subscriptions to enable instant web dashboard updates without requiring manually reloads.
