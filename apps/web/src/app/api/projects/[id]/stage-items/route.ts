@@ -75,6 +75,17 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     const projectId = parseInt(id, 10);
     if (Number.isNaN(projectId)) return jsonError(400, 'Invalid project id');
 
+    // Deletion hardening: a cancelled project may not have checklist items
+    // toggled — the record is frozen for reference.
+    const { data: projStatus } = await supabase
+      .from('campaign_projects')
+      .select('status')
+      .eq('id', projectId)
+      .maybeSingle();
+    if (projStatus?.status === 'cancelled') {
+      return jsonError(409, 'This project has been cancelled. The checklist is locked for reference.');
+    }
+
     let body;
     try {
       body = await req.json();

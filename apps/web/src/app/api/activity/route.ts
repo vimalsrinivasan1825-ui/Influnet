@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export interface ActivityEvent {
   at: string;
@@ -24,7 +25,13 @@ export async function GET(req: Request) {
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
+
+    // Rate limit: activity feed is a paginated, potentially slow RPC.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'activity:view', limit: 30, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
 
     const url = new URL(req.url);
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 200);

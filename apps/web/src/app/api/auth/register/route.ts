@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { RegisterProfileSchema } from '@/lib/validators';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
   try {
+    // Rate limit: account registration is a high-impact action.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'auth:register', limit: 10, windowMs: 60_000,
+    });
+    if (limited) return limited;
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });

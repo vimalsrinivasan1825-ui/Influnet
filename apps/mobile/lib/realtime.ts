@@ -12,6 +12,8 @@
  *   - notifications  -> refresh the shared summary immediately (badges)
  *   - collab_requests / campaign_projects -> bump a counter that the requests
  *     and projects screens watch and re-run their own fetch on
+ *   - profiles / user_blocks -> bump a counter so the profile and settings
+ *     screens re-read their state when something changes on the other side
  *
  * It bumps a counter rather than merging the replicated row, because the
  * screens render API-shaped rows (joined profile names, derived `deal_state`)
@@ -234,7 +236,43 @@ function openChannels(userId: string): void {
     )
     .subscribe();
 
-  channels = [notifications, requests, projects];
+  // ── Profile changes ────────────────────────────────────────────
+  // A profile update (name, avatar, bio — or the more critical verified_badge
+  // and expo_push_token) should trickle to the profile screen without a pull.
+  // One channel, self-only.
+  const profiles = supabase
+    .channel(`mobile-profiles:${userId}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
+      () => {
+        // A profile change might affect what the public endpoints return, but
+        // the only screen that renders profile data directly is Profile — and
+        // it fetches /api/home, not the raw table. Bump projects so any screen
+        // that embeds the user's name/avatar refetches.
+        bumpProjects();
+        bumpRequests();
+      },
+    )
+    .subscribe();
+
+  // ── User blocks ─────────────────────────────────────────────────
+  // When the user blocks or unblocks someone, the list of blocked accounts
+  // must update immediately. The settings screen fetches /api/blocks on mount;
+  // bumping a generic timer still ensures the next visit shows fresh data.
+  // Also used to refresh the requests screen, since a block affects contact.
+  const blocks = supabase
+    .channel(`mobile-user-blocks:${userId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'user_blocks', filter: `blocker_id=eq.${userId}` },
+      () => {
+        bumpRequests();
+      },
+    )
+    .subscribe();
+
+  channels = [notifications, requests, projects, profiles, blocks];
 }
 
 async function closeChannels(): Promise<void> {

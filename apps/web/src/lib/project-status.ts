@@ -11,7 +11,7 @@
  *   completed  green   — the work is done
  *   active     brand   — in flight, this is where attention goes
  *   pending    amber   — waiting on a decision, nothing has started
- *   cancelled  neutral — closed without completing; a record, not live work
+ *   cancelled  red     — closed prematurely; a record, with a deadline
  */
 import { type DealState, dealStateOf } from '@influnet/core';
 
@@ -19,7 +19,7 @@ export { type DealState, dealStateOf };
 
 export interface StatusStyle {
   /** Badge variant from components/ui/badge. */
-  variant: 'success' | 'brand' | 'warning' | 'neutral';
+  variant: 'success' | 'brand' | 'warning' | 'neutral' | 'danger';
   /** Card surface + border, for a whole card tinted by its state. */
   surface: string;
   /** Icon chip background + foreground. */
@@ -52,10 +52,10 @@ export const DEAL_STATE_STYLE: Record<DealState, StatusStyle> = {
     label: 'Awaiting approval',
   },
   cancelled: {
-    variant: 'neutral',
-    surface: 'border-hairline bg-surface-muted',
-    chip: 'bg-surface-muted text-content-muted',
-    accent: 'text-content-muted',
+    variant: 'danger',
+    surface: 'border-danger/30 bg-danger-soft',
+    chip: 'bg-danger-soft text-danger',
+    accent: 'text-danger',
     label: 'Cancelled',
   },
 };
@@ -67,5 +67,5 @@ export const DEAL_STATE_HEX: Record<DealState, string> = {
   completed: 'var(--ok)',
   active: 'var(--brand)',
   pending: 'var(--warn)',
-  cancelled: 'var(--content-muted)',
+  cancelled: 'var(--danger)',
 };

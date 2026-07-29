@@ -19,8 +19,8 @@ export const DEAL_STATE_STYLE: Record<DealState, DealStateStyle> = {
   active: { fg: '', bg: '', label: DEAL_STATE_LABEL.active },
   pending: { fg: palette.warn, bg: palette.warnSoft, label: DEAL_STATE_LABEL.pending },
   cancelled: {
-    fg: palette.contentMuted,
-    bg: palette.surfaceMuted,
+    fg: palette.danger,
+    bg: palette.dangerSoft,
     label: DEAL_STATE_LABEL.cancelled,
   },
 };

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 /**
  * Register (or clear) this device's Expo push token on the caller's profile.
@@ -22,6 +23,13 @@ export async function POST(req: Request) {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
+
+    // Rate limit: push token registration changes are per-device, capped to
+    // prevent accidental loops on sign-in/sign-out cycles.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'push:register', limit: 10, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
 
     const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {

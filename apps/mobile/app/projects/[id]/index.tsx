@@ -19,6 +19,7 @@ import { styleForStatus } from '@/lib/deal-state-style';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
 import { ProjectReviews } from '@/components/project-reviews';
+import { ProjectChangeRequests } from '@/components/project-change-requests';
 import {
   Badge,
   Button,
@@ -37,6 +38,7 @@ interface ProjectDetail {
   id: string;
   title: string;
   description: string | null;
+  deliverables: string | null;
   status: string;
   current_stage: string;
   budget: number | null;
@@ -264,6 +266,22 @@ export default function ProjectDetailScreen() {
               onOpenStage={(stage) => router.push(`/projects/${id}/stage/${stage}`)}
             />
           </Card>
+
+          {/* Change requests — renegotiate terms mid-project. Only available
+              on ACTIVE projects (cancelled/completed are frozen records). */}
+          {project.status === 'active' ? (
+            <ProjectChangeRequests
+              projectId={id}
+              project={{
+                title: project.title,
+                description: project.description,
+                deliverables: project.deliverables,
+                budget: project.budget,
+                advance_amount: project.advance_amount,
+              }}
+              partner={partner}
+            />
+          ) : null}
 
           {/* Rating is only possible once the work is done — and until now it
               was only possible on the web, so a brand working from their phone

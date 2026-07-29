@@ -54,7 +54,7 @@ const STATE_TONE: Record<string, 'ok' | 'warn' | 'brand' | 'neutral' | 'danger'>
   in_progress: 'brand',
   in_discussion: 'brand',
   completed: 'ok',
-  declined: 'neutral',
+  declined: 'danger',
   cancelled: 'neutral',
   project_cancelled: 'neutral',
 };

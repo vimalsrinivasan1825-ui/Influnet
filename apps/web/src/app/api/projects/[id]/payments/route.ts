@@ -61,12 +61,16 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     // Only the project owner (business) is the payer, and only for their project.
     const { data: project, error: projErr } = await supabase
       .from('campaign_projects')
-      .select('id, owner_user_id, counterparty_user_id, budget, advance_amount')
+      .select('id, status, owner_user_id, counterparty_user_id, budget, advance_amount')
       .eq('id', projectId)
       .single();
     if (projErr || !project) return jsonError(404, 'Project not found');
     if (project.owner_user_id !== user.id) {
       return jsonError(403, 'Only the business account can initiate a payment');
+    }
+    // Deletion hardening: no payments on a cancelled project.
+    if (project.status === 'cancelled') {
+      return jsonError(409, 'This project has been cancelled. No further payments can be made.');
     }
 
     // Resolve amount (rupees) from the AGREED terms, never from the client —

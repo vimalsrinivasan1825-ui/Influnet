@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, History, Inbox, MessageSquare, RotateCcw } from "lucide-react";
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, History, Inbox, MessageSquare, RotateCcw, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
 import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
@@ -431,7 +431,8 @@ function RequestCard({
             <p className="mt-1 truncate text-sm font-semibold text-content">{title}</p>
             {detail && <p className="truncate text-xs text-content-soft">{detail}</p>}
             {r.status === "declined" && (
-              <p className="mt-1 text-xs text-content-muted">
+              <p className="mt-1 flex items-center gap-1 text-xs text-danger">
+                <Trash2 size={11} />
                 {isSender
                   ? "They passed on this one. You can reach out again with revised terms."
                   : "You passed on this one. Changed your mind? You can reopen it."}

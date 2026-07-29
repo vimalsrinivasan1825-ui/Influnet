@@ -18,6 +18,12 @@ export async function GET(req: Request) {
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
 
+    // Rate limit: collab listing runs a RLS query with a project look-up.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'collabs:list', limit: 30, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
+
     // Get as sender or receiver
     const { data: collabs, error } = await supabase
       .from('collab_requests')

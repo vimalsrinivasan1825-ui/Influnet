@@ -97,6 +97,12 @@ export function createEndpoints(api: ApiClient) {
     listChangeRequests: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/change-requests`),
     createChangeRequest: <T = unknown>(id: string, body: unknown) =>
       api.post<T>(`/api/projects/${id}/change-requests`, body),
+    /** Accept, reject or withdraw a pending change request. */
+    respondToChangeRequest: <T = unknown>(id: string, body: {
+      request_id: string;
+      action: 'accept' | 'reject' | 'withdraw';
+      note?: string;
+    }) => api.patch<T>(`/api/projects/${id}/change-requests`, body),
     listProjectPayments: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/payments`),
     createProjectPayment: <T = unknown>(id: string, body: unknown) =>
       api.post<T>(`/api/projects/${id}/payments`, body),

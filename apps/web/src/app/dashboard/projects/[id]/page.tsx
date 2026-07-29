@@ -2246,6 +2246,11 @@ export default function ProjectKanbanPage() {
               <span className="hidden sm:inline">{reviews.some(r => r.from_user?.id === userId) ? 'View Reviews' : 'Leave a Review'}</span>
             </Button>
           )}
+          {project?.status === 'cancelled' && (
+            <Badge variant="danger" size="md">
+              <Ban size={13} /> Cancelled
+            </Badge>
+          )}
           {/* Active, nothing already pending — the pending state gets its own
               banner below with Accept/Decline/Withdraw, not this button. */}
           {project?.status === 'active' && !project?.cancel_requested_by && (
@@ -2304,8 +2309,53 @@ export default function ProjectKanbanPage() {
         </div>
       )}
 
+      {/* Cancelled — frozen banner, shown in place of the stage pipeline.
+          The project is a read-only record at this point. The reason survives
+          from the cancellation request (migration 089 leaves it untouched on
+          the row), so the reader can see why it ended. Red/danger tint so it
+          reads as a terminal state at a glance, like OK/green for completed. */}
+      {project?.status === 'cancelled' && (
+        <div className="border-b border-danger/20 bg-danger-soft/60 px-4 py-4">
+          <div className="mx-auto flex max-w-5xl items-start gap-3">
+            <Ban size={18} className="mt-0.5 shrink-0 text-danger" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-content">
+                This project was cancelled on{' '}
+                {project.cancelled_at
+                  ? new Date(project.cancelled_at).toLocaleDateString('en-IN', {
+                      day: 'numeric', month: 'long', year: 'numeric',
+                    })
+                  : 'an unspecified date'}
+                .
+              </p>
+              {project.cancel_reason_category && (
+                <p className="mt-1 text-xs text-content-soft">
+                  Reason: {cancellationReasonLabel(project.cancel_reason_category)}
+                  {project.cancellation_reason && (
+                    <> &mdash; &ldquo;{project.cancellation_reason}&rdquo;</>
+                  )}
+                </p>
+              )}
+              {project.deleted_at ? (
+                <p className="mt-1 text-xs font-semibold text-danger">
+                  <Ban size={11} className="inline" /> This project will be automatically removed on{' '}
+                  {new Date(project.deleted_at).toLocaleDateString('en-IN', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
+                  . View it while you can.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-content-soft">
+                  The record and any payments stay available for reference, but no further changes can be made.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stage Pipeline — the spine of the collaboration (board view only) */}
-      {view === 'board' && !loading && !error && project && (
+      {view === 'board' && !loading && !error && project && project.status !== 'cancelled' && (
         <StagePipeline
           currentStage={currentStage}
           items={currentStageItems}
@@ -2397,6 +2447,10 @@ export default function ProjectKanbanPage() {
       ) : view === 'flow' ? (
         <div className="flex-1 overflow-auto bg-surface">
           <ProjectFlow project={project} entries={stageEntries} userId={userId} />
+        </div>
+      ) : project?.status === 'cancelled' ? (
+        <div className="flex-1 overflow-auto bg-surface">
+          <ActivityTimeline activity={activity} userId={userId} />
         </div>
       ) : (
         <div style={{ flex: 1, overflow: 'auto', display: 'flex', padding: '0 0 0 10px' }}>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const BlockSchema = z.object({ blocked_id: z.string().uuid() });
@@ -32,6 +33,12 @@ export async function POST(req: Request) {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
+
+    // Rate limit: block/unblock actions should be limited to prevent abuse.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'blocks:create', limit: 20, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
 
     const parsed = BlockSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError(400, 'Validation failed');

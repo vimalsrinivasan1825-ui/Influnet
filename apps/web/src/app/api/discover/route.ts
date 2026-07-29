@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const PAGE_SIZE = 24;
@@ -24,8 +25,14 @@ export async function GET(req: Request) {
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
+    const { supabase, role, user } = auth;
 
-    const { supabase, role } = auth;
+    // Rate limit: creator search is a paid-resource route (RPC behind the
+    // scenes) and can be used for data-scraping at scale. Authenticated.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'discover:search', limit: 30, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
 
     const url = new URL(req.url);
     const parsed = QuerySchema.safeParse({

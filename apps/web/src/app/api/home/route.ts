@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { projectTurn, STAGE_PHASES, phaseOf } from '@influnet/core';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
@@ -27,6 +28,13 @@ export async function GET(req: Request) {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
     const { supabase, user, role } = auth;
+
+    // Rate limit: home is a heavy endpoint with multiple queries and external
+    // API calls (Instagram/YouTube snapshots).
+    const limited = await enforceRateLimit(req, {
+      bucket: 'home:view', limit: 30, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
 
     const { data: profile } = await supabase
       .from('profiles')

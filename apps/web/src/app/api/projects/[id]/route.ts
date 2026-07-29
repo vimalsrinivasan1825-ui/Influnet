@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
 import { notifyUser } from '@/lib/notify';
@@ -82,6 +83,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       userId: user.id,
     });
 
+    // Rate limit: project mutations are high-impact actions.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'projects:update', limit: 20, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
+
     let body;
     try {
       body = await req.json();
@@ -129,6 +136,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return jsonError(
         409,
         'These terms have not been accepted by both sides yet, so this project cannot move. Accept or decline them from the conversation first.',
+      );
+    }
+
+    // A cancelled project is a frozen record — no further changes beyond
+    // the cancellation RPCs (which already check for this themselves).
+    // Without this gate the advance/signoff/skip flows proceed until they
+    // hit the UPDATE policy (status <> 'cancelled') and return an opaque RLS
+    // error instead of a clean message.
+    if (statusRow?.status === 'cancelled') {
+      return jsonError(
+        409,
+        'This project has been cancelled. The record is available for reference, but no further changes can be made.',
       );
     }
 
@@ -655,6 +674,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
 
     // 4) Cancellation flows — bilateral: one requests with a reason, the
+    //
+    // NOTE: these branches come AFTER the cancelled-status gate above, so
+    // they will never see a cancelled project. The RPCs guard themselves
+    // anyway (cannot_cancel_now / already_cancelled); this comment exists
+    // so a future reader doesn't wonder why the gate is above and the
+    // cancellation handlers are here.
     // OTHER side accepts or declines. Enforced again at the database level
     // (migration 089's extension of enforce_project_consent), so this route
     // is the friendly error path, not the only guard.
