@@ -38,6 +38,7 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [architecture.html](architecture/architecture.html) | Living visual architecture page (module cards + status pills + update log). Keep in sync with shipped behavior. |
 | [MOBILE_ARCHITECTURE_STRATEGY.md](architecture/MOBILE_ARCHITECTURE_STRATEGY.md) | High-level strategy for adding a React Native (Expo) mobile app: shared Supabase, monorepo shape, code-sharing model. |
 | [MOBILE_APP_PLAN.md](architecture/MOBILE_APP_PLAN.md) | **The detailed mobile build plan.** Codebase analysis, package extraction, mobile design system + component library, screen-by-screen redesign (tabs, stage timeline replacing Kanban), phased roadmap, risks. |
+| [REALTIME_COMMUNICATION.md](architecture/REALTIME_COMMUNICATION.md) | **Real-time communication design.** Explains pull vs push-based updates, implementation patterns (SSE, WebSockets, LISTEN/NOTIFY), and the dynamic reload fix plan. |
 
 ### operations/ — *running, securing, deploying, testing*
 | Doc | What's in it |
