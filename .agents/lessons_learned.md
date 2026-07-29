@@ -4,6 +4,24 @@ This file tracks the current implementation state of each system module, issues 
 
 ---
 
+## Session — 2026-07-29: Real-time Architecture & Android App Store Distribution Runbook
+
+**Branch**: `dev`
+
+### Scope
+- **Android Distribution Documentation (`docs/operations/ANDROID_DISTRIBUTION.md`, `docs/README.md`)**:
+  - Authored a comprehensive runbook outlining Android App Bundle (.aab) building using EAS CLI (`eas build --platform android --profile production`), Google Play Console app setup, internal testing tracks, tester email list invitations, and the Google Play 20-tester closed beta policy.
+  - Linked the new document into the primary documentation registry map in `docs/README.md`.
+- **Zustand & Supabase Realtime Architecture Analysis**:
+  - Analyzed and documented the project's real-time communication layout, comparing Stream Chat (messages), Supabase Realtime subscriptions in `shell.tsx`, and database notification fanning in `notify.ts`.
+  - Pinpointed the current page reload bugs and outlined a phased fix plan to wire up direct `collab_requests` table triggers using Supabase Postgres CDC subscriptions to enable instant web dashboard updates without requiring manually reloads.
+
+### Key Lessons
+- Google Play Developer Console internal testing track enables instant releases to 100 invitees without wait times for review.
+- Over-The-Air (OTA) updates push JavaScript bundle modifications but cannot update native resource files like `google-services.json` or permission mappings; native app updates require a full cloud build (`eas build`).
+
+---
+
 ## Session — 2026-07-28: Bio Link Ownership Verification & Brand Safety Disclaimer System
 
 **Branch**: `dev`
