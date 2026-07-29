@@ -11,7 +11,7 @@
  * the public profile as the creator's own view of it. The account controls stay,
  * below the content, where they belong.
  */
-import { Share, View } from 'react-native';
+import { Alert, Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
@@ -57,6 +57,8 @@ import { AppHeader } from '@/components/app-header';
 import { Logo } from '@/components/brand/logo';
 import { PostGrid, VideoList } from '@/components/content-grid';
 import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
+import { ProfileVisibilityToggles } from '@/components/profile-visibility-toggles';
+import { isSectionVisible } from '@influnet/core';
 
 interface ProfilePayload {
   role: string;
@@ -132,6 +134,17 @@ export default function ProfileScreen() {
     { cacheKey: 'portfolio' },
   );
 
+  /**
+   * The section-visibility switches. Also a separate fetch: /api/home only
+   * selects the columns it needs and doesn't carry this one, and this is the
+   * same GET /api/profile the settings-style toggles PATCH against, so reading
+   * and writing agree on one source.
+   */
+  const { data: fullProfile, refresh: refreshFullProfile } = useFetch<{
+    profile: { profile_section_visibility?: Record<string, boolean> };
+  }>(() => endpoints.getProfile(), { cacheKey: 'profile-full' });
+  const [savingSection, setSavingSection] = useState<string | null>(null);
+
   const isCreator = (data?.role ?? profile?.role) === 'influencer';
   const pp = data?.public_profile ?? {};
   const displayName = isCreator
@@ -155,19 +168,51 @@ export default function ProfileScreen() {
   const hasAudience =
     !!audience && audience.locations.length + audience.ages.length + audience.genders.length > 0;
   const portfolioItems = portfolio?.items ?? [];
+  const sectionVisibility = fullProfile?.profile?.profile_section_visibility ?? {};
   /**
    * Curated work outranks the scraped feed, matching /c/[username]. This tab
-   * exists to show a creator what a brand sees, so it must hide the same
-   * sections the public page hides — otherwise it is showing them a profile
-   * that does not exist.
+   * exists to show a creator what a brand sees, so the fallback decision has
+   * to match the PUBLIC one exactly — the section toggled on AND at least one
+   * item actually visible, not just present. A creator who added one item and
+   * then hid it must see their scraped posts return here too, or this screen
+   * is showing them a profile that doesn't exist.
    */
-  const hasPortfolio = portfolioItems.length > 0;
+  const hasPortfolio =
+    isSectionVisible(sectionVisibility, 'portfolio') &&
+    portfolioItems.some((i) => i.is_visible !== false);
 
   /** Removes a manual entry. Platform-derived cards have no row to delete. */
   async function removePortfolioItem(item: PortfolioItem) {
     await endpoints.deletePortfolioItem(item.id);
     invalidateFetchCache('portfolio');
     await refreshPortfolio();
+  }
+
+  /** Shows/hides a manual entry without deleting it. Optimistic, reverts on failure. */
+  async function togglePortfolioItemVisible(item: PortfolioItem, next: boolean) {
+    invalidateFetchCache('portfolio');
+    const res = await endpoints.setPortfolioItemVisible(item.id, next);
+    if (!res.ok) Alert.alert('Could not update that item', res.error ?? undefined);
+    await refreshPortfolio();
+  }
+
+  /**
+   * One section toggle. Always PATCHes the FULL current 3-key object — the
+   * column is JSONB and a write replaces the whole value, so sending only the
+   * key that changed would silently re-show whatever this screen hadn't
+   * loaded yet.
+   */
+  async function setSectionVisibility(key: string, next: boolean) {
+    setSavingSection(key);
+    const nextVisibility = { ...sectionVisibility, [key]: next };
+    const res = await endpoints.updateProfile({ profile_section_visibility: nextVisibility });
+    setSavingSection(null);
+    if (!res.ok) {
+      Alert.alert('Could not save that', res.error ?? undefined);
+      return;
+    }
+    invalidateFetchCache('profile-full');
+    await refreshFullProfile();
   }
 
   // Reach across the most recent posts. Views is the honest measure where
@@ -302,6 +347,17 @@ export default function ProfileScreen() {
           </Card>
         ) : null}
 
+        {/* ── What shows publicly ───────────────────────────────────── */}
+        {/* Rendered only once the column exists (undefined = 088 not applied
+            yet), same guard the web editor uses. */}
+        {isCreator && fullProfile?.profile?.profile_section_visibility !== undefined ? (
+          <ProfileVisibilityToggles
+            visibility={sectionVisibility}
+            savingKey={savingSection}
+            onChange={(key, next) => setSectionVisibility(key, next)}
+          />
+        ) : null}
+
         {/* ── Portfolio: past work, with proof where we have it ───── */}
         {/* Sits above the brand-name chips because it supersedes them — a grid
             of actual work is what the chips were always a stand-in for. */}
@@ -330,7 +386,11 @@ export default function ProfileScreen() {
 
             {portfolioItems.length > 0 ? (
               <Card>
-                <PortfolioGrid items={portfolioItems} onDelete={removePortfolioItem} />
+                <PortfolioGrid
+                  items={portfolioItems}
+                  onDelete={removePortfolioItem}
+                  onToggleVisible={togglePortfolioItemVisible}
+                />
               </Card>
             ) : (
               <Card style={{ gap: t.spacing.sm }}>
@@ -356,7 +416,10 @@ export default function ProfileScreen() {
         {/* Both of these used to sit on Home, where they answered a question
             nobody opens Home to ask. They belong with the rest of the public
             profile — this is the screen for "how do I look to a brand?". */}
-        {isCreator && !hasPortfolio && posts.some((p) => p.thumbUrl) ? (
+        {isCreator &&
+        !hasPortfolio &&
+        isSectionVisible(sectionVisibility, 'instagram_posts') &&
+        posts.some((p) => p.thumbUrl) ? (
           <>
             <SectionLabel>Recent posts</SectionLabel>
             <Card style={{ gap: t.spacing.lg }}>
@@ -377,7 +440,10 @@ export default function ProfileScreen() {
           </>
         ) : null}
 
-        {isCreator && !hasPortfolio && videos.some((v) => v.thumbUrl) ? (
+        {isCreator &&
+        !hasPortfolio &&
+        isSectionVisible(sectionVisibility, 'youtube_videos') &&
+        videos.some((v) => v.thumbUrl) ? (
           <>
             <SectionLabel>Latest videos</SectionLabel>
             <Card>

@@ -8,10 +8,16 @@ import { resolvePortfolioLink } from '@/lib/portfolio-link';
  * The creator's portfolio: past work they add themselves, merged with the
  * completed Influnet projects the platform can vouch for.
  *
- * GET returns the merged view (via get_creator_portfolio, migration 087) so the
- * creator sees exactly what a brand sees. Writes only ever touch the manual
- * half — platform entries are derived from campaign_projects and are not rows
- * anybody can edit, which is the whole point of the distinction.
+ * GET is the OWNER's view (get_my_portfolio, migration 088) — it includes
+ * items hidden from the public, with `is_visible` on each, so there is
+ * something to toggle back on. This is deliberately a different function from
+ * the one the public profile reads (get_creator_portfolio): that one is
+ * SECURITY DEFINER and granted to anon, so it can never be the thing that
+ * decides whether to reveal hidden rows — see the migration for why.
+ *
+ * Writes only ever touch the manual half — platform entries are derived from
+ * campaign_projects and are not rows anybody can edit or hide here yet (see
+ * migration 088's header for why that is a separate piece of work).
  */
 
 const CreateSchema = z.object({
@@ -31,17 +37,14 @@ export async function GET(req: Request) {
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
 
-    // Cast: the RPC (migration 087) is newer than the generated types.
-    const { data, error } = await (supabase.rpc as any)('get_creator_portfolio', {
-      p_user_id: user.id,
-      p_limit: 24,
-    });
+    // Cast: the RPC (migration 088) is newer than the generated types.
+    const { data, error } = await (supabase.rpc as any)('get_my_portfolio', { p_limit: 24 });
 
     if (error) {
       /**
-       * 087 unapplied is the expected state on a database that is behind, and a
-       * creator opening their profile should see an empty portfolio rather than
-       * a broken screen. Logged, not surfaced.
+       * 087/088 unapplied is the expected state on a database that is behind,
+       * and a creator opening their profile should see an empty portfolio
+       * rather than a broken screen. Logged, not surfaced.
        */
       return NextResponse.json({ items: [], degraded: true });
     }
@@ -126,6 +129,41 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ item: data }, { status: 201 });
+  } catch (error: any) {
+    return jsonError(500, 'Internal server error', error);
+  }
+}
+
+const VisibilitySchema = z.object({
+  id: z.string().uuid(),
+  is_visible: z.boolean(),
+});
+
+/** Show or hide one manual item on the public profile, without deleting it. */
+export async function PATCH(req: Request) {
+  try {
+    const auth = await withAuth(req);
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
+
+    const parsed = VisibilitySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return jsonError(400, 'Validation failed');
+
+    // .eq('user_id', ...) is redundant against RLS and kept for the same
+    // reason as DELETE below: this route must never become the path by which
+    // one creator edits another's row, even if the policy is ever loosened.
+    const { data, error } = await supabase
+      .from('creator_portfolio_items')
+      .update({ is_visible: parsed.data.is_visible })
+      .eq('id', parsed.data.id)
+      .eq('user_id', user.id)
+      .select()
+      .maybeSingle();
+
+    if (error) return jsonError(500, 'Failed to update that item', error);
+    if (!data) return jsonError(404, 'Not found');
+
+    return NextResponse.json({ item: data });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }

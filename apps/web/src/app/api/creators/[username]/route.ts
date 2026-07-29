@@ -9,6 +9,9 @@ import {
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
+import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
+import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
+import { isSectionVisible } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
 
 // Same view model as /c/[username] (see that page for the canonical, full-page
@@ -93,10 +96,12 @@ export async function GET(
   });
   const autoCollaborations = Array.isArray(autoCollabs) ? (autoCollabs as string[]) : [];
 
-  const [instagram, youtube, reviews] = await Promise.all([
+  const [instagram, youtube, reviews, portfolio, visibility] = await Promise.all([
     getInstagramSnapshot(profile.userId),
     getYouTubeSnapshot(profile.userId),
     getPublicReviews(profile.userId),
+    getCreatorPortfolio(supabase, profile.userId),
+    getProfileVisibility(supabase, profile.userId),
   ]);
 
   const hdrs = await headers();
@@ -111,7 +116,15 @@ export async function GET(
     reviews,
     origin,
     autoCollaborations,
+    portfolio,
   });
+
+  // Same gating as /c/[username] (the canonical page) — this route feeds the
+  // mobile app's native profile screen and the web search overlay, and both
+  // must respect the creator's choice exactly like the full page does.
+  if (!isSectionVisible(visibility, 'instagram_posts')) data.featured = [];
+  if (!isSectionVisible(visibility, 'youtube_videos')) data.videos = [];
+  if (!isSectionVisible(visibility, 'portfolio')) data.portfolio = [];
 
   return NextResponse.json({
     data,

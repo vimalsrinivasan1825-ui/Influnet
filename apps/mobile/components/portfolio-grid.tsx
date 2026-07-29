@@ -15,8 +15,9 @@
  * apart at a glance, which is the only way this feature is worth having —
  * a portfolio where anyone can look verified is worse than no portfolio.
  */
-import { Linking, Pressable, View } from 'react-native';
+import { Linking, Pressable, Switch, View } from 'react-native';
 import { Image } from 'expo-image';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 // No brand glyphs: this version of lucide dropped them, and the rest of the app
 // already depicts platforms with generic marks (see content-grid.tsx).
 import { BadgeCheck, Camera, Link2, Play, Trash2, Video } from 'lucide-react-native';
@@ -28,6 +29,12 @@ export interface PortfolioItem {
   id: string;
   source: 'manual' | 'platform';
   verified: boolean;
+  /**
+   * Absent on the public read (already filtered to visible-only) and on a
+   * backend still at migration 087. Only the owner's own listing
+   * (get_my_portfolio, 088) sends this — treated as visible everywhere else.
+   */
+  is_visible?: boolean;
   title: string;
   brand_name: string | null;
   description: string | null;
@@ -50,6 +57,46 @@ function PlatformGlyph({ platform, size = 15, color }: { platform: string; size?
   if (platform === 'instagram') return <Camera size={size} color={color} />;
   if (platform === 'youtube') return <Video size={size} color={color} />;
   return <Link2 size={size} color={color} />;
+}
+
+/**
+ * A small solid brand mark in the corner of the thumbnail — WHERE the work
+ * lives, independent of the verified/self-reported line below it. Absent for
+ * 'other': a blog post or press link gets no badge rather than a wrong one.
+ * Facebook is not one of the accepted platforms yet (lib/portfolio-link.ts) —
+ * adding its mark here is a one-line addition once parsing exists.
+ */
+function PlatformBadge({ platform }: { platform: PortfolioItem['platform'] }) {
+  if (platform === 'youtube') {
+    return (
+      <View
+        style={{
+          position: 'absolute', top: 6, left: 6, width: 20, height: 20, borderRadius: 5,
+          backgroundColor: '#FF0000', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Svg width={10} height={10} viewBox="0 0 24 24">
+          <Path d="M8 5v14l11-7z" fill="#fff" />
+        </Svg>
+      </View>
+    );
+  }
+  if (platform === 'instagram') {
+    return (
+      <View
+        style={{
+          position: 'absolute', top: 6, left: 6, width: 20, height: 20, borderRadius: 5,
+          backgroundColor: '#D6249F', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2}>
+          <Rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+          <Circle cx="12" cy="12" r="4" />
+        </Svg>
+      </View>
+    );
+  }
+  return null;
 }
 
 /**
@@ -90,6 +137,7 @@ function Thumb({ item, height }: { item: PortfolioItem; height: number }) {
             </View>
           </View>
         ) : null}
+        <PlatformBadge platform={item.platform} />
       </View>
     );
   }
@@ -111,6 +159,7 @@ function Thumb({ item, height }: { item: PortfolioItem; height: number }) {
       ) : (
         <PlatformGlyph platform={item.platform} size={22} color={t.color.contentMuted} />
       )}
+      <PlatformBadge platform={item.platform} />
     </View>
   );
 }
@@ -146,10 +195,13 @@ function ProvenanceLine({ item }: { item: PortfolioItem }) {
 export function PortfolioGrid({
   items,
   onDelete,
+  onToggleVisible,
 }: {
   items: PortfolioItem[];
   /** Owner view only — a brand looking at a public profile passes nothing. */
   onDelete?: (item: PortfolioItem) => void;
+  /** Owner view only. Platform entries have no row to toggle — see is_visible above. */
+  onToggleVisible?: (item: PortfolioItem, next: boolean) => void;
 }) {
   const t = useTheme();
   if (items.length === 0) return null;
@@ -161,6 +213,7 @@ export function PortfolioGrid({
         const date = item.happened_at
           ? new Date(item.happened_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
           : null;
+        const visible = item.is_visible !== false;
 
         return (
           <Pressable
@@ -168,13 +221,13 @@ export function PortfolioGrid({
             accessibilityRole={item.content_url ? 'link' : 'text'}
             accessibilityLabel={`${item.title}${item.brand_name ? ` for ${item.brand_name}` : ''}. ${
               item.verified ? 'Verified on Influnet' : 'Self-reported'
-            }`}
+            }${visible ? '' : '. Hidden from your profile'}`}
             disabled={!item.content_url}
             onPress={() => open(item.content_url)}
             style={({ pressed }) => ({
               // Two columns inside a card, accounting for the single gap.
               width: `${(100 - 3) / 2}%`,
-              opacity: pressed && item.content_url ? 0.85 : 1,
+              opacity: (pressed && item.content_url ? 0.85 : 1) * (visible ? 1 : 0.55),
               gap: 6,
             })}
           >
@@ -198,6 +251,31 @@ export function PortfolioGrid({
                     .filter(Boolean)
                     .join(' · ')}
                 </Txt>
+              ) : null}
+
+              {/* Platform entries have no per-item toggle yet — see is_visible
+                  above — so only manual items get the control. */}
+              {onToggleVisible && item.source === 'manual' ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: 2,
+                  }}
+                >
+                  <Txt variant="caption" tone="muted">
+                    {visible ? 'Visible' : 'Hidden'}
+                  </Txt>
+                  <Switch
+                    value={visible}
+                    onValueChange={(next) => onToggleVisible(item, next)}
+                    trackColor={{ true: t.color.brand, false: t.color.hairlineStrong }}
+                    thumbColor={t.color.white}
+                    style={{ transform: [{ scale: 0.75 }] }}
+                    accessibilityLabel={`${visible ? 'Hide' : 'Show'} ${item.title} on your profile`}
+                  />
+                </View>
               ) : null}
             </View>
 

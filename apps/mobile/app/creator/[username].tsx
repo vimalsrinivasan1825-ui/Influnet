@@ -17,6 +17,7 @@ import { endpoints } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/supabase';
 import { useFetch } from '@/lib/use-fetch';
 import { PostGrid, VideoList } from '@/components/content-grid';
+import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
 import {
   Avatar,
   Badge,
@@ -64,6 +65,23 @@ interface CreatorProfileView {
     views: string | null;
     publishedAt: string | null;
   }[];
+  /**
+   * Chosen work, already filtered to what this creator's toggles allow and
+   * (for manual items) to what they've left visible — the API applies both
+   * before this ever reaches the client, same as the web page.
+   */
+  portfolio?: {
+    id: string;
+    source: 'manual' | 'platform';
+    verified: boolean;
+    title: string;
+    brandName: string | null;
+    platform: 'instagram' | 'youtube' | 'other';
+    contentUrl: string | null;
+    thumbnailUrl: string | null;
+    views: number | null;
+    happenedAt: string | null;
+  }[];
 }
 
 type CtaAction = 'edit' | 'work_with_me' | 'request_sent' | 'view_project' | 'view_only';
@@ -110,6 +128,26 @@ export default function CreatorDetail() {
     viewsLabel: v.views,
     publishedAt: v.publishedAt,
   }));
+
+  // The web view model's field names (contentUrl, brandName, happenedAt) are
+  // JS-idiomatic camelCase; PortfolioGrid takes the raw RPC shape the mobile
+  // owner screens already consume (content_url, brand_name, happened_at). One
+  // small remap here rather than two field-naming conventions inside the grid.
+  const portfolio: PortfolioItem[] = (creator?.portfolio ?? []).map((p) => ({
+    id: p.id,
+    source: p.source,
+    verified: p.verified,
+    title: p.title,
+    brand_name: p.brandName,
+    description: null,
+    platform: p.platform,
+    content_url: p.contentUrl,
+    thumbnail_url: p.thumbnailUrl,
+    views: p.views,
+    likes: null,
+    happened_at: p.happenedAt,
+  }));
+  const hasPortfolio = portfolio.length > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.color.surface }}>
@@ -208,9 +246,21 @@ export default function CreatorDetail() {
               </Card>
             ) : null}
 
+            {/* Chosen work leads, exactly like the web page — Recent posts and
+                Latest videos are its fallback, not a second copy shown
+                alongside it. See /c/[username] for the full reasoning. */}
+            {hasPortfolio ? (
+              <>
+                <SectionLabel>Selected work</SectionLabel>
+                <Card>
+                  <PortfolioGrid items={portfolio} />
+                </Card>
+              </>
+            ) : null}
+
             {/* The actual work, not just the numbers — same thumbnails the web
                 profile shows, tapping through to the original post. */}
-            {posts.some((p) => p.thumbUrl) ? (
+            {!hasPortfolio && posts.some((p) => p.thumbUrl) ? (
               <>
                 <SectionLabel>Recent posts</SectionLabel>
                 <Card>
@@ -219,7 +269,7 @@ export default function CreatorDetail() {
               </>
             ) : null}
 
-            {videos.some((v) => v.thumbUrl) ? (
+            {!hasPortfolio && videos.some((v) => v.thumbUrl) ? (
               <>
                 <SectionLabel>Latest videos</SectionLabel>
                 <Card>

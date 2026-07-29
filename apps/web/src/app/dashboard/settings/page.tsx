@@ -13,6 +13,7 @@ import { uploadToCloudinary } from "@/lib/storage/upload-client";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
 import { PortfolioEditor } from "@/components/dashboard/portfolio-editor";
+import { ProfileVisibilityEditor } from "@/components/dashboard/profile-visibility-editor";
 import { publicProfileUrlDisplay } from "@/lib/site";
 
 type Slice = { label: string; pct: number };
@@ -41,6 +42,8 @@ interface Profile {
   pricing_max?: number | null;
   past_collaborations?: unknown[] | null;
   audience_demographics?: AudienceDemographics | null;
+  // Undefined = migration 088 not applied; {} = applied with everything on.
+  profile_section_visibility?: Record<string, boolean> | null;
   avatar_url?: string;
   logo_url?: string;
   cover_image_url?: string;
@@ -470,6 +473,9 @@ export default function SettingsPage() {
 
       {/* Above the media-kit fields: this is what the public profile now leads
           with, so it should be what a creator meets first here too. */}
+      {isInfluencer && (
+        <ProfileVisibilityEditor initial={profile?.profile_section_visibility ?? undefined} />
+      )}
       {isInfluencer && <PortfolioEditor />}
 
       {isInfluencer && (

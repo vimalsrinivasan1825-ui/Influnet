@@ -20,11 +20,18 @@ import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
 import { Input, Label } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 interface PortfolioItem {
   id: string;
   source: "manual" | "platform";
   verified: boolean;
+  /**
+   * Absent when the API's still on migration 087 (before per-item visibility
+   * existed). Treated as visible — a control that isn't there yet cannot have
+   * hidden anything.
+   */
+  is_visible?: boolean;
   title: string;
   brand_name: string | null;
   platform: "instagram" | "youtube" | "other";
@@ -32,6 +39,36 @@ interface PortfolioItem {
   thumbnail_url: string | null;
   views: number | null;
   happened_at: string | null;
+}
+
+/** Small brand mark, top-left of the thumbnail — which platform, not whether it's verified. */
+function PlatformBadge({ platform }: { platform: PortfolioItem["platform"] }) {
+  if (platform === "youtube") {
+    return (
+      <span className="absolute left-1.5 top-1.5 grid h-[22px] w-[22px] place-items-center rounded-md bg-[#FF0000] shadow">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="#fff"><path d="M8 5v14l11-7z" /></svg>
+      </span>
+    );
+  }
+  if (platform === "instagram") {
+    return (
+      <span
+        className="absolute left-1.5 top-1.5 grid h-[22px] w-[22px] place-items-center rounded-md shadow"
+        style={{
+          background:
+            "radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)",
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth={2}>
+          <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.6" cy="6.4" r="1.1" fill="#fff" stroke="none" />
+        </svg>
+      </span>
+    );
+  }
+  // 'other' (a blog post, a press link): no badge rather than a wrong one.
+  return null;
 }
 
 /** Mirrors the hosts lib/portfolio-link.ts accepts, for the pre-flight hint. */
@@ -103,6 +140,21 @@ export function PortfolioEditor() {
       return;
     }
     setItems((prev) => prev.filter((i) => i.id !== item.id));
+  }
+
+  async function toggleVisible(item: PortfolioItem, next: boolean) {
+    // Optimistic — a toggle should feel instant; revert on failure.
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_visible: next } : i)));
+
+    const res = await apiFetch("/api/portfolio", {
+      method: "PATCH",
+      body: JSON.stringify({ id: item.id, is_visible: next }),
+    });
+
+    if (!res.ok) {
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_visible: !next } : i)));
+      toast.error(res.error || "Could not update that item.");
+    }
   }
 
   const hint = platformHint(url);
@@ -177,14 +229,16 @@ export function PortfolioEditor() {
           </p>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item) => (
+            {items.map((item) => {
+              const visible = item.is_visible !== false;
+              return (
               <li
                 key={item.id}
-                className={`flex flex-col overflow-hidden rounded-lg border bg-surface ${
+                className={`flex flex-col overflow-hidden rounded-lg border bg-surface transition-opacity ${
                   item.verified ? "border-[#FF0B8D]/40" : "border-border"
-                }`}
+                } ${visible ? "" : "opacity-55"}`}
               >
-                <div className="grid aspect-[16/10] place-items-center bg-surface-muted">
+                <div className="relative grid aspect-[16/10] place-items-center bg-surface-muted">
                   {item.thumbnail_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -198,6 +252,7 @@ export function PortfolioEditor() {
                   ) : (
                     <Link2 className="h-5 w-5 text-content-muted" />
                   )}
+                  <PlatformBadge platform={item.platform} />
                 </div>
 
                 <div className="flex flex-1 flex-col gap-1 p-3">
@@ -233,23 +288,31 @@ export function PortfolioEditor() {
                     )}
 
                     {/* Platform entries are derived from a project record —
-                        there is no row to delete, and removing the project's
-                        history is not this screen's job. */}
+                        there is no row to delete or hide, and altering the
+                        project's own history is not this screen's job. */}
                     {item.source === "manual" && (
-                      <button
-                        type="button"
-                        onClick={() => remove(item)}
-                        aria-label={`Remove ${item.title}`}
-                        className="inline-flex items-center gap-1 text-xs text-danger hover:opacity-80"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Remove
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={visible}
+                          onCheckedChange={(next) => toggleVisible(item, next)}
+                          label={visible ? `Hide ${item.title} from your profile` : `Show ${item.title} on your profile`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => remove(item)}
+                          aria-label={`Remove ${item.title}`}
+                          className="inline-flex items-center gap-1 text-xs text-danger hover:opacity-80"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>

@@ -100,6 +100,13 @@ export async function GET(req: Request) {
           availability_status: inf.availability_status,
           engagement_rate: inf.engagement_rate,
           media_kit_url: inf.media_kit_url,
+          // Undefined until migration 088 rather than null/{}: distinguishes
+          // "this backend doesn't have the column yet" from "creator has an
+          // empty (all-visible) preference", which the settings UI needs to
+          // tell apart to avoid PATCHing a value it never actually read.
+          profile_section_visibility: 'profile_section_visibility' in inf
+            ? inf.profile_section_visibility
+            : undefined,
         });
       }
     }

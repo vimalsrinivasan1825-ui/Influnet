@@ -533,6 +533,20 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                         ) : (
                           <Link2 size={22} />
                         )}
+                        {/* The platform mark, not the verified mark — this says
+                            WHERE the work lives, independent of provenance.
+                            Only for a platform we can actually identify: 'other'
+                            (a blog post, a press link) gets no badge rather than
+                            a wrong one. */}
+                        {item.platform === 'youtube' ? (
+                          <span className={`${styles.pfbadge} ${styles['pfbadge--yt']}`}>
+                            <YtPlay s={11} />
+                          </span>
+                        ) : item.platform === 'instagram' ? (
+                          <span className={`${styles.pfbadge} ${styles['pfbadge--ig']}`}>
+                            <IgLogo s={12} />
+                          </span>
+                        ) : null}
                       </div>
                       <div className={styles.pfbody}>
                         <div className={styles.pftitle}>{item.title}</div>

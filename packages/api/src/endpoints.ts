@@ -43,6 +43,9 @@ export function createEndpoints(api: ApiClient) {
     }) => api.post<T>('/api/portfolio', body),
     deletePortfolioItem: <T = unknown>(id: string) =>
       api.del<T>(`/api/portfolio?id=${encodeURIComponent(id)}`),
+    /** Show/hide one manual entry on the public profile without deleting it. */
+    setPortfolioItemVisible: <T = unknown>(id: string, isVisible: boolean) =>
+      api.patch<T>('/api/portfolio', { id, is_visible: isVisible }),
     register: <T = unknown>(body: unknown) => api.post<T>('/api/auth/register', body),
 
     // ── Discovery ──────────────────────────────────────────────────

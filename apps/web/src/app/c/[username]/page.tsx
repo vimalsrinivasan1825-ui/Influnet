@@ -13,6 +13,8 @@ import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapsho
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
+import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
+import { isSectionVisible } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
 
 // Anon client for public profile reads.
@@ -147,11 +149,12 @@ export default async function PublicProfilePage({
 
   // Instagram, YouTube and ratings are independent reads — one being empty (or
   // its migration unapplied) must never hold up or break the others.
-  const [instagram, youtube, reviews, portfolio] = await Promise.all([
+  const [instagram, youtube, reviews, portfolio, visibility] = await Promise.all([
     getInstagramSnapshot(profile.userId),
     getYouTubeSnapshot(profile.userId),
     getPublicReviews(profile.userId),
     getCreatorPortfolio(supabaseAnon, profile.userId),
+    getProfileVisibility(supabaseAnon, profile.userId),
   ]);
 
   const view = buildCreatorProfileView(profile, {
@@ -163,6 +166,18 @@ export default async function PublicProfilePage({
     autoCollaborations,
     portfolio,
   });
+
+  /**
+   * Gated here, not inside buildCreatorProfileView. The owner's toggle hides
+   * three CONTENT sections, not the numbers derived alongside them — follower
+   * count, engagement rate and audience split come off the same Instagram/
+   * YouTube snapshots and stay visible even with "Recent posts" switched off.
+   * Stripping the arrays after the view is built keeps that distinction
+   * without threading a visibility flag through every stat computation.
+   */
+  if (!isSectionVisible(visibility, 'instagram_posts')) view.featured = [];
+  if (!isSectionVisible(visibility, 'youtube_videos')) view.videos = [];
+  if (!isSectionVisible(visibility, 'portfolio')) view.portfolio = [];
 
   return <CreatorProfileViewComponent data={view} isOwner={isOwner} ctaHref={ctaHref} ctaLabel={ctaLabel} />;
 }

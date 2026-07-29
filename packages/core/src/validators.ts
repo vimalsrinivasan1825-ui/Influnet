@@ -176,6 +176,17 @@ export const ProfileUpdateSchema = z.object({
   pricing_min: z.number().min(0).max(100_000_000).optional(),
   pricing_max: z.number().min(0).max(100_000_000).optional(),
   past_collaborations: z.array(z.string().min(1).max(80)).max(24).optional(),
+  // Always sent as the FULL current 3-key object, never a partial diff — a
+  // JSONB column write replaces the whole value, so a partial PATCH would
+  // silently re-show whatever section the client's copy didn't know about.
+  profile_section_visibility: z
+    .object({
+      instagram_posts: z.boolean().optional(),
+      youtube_videos: z.boolean().optional(),
+      portfolio: z.boolean().optional(),
+    })
+    .strict()
+    .optional(),
   audience_demographics: z
     .object({
       locations: z.array(AudienceSliceSchema).max(12).optional(),
