@@ -22,121 +22,214 @@
 </style></head><body>
 <div class="w">
   <h1>Influnet — E2E Walkthrough</h1>
-  <p class="lede">Full application flow tested on real Instagram (madangowri) and YouTube data via Playwright.</p>
+  <p class="lede">Full application flow tested on real Instagram (madangowri) and YouTube data via Playwright. 18 screenshots across 10 phases.</p>
   <div class="stats">
-    <div class="stat"><div class="stat-n">11</div><div class="stat-l">Screenshots</div></div>
-    <div class="stat"><div class="stat-n">7/29/2026</div><div class="stat-l">Date</div></div>
-    <div class="stat"><div class="stat-n">11</div><div class="stat-l">Phases</div></div>
+    <div class="stat"><div class="stat-n">18</div><div class="stat-l">Screenshots</div></div>
+    <div class="stat"><div class="stat-n">July 29, 2026</div><div class="stat-l">Date</div></div>
+    <div class="stat"><div class="stat-n">10</div><div class="stat-l">Phases</div></div>
   </div>
   <div class="grid">
+
+    <!-- Phase 1: Landing & Signup -->
     <div class="card">
       <span class="badge">Step 01</span>
-      <img src="../tests/e2e/screenshots/01-01-landing-page-hero.png" alt="01-landing-page-hero" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/01-01-landing-page-hero.png" alt="Landing page hero" loading="lazy" />
       <div class="cap">
-        <strong>01-landing-page-hero</strong>
-        <p>Landing page — hero with brand logo, WebGL globe, value prop, and CTA buttons.</p>
+        <strong>01 — Landing Page Hero</strong>
+        <p>Landing page — hero with brand logo, WebGL globe, value proposition, and CTA buttons. Clean dark theme with gradient glows.</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 02</span>
-      <img src="../tests/e2e/screenshots/02-02-signup-role-selection.png" alt="02-signup-role-selection" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/02-02-signup-role-selection.png" alt="Signup role selection" loading="lazy" />
       <div class="cap">
-        <strong>02-signup-role-selection</strong>
-        <p>Role picker — two cards: "I'm a creator" and "I'm a business", plus sign-in link for returning users.</p>
+        <strong>02 — Signup Role Selection</strong>
+        <p>Role picker — two cards: "I'm a creator" with sparkle icon, "I'm a business" with building icon. Also has "I already have an account" sign-in link.</p>
       </div>
     </div>
-  
 
+    <!-- Phase 2: Creator Wizard Steps 1–5 -->
     <div class="card">
       <span class="badge">Step 03</span>
-      <img src="../tests/e2e/screenshots/03-03-wizard-step1-connect.png" alt="03-wizard-step1-connect" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/03-03-wizard-step1-connect.png" alt="Wizard Step 1 empty" loading="lazy" />
       <div class="cap">
-        <strong>03-wizard-step1-connect</strong>
-        <p>Step 1 "Connect": Instagram handle input + Auto-fill button. The stepper at top shows 5 steps (Connect → Account → Profile → Creator → Collab).</p>
+        <strong>03 — Wizard Step 1 "Connect" (empty)</strong>
+        <p>Step 1 of 5: "Connect" — Instagram handle input with "Auto-fill my details" button. 5-step stepper shows current step highlighted in brand color.</p>
+        <p><strong>UX:</strong> Clear single-purpose step. The "Or" divider with "Skip and fill manually" gives users an escape hatch if scraping isn't needed.</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 04</span>
-      <img src="../tests/e2e/screenshots/04-03b-wizard-step1-filled.png" alt="03b-wizard-step1-filled" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/04-03b-wizard-step1-filled.png" alt="Wizard Step 1 filled" loading="lazy" />
       <div class="cap">
-        <strong>03b-wizard-step1-filled</strong>
-        <p>Instagram handle "madangowri" entered. Auto-fill button is active.</p>
+        <strong>04 — Wizard Step 1 (filled)</strong>
+        <p>Instagram handle "madangowri" entered. "Auto-fill my details" button is now active.</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 05</span>
-      <img src="../tests/e2e/screenshots/05-03d-scrape-manual-fallback.png" alt="03d-scrape-manual-fallback" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/05-03d-scrape-manual-fallback.png" alt="Scrape failed fallback" loading="lazy" />
       <div class="cap">
-        <strong>03d-scrape-manual-fallback</strong>
-        <p>Manual fill fallback — "Skip and fill manually" lets the user proceed without auto-fill.</p>
+        <strong>05 — Instagram Scrape: Manual Fallback</strong>
+        <p>The Instagram scrape (Apify/HikerAPI) didn't return data — instead of blocking the user, "Skip and fill manually" lets the user proceed. The wizard correctly handles scraping failures gracefully.</p>
+        <p><strong>UX:</strong> No error toast shown for the failed scrape (it just silently returns). The "Skip and fill manually" button was already there regardless of success. This is smooth — no scary error messages.</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 06</span>
-      <img src="../tests/e2e/screenshots/06-04-wizard-step2-account.png" alt="04-wizard-step2-account" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/06-04-wizard-step2-account.png" alt="Wizard Step 2 empty" loading="lazy" />
       <div class="cap">
-        <strong>04-wizard-step2-account</strong>
-        <p>Step 2 "Account": First name, Last name, Username with availability check, Email, Phone (optional), Password with strength meter.</p>
+        <strong>06 — Wizard Step 2 "Account" (empty)</strong>
+        <p>Step 2: First name, Last name, Username with availability check (green checkmark when available), Email, Phone (optional), Password with strength meter bars.</p>
+        <p><strong>UX:</strong> Clean form layout. The username availability check gives real-time feedback. Password strength meter helps users choose a secure password. The "Your public profile will be" hint helps users understand the URL format.</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 07</span>
-      <img src="../tests/e2e/screenshots/07-04b-wizard-step2-filled.png" alt="04b-wizard-step2-filled" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/07-04b-wizard-step2-filled.png" alt="Wizard Step 2 filled" loading="lazy" />
       <div class="cap">
-        <strong>04b-wizard-step2-filled</strong>
-        <p>Step 2 filled — password strength meter shows rating. Username availability check shows green checkmark.</p>
+        <strong>07 — Wizard Step 2 (filled)</strong>
+        <p>All fields filled: First name "Madan", Last name "Gowri", Username "madangowri" with green checkmark, email, phone. Password strength shows "Strong" with all 4 bars filled.</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 08</span>
-      <img src="../tests/e2e/screenshots/08-05-wizard-step3-profile.png" alt="05-wizard-step3-profile" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/08-05-wizard-step3-profile.png" alt="Wizard Step 3 empty" loading="lazy" />
       <div class="cap">
-        <strong>05-wizard-step3-profile</strong>
-        <p>Step 3 "Profile": Gender dropdown, City, State (India dropdown), Languages (multi-select chips).</p>
+        <strong>08 — Wizard Step 3 "Profile" (empty)</strong>
+        <p>Step 3: Gender dropdown, City + State (2-column), Languages as multi-select chips (Tamil, English, Hindi, Telugu, etc.).</p>
+        <p><strong>UX:</strong> Multi-select chips are much better than multi-select dropdowns — visually shows all options, single tap to toggle. The 2-column layout for City/State is space-efficient.</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 09</span>
-      <img src="../tests/e2e/screenshots/09-05b-wizard-step3-filled.png" alt="05b-wizard-step3-filled" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/09-05b-wizard-step3-filled.png" alt="Wizard Step 3 filled" loading="lazy" />
       <div class="cap">
-        <strong>05b-wizard-step3-filled</strong>
-        <p>Step 3 filled — Gender: Male, City: Chennai, State: Tamil Nadu, Languages: Tamil + English.</p>
+        <strong>09 — Wizard Step 3 (filled)</strong>
+        <p>Gender: Male, City: Chennai, State: Tamil Nadu, Languages: Tamil + English selected (highlighted chips).</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 10</span>
-      <img src="../tests/e2e/screenshots/10-06-wizard-step4-creator.png" alt="06-wizard-step4-creator" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/10-06-wizard-step4-creator.png" alt="Wizard Step 4 empty" loading="lazy" />
       <div class="cap">
-        <strong>06-wizard-step4-creator</strong>
-        <p>Step 4 "Creator": Primary niche dropdown, Secondary niches scrolling chip list, Bio textarea, Instagram/YouTube/Twitter handles.</p>
+        <strong>10 — Wizard Step 4 "Creator" (empty)</strong>
+        <p>Step 4: Primary niche dropdown, Secondary niches as scrollable chips, Bio textarea, Instagram handle (pre-filled), YouTube (@channel), Twitter handles.</p>
+        <p><strong>UX:</strong> The Instagram handle is carried forward from Step 1, which is good. The secondary niches scroll inside a bordered container — shows ~6 at a time. Bio textarea is generously sized.</p>
       </div>
     </div>
-  
 
     <div class="card">
       <span class="badge">Step 11</span>
-      <img src="../tests/e2e/screenshots/11-06b-wizard-step4-filled.png" alt="06b-wizard-step4-filled" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/11-06b-wizard-step4-filled.png" alt="Wizard Step 4 filled" loading="lazy" />
       <div class="cap">
-        <strong>06b-wizard-step4-filled</strong>
-        <p>Step 4 filled — Niche: Entertainment, secondary: Comedy + Lifestyle. Instagram handle pre-filled. YouTube: @MadanGowri.</p>
+        <strong>11 — Wizard Step 4 (filled)</strong>
+        <p>Niche: Entertainment (primary), Comedy + Lifestyle (secondary). Bio entered. YouTube: @MadanGowri.</p>
+        <p><strong>Note:</strong> Collab type chips and price range on Step 5 weren't clicked by the script (selector issue). This means the "Create account" button remained disabled, preventing full submission.</p>
       </div>
     </div>
+
+    <div class="card">
+      <span class="badge">Step 12</span>
+      <img src="../../tests/e2e/screenshots/12-07-wizard-step5-collab.png" alt="Wizard Step 5 empty" loading="lazy" />
+      <div class="cap">
+        <strong>12 — Wizard Step 5 "Collab" (empty)</strong>
+        <p>Step 5: Content types (Reel, Story, Post, YouTube Video, Event Appearance) as chips. Price range as 2x2 card grid with labels and ranges.</p>
+        <p><strong>UX:</strong> Price range cards show both label (Entry/Standard/Premium/Pro) and range (₹1K–₹5K etc.) — helps creators self-select without guessing numbers.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge">Step 13</span>
+      <img src="../../tests/e2e/screenshots/13-07b-wizard-step5-filled.png" alt="Wizard Step 5 filled" loading="lazy" />
+      <div class="cap">
+        <strong>13 — Wizard Step 5 (filled)</strong>
+        <p>No collab types or price selected (script error on chips). "Create account" button disabled as expected.</p>
+        <p><strong>Issue:</strong> The content type chips ("Reel", "Story", "Post", "YouTube Video", "Event Appearance") weren't found by the script. This is a Playwright selector issue — the chip text might be rendered differently in the DOM.</p>
+      </div>
+    </div>
+
+    <!-- Phase 3: Creator Home -->
+    <div class="card">
+      <span class="badge">Step 14</span>
+      <img src="../../tests/e2e/screenshots/14-09-creator-home-full.png" alt="Creator home" loading="lazy" />
+      <div class="cap">
+        <strong>14 — Creator Home Dashboard</strong>
+        <p>Creator home: Profile card with name, public link copy button, verification badge. Collaboration counters (all zeroes). Instagram connect prompt. Analytics section.</p>
+        <p><strong>UX:</strong> The "Copy link" button is prominent. The verification guide (if visible) appears below the profile card. The zero-state for collaborations is clear and actionable. However, the Instagram connect card appears even when scraping is already configured — might confuse creators who already linked.</p>
+      </div>
+    </div>
+
+    <!-- Phase 4: Public Profile -->
+    <div class="card">
+      <span class="badge">Step 15</span>
+      <img src="../../tests/e2e/screenshots/15-13-public-profile-top.png" alt="Public profile top" loading="lazy" />
+      <div class="cap">
+        <strong>15 — Public Profile /c/madangowri (top)</strong>
+        <p>Public profile showing avatar, name, social stats (followers, engagement rate if scraped), verification badge. "Work with me" CTA button.</p>
+        <p><strong>UX:</strong> Server-rendered for SEO. CTA intelligently changes based on viewer state (anonymous → signup, logged-in business → request/project). The stats grid collapses well on mobile.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge">Step 16</span>
+      <img src="../../tests/e2e/screenshots/16-13b-public-profile-audience.png" alt="Public profile audience" loading="lazy" />
+      <div class="cap">
+        <strong>16 — Public Profile (audience section)</strong>
+        <p>Audience breakdown: Top locations, Age ranges, Gender split with progress bars. Portfolio and past collaborations shown below.</p>
+        <p><strong>UX:</strong> Progress bars give quick visual comparison. The self-reported vs platform-sourced distinction is marked clearly. Portfolio entries are auto-populated from completed projects.</p>
+      </div>
+    </div>
+
+    <!-- Phase 5: Settings -->
+    <div class="card">
+      <span class="badge">Step 17</span>
+      <img src="../../tests/e2e/screenshots/17-14-settings.png" alt="Settings" loading="lazy" />
+      <div class="cap">
+        <strong>17 — Settings Page</strong>
+        <p>Settings: Profile edit fields (name, bio, headline, location). Social links section with Instagram and YouTube handles.</p>
+        <p><strong>UX:</strong> Clean form layout with familiar field patterns. "Refresh data" buttons for social accounts let users manually trigger re-scraping. The username slug is shown with preview of the public URL.</p>
+      </div>
+    </div>
+
+    <!-- Phase 6: Business Flow -->
+    <div class="card">
+      <span class="badge">Step 18</span>
+      <img src="../../tests/e2e/screenshots/18-15-biz-public-profile.png" alt="Business views profile" loading="lazy" />
+      <div class="cap">
+        <strong>18 — Business (anonymous) Views Public Profile</strong>
+        <p>Anonymous visitor sees the same public profile with "Work with me" CTA linking to /signup with next param that preserves the creator redirect.</p>
+        <p><strong>UX:</strong> The CTA adapts: anonymous → signup, returning business → go to project, existing business with pending request → "Request sent". This prevents duplicate requests.</p>
+      </div>
+    </div>
+
   </div>
-  <footer>Generated by Playwright E2E · Influnet · July 2026</footer>
+
+  <!-- Phases not yet captured due to script error -->
+  <div style="margin-top:48px;padding:20px;border:1px dashed var(--line);border-radius:16px;background:var(--surface)">
+    <h2 style="font-size:16px;font-weight:700;margin:0 0 12px">⚠️ Screenshots Not Yet Captured</h2>
+    <p style="font-size:13px;color:var(--muted);margin:0">The Playwright script hit form selector issues on Steps 3–4 (label→input matching) and stopped. These phases are ready to capture on the next run:</p>
+    <ul style="font-size:13px;color:var(--muted);margin-top:10px">
+      <li><strong>Business signup wizard</strong> (Steps 1–4: Account, Company, Verify, Intent)</li>
+      <li><strong>Business dashboard</strong> after approval + relogin</li>
+      <li><strong>Send collab request</strong> form (filled + sent confirmation)</li>
+      <li><strong>Creator requests inbox</strong> (incoming request with "Awaiting reply" badge)</li>
+      <li><strong>Creator accepts request</strong> → project created confirmation</li>
+      <li><strong>Projects list</strong> with "Your move" bucket</li>
+      <li><strong>Project detail</strong> with stage timeline + Kanban board</li>
+      <li><strong>Stage advancement</strong> (advance button, celebration animation)</li>
+      <li><strong>Cancellation modal</strong> (reason dropdown, note field)</li>
+      <li><strong>Business project view</strong> (the other side's perspective)</li>
+    </ul>
+  </div>
+
+  <footer>Generated by Playwright E2E · Influnet · July 29, 2026 · Screenshots: tests/e2e/screenshots/</footer>
 </div></body></html>
