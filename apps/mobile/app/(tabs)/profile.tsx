@@ -155,6 +155,13 @@ export default function ProfileScreen() {
   const hasAudience =
     !!audience && audience.locations.length + audience.ages.length + audience.genders.length > 0;
   const portfolioItems = portfolio?.items ?? [];
+  /**
+   * Curated work outranks the scraped feed, matching /c/[username]. This tab
+   * exists to show a creator what a brand sees, so it must hide the same
+   * sections the public page hides — otherwise it is showing them a profile
+   * that does not exist.
+   */
+  const hasPortfolio = portfolioItems.length > 0;
 
   /** Removes a manual entry. Platform-derived cards have no row to delete. */
   async function removePortfolioItem(item: PortfolioItem) {
@@ -295,11 +302,61 @@ export default function ProfileScreen() {
           </Card>
         ) : null}
 
+        {/* ── Portfolio: past work, with proof where we have it ───── */}
+        {/* Sits above the brand-name chips because it supersedes them — a grid
+            of actual work is what the chips were always a stand-in for. */}
+        {isCreator ? (
+          <>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <SectionLabel>Portfolio</SectionLabel>
+              {portfolioItems.length > 0 ? (
+                <Button
+                  label="Add"
+                  size="md"
+                  variant="ghost"
+                  inline
+                  haptic={false}
+                  icon={<Plus size={15} color={t.color.brand} />}
+                  onPress={() => router.push('/portfolio/add')}
+                />
+              ) : null}
+            </View>
+
+            {portfolioItems.length > 0 ? (
+              <Card>
+                <PortfolioGrid items={portfolioItems} onDelete={removePortfolioItem} />
+              </Card>
+            ) : (
+              <Card style={{ gap: t.spacing.sm }}>
+                <Txt variant="bodyStrong">Show the work you've already done</Txt>
+                <Txt variant="footnote" tone="muted">
+                  Paste a link to any Instagram post or YouTube video you've made and it
+                  becomes a card here. Collaborations you complete on Influnet are added
+                  automatically, with the verified mark.
+                </Txt>
+                <Button
+                  label="Add past work"
+                  size="md"
+                  variant="secondary"
+                  icon={<Plus size={16} color={t.color.content} />}
+                  onPress={() => router.push('/portfolio/add')}
+                />
+              </Card>
+            )}
+          </>
+        ) : null}
+
         {/* ── Content, and how it performed ───────────────────────── */}
         {/* Both of these used to sit on Home, where they answered a question
             nobody opens Home to ask. They belong with the rest of the public
             profile — this is the screen for "how do I look to a brand?". */}
-        {isCreator && posts.some((p) => p.thumbUrl) ? (
+        {isCreator && !hasPortfolio && posts.some((p) => p.thumbUrl) ? (
           <>
             <SectionLabel>Recent posts</SectionLabel>
             <Card style={{ gap: t.spacing.lg }}>
@@ -320,7 +377,7 @@ export default function ProfileScreen() {
           </>
         ) : null}
 
-        {isCreator && videos.some((v) => v.thumbUrl) ? (
+        {isCreator && !hasPortfolio && videos.some((v) => v.thumbUrl) ? (
           <>
             <SectionLabel>Latest videos</SectionLabel>
             <Card>
@@ -420,56 +477,6 @@ export default function ProfileScreen() {
                 </View>
               ))}
             </Card>
-          </>
-        ) : null}
-
-        {/* ── Portfolio: past work, with proof where we have it ───── */}
-        {/* Sits above the brand-name chips because it supersedes them — a grid
-            of actual work is what the chips were always a stand-in for. */}
-        {isCreator ? (
-          <>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <SectionLabel>Portfolio</SectionLabel>
-              {portfolioItems.length > 0 ? (
-                <Button
-                  label="Add"
-                  size="md"
-                  variant="ghost"
-                  inline
-                  haptic={false}
-                  icon={<Plus size={15} color={t.color.brand} />}
-                  onPress={() => router.push('/portfolio/add')}
-                />
-              ) : null}
-            </View>
-
-            {portfolioItems.length > 0 ? (
-              <Card>
-                <PortfolioGrid items={portfolioItems} onDelete={removePortfolioItem} />
-              </Card>
-            ) : (
-              <Card style={{ gap: t.spacing.sm }}>
-                <Txt variant="bodyStrong">Show the work you've already done</Txt>
-                <Txt variant="footnote" tone="muted">
-                  Paste a link to any Instagram post or YouTube video you've made and it
-                  becomes a card here. Collaborations you complete on Influnet are added
-                  automatically, with the verified mark.
-                </Txt>
-                <Button
-                  label="Add past work"
-                  size="md"
-                  variant="secondary"
-                  icon={<Plus size={16} color={t.color.content} />}
-                  onPress={() => router.push('/portfolio/add')}
-                />
-              </Card>
-            )}
           </>
         ) : null}
 

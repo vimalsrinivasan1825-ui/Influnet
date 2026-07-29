@@ -155,6 +155,17 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
 
   const storeKey = `influnet:profile-appearance:${data.username}`;
 
+  /**
+   * Curated work outranks the scraped feed. When a creator has chosen what to
+   * show — with the brand, the date and a link to the real thing — that is the
+   * answer to "what have you done?"; Featured/Latest videos are only whatever
+   * they happened to post most recently, and stand in when nothing is chosen.
+   */
+  const hasPortfolio = data.portfolio.length > 0;
+  // Must point at a section that actually rendered, or the hero's button
+  // scrolls nowhere.
+  const workAnchor = hasPortfolio ? '#portfolio' : '#featured';
+
   // Tap-to-open on touch (no hover) + tap-outside-to-close. Desktop hover is
   // handled entirely in CSS (:hover/:focus-within), so this only matters on
   // touch devices where hover never fires.
@@ -366,10 +377,12 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                     <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
                     <a
                       className={`${styles.btn} ${styles.ghost}`}
-                      href="#featured"
+                      href={workAnchor}
                       onClick={(e) => {
                         e.preventDefault();
-                        document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        document
+                          .getElementById(workAnchor.slice(1))
+                          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }}
                     ><Play />View my work</a>
                   </div>
@@ -490,8 +503,90 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
             Reviews, Audience, Collaborations, Work-with-me) span the
             full page width below the hero + sidebar row. */}
         <div className={styles.fullcontent}>
-          {/* FEATURED CONTENT */}
-          {data.featured.length > 0 && (
+          {/* PORTFOLIO — past work, with provenance on every card */}
+          {data.portfolio.length > 0 && (
+            <section className={`${styles.card} ${styles.pad}`} id="portfolio">
+              <div className={styles.chead}>
+                <div className={styles.ctitle}>Selected work</div>
+                <span className={styles.viewall}>Chosen by {data.name.split(' ')[0]}</span>
+              </div>
+              <div className={styles.pfgrid}>
+                {data.portfolio.map((item) => {
+                  const meta = [
+                    item.views != null ? `${formatCount(item.views)} views` : null,
+                    item.happenedAt
+                      ? new Date(item.happenedAt).toLocaleDateString('en-IN', {
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : null,
+                  ].filter(Boolean).join(' · ');
+
+                  const inner = (
+                    <>
+                      <div className={styles.pfthumb}>
+                        {item.thumbnailUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.thumbnailUrl} alt="" loading="lazy" />
+                        ) : item.verified ? (
+                          <VerifiedMark className={styles.pfseal} />
+                        ) : (
+                          <Link2 size={22} />
+                        )}
+                      </div>
+                      <div className={styles.pfbody}>
+                        <div className={styles.pftitle}>{item.title}</div>
+                        {item.brandName && <div className={styles.pfbrand}>{item.brandName}</div>}
+
+                        {item.verified ? (
+                          <span className={`${styles.pfprov} ${styles['pfprov--verified']}`}>
+                            <VerifiedMark className={styles.pfmark} />
+                            Verified on Influnet
+                          </span>
+                        ) : (
+                          <span className={`${styles.pfprov} ${styles['pfprov--self']}`}>
+                            <Link2 size={11} aria-hidden="true" />
+                            Self-reported
+                          </span>
+                        )}
+
+                        {meta && <div className={styles.pfmeta}>{meta}</div>}
+                      </div>
+                    </>
+                  );
+
+                  // Platform entries are a project record, not a post — there is
+                  // nothing to link to, so they render as a plain card.
+                  return item.contentUrl ? (
+                    <a
+                      key={item.id}
+                      className={`${styles.pfcard} ${item.verified ? styles['pfcard--verified'] : ''}`}
+                      href={item.contentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                    >
+                      {inner}
+                    </a>
+                  ) : (
+                    <div
+                      key={item.id}
+                      className={`${styles.pfcard} ${item.verified ? styles['pfcard--verified'] : ''}`}
+                    >
+                      {inner}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* FEATURED CONTENT — fallback only.
+              A curated portfolio is this creator's own answer to "what have you
+              done?", with the brand, the date and the proof attached. The
+              scraped feed is whatever they happened to post last, so it stands
+              in only while there is nothing chosen. Showing both buries the
+              deliberate work under the automatic. */}
+          {!hasPortfolio && data.featured.length > 0 && (
             <section className={`${styles.card} ${styles.pad}`} id="featured">
               <Rail
                 label="featured content"
@@ -517,8 +612,8 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
             </section>
           )}
 
-          {/* LATEST VIDEOS */}
-          {data.videos.length > 0 && (
+          {/* LATEST VIDEOS — fallback, same reasoning as Featured above. */}
+          {!hasPortfolio && data.videos.length > 0 && (
             <section className={`${styles.card} ${styles.pad}`} id="videos">
               <Rail
                 label="latest videos"
@@ -654,80 +749,6 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                     </div>
                   </div>
                 )}
-              </div>
-            </section>
-          )}
-
-          {/* PORTFOLIO — past work, with provenance on every card */}
-          {data.portfolio.length > 0 && (
-            <section className={`${styles.card} ${styles.pad}`}>
-              <div className={styles.chead}><div className={styles.ctitle}>Portfolio</div></div>
-              <div className={styles.pfgrid}>
-                {data.portfolio.map((item) => {
-                  const meta = [
-                    item.views != null ? `${formatCount(item.views)} views` : null,
-                    item.happenedAt
-                      ? new Date(item.happenedAt).toLocaleDateString('en-IN', {
-                          month: 'short',
-                          year: 'numeric',
-                        })
-                      : null,
-                  ].filter(Boolean).join(' · ');
-
-                  const inner = (
-                    <>
-                      <div className={styles.pfthumb}>
-                        {item.thumbnailUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={item.thumbnailUrl} alt="" loading="lazy" />
-                        ) : item.verified ? (
-                          <VerifiedMark className={styles.pfseal} />
-                        ) : (
-                          <Link2 size={22} />
-                        )}
-                      </div>
-                      <div className={styles.pfbody}>
-                        <div className={styles.pftitle}>{item.title}</div>
-                        {item.brandName && <div className={styles.pfbrand}>{item.brandName}</div>}
-
-                        {item.verified ? (
-                          <span className={`${styles.pfprov} ${styles['pfprov--verified']}`}>
-                            <VerifiedMark className={styles.pfmark} />
-                            Verified on Influnet
-                          </span>
-                        ) : (
-                          <span className={`${styles.pfprov} ${styles['pfprov--self']}`}>
-                            <Link2 size={11} aria-hidden="true" />
-                            Self-reported
-                          </span>
-                        )}
-
-                        {meta && <div className={styles.pfmeta}>{meta}</div>}
-                      </div>
-                    </>
-                  );
-
-                  // Platform entries are a project record, not a post — there is
-                  // nothing to link to, so they render as a plain card.
-                  return item.contentUrl ? (
-                    <a
-                      key={item.id}
-                      className={`${styles.pfcard} ${item.verified ? styles['pfcard--verified'] : ''}`}
-                      href={item.contentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow"
-                    >
-                      {inner}
-                    </a>
-                  ) : (
-                    <div
-                      key={item.id}
-                      className={`${styles.pfcard} ${item.verified ? styles['pfcard--verified'] : ''}`}
-                    >
-                      {inner}
-                    </div>
-                  );
-                })}
               </div>
             </section>
           )}

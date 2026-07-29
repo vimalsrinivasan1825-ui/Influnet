@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { uploadToCloudinary } from "@/lib/storage/upload-client";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
+import { PortfolioEditor } from "@/components/dashboard/portfolio-editor";
 import { publicProfileUrlDisplay } from "@/lib/site";
 
 type Slice = { label: string; pct: number };
@@ -467,6 +468,10 @@ export default function SettingsPage() {
         </SectionCard>
       )}
 
+      {/* Above the media-kit fields: this is what the public profile now leads
+          with, so it should be what a creator meets first here too. */}
+      {isInfluencer && <PortfolioEditor />}
+
       {isInfluencer && (
         <SectionCard title="Media kit details">
           <div className="flex flex-col gap-5">
@@ -492,7 +497,10 @@ export default function SettingsPage() {
               </Field>
             </div>
 
-            <Field label="Past collaborations" hint="One brand per line. Shown as a logo/name wall on your media kit.">
+            <Field
+              label="Past collaborations"
+              hint="One brand per line — a plain name wall on your media kit. For work you can actually show, add it under Selected work above instead."
+            >
               <Textarea
                 value={pastCollabs}
                 onChange={(e) => setPastCollabs(e.target.value)}
