@@ -27,16 +27,17 @@ import {
   ListChecks, LayoutGrid, Hourglass, History,
   UserPlus, Banknote, SkipForward, Pencil,
   Send, Paperclip, Link2, Download,
-  Waypoints, PartyPopper,
+  Waypoints, PartyPopper, Ban, AlertTriangle,
 } from 'lucide-react';
 import type { ProjectCard } from '@/types';
+import { CANCELLATION_REASONS, cancellationReasonLabel, cancellationReasonRequiresText } from '@influnet/core';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
 import { STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
 import { STAGE_GUIDE, isMutualSignoffStage, stageSignoffAt, isSkippableStage, stageSkipProposal } from '@/lib/project-stage-guide';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, ButtonLink } from '@/components/ui/button';
-import { Input, Label, Textarea } from '@/components/ui/input';
+import { Input, Label, Select, Textarea } from '@/components/ui/input';
 import { PaymentGate } from '@/components/dashboard/payment-gate';
 import { ProjectFlow } from '@/components/dashboard/project-flow';
 import { uploadToCloudinary } from '@/lib/storage/upload-client';
@@ -953,6 +954,93 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
   );
 }
 
+// ─── Request to cancel the project ───
+// Bilateral: this only asks — the other side has to accept before anything
+// actually changes (StatusCancellationBanner below handles their side).
+function CancelProjectModal({
+  paidAmount,
+  serverError,
+  onClose,
+  onSubmit,
+  busy,
+}: {
+  /** Non-zero when money has already moved — shown as an explicit warning before they can submit. */
+  paidAmount: number;
+  /** Set by the parent after a failed submit (e.g. a request already pending). */
+  serverError?: string | null;
+  onClose: () => void;
+  onSubmit: (payload: { reason_category: string; note?: string }) => void;
+  busy: boolean;
+}) {
+  const [category, setCategory] = useState<string>(CANCELLATION_REASONS[0].value);
+  const [note, setNote] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const textRequired = cancellationReasonRequiresText(category);
+
+  const submit = () => {
+    if (textRequired && !note.trim()) {
+      setErr('Add a note — "Other" needs a bit of context for the other side.');
+      return;
+    }
+    onSubmit({ reason_category: category, note: note.trim() || undefined });
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-extrabold tracking-tight text-content">Request to cancel this project</h3>
+          <button onClick={onClose} className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"><X size={16} /></button>
+        </div>
+        <p className="mb-4 text-xs text-content-muted">
+          The other side sees your reason and has to agree before the project actually closes.
+          Nothing is deleted either way — the record and any payments stay available to both of you.
+        </p>
+
+        {paidAmount > 0 && (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 p-3 text-xs text-content">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-warn" />
+            <span>
+              <strong>₹{paidAmount.toLocaleString()}</strong> has already been paid on this project. Cancelling
+              closes the project, but doesn't move any money back — sort out a refund with the other side
+              directly if one's needed.
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3.5">
+          <div>
+            <Label>Reason</Label>
+            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CANCELLATION_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>{textRequired ? 'What happened?' : 'Add more detail (optional)'}</Label>
+            <Textarea
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Give the other side enough context to understand why…"
+            />
+          </div>
+          {(err || serverError) && (
+            <span className="text-xs font-semibold text-warn">{err || serverError}</span>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="surface" size="sm" onClick={onClose}>Never mind</Button>
+            <Button variant="destructive" size="sm" disabled={busy} onClick={submit}>
+              {busy ? <Loader2 className="animate-spin" /> : <Ban size={14} />} Request cancellation
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Compose a stage update (message + link + file) ───
 function StageUpdateModal({ stageLabel, onClose, onSubmit, busy }: {
   stageLabel: string;
@@ -1516,6 +1604,11 @@ export default function ProjectKanbanPage() {
   const [entryBusy, setEntryBusy] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
+  // Cancellation state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
   // Reviews state
   const [reviews, setReviews] = useState<any[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -1678,6 +1771,58 @@ export default function ProjectKanbanPage() {
       else { setAdvanceError(res.error || 'Could not update the skip.'); }
     } catch (e) { console.error(e); setAdvanceError('Network error while updating the skip.'); }
     finally { setAdvancing(false); }
+  };
+
+  // Cancellation: bilateral — request with a reason, the OTHER side accepts
+  // or declines. Never a delete; see migration 089 for why that matters.
+  const handleRequestCancellation = async (payload: { reason_category: string; note?: string }) => {
+    setCancelBusy(true);
+    setCancelError(null);
+    try {
+      const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'request_cancellation', ...payload }),
+      });
+      if (res.ok && res.data) {
+        setProject(res.data.project);
+        setShowCancelModal(false);
+        toast.success('Cancellation requested — the other side has been notified.');
+      } else {
+        setCancelError(res.error || 'Could not request cancellation.');
+      }
+    } catch (e) { console.error(e); setCancelError('Network error while requesting cancellation.'); }
+    finally { setCancelBusy(false); }
+  };
+
+  // Same endpoint declines the OTHER side's request or withdraws your own —
+  // the server tells us which happened via `was_requested_by`.
+  const handleDeclineCancellation = async () => {
+    setCancelBusy(true);
+    try {
+      const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
+        method: 'PATCH', body: JSON.stringify({ action: 'decline_cancellation' }),
+      });
+      if (res.ok && res.data) { setProject(res.data.project); toast.success('Cancellation dismissed.'); }
+      else { toast.error(res.error || 'Could not update the cancellation request.'); }
+    } catch (e) { console.error(e); toast.error('Network error.'); }
+    finally { setCancelBusy(false); }
+  };
+
+  const handleAcceptCancellation = async () => {
+    setCancelBusy(true);
+    try {
+      const res = await apiFetch<{ project: any; cancelled: boolean }>(`/api/projects/${projectId}`, {
+        method: 'PATCH', body: JSON.stringify({ action: 'accept_cancellation' }),
+      });
+      if (res.ok && res.data) {
+        if (res.data.project) setProject(res.data.project);
+        toast.success('Project cancelled. The record and any payments stay available to both of you.');
+        void fetchData();
+      } else {
+        toast.error(res.error || 'Could not cancel the project.');
+      }
+    } catch (e) { console.error(e); toast.error('Network error.'); }
+    finally { setCancelBusy(false); }
   };
 
   // Change requests: propose an edit to the terms, or act on one.
@@ -1965,11 +2110,63 @@ export default function ProjectKanbanPage() {
               <span className="hidden sm:inline">{reviews.some(r => r.from_user?.id === userId) ? 'View Reviews' : 'Leave a Review'}</span>
             </Button>
           )}
+          {/* Active, nothing already pending — the pending state gets its own
+              banner below with Accept/Decline/Withdraw, not this button. */}
+          {project?.status === 'active' && !project?.cancel_requested_by && (
+            <Button variant="surface" size="icon" onClick={() => setShowCancelModal(true)} aria-label="Request to cancel this project" title="Cancel project" className="shrink-0">
+              <Ban size={14} />
+            </Button>
+          )}
           <Badge variant="neutral" size="md" className="hidden lg:inline-flex">
             Stage {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
           </Badge>
         </div>
       </div>
+
+      {/* Pending cancellation — shown to BOTH sides, worded for whichever one
+          they are. Sits above everything else: while this is open, it is the
+          only thing on the project that matters. */}
+      {project?.cancel_requested_by && (
+        <div className="border-b border-warn/30 bg-warn/10 px-4 py-3">
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2.5">
+              <Ban size={16} className="mt-0.5 shrink-0 text-warn" />
+              <div>
+                {project.cancel_requested_by === userId ? (
+                  <p className="text-sm font-semibold text-content">
+                    You asked to cancel this project — {cancellationReasonLabel(project.cancel_reason_category)}.
+                    Waiting for the other side to respond.
+                  </p>
+                ) : (
+                  <p className="text-sm font-semibold text-content">
+                    The {userRole === 'business' ? 'creator' : 'brand'} asked to cancel this project —{' '}
+                    {cancellationReasonLabel(project.cancel_reason_category)}.
+                  </p>
+                )}
+                {project.cancellation_reason && (
+                  <p className="mt-0.5 text-xs text-content-soft">&ldquo;{project.cancellation_reason}&rdquo;</p>
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {project.cancel_requested_by === userId ? (
+                <Button variant="surface" size="sm" disabled={cancelBusy} onClick={handleDeclineCancellation}>
+                  {cancelBusy ? <Loader2 className="animate-spin" /> : null} Withdraw request
+                </Button>
+              ) : (
+                <>
+                  <Button variant="surface" size="sm" disabled={cancelBusy} onClick={handleDeclineCancellation}>
+                    Decline
+                  </Button>
+                  <Button variant="destructive" size="sm" disabled={cancelBusy} onClick={handleAcceptCancellation}>
+                    {cancelBusy ? <Loader2 className="animate-spin" /> : <Check size={14} />} Accept &amp; cancel
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stage Pipeline — the spine of the collaboration (board view only) */}
       {view === 'board' && !loading && !error && project && (
@@ -2172,6 +2369,26 @@ export default function ProjectKanbanPage() {
           onClose={() => setComposeOpen(false)}
           onSubmit={handlePostUpdate}
           busy={entryBusy}
+        />
+      )}
+
+      {showCancelModal && project && (
+        <CancelProjectModal
+          // Not an authoritative payment ledger read — just the honest signal
+          // already on this page: the advance/final-payment stage having been
+          // signed off as complete. A precise figure would need its own fetch
+          // against project_payments, which this page doesn't otherwise load.
+          paidAmount={
+            project.stage_progress?.final_payment?.status === 'completed'
+              ? Number(project.budget || 0)
+              : project.stage_progress?.advance_payment?.status === 'completed'
+                ? Number(project.advance_amount || project.budget || 0)
+                : 0
+          }
+          serverError={cancelError}
+          onClose={() => { setShowCancelModal(false); setCancelError(null); }}
+          onSubmit={handleRequestCancellation}
+          busy={cancelBusy}
         />
       )}
 

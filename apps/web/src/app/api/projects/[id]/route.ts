@@ -5,6 +5,9 @@ import { blockingItems, type StageItem } from '@/lib/project-stage-items';
 import { notifyUser } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
 import { logger, requestId } from '@/lib/logger';
+import { CANCELLATION_REASONS, cancellationReasonLabel } from '@influnet/core';
+
+const CANCELLATION_REASON_VALUES = CANCELLATION_REASONS.map((r) => r.value) as [string, ...string[]];
 
 const PatchProjectActionSchema = z.object({
   action: z.enum(['advance', 'signoff', 'revoke_signoff', 'propose_skip', 'confirm_skip', 'cancel_skip', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
@@ -14,6 +17,9 @@ const PatchProjectActionSchema = z.object({
   description: z.string().optional(),
   deliverables: z.string().optional(),
   note: z.string().max(2000).optional(),
+  // request_cancellation only. The requester's choice, shown to the other
+  // side before they decide — see packages/core/src/project-cancellation.ts.
+  reason_category: z.enum(CANCELLATION_REASON_VALUES).optional(),
 });
 
 
@@ -648,62 +654,97 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ project: updated });
     }
 
-    // 4) Cancellation flows
+    // 4) Cancellation flows — bilateral: one requests with a reason, the
+    // OTHER side accepts or declines. Enforced again at the database level
+    // (migration 089's extension of enforce_project_consent), so this route
+    // is the friendly error path, not the only guard.
     if (action === 'request_cancellation') {
-      const { data: updated, error: updateErr } = await supabase
-        .from('campaign_projects')
-        .update({ cancel_requested_by: user.id, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-      if (updateErr) return jsonError(500, 'Failed to request cancellation', updateErr);
+      if (!result.data.reason_category) {
+        return jsonError(400, 'Choose a reason for the cancellation.');
+      }
+
+      const { data: rpcData, error: rpcErr } = await (supabase.rpc as any)(
+        'request_project_cancellation',
+        {
+          p_project_id: Number(id),
+          p_reason_category: result.data.reason_category,
+          p_reason_text: result.data.note ?? null,
+        },
+      );
+
+      if (rpcErr) {
+        const known: Record<string, [number, string]> = {
+          cannot_cancel_now: [409, 'Only an active project can be cancelled.'],
+          cancellation_already_pending: [409, 'A cancellation request is already waiting on a response.'],
+          invalid_reason_category: [400, 'Choose a reason from the list.'],
+          reason_text_required: [400, "Add a note explaining what's changed."],
+          not_a_participant: [403, 'You are not part of this project.'],
+        };
+        const hit = Object.entries(known).find(([k]) => rpcErr.message?.includes(k));
+        if (hit) return jsonError(hit[1][0], hit[1][1]);
+        return jsonError(500, 'Failed to request cancellation', rpcErr);
+      }
+
+      const reasonLabel = cancellationReasonLabel(result.data.reason_category);
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, type: 'cancellation_requested',
-        summary: 'Requested to cancel the project',
+        summary: `Requested to cancel the project — ${reasonLabel}`,
+        metadata: { reason_category: result.data.reason_category, reason_text: result.data.note ?? null },
       });
       if (counterpartyId) {
         await notifyUser({
           userId: counterpartyId,
           type: 'project_cancel',
           title: `${projectLabel}: cancellation requested`,
-          body: `The ${userRole === 'business' ? 'brand' : 'creator'} asked to cancel this project. Review it to accept or decline.`,
+          body: `The ${userRole === 'business' ? 'brand' : 'creator'} asked to cancel this project — ${reasonLabel}. Open it to discuss or respond.`,
           link: projectLink,
         });
       }
-      return NextResponse.json({ project: updated });
+      return NextResponse.json({ project: rpcData?.project ?? rpcData });
     }
 
     if (action === 'decline_cancellation') {
-      const { data: updated, error: updateErr } = await supabase
-        .from('campaign_projects')
-        .update({ cancel_requested_by: null, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-      if (updateErr) return jsonError(500, 'Failed to decline cancellation', updateErr);
+      const { data: rpcData, error: rpcErr } = await (supabase.rpc as any)(
+        'decline_project_cancellation',
+        { p_project_id: Number(id) },
+      );
+      if (rpcErr) {
+        if (rpcErr.message?.includes('no_cancellation_requested')) {
+          return jsonError(400, 'There is no pending cancellation request to decline.');
+        }
+        if (rpcErr.message?.includes('not_a_participant')) {
+          return jsonError(403, 'You are not part of this project.');
+        }
+        return jsonError(500, 'Failed to decline cancellation', rpcErr);
+      }
+
+      // Same action either declines the OTHER side's request or withdraws
+      // your own — the RPC doesn't distinguish, so neither does the summary.
+      const wasRequester = rpcData?.was_requested_by === user.id;
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, type: 'cancellation_declined',
-        summary: 'Declined the cancellation — project continues',
+        summary: wasRequester ? 'Withdrew the cancellation request' : 'Declined the cancellation — project continues',
       });
       if (counterpartyId) {
         await notifyUser({
           userId: counterpartyId,
           type: 'project_cancel',
-          title: `${projectLabel}: cancellation declined`,
-          body: 'Your request to cancel this project was declined. The project continues.',
+          title: wasRequester ? `${projectLabel}: cancellation withdrawn` : `${projectLabel}: cancellation declined`,
+          body: wasRequester
+            ? 'The cancellation request was withdrawn. The project continues.'
+            : 'Your request to cancel this project was declined. The project continues.',
           link: projectLink,
         });
       }
-      return NextResponse.json({ project: updated });
+      return NextResponse.json({ project: rpcData?.project ?? rpcData });
     }
 
     if (action === 'accept_cancellation') {
       // Cancelling is a STATE CHANGE, not a delete. The row, its payment
       // ledger, its activity timeline and its assets all survive — both sides
       // keep a read-only record of what was agreed and what was paid.
-      const { data: cancelResult, error: cancelErr } = await supabase.rpc('cancel_project', {
+      const { data: cancelResult, error: cancelErr } = await (supabase.rpc as any)('cancel_project', {
         p_project_id: Number(id),
-        p_reason: result.data.note ?? null,
       });
       if (cancelErr) {
         const known: Record<string, [number, string]> = {
@@ -722,7 +763,6 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, type: 'cancellation_accepted',
         summary: 'Both sides agreed to cancel the project',
-        metadata: { reason: result.data.note ?? null },
       });
 
       const requesterId = cancelResult?.notify_user_id as string | undefined;
@@ -736,7 +776,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         });
       }
 
-      return NextResponse.json({ ok: true, cancelled: true });
+      return NextResponse.json({ ok: true, cancelled: true, project: cancelResult?.project ?? null });
     }
 
     return jsonError(400, 'Unknown action');
