@@ -1,0 +1,142 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Influnet E2E Walkthrough</title>
+<style>
+  :root{--bg:#f7f7f9;--surface:#fff;--ink:#17171d;--muted:#6f6c7c;--line:#e7e5ee;--accent:#b23ad1}
+  @media(prefers-color-scheme:dark){:root{--bg:#101014;--surface:#17171e;--ink:#ecebf3;--muted:#9b99a8;--line:#2a2933;--accent:#e07ff5}}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;font-size:15px;line-height:1.55}
+  .w{max-width:1200px;margin:0 auto;padding:36px 24px 80px}
+  h1{font-size:28px;font-weight:800;letter-spacing:-.03em;margin:0 0 8px}
+  .lede{color:var(--muted);max-width:70ch}
+  .stats{display:flex;gap:16px;margin:20px 0 32px;flex-wrap:wrap}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 20px}
+  .stat-n{font-size:24px;font-weight:800}.stat-l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;position:relative}
+  .badge{position:absolute;top:10px;left:10px;z-index:2;background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px}
+  .card img{width:100%;display:block;border-bottom:1px solid var(--line)}
+  .cap{padding:12px 16px 16px}
+  .cap strong{font-size:13px;display:block;margin-bottom:4px}
+  .cap p{margin:0;font-size:12.5px;color:var(--muted)}
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+</style></head><body>
+<div class="w">
+  <h1>Influnet — E2E Walkthrough</h1>
+  <p class="lede">Full application flow tested on real Instagram (madangowri) and YouTube data via Playwright.</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-n">11</div><div class="stat-l">Screenshots</div></div>
+    <div class="stat"><div class="stat-n">7/29/2026</div><div class="stat-l">Date</div></div>
+    <div class="stat"><div class="stat-n">11</div><div class="stat-l">Phases</div></div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <span class="badge">Step 01</span>
+      <img src="../tests/e2e/screenshots/01-01-landing-page-hero.png" alt="01-landing-page-hero" loading="lazy" />
+      <div class="cap">
+        <strong>01-landing-page-hero</strong>
+        <p>Landing page — hero with brand logo, WebGL globe, value prop, and CTA buttons.</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 02</span>
+      <img src="../tests/e2e/screenshots/02-02-signup-role-selection.png" alt="02-signup-role-selection" loading="lazy" />
+      <div class="cap">
+        <strong>02-signup-role-selection</strong>
+        <p>Role picker — two cards: "I'm a creator" and "I'm a business", plus sign-in link for returning users.</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 03</span>
+      <img src="../tests/e2e/screenshots/03-03-wizard-step1-connect.png" alt="03-wizard-step1-connect" loading="lazy" />
+      <div class="cap">
+        <strong>03-wizard-step1-connect</strong>
+        <p>Step 1 "Connect": Instagram handle input + Auto-fill button. The stepper at top shows 5 steps (Connect → Account → Profile → Creator → Collab).</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 04</span>
+      <img src="../tests/e2e/screenshots/04-03b-wizard-step1-filled.png" alt="03b-wizard-step1-filled" loading="lazy" />
+      <div class="cap">
+        <strong>03b-wizard-step1-filled</strong>
+        <p>Instagram handle "madangowri" entered. Auto-fill button is active.</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 05</span>
+      <img src="../tests/e2e/screenshots/05-03d-scrape-manual-fallback.png" alt="03d-scrape-manual-fallback" loading="lazy" />
+      <div class="cap">
+        <strong>03d-scrape-manual-fallback</strong>
+        <p>Manual fill fallback — "Skip and fill manually" lets the user proceed without auto-fill.</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 06</span>
+      <img src="../tests/e2e/screenshots/06-04-wizard-step2-account.png" alt="04-wizard-step2-account" loading="lazy" />
+      <div class="cap">
+        <strong>04-wizard-step2-account</strong>
+        <p>Step 2 "Account": First name, Last name, Username with availability check, Email, Phone (optional), Password with strength meter.</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 07</span>
+      <img src="../tests/e2e/screenshots/07-04b-wizard-step2-filled.png" alt="04b-wizard-step2-filled" loading="lazy" />
+      <div class="cap">
+        <strong>04b-wizard-step2-filled</strong>
+        <p>Step 2 filled — password strength meter shows rating. Username availability check shows green checkmark.</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 08</span>
+      <img src="../tests/e2e/screenshots/08-05-wizard-step3-profile.png" alt="05-wizard-step3-profile" loading="lazy" />
+      <div class="cap">
+        <strong>05-wizard-step3-profile</strong>
+        <p>Step 3 "Profile": Gender dropdown, City, State (India dropdown), Languages (multi-select chips).</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 09</span>
+      <img src="../tests/e2e/screenshots/09-05b-wizard-step3-filled.png" alt="05b-wizard-step3-filled" loading="lazy" />
+      <div class="cap">
+        <strong>05b-wizard-step3-filled</strong>
+        <p>Step 3 filled — Gender: Male, City: Chennai, State: Tamil Nadu, Languages: Tamil + English.</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 10</span>
+      <img src="../tests/e2e/screenshots/10-06-wizard-step4-creator.png" alt="06-wizard-step4-creator" loading="lazy" />
+      <div class="cap">
+        <strong>06-wizard-step4-creator</strong>
+        <p>Step 4 "Creator": Primary niche dropdown, Secondary niches scrolling chip list, Bio textarea, Instagram/YouTube/Twitter handles.</p>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <span class="badge">Step 11</span>
+      <img src="../tests/e2e/screenshots/11-06b-wizard-step4-filled.png" alt="06b-wizard-step4-filled" loading="lazy" />
+      <div class="cap">
+        <strong>06b-wizard-step4-filled</strong>
+        <p>Step 4 filled — Niche: Entertainment, secondary: Comedy + Lifestyle. Instagram handle pre-filled. YouTube: @MadanGowri.</p>
+      </div>
+    </div>
+  </div>
+  <footer>Generated by Playwright E2E · Influnet · July 2026</footer>
+</div></body></html>

@@ -29,6 +29,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedBadge, type VerificationStatus } from "@/components/ui/verified-badge";
+import { VerificationGuide } from "@/components/dashboard/verification-guide";
 import { Reveal } from "@/components/ui/motion";
 import { dealStateOf, DEAL_STATE_STYLE } from "@/lib/project-status";
 import { STAGE_LABELS, type Stage } from "@/lib/project-lifecycle";
@@ -283,6 +284,13 @@ export default function HomePage() {
 
         </Card>
       </Reveal>
+
+      {/* ── 3-step verification guide for new creators ──────────────────── */}
+      {isCreator && !data.profile.verified && (
+        <Reveal>
+          <VerificationGuide publicPath={data.public_path} />
+        </Reveal>
+      )}
 
       {/* Without a captured snapshot there are no numbers and no posts, which
           otherwise reads as a broken page rather than an unconnected account. */}
