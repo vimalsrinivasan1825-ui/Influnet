@@ -52,16 +52,16 @@
   <h1>Influnet — Full E2E Audit</h1>
   <p class="lede">Every step below carries a real pass/fail verdict — recorded from actual page state and DB assertions, never written in advance. Findings (failures, console errors, 4xx/5xx responses) are surfaced per-step and rolled up below.</p>
   <div class="stats">
-    <div class="stat"><div class="stat-n">142</div><div class="stat-l">Total steps</div></div>
-    <div class="stat"><div class="stat-n ok">139</div><div class="stat-l">Passed</div></div>
-    <div class="stat"><div class="stat-n fail">1</div><div class="stat-l">Failed</div></div>
+    <div class="stat"><div class="stat-n">144</div><div class="stat-l">Total steps</div></div>
+    <div class="stat"><div class="stat-n ok">142</div><div class="stat-l">Passed</div></div>
+    <div class="stat"><div class="stat-n fail">0</div><div class="stat-l">Failed</div></div>
     <div class="stat"><div class="stat-n skip">2</div><div class="stat-l">Skipped</div></div>
-    <div class="stat"><div class="stat-n fail">44</div><div class="stat-l">Findings</div></div>
+    <div class="stat"><div class="stat-n fail">34</div><div class="stat-l">Findings</div></div>
     <div class="stat"><div class="stat-n">7/30/2026</div><div class="stat-l">Generated</div></div>
   </div>
   
     <section class="phase findings-summary">
-      <h2>Findings <span class="phase-stats">44 item(s) needing attention</span></h2>
+      <h2>Findings <span class="phase-stats">34 item(s) needing attention</span></h2>
       <table class="findings-table">
         <thead><tr><th>Phase</th><th>#</th><th>Step</th><th>Detail</th></tr></thead>
         <tbody>
@@ -146,12 +146,6 @@
             </tr>
             <tr class="row-warn">
               <td>Phase 4 — Admin, Public Routes &amp; Guards</td>
-              <td>2</td>
-              <td>Business logs in (non-admin session for guard checks)</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 4 — Admin, Public Routes &amp; Guards</td>
               <td>4</td>
               <td>SECURITY CHECK: creator (influencer) hitting /api/admin/users directly gets rejected</td>
               <td>Failed to load resource: the server responded with a status of 403 (Forbidden) · Failed to load resource: the server responded with a status of 403 (Forbidden)</td>
@@ -160,7 +154,7 @@
               <td>Phase 4 — Admin, Public Routes &amp; Guards</td>
               <td>5</td>
               <td>SECURITY CHECK: business (business_owner) hitting /api/admin/users directly gets rejected</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 (Forbidden)</td>
+              <td>Failed to load resource: the server responded with a status of 403 (Forbidden) · Failed to load resource: the server responded with a status of 403 (Forbidden)</td>
             </tr>
             <tr class="row-warn">
               <td>Phase 4 — Admin, Public Routes &amp; Guards</td>
@@ -173,18 +167,6 @@
               <td>15</td>
               <td>/b/[username] 404s for a creator with no relationship to that business</td>
               <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/b/some-business-with-no-relationship-xyz</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 5 — Edge Cases &amp; Validation</td>
-              <td>8</td>
-              <td>CONFIRMED BUG: a negative budget is silently sanitized to positive, not rejected</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 5 — Edge Cases &amp; Validation</td>
-              <td>9</td>
-              <td>Send-request: absurdly large budget (1 trillion) is accepted with no upper bound</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
             </tr>
             <tr class="row-warn">
               <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
@@ -284,51 +266,9 @@
             </tr>
             <tr class="row-warn">
               <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
-              <td>1</td>
-              <td>Resolve ids and log in both sides</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
-              <td>2</td>
-              <td>Business sends a throwaway request to cancel</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
-              <td>3</td>
-              <td>Business cancels the request it just sent</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
-              <td>5</td>
-              <td>Business sends a second throwaway request for the decline test</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
-            </tr>
-            <tr class="row-fail">
-              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
               <td>11</td>
               <td>SECURITY CHECK: unrelated project&#39;s core data never reaches the creator</td>
-              <td>expected the reviews endpoint to reject a non-participant with 4xx, got HTTP 200 with body {&quot;reviews&quot;:[]} — confirmed IDOR on /api/projects/[id]/reviews</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
-              <td>12</td>
-              <td>Resolve /dashboard/influencer — legacy page still live, differs from /dashboard/home</td>
-              <td>Failed to load resource: the server responded with a status of 500 (Internal Server Error) · 500 GET http://localhost:3000/api/projects/34/stage-items</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
-              <td>16</td>
-              <td>Business sends a real chat message to the creator via Stream</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
-              <td>17</td>
-              <td>Real message persisted server-side (survives a reload, not just optimistic local state)</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · Failed to load resource: the server responded with a status of 404 (Not Found)</td>
             </tr>
         </tbody>
       </table>
@@ -546,9 +486,9 @@
       <span class="badge ok">PASS</span>
       
       <div class="cap">
-        <strong>DB check: kept accounts count is exactly 9 (Phase 0 verification)</strong>
+        <strong>DB check: the 9 real accounts survive Phase 0, and every extra is an audit account</strong>
         
-        
+        <div class="notes"><p>9 real accounts, 3 audit accounts (e2e.creator.madangowri@influnet-audit.test, e2e.business.jupiter@influnet-audit.test, e2e.admin.audit@influnet-audit.test).</p></div>
         
       </div>
     </div></div>
@@ -1336,7 +1276,7 @@
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#2</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/02-business-logs-in-non-admin-session-for-guard-checks.png" alt="Business logs in (non-admin session for guard checks)" loading="lazy" />
@@ -1345,13 +1285,6 @@
         <p class="url">http://localhost:3000/dashboard</p>
         
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
@@ -1399,8 +1332,8 @@
       
       
       
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 (Forbidden)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 (Forbidden)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET http://localhost:3000/api/admin/users</div><div class="finding-row warn">Network: 403 GET http://localhost:3000/api/admin/users</div><div class="finding-row warn">Network: 401 GET http://localhost:3000/api/admin/users</div>
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 (Forbidden)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 (Forbidden)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)</div>
+      <div class="finding-row warn">Network: 403 GET http://localhost:3000/api/admin/users</div><div class="finding-row warn">Network: 403 GET http://localhost:3000/api/admin/users</div><div class="finding-row warn">Network: 401 GET http://localhost:3000/api/admin/users</div>
     </div>
       </div>
     </div>
@@ -1566,7 +1499,7 @@
   
 
     <section class="phase">
-      <h2>Phase 5 — Edge Cases &amp; Validation <span class="phase-stats">9/9 passed · 0 failed · 0 skipped</span></h2>
+      <h2>Phase 5 — Edge Cases &amp; Validation <span class="phase-stats">11/11 passed · 0 failed · 0 skipped</span></h2>
       <div class="grid">
     <div class="card ">
       <span class="step-badge">#1</span>
@@ -1619,11 +1552,11 @@
     <div class="card ">
       <span class="step-badge">#5</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase5-edge-cases/05-confirmed-gap-business-signup-accepts-a-garbage-gst-number-w.png" alt="CONFIRMED GAP: business signup accepts a garbage GST number with no format validation" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/05-business-signup-blocks-a-garbage-website-url.png" alt="Business signup blocks a garbage website URL" loading="lazy" />
       <div class="cap">
-        <strong>CONFIRMED GAP: business signup accepts a garbage GST number with no format validation</strong>
+        <strong>Business signup blocks a garbage website URL</strong>
         <p class="url">http://localhost:3000/signup/business</p>
-        <div class="notes"><p>Garbage GST &quot;NOT-A-REAL-GST-NUMBER-1234&quot; and garbage website URL both accepted with no client-side format error shown. Still on the same step: true (no validation blocked progress).</p></div>
+        <div class="notes"><p>Garbage website &quot;not a url at all!!&quot; → Continue disabled: true; inline error shown: true</p></div>
         
       </div>
     </div>
@@ -1631,7 +1564,19 @@
     <div class="card ">
       <span class="step-badge">#6</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase5-edge-cases/06-creator-settings-tamil-unicode-bio-saves-and-renders-correct.png" alt="Creator settings: Tamil unicode bio saves and renders correctly" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/06-business-signup-blocks-a-garbage-gst-number-accepts-a-real-o.png" alt="Business signup blocks a garbage GST number, accepts a real one" loading="lazy" />
+      <div class="cap">
+        <strong>Business signup blocks a garbage GST number, accepts a real one</strong>
+        <p class="url">http://localhost:3000/signup/business</p>
+        <div class="notes"><p>Garbage GST blocked: true. Valid GSTIN &quot;27AABCU1234D1ZV&quot; re-enables Continue: true.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/07-creator-settings-tamil-unicode-bio-saves-and-renders-correct.png" alt="Creator settings: Tamil unicode bio saves and renders correctly" loading="lazy" />
       <div class="cap">
         <strong>Creator settings: Tamil unicode bio saves and renders correctly</strong>
         <p class="url">http://localhost:3000/dashboard/settings</p>
@@ -1641,9 +1586,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#7</span>
+      <span class="step-badge">#8</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase5-edge-cases/07-confirmed-safe-an-xss-payload-in-bio-is-stored-as-data-not-e.png" alt="CONFIRMED SAFE: an XSS payload in bio is stored as data, not executed as a script" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/08-confirmed-safe-an-xss-payload-in-bio-is-stored-as-data-not-e.png" alt="CONFIRMED SAFE: an XSS payload in bio is stored as data, not executed as a script" loading="lazy" />
       <div class="cap">
         <strong>CONFIRMED SAFE: an XSS payload in bio is stored as data, not executed as a script</strong>
         <p class="url">http://localhost:3000/dashboard/settings</p>
@@ -1652,41 +1597,39 @@
       </div>
     </div>
 
-    <div class="card has-findings">
-      <span class="step-badge">#8</span>
+    <div class="card ">
+      <span class="step-badge">#9</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase5-edge-cases/08-confirmed-bug-a-negative-budget-is-silently-sanitized-to-pos.png" alt="CONFIRMED BUG: a negative budget is silently sanitized to positive, not rejected" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/09-a-negative-budget-is-rejected-not-silently-flipped-to-positi.png" alt="A negative budget is rejected, not silently flipped to positive" loading="lazy" />
       <div class="cap">
-        <strong>CONFIRMED BUG: a negative budget is silently sanitized to positive, not rejected</strong>
-        <p class="url">http://localhost:3000/dashboard/requests</p>
-        <div class="notes"><p>Typed &quot;-500&quot; → no validation error shown → request created with budget=500 (sign silently dropped instead of being rejected or preserved).</p></div>
+        <strong>A negative budget is rejected, not silently flipped to positive</strong>
+        <p class="url">http://localhost:3000/dashboard/requests/new?to=021faad5-a304-4899-929b-782e2f999041</p>
+        <div class="notes"><p>Typed &quot;-500&quot; → inline error shown: true; row created in DB: false (expected none).</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
-    <div class="card has-findings">
-      <span class="step-badge">#9</span>
+    <div class="card ">
+      <span class="step-badge">#10</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase5-edge-cases/09-send-request-absurdly-large-budget-1-trillion-is-accepted-wi.png" alt="Send-request: absurdly large budget (1 trillion) is accepted with no upper bound" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/10-a-blank-optional-budget-is-accepted-not-rejected-with-a-400.png" alt="A blank (optional) budget is accepted, not rejected with a 400" loading="lazy" />
+      <div class="cap">
+        <strong>A blank (optional) budget is accepted, not rejected with a 400</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        <div class="notes"><p>Blank budget → row created: true, budget=null (previously a 400 because Zod .optional() rejected the explicit null).</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#11</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/11-send-request-absurdly-large-budget-1-trillion-is-accepted-wi.png" alt="Send-request: absurdly large budget (1 trillion) is accepted with no upper bound" loading="lazy" />
       <div class="cap">
         <strong>Send-request: absurdly large budget (1 trillion) is accepted with no upper bound</strong>
         <p class="url">http://localhost:3000/dashboard</p>
         <div class="notes"><p>No client-side upper bound on budget — accepted &quot;null&quot; (₹1 trillion) without a warning or cap.</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div></div>
     </section>
@@ -2218,9 +2161,9 @@
   
 
     <section class="phase">
-      <h2>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards <span class="phase-stats">17/18 passed · 1 failed · 0 skipped</span></h2>
+      <h2>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards <span class="phase-stats">18/18 passed · 0 failed · 0 skipped</span></h2>
       <div class="grid">
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#1</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/01-resolve-ids-and-log-in-both-sides.png" alt="Resolve ids and log in both sides" loading="lazy" />
@@ -2229,17 +2172,10 @@
         <p class="url">http://localhost:3000/dashboard</p>
         
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#2</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/02-business-sends-a-throwaway-request-to-cancel.png" alt="Business sends a throwaway request to cancel" loading="lazy" />
@@ -2248,17 +2184,10 @@
         <p class="url">http://localhost:3000/dashboard/requests</p>
         
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#3</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/03-business-cancels-the-request-it-just-sent.png" alt="Business cancels the request it just sent" loading="lazy" />
@@ -2267,13 +2196,6 @@
         <p class="url">http://localhost:3000/dashboard/requests</p>
         <div class="notes"><p>Clicked Cancel on the sent request.</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
@@ -2289,7 +2211,7 @@
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#5</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/04-business-sends-a-second-throwaway-request-for-the-decline-te.png" alt="Business sends a second throwaway request for the decline test" loading="lazy" />
@@ -2298,13 +2220,6 @@
         <p class="url">http://localhost:3000/dashboard/requests</p>
         
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
@@ -2370,24 +2285,24 @@
 
     <div class="card has-findings">
       <span class="step-badge">#11</span>
-      <span class="badge fail">FAIL</span>
+      <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/07-security-check-unrelated-project-s-core-data-never-reaches-t.png" alt="SECURITY CHECK: unrelated project&#39;s core data never reaches the creator" loading="lazy" />
       <div class="cap">
         <strong>SECURITY CHECK: unrelated project&#39;s core data never reaches the creator</strong>
         <p class="url">http://localhost:3000/dashboard/projects/34</p>
-        <div class="notes"><p>Page HTTP 200. Underlying /api/projects/34/* calls: [{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/reviews&quot;,&quot;status&quot;:200,&quot;body&quot;:{&quot;reviews&quot;:[]}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/cards&quot;,&quot;status&quot;:200,&quot;body&quot;:{&quot;cards&quot;:[]}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/change-requests&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/payments&quot;,&quot;status&quot;:200,&quot;body&quot;:{&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_. Page body snippet: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 1 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Sea&quot;</p><p>Base project record / activity / change-requests / stage-entries correctly denied (4xx): true. UX gap (separate from security): the page itself shows an indefinite &quot;Loading…&quot; spinner instead of a clear access-denied/404 state — confirmed via screenshot, no real data exposed there.</p><p>/stage-items returned HTTP 500 ({&quot;error&quot;:&quot;Failed to seed stage items&quot;}) instead of a clean 403 — the route tries to auto-seed default checklist rows on first GET, RLS correctly blocks that INSERT for a non-participant, but the route surfaces it as a generic 500 rather than catching the specific case and returning 403. No stage data was exposed (the response is an error, not a checklist).</p><p>/payments returned HTTP 200 with {&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;} — this is app-wide &quot;is Razorpay configured&quot; config plus its public key_id (meant to be public — used client-side to open Checkout), not this project&#39;s actual payment records. Not a leak, but the route still never checked membership before answering.</p><p>CONFIRMED BUG: GET /api/projects/34/reviews as an unrelated creator → HTTP 200, body: {&quot;reviews&quot;:[]}. apps/web/src/app/api/projects/[id]/reviews/route.ts checks authentication (line 15) but never checks project membership before querying `reviews` by project_id (line 33) — any logged-in user can read any project&#39;s reviews (rating, comment, reviewer name/role) by guessing/iterating project IDs. Same missing-membership-check pattern also affects /cards (returned {&quot;cards&quot;:[]} here only because this project happens to have none — a project with real kanban cards would leak their titles/content the same way).</p></div>
+        <div class="notes"><p>Page HTTP 200. Underlying /api/projects/34/* calls: [{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/reviews&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/cards&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/payments&quot;,&quot;status&quot;:200,&quot;body&quot;:{&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/activity&quot;,&quot;st. Page body snippet: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 2 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Sea&quot;</p><p>Base project record / activity / change-requests / stage-entries / reviews / cards correctly denied (4xx): true. The page now renders a clear &quot;doesn&#39;t exist, or you don&#39;t have access&quot; state instead of the indefinite &quot;Loading…&quot; spinner the audit found.</p><p>/stage-items returned HTTP 500 ({&quot;error&quot;:&quot;Failed to seed stage items&quot;}) instead of a clean 403 — the route tries to auto-seed default checklist rows on first GET, RLS correctly blocks that INSERT for a non-participant, but the route surfaces it as a generic 500 rather than catching the specific case and returning 403. No stage data was exposed (the response is an error, not a checklist).</p><p>/payments returned HTTP 200 with {&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;} — this is app-wide &quot;is Razorpay configured&quot; config plus its public key_id (meant to be public — used client-side to open Checkout), not this project&#39;s actual payment records. Not a leak, but the route still never checked membership before answering.</p><p>GET /api/projects/34/reviews as an unrelated creator → HTTP 404, body: {&quot;error&quot;:&quot;Project not found&quot;} (was HTTP 200 before the fix).</p><p>GET /api/projects/34/cards as an unrelated creator → HTTP 404, body: {&quot;error&quot;:&quot;Project not found&quot;} (was HTTP 200 before the fix).</p></div>
         
     <div class="findings">
-      <div class="finding-row fail">Assertion failed: expected the reviews endpoint to reject a non-participant with 4xx, got HTTP 200 with body {&quot;reviews&quot;:[]} — confirmed IDOR on /api/projects/[id]/reviews</div>
       
       
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
-      <div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div>
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/reviews</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/cards</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/reviews</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/cards</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div>
     </div>
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#12</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/08-resolve-dashboard-influencer-legacy-page-still-live-differs-.png" alt="Resolve /dashboard/influencer — legacy page still live, differs from /dashboard/home" loading="lazy" />
@@ -2396,13 +2311,6 @@
         <p class="url">http://localhost:3000/dashboard/influencer</p>
         <div class="notes"><p>Loads without crashing. Shows creator name: true. Mentions verification: false. This is the page shell.tsx redirects a creator to when landing on bare /dashboard — confirmed DIFFERENT (much thinner) component from /dashboard/home, which is what every other step in this audit actually exercised.</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div>
-      <div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div>
-    </div>
       </div>
     </div>
 
@@ -2425,7 +2333,7 @@
       <div class="cap">
         <strong>Notification bell shows unread activity and opens a dropdown</strong>
         <p class="url">http://localhost:3000/dashboard/home</p>
-        <div class="notes"><p>Body snippet after opening bell: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 1 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Search… / 1 Notifications  New collaboration request &quot;</p></div>
+        <div class="notes"><p>Body snippet after opening bell: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 2 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Search… / 2 Notifications  New collaboration request &quot;</p></div>
         
       </div>
     </div>
@@ -2442,26 +2350,19 @@
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#16</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/11-business-sends-a-real-chat-message-to-the-creator-via-stream.png" alt="Business sends a real chat message to the creator via Stream" loading="lazy" />
       <div class="cap">
         <strong>Business sends a real chat message to the creator via Stream</strong>
         <p class="url">http://localhost:3000/dashboard/messages</p>
-        <div class="notes"><p>Message sent: &quot;E2E audit test message 1785369909719&quot;. Visible immediately after send: true</p></div>
+        <div class="notes"><p>Message sent: &quot;E2E audit test message 1785385642265&quot;. Visible immediately after send: true</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#17</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/12-real-message-persisted-server-side-survives-a-reload-not-jus.png" alt="Real message persisted server-side (survives a reload, not just optimistic local state)" loading="lazy" />
@@ -2470,13 +2371,6 @@
         <p class="url">http://localhost:3000/dashboard/messages</p>
         <div class="notes"><p>Message still visible after a full page reload: true</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 

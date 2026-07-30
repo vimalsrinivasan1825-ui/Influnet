@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireProjectParticipant } from '@/lib/project-access';
 
 // Helper for error responses. Server-side details are logged, never returned
 // to the client, to avoid leaking DB internals.
@@ -22,6 +23,9 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return jsonError(401, 'Unauthorized');
+
+    const access = await requireProjectParticipant(supabase, id, user.id);
+    if (!access.ok) return access.res;
 
     // Fetch reviews for the project
     const { data: reviews, error } = await supabase

@@ -112,8 +112,11 @@ export default function NewRequestPage() {
     e.preventDefault();
     if (!form.title.trim()) { setError("Please enter a project title."); return; }
 
-    const budgetNum = form.budget ? Number(form.budget.replace(/[^0-9.]/g, "")) : null;
-    if (form.budget && (!budgetNum || budgetNum <= 0)) {
+    // Keep the sign in the sanitizer — stripping "-" first turned "-500" into
+    // 500 and slipped past the positive check below.
+    const rawBudget = form.budget.trim();
+    const budgetNum = rawBudget ? Number(rawBudget.replace(/[^0-9.-]/g, "")) : null;
+    if (rawBudget && (!Number.isFinite(budgetNum) || (budgetNum as number) <= 0)) {
       setError("Budget must be a positive number.");
       return;
     }

@@ -16,6 +16,50 @@ export const UsernameSchema = z
   .regex(/^[a-z0-9_]+$/, 'Only lowercase letters, numbers and underscores are allowed')
   .refine((u) => !RESERVED_USERNAMES.has(u), 'This username is reserved');
 
+// GSTIN: 2-digit state code, 5-letter PAN prefix, 4 digits, 1 letter, 1
+// entity digit/letter, literal 'Z', 1 alphanumeric checksum. Case-insensitive
+// on input; callers should upper-case before storing.
+export const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+
+export function isValidGstin(value: string): boolean {
+  return GSTIN_RE.test(value.trim().toUpperCase());
+}
+
+/** Optional GST number — blank is allowed, but a value must be a real GSTIN. */
+export const GstNumberSchema = z
+  .string()
+  .trim()
+  .transform((v) => v.toUpperCase())
+  .refine((v) => v === '' || GSTIN_RE.test(v), 'Enter a valid 15-character GST number (e.g. 22AAAAA0000A1Z5)');
+
+// Users type "example.com" far more often than "https://example.com", so a bare
+// host is accepted and normalised rather than rejected.
+export function normalizeWebsite(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+export function isValidWebsite(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  try {
+    const url = new URL(normalizeWebsite(trimmed));
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    // Require a dotted, non-trailing-dot hostname so "foo" or "foo." fail.
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Optional website — blank is allowed; a value is normalised to an absolute URL. */
+export const WebsiteSchema = z
+  .string()
+  .trim()
+  .refine(isValidWebsite, 'Enter a valid website (e.g. yourcompany.com)')
+  .transform(normalizeWebsite);
+
 export const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -29,8 +73,8 @@ export const RegisterSchema = z.object({
   role: z.enum(['business_owner', 'influencer']),
   companyName: z.string().optional(),
   industry: z.string().optional(),
-  gstNumber: z.string().optional(),
-  website: z.string().url().optional().or(z.literal('')),
+  gstNumber: GstNumberSchema.optional(),
+  website: WebsiteSchema.optional(),
   location: z.string().optional(),
   collabPreferences: z.array(z.string()).optional(),
   bio: z.string().optional(),
@@ -65,8 +109,8 @@ export const RegisterProfileSchema = z.object({
   companyName: z.string().optional(),
   businessType: z.string().optional(),
   industry: z.string().optional(),
-  website: z.string().optional(),
-  gstNumber: z.string().optional(),
+  website: WebsiteSchema.optional(),
+  gstNumber: GstNumberSchema.optional(),
   registeredAddress: z.string().optional(),
   marketingBudget: z.string().optional(),
   businessUsername: z.string().optional(),
@@ -204,8 +248,8 @@ export const BusinessProfileUpdateSchema = z.object({
   company_name: z.string().min(1).optional(),
   industry: z.string().optional(),
   business_type: z.string().optional(),
-  gst_number: z.string().optional(),
-  website: z.string().url().optional().or(z.literal('')),
+  gst_number: GstNumberSchema.optional(),
+  website: WebsiteSchema.optional(),
   marketing_budget: z.string().optional(),
   registered_address: z.string().optional(),
   city: z.string().optional(),
@@ -225,7 +269,9 @@ export const CollabRequestSchema = z.object({
   project_title: z.string().max(200).optional(),
   project_description: z.string().max(2000).optional(),
   message: z.string().max(2000).optional(),
-  budget: z.number().positive().optional(),
+  // Nullish, not optional: budget is an optional field in the UI, and clients
+  // send an explicit null for "not specified" rather than omitting the key.
+  budget: z.number().positive().nullish(),
 });
 
 export const ProjectCreateSchema = z.object({

@@ -53,9 +53,22 @@ export function useUsernameAvailability(username: string, debounceMs = 450): Use
           setMessage('Too many checks — try again in a moment.');
           return;
         }
+        // Any other non-2xx says nothing about the handle. Falling through here
+        // would report a transient server error as "already taken" and block
+        // signup on a name that is actually free.
+        if (!res.ok) {
+          setStatus('error');
+          setMessage('Could not check right now');
+          return;
+        }
         if (data.valid === false) {
           setStatus('invalid');
           setMessage(data.reason ?? 'That username isn’t allowed.');
+          return;
+        }
+        if (typeof data.available !== 'boolean') {
+          setStatus('error');
+          setMessage('Could not check right now');
           return;
         }
         if (data.available) {

@@ -1,7 +1,7 @@
 {
   "phaseId": "phase1-harness-smoke",
   "phaseTitle": "Phase 1 — Harness Smoke Test",
-  "generatedAt": "2026-07-29T15:47:30.308Z",
+  "generatedAt": "2026-07-30T04:32:07.752Z",
   "summary": {
     "total": 8,
     "passed": 8,
@@ -27,7 +27,7 @@
       ],
       "pageErrors": [],
       "url": "http://localhost:3001/",
-      "timestamp": "2026-07-29T15:47:23.059Z"
+      "timestamp": "2026-07-30T04:32:01.120Z"
     },
     {
       "step": 2,
@@ -41,7 +41,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/login",
-      "timestamp": "2026-07-29T15:47:25.012Z"
+      "timestamp": "2026-07-30T04:32:03.079Z"
     },
     {
       "step": 3,
@@ -55,7 +55,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/login",
-      "timestamp": "2026-07-29T15:47:25.965Z"
+      "timestamp": "2026-07-30T04:32:03.981Z"
     },
     {
       "step": 4,
@@ -69,7 +69,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/signup",
-      "timestamp": "2026-07-29T15:47:27.081Z"
+      "timestamp": "2026-07-30T04:32:04.896Z"
     },
     {
       "step": 5,
@@ -83,7 +83,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/login",
-      "timestamp": "2026-07-29T15:47:28.079Z"
+      "timestamp": "2026-07-30T04:32:05.793Z"
     },
     {
       "step": 6,
@@ -97,7 +97,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/login",
-      "timestamp": "2026-07-29T15:47:29.021Z"
+      "timestamp": "2026-07-30T04:32:06.661Z"
     },
     {
       "step": 7,
@@ -111,21 +111,23 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-29T15:47:29.855Z"
+      "timestamp": "2026-07-30T04:32:07.398Z"
     },
     {
       "step": 8,
-      "name": "DB check: kept accounts count is exactly 9 (Phase 0 verification)",
+      "name": "DB check: the 9 real accounts survive Phase 0, and every extra is an audit account",
       "status": "PASS",
       "error": null,
       "skippedReason": null,
-      "notes": [],
+      "notes": [
+        "9 real accounts, 3 audit accounts (e2e.creator.madangowri@influnet-audit.test, e2e.business.jupiter@influnet-audit.test, e2e.admin.audit@influnet-audit.test)."
+      ],
       "screenshot": null,
       "consoleErrors": [],
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-29T15:47:30.056Z"
+      "timestamp": "2026-07-30T04:32:07.601Z"
     }
   ]
 }

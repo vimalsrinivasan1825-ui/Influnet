@@ -1,13 +1,13 @@
 {
   "phaseId": "phase5-edge-cases",
   "phaseTitle": "Phase 5 — Edge Cases & Validation",
-  "generatedAt": "2026-07-29T17:19:03.740Z",
+  "generatedAt": "2026-07-30T04:30:33.459Z",
   "summary": {
-    "total": 9,
-    "passed": 9,
+    "total": 11,
+    "passed": 11,
     "failed": 0,
     "skipped": 0,
-    "findings": 2
+    "findings": 0
   },
   "steps": [
     {
@@ -24,7 +24,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/signup/influencer",
-      "timestamp": "2026-07-29T17:16:45.274Z"
+      "timestamp": "2026-07-30T04:28:07.069Z"
     },
     {
       "step": 2,
@@ -40,7 +40,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/signup/influencer",
-      "timestamp": "2026-07-29T17:16:47.572Z"
+      "timestamp": "2026-07-30T04:28:09.665Z"
     },
     {
       "step": 3,
@@ -56,7 +56,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/signup/influencer",
-      "timestamp": "2026-07-29T17:16:48.487Z"
+      "timestamp": "2026-07-30T04:28:10.579Z"
     },
     {
       "step": 4,
@@ -72,26 +72,42 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/signup/influencer",
-      "timestamp": "2026-07-29T17:16:50.796Z"
+      "timestamp": "2026-07-30T04:28:12.800Z"
     },
     {
       "step": 5,
-      "name": "CONFIRMED GAP: business signup accepts a garbage GST number with no format validation",
+      "name": "Business signup blocks a garbage website URL",
       "status": "PASS",
       "error": null,
       "skippedReason": null,
       "notes": [
-        "Garbage GST \"NOT-A-REAL-GST-NUMBER-1234\" and garbage website URL both accepted with no client-side format error shown. Still on the same step: true (no validation blocked progress)."
+        "Garbage website \"not a url at all!!\" → Continue disabled: true; inline error shown: true"
       ],
-      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/05-confirmed-gap-business-signup-accepts-a-garbage-gst-number-w.png",
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/05-business-signup-blocks-a-garbage-website-url.png",
       "consoleErrors": [],
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/signup/business",
-      "timestamp": "2026-07-29T17:16:53.962Z"
+      "timestamp": "2026-07-30T04:28:15.295Z"
     },
     {
       "step": 6,
+      "name": "Business signup blocks a garbage GST number, accepts a real one",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Garbage GST blocked: true. Valid GSTIN \"27AABCU1234D1ZV\" re-enables Continue: true."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/06-business-signup-blocks-a-garbage-gst-number-accepts-a-real-o.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/business",
+      "timestamp": "2026-07-30T04:28:16.997Z"
+    },
+    {
+      "step": 7,
       "name": "Creator settings: Tamil unicode bio saves and renders correctly",
       "status": "PASS",
       "error": null,
@@ -99,15 +115,15 @@
       "notes": [
         "Tamil unicode + emoji round-tripped through save correctly."
       ],
-      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/06-creator-settings-tamil-unicode-bio-saves-and-renders-correct.png",
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/07-creator-settings-tamil-unicode-bio-saves-and-renders-correct.png",
       "consoleErrors": [],
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/settings",
-      "timestamp": "2026-07-29T17:17:04.334Z"
+      "timestamp": "2026-07-30T04:28:27.024Z"
     },
     {
-      "step": 7,
+      "step": 8,
       "name": "CONFIRMED SAFE: an XSS payload in bio is stored as data, not executed as a script",
       "status": "PASS",
       "error": null,
@@ -115,39 +131,47 @@
       "notes": [
         "Payload stored verbatim in DB (expected — sanitize on render, not on write). Script executed on public profile render: false"
       ],
-      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/07-confirmed-safe-an-xss-payload-in-bio-is-stored-as-data-not-e.png",
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/08-confirmed-safe-an-xss-payload-in-bio-is-stored-as-data-not-e.png",
       "consoleErrors": [],
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/settings",
-      "timestamp": "2026-07-29T17:17:18.886Z"
+      "timestamp": "2026-07-30T04:28:42.719Z"
     },
     {
-      "step": 8,
-      "name": "CONFIRMED BUG: a negative budget is silently sanitized to positive, not rejected",
+      "step": 9,
+      "name": "A negative budget is rejected, not silently flipped to positive",
       "status": "PASS",
       "error": null,
       "skippedReason": null,
       "notes": [
-        "Typed \"-500\" → no validation error shown → request created with budget=500 (sign silently dropped instead of being rejected or preserved)."
+        "Typed \"-500\" → inline error shown: true; row created in DB: false (expected none)."
       ],
-      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/08-confirmed-bug-a-negative-budget-is-silently-sanitized-to-pos.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()",
-        "Failed to load resource: the server responded with a status of 403 ()",
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/09-a-negative-budget-is-rejected-not-silently-flipped-to-positi.png",
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
-      "url": "http://localhost:3000/dashboard/requests",
-      "timestamp": "2026-07-29T17:17:28.710Z"
+      "url": "http://localhost:3000/dashboard/requests/new?to=021faad5-a304-4899-929b-782e2f999041",
+      "timestamp": "2026-07-30T04:28:52.187Z"
     },
     {
-      "step": 9,
+      "step": 10,
+      "name": "A blank (optional) budget is accepted, not rejected with a 400",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Blank budget → row created: true, budget=null (previously a 400 because Zod .optional() rejected the explicit null)."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/10-a-blank-optional-budget-is-accepted-not-rejected-with-a-400.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-30T04:28:58.848Z"
+    },
+    {
+      "step": 11,
       "name": "Send-request: absurdly large budget (1 trillion) is accepted with no upper bound",
       "status": "PASS",
       "error": null,
@@ -155,16 +179,12 @@
       "notes": [
         "No client-side upper bound on budget — accepted \"null\" (₹1 trillion) without a warning or cap."
       ],
-      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/09-send-request-absurdly-large-budget-1-trillion-is-accepted-wi.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/11-send-request-absurdly-large-budget-1-trillion-is-accepted-wi.png",
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard",
-      "timestamp": "2026-07-29T17:19:03.395Z"
+      "timestamp": "2026-07-30T04:30:33.254Z"
     }
   ]
 }

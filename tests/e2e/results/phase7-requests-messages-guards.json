@@ -1,13 +1,13 @@
 {
   "phaseId": "phase7-requests-messages-guards",
   "phaseTitle": "Phase 7 — Requests Actions, Messages, Notifications & Guards",
-  "generatedAt": "2026-07-30T00:05:20.335Z",
+  "generatedAt": "2026-07-30T04:27:32.433Z",
   "summary": {
     "total": 18,
-    "passed": 17,
-    "failed": 1,
+    "passed": 18,
+    "failed": 0,
     "skipped": 0,
-    "findings": 8
+    "findings": 1
   },
   "steps": [
     {
@@ -18,17 +18,11 @@
       "skippedReason": null,
       "notes": [],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/01-resolve-ids-and-log-in-both-sides.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()",
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard",
-      "timestamp": "2026-07-30T00:04:14.603Z"
+      "timestamp": "2026-07-30T04:26:27.112Z"
     },
     {
       "step": 2,
@@ -38,15 +32,11 @@
       "skippedReason": null,
       "notes": [],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/02-business-sends-a-throwaway-request-to-cancel.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/requests",
-      "timestamp": "2026-07-30T00:04:18.125Z"
+      "timestamp": "2026-07-30T04:26:30.677Z"
     },
     {
       "step": 3,
@@ -58,15 +48,11 @@
         "Clicked Cancel on the sent request."
       ],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/03-business-cancels-the-request-it-just-sent.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/requests",
-      "timestamp": "2026-07-30T00:04:35.107Z"
+      "timestamp": "2026-07-30T04:26:47.643Z"
     },
     {
       "step": 4,
@@ -80,7 +66,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-30T00:04:35.270Z"
+      "timestamp": "2026-07-30T04:26:47.823Z"
     },
     {
       "step": 5,
@@ -90,15 +76,11 @@
       "skippedReason": null,
       "notes": [],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/04-business-sends-a-second-throwaway-request-for-the-decline-te.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/requests",
-      "timestamp": "2026-07-30T00:04:38.796Z"
+      "timestamp": "2026-07-30T04:26:51.355Z"
     },
     {
       "step": 6,
@@ -114,7 +96,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/requests",
-      "timestamp": "2026-07-30T00:04:48.641Z"
+      "timestamp": "2026-07-30T04:27:01.082Z"
     },
     {
       "step": 7,
@@ -128,7 +110,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-30T00:04:48.801Z"
+      "timestamp": "2026-07-30T04:27:01.258Z"
     },
     {
       "step": 8,
@@ -144,7 +126,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/requests",
-      "timestamp": "2026-07-30T00:04:53.168Z"
+      "timestamp": "2026-07-30T04:27:04.989Z"
     },
     {
       "step": 9,
@@ -158,7 +140,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-30T00:04:53.337Z"
+      "timestamp": "2026-07-30T04:27:05.155Z"
     },
     {
       "step": 10,
@@ -174,23 +156,27 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-30T00:04:53.486Z"
+      "timestamp": "2026-07-30T04:27:05.299Z"
     },
     {
       "step": 11,
       "name": "SECURITY CHECK: unrelated project's core data never reaches the creator",
-      "status": "FAIL",
-      "error": "expected the reviews endpoint to reject a non-participant with 4xx, got HTTP 200 with body {\"reviews\":[]} — confirmed IDOR on /api/projects/[id]/reviews",
+      "status": "PASS",
+      "error": null,
       "skippedReason": null,
       "notes": [
-        "Page HTTP 200. Underlying /api/projects/34/* calls: [{\"url\":\"http://localhost:3000/api/projects/34/reviews\",\"status\":200,\"body\":{\"reviews\":[]}},{\"url\":\"http://localhost:3000/api/projects/34\",\"status\":404,\"body\":{\"error\":\"Project not found\"}},{\"url\":\"http://localhost:3000/api/projects/34/cards\",\"status\":200,\"body\":{\"cards\":[]}},{\"url\":\"http://localhost:3000/api/projects/34/change-requests\",\"status\":404,\"body\":{\"error\":\"Project not found\"}},{\"url\":\"http://localhost:3000/api/projects/34/payments\",\"status\":200,\"body\":{\"configured\":true,\"key_id\":\"rzp_. Page body snippet: \"influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 1 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Sea\"",
-        "Base project record / activity / change-requests / stage-entries correctly denied (4xx): true. UX gap (separate from security): the page itself shows an indefinite \"Loading…\" spinner instead of a clear access-denied/404 state — confirmed via screenshot, no real data exposed there.",
+        "Page HTTP 200. Underlying /api/projects/34/* calls: [{\"url\":\"http://localhost:3000/api/projects/34/reviews\",\"status\":404,\"body\":{\"error\":\"Project not found\"}},{\"url\":\"http://localhost:3000/api/projects/34/cards\",\"status\":404,\"body\":{\"error\":\"Project not found\"}},{\"url\":\"http://localhost:3000/api/projects/34\",\"status\":404,\"body\":{\"error\":\"Project not found\"}},{\"url\":\"http://localhost:3000/api/projects/34/payments\",\"status\":200,\"body\":{\"configured\":true,\"key_id\":\"rzp_test_TDMnEwU0s6YqwA\"}},{\"url\":\"http://localhost:3000/api/projects/34/activity\",\"st. Page body snippet: \"influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 2 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Sea\"",
+        "Base project record / activity / change-requests / stage-entries / reviews / cards correctly denied (4xx): true. The page now renders a clear \"doesn't exist, or you don't have access\" state instead of the indefinite \"Loading…\" spinner the audit found.",
         "/stage-items returned HTTP 500 ({\"error\":\"Failed to seed stage items\"}) instead of a clean 403 — the route tries to auto-seed default checklist rows on first GET, RLS correctly blocks that INSERT for a non-participant, but the route surfaces it as a generic 500 rather than catching the specific case and returning 403. No stage data was exposed (the response is an error, not a checklist).",
         "/payments returned HTTP 200 with {\"configured\":true,\"key_id\":\"rzp_test_TDMnEwU0s6YqwA\"} — this is app-wide \"is Razorpay configured\" config plus its public key_id (meant to be public — used client-side to open Checkout), not this project's actual payment records. Not a leak, but the route still never checked membership before answering.",
-        "CONFIRMED BUG: GET /api/projects/34/reviews as an unrelated creator → HTTP 200, body: {\"reviews\":[]}. apps/web/src/app/api/projects/[id]/reviews/route.ts checks authentication (line 15) but never checks project membership before querying `reviews` by project_id (line 33) — any logged-in user can read any project's reviews (rating, comment, reviewer name/role) by guessing/iterating project IDs. Same missing-membership-check pattern also affects /cards (returned {\"cards\":[]} here only because this project happens to have none — a project with real kanban cards would leak their titles/content the same way)."
+        "GET /api/projects/34/reviews as an unrelated creator → HTTP 404, body: {\"error\":\"Project not found\"} (was HTTP 200 before the fix).",
+        "GET /api/projects/34/cards as an unrelated creator → HTTP 404, body: {\"error\":\"Project not found\"} (was HTTP 200 before the fix)."
       ],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/07-security-check-unrelated-project-s-core-data-never-reaches-t.png",
       "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
         "Failed to load resource: the server responded with a status of 404 (Not Found)",
         "Failed to load resource: the server responded with a status of 404 (Not Found)",
         "Failed to load resource: the server responded with a status of 404 (Not Found)",
@@ -199,22 +185,29 @@
         "Failed to load resource: the server responded with a status of 404 (Not Found)",
         "Failed to load resource: the server responded with a status of 404 (Not Found)",
         "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
         "Failed to load resource: the server responded with a status of 404 (Not Found)"
       ],
       "networkErrors": [
+        "404 GET http://localhost:3000/api/projects/34/reviews",
+        "404 GET http://localhost:3000/api/projects/34/cards",
         "404 GET http://localhost:3000/api/projects/34",
-        "404 GET http://localhost:3000/api/projects/34/change-requests",
         "404 GET http://localhost:3000/api/projects/34/activity",
+        "404 GET http://localhost:3000/api/projects/34/change-requests",
         "404 GET http://localhost:3000/api/projects/34/stage-entries",
+        "404 GET http://localhost:3000/api/projects/34/reviews",
         "500 GET http://localhost:3000/api/projects/34/stage-items",
         "404 GET http://localhost:3000/api/projects/34",
-        "404 GET http://localhost:3000/api/projects/34/change-requests",
+        "404 GET http://localhost:3000/api/projects/34/cards",
         "404 GET http://localhost:3000/api/projects/34/activity",
+        "404 GET http://localhost:3000/api/projects/34/change-requests",
+        "500 GET http://localhost:3000/api/projects/34/stage-items",
         "404 GET http://localhost:3000/api/projects/34/stage-entries"
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/projects/34",
-      "timestamp": "2026-07-30T00:04:56.564Z"
+      "timestamp": "2026-07-30T04:27:08.301Z"
     },
     {
       "step": 12,
@@ -226,15 +219,11 @@
         "Loads without crashing. Shows creator name: true. Mentions verification: false. This is the page shell.tsx redirects a creator to when landing on bare /dashboard — confirmed DIFFERENT (much thinner) component from /dashboard/home, which is what every other step in this audit actually exercised."
       ],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/08-resolve-dashboard-influencer-legacy-page-still-live-differs-.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
-      ],
-      "networkErrors": [
-        "500 GET http://localhost:3000/api/projects/34/stage-items"
-      ],
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/influencer",
-      "timestamp": "2026-07-30T00:04:58.499Z"
+      "timestamp": "2026-07-30T04:27:10.324Z"
     },
     {
       "step": 13,
@@ -250,7 +239,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/influencer",
-      "timestamp": "2026-07-30T00:05:00.511Z"
+      "timestamp": "2026-07-30T04:27:12.401Z"
     },
     {
       "step": 14,
@@ -259,14 +248,14 @@
       "error": null,
       "skippedReason": null,
       "notes": [
-        "Body snippet after opening bell: \"influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 1 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Search… / 1 Notifications  New collaboration request \""
+        "Body snippet after opening bell: \"influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 2 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Search… / 2 Notifications  New collaboration request \""
       ],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/10-notification-bell-shows-unread-activity-and-opens-a-dropdown.png",
       "consoleErrors": [],
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/home",
-      "timestamp": "2026-07-30T00:05:03.971Z"
+      "timestamp": "2026-07-30T04:27:15.947Z"
     },
     {
       "step": 15,
@@ -280,7 +269,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-30T00:05:04.150Z"
+      "timestamp": "2026-07-30T04:27:16.119Z"
     },
     {
       "step": 16,
@@ -289,18 +278,14 @@
       "error": null,
       "skippedReason": null,
       "notes": [
-        "Message sent: \"E2E audit test message 1785369909719\". Visible immediately after send: true"
+        "Message sent: \"E2E audit test message 1785385642265\". Visible immediately after send: true"
       ],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/11-business-sends-a-real-chat-message-to-the-creator-via-stream.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/messages",
-      "timestamp": "2026-07-30T00:05:11.865Z"
+      "timestamp": "2026-07-30T04:27:24.430Z"
     },
     {
       "step": 17,
@@ -312,15 +297,11 @@
         "Message still visible after a full page reload: true"
       ],
       "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/12-real-message-persisted-server-side-survives-a-reload-not-jus.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/messages",
-      "timestamp": "2026-07-30T00:05:14.801Z"
+      "timestamp": "2026-07-30T04:27:27.341Z"
     },
     {
       "step": 18,
@@ -336,7 +317,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/messages",
-      "timestamp": "2026-07-30T00:05:19.913Z"
+      "timestamp": "2026-07-30T04:27:32.209Z"
     }
   ]
 }

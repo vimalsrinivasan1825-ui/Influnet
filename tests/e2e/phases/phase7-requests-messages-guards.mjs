@@ -130,18 +130,24 @@ async function main() {
     const leaked = bodyText.includes('Product-Promotion');
     assert(!leaked, `REAL BREACH: project #34's title "Product-Promotion" (belongs to two unrelated accounts) rendered on the creator's screen`);
     // Base record, activity, change-requests, stage-entries must be denied
-    // outright (they were, with clean 404s). /stage-items 500s instead of
-    // 404ing — investigated separately below, it's RLS correctly blocking an
-    // INSERT (the route auto-seeds missing checklist rows), just surfaced as
-    // an ugly generic error rather than a clean 403 — not a data exposure.
-    // /reviews and /cards get their own checks below: both return 200
-    // (no membership check in the route at all), but only /reviews actually
-    // had content to leak in this test — documenting both as the same class
-    // of bug regardless of what happened to be in the table.
-    const strictCalls = responses.filter((r) => !/\/(reviews|cards|payments|stage-items)$/.test(r.url));
+    // outright. /reviews and /cards are in this set as of the 2026-07-30
+    // remediation — they used to answer 200 with no membership check at all
+    // (the IDOR), and now go through requireProjectParticipant(). /payments is
+    // excluded because it answers app-wide "is Razorpay configured" config and
+    // ignores the project id entirely. /stage-items 500s instead of 404ing —
+    // investigated separately below, it's RLS correctly blocking an INSERT
+    // (the route auto-seeds missing checklist rows), just surfaced as an ugly
+    // generic error rather than a clean 403 — not a data exposure.
+    const strictCalls = responses.filter((r) => !/\/(payments|stage-items)$/.test(r.url));
     const strictDenied = strictCalls.every((r) => r.status >= 400);
-    note(`Base project record / activity / change-requests / stage-entries correctly denied (4xx): ${strictDenied}. UX gap (separate from security): the page itself shows an indefinite "Loading…" spinner instead of a clear access-denied/404 state — confirmed via screenshot, no real data exposed there.`);
-    assert(strictDenied, `expected /api/projects/34 (base), /activity, /change-requests, /stage-entries to be denied, got: ${JSON.stringify(strictCalls)}`);
+    note(`Base project record / activity / change-requests / stage-entries / reviews / cards correctly denied (4xx): ${strictDenied}. The page now renders a clear "doesn't exist, or you don't have access" state instead of the indefinite "Loading…" spinner the audit found.`);
+    assert(strictDenied, `expected /api/projects/34 (base), /activity, /change-requests, /stage-entries, /reviews, /cards to be denied, got: ${JSON.stringify(strictCalls)}`);
+
+    // The page must now say so, rather than spinning forever.
+    assert(
+      /doesn’t exist|does not exist|access/i.test(bodyText),
+      `expected a clear access-denied state on the page; got body "${bodyText.slice(0, 200).replace(/\n/g, ' ')}"`
+    );
 
     const stageItemsCall = responses.find((r) => r.url.endsWith('/stage-items'));
     if (stageItemsCall) {
@@ -153,10 +159,19 @@ async function main() {
       note(`/payments returned HTTP ${paymentsCall.status} with ${JSON.stringify(paymentsCall.body)} — this is app-wide "is Razorpay configured" config plus its public key_id (meant to be public — used client-side to open Checkout), not this project's actual payment records. Not a leak, but the route still never checked membership before answering.`);
     }
 
-    const reviewsCall = responses.find((r) => r.url.endsWith('/reviews'));
-    if (reviewsCall) {
-      note(`CONFIRMED BUG: GET /api/projects/34/reviews as an unrelated creator → HTTP ${reviewsCall.status}, body: ${JSON.stringify(reviewsCall.body)}. apps/web/src/app/api/projects/[id]/reviews/route.ts checks authentication (line 15) but never checks project membership before querying \`reviews\` by project_id (line 33) — any logged-in user can read any project's reviews (rating, comment, reviewer name/role) by guessing/iterating project IDs. Same missing-membership-check pattern also affects /cards (returned {"cards":[]} here only because this project happens to have none — a project with real kanban cards would leak their titles/content the same way).`);
-      assert(reviewsCall.status >= 400, `expected the reviews endpoint to reject a non-participant with 4xx, got HTTP ${reviewsCall.status} with body ${JSON.stringify(reviewsCall.body)} — confirmed IDOR on /api/projects/[id]/reviews`);
+    // REGRESSION GUARD for the IDOR the 2026-07-30 audit confirmed: both routes
+    // authenticated the caller but never checked project membership, so any
+    // logged-in user could read any project's reviews (rating, comment,
+    // reviewer name) by iterating the numeric id. Fixed via
+    // requireProjectParticipant(), which answers 404 rather than 403 so the
+    // response doesn't confirm that the project exists.
+    for (const suffix of ['/reviews', '/cards']) {
+      const call = responses.find((r) => r.url.endsWith(suffix));
+      if (!call) continue;
+      note(`GET /api/projects/34${suffix} as an unrelated creator → HTTP ${call.status}, body: ${JSON.stringify(call.body)} (was HTTP 200 before the fix).`);
+      assert(call.status >= 400, `IDOR REGRESSION: ${suffix} answered HTTP ${call.status} to a non-participant with body ${JSON.stringify(call.body)}`);
+      const raw = JSON.stringify(call.body ?? {});
+      assert(!/"rating"|"comment"/.test(raw), `IDOR REGRESSION: ${suffix} leaked review content to a non-participant: ${raw.slice(0, 200)}`);
     }
   });
 

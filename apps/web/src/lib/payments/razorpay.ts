@@ -10,6 +10,8 @@
  * currency unit (paise for INR), per Razorpay's API.
  */
 import crypto from 'node:crypto';
+import { appEnv } from '@/lib/env';
+import { logger } from '@/lib/logger';
 
 export interface RazorpayOrder {
   id: string;
@@ -96,6 +98,19 @@ export function verifyPaymentSignature(params: {
   return timingSafeEqualHex(expected, params.signature);
 }
 
+// Values shipped in .env.example / committed env templates. A signature is only
+// as trustworthy as the secret behind it, so a secret anyone can read from the
+// repo is equivalent to no secret at all.
+const PLACEHOLDER_WEBHOOK_SECRETS = new Set([
+  'your_test_webhook_secret_here',
+  'your_webhook_secret_here',
+  'changeme',
+]);
+
+export function isPlaceholderWebhookSecret(secret: string | undefined): boolean {
+  return !!secret && PLACEHOLDER_WEBHOOK_SECRETS.has(secret.trim().toLowerCase());
+}
+
 /**
  * Verify a webhook body signature against the X-Razorpay-Signature header:
  * HMAC_SHA256(webhook_secret, rawBody). MUST be given the RAW request body.
@@ -103,6 +118,21 @@ export function verifyPaymentSignature(params: {
 export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
   if (!secret || !signature) return false;
+
+  // A placeholder secret is public knowledge, so any caller could forge a valid
+  // signature and mark payments captured. Tolerated on local/dev (the E2E suite
+  // signs its own simulated captures), never beyond it.
+  if (isPlaceholderWebhookSecret(secret)) {
+    if (appEnv === 'staging' || appEnv === 'production') {
+      logger.error(
+        'RAZORPAY_WEBHOOK_SECRET is still the placeholder value — rejecting webhook. Generate a real secret in the Razorpay dashboard and set it in this environment.',
+        { appEnv },
+      );
+      return false;
+    }
+    logger.warn('RAZORPAY_WEBHOOK_SECRET is a placeholder — signatures are forgeable. Fine locally, must be replaced before staging/production.', { appEnv });
+  }
+
   const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
   return timingSafeEqualHex(expected, signature);
 }

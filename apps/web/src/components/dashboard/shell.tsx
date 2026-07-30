@@ -116,15 +116,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             setUser({ ...session.user, role: p.role, name: p.name } as any);
 
             if (p.role === "business_owner") {
-              const { data: bizProfile } = await sb
-                .from("business_profiles")
-                .select("approval_status")
-                .eq("user_id", session.user.id)
-                .single();
+              // Must go through the RPC: migration 053 revoked direct selects on
+              // business_profiles beyond (user_id, company_name, industry).
+              const { data: bizJson } = await sb.rpc("get_own_business_profile");
+              const biz = bizJson as { approval_status?: string } | null;
 
-              if (bizProfile) {
-                const bp = bizProfile as { approval_status: string };
-                setApprovalStatus(bp.approval_status);
+              if (biz?.approval_status) {
+                setApprovalStatus(biz.approval_status);
               }
             }
 

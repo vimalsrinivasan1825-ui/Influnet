@@ -1597,6 +1597,7 @@ export default function ProjectKanbanPage() {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<ProjectCard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notAccessible, setNotAccessible] = useState(false);
   const [view, setView] = useState<'guided' | 'board' | 'activity' | 'flow'>('guided');
   const [activity, setActivity] = useState<any[]>([]);
   const [celebrateLabel, setCelebrateLabel] = useState<string | null>(null);
@@ -1650,6 +1651,7 @@ export default function ProjectKanbanPage() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
+      setNotAccessible(false);
       const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes, payRes] = await Promise.all([
         apiFetch<{ project: any }>(`/api/projects/${projectId}`),
         apiFetch<{ cards: ProjectCard[] }>(`/api/projects/${projectId}/cards`),
@@ -1661,6 +1663,13 @@ export default function ProjectKanbanPage() {
         apiFetch<{ configured: boolean; key_id: string | null }>(`/api/projects/${projectId}/payments`),
       ]);
       if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
+      else if (projRes.status === 403 || projRes.status === 404) {
+        // Non-participant (or a guessed id). A bare "Forbidden" reads like a
+        // glitch, so name the situation and stop offering Retry.
+        setError('This project doesn’t exist, or you don’t have access to it.');
+        setNotAccessible(true);
+        return;
+      }
       else { setError(projRes.error || 'Failed to load project'); }
       if (cardsRes.ok && cardsRes.data) { const d = cardsRes.data; setCards(d.cards || []); }
       else { setError(cardsRes.error || 'Failed to load cards'); }
@@ -2182,7 +2191,7 @@ export default function ProjectKanbanPage() {
                 {project && (project.owner_user_id === userId ? 'Client portal' : 'Creator portal')}
                 {project ? ` · With ${(project.owner_user_id === userId ? project.counterparty : project.owner)?.name || 'Partner'}` : ''}
               </div>
-              <h1 className="truncate text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || 'Loading…'}</h1>
+              <h1 className="truncate text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || (loading ? 'Loading…' : 'Project')}</h1>
             </div>
             {/* Stage badge rides along on the identity row (mobile only) */}
             <Badge variant="neutral" size="sm" className="ml-auto shrink-0 lg:hidden">
@@ -2383,6 +2392,14 @@ export default function ProjectKanbanPage() {
       {loading ? (
         <div className="flex flex-1 items-center justify-center">
           <div className="size-8 animate-spin rounded-full border-[3px] border-hairline border-t-brand" />
+        </div>
+      ) : notAccessible ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <h2 className="text-base font-extrabold text-content">{error}</h2>
+          <p className="max-w-sm text-sm text-content-soft">
+            Only the business and the creator on a project can open it.
+          </p>
+          <ButtonLink href="/dashboard/projects" variant="brand">Back to projects</ButtonLink>
         </div>
       ) : error ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3">

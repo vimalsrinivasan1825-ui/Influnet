@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from "@/lib/constants";
+import { isValidGstin, isValidWebsite, normalizeWebsite } from "@influnet/core";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -69,11 +70,14 @@ function BusinessSignupContent() {
 
   const emailValid = EMAIL_RE.test(email);
   const passwordOk = password.length >= 8;
+  // Both fields are optional, so blank stays valid — only a filled-in value is checked.
+  const websiteValid = isValidWebsite(website);
+  const gstValid = !gstNumber.trim() || isValidGstin(gstNumber);
 
   const canProceed = (): boolean => {
     if (step === 1) return !!fullName && !!companyName && emailValid && passwordOk;
-    if (step === 2) return !!businessType && !!industry;
-    if (step === 3) return !!city && !!state && !!registeredAddress;
+    if (step === 2) return !!businessType && !!industry && websiteValid;
+    if (step === 3) return !!city && !!state && !!registeredAddress && gstValid;
     if (step === 4) return !!marketingBudget;
     return false;
   };
@@ -90,11 +94,11 @@ function BusinessSignupContent() {
         phone,
         businessType,
         industry,
-        website,
+        website: normalizeWebsite(website),
         city,
         state,
         registeredAddress,
-        gstNumber,
+        gstNumber: gstNumber.trim().toUpperCase(),
         marketingBudget,
         location: `${city}, ${state}`,
       };
@@ -304,7 +308,10 @@ function BusinessSignupContent() {
               </div>
               <div>
                 <Label>Website (optional)</Label>
-                <Input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourcompany.com" />
+                <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourcompany.com" />
+                {!websiteValid && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid website, e.g. yourcompany.com</p>
+                )}
               </div>
             </div>
           )}
@@ -333,7 +340,17 @@ function BusinessSignupContent() {
               </div>
               <div>
                 <Label>GST number (optional)</Label>
-                <Input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="22AAAAA0000A1Z5" />
+                <Input
+                  value={gstNumber}
+                  onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                  placeholder="22AAAAA0000A1Z5"
+                  maxLength={15}
+                />
+                {!gstValid && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">
+                    Enter a valid 15-character GST number, e.g. 22AAAAA0000A1Z5
+                  </p>
+                )}
               </div>
             </div>
           )}

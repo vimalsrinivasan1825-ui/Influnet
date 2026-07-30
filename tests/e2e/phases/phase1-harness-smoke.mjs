@@ -78,11 +78,20 @@ async function main() {
     assertFields(row, { role: 'admin', name: (v) => typeof v === 'string' && v.length > 0 }, 'profiles(admin@influnet.com)');
   });
 
-  await runner.step('DB check: kept accounts count is exactly 9 (Phase 0 verification)', null, async () => {
+  // Phase 0 left 9 real accounts. Asserting a bare total of 9 made this step
+  // order-dependent: phases 2/3 create their own audit accounts, so any re-run
+  // of the suite failed here even though nothing was wrong. Count only the
+  // non-audit accounts, and require every extra to be a recognisable test one.
+  await runner.step('DB check: the 9 real accounts survive Phase 0, and every extra is an audit account', null, async ({ note }) => {
     const { sb } = await import('../lib/db.mjs');
-    const { count, error } = await sb.from('profiles').select('*', { count: 'exact', head: true });
+    const { data, error } = await sb.from('profiles').select('email');
     if (error) throw new Error(error.message);
-    assert(count === 9, `expected exactly 9 profiles after Phase 0 cleanup, found ${count}`);
+    const emails = (data || []).map((r) => r.email || '');
+    const isAudit = (e) => /@influnet-audit(-realistic)?\.(test|com)$/.test(e) || /@test\.influnet\.com$/.test(e);
+    const real = emails.filter((e) => !isAudit(e));
+    const audit = emails.filter(isAudit);
+    note(`${real.length} real accounts, ${audit.length} audit accounts (${audit.join(', ') || 'none'}).`);
+    assert(real.length === 9, `expected the 9 real accounts to be intact, found ${real.length}: ${real.join(', ')}`);
   });
 
   await browser.close();

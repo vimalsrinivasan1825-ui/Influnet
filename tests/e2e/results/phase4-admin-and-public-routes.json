@@ -1,13 +1,13 @@
 {
   "phaseId": "phase4-admin-and-public-routes",
   "phaseTitle": "Phase 4 — Admin, Public Routes & Guards",
-  "generatedAt": "2026-07-29T17:10:50.280Z",
+  "generatedAt": "2026-07-30T04:33:04.468Z",
   "summary": {
     "total": 17,
     "passed": 16,
     "failed": 0,
     "skipped": 1,
-    "findings": 5
+    "findings": 4
   },
   "steps": [
     {
@@ -22,7 +22,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/influencer",
-      "timestamp": "2026-07-29T17:10:06.616Z"
+      "timestamp": "2026-07-30T04:32:21.228Z"
     },
     {
       "step": 2,
@@ -32,17 +32,11 @@
       "skippedReason": null,
       "notes": [],
       "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/02-business-logs-in-non-admin-session-for-guard-checks.png",
-      "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()",
-        "Failed to load resource: the server responded with a status of 403 ()"
-      ],
-      "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
-      ],
+      "consoleErrors": [],
+      "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard",
-      "timestamp": "2026-07-29T17:10:10.584Z"
+      "timestamp": "2026-07-30T04:32:25.133Z"
     },
     {
       "step": 3,
@@ -56,7 +50,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin",
-      "timestamp": "2026-07-29T17:10:14.929Z"
+      "timestamp": "2026-07-30T04:32:28.975Z"
     },
     {
       "step": 4,
@@ -80,7 +74,7 @@
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/users",
-      "timestamp": "2026-07-29T17:10:18.492Z"
+      "timestamp": "2026-07-30T04:32:32.676Z"
     },
     {
       "step": 5,
@@ -93,20 +87,18 @@
       ],
       "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/05-security-check-business-business-owner-hitting-api-admin-use.png",
       "consoleErrors": [
-        "Failed to load resource: the server responded with a status of 403 ()",
         "Failed to load resource: the server responded with a status of 403 (Forbidden)",
         "Failed to load resource: the server responded with a status of 403 (Forbidden)",
         "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
       ],
       "networkErrors": [
-        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
         "403 GET http://localhost:3000/api/admin/users",
         "403 GET http://localhost:3000/api/admin/users",
         "401 GET http://localhost:3000/api/admin/users"
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/users",
-      "timestamp": "2026-07-29T17:10:22.020Z"
+      "timestamp": "2026-07-30T04:32:36.191Z"
     },
     {
       "step": 6,
@@ -122,7 +114,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-29T17:10:22.020Z"
+      "timestamp": "2026-07-30T04:32:36.192Z"
     },
     {
       "step": 7,
@@ -136,7 +128,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin",
-      "timestamp": "2026-07-29T17:10:25.666Z"
+      "timestamp": "2026-07-30T04:32:39.851Z"
     },
     {
       "step": 8,
@@ -150,7 +142,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/collabs",
-      "timestamp": "2026-07-29T17:10:29.885Z"
+      "timestamp": "2026-07-30T04:32:43.599Z"
     },
     {
       "step": 9,
@@ -166,7 +158,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/projects",
-      "timestamp": "2026-07-29T17:10:33.599Z"
+      "timestamp": "2026-07-30T04:32:47.600Z"
     },
     {
       "step": 10,
@@ -182,7 +174,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/users",
-      "timestamp": "2026-07-29T17:10:37.647Z"
+      "timestamp": "2026-07-30T04:32:51.596Z"
     },
     {
       "step": 11,
@@ -196,7 +188,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/vf/totally-made-up-garbage-code-123",
-      "timestamp": "2026-07-29T17:10:38.944Z"
+      "timestamp": "2026-07-30T04:32:53.057Z"
     },
     {
       "step": 12,
@@ -210,7 +202,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/c/madangowri",
-      "timestamp": "2026-07-29T17:10:41.898Z"
+      "timestamp": "2026-07-30T04:32:55.737Z"
     },
     {
       "step": 13,
@@ -228,7 +220,7 @@
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/influnet/no-such-creator-xyz-123",
-      "timestamp": "2026-07-29T17:10:43.064Z"
+      "timestamp": "2026-07-30T04:32:56.837Z"
     },
     {
       "step": 14,
@@ -242,7 +234,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/login?next=/b/anything",
-      "timestamp": "2026-07-29T17:10:44.090Z"
+      "timestamp": "2026-07-30T04:32:58.257Z"
     },
     {
       "step": 15,
@@ -260,7 +252,7 @@
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/b/some-business-with-no-relationship-xyz",
-      "timestamp": "2026-07-29T17:10:45.528Z"
+      "timestamp": "2026-07-30T04:32:59.704Z"
     },
     {
       "step": 16,
@@ -276,7 +268,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/reset-password",
-      "timestamp": "2026-07-29T17:10:48.141Z"
+      "timestamp": "2026-07-30T04:33:02.455Z"
     },
     {
       "step": 17,
@@ -290,7 +282,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/reset-password?type=recovery",
-      "timestamp": "2026-07-29T17:10:49.941Z"
+      "timestamp": "2026-07-30T04:33:04.199Z"
     }
   ]
 }
