@@ -11,12 +11,14 @@
  * the public profile as the creator's own view of it. The account controls stay,
  * below the content, where they belong.
  */
-import { Alert, Share, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
+import * as ImagePicker from 'expo-image-picker';
 import {
   BadgeCheck,
+  Camera,
   Eye,
   History,
   LogOut,
@@ -34,6 +36,7 @@ import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
 import { invalidateFetchCache, useFetch } from '@/lib/use-fetch';
 import { formatCount } from '@/lib/format';
+import { uploadImage } from '@/lib/upload';
 import {
   Avatar,
   Badge,
@@ -117,9 +120,10 @@ interface ProfilePayload {
 export default function ProfileScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { profile } = useSession();
+  const { profile, loadProfile } = useSession();
   const { signOut, signingOut } = useSignOutAction();
   const [refreshingSocial, setRefreshingSocial] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   const { data, loading, refreshing, refresh } = useFetch<ProfilePayload>(
     () => endpoints.home<ProfilePayload>(),
@@ -254,6 +258,51 @@ export default function ProfileScreen() {
     });
   }
 
+  /**
+   * Change the profile picture (avatar for creators, logo for businesses).
+   * Web has had this since launch (Settings → "Change image"); mobile had no
+   * way to set one at all — a creator who signed up on the phone stayed on
+   * the initials fallback forever unless they opened a browser.
+   */
+  async function changeAvatar() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Photo access needed',
+        'Allow photo library access in Settings to change your picture.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    setAvatarBusy(true);
+    try {
+      const { url } = await uploadImage(
+        { uri: asset.uri, fileName: asset.fileName, mimeType: asset.mimeType },
+        'profile'
+      );
+      const field = isCreator ? 'avatar_url' : 'logo_url';
+      const res = await endpoints.updateProfile({ [field]: url });
+      if (!res.ok) throw new Error(res.error || 'Could not save your new picture.');
+
+      await loadProfile();
+      invalidateFetchCache('profile-public');
+      await refresh();
+    } catch (err) {
+      Alert.alert('Upload failed', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
   /** Re-pull the social snapshot, then re-read Home so the new numbers land. */
   async function refreshSocial() {
     if (refreshingSocial) return;
@@ -273,7 +322,36 @@ export default function ProfileScreen() {
 
       <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
         <Card raised style={{ gap: t.spacing.md, alignItems: 'center' }}>
-          <Avatar uri={avatar} name={displayName} size={76} />
+          <Pressable
+            onPress={changeAvatar}
+            disabled={avatarBusy}
+            accessibilityRole="button"
+            accessibilityLabel={isCreator ? 'Change profile picture' : 'Change logo'}
+            style={{ position: 'relative' }}
+          >
+            <Avatar uri={avatar} name={displayName} size={76} />
+            <View
+              style={{
+                position: 'absolute',
+                bottom: -2,
+                right: -2,
+                width: 26,
+                height: 26,
+                borderRadius: 13,
+                backgroundColor: t.color.brand,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: t.color.surfaceCard,
+              }}
+            >
+              {avatarBusy ? (
+                <ActivityIndicator size="small" color={t.color.white} />
+              ) : (
+                <Camera size={13} color={t.color.white} />
+              )}
+            </View>
+          </Pressable>
 
           <View style={{ alignItems: 'center', gap: 3 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>

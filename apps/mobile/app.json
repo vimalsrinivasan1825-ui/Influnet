@@ -34,6 +34,13 @@
       "expo-image",
       "expo-web-browser",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Influnet needs access to your photos so you can set a profile picture and cover image.",
+          "cameraPermission": "Influnet needs access to your camera so you can take a new profile picture."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#ffffff",

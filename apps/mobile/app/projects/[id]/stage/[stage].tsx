@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import { Check, Clock, Paperclip } from 'lucide-react-native';
 import {
   STAGES,
@@ -13,6 +14,7 @@ import {
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
+import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import { useProjectLive } from '@/lib/realtime';
@@ -153,6 +155,19 @@ export default function StageScreen() {
   const isCurrent = project?.current_stage === stageKey;
   const isPast = project ? STAGES.indexOf(stageKey) < STAGES.indexOf(project.current_stage as Stage) : false;
   const usesSignoff = isMutualSignoffStage(stageKey);
+  const isPaymentStage = stageKey === 'advance_payment' || stageKey === 'final_payment';
+
+  // In-app Razorpay checkout is web-only for now (no React Native SDK in this
+  // project, and this app has a real history of native-dependency crashes —
+  // see the RNWorklets note). "Pay on web" opens the same project in the
+  // browser so a business managing things from their phone can still complete
+  // the payment stage; it isn't a permanent design, just the honest stopgap.
+  //
+  const { data: paymentConfig } = useFetch(
+    () => endpoints.listProjectPayments<{ configured: boolean }>(id),
+    { cacheKey: `project-payments:${id}` }
+  );
+  const paymentsConfigured = !!paymentConfig?.configured;
 
   // Completion is its own control, not a sign-off (NON_SIGNOFF_STAGES). Without
   // this branch the final stage rendered NO footer at all, so a project started
@@ -316,51 +331,77 @@ export default function StageScreen() {
                   // so a row that can't actually be toggled doesn't invite a tap.
                   const mine = item.owner_role === 'both' || item.owner_role === myRole;
                   const rowBusy = itemBusyId === item.id;
+                  // Mirrors web's paymentLocked (dashboard/projects/[id]/page.tsx):
+                  // a payment gate only opens itself, via the webhook confirming
+                  // a real Razorpay capture — manually ticking it here would
+                  // mark a project paid that never was.
+                  const paymentLocked = item.is_gate && isPaymentStage && paymentsConfigured && !item.done_at;
+                  const canToggle = mine && !paymentLocked;
 
                   return (
-                    <Pressable
-                      key={item.id}
-                      disabled={!mine || rowBusy}
-                      onPress={() => toggleItem(item)}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: !!item.done_at, disabled: !mine }}
-                      style={({ pressed }) => ({
-                        flexDirection: 'row',
-                        alignItems: 'flex-start',
-                        gap: t.spacing.sm,
-                        opacity: rowBusy ? 0.5 : pressed && mine ? 0.7 : 1,
-                      })}
-                    >
-                      {item.done_at ? (
-                        <Check size={16} color={t.color.ok} style={{ marginTop: 2 }} />
-                      ) : (
-                        <View
-                          style={{
-                            width: 14,
-                            height: 14,
-                            borderRadius: 7,
-                            borderWidth: 1.5,
-                            borderColor: t.color.hairlineStrong,
-                            marginTop: 3,
-                            marginHorizontal: 1,
-                          }}
+                    <View key={item.id} style={{ gap: t.spacing.sm }}>
+                      <Pressable
+                        disabled={!canToggle || rowBusy}
+                        onPress={() => toggleItem(item)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: !!item.done_at, disabled: !canToggle }}
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          alignItems: 'flex-start',
+                          gap: t.spacing.sm,
+                          opacity: rowBusy ? 0.5 : pressed && canToggle ? 0.7 : 1,
+                        })}
+                      >
+                        {item.done_at ? (
+                          <Check size={16} color={t.color.ok} style={{ marginTop: 2 }} />
+                        ) : (
+                          <View
+                            style={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: 7,
+                              borderWidth: 1.5,
+                              borderColor: t.color.hairlineStrong,
+                              marginTop: 3,
+                              marginHorizontal: 1,
+                            }}
+                          />
+                        )}
+                        <View style={{ flex: 1, gap: 3 }}>
+                          <Txt variant="callout" tone={item.done_at ? 'muted' : 'default'}>
+                            {item.label}
+                          </Txt>
+                          {item.is_gate || !item.is_required || !mine ? (
+                            <View style={{ flexDirection: 'row', gap: t.spacing.xs }}>
+                              {item.is_gate ? <Badge label="Gate" tone="warn" /> : null}
+                              {!item.is_required ? <Badge label="Optional" tone="neutral" /> : null}
+                              {!mine ? (
+                                <Badge label={`${item.owner_role === 'business' ? 'Brand' : 'Creator'} marks this`} tone="neutral" />
+                              ) : null}
+                            </View>
+                          ) : null}
+                          {paymentLocked ? (
+                            <Txt variant="caption" tone="muted">
+                              Opens automatically once the payment is confirmed.
+                            </Txt>
+                          ) : null}
+                        </View>
+                      </Pressable>
+
+                      {/* In-app checkout is web-only for now — see the note by
+                          isPaymentStage above. Only the payer (business) gets
+                          this; the creator side only ever sees the gate. */}
+                      {paymentLocked && isOwner ? (
+                        <Button
+                          label="Pay on web"
+                          variant="secondary"
+                          size="md"
+                          onPress={() =>
+                            WebBrowser.openBrowserAsync(`${API_BASE_URL}/dashboard/projects/${id}`)
+                          }
                         />
-                      )}
-                      <View style={{ flex: 1, gap: 3 }}>
-                        <Txt variant="callout" tone={item.done_at ? 'muted' : 'default'}>
-                          {item.label}
-                        </Txt>
-                        {item.is_gate || !item.is_required || !mine ? (
-                          <View style={{ flexDirection: 'row', gap: t.spacing.xs }}>
-                            {item.is_gate ? <Badge label="Gate" tone="warn" /> : null}
-                            {!item.is_required ? <Badge label="Optional" tone="neutral" /> : null}
-                            {!mine ? (
-                              <Badge label={`${item.owner_role === 'business' ? 'Brand' : 'Creator'} marks this`} tone="neutral" />
-                            ) : null}
-                          </View>
-                        ) : null}
-                      </View>
-                    </Pressable>
+                      ) : null}
+                    </View>
                   );
                 })}
 
