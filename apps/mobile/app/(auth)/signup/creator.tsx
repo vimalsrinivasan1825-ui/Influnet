@@ -5,10 +5,10 @@ import { Check, X } from 'lucide-react-native';
 import { COLLAB_TYPES, INDIAN_STATES, LANGUAGES, NICHES, PRICE_TIERS } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { completeSignup, useUsernameAvailability } from '@/lib/use-signup';
+import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { WizardStep } from '@/components/wizard';
+import { PhoneOtpStep } from '@/components/phone-otp-step';
 import { Chip, ChipWrap, Field, Txt } from '@/components/ui';
-
-const TOTAL = 6;
 
 /** Toggle a value in a multi-select list. */
 function toggle(list: string[], value: string) {
@@ -36,6 +36,8 @@ export default function CreatorSignup() {
   const [state, setState] = useState('');
 
   const availability = useUsernameAvailability(username);
+  const otp = usePhoneOtp();
+  const otpRequired = useOtpRequirement();
 
   async function submit() {
     setBusy(true);
@@ -44,6 +46,9 @@ export default function CreatorSignup() {
     const result = await completeSignup(email, password, {
       role: 'influencer',
       name: name.trim(),
+      ...(otpRequired
+        ? { phone: otp.phone.trim(), phoneVerificationToken: otp.token ?? undefined }
+        : {}),
       username: username.trim().toLowerCase(),
       instagramHandle: instagram.trim().replace(/^@/, ''),
       niche,
@@ -68,7 +73,7 @@ export default function CreatorSignup() {
     router.replace('/');
   }
 
-  const next = () => (step === TOTAL - 1 ? void submit() : setStep((s) => s + 1));
+  const next = () => (step === steps.length - 1 ? void submit() : setStep((s) => s + 1));
 
   const steps = [
     {
@@ -148,6 +153,17 @@ export default function CreatorSignup() {
         </View>
       ),
     },
+    // Only present when the server has the gate on — see useOtpRequirement().
+    ...(otpRequired
+      ? [
+          {
+            title: 'Verify your mobile',
+            subtitle: 'We text you a 6-digit code. Brands trust verified numbers.',
+            valid: !!otp.token,
+            body: <PhoneOtpStep otp={otp} />,
+          },
+        ]
+      : []),
     {
       title: 'Link your Instagram',
       subtitle: 'We pull your follower count and engagement so brands see real numbers.',
@@ -258,11 +274,11 @@ export default function CreatorSignup() {
   return (
     <WizardStep
       step={step}
-      total={TOTAL}
+      total={steps.length}
       title={current.title}
       subtitle={current.subtitle}
       onNext={next}
-      nextLabel={step === TOTAL - 1 ? 'Create account' : 'Continue'}
+      nextLabel={step === steps.length - 1 ? 'Create account' : 'Continue'}
       nextDisabled={!current.valid || busy}
       busy={busy}
       error={error}

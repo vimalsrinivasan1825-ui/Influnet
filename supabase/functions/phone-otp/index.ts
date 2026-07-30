@@ -7,8 +7,18 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const TEMPLATE = "Login_Verification_OTP";
-const OTP_TTL_MINUTES = 10;
+// 2Factor template name. This must be a DLT-APPROVED SMS template on the
+// account — verified live 2026-07-30: `Login_Verification_OTP` is approved
+// (delivers SMS from sender "Tecstellar Solutions LLP"), while an unapproved
+// name is silently downgraded to a VOICE CALL. The send still returns Success
+// and still bills an SMS credit, so a wrong name here looks like it works.
+// Override per-project with the TWOFACTOR_TEMPLATE secret.
+const TEMPLATE = Deno.env.get("TWOFACTOR_TEMPLATE") ?? "Login_Verification_OTP";
+
+// Must not exceed the validity stated in the DLT template text ("valid for
+// 5 minutes"). If our session outlived the provider's OTP, a code entered at
+// minute 7 would fail as a mismatch — which reads as "wrong code" to the user.
+const OTP_TTL_MINUTES = 5;
 
 type TwoFactorResponse = {
   Status?: string;

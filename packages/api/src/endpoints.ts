@@ -48,6 +48,23 @@ export function createEndpoints(api: ApiClient) {
       api.patch<T>('/api/portfolio', { id, is_visible: isVisible }),
     register: <T = unknown>(body: unknown) => api.post<T>('/api/auth/register', body),
 
+    /** Public signup flags (currently just `phoneOtpEnabled`). Read at runtime
+     *  so a shipped mobile build follows the server, not its own build config. */
+    getAuthConfig: <T = unknown>() => api.get<T>('/api/auth/config'),
+
+    // ── Mobile-number OTP (2Factor) ────────────────────────────────
+    // Both are called during signup, before a session exists, so they run
+    // tokenless by design. The provider key never leaves the Edge Function.
+    /** Sends a 6-digit code. Returns `providerSessionId`, needed to verify. */
+    sendPhoneOtp: <T = unknown>(phone: string) =>
+      api.post<T>('/api/phone-otp/send', { phone }),
+    /** On success returns `verificationToken` — pass it to `register`. */
+    verifyPhoneOtp: <T = unknown>(body: {
+      phone: string;
+      otp: string;
+      providerSessionId: string;
+    }) => api.post<T>('/api/phone-otp/verify', body),
+
     // ── Discovery ──────────────────────────────────────────────────
     discover: <T = unknown>(query: string) => api.get<T>(`/api/discover${query ? `?${query}` : ''}`),
     /** Full public-profile view model for one creator, by username — same shape the web overlay renders. */

@@ -105,6 +105,10 @@ export const RegisterProfileSchema = z.object({
   role: z.enum(['business_owner', 'influencer']),  // 'admin' is deliberately excluded
   name: z.string().min(1),
   phone: z.string().optional(),
+  // Proof of mobile OTP verification, minted by the phone-otp Edge Function.
+  // Carries no trust on its own — /api/auth/register re-validates it against
+  // phone_otp_sessions before the profile is created.
+  phoneVerificationToken: z.string().uuid().optional(),
   // business fields
   companyName: z.string().optional(),
   businessType: z.string().optional(),

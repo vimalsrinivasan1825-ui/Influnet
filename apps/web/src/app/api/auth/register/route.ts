@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { RegisterProfileSchema } from '@/lib/validators';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { phoneOtpEnabled, validatePhoneVerification } from '@/lib/phone-otp';
 
 export async function POST(req: Request) {
   try {
@@ -38,6 +39,27 @@ export async function POST(req: Request) {
       delete (payload as Record<string, unknown>).approvalStatus;
     }
 
+    // SECURITY: mobile verification is enforced HERE, not in the wizard UI.
+    // The client sends a token minted by the phone-otp Edge Function after a
+    // real 2Factor match; we re-check it against phone_otp_sessions so a caller
+    // who skips the UI (or POSTs this endpoint directly) still can't register
+    // with an unverified number.
+    const phoneToken = (payload as Record<string, unknown>).phoneVerificationToken;
+    delete (payload as Record<string, unknown>).phoneVerificationToken;
+
+    if (phoneOtpEnabled()) {
+      const check = await validatePhoneVerification(
+        typeof phoneToken === 'string' ? phoneToken : null,
+        payload.phone,
+      );
+      if (!check.ok) {
+        return NextResponse.json(
+          { error: check.error, reason: 'phone_unverified' },
+          { status: 403 },
+        );
+      }
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -55,6 +77,23 @@ export async function POST(req: Request) {
     if (error) {
       console.error('Error calling register_profile:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Stamp phone_verified / phone_verified_at on the fresh profile. Done after
+    // register_profile because the row must exist first. Non-fatal: the account
+    // is already created, and Settings can re-verify.
+    if (phoneOtpEnabled() && payload.phone) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        const { error: markErr } = await supabase.rpc('mark_profile_phone_verified', {
+          p_user_id: userData.user.id,
+          p_phone: payload.phone,
+          p_provider: '2factor',
+        });
+        if (markErr) {
+          console.error('mark_profile_phone_verified failed:', markErr.message);
+        }
+      }
     }
 
     return NextResponse.json({ ok: true, data });

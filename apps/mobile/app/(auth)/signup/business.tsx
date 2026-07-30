@@ -10,10 +10,10 @@ import {
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { completeSignup } from '@/lib/use-signup';
+import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { WizardStep } from '@/components/wizard';
+import { PhoneOtpStep } from '@/components/phone-otp-step';
 import { Chip, ChipWrap, Field, Txt } from '@/components/ui';
-
-const TOTAL = 5;
 
 function toggle(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -39,6 +39,9 @@ export default function BusinessSignup() {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
 
+  const otp = usePhoneOtp();
+  const otpRequired = useOtpRequirement();
+
   async function submit() {
     setBusy(true);
     setError(null);
@@ -46,6 +49,9 @@ export default function BusinessSignup() {
     const result = await completeSignup(email, password, {
       role: 'business_owner',
       name: name.trim(),
+      ...(otpRequired
+        ? { phone: otp.phone.trim(), phoneVerificationToken: otp.token ?? undefined }
+        : {}),
       companyName: company.trim(),
       industry,
       businessType: businessType || undefined,
@@ -71,7 +77,7 @@ export default function BusinessSignup() {
     router.replace('/');
   }
 
-  const next = () => (step === TOTAL - 1 ? void submit() : setStep((s) => s + 1));
+  const next = () => (step === steps.length - 1 ? void submit() : setStep((s) => s + 1));
 
   const steps = [
     {
@@ -124,6 +130,17 @@ export default function BusinessSignup() {
         </View>
       ),
     },
+    // Only present when the server has the gate on — see useOtpRequirement().
+    ...(otpRequired
+      ? [
+          {
+            title: 'Verify your mobile',
+            subtitle: 'We text you a 6-digit code. Creators trust verified businesses.',
+            valid: !!otp.token,
+            body: <PhoneOtpStep otp={otp} />,
+          },
+        ]
+      : []),
     {
       title: 'What industry are you in?',
       valid: !!industry,
@@ -224,11 +241,11 @@ export default function BusinessSignup() {
   return (
     <WizardStep
       step={step}
-      total={TOTAL}
+      total={steps.length}
       title={current.title}
       subtitle={current.subtitle}
       onNext={next}
-      nextLabel={step === TOTAL - 1 ? 'Create account' : 'Continue'}
+      nextLabel={step === steps.length - 1 ? 'Create account' : 'Continue'}
       nextDisabled={!current.valid || busy}
       busy={busy}
       error={error}

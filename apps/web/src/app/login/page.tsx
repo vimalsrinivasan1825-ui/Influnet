@@ -65,6 +65,19 @@ function LoginContent() {
                 method: "POST",
                 headers: { Authorization: `Bearer ${data.session.access_token}` },
               }).catch(() => {});
+            } else if (res.status === 403) {
+              // Mobile verification lapsed before the email was confirmed (the
+              // token is good for 30 minutes). Say so instead of dropping the
+              // user into the app with no profile row.
+              const body = await res.json().catch(() => ({}));
+              if (body?.reason === "phone_unverified") {
+                setError(
+                  "Your mobile verification expired before you confirmed your email. Please sign up again to re-verify your number.",
+                );
+                localStorage.removeItem("influnet_pending_registration");
+                await sb.auth.signOut();
+                return;
+              }
             }
           }
         } catch {

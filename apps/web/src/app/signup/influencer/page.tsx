@@ -10,6 +10,7 @@ import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/l
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
+import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { publicProfileUrlDisplay } from "@/lib/site";
 
@@ -95,6 +96,7 @@ function InfluencerSignupContent() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneToken, setPhoneToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [gender, setGender] = useState("");
   const [city, setCity] = useState("");
@@ -126,7 +128,10 @@ function InfluencerSignupContent() {
     if (step === 1) return true;
     if (step === 2)
       return (
-        !!firstName && !!lastName && !!username && usernameOk && emailValid && passwordOk
+        !!firstName && !!lastName && !!username && usernameOk && emailValid && passwordOk &&
+        // Mobile OTP is a hard gate when enabled — the server rejects an
+        // unverified number anyway, so don't let the wizard advance.
+        (!phoneOtpEnabled || !!phoneToken)
       );
     if (step === 3) return !!gender && !!city && !!state && languages.length > 0;
     if (step === 4) return !!primaryNiche && !!bio && (!!instagramHandle || !!youtubeHandle || !!twitterHandle);
@@ -260,7 +265,9 @@ function InfluencerSignupContent() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${data.session.access_token}`,
           },
-          body: JSON.stringify(payload),
+          // The OTP token is deliberately NOT part of `payload` — that object
+          // becomes permanent auth metadata and is stashed in localStorage.
+          body: JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
         });
         if (!res.ok) {
           const resData = await res.json();
@@ -279,11 +286,19 @@ function InfluencerSignupContent() {
         // Email confirmation required: no session yet, so register_profile can't
         // run now. Stash the payload so login can replay it once confirmed —
         // otherwise all of this wizard's data would be lost.
+        // The OTP token rides along so login can replay it, but it only lives
+        // 30 minutes — hence the sharper message when the gate is on.
         try {
-          localStorage.setItem("influnet_pending_registration", JSON.stringify(payload));
+          localStorage.setItem(
+            "influnet_pending_registration",
+            JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
+          );
         } catch { /* ignore */ }
+        const message = phoneOtpEnabled
+          ? "Check your email to confirm your account — please do it within 30 minutes so your mobile verification is still valid"
+          : "Check your email to confirm your account";
         router.push(
-          `/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`,
+          `/login?message=${encodeURIComponent(message)}&next=${encodeURIComponent(nextParam)}`,
         );
       }
     } catch {
@@ -492,10 +507,12 @@ function InfluencerSignupContent() {
                   <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
                 )}
               </div>
-              <div>
-                <Label>Phone (optional)</Label>
-                <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" />
-              </div>
+              <PhoneOtpField
+                phone={phone}
+                onPhoneChange={setPhone}
+                verifiedToken={phoneToken}
+                onVerifiedChange={setPhoneToken}
+              />
               <div>
                 <Label>Password</Label>
                 <div className="relative">
