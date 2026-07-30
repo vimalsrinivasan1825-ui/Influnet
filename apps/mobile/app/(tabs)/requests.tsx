@@ -47,6 +47,8 @@ interface CollabRow {
   receiver?: { name: string | null; role: string | null } | null;
   deal_state?: string;
   project: { id: string; title: string; status: string } | null;
+  /** Only set when the sender is a business; null once Influnet approves them. */
+  sender_business_approval_status?: string | null;
 }
 
 const STATE_TONE: Record<string, 'ok' | 'warn' | 'brand' | 'neutral' | 'danger'> = {
@@ -122,12 +124,16 @@ export default function RequestsScreen() {
               // The other party is whichever end of the request isn't you.
               const other = isCreator ? c.sender : c.receiver;
               const state = c.deal_state ?? c.status;
+              // Sending is no longer gated on admin approval — this is the
+              // creator-facing precaution in its place.
+              const unverifiedSender =
+                isCreator && c.sender_business_approval_status && c.sender_business_approval_status !== 'approved';
 
               return (
                 <ListRow
                   key={c.id}
                   title={other?.name || 'Someone'}
-                  subtitle={`${c.budget ? `${formatCurrency(c.budget)} · ` : ''}${timeAgo(c.created_at)}`}
+                  subtitle={`${c.budget ? `${formatCurrency(c.budget)} · ` : ''}${timeAgo(c.created_at)}${unverifiedSender ? ' · Not yet verified by Influnet' : ''}`}
                   left={<Avatar name={other?.name ?? undefined} />}
                   right={
                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
@@ -135,6 +141,7 @@ export default function RequestsScreen() {
                         label={STATE_LABEL[state] ?? state}
                         tone={STATE_TONE[state] ?? 'neutral'}
                       />
+                      {unverifiedSender ? <Badge label="Unverified" tone="warn" /> : null}
                     </View>
                   }
                   index={i}

@@ -36,6 +36,8 @@ interface CollabDetail {
   created_at: string;
   sender?: { name: string | null; role: string | null } | null;
   receiver?: { name: string | null; role: string | null } | null;
+  /** Only set when the sender is a business; null once Influnet approves them. */
+  sender_business_approval_status?: string | null;
 }
 
 export default function RequestDetail() {
@@ -61,6 +63,10 @@ export default function RequestDetail() {
   // The one path back for a creator who declined and changed their mind —
   // Discover is business-only, so this is the only way to re-initiate.
   const canReopen = isIncoming && collab?.status === 'declined';
+  // Sending is no longer gated on admin approval — this is the creator-facing
+  // precaution in its place.
+  const unverifiedSender =
+    isIncoming && collab?.sender_business_approval_status && collab.sender_business_approval_status !== 'approved';
 
   async function setStatus(status: 'accepted' | 'declined' | 'pending') {
     setBusy(true);
@@ -112,6 +118,7 @@ export default function RequestDetail() {
                 {collab.budget ? (
                   <Badge label={`Budget ${formatCurrency(collab.budget)}`} tone="brand" />
                 ) : null}
+                {unverifiedSender ? <Badge label="Not yet verified by Influnet" tone="warn" /> : null}
               </View>
             </Card>
 

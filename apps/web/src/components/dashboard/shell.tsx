@@ -381,7 +381,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                   <p className="mt-0.5 text-sm leading-relaxed text-content-soft">
                     {isRejected
                       ? "Our review team didn’t approve your business account. You can look around, but reaching out to creators is disabled. Think this is a mistake? Contact support and we’ll take another look."
-                      : "You’re all set to explore and finish setting up your profile. Reaching out to creators unlocks once our team approves your account — usually within 1–2 business days."}
+                      : "You can reach out to creators right away — creators will see your account is still being reviewed by our team until it's approved, usually within 1–2 business days."}
                   </p>
                 </div>
                 <button

@@ -30,6 +30,8 @@ interface CollabRequest {
   to_user_id: string;
   sender?: { name?: string | null; avatar_url?: string | null } | null;
   receiver?: { name?: string | null; avatar_url?: string | null } | null;
+  /** Only set when the sender is a business; null once Influnet approves them. */
+  sender_business_approval_status?: string | null;
 }
 
 // The badge describes the DEAL, not the request row. An "accepted" request
@@ -427,6 +429,15 @@ function RequestCard({
               <Badge variant={deal.variant} size="sm" dot>
                 {deal.label}
               </Badge>
+              {!isSender && r.sender_business_approval_status && r.sender_business_approval_status !== "approved" && (
+                <Badge
+                  variant="warning"
+                  size="sm"
+                  title="This business hasn't been reviewed by Influnet yet — you can still respond, just go in with that in mind."
+                >
+                  <AlertTriangle /> Not yet verified by Influnet
+                </Badge>
+              )}
             </div>
             <p className="mt-1 truncate text-sm font-semibold text-content">{title}</p>
             {detail && <p className="truncate text-xs text-content-soft">{detail}</p>}

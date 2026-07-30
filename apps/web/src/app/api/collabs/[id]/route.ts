@@ -27,7 +27,19 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       return jsonError(403, 'Forbidden');
     }
 
-    return NextResponse.json({ collab });
+    // Sending isn't gated on admin approval any more — surface the sender's
+    // status instead, same as GET /api/collabs (list).
+    let sender_business_approval_status: string | null = null;
+    if (collab.sender?.role === 'business_owner') {
+      const { data: biz } = await supabase
+        .from('business_profiles')
+        .select('approval_status')
+        .eq('user_id', collab.from_user_id)
+        .maybeSingle();
+      sender_business_approval_status = biz?.approval_status ?? null;
+    }
+
+    return NextResponse.json({ collab: { ...collab, sender_business_approval_status } });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }

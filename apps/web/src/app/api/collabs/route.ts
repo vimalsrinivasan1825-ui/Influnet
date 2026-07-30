@@ -63,6 +63,26 @@ export async function GET(req: Request) {
       byPair.get(key)!.push(p);
     }
 
+    // Sending is no longer gated on admin approval — the creator sees the
+    // sender's approval status instead, so an unverified business is a
+    // visible choice rather than a silent block. One batched query for every
+    // business sender in this list, not per-row.
+    const senderBusinessIds = [
+      ...new Set(
+        (collabs || [])
+          .filter((c: any) => c.sender?.role === 'business_owner')
+          .map((c: any) => c.from_user_id)
+      ),
+    ];
+    const approvalByUserId = new Map<string, string>();
+    if (senderBusinessIds.length > 0) {
+      const { data: senderBiz } = await supabase
+        .from('business_profiles')
+        .select('user_id, approval_status')
+        .in('user_id', senderBusinessIds);
+      for (const b of senderBiz || []) approvalByUserId.set(b.user_id, b.approval_status);
+    }
+
     const annotated = (collabs || []).map((c: any) => {
       const mine = byPair.get(pairKey(c.from_user_id, c.to_user_id)) || [];
       // Prefer the project this exact request produced; fall back to the pair's
@@ -75,6 +95,8 @@ export async function GET(req: Request) {
       return {
         ...c,
         project: project ? { id: project.id, title: project.title, status: project.status } : null,
+        sender_business_approval_status:
+          c.sender?.role === 'business_owner' ? (approvalByUserId.get(c.from_user_id) ?? null) : null,
         deal_state:
           c.status !== 'accepted' ? c.status
           : open ? 'in_progress'
@@ -97,15 +119,21 @@ export async function POST(req: Request) {
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
 
-    // Approval gate: pending/rejected businesses can browse the dashboard (soft
-    // banner) but cannot reach out to creators until an admin approves them.
-    // Enforced server-side — the UI lock is not a security boundary.
+    // A business still awaiting review (pending_review) may now reach out —
+    // sending is no longer blocked on admin approval. The creator sees a
+    // "not yet verified by Influnet" flag on the incoming request instead
+    // (GET below embeds sender_business_approval_status), so they can decide
+    // with that context rather than being silently protected from it.
+    //
+    // A business an admin actively REJECTED stays blocked — that's a real
+    // negative decision about this specific account, not "hasn't been looked
+    // at yet," and isn't something a flag on the request should substitute for.
     const { data: bizProfile } = await supabase
       .rpc('get_own_business_profile')
       .single();
 
-    if ((bizProfile as { approval_status?: string } | null)?.approval_status !== 'approved') {
-      return jsonError(403, 'Your business account is still under review. You can reach out to creators once it’s approved.');
+    if ((bizProfile as { approval_status?: string } | null)?.approval_status === 'rejected') {
+      return jsonError(403, 'Your business account was not approved. Contact support if you think this is a mistake.');
     }
 
     // Guard against collab-request spam (one business blasting many creators).
