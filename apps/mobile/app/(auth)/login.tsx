@@ -122,6 +122,12 @@ export default function Login() {
         <Button label="Sign in" onPress={signIn} loading={busy} disabled={!canSubmit} />
 
         <Button
+          label="Forgot password?"
+          variant="ghost"
+          onPress={() => router.push('/forgot-password')}
+        />
+
+        <Button
           label="Create an account"
           variant="ghost"
           onPress={() => router.replace('/signup')}

@@ -16,7 +16,7 @@ import { endpoints } from '@/lib/api';
 import { useFetch, invalidateFetchCache } from '@/lib/use-fetch';
 import { useProjectLive } from '@/lib/realtime';
 import { styleForStatus } from '@/lib/deal-state-style';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, timeAgo } from '@/lib/format';
 import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
 import { ProjectReviews } from '@/components/project-reviews';
 import { ProjectChangeRequests } from '@/components/project-change-requests';
@@ -55,6 +55,15 @@ interface ProjectDetail {
   cancellation_reason: string | null;
 }
 
+/** One row from /api/projects/[id]/activity — newest first, actor pre-resolved. */
+interface ProjectActivityEvent {
+  id: string;
+  type: string;
+  summary: string;
+  created_at: string;
+  actor: { id: string; name: string | null } | null;
+}
+
 export default function ProjectDetailScreen() {
   const t = useTheme();
   const router = useRouter();
@@ -63,6 +72,15 @@ export default function ProjectDetailScreen() {
 
   const { data, error, loading, refreshing, refresh, revalidate } = useFetch(() =>
     endpoints.getProject<{ project: ProjectDetail }>(id), { cacheKey: `project:${id}` }
+  );
+
+  // The project's audit trail. Web has this as a dedicated "Activity" tab;
+  // mobile had no way to see who did what when — only the current stage state.
+  // Fetched separately from the project so a missing/failed trail costs one
+  // card rather than the whole screen.
+  const { data: activityData } = useFetch(() =>
+    endpoints.projectActivity<{ activity: ProjectActivityEvent[] }>(id),
+    { cacheKey: `project-activity:${id}` }
   );
 
   // Live: a stage advanced, skipped or cancelled on the other side moves the
@@ -367,6 +385,34 @@ export default function ProjectDetailScreen() {
               are what the creator's public profile shows. */}
           {project.status === 'completed' ? (
             <ProjectReviews projectId={id} partner={partner} />
+          ) : null}
+
+          {activityData?.activity?.length ? (
+            <>
+              <SectionLabel>Activity</SectionLabel>
+              <Card style={{ gap: t.spacing.md }}>
+                {activityData.activity.map((event) => (
+                  <View key={event.id} style={{ flexDirection: 'row', gap: t.spacing.sm }}>
+                    <View
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: 4,
+                        marginTop: 5,
+                        backgroundColor: t.color.hairlineStrong,
+                      }}
+                    />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Txt variant="footnote">{event.summary}</Txt>
+                      <Txt variant="caption" tone="muted">
+                        {event.actor?.name ? `${event.actor.name} · ` : ''}
+                        {timeAgo(event.created_at)}
+                      </Txt>
+                    </View>
+                  </View>
+                ))}
+              </Card>
+            </>
           ) : null}
         </>
       ) : null}

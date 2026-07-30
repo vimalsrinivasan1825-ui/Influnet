@@ -49,6 +49,8 @@ interface DealPayload {
     awaiting_me?: boolean;
     can_respond_to_proposal?: boolean;
     can_withdraw_proposal?: boolean;
+    /** Terms can go out: they've agreed to talk, nothing pending, no live project. */
+    can_propose?: boolean;
   };
 }
 
@@ -144,6 +146,10 @@ interface DealSummary {
   proposalId: string | null;
   canRespond: boolean;
   canWithdraw: boolean;
+  /** True when this side may put fresh terms on the table. */
+  canPropose: boolean;
+  /** propose_project() hangs the proposal off the collab request, so it's required. */
+  collabRequestId: string | null;
 }
 
 /**
@@ -153,6 +159,8 @@ interface DealSummary {
 function summariseDeal(payload: DealPayload | null): DealSummary | null {
   if (!payload) return null;
   const awaitingMe = !!payload.viewer?.awaiting_me;
+  const canPropose = !!payload.viewer?.can_propose;
+  const collabRequestId = payload.request?.id ?? null;
 
   if (payload.proposal) {
     return {
@@ -164,6 +172,8 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       proposalId: payload.proposal.id,
       canRespond: !!payload.viewer?.can_respond_to_proposal,
       canWithdraw: !!payload.viewer?.can_withdraw_proposal,
+      canPropose,
+      collabRequestId,
     };
   }
 
@@ -177,6 +187,8 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       proposalId: null,
       canRespond: false,
       canWithdraw: false,
+      canPropose,
+      collabRequestId,
     };
   }
 
@@ -191,6 +203,8 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       proposalId: null,
       canRespond: false,
       canWithdraw: false,
+      canPropose,
+      collabRequestId,
     };
   }
 
@@ -204,6 +218,8 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       proposalId: null,
       canRespond: false,
       canWithdraw: false,
+      canPropose,
+      collabRequestId,
     };
   }
 
@@ -235,6 +251,17 @@ export default function ConversationScreen() {
   const [sending, setSending] = useState(false);
   const [respondBusy, setRespondBusy] = useState(false);
   const [respondError, setRespondError] = useState<string | null>(null);
+
+  // Proposing terms — the step that turns an agreed chat into a real project.
+  // Mobile could only ever respond to the other side's proposal; a business
+  // working from their phone had to move to the web app to start the project.
+  const proposeSheet = useRef<SheetRef>(null);
+  const [pTitle, setPTitle] = useState('');
+  const [pDescription, setPDescription] = useState('');
+  const [pBudget, setPBudget] = useState('');
+  const [pAdvance, setPAdvance] = useState('');
+  const [proposeBusy, setProposeBusy] = useState(false);
+  const [proposeError, setProposeError] = useState<string | null>(null);
 
   useEffect(() => {
     navigation.setOptions({ title: name ?? 'Chat' });
@@ -361,6 +388,63 @@ export default function ConversationScreen() {
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     dealSheet.current?.close();
+    void load();
+  }
+
+  /**
+   * Put fresh terms on the table. The other side then accepts (which creates
+   * the project) or declines — nothing is committed by sending alone.
+   *
+   * Budget/advance are optional here exactly as on web: the pair may have
+   * already settled the number in chat and just want the project opened.
+   */
+  async function submitProposal() {
+    if (!deal?.collabRequestId) return;
+    const title = pTitle.trim();
+    if (!title) {
+      setProposeError('Give the project a title.');
+      return;
+    }
+
+    // Keep the sign so "-500" is rejected rather than silently becoming 500 —
+    // the same bug that was fixed on the web request form.
+    const budget = pBudget.trim() ? Number(pBudget.replace(/[^0-9.-]/g, '')) : undefined;
+    const advance = pAdvance.trim() ? Number(pAdvance.replace(/[^0-9.-]/g, '')) : undefined;
+    if (budget !== undefined && (!Number.isFinite(budget) || budget < 0)) {
+      setProposeError('Budget must be a positive number.');
+      return;
+    }
+    if (advance !== undefined && (!Number.isFinite(advance) || advance < 0)) {
+      setProposeError('Advance must be a positive number.');
+      return;
+    }
+    if (budget !== undefined && advance !== undefined && advance > budget) {
+      setProposeError('The advance can’t be more than the total budget.');
+      return;
+    }
+
+    setProposeBusy(true);
+    setProposeError(null);
+
+    const res = await endpoints.updateDeal(id, {
+      collab_request_id: deal.collabRequestId,
+      title,
+      description: pDescription.trim() || undefined,
+      budget,
+      advance_amount: advance,
+    });
+    setProposeBusy(false);
+
+    if (!res.ok) {
+      setProposeError(res.error);
+      return;
+    }
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    proposeSheet.current?.close();
+    setPTitle('');
+    setPDescription('');
+    setPBudget('');
+    setPAdvance('');
     void load();
   }
 
@@ -605,6 +689,20 @@ export default function ConversationScreen() {
             onPress={() => respondToProposal('withdraw')}
             loading={respondBusy}
           />
+        ) : deal?.canPropose ? (
+          <View style={{ gap: t.spacing.sm }}>
+            <Txt variant="footnote" tone="muted">
+              Agreed the scope in chat? Put it in writing — they accept, and the project opens.
+            </Txt>
+            <Button
+              label="Propose project terms"
+              icon={<Handshake size={16} color={t.color.white} />}
+              onPress={() => {
+                dealSheet.current?.close();
+                proposeSheet.current?.expand();
+              }}
+            />
+          </View>
         ) : (
           <Txt variant="footnote" tone="muted">
             {deal?.awaitingMe
@@ -622,6 +720,64 @@ export default function ConversationScreen() {
             }}
           />
         ) : null}
+      </Sheet>
+
+      <Sheet ref={proposeSheet} title="Propose project terms">
+        <Txt variant="footnote" tone="muted">
+          {partner?.name ?? 'They'} reviews this and accepts or declines. Accepting is what
+          actually creates the project — sending it commits nothing.
+        </Txt>
+
+        <Field
+          label="Project title"
+          placeholder="Diwali reel series"
+          value={pTitle}
+          onChangeText={(v) => {
+            setPTitle(v);
+            if (proposeError) setProposeError(null);
+          }}
+        />
+
+        <Field
+          label="What's involved (optional)"
+          placeholder="Two 30-second reels featuring the new range, shot at home, delivered by the 20th."
+          value={pDescription}
+          onChangeText={setPDescription}
+          multiline
+          hint="Scope, deliverables and timing — the clearer this is, the fewer change requests later."
+        />
+
+        <Field
+          label="Total budget (optional)"
+          placeholder="50000"
+          value={pBudget}
+          onChangeText={(v) => {
+            setPBudget(v);
+            if (proposeError) setProposeError(null);
+          }}
+          keyboardType="number-pad"
+          hint="Leave blank if you've already settled it in chat."
+        />
+
+        <Field
+          label="Advance (optional)"
+          placeholder="15000"
+          value={pAdvance}
+          onChangeText={(v) => {
+            setPAdvance(v);
+            if (proposeError) setProposeError(null);
+          }}
+          keyboardType="number-pad"
+          hint="Paid up front at the deposit stage. Must not exceed the total."
+          error={proposeError}
+        />
+
+        <Button
+          label="Send these terms"
+          onPress={submitProposal}
+          disabled={proposeBusy || !pTitle.trim()}
+          loading={proposeBusy}
+        />
       </Sheet>
     </KeyboardAvoidingView>
   );

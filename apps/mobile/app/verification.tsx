@@ -29,6 +29,51 @@ interface ClaimState {
   verified_at?: string | null;
 }
 
+/**
+ * From GET /api/verification — the trust/metrics pipeline, which is a DIFFERENT
+ * thing from the bio-code ownership claim this screen is mostly about.
+ * Ownership proves the account is yours; this checks the account itself is real
+ * (live follower/activity signals via the Apify provider, plus review).
+ *
+ * Mobile only ever had the ownership half, so a creator whose verification came
+ * back `needs_more_info` or `rejected` had no way to find that out — or to
+ * re-run it — without opening the web app.
+ */
+interface PipelineState {
+  status: 'unverified' | 'pending' | 'in_review' | 'verified' | 'needs_more_info' | 'rejected';
+  verified_badge: boolean;
+  latest_check: { status: string; ai_reason: string | null; created_at: string } | null;
+}
+
+const PIPELINE_BLURB: Record<PipelineState['status'], string> = {
+  unverified:
+    'Not run yet. We check your handle live — real followers, recent activity, and the platform’s own verified status. It runs in the background; nothing is blocked meanwhile.',
+  pending: 'Running now. This won’t stop you using anything.',
+  in_review: 'A reviewer is taking a look. No action needed.',
+  verified: 'Your profile checks out. Businesses see this alongside your name.',
+  needs_more_info:
+    'We need a bit more detail. Fill out more of your profile — handles, bio, audience — then run it again.',
+  rejected: 'We couldn’t verify this profile. Review your details and try again.',
+};
+
+const PIPELINE_TONE: Record<PipelineState['status'], 'ok' | 'warn' | 'danger' | 'neutral'> = {
+  unverified: 'neutral',
+  pending: 'warn',
+  in_review: 'warn',
+  verified: 'ok',
+  needs_more_info: 'warn',
+  rejected: 'danger',
+};
+
+const PIPELINE_LABEL: Record<PipelineState['status'], string> = {
+  unverified: 'Not run',
+  pending: 'Running',
+  in_review: 'In review',
+  verified: 'Verified',
+  needs_more_info: 'Needs more info',
+  rejected: 'Not verified',
+};
+
 export default function VerificationScreen() {
   const t = useTheme();
   const profile = useSession((s) => s.profile);
@@ -43,6 +88,27 @@ export default function VerificationScreen() {
   const { data, error, loading, refresh } = useFetch(() =>
     endpoints.checkOwnershipStatus<ClaimState>(), { cacheKey: 'verification' }
   );
+
+  const { data: pipeline, refresh: refreshPipeline } = useFetch(() =>
+    endpoints.getVerification<PipelineState>(), { cacheKey: 'verification-pipeline' }
+  );
+  const [pipelineBusy, setPipelineBusy] = useState(false);
+
+  const pipelineStatus = pipeline?.status ?? 'unverified';
+  // Re-running mid-flight would just queue a duplicate check.
+  const canRunPipeline =
+    !pipelineBusy && pipelineStatus !== 'pending' && pipelineStatus !== 'in_review';
+
+  async function runPipeline() {
+    setPipelineBusy(true);
+    try {
+      await endpoints.startVerification({});
+      await loadProfile();
+      refreshPipeline();
+    } finally {
+      setPipelineBusy(false);
+    }
+  }
 
   const verified = profile?.verified_badge || data?.status === 'verified';
 
@@ -103,6 +169,43 @@ export default function VerificationScreen() {
 
   return (
     <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing.lg, gap: t.spacing.lg }}>
+      {/* Profile verification — separate from the ownership claim below. Shown
+          first because a `rejected` / `needs_more_info` result here is the one
+          thing a creator would otherwise never see on mobile. */}
+      <Card style={{ gap: t.spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: t.spacing.sm }}>
+          <Txt variant="footnote" tone="muted">
+            Profile verification
+          </Txt>
+          <Badge label={PIPELINE_LABEL[pipelineStatus]} tone={PIPELINE_TONE[pipelineStatus]} />
+        </View>
+
+        <Txt variant="footnote" tone="soft">
+          {PIPELINE_BLURB[pipelineStatus]}
+        </Txt>
+
+        {pipeline?.latest_check?.ai_reason ? (
+          <Card style={{ backgroundColor: t.color.surfaceMuted, gap: 2 }}>
+            <Txt variant="caption" tone="muted">
+              Last check
+            </Txt>
+            <Txt variant="footnote" tone="soft">
+              {pipeline.latest_check.ai_reason}
+            </Txt>
+          </Card>
+        ) : null}
+
+        {canRunPipeline ? (
+          <Button
+            label={pipelineStatus === 'unverified' ? 'Run verification' : 'Run it again'}
+            variant="secondary"
+            size="md"
+            onPress={runPipeline}
+            loading={pipelineBusy}
+          />
+        ) : null}
+      </Card>
+
       {verified ? (
         <Card style={{ alignItems: 'center', gap: t.spacing.md, paddingVertical: t.spacing['2xl'] }}>
           <View

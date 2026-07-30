@@ -17,6 +17,7 @@ export default function AuthLayout() {
           already names the screen, and printing it twice looked like chrome
           nobody designed. The bare chevron keeps the back gesture discoverable. */}
       <Stack.Screen name="login" options={{ title: '' }} />
+      <Stack.Screen name="forgot-password" options={{ title: '' }} />
       <Stack.Screen name="signup/index" options={{ title: '' }} />
       <Stack.Screen name="signup/creator" options={{ title: 'Creator sign-up' }} />
       <Stack.Screen name="signup/business" options={{ title: 'Business sign-up' }} />

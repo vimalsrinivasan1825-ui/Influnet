@@ -23,6 +23,7 @@ import {
   Button,
   Card,
   ErrorState,
+  Field,
   ScreenScroll,
   SkeletonCard,
   StickyFooter,
@@ -75,6 +76,20 @@ export default function StageScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [itemBusyId, setItemBusyId] = useState<string | null>(null);
   const [itemError, setItemError] = useState<string | null>(null);
+
+  // Posting an update. The stage feed was read-only here: a creator could see
+  // what the other side had posted but had no way to reply in the stage where
+  // the work actually lives — they had to go to the web app or fall back to
+  // chat, which loses the link to the stage.
+  //
+  // Message and link only, no file picker: the web flow uploads to storage
+  // first and posts the resulting URL, which needs an image/document picker
+  // (a new native dependency) to do properly on mobile. Left out rather than
+  // half-done — see the parity report.
+  const [entryBody, setEntryBody] = useState('');
+  const [entryLink, setEntryLink] = useState('');
+  const [entryBusy, setEntryBusy] = useState(false);
+  const [entryError, setEntryError] = useState<string | null>(null);
 
   /**
    * The stage's three sources at once: the project (for sign-off state), its
@@ -173,6 +188,38 @@ export default function StageScreen() {
       return;
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    refresh();
+  }
+
+  /** Post an update against this stage — a message, a link, or both. */
+  async function postEntry() {
+    const body = entryBody.trim();
+    const link = entryLink.trim();
+    if (!body && !link) {
+      setEntryError('Add a message or a link.');
+      return;
+    }
+    // The route requires a full URL (Zod .url()); accept a bare host and
+    // normalise rather than bouncing it back with a validation error.
+    const normalisedLink = link && !/^https?:\/\//i.test(link) ? `https://${link}` : link;
+
+    setEntryBusy(true);
+    setEntryError(null);
+
+    const res = await endpoints.createStageEntry(id, {
+      stage_key: stage,
+      body: body || undefined,
+      link_url: normalisedLink || undefined,
+    });
+    setEntryBusy(false);
+
+    if (!res.ok) {
+      setEntryError(res.error);
+      return;
+    }
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setEntryBody('');
+    setEntryLink('');
     refresh();
   }
 
@@ -325,13 +372,19 @@ export default function StageScreen() {
               </Card>
             ) : null}
 
-            {stageEntries.length > 0 ? (
-              <Card style={{ gap: t.spacing.lg }}>
-                <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  Updates
-                </Txt>
+            <Card style={{ gap: t.spacing.lg }}>
+              <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Updates
+              </Txt>
 
-                {stageEntries.map((entry) => (
+              {stageEntries.length === 0 ? (
+                <Txt variant="footnote" tone="muted">
+                  Nothing posted against this stage yet. Share progress, a draft link or a
+                  question — it stays attached to this step rather than getting lost in chat.
+                </Txt>
+              ) : null}
+
+              {stageEntries.map((entry) => (
                   <View key={entry.id} style={{ gap: 5 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
                       <Txt variant="footnote" style={{ fontWeight: '600' }}>
@@ -371,8 +424,44 @@ export default function StageScreen() {
                     ) : null}
                   </View>
                 ))}
+
+                {/* Frozen records stay readable but must not accept new posts. */}
+                {project?.status === 'active' ? (
+                  <View style={{ gap: t.spacing.sm, borderTopWidth: 1, borderTopColor: t.color.hairline, paddingTop: t.spacing.md }}>
+                    <Field
+                      label="Post an update"
+                      placeholder="Where things stand, or what you need from them…"
+                      value={entryBody}
+                      onChangeText={(v) => {
+                        setEntryBody(v);
+                        if (entryError) setEntryError(null);
+                      }}
+                      multiline
+                    />
+                    <Field
+                      label="Link (optional)"
+                      placeholder="drive.google.com/…"
+                      value={entryLink}
+                      onChangeText={(v) => {
+                        setEntryLink(v);
+                        if (entryError) setEntryError(null);
+                      }}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      hint="A draft, a folder, a reference — anything they need to open."
+                      error={entryError}
+                    />
+                    <Button
+                      label="Post update"
+                      variant="secondary"
+                      size="md"
+                      onPress={postEntry}
+                      disabled={entryBusy || (!entryBody.trim() && !entryLink.trim())}
+                      loading={entryBusy}
+                    />
+                  </View>
+                ) : null}
               </Card>
-            ) : null}
 
             {usesSignoff ? (
               <Card style={{ gap: t.spacing.md }}>
