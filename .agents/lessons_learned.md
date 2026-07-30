@@ -2,7 +2,27 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
-## Session — 2026-07-30: Mobile Project Screen Infinite Render Loop Fix
+## Session — 2026-07-30: OTA Update Timestamp in Settings + Commit Cleanup
+
+**Branch**: `dev`
+
+### Scope
+- **Settings Screen (`apps/mobile/app/settings.tsx`)**: Added `expo-updates` import to display the OTA update timestamp and build info at the bottom of the Settings screen only. All users see the human-readable update date; only `vimal@gmail.com` sees the short Update ID for cross-referencing with the EAS Dashboard.
+- **Commit Cleanup**: Separated and committed two logical feature sets that were uncommitted:
+  1. `feat(auth): add optional phone OTP verification step to signup (mobile + web)` — 19 files.
+  2. `feat(mobile/settings): show OTA update timestamp and build info in settings screen` — 1 file.
+
+### Key Lessons
+- `Updates.isEmbeddedLaunch` is `true` when the app is running the original binary bundle (no OTA applied). `Updates.createdAt` is the published timestamp of the currently active OTA bundle. Together they provide a reliable way to diagnose update state in the field.
+- The OTA update channel in the installed app binary is locked at build time. A production binary (`eas build --profile production`) always reads from the `production` channel; preview binaries read from `preview`. Pushing to the wrong channel has no effect on already-installed production apps.
+- To manually push a production OTA update without merging to `main`, run `eas-cli update --channel production` locally — it publishes from the current working directory's code.
+
+### Next Target
+- Push the 3 local commits to `origin/dev` and trigger the manual OTA update command to deploy the settings change to the production channel.
+
+---
+
+
 
 **Branch**: `dev`
 
