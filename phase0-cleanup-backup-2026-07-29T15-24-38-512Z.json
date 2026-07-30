@@ -1,0 +1,801 @@
+{
+  "removed_at": "2026-07-29T15-24-38-512Z",
+  "target_users": [
+    {
+      "id": "ba87242c-aaf0-42d3-9e0c-be7c5f9e2cf7",
+      "email": "brand.jupiter.test@example.com",
+      "created_at": "2026-07-29T14:47:09.082851Z"
+    },
+    {
+      "id": "2e90e572-e171-47c7-ad2b-de8860acc8f6",
+      "email": "test_influencer_1785324737860@test.influnet.com",
+      "created_at": "2026-07-29T11:32:19.999089Z"
+    },
+    {
+      "id": "c4d4c187-c16f-40ee-9f55-f9cbddf77d4a",
+      "email": "test_business_1785324737860@test.influnet.com",
+      "created_at": "2026-07-29T11:32:19.11258Z"
+    },
+    {
+      "id": "9ac0bb2c-ad8d-4faa-a7e1-99e8e3a488b2",
+      "email": "test_influencer_1785321347084@test.influnet.com",
+      "created_at": "2026-07-29T10:35:49.267263Z"
+    },
+    {
+      "id": "70a596a4-1b39-4127-99c5-4d90a377e841",
+      "email": "test_business_1785321347084@test.influnet.com",
+      "created_at": "2026-07-29T10:35:48.230169Z"
+    },
+    {
+      "id": "6ad2b48e-8013-40b3-bd43-95979708198d",
+      "email": "test_influencer_1785303922648@test.influnet.com",
+      "created_at": "2026-07-29T05:45:24.735381Z"
+    },
+    {
+      "id": "9ab27c9d-b076-4eac-a9b1-f362df2d41f2",
+      "email": "test_business_1785303922648@test.influnet.com",
+      "created_at": "2026-07-29T05:45:23.806664Z"
+    },
+    {
+      "id": "8fea88b4-4222-4b86-9147-28d839c458e9",
+      "email": "test_influencer_1785301467247@test.influnet.com",
+      "created_at": "2026-07-29T05:04:28.972877Z"
+    },
+    {
+      "id": "bb09ac9c-81a0-4fb2-91d6-c6123860fbd2",
+      "email": "test_business_1785301467247@test.influnet.com",
+      "created_at": "2026-07-29T05:04:28.145746Z"
+    },
+    {
+      "id": "d36ab350-c37c-45ea-b658-4520c6b1c199",
+      "email": "test_influencer_1785299530552@test.influnet.com",
+      "created_at": "2026-07-29T04:32:11.829251Z"
+    },
+    {
+      "id": "0bc07461-5b8c-4750-b55e-c160d4800e9d",
+      "email": "test_business_1785299530552@test.influnet.com",
+      "created_at": "2026-07-29T04:32:11.473677Z"
+    },
+    {
+      "id": "9a17a0de-3857-47ad-8270-35d4af609087",
+      "email": "test_influencer_1785298900345@test.influnet.com",
+      "created_at": "2026-07-29T04:21:42.588479Z"
+    },
+    {
+      "id": "dfe45e14-9b5c-4880-b08d-5800bad86f3b",
+      "email": "test_business_1785298900345@test.influnet.com",
+      "created_at": "2026-07-29T04:21:41.613304Z"
+    },
+    {
+      "id": "cad5f67e-2887-4977-af79-5961b82c3a94",
+      "email": "test_influencer_1785243465488@test.influnet.com",
+      "created_at": "2026-07-28T12:57:46.935274Z"
+    },
+    {
+      "id": "5a717317-1805-481b-989c-f68d8a146a4f",
+      "email": "test_business_1785243465488@test.influnet.com",
+      "created_at": "2026-07-28T12:57:46.501294Z"
+    },
+    {
+      "id": "b874ff90-7f96-4457-b789-3d1e7adfc64f",
+      "email": "test_influencer_1785242480776@test.influnet.com",
+      "created_at": "2026-07-28T12:41:22.672126Z"
+    },
+    {
+      "id": "4ff269a2-3ba5-41b5-bced-4e13249faeea",
+      "email": "test_business_1785242480776@test.influnet.com",
+      "created_at": "2026-07-28T12:41:21.725344Z"
+    },
+    {
+      "id": "7f626b45-2776-4fcc-9918-1b1e68b48a7f",
+      "email": "test_influencer_1785237211711@test.influnet.com",
+      "created_at": "2026-07-28T11:13:32.600817Z"
+    },
+    {
+      "id": "08c959e9-906d-47a9-9564-38df113c9892",
+      "email": "test_business_1785237211711@test.influnet.com",
+      "created_at": "2026-07-28T11:13:32.231711Z"
+    },
+    {
+      "id": "95954e9f-5a11-482d-8abb-f2acb9212af0",
+      "email": "test_influencer_1785235708360@test.influnet.com",
+      "created_at": "2026-07-28T10:48:30.167512Z"
+    },
+    {
+      "id": "60bfe499-f86a-44b0-b6c9-9c53f434ada2",
+      "email": "test_business_1785235708360@test.influnet.com",
+      "created_at": "2026-07-28T10:48:29.39468Z"
+    },
+    {
+      "id": "991739f1-ede9-4d10-81d8-b6e51065eec2",
+      "email": "test_influencer_1785234820832@test.influnet.com",
+      "created_at": "2026-07-28T10:33:42.599865Z"
+    },
+    {
+      "id": "41e32b23-3b4b-48f6-a3b5-d29f572d3cc4",
+      "email": "test_business_1785234820832@test.influnet.com",
+      "created_at": "2026-07-28T10:33:41.823469Z"
+    },
+    {
+      "id": "b8772a2d-9884-4507-b996-44b762dc0712",
+      "email": "test_influencer_1785214982656@test.influnet.com",
+      "created_at": "2026-07-28T05:03:04.723063Z"
+    },
+    {
+      "id": "f19e782c-fa3d-46aa-8c0b-42038b066e8e",
+      "email": "test_business_1785214982656@test.influnet.com",
+      "created_at": "2026-07-28T05:03:03.719734Z"
+    },
+    {
+      "id": "e5294e04-cd5e-4f7b-9eb4-efa40fb4708a",
+      "email": "test_influencer_1785211278957@test.influnet.com",
+      "created_at": "2026-07-28T04:01:21.213409Z"
+    },
+    {
+      "id": "beefafca-cf4c-4836-a183-730856419ad4",
+      "email": "test_business_1785211278957@test.influnet.com",
+      "created_at": "2026-07-28T04:01:20.175136Z"
+    },
+    {
+      "id": "27f3429f-9510-4dc9-9d1e-f4fe0ee83e3d",
+      "email": "test_influencer_1785116749437@test.influnet.com",
+      "created_at": "2026-07-27T01:45:51.124116Z"
+    },
+    {
+      "id": "85aa8ad7-e06a-419d-8be1-154a0978c8fb",
+      "email": "test_business_1785116749437@test.influnet.com",
+      "created_at": "2026-07-27T01:45:50.644559Z"
+    },
+    {
+      "id": "c7b86e37-e700-4ee2-950b-f169aecd4c97",
+      "email": "test_influencer_1785090341755@test.influnet.com",
+      "created_at": "2026-07-26T18:25:43.711859Z"
+    },
+    {
+      "id": "e392bc2e-855d-4ab2-ba8d-11bfaae98276",
+      "email": "test_business_1785090341755@test.influnet.com",
+      "created_at": "2026-07-26T18:25:42.921797Z"
+    },
+    {
+      "id": "c947844f-07e8-409b-bc13-409e8e9c5d53",
+      "email": "test_influencer_1785072528191@test.influnet.com",
+      "created_at": "2026-07-26T13:28:50.159019Z"
+    },
+    {
+      "id": "467f6dca-4a72-42ae-a683-4e3a9c262df8",
+      "email": "test_business_1785072528191@test.influnet.com",
+      "created_at": "2026-07-26T13:28:49.267838Z"
+    },
+    {
+      "id": "812d20c8-ee17-4ccc-b918-536084d0bd91",
+      "email": "test_influencer_1785071340099@test.influnet.com",
+      "created_at": "2026-07-26T13:09:00.83089Z"
+    },
+    {
+      "id": "141391b1-d51f-4b53-8f61-60d487f289ff",
+      "email": "test_business_1785071340099@test.influnet.com",
+      "created_at": "2026-07-26T13:09:00.419014Z"
+    },
+    {
+      "id": "5aac1c87-8ae2-4351-aa05-d8bd89dfef60",
+      "email": "test_influencer_1785069544247@test.influnet.com",
+      "created_at": "2026-07-26T12:39:05.511299Z"
+    },
+    {
+      "id": "14b9aac1-d6d0-4ae4-8c43-64b589a29a95",
+      "email": "test_business_1785069544247@test.influnet.com",
+      "created_at": "2026-07-26T12:39:05.056741Z"
+    },
+    {
+      "id": "03848489-8306-42fb-91c1-3d161f8f4c50",
+      "email": "test_influencer_1785068456721@test.influnet.com",
+      "created_at": "2026-07-26T12:20:59.045198Z"
+    },
+    {
+      "id": "c1d57db3-68c2-488c-9e7a-ea93ce265ea2",
+      "email": "test_business_1785068456721@test.influnet.com",
+      "created_at": "2026-07-26T12:20:58.040188Z"
+    },
+    {
+      "id": "09e4300d-7d47-4cc1-91aa-c7293b2bfada",
+      "email": "test_influencer_1785065696972@test.influnet.com",
+      "created_at": "2026-07-26T11:34:59.313074Z"
+    },
+    {
+      "id": "bd4dd782-fa9f-451b-9aa2-dbbdf909558c",
+      "email": "test_business_1785065696972@test.influnet.com",
+      "created_at": "2026-07-26T11:34:58.231314Z"
+    },
+    {
+      "id": "d0c2d593-6fa5-40c0-9e81-149130da7e89",
+      "email": "test_influencer_1785060319188@test.influnet.com",
+      "created_at": "2026-07-26T10:05:20.78101Z"
+    },
+    {
+      "id": "f825f03e-7ec6-4467-ac11-2ee6e8d4dda2",
+      "email": "test_business_1785060319188@test.influnet.com",
+      "created_at": "2026-07-26T10:05:20.314239Z"
+    },
+    {
+      "id": "ab02d032-222a-4ade-9d07-596592f35115",
+      "email": "test_influencer_1785057058221@test.influnet.com",
+      "created_at": "2026-07-26T09:10:59.909184Z"
+    },
+    {
+      "id": "e03dd1a5-d2c8-4c87-912c-0bf9660f4f52",
+      "email": "test_business_1785057058221@test.influnet.com",
+      "created_at": "2026-07-26T09:10:59.142274Z"
+    },
+    {
+      "id": "52bf10d3-bdd3-4564-84db-ab916ef5b845",
+      "email": "test_influencer_1785056017484@test.influnet.com",
+      "created_at": "2026-07-26T08:53:39.331812Z"
+    },
+    {
+      "id": "d709ef7d-eefb-4e70-8a5d-3bda9a233ab2",
+      "email": "test_business_1785056017484@test.influnet.com",
+      "created_at": "2026-07-26T08:53:38.479582Z"
+    },
+    {
+      "id": "27bcceb0-1481-4692-af9f-f646d4906e89",
+      "email": "test_influencer_1785054335158@test.influnet.com",
+      "created_at": "2026-07-26T08:25:36.770388Z"
+    },
+    {
+      "id": "5e2c572a-7a4e-4691-902a-7ee244e103eb",
+      "email": "test_business_1785054335158@test.influnet.com",
+      "created_at": "2026-07-26T08:25:36.287886Z"
+    },
+    {
+      "id": "58562a0c-46a0-4537-ba5f-52879010ea08",
+      "email": "test_influencer_1785050277825@test.influnet.com",
+      "created_at": "2026-07-26T07:17:59.725742Z"
+    },
+    {
+      "id": "04e7daea-b5e3-4bd4-97dd-6ad26537b95d",
+      "email": "test_business_1785050277825@test.influnet.com",
+      "created_at": "2026-07-26T07:17:59.179525Z"
+    },
+    {
+      "id": "0738a3ce-a075-4371-bc96-7ef8f13eca07",
+      "email": "test_influencer_1785048195681@test.influnet.com",
+      "created_at": "2026-07-26T06:43:17.946701Z"
+    },
+    {
+      "id": "92c7cfb0-9831-4b73-92ee-780ba4f7d53c",
+      "email": "test_business_1785048195681@test.influnet.com",
+      "created_at": "2026-07-26T06:43:16.893133Z"
+    },
+    {
+      "id": "e155d645-f996-4b38-90e2-d818637c4572",
+      "email": "test_influencer_1785045288571@test.influnet.com",
+      "created_at": "2026-07-26T05:54:50.753169Z"
+    },
+    {
+      "id": "02322d63-466d-4bb9-9269-2746a4a4ac0c",
+      "email": "test_business_1785045288571@test.influnet.com",
+      "created_at": "2026-07-26T05:54:49.895227Z"
+    },
+    {
+      "id": "e83e037e-35e7-45c6-b5c5-af1bedae3700",
+      "email": "test_influencer_1784620445683@test.influnet.com",
+      "created_at": "2026-07-21T07:54:07.536557Z"
+    },
+    {
+      "id": "efd90615-d764-47d1-85b7-4fae329d5ddc",
+      "email": "test_business_1784620445683@test.influnet.com",
+      "created_at": "2026-07-21T07:54:06.714866Z"
+    },
+    {
+      "id": "847741bd-612e-4978-8e87-207075c8baf9",
+      "email": "test_influencer_1784620245128@test.influnet.com",
+      "created_at": "2026-07-21T07:50:47.392788Z"
+    },
+    {
+      "id": "638061ef-402e-4aad-b1cd-c8f979febe8e",
+      "email": "test_business_1784620245128@test.influnet.com",
+      "created_at": "2026-07-21T07:50:46.402019Z"
+    },
+    {
+      "id": "9e746ad8-527d-4a6c-a8cc-b4dadaf7e638",
+      "email": "test_influencer_1784552046349@test.influnet.com",
+      "created_at": "2026-07-20T12:54:08.326109Z"
+    },
+    {
+      "id": "e0af4f15-c4b6-45d2-b408-564cf097c076",
+      "email": "test_business_1784552046349@test.influnet.com",
+      "created_at": "2026-07-20T12:54:07.43617Z"
+    },
+    {
+      "id": "767813bd-a02d-4aff-b475-af7dcea8c96d",
+      "email": "test_influencer_1784551309009@test.influnet.com",
+      "created_at": "2026-07-20T12:41:50.880117Z"
+    },
+    {
+      "id": "c27939fa-a323-41d3-a8b7-7d29b755449d",
+      "email": "test_business_1784551309009@test.influnet.com",
+      "created_at": "2026-07-20T12:41:50.061872Z"
+    },
+    {
+      "id": "274016a9-1c0b-437d-9f6d-9d215966d06a",
+      "email": "test_influencer_1784519569389@test.influnet.com",
+      "created_at": "2026-07-20T03:52:51.654438Z"
+    },
+    {
+      "id": "3d726f44-b688-4a3c-9dc5-fc5b5ce21909",
+      "email": "test_business_1784519569389@test.influnet.com",
+      "created_at": "2026-07-20T03:52:50.750603Z"
+    },
+    {
+      "id": "bbea4fd7-2eb9-428a-a80f-0ff8c87854ee",
+      "email": "test_influencer_1784376410581@test.influnet.com",
+      "created_at": "2026-07-18T12:06:52.843427Z"
+    },
+    {
+      "id": "93b5b41b-92b5-4fb6-b819-0bd94b8400ba",
+      "email": "test_business_1784376410581@test.influnet.com",
+      "created_at": "2026-07-18T12:06:51.892234Z"
+    },
+    {
+      "id": "8ac7021a-be4e-4c10-b1f6-1516052a4bf2",
+      "email": "test_influencer_1784375333571@test.influnet.com",
+      "created_at": "2026-07-18T11:48:55.912221Z"
+    },
+    {
+      "id": "09c58669-495f-4a27-912f-b20353fa834e",
+      "email": "test_business_1784375333571@test.influnet.com",
+      "created_at": "2026-07-18T11:48:54.947584Z"
+    },
+    {
+      "id": "a8d6672d-a02a-44ad-9397-523be428e710",
+      "email": "test_influencer_1784372885938@test.influnet.com",
+      "created_at": "2026-07-18T11:08:08.028417Z"
+    },
+    {
+      "id": "8c719112-17fc-471d-bc41-5d4fe41310cb",
+      "email": "test_business_1784372885938@test.influnet.com",
+      "created_at": "2026-07-18T11:08:07.198458Z"
+    },
+    {
+      "id": "0d8f27ad-dbd7-4831-a5b5-5c50b263209d",
+      "email": "test_influencer_1784368688787@test.influnet.com",
+      "created_at": "2026-07-18T09:58:10.515982Z"
+    },
+    {
+      "id": "51375e70-8e30-4f37-8b46-9059a780a7e2",
+      "email": "test_business_1784368688787@test.influnet.com",
+      "created_at": "2026-07-18T09:58:10.054271Z"
+    },
+    {
+      "id": "7e625d5a-dbf3-4f69-86ec-4e0908b04e1f",
+      "email": "test_influencer_1784356832260@test.influnet.com",
+      "created_at": "2026-07-18T06:40:34.621621Z"
+    },
+    {
+      "id": "f98e7a62-c9af-467f-a42c-2066071390b8",
+      "email": "test_business_1784356832260@test.influnet.com",
+      "created_at": "2026-07-18T06:40:33.610085Z"
+    },
+    {
+      "id": "b97b71b1-aa70-40c4-a301-f33bdc8fa327",
+      "email": "test_influencer_1784351430484@test.influnet.com",
+      "created_at": "2026-07-18T05:10:31.747791Z"
+    },
+    {
+      "id": "8da4489c-08bd-4e8d-8710-b6e941a2ebea",
+      "email": "test_business_1784351430484@test.influnet.com",
+      "created_at": "2026-07-18T05:10:31.384928Z"
+    },
+    {
+      "id": "78450623-078b-4c05-be95-d663a5b9f4b2",
+      "email": "test_influencer_1784351247748@test.influnet.com",
+      "created_at": "2026-07-18T05:07:30.071269Z"
+    },
+    {
+      "id": "d09263e3-aa7a-4751-9b89-505c0644aa14",
+      "email": "test_business_1784351247748@test.influnet.com",
+      "created_at": "2026-07-18T05:07:29.091366Z"
+    },
+    {
+      "id": "db100fd1-08eb-46a4-9c77-063d8d420e3c",
+      "email": "test_influencer_1784110211228@test.influnet.com",
+      "created_at": "2026-07-15T10:10:12.925284Z"
+    },
+    {
+      "id": "fe52245b-fd4c-4e99-93e1-c402639e5625",
+      "email": "test_business_1784110211228@test.influnet.com",
+      "created_at": "2026-07-15T10:10:12.121286Z"
+    },
+    {
+      "id": "269a7d3b-b85b-4b70-bef1-243d62f86fd5",
+      "email": "test_influencer_1784101146959@test.influnet.com",
+      "created_at": "2026-07-15T07:39:08.385902Z"
+    },
+    {
+      "id": "7ef5bdce-e3db-48f1-805a-f4df38cd89a1",
+      "email": "test_business_1784101146959@test.influnet.com",
+      "created_at": "2026-07-15T07:39:07.953687Z"
+    },
+    {
+      "id": "116d7d6a-0b94-4052-8d0c-76b94dfa1f86",
+      "email": "test_influencer_1784099121449@test.influnet.com",
+      "created_at": "2026-07-15T07:05:23.253813Z"
+    },
+    {
+      "id": "609339eb-23df-4fdd-a273-3942df50193f",
+      "email": "test_business_1784099121449@test.influnet.com",
+      "created_at": "2026-07-15T07:05:22.324237Z"
+    },
+    {
+      "id": "01cd206f-e1d2-4a63-b321-01616c337194",
+      "email": "test_influencer_1784096865668@test.influnet.com",
+      "created_at": "2026-07-15T06:27:47.690502Z"
+    },
+    {
+      "id": "99f079d7-b237-4952-aa8a-3c576ac24c23",
+      "email": "test_business_1784096865668@test.influnet.com",
+      "created_at": "2026-07-15T06:27:46.813065Z"
+    },
+    {
+      "id": "c0b13fb6-8f7f-411f-9205-00c1aee5ff0f",
+      "email": "test_influencer_1784095992521@test.influnet.com",
+      "created_at": "2026-07-15T06:13:14.560174Z"
+    },
+    {
+      "id": "6e31ff9b-f7f5-49eb-8bce-3213c4785e38",
+      "email": "test_business_1784095992521@test.influnet.com",
+      "created_at": "2026-07-15T06:13:13.607626Z"
+    },
+    {
+      "id": "8b1411f9-1a4c-4499-a203-e165debd6f32",
+      "email": "madangowri321@gmail.com",
+      "created_at": "2026-07-14T11:48:31.731495Z"
+    },
+    {
+      "id": "c5c38f7e-67aa-4fbc-ab92-50605e505588",
+      "email": "madangowri123@gmail.com",
+      "created_at": "2026-07-13T10:58:16.424391Z"
+    },
+    {
+      "id": "fffa374a-a5f2-4ce6-bc64-6b4ecfb7f200",
+      "email": "v1234@gmail.com",
+      "created_at": "2026-07-13T10:50:54.01101Z"
+    },
+    {
+      "id": "93e3d8ad-d1cc-4d94-8ace-767a55d27aba",
+      "email": "madangowri@gmail.com",
+      "created_at": "2026-07-13T08:50:00.953567Z"
+    },
+    {
+      "id": "ec039356-027e-4ff7-bd29-2feec4ac2676",
+      "email": "testcreator_287561@influnet.com",
+      "created_at": "2026-07-13T05:21:43.703444Z"
+    },
+    {
+      "id": "ffa57542-9314-49ec-aa0d-8c4bff9cfcac",
+      "email": "testbrand_287561@influnet.com",
+      "created_at": "2026-07-13T05:21:42.007218Z"
+    },
+    {
+      "id": "3a933268-6f73-4433-bdf3-c67006821842",
+      "email": "test_influencer_1783920090934@test.influnet.com",
+      "created_at": "2026-07-13T05:21:36.314439Z"
+    },
+    {
+      "id": "ea9ef29d-f8de-45fa-a893-858577cd03ea",
+      "email": "test_business_1783920090934@test.influnet.com",
+      "created_at": "2026-07-13T05:21:35.397294Z"
+    },
+    {
+      "id": "79fa09d1-a77d-4d45-bb87-f98a1613a503",
+      "email": "testcreator_6624@influnet.com",
+      "created_at": "2026-07-13T05:17:08.02264Z"
+    },
+    {
+      "id": "aa4f8995-2ea4-412c-957a-1bc1adfe7427",
+      "email": "testbrand_6624@influnet.com",
+      "created_at": "2026-07-13T05:17:06.920975Z"
+    },
+    {
+      "id": "04c49d89-d226-425e-8447-fddfda4c8398",
+      "email": "test_influencer_1783919821205@test.influnet.com",
+      "created_at": "2026-07-13T05:17:03.061168Z"
+    },
+    {
+      "id": "7759d9ae-ae85-4c34-84cd-f3204f6b755b",
+      "email": "test_business_1783919821205@test.influnet.com",
+      "created_at": "2026-07-13T05:17:02.234365Z"
+    },
+    {
+      "id": "5c2e9083-6c98-4ff4-96a6-e901361d6640",
+      "email": "testcreator_857046@influnet.com",
+      "created_at": "2026-07-13T02:45:25.913415Z"
+    },
+    {
+      "id": "96ded365-94a4-48fd-85a0-5bb76376b0c2",
+      "email": "testbrand_857046@influnet.com",
+      "created_at": "2026-07-13T02:45:24.919789Z"
+    },
+    {
+      "id": "4b817af0-12e3-4872-b662-05736d0ab6c0",
+      "email": "test_influencer_1783910719375@test.influnet.com",
+      "created_at": "2026-07-13T02:45:20.643381Z"
+    },
+    {
+      "id": "a290200c-fc0d-46d1-80ec-b444200dcec4",
+      "email": "test_business_1783910719375@test.influnet.com",
+      "created_at": "2026-07-13T02:45:20.274161Z"
+    },
+    {
+      "id": "2d3a84c0-6eec-4c5c-9b65-dd5f30f49bf7",
+      "email": "testcreator_935935@influnet.com",
+      "created_at": "2026-07-13T02:42:05.567986Z"
+    },
+    {
+      "id": "31e8b393-a149-4d82-9ae3-5d6b6b883d20",
+      "email": "testbrand_935935@influnet.com",
+      "created_at": "2026-07-13T02:42:03.867337Z"
+    },
+    {
+      "id": "f36d9775-c3b4-455f-ad00-0a3fc0c6afbf",
+      "email": "test_influencer_1783910515197@test.influnet.com",
+      "created_at": "2026-07-13T02:41:57.557051Z"
+    },
+    {
+      "id": "796cf9d2-a379-4772-9ebd-992aefecbbcb",
+      "email": "test_business_1783910515197@test.influnet.com",
+      "created_at": "2026-07-13T02:41:56.554839Z"
+    },
+    {
+      "id": "bb735c54-cba4-4fc8-b08e-e55476208ae7",
+      "email": "testcreator_589710@influnet.com",
+      "created_at": "2026-07-12T13:08:37.896638Z"
+    },
+    {
+      "id": "9190be5b-72c8-4f4f-bce4-9cd5a751c4f9",
+      "email": "testbrand_589710@influnet.com",
+      "created_at": "2026-07-12T13:08:35.851735Z"
+    },
+    {
+      "id": "21ebc0c3-3160-4734-bd26-170a87b8badd",
+      "email": "test_influencer_1783861710048@test.influnet.com",
+      "created_at": "2026-07-12T13:08:32.305458Z"
+    },
+    {
+      "id": "3e9f30d4-fcc6-4382-a57a-1d4ab0d9f2d7",
+      "email": "test_business_1783861710048@test.influnet.com",
+      "created_at": "2026-07-12T13:08:31.403963Z"
+    },
+    {
+      "id": "0e169985-0b84-413f-88fa-f99c6765510c",
+      "email": "testcreator_765416@influnet.com",
+      "created_at": "2026-07-12T12:48:16.191664Z"
+    },
+    {
+      "id": "dd56a685-88b5-442a-8b9e-424901f91fcf",
+      "email": "testbrand_765416@influnet.com",
+      "created_at": "2026-07-12T12:48:15.137045Z"
+    },
+    {
+      "id": "1400475f-6a56-48b0-89b2-55d222c8ffa7",
+      "email": "test_influencer_1783860490794@test.influnet.com",
+      "created_at": "2026-07-12T12:48:12.337513Z"
+    },
+    {
+      "id": "ea7d2ad7-bf32-4e3d-8b26-83dad209c139",
+      "email": "test_business_1783860490794@test.influnet.com",
+      "created_at": "2026-07-12T12:48:11.926349Z"
+    },
+    {
+      "id": "b9dd7489-b8d7-4844-854e-c5cb14d956b3",
+      "email": "test_influencer_1783860116512@test.influnet.com",
+      "created_at": "2026-07-12T12:41:57.509149Z"
+    },
+    {
+      "id": "4cc8c28a-95f7-435b-a5f9-49623ac315a9",
+      "email": "test_business_1783860116512@test.influnet.com",
+      "created_at": "2026-07-12T12:41:57.19358Z"
+    },
+    {
+      "id": "aa0bde2e-6c62-46ce-8a87-bcbb050e4b1a",
+      "email": "testcreator_278624@influnet.com",
+      "created_at": "2026-07-12T12:41:47.601194Z"
+    },
+    {
+      "id": "da088d4d-cea8-44d1-a851-9c758fea6bec",
+      "email": "testbrand_278624@influnet.com",
+      "created_at": "2026-07-12T12:41:46.126869Z"
+    },
+    {
+      "id": "b336e1e8-def0-49b4-92d2-a5f4ab964b14",
+      "email": "test_influencer_1783860100584@test.influnet.com",
+      "created_at": "2026-07-12T12:41:42.579394Z"
+    },
+    {
+      "id": "87fdd109-5ea7-46e2-9e76-050c024c6e5f",
+      "email": "test_business_1783860100584@test.influnet.com",
+      "created_at": "2026-07-12T12:41:41.670304Z"
+    },
+    {
+      "id": "89f02168-bee5-46a8-8cb5-b8da7194b237",
+      "email": "test_influencer_1783859694158@test.influnet.com",
+      "created_at": "2026-07-12T12:34:55.257207Z"
+    },
+    {
+      "id": "b3f72d48-3e6b-4545-bf4a-7b389788149c",
+      "email": "test_business_1783859694158@test.influnet.com",
+      "created_at": "2026-07-12T12:34:54.905202Z"
+    },
+    {
+      "id": "03aafde8-c08e-4f0a-9eff-86f618ce1c28",
+      "email": "testcreator_973007@influnet.com",
+      "created_at": "2026-07-12T12:34:01.193938Z"
+    },
+    {
+      "id": "4adf9550-faff-461e-a3de-c0a2c7430e73",
+      "email": "testbrand_973007@influnet.com",
+      "created_at": "2026-07-12T12:33:59.318279Z"
+    },
+    {
+      "id": "318aa096-69bb-47f2-bea3-f6668ff5ab71",
+      "email": "test_influencer_1783859635093@test.influnet.com",
+      "created_at": "2026-07-12T12:33:56.890737Z"
+    },
+    {
+      "id": "78036368-5a77-4db0-90fa-41d83a4b9f78",
+      "email": "test_business_1783859635093@test.influnet.com",
+      "created_at": "2026-07-12T12:33:56.154424Z"
+    },
+    {
+      "id": "ec2cd290-7301-4c2b-8ecd-3d19c528ca69",
+      "email": "test_influencer_1783859054885@test.influnet.com",
+      "created_at": "2026-07-12T12:24:17.278379Z"
+    },
+    {
+      "id": "8e13d5b4-429d-4c16-9f7c-4fa04b7fde7c",
+      "email": "test_business_1783859054885@test.influnet.com",
+      "created_at": "2026-07-12T12:24:16.275424Z"
+    },
+    {
+      "id": "971f3ff1-c45b-4c9e-b9f8-c5f0227148fb",
+      "email": "test@gmail.com",
+      "created_at": "2026-07-07T13:13:47.280856Z"
+    }
+  ],
+  "kept_users": [
+    {
+      "id": "25862af4-43cf-488b-a510-4c5edd5209eb",
+      "email": "testbrand_2607@influnet.com"
+    },
+    {
+      "id": "4f40d9ec-7a9d-47dc-8f48-23db2491659e",
+      "email": "christopher@socmed.io"
+    },
+    {
+      "id": "63e646e1-0e3c-4269-be7c-13ce28457934",
+      "email": "kamalesh@tecstellar.com"
+    },
+    {
+      "id": "581cfad5-9d26-43f0-a422-9a47e20855e5",
+      "email": "vnkamalesh@gmail.com"
+    },
+    {
+      "id": "5fd92afd-b638-4be7-9dda-375e1d8c2b69",
+      "email": "auragold@gmail.com"
+    },
+    {
+      "id": "be146aa6-1bc7-41be-8899-17ce2d7cbf87",
+      "email": "a2d@gmail.com"
+    },
+    {
+      "id": "f084cfbf-31de-42c4-acf3-23fc611e2157",
+      "email": "vimal@gmail.com"
+    },
+    {
+      "id": "8b3c72bc-19a4-4756-8a09-49cac8a8262d",
+      "email": "arjun@jvsystem.gmail.com"
+    },
+    {
+      "id": "b8edb3ca-61b8-4b36-9701-98004d7f78f3",
+      "email": "admin@influnet.com"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "ba87242c-aaf0-42d3-9e0c-be7c5f9e2cf7",
+      "role": "business_owner",
+      "email": "brand.jupiter.test@example.com",
+      "name": "Arjun",
+      "phone": "+91 9988776655",
+      "location": "Mumbai, Maharashtra",
+      "created_at": "2026-07-29T14:47:09.7868+00:00",
+      "updated_at": "2026-07-29T14:47:10.789504+00:00",
+      "phone_verified": false,
+      "phone_verified_at": null,
+      "otp_verified_by": null,
+      "verification_status": "verified",
+      "verified_at": "2026-07-29T14:47:10.789504+00:00",
+      "verified_badge": true,
+      "welcome_seen_at": null,
+      "mediakit_nudge_dismissed_at": null,
+      "expo_push_token": null,
+      "ownership_nudge_dismissed_at": null
+    }
+  ],
+  "influencer_profiles": [],
+  "business_profiles": [
+    {
+      "user_id": "ba87242c-aaf0-42d3-9e0c-be7c5f9e2cf7",
+      "company_name": "Jupiter Media",
+      "industry": "Entertainment & Media",
+      "gst_number": "27AABCU1234D1ZV",
+      "website": "https://jupiter.media",
+      "collab_preferences": [],
+      "created_at": "2026-07-29T14:47:09.7868+00:00",
+      "updated_at": "2026-07-29T14:50:59.676491+00:00",
+      "approval_status": "approved",
+      "business_type": "Agency",
+      "marketing_budget": "Under ₹25K/month",
+      "registered_address": "123 Business Hub, Andheri East, Mumbai 400001",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "instagram_handle": null,
+      "facebook_handle": null,
+      "linkedin_handle": null,
+      "username": null,
+      "username_changed_at": null,
+      "tagline": null,
+      "company_description": null,
+      "logo_url": null,
+      "cover_image_url": null,
+      "preferred_creator_niches": [],
+      "target_audience": {},
+      "past_campaigns": [],
+      "founded_year": null,
+      "team_size": null,
+      "mission": null,
+      "products": null,
+      "services": null,
+      "brand_story": null,
+      "why_creators": null,
+      "creator_requirements": {},
+      "portfolio": [],
+      "open_campaigns": [],
+      "trusted_partner": false,
+      "verified_at": null,
+      "website_verified": false,
+      "email_verified": false
+    }
+  ],
+  "collab_requests": [],
+  "projects": [],
+  "conversation_parts": [],
+  "notifications": [
+    {
+      "id": "819e9eda-e86f-488d-9720-e7603ea117ea",
+      "user_id": "ba87242c-aaf0-42d3-9e0c-be7c5f9e2cf7",
+      "type": "verification_approved",
+      "title": "You're verified ✅",
+      "body": "Your account passed verification. Your verified badge is now live.",
+      "link": "/dashboard/settings",
+      "read_at": null,
+      "created_at": "2026-07-29T14:47:10.789504+00:00"
+    }
+  ],
+  "reviews": [],
+  "blocks": [],
+  "change_requests": [],
+  "stage_entries": [],
+  "stage_items": [],
+  "payments": [],
+  "reports": [],
+  "ownership": [],
+  "snapshots": [],
+  "portfolio": [],
+  "activity": [],
+  "profile_views": [],
+  "proposals": [],
+  "presence": [],
+  "expo_tokens": [],
+  "admin_logs": []
+}

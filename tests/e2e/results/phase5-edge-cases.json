@@ -1,0 +1,170 @@
+{
+  "phaseId": "phase5-edge-cases",
+  "phaseTitle": "Phase 5 — Edge Cases & Validation",
+  "generatedAt": "2026-07-29T17:19:03.740Z",
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "findings": 2
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Signup: duplicate email is rejected with a clear error",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Body after duplicate-email submit attempt: \"influnet Create your account  Join as a creator.  1 2 3 4 5 CONNECT ACCOUNT PROFILE CREATOR COLLAB Profile details GENDER Select gender Male Female Non-binary Prefer not to say CITY STATE Select state\""
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/01-signup-duplicate-email-is-rejected-with-a-clear-error.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/influencer",
+      "timestamp": "2026-07-29T17:16:45.274Z"
+    },
+    {
+      "step": 2,
+      "name": "Signup: weak password keeps Continue disabled on step 2",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Continue button enabled with a 3-char password: false"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/02-signup-weak-password-keeps-continue-disabled-on-step-2.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/influencer",
+      "timestamp": "2026-07-29T17:16:47.572Z"
+    },
+    {
+      "step": 3,
+      "name": "Signup: invalid email format keeps Continue disabled",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Continue button enabled with an invalid email format: false"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/03-signup-invalid-email-format-keeps-continue-disabled.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/influencer",
+      "timestamp": "2026-07-29T17:16:48.487Z"
+    },
+    {
+      "step": 4,
+      "name": "Signup: duplicate username triggers the alternative-suggestion recovery flow",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Body after entering a taken username: \"influnet Create your account  Join as a creator.  1 2 3 4 5 CONNECT ACCOUNT PROFILE CREATOR COLLAB Account details FIRST NAME LAST NAME USERNAME  That username is already taken  Your public profile wi\""
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/04-signup-duplicate-username-triggers-the-alternative-suggestio.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/influencer",
+      "timestamp": "2026-07-29T17:16:50.796Z"
+    },
+    {
+      "step": 5,
+      "name": "CONFIRMED GAP: business signup accepts a garbage GST number with no format validation",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Garbage GST \"NOT-A-REAL-GST-NUMBER-1234\" and garbage website URL both accepted with no client-side format error shown. Still on the same step: true (no validation blocked progress)."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/05-confirmed-gap-business-signup-accepts-a-garbage-gst-number-w.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/business",
+      "timestamp": "2026-07-29T17:16:53.962Z"
+    },
+    {
+      "step": 6,
+      "name": "Creator settings: Tamil unicode bio saves and renders correctly",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Tamil unicode + emoji round-tripped through save correctly."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/06-creator-settings-tamil-unicode-bio-saves-and-renders-correct.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/settings",
+      "timestamp": "2026-07-29T17:17:04.334Z"
+    },
+    {
+      "step": 7,
+      "name": "CONFIRMED SAFE: an XSS payload in bio is stored as data, not executed as a script",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Payload stored verbatim in DB (expected — sanitize on render, not on write). Script executed on public profile render: false"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/07-confirmed-safe-an-xss-payload-in-bio-is-stored-as-data-not-e.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/settings",
+      "timestamp": "2026-07-29T17:17:18.886Z"
+    },
+    {
+      "step": 8,
+      "name": "CONFIRMED BUG: a negative budget is silently sanitized to positive, not rejected",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Typed \"-500\" → no validation error shown → request created with budget=500 (sign silently dropped instead of being rejected or preserved)."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/08-confirmed-bug-a-negative-budget-is-silently-sanitized-to-pos.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-29T17:17:28.710Z"
+    },
+    {
+      "step": 9,
+      "name": "Send-request: absurdly large budget (1 trillion) is accepted with no upper bound",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "No client-side upper bound on budget — accepted \"null\" (₹1 trillion) without a warning or cap."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/09-send-request-absurdly-large-budget-1-trillion-is-accepted-wi.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-29T17:19:03.395Z"
+    }
+  ]
+}

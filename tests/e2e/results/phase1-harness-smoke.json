@@ -1,0 +1,131 @@
+{
+  "phaseId": "phase1-harness-smoke",
+  "phaseTitle": "Phase 1 — Harness Smoke Test",
+  "generatedAt": "2026-07-29T15:47:30.308Z",
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "findings": 1
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Marketing landing page (apps/landing) loads with hero",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/01-marketing-landing-page-apps-landing-loads-with-hero.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "networkErrors": [
+        "404 GET http://localhost:3001/AZ8n2wqgm9kiSBAYwYSpdA-AZ8n2yRuC5hH5dk0gCMkFw.png"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3001/",
+      "timestamp": "2026-07-29T15:47:23.059Z"
+    },
+    {
+      "step": 2,
+      "name": "apps/web root intentionally redirects anon visitors to /login",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/02-apps-web-root-intentionally-redirects-anon-visitors-to-login.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login",
+      "timestamp": "2026-07-29T15:47:25.012Z"
+    },
+    {
+      "step": 3,
+      "name": "Login page renders sign-in form",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/03-login-page-renders-sign-in-form.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login",
+      "timestamp": "2026-07-29T15:47:25.965Z"
+    },
+    {
+      "step": 4,
+      "name": "Signup role-selection page has creator + business links",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/04-signup-role-selection-page-has-creator-business-links.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup",
+      "timestamp": "2026-07-29T15:47:27.081Z"
+    },
+    {
+      "step": 5,
+      "name": "Anon access to protected /dashboard/discover redirects to login (auth gate)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/05-anon-access-to-protected-dashboard-discover-redirects-to-log.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login",
+      "timestamp": "2026-07-29T15:47:28.079Z"
+    },
+    {
+      "step": 6,
+      "name": "Anon access to an unknown route also redirects to login (broad auth-gate matcher)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/06-anon-access-to-an-unknown-route-also-redirects-to-login-broa.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login",
+      "timestamp": "2026-07-29T15:47:29.021Z"
+    },
+    {
+      "step": 7,
+      "name": "DB check: admin profile row exists and has role=admin",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T15:47:29.855Z"
+    },
+    {
+      "step": 8,
+      "name": "DB check: kept accounts count is exactly 9 (Phase 0 verification)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T15:47:30.056Z"
+    }
+  ]
+}

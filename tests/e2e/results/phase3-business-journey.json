@@ -1,0 +1,521 @@
+{
+  "phaseId": "phase3-business-journey",
+  "phaseTitle": "Phase 3 — Business Journey",
+  "generatedAt": "2026-07-29T17:03:37.471Z",
+  "summary": {
+    "total": 30,
+    "passed": 29,
+    "failed": 0,
+    "skipped": 1,
+    "findings": 12
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Business account already exists from a prior run — logging in directly",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Reusing existing account 4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/01-business-account-already-exists-from-a-prior-run-logging-in-.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-29T17:01:45.020Z"
+    },
+    {
+      "step": 2,
+      "name": "Admin logs in and opens approvals queue",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/02-admin-logs-in-and-opens-approvals-queue.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin/approvals",
+      "timestamp": "2026-07-29T17:01:52.477Z"
+    },
+    {
+      "step": 3,
+      "name": "Admin approves \"Jupiter Media Audit\"",
+      "status": "SKIPPED",
+      "error": null,
+      "skippedReason": "Already approved (from a prior run) — approval_status is already \"approved\", nothing to click.",
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/03-admin-approves-jupiter-media-audit.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin/approvals",
+      "timestamp": "2026-07-29T17:01:52.780Z"
+    },
+    {
+      "step": 4,
+      "name": "DB: business_profiles.approval_status is now \"approved\"",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:01:52.920Z"
+    },
+    {
+      "step": 5,
+      "name": "Business re-logs in with approved status",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/04-business-re-logs-in-with-approved-status.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-29T17:01:56.983Z"
+    },
+    {
+      "step": 6,
+      "name": "Business dashboard renders stats (no pending banner)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Pending banner correctly gone after approval."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/05-business-dashboard-renders-stats-no-pending-banner.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-29T17:02:02.253Z"
+    },
+    {
+      "step": 7,
+      "name": "CONFIRMED BUG: sending a request with budget left blank fails with HTTP 400",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "POST /api/collabs with budget left blank → HTTP 400: {\"error\":\"Validation failed\",\"details\":{\"_errors\":[],\"budget\":{\"_errors\":[\"Invalid input: expected number, received null\"]}}}"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/06-confirmed-bug-sending-a-request-with-budget-left-blank-fails.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "400 POST http://localhost:3000/api/collabs"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests/new?to=021faad5-a304-4899-929b-782e2f999041",
+      "timestamp": "2026-07-29T17:02:07.945Z"
+    },
+    {
+      "step": 8,
+      "name": "Business sends a collab request to the creator (with a budget, to avoid the blank-budget bug)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/07-business-sends-a-collab-request-to-the-creator-with-a-budget.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-29T17:02:14.221Z"
+    },
+    {
+      "step": 9,
+      "name": "DB: collab_requests row created, status=pending",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:02:14.400Z"
+    },
+    {
+      "step": 10,
+      "name": "Business requests outbox shows \"awaiting reply\"",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Outbox text contains \"awaiting\": true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/08-business-requests-outbox-shows-awaiting-reply.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-29T17:02:18.070Z"
+    },
+    {
+      "step": 11,
+      "name": "Creator logs in and sees the incoming request",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/09-creator-logs-in-and-sees-the-incoming-request.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-29T17:02:26.688Z"
+    },
+    {
+      "step": 12,
+      "name": "Creator accepts the request",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/10-creator-accepts-the-request.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages?conv=a133e60a-fd8f-4c2b-b142-4662a7dbdc91",
+      "timestamp": "2026-07-29T17:02:28.829Z"
+    },
+    {
+      "step": 13,
+      "name": "DB: collab_requests.status is now \"accepted\"",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:02:29.031Z"
+    },
+    {
+      "step": 14,
+      "name": "Business opens the conversation and proposes project terms",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Proposal sent."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/11-business-opens-the-conversation-and-proposes-project-terms.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages",
+      "timestamp": "2026-07-29T17:02:37.154Z"
+    },
+    {
+      "step": 15,
+      "name": "DB: project_proposals row created (bilateral, not yet a project)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Proposal id 93b39922-abaa-4547-86ca-7af3e20d08c3, status pending"
+      ],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:02:37.873Z"
+    },
+    {
+      "step": 16,
+      "name": "Creator opens the conversation and accepts the proposal → project created",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Proposal accepted."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/12-creator-opens-the-conversation-and-accepts-the-proposal-proj.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages",
+      "timestamp": "2026-07-29T17:02:49.022Z"
+    },
+    {
+      "step": 17,
+      "name": "DB: campaign_projects row created with status=active",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:02:49.189Z"
+    },
+    {
+      "step": 18,
+      "name": "Project page loads with stage timeline",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Opened project 70."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/13-project-page-loads-with-stage-timeline.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/70",
+      "timestamp": "2026-07-29T17:02:55.272Z"
+    },
+    {
+      "step": 19,
+      "name": "Business ticks required checklist items for stage 1 (Guided view)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Ticked 2/2 pending checklist item(s) as the business."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/14-business-ticks-required-checklist-items-for-stage-1-guided-v.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/70",
+      "timestamp": "2026-07-29T17:02:57.358Z"
+    },
+    {
+      "step": 20,
+      "name": "Business signs off on stage 1 (\"Confirm this stage\")",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Business signed off on stage 1."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/15-business-signs-off-on-stage-1-confirm-this-stage.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/70",
+      "timestamp": "2026-07-29T17:02:59.003Z"
+    },
+    {
+      "step": 21,
+      "name": "Creator ticks their items and signs off too — stage should advance (bilateral)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Ticked 0/0 pending checklist item(s) as the creator.",
+        "Creator signed off — both sides confirmed, stage should now advance."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/16-creator-ticks-their-items-and-signs-off-too-stage-should-adv.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/70",
+      "timestamp": "2026-07-29T17:03:10.056Z"
+    },
+    {
+      "step": 22,
+      "name": "DB: campaign_projects.current_stage reflects the bilateral advance",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "current_stage=project_discussion, status=active"
+      ],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:03:10.204Z"
+    },
+    {
+      "step": 23,
+      "name": "Request project cancellation with a reason",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Cancellation requested."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/17-request-project-cancellation-with-a-reason.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/70",
+      "timestamp": "2026-07-29T17:03:18.600Z"
+    },
+    {
+      "step": 24,
+      "name": "DB: campaign_projects reflects cancellation request",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "status=active, cancel_reason_category=scope_not_needed, requested_by=4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:03:18.765Z"
+    },
+    {
+      "step": 25,
+      "name": "Creator (other party) sees and accepts the cancellation",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Cancellation accepted by the other party — only they can accept, never the requester, per project_cancellation.ts."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/18-creator-other-party-sees-and-accepts-the-cancellation.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/70",
+      "timestamp": "2026-07-29T17:03:26.652Z"
+    },
+    {
+      "step": 26,
+      "name": "DB: project is now cancelled",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:03:26.852Z"
+    },
+    {
+      "step": 27,
+      "name": "Business settings page pre-fills company fields",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/19-business-settings-page-pre-fills-company-fields.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/settings",
+      "timestamp": "2026-07-29T17:03:31.808Z"
+    },
+    {
+      "step": 28,
+      "name": "Business connections page — confirmed static stub",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/20-business-connections-page-confirmed-static-stub.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/connections",
+      "timestamp": "2026-07-29T17:03:34.743Z"
+    },
+    {
+      "step": 29,
+      "name": "Business discover — same disabled-feature 404 UI as creator side",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/21-business-discover-same-disabled-feature-404-ui-as-creator-si.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/discover",
+      "timestamp": "2026-07-29T17:03:36.980Z"
+    },
+    {
+      "step": 30,
+      "name": "Block endpoint exists but has no UI entry point (confirmed gap)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "GET /api/blocks while authenticated → HTTP 401. No nav link or button anywhere in the app reaches this — API/DB-only feature."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase3-business-journey/22-block-endpoint-exists-but-has-no-ui-entry-point-confirmed-ga.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "networkErrors": [
+        "401 GET http://localhost:3000/api/blocks"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/discover",
+      "timestamp": "2026-07-29T17:03:37.063Z"
+    }
+  ]
+}

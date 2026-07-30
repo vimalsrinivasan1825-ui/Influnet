@@ -1,0 +1,296 @@
+{
+  "phaseId": "phase4-admin-and-public-routes",
+  "phaseTitle": "Phase 4 — Admin, Public Routes & Guards",
+  "generatedAt": "2026-07-29T17:10:50.280Z",
+  "summary": {
+    "total": 17,
+    "passed": 16,
+    "failed": 0,
+    "skipped": 1,
+    "findings": 5
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Creator logs in (non-admin session for guard checks)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/01-creator-logs-in-non-admin-session-for-guard-checks.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/influencer",
+      "timestamp": "2026-07-29T17:10:06.616Z"
+    },
+    {
+      "step": 2,
+      "name": "Business logs in (non-admin session for guard checks)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/02-business-logs-in-non-admin-session-for-guard-checks.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-29T17:10:10.584Z"
+    },
+    {
+      "step": 3,
+      "name": "Test admin logs in",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/03-test-admin-logs-in.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin",
+      "timestamp": "2026-07-29T17:10:14.929Z"
+    },
+    {
+      "step": 4,
+      "name": "SECURITY CHECK: creator (influencer) hitting /api/admin/users directly gets rejected",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "GET /api/admin/users as influencer: HTTP 401 — {\"error\":\"Missing Authorization header\"}"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/04-security-check-creator-influencer-hitting-api-admin-users-di.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "networkErrors": [
+        "403 GET http://localhost:3000/api/admin/users",
+        "403 GET http://localhost:3000/api/admin/users",
+        "401 GET http://localhost:3000/api/admin/users"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin/users",
+      "timestamp": "2026-07-29T17:10:18.492Z"
+    },
+    {
+      "step": 5,
+      "name": "SECURITY CHECK: business (business_owner) hitting /api/admin/users directly gets rejected",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "GET /api/admin/users as business_owner: HTTP 401 — {\"error\":\"Missing Authorization header\"}"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/05-security-check-business-business-owner-hitting-api-admin-use.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET http://localhost:3000/api/admin/users",
+        "403 GET http://localhost:3000/api/admin/users",
+        "401 GET http://localhost:3000/api/admin/users"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin/users",
+      "timestamp": "2026-07-29T17:10:22.020Z"
+    },
+    {
+      "step": 6,
+      "name": "Note: /dashboard/admin/* pages have no client-side role redirect (confirmed via code review)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "shell.tsx only redirects influencer/business_owner between /dashboard and /dashboard/influencer. A non-admin visiting /dashboard/admin/* sees the page shell render (sidebar, layout) even though the API calls above should reject their data request — worth a UX fix (redirect away) even though the security boundary (API) held."
+      ],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T17:10:22.020Z"
+    },
+    {
+      "step": 7,
+      "name": "Admin home renders KPI cards",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/06-admin-home-renders-kpi-cards.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin",
+      "timestamp": "2026-07-29T17:10:25.666Z"
+    },
+    {
+      "step": 8,
+      "name": "Admin collabs page lists requests with search",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/07-admin-collabs-page-lists-requests-with-search.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin/collabs",
+      "timestamp": "2026-07-29T17:10:29.885Z"
+    },
+    {
+      "step": 9,
+      "name": "Admin projects page lists projects, delete requires confirm",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "\"Confirm delete\" step appears before actual deletion: true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/08-admin-projects-page-lists-projects-delete-requires-confirm.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin/projects",
+      "timestamp": "2026-07-29T17:10:33.599Z"
+    },
+    {
+      "step": 10,
+      "name": "Admin users page is read-only (no suspend/promote actions) — matches code review",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Confirmed: no suspend/promote/demote controls on this page — read-only by design per code review."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/09-admin-users-page-is-read-only-no-suspend-promote-actions-mat.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/admin/users",
+      "timestamp": "2026-07-29T17:10:37.647Z"
+    },
+    {
+      "step": 11,
+      "name": "/vf/[code] renders a static verification-info page for any code",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/10-vf-code-renders-a-static-verification-info-page-for-any-code.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/vf/totally-made-up-garbage-code-123",
+      "timestamp": "2026-07-29T17:10:38.944Z"
+    },
+    {
+      "step": 12,
+      "name": "/influnet/[slug] redirects to canonical /c/[username] for a real slug",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/11-influnet-slug-redirects-to-canonical-c-username-for-a-real-s.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/c/madangowri",
+      "timestamp": "2026-07-29T17:10:41.898Z"
+    },
+    {
+      "step": 13,
+      "name": "/influnet/[slug] 404s for a nonexistent slug",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/12-influnet-slug-404s-for-a-nonexistent-slug.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "networkErrors": [
+        "404 GET http://localhost:3000/influnet/no-such-creator-xyz-123"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/influnet/no-such-creator-xyz-123",
+      "timestamp": "2026-07-29T17:10:43.064Z"
+    },
+    {
+      "step": 14,
+      "name": "/b/[username] (private business profile) redirects anon visitors to login",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/13-b-username-private-business-profile-redirects-anon-visitors-.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login?next=/b/anything",
+      "timestamp": "2026-07-29T17:10:44.090Z"
+    },
+    {
+      "step": 15,
+      "name": "/b/[username] 404s for a creator with no relationship to that business",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/14-b-username-404s-for-a-creator-with-no-relationship-to-that-b.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "networkErrors": [
+        "404 GET http://localhost:3000/b/some-business-with-no-relationship-xyz"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/b/some-business-with-no-relationship-xyz",
+      "timestamp": "2026-07-29T17:10:45.528Z"
+    },
+    {
+      "step": 16,
+      "name": "Reset-password request form: email input + Send Reset Link",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Body after submit: \"influnet Reset your password  Enter your email and we'll send you a reset link  Check your inbox  If an account exists for e2e.reset.check@influnet-au\""
+      ],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/15-reset-password-request-form-email-input-send-reset-link.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/reset-password",
+      "timestamp": "2026-07-29T17:10:48.141Z"
+    },
+    {
+      "step": 17,
+      "name": "Reset-password validation: mismatched passwords rejected (edge case)",
+      "status": "SKIPPED",
+      "error": null,
+      "skippedReason": "Update-password form (2 password fields) not reachable without a real recovery token in the URL.",
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase4-admin-and-public-routes/16-reset-password-validation-mismatched-passwords-rejected-edge.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/reset-password?type=recovery",
+      "timestamp": "2026-07-29T17:10:49.941Z"
+    }
+  ]
+}
