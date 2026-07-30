@@ -80,7 +80,7 @@ function InfluencerSignupContent() {
   const searchParams = useSearchParams();
   const nextParam = (() => {
     const n = searchParams.get("next");
-    return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard/influencer";
+    return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard";
   })();
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState("");
@@ -693,7 +693,7 @@ function InfluencerSignupContent() {
         <p className="mt-5 text-center text-sm font-medium text-content-soft">
           Already have an account?{" "}
           <Link
-            href={nextParam && nextParam !== "/dashboard/influencer" ? `/login?next=${encodeURIComponent(nextParam)}` : "/login"}
+            href={nextParam && nextParam !== "/dashboard" ? `/login?next=${encodeURIComponent(nextParam)}` : "/login"}
             className="font-bold text-brand transition-colors hover:text-brand-strong"
           >
             Sign in

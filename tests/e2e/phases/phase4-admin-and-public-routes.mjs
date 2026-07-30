@@ -54,7 +54,7 @@ async function main() {
   }
 
   await runner.step('Note: /dashboard/admin/* pages have no client-side role redirect (confirmed via code review)', null, async ({ note }) => {
-    note('shell.tsx only redirects influencer/business_owner between /dashboard and /dashboard/influencer. A non-admin visiting /dashboard/admin/* sees the page shell render (sidebar, layout) even though the API calls above should reject their data request — worth a UX fix (redirect away) even though the security boundary (API) held.');
+    note('A non-admin visiting /dashboard/admin/* sees the page shell render (sidebar, layout) even though the API calls above should reject their data request — worth a UX fix (redirect away) even though the security boundary (API) held.');
   });
 
   // ══════════════════════════════════════════════════════════════════════

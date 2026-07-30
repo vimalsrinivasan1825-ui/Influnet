@@ -59,17 +59,29 @@ async function main() {
     // anonymous requests to any non-public path first. Real 404-when-logged-in
     // check is deferred to Phase 2/3 once a session exists.
     const res = await page.goto(`${BASE_URL}/dashboard/discover`, { waitUntil: 'networkidle', timeout: 15000 });
-    assert(page.url().endsWith('/login'), `expected redirect to /login, ended up at ${page.url()}`);
+    // proxy.ts now appends ?next=<path> so login can return the visitor to
+    // what they wanted — assert the /login path, not an exact-URL match.
+    assert(new URL(page.url()).pathname === '/login', `expected redirect to /login, ended up at ${page.url()}`);
     assert(res.status() < 400, `HTTP ${res.status()}`);
   });
 
-  await runner.step('Anon access to an unknown route also redirects to login (broad auth-gate matcher)', page, async () => {
-    // proxy.ts's matcher covers everything except _next/*, favicon, api/, and
-    // image extensions, so even typo'd URLs hit the login gate before Next's
-    // own 404 page — worth flagging as a UX note (masks real 404s for anon
-    // users) even though it's consistent with the gate's own design.
+  // REGRESSION GUARD: proxy.ts used to gate on a public-path allowlist and
+  // send EVERYTHING else to /login, so a typo'd or nonexistent URL was
+  // indistinguishable from a real protected page — masking genuine 404s.
+  // Fixed by gating only on the one prefix that's actually protected
+  // (/dashboard); see AUDIT_REMEDIATION_2026-07-30.md.
+  await runner.step('Anon access to an unknown route gets a real 404, not a login redirect', page, async ({ note }) => {
     const res = await page.goto(`${BASE_URL}/this-route-does-not-exist-e2e-audit`, { waitUntil: 'networkidle', timeout: 15000 });
-    assert(page.url().endsWith('/login'), `expected redirect to /login, ended up at ${page.url()}`);
+    const bodyText = await page.locator('body').innerText();
+    note(`HTTP ${res.status()}, landed at ${page.url()}, body mentions "not found": ${/not found/i.test(bodyText)}`);
+    assert(res.status() === 404, `expected a real 404, got HTTP ${res.status()}`);
+    assert(!page.url().endsWith('/login'), `unknown route should NOT redirect to /login, ended up at ${page.url()}`);
+    assert(/not found/i.test(bodyText), `expected the redesigned not-found page, got body "${bodyText.slice(0, 150).replace(/\n/g, ' ')}"`);
+  });
+
+  await runner.step('Anon access to /dashboard (protected) still redirects to login', page, async () => {
+    const res = await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: 15000 });
+    assert(page.url().includes('/login'), `expected redirect to /login, ended up at ${page.url()}`);
     assert(res.status() < 400, `HTTP ${res.status()}`);
   });
 

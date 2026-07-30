@@ -77,7 +77,7 @@ function LoginContent() {
           .eq("id", data.user.id)
           .maybeSingle();
         const role = (profile as { role?: string } | null)?.role;
-        if (role === "influencer") router.push(nextParam || "/dashboard/influencer");
+        if (role === "influencer") router.push(nextParam || "/dashboard");
         else if (role === "admin") router.push(nextParam || "/dashboard/admin");
         else router.push(nextParam || "/dashboard");
       }

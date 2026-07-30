@@ -175,21 +175,26 @@ async function main() {
     }
   });
 
-  // ── /dashboard/influencer vs /dashboard/home ──────────────────────────
-  await runner.step('Resolve /dashboard/influencer — legacy page still live, differs from /dashboard/home', cp, async ({ note }) => {
+  // REGRESSION GUARD: /dashboard/influencer was a separate, much thinner page
+  // (53 lines vs. /dashboard/home's 765) that shell.tsx silently redirected
+  // creators to from bare /dashboard — an asymmetry the audit flagged, since
+  // the business role's equivalent view lived at plain /dashboard. Fixed by
+  // making /dashboard itself render the right analytics view per role;
+  // /dashboard/influencer is now a permanent redirect there for old links/
+  // bookmarks. See AUDIT_REMEDIATION_2026-07-30.md.
+  await runner.step('/dashboard/influencer redirects to /dashboard (old links still work)', cp, async ({ note }) => {
     await cp.goto(`${BASE_URL}/dashboard/influencer`, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await cp.waitForTimeout(1500);
-    const bodyText = await cp.locator('body').innerText();
-    const hasName = bodyText.includes(CREATOR.firstName);
-    const hasVerificationGuide = /verified/i.test(bodyText);
-    note(`Loads without crashing. Shows creator name: ${hasName}. Mentions verification: ${hasVerificationGuide}. This is the page shell.tsx redirects a creator to when landing on bare /dashboard — confirmed DIFFERENT (much thinner) component from /dashboard/home, which is what every other step in this audit actually exercised.`);
+    note(`Landed at: ${cp.url()}`);
+    assert(cp.url().endsWith('/dashboard') && !cp.url().endsWith('/dashboard/influencer'), `expected /dashboard/influencer to redirect to /dashboard, ended up at ${cp.url()}`);
   });
 
-  await runner.step('Bare /dashboard redirects a creator to /dashboard/influencer (confirms the stale-page routing)', cp, async ({ note }) => {
+  await runner.step('Bare /dashboard now renders the creator analytics view directly (no redirect needed)', cp, async ({ note }) => {
     await cp.goto(`${BASE_URL}/dashboard`, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await cp.waitForTimeout(1500);
-    note(`Landed at: ${cp.url()}`);
-    assert(cp.url().endsWith('/dashboard/influencer'), `expected a creator landing on bare /dashboard to be redirected to /dashboard/influencer per shell.tsx:132-133, ended up at ${cp.url()}`);
+    const bodyText = await cp.locator('body').innerText();
+    note(`Landed at: ${cp.url()}. Shows creator name: ${bodyText.includes(CREATOR.firstName)}.`);
+    assert(cp.url().endsWith('/dashboard'), `expected to land on plain /dashboard, ended up at ${cp.url()}`);
   });
 
   // ── Notifications ─────────────────────────────────────────────────────

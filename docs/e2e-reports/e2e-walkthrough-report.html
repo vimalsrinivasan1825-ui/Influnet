@@ -52,16 +52,16 @@
   <h1>Influnet — Full E2E Audit</h1>
   <p class="lede">Every step below carries a real pass/fail verdict — recorded from actual page state and DB assertions, never written in advance. Findings (failures, console errors, 4xx/5xx responses) are surfaced per-step and rolled up below.</p>
   <div class="stats">
-    <div class="stat"><div class="stat-n">144</div><div class="stat-l">Total steps</div></div>
-    <div class="stat"><div class="stat-n ok">142</div><div class="stat-l">Passed</div></div>
-    <div class="stat"><div class="stat-n fail">0</div><div class="stat-l">Failed</div></div>
-    <div class="stat"><div class="stat-n skip">2</div><div class="stat-l">Skipped</div></div>
-    <div class="stat"><div class="stat-n fail">34</div><div class="stat-l">Findings</div></div>
+    <div class="stat"><div class="stat-n">134</div><div class="stat-l">Total steps</div></div>
+    <div class="stat"><div class="stat-n ok">125</div><div class="stat-l">Passed</div></div>
+    <div class="stat"><div class="stat-n fail">1</div><div class="stat-l">Failed</div></div>
+    <div class="stat"><div class="stat-n skip">8</div><div class="stat-l">Skipped</div></div>
+    <div class="stat"><div class="stat-n fail">28</div><div class="stat-l">Findings</div></div>
     <div class="stat"><div class="stat-n">7/30/2026</div><div class="stat-l">Generated</div></div>
   </div>
   
     <section class="phase findings-summary">
-      <h2>Findings <span class="phase-stats">34 item(s) needing attention</span></h2>
+      <h2>Findings <span class="phase-stats">28 item(s) needing attention</span></h2>
       <table class="findings-table">
         <thead><tr><th>Phase</th><th>#</th><th>Step</th><th>Detail</th></tr></thead>
         <tbody>
@@ -73,75 +73,34 @@
               <td>Failed to load resource: the server responded with a status of 404 (Not Found) · Failed to load resource: the server responded with a status of 404 (Not Found)</td>
             </tr>
             <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
-              <td>1</td>
-              <td>Business account already exists from a prior run — logging in directly</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
-              <td>5</td>
-              <td>Business re-logs in with approved status</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
+              <td>Phase 1 — Harness Smoke Test</td>
               <td>6</td>
-              <td>Business dashboard renders stats (no pending banner)</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+              <td>Anon access to an unknown route gets a real 404, not a login redirect</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/this-route-does-not-exist-e2e-audit</td>
             </tr>
             <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
-              <td>7</td>
-              <td>CONFIRMED BUG: sending a request with budget left blank fails with HTTP 400</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 400 (Bad Request)</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
-              <td>8</td>
-              <td>Business sends a collab request to the creator (with a budget, to avoid the blank-budget bug)</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
-              <td>10</td>
-              <td>Business requests outbox shows &quot;awaiting reply&quot;</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
+              <td>Phase 2 — Creator Journey</td>
               <td>14</td>
-              <td>Business opens the conversation and proposes project terms</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+              <td>Discover renders a real HTTP 404, not a 200 with 404-shaped content</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/dashboard/discover</td>
             </tr>
-            <tr class="row-warn">
+            <tr class="row-fail">
               <td>Phase 3 — Business Journey</td>
-              <td>18</td>
-              <td>Project page loads with stage timeline</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
-              <td>27</td>
-              <td>Business settings page pre-fills company fields</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
-            </tr>
-            <tr class="row-warn">
-              <td>Phase 3 — Business Journey</td>
-              <td>28</td>
-              <td>Business connections page — confirmed static stub</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+              <td>15</td>
+              <td>DB: project_proposals row created (bilateral, not yet a project)</td>
+              <td>assertFields(project_proposals(new)) mismatch:
+  status: expected &quot;pending&quot;, got &quot;accepted&quot;</td>
             </tr>
             <tr class="row-warn">
               <td>Phase 3 — Business Journey</td>
               <td>29</td>
-              <td>Business discover — same disabled-feature 404 UI as creator side</td>
-              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+              <td>Business discover — same real 404 as creator side</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/dashboard/discover</td>
             </tr>
             <tr class="row-warn">
               <td>Phase 3 — Business Journey</td>
               <td>30</td>
-              <td>Block endpoint exists but has no UI entry point (confirmed gap)</td>
+              <td>Blocked accounts panel is reachable from Settings</td>
               <td>Failed to load resource: the server responded with a status of 401 (Unauthorized) · 401 GET http://localhost:3000/api/blocks</td>
             </tr>
             <tr class="row-warn">
@@ -270,6 +229,12 @@
               <td>SECURITY CHECK: unrelated project&#39;s core data never reaches the creator</td>
               <td>Failed to load resource: the server responded with a status of 404 (Not Found) · Failed to load resource: the server responded with a status of 404 (Not Found)</td>
             </tr>
+            <tr class="row-warn">
+              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
+              <td>12</td>
+              <td>/dashboard/influencer redirects to /dashboard (old links still work)</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · Failed to load resource: the server responded with a status of 404 (Not Found)</td>
+            </tr>
         </tbody>
       </table>
     </section>
@@ -388,7 +353,7 @@
     </section>
   
     <section class="phase">
-      <h2>Phase 1 — Harness Smoke Test <span class="phase-stats">8/8 passed · 0 failed · 0 skipped</span></h2>
+      <h2>Phase 1 — Harness Smoke Test <span class="phase-stats">9/9 passed · 0 failed · 0 skipped</span></h2>
       <div class="grid">
     <div class="card has-findings">
       <span class="step-badge">#1</span>
@@ -451,26 +416,45 @@
       <img src="../../tests/e2e/screenshots/phase1-harness-smoke/05-anon-access-to-protected-dashboard-discover-redirects-to-log.png" alt="Anon access to protected /dashboard/discover redirects to login (auth gate)" loading="lazy" />
       <div class="cap">
         <strong>Anon access to protected /dashboard/discover redirects to login (auth gate)</strong>
-        <p class="url">http://localhost:3000/login</p>
+        <p class="url">http://localhost:3000/login?next=%2Fdashboard%2Fdiscover</p>
         
         
       </div>
     </div>
 
-    <div class="card ">
+    <div class="card has-findings">
       <span class="step-badge">#6</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/06-anon-access-to-an-unknown-route-also-redirects-to-login-broa.png" alt="Anon access to an unknown route also redirects to login (broad auth-gate matcher)" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/06-anon-access-to-an-unknown-route-gets-a-real-404-not-a-login-.png" alt="Anon access to an unknown route gets a real 404, not a login redirect" loading="lazy" />
       <div class="cap">
-        <strong>Anon access to an unknown route also redirects to login (broad auth-gate matcher)</strong>
-        <p class="url">http://localhost:3000/login</p>
+        <strong>Anon access to an unknown route gets a real 404, not a login redirect</strong>
+        <p class="url">http://localhost:3000/this-route-does-not-exist-e2e-audit</p>
+        <div class="notes"><p>HTTP 404, landed at http://localhost:3000/this-route-does-not-exist-e2e-audit, body mentions &quot;not found&quot;: true</p></div>
         
-        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/this-route-does-not-exist-e2e-audit</div>
+    </div>
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/07-anon-access-to-dashboard-protected-still-redirects-to-login.png" alt="Anon access to /dashboard (protected) still redirects to login" loading="lazy" />
+      <div class="cap">
+        <strong>Anon access to /dashboard (protected) still redirects to login</strong>
+        <p class="url">http://localhost:3000/login?next=%2Fdashboard</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#8</span>
       <span class="badge ok">PASS</span>
       
       <div class="cap">
@@ -482,7 +466,7 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#8</span>
+      <span class="step-badge">#9</span>
       <span class="badge ok">PASS</span>
       
       <div class="cap">
@@ -496,154 +480,22 @@
   
 
     <section class="phase">
-      <h2>Phase 2 — Creator Journey <span class="phase-stats">26/26 passed · 0 failed · 0 skipped</span></h2>
+      <h2>Phase 2 — Creator Journey <span class="phase-stats">15/15 passed · 0 failed · 0 skipped</span></h2>
       <div class="grid">
     <div class="card ">
       <span class="step-badge">#1</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/01-signup-role-selection-renders.png" alt="Signup role selection renders" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/01-account-already-exists-from-a-prior-run-logging-in-directly-.png" alt="Account already exists from a prior run — logging in directly instead of re-running signup" loading="lazy" />
       <div class="cap">
-        <strong>Signup role selection renders</strong>
-        <p class="url">http://localhost:3000/signup</p>
-        
+        <strong>Account already exists from a prior run — logging in directly instead of re-running signup</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>Reusing existing account 021faad5-a304-4899-929b-782e2f999041 (e2e.creator.madangowri@influnet-audit.test). Signup wizard steps skipped — already exercised in an earlier run.</p></div>
         
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#2</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/02-click-i-m-a-creator-wizard-step-1-connect.png" alt="Click &quot;I&#39;m a creator&quot; → wizard Step 1 (Connect)" loading="lazy" />
-      <div class="cap">
-        <strong>Click &quot;I&#39;m a creator&quot; → wizard Step 1 (Connect)</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#3</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/03-step-1-enter-real-instagram-handle-attempt-auto-fill.png" alt="Step 1: enter real Instagram handle, attempt auto-fill" loading="lazy" />
-      <div class="cap">
-        <strong>Step 1: enter real Instagram handle, attempt auto-fill</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        <div class="notes"><p>Auto-fill failed or is offering manual fallback.</p></div>
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#4</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/04-step-1-fall-back-to-manual-fill-auto-fill-unavailable.png" alt="Step 1: fall back to manual fill (auto-fill unavailable)" loading="lazy" />
-      <div class="cap">
-        <strong>Step 1: fall back to manual fill (auto-fill unavailable)</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#5</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/05-step-2-account-fill-name-username-email-phone-password.png" alt="Step 2 (Account): fill name/username/email/phone/password" loading="lazy" />
-      <div class="cap">
-        <strong>Step 2 (Account): fill name/username/email/phone/password</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        <div class="notes"><p>Username availability check ran without reporting &quot;taken&quot;.</p></div>
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#6</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/06-step-2-continue-to-step-3-profile.png" alt="Step 2 → Continue to Step 3 (Profile)" loading="lazy" />
-      <div class="cap">
-        <strong>Step 2 → Continue to Step 3 (Profile)</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#7</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/07-step-3-profile-gender-city-state-languages.png" alt="Step 3 (Profile): gender/city/state/languages" loading="lazy" />
-      <div class="cap">
-        <strong>Step 3 (Profile): gender/city/state/languages</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#8</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/08-step-3-continue-to-step-4-creator.png" alt="Step 3 → Continue to Step 4 (Creator)" loading="lazy" />
-      <div class="cap">
-        <strong>Step 3 → Continue to Step 4 (Creator)</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#9</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/09-step-4-creator-niche-bio-social-handles.png" alt="Step 4 (Creator): niche/bio/social handles" loading="lazy" />
-      <div class="cap">
-        <strong>Step 4 (Creator): niche/bio/social handles</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        <div class="notes"><p>Instagram handle field present with prefilled value: true</p></div>
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#10</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/10-step-4-continue-to-step-5-collab.png" alt="Step 4 → Continue to Step 5 (Collab)" loading="lazy" />
-      <div class="cap">
-        <strong>Step 4 → Continue to Step 5 (Collab)</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#11</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/11-step-5-collab-content-types-price-tier-submit.png" alt="Step 5 (Collab): content types + price tier, submit" loading="lazy" />
-      <div class="cap">
-        <strong>Step 5 (Collab): content types + price tier, submit</strong>
-        <p class="url">http://localhost:3000/signup/influencer</p>
-        
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#12</span>
-      <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/12-submit-create-account-account-created.png" alt="Submit &quot;Create account&quot; → account created" loading="lazy" />
-      <div class="cap">
-        <strong>Submit &quot;Create account&quot; → account created</strong>
-        <p class="url">http://localhost:3000/dashboard/influencer</p>
-        
-        
-      </div>
-    </div>
-
-    <div class="card ">
-      <span class="step-badge">#13</span>
       <span class="badge ok">PASS</span>
       
       <div class="cap">
@@ -655,7 +507,7 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#14</span>
+      <span class="step-badge">#3</span>
       <span class="badge ok">PASS</span>
       
       <div class="cap">
@@ -667,7 +519,7 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#15</span>
+      <span class="step-badge">#4</span>
       <span class="badge ok">PASS</span>
       
       <div class="cap">
@@ -679,9 +531,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#16</span>
+      <span class="step-badge">#5</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/13-dashboard-home-renders-identity-card-verification-guide.png" alt="Dashboard home renders identity card + verification guide" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/02-dashboard-home-renders-identity-card-verification-guide.png" alt="Dashboard home renders identity card + verification guide" loading="lazy" />
       <div class="cap">
         <strong>Dashboard home renders identity card + verification guide</strong>
         <p class="url">http://localhost:3000/dashboard/home</p>
@@ -691,9 +543,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#17</span>
+      <span class="step-badge">#6</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/14-home-verification-guide-get-verified-prompt-shown-unverified.png" alt="Home: verification guide / &quot;get verified&quot; prompt shown (unverified state)" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/03-home-verification-guide-get-verified-prompt-shown-unverified.png" alt="Home: verification guide / &quot;get verified&quot; prompt shown (unverified state)" loading="lazy" />
       <div class="cap">
         <strong>Home: verification guide / &quot;get verified&quot; prompt shown (unverified state)</strong>
         <p class="url">http://localhost:3000/dashboard/home</p>
@@ -703,9 +555,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#18</span>
+      <span class="step-badge">#7</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/15-public-profile-c-madangowri-renders-with-owner-edit-profile-.png" alt="Public profile /c/madangowri renders with owner &quot;Edit profile&quot; CTA" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/04-public-profile-c-madangowri-renders-with-owner-edit-profile-.png" alt="Public profile /c/madangowri renders with owner &quot;Edit profile&quot; CTA" loading="lazy" />
       <div class="cap">
         <strong>Public profile /c/madangowri renders with owner &quot;Edit profile&quot; CTA</strong>
         <p class="url">http://localhost:3000/c/madangowri</p>
@@ -715,9 +567,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#19</span>
+      <span class="step-badge">#8</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/16-public-profile-scroll-to-audience-stats-section.png" alt="Public profile: scroll to audience/stats section" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/05-public-profile-scroll-to-audience-stats-section.png" alt="Public profile: scroll to audience/stats section" loading="lazy" />
       <div class="cap">
         <strong>Public profile: scroll to audience/stats section</strong>
         <p class="url">http://localhost:3000/c/madangowri</p>
@@ -727,9 +579,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#20</span>
+      <span class="step-badge">#9</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/17-media-kit-page-c-madangowri-media-kit-renders-with-qr-code.png" alt="Media kit page /c/madangowri/media-kit renders with QR code" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/06-media-kit-page-c-madangowri-media-kit-renders-with-qr-code.png" alt="Media kit page /c/madangowri/media-kit renders with QR code" loading="lazy" />
       <div class="cap">
         <strong>Media kit page /c/madangowri/media-kit renders with QR code</strong>
         <p class="url">http://localhost:3000/c/madangowri/media-kit</p>
@@ -739,9 +591,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#21</span>
+      <span class="step-badge">#10</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/18-settings-page-pre-fills-creator-fields-correctly.png" alt="Settings page pre-fills creator fields correctly" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/07-settings-page-pre-fills-creator-fields-correctly.png" alt="Settings page pre-fills creator fields correctly" loading="lazy" />
       <div class="cap">
         <strong>Settings page pre-fills creator fields correctly</strong>
         <p class="url">http://localhost:3000/dashboard/settings</p>
@@ -751,9 +603,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#22</span>
+      <span class="step-badge">#11</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/19-settings-edit-headline-save-db-verify-the-write-landed.png" alt="Settings: edit headline, save, DB-verify the write landed" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/08-settings-edit-headline-save-db-verify-the-write-landed.png" alt="Settings: edit headline, save, DB-verify the write landed" loading="lazy" />
       <div class="cap">
         <strong>Settings: edit headline, save, DB-verify the write landed</strong>
         <p class="url">http://localhost:3000/dashboard/settings</p>
@@ -763,9 +615,9 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#23</span>
+      <span class="step-badge">#12</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/20-activity-page-shows-at-least-one-event-account-created.png" alt="Activity page shows at least one event (account_created)" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/09-activity-page-shows-at-least-one-event-account-created.png" alt="Activity page shows at least one event (account_created)" loading="lazy" />
       <div class="cap">
         <strong>Activity page shows at least one event (account_created)</strong>
         <p class="url">http://localhost:3000/dashboard/activity</p>
@@ -775,33 +627,40 @@
     </div>
 
     <div class="card ">
-      <span class="step-badge">#24</span>
+      <span class="step-badge">#13</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/21-connections-page-confirmed-static-stub-known-gap-not-a-bug.png" alt="Connections page — confirmed static stub (known gap, not a bug)" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/10-connections-page-loads-real-data-no-longer-a-static-stub.png" alt="Connections page loads real data (no longer a static stub)" loading="lazy" />
       <div class="cap">
-        <strong>Connections page — confirmed static stub (known gap, not a bug)</strong>
+        <strong>Connections page loads real data (no longer a static stub)</strong>
         <p class="url">http://localhost:3000/dashboard/connections</p>
-        <div class="notes"><p>Body text snippet: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  We&quot;</p></div>
+        <div class="notes"><p>Body text snippet: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Searc&quot;</p></div>
         
       </div>
     </div>
 
-    <div class="card ">
-      <span class="step-badge">#25</span>
+    <div class="card has-findings">
+      <span class="step-badge">#14</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/22-discover-renders-the-disabled-feature-404-ui-but-as-http-200.png" alt="Discover — renders the disabled-feature 404 UI, but as HTTP 200 not 404" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/11-discover-renders-a-real-http-404-not-a-200-with-404-shaped-c.png" alt="Discover renders a real HTTP 404, not a 200 with 404-shaped content" loading="lazy" />
       <div class="cap">
-        <strong>Discover — renders the disabled-feature 404 UI, but as HTTP 200 not 404</strong>
+        <strong>Discover renders a real HTTP 404, not a 200 with 404-shaped content</strong>
         <p class="url">http://localhost:3000/dashboard/discover</p>
-        <div class="notes"><p>HTTP status was 200 (expected true 404; UI itself is correct — see finding notes).</p></div>
+        <div class="notes"><p>HTTP 404 (was 200 before the fix). Body snippet: &quot;influnet  404  Page not found  The page you&#39;re looking for doesn&#39;t exist, moved, or the link was mistyped.  Go home&quot;</p></div>
         
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/dashboard/discover</div>
+    </div>
       </div>
     </div>
 
     <div class="card ">
-      <span class="step-badge">#26</span>
+      <span class="step-badge">#15</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase2-creator-journey/23-messages-page-loads-without-crashing-empty-state-expected.png" alt="Messages page loads without crashing (empty state expected)" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/12-messages-page-loads-without-crashing-empty-state-expected.png" alt="Messages page loads without crashing (empty state expected)" loading="lazy" />
       <div class="cap">
         <strong>Messages page loads without crashing (empty state expected)</strong>
         <p class="url">http://localhost:3000/dashboard/messages</p>
@@ -813,9 +672,9 @@
   
 
     <section class="phase">
-      <h2>Phase 3 — Business Journey <span class="phase-stats">29/30 passed · 0 failed · 1 skipped</span></h2>
+      <h2>Phase 3 — Business Journey <span class="phase-stats">22/30 passed · 1 failed · 7 skipped</span></h2>
       <div class="grid">
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#1</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/01-business-account-already-exists-from-a-prior-run-logging-in-.png" alt="Business account already exists from a prior run — logging in directly" loading="lazy" />
@@ -824,13 +683,6 @@
         <p class="url">http://localhost:3000/dashboard</p>
         <div class="notes"><p>Reusing existing account 4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9.</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
@@ -870,7 +722,7 @@
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#5</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/04-business-re-logs-in-with-approved-status.png" alt="Business re-logs in with approved status" loading="lazy" />
@@ -879,17 +731,10 @@
         <p class="url">http://localhost:3000/dashboard</p>
         
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#6</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/05-business-dashboard-renders-stats-no-pending-banner.png" alt="Business dashboard renders stats (no pending banner)" loading="lazy" />
@@ -898,51 +743,30 @@
         <p class="url">http://localhost:3000/dashboard</p>
         <div class="notes"><p>Pending banner correctly gone after approval.</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#7</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase3-business-journey/06-confirmed-bug-sending-a-request-with-budget-left-blank-fails.png" alt="CONFIRMED BUG: sending a request with budget left blank fails with HTTP 400" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/06-sending-a-request-with-budget-left-blank-now-succeeds-was-ht.png" alt="Sending a request with budget left blank now succeeds (was HTTP 400)" loading="lazy" />
       <div class="cap">
-        <strong>CONFIRMED BUG: sending a request with budget left blank fails with HTTP 400</strong>
-        <p class="url">http://localhost:3000/dashboard/requests/new?to=021faad5-a304-4899-929b-782e2f999041</p>
-        <div class="notes"><p>POST /api/collabs with budget left blank → HTTP 400: {&quot;error&quot;:&quot;Validation failed&quot;,&quot;details&quot;:{&quot;_errors&quot;:[],&quot;budget&quot;:{&quot;_errors&quot;:[&quot;Invalid input: expected number, received null&quot;]}}}</p></div>
+        <strong>Sending a request with budget left blank now succeeds (was HTTP 400)</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        <div class="notes"><p>POST /api/collabs with budget left blank → HTTP 200: {&quot;collab&quot;:{&quot;id&quot;:&quot;14116c91-50bf-4546-9dca-b9b239e072b1&quot;,&quot;from_user_id&quot;:&quot;4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9&quot;,&quot;to_user_id&quot;:&quot;021faad5-a304-4899-929b-782e2f999041&quot;,&quot;message&quot;:&quot;Blank-budget guard (E2E audit) 1785389581873&quot;,&quot;budget&quot;:null,&quot;status&quot;:&quot;pending&quot;,&quot;created_at&quot;:&quot;2026-07-30T05:33:02.723281+00:00&quot;,&quot;updated_at&quot;:&quot;2026-07-30T05:33:02.723281+00:00&quot;,&quot;advance_amount&quot;:null}}</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 400 (Bad Request)</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 400 POST http://localhost:3000/api/collabs</div>
-    </div>
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#8</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase3-business-journey/07-business-sends-a-collab-request-to-the-creator-with-a-budget.png" alt="Business sends a collab request to the creator (with a budget, to avoid the blank-budget bug)" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/07-business-sends-a-collab-request-to-the-creator.png" alt="Business sends a collab request to the creator" loading="lazy" />
       <div class="cap">
-        <strong>Business sends a collab request to the creator (with a budget, to avoid the blank-budget bug)</strong>
+        <strong>Business sends a collab request to the creator</strong>
         <p class="url">http://localhost:3000/dashboard/requests</p>
         
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
@@ -958,7 +782,7 @@
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#10</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/08-business-requests-outbox-shows-awaiting-reply.png" alt="Business requests outbox shows &quot;awaiting reply&quot;" loading="lazy" />
@@ -967,13 +791,6 @@
         <p class="url">http://localhost:3000/dashboard/requests</p>
         <div class="notes"><p>Outbox text contains &quot;awaiting&quot;: true</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
@@ -995,7 +812,7 @@
       <img src="../../tests/e2e/screenshots/phase3-business-journey/10-creator-accepts-the-request.png" alt="Creator accepts the request" loading="lazy" />
       <div class="cap">
         <strong>Creator accepts the request</strong>
-        <p class="url">http://localhost:3000/dashboard/messages?conv=a133e60a-fd8f-4c2b-b142-4662a7dbdc91</p>
+        <p class="url">http://localhost:3000/dashboard/messages?conv=e04f5910-89e5-4673-bd37-b4c4e258c37d</p>
         
         
       </div>
@@ -1013,7 +830,7 @@
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#14</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/11-business-opens-the-conversation-and-proposes-project-terms.png" alt="Business opens the conversation and proposes project terms" loading="lazy" />
@@ -1022,36 +839,37 @@
         <p class="url">http://localhost:3000/dashboard/messages</p>
         <div class="notes"><p>Proposal sent.</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
-    <div class="card ">
+    <div class="card has-findings">
       <span class="step-badge">#15</span>
-      <span class="badge ok">PASS</span>
+      <span class="badge fail">FAIL</span>
       
       <div class="cap">
         <strong>DB: project_proposals row created (bilateral, not yet a project)</strong>
         
-        <div class="notes"><p>Proposal id 93b39922-abaa-4547-86ca-7af3e20d08c3, status pending</p></div>
         
+        
+    <div class="findings">
+      <div class="finding-row fail">Assertion failed: assertFields(project_proposals(new)) mismatch:
+  status: expected &quot;pending&quot;, got &quot;accepted&quot;</div>
+      
+      
+      
+      
+    </div>
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#16</span>
-      <span class="badge ok">PASS</span>
+      <span class="badge skip">SKIPPED</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/12-creator-opens-the-conversation-and-accepts-the-proposal-proj.png" alt="Creator opens the conversation and accepts the proposal → project created" loading="lazy" />
       <div class="cap">
         <strong>Creator opens the conversation and accepts the proposal → project created</strong>
         <p class="url">http://localhost:3000/dashboard/messages</p>
-        <div class="notes"><p>Proposal accepted.</p></div>
+        
         
       </div>
     </div>
@@ -1068,45 +886,38 @@
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#18</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/13-project-page-loads-with-stage-timeline.png" alt="Project page loads with stage timeline" loading="lazy" />
       <div class="cap">
         <strong>Project page loads with stage timeline</strong>
-        <p class="url">http://localhost:3000/dashboard/projects/70</p>
-        <div class="notes"><p>Opened project 70.</p></div>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        <div class="notes"><p>Opened project 84.</p></div>
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#19</span>
-      <span class="badge ok">PASS</span>
+      <span class="badge skip">SKIPPED</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/14-business-ticks-required-checklist-items-for-stage-1-guided-v.png" alt="Business ticks required checklist items for stage 1 (Guided view)" loading="lazy" />
       <div class="cap">
         <strong>Business ticks required checklist items for stage 1 (Guided view)</strong>
-        <p class="url">http://localhost:3000/dashboard/projects/70</p>
-        <div class="notes"><p>Ticked 2/2 pending checklist item(s) as the business.</p></div>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        
         
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#20</span>
-      <span class="badge ok">PASS</span>
+      <span class="badge skip">SKIPPED</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/15-business-signs-off-on-stage-1-confirm-this-stage.png" alt="Business signs off on stage 1 (&quot;Confirm this stage&quot;)" loading="lazy" />
       <div class="cap">
         <strong>Business signs off on stage 1 (&quot;Confirm this stage&quot;)</strong>
-        <p class="url">http://localhost:3000/dashboard/projects/70</p>
-        <div class="notes"><p>Business signed off on stage 1.</p></div>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        
         
       </div>
     </div>
@@ -1117,32 +928,32 @@
       <img src="../../tests/e2e/screenshots/phase3-business-journey/16-creator-ticks-their-items-and-signs-off-too-stage-should-adv.png" alt="Creator ticks their items and signs off too — stage should advance (bilateral)" loading="lazy" />
       <div class="cap">
         <strong>Creator ticks their items and signs off too — stage should advance (bilateral)</strong>
-        <p class="url">http://localhost:3000/dashboard/projects/70</p>
-        <div class="notes"><p>Ticked 0/0 pending checklist item(s) as the creator.</p><p>Creator signed off — both sides confirmed, stage should now advance.</p></div>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        <div class="notes"><p>Ticked 0/0 pending checklist item(s) as the creator.</p><p>Creator side: &quot;Confirm this stage&quot; not available/enabled after ticking their items.</p></div>
         
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#22</span>
-      <span class="badge ok">PASS</span>
+      <span class="badge skip">SKIPPED</span>
       
       <div class="cap">
         <strong>DB: campaign_projects.current_stage reflects the bilateral advance</strong>
         
-        <div class="notes"><p>current_stage=project_discussion, status=active</p></div>
+        <div class="notes"><p>current_stage=project_discussion, status=cancelled</p></div>
         
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#23</span>
-      <span class="badge ok">PASS</span>
+      <span class="badge skip">SKIPPED</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/17-request-project-cancellation-with-a-reason.png" alt="Request project cancellation with a reason" loading="lazy" />
       <div class="cap">
         <strong>Request project cancellation with a reason</strong>
-        <p class="url">http://localhost:3000/dashboard/projects/70</p>
-        <div class="notes"><p>Cancellation requested.</p></div>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        
         
       </div>
     </div>
@@ -1154,19 +965,19 @@
       <div class="cap">
         <strong>DB: campaign_projects reflects cancellation request</strong>
         
-        <div class="notes"><p>status=active, cancel_reason_category=scope_not_needed, requested_by=4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</p></div>
+        <div class="notes"><p>status=cancelled, cancel_reason_category=scope_not_needed, requested_by=null</p></div>
         
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#25</span>
-      <span class="badge ok">PASS</span>
+      <span class="badge skip">SKIPPED</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/18-creator-other-party-sees-and-accepts-the-cancellation.png" alt="Creator (other party) sees and accepts the cancellation" loading="lazy" />
       <div class="cap">
         <strong>Creator (other party) sees and accepts the cancellation</strong>
-        <p class="url">http://localhost:3000/dashboard/projects/70</p>
-        <div class="notes"><p>Cancellation accepted by the other party — only they can accept, never the requester, per project_cancellation.ts.</p></div>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        
         
       </div>
     </div>
@@ -1183,7 +994,7 @@
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#27</span>
       <span class="badge ok">PASS</span>
       <img src="../../tests/e2e/screenshots/phase3-business-journey/19-business-settings-page-pre-fills-company-fields.png" alt="Business settings page pre-fills company fields" loading="lazy" />
@@ -1192,41 +1003,27 @@
         <p class="url">http://localhost:3000/dashboard/settings</p>
         
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
-    <div class="card has-findings">
+    <div class="card ">
       <span class="step-badge">#28</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase3-business-journey/20-business-connections-page-confirmed-static-stub.png" alt="Business connections page — confirmed static stub" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/20-business-connections-page-loads-real-data-no-longer-a-static.png" alt="Business connections page loads real data (no longer a static stub)" loading="lazy" />
       <div class="cap">
-        <strong>Business connections page — confirmed static stub</strong>
+        <strong>Business connections page loads real data (no longer a static stub)</strong>
         <p class="url">http://localhost:3000/dashboard/connections</p>
         
         
-    <div class="findings">
-      
-      
-      
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
-    </div>
       </div>
     </div>
 
     <div class="card has-findings">
       <span class="step-badge">#29</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase3-business-journey/21-business-discover-same-disabled-feature-404-ui-as-creator-si.png" alt="Business discover — same disabled-feature 404 UI as creator side" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/21-business-discover-same-real-404-as-creator-side.png" alt="Business discover — same real 404 as creator side" loading="lazy" />
       <div class="cap">
-        <strong>Business discover — same disabled-feature 404 UI as creator side</strong>
+        <strong>Business discover — same real 404 as creator side</strong>
         <p class="url">http://localhost:3000/dashboard/discover</p>
         
         
@@ -1234,8 +1031,8 @@
       
       
       
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
-      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/dashboard/discover</div>
     </div>
       </div>
     </div>
@@ -1243,11 +1040,11 @@
     <div class="card has-findings">
       <span class="step-badge">#30</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase3-business-journey/22-block-endpoint-exists-but-has-no-ui-entry-point-confirmed-ga.png" alt="Block endpoint exists but has no UI entry point (confirmed gap)" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/22-blocked-accounts-panel-is-reachable-from-settings.png" alt="Blocked accounts panel is reachable from Settings" loading="lazy" />
       <div class="cap">
-        <strong>Block endpoint exists but has no UI entry point (confirmed gap)</strong>
-        <p class="url">http://localhost:3000/dashboard/discover</p>
-        <div class="notes"><p>GET /api/blocks while authenticated → HTTP 401. No nav link or button anywhere in the app reaches this — API/DB-only feature.</p></div>
+        <strong>Blocked accounts panel is reachable from Settings</strong>
+        <p class="url">http://localhost:3000/dashboard/settings</p>
+        <div class="notes"><p>GET /api/blocks while authenticated → HTTP 401.</p></div>
         
     <div class="findings">
       
@@ -1270,7 +1067,7 @@
       <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/01-creator-logs-in-non-admin-session-for-guard-checks.png" alt="Creator logs in (non-admin session for guard checks)" loading="lazy" />
       <div class="cap">
         <strong>Creator logs in (non-admin session for guard checks)</strong>
-        <p class="url">http://localhost:3000/dashboard/influencer</p>
+        <p class="url">http://localhost:3000/dashboard</p>
         
         
       </div>
@@ -1345,7 +1142,7 @@
       <div class="cap">
         <strong>Note: /dashboard/admin/* pages have no client-side role redirect (confirmed via code review)</strong>
         
-        <div class="notes"><p>shell.tsx only redirects influencer/business_owner between /dashboard and /dashboard/influencer. A non-admin visiting /dashboard/admin/* sees the page shell render (sidebar, layout) even though the API calls above should reject their data request — worth a UX fix (redirect away) even though the security boundary (API) held.</p></div>
+        <div class="notes"><p>A non-admin visiting /dashboard/admin/* sees the page shell render (sidebar, layout) even though the API calls above should reject their data request — worth a UX fix (redirect away) even though the security boundary (API) held.</p></div>
         
       </div>
     </div>
@@ -2290,38 +2087,45 @@
       <div class="cap">
         <strong>SECURITY CHECK: unrelated project&#39;s core data never reaches the creator</strong>
         <p class="url">http://localhost:3000/dashboard/projects/34</p>
-        <div class="notes"><p>Page HTTP 200. Underlying /api/projects/34/* calls: [{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/reviews&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/cards&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/payments&quot;,&quot;status&quot;:200,&quot;body&quot;:{&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/activity&quot;,&quot;st. Page body snippet: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 2 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Sea&quot;</p><p>Base project record / activity / change-requests / stage-entries / reviews / cards correctly denied (4xx): true. The page now renders a clear &quot;doesn&#39;t exist, or you don&#39;t have access&quot; state instead of the indefinite &quot;Loading…&quot; spinner the audit found.</p><p>/stage-items returned HTTP 500 ({&quot;error&quot;:&quot;Failed to seed stage items&quot;}) instead of a clean 403 — the route tries to auto-seed default checklist rows on first GET, RLS correctly blocks that INSERT for a non-participant, but the route surfaces it as a generic 500 rather than catching the specific case and returning 403. No stage data was exposed (the response is an error, not a checklist).</p><p>/payments returned HTTP 200 with {&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;} — this is app-wide &quot;is Razorpay configured&quot; config plus its public key_id (meant to be public — used client-side to open Checkout), not this project&#39;s actual payment records. Not a leak, but the route still never checked membership before answering.</p><p>GET /api/projects/34/reviews as an unrelated creator → HTTP 404, body: {&quot;error&quot;:&quot;Project not found&quot;} (was HTTP 200 before the fix).</p><p>GET /api/projects/34/cards as an unrelated creator → HTTP 404, body: {&quot;error&quot;:&quot;Project not found&quot;} (was HTTP 200 before the fix).</p></div>
+        <div class="notes"><p>Page HTTP 200. Underlying /api/projects/34/* calls: [{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/reviews&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/cards&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/payments&quot;,&quot;status&quot;:200,&quot;body&quot;:{&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/stage-entries. Page body snippet: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Searc&quot;</p><p>Base project record / activity / change-requests / stage-entries / reviews / cards correctly denied (4xx): true. The page now renders a clear &quot;doesn&#39;t exist, or you don&#39;t have access&quot; state instead of the indefinite &quot;Loading…&quot; spinner the audit found.</p><p>/stage-items returned HTTP 500 ({&quot;error&quot;:&quot;Failed to seed stage items&quot;}) instead of a clean 403 — the route tries to auto-seed default checklist rows on first GET, RLS correctly blocks that INSERT for a non-participant, but the route surfaces it as a generic 500 rather than catching the specific case and returning 403. No stage data was exposed (the response is an error, not a checklist).</p><p>/payments returned HTTP 200 with {&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;} — this is app-wide &quot;is Razorpay configured&quot; config plus its public key_id (meant to be public — used client-side to open Checkout), not this project&#39;s actual payment records. Not a leak, but the route still never checked membership before answering.</p><p>GET /api/projects/34/reviews as an unrelated creator → HTTP 404, body: {&quot;error&quot;:&quot;Project not found&quot;} (was HTTP 200 before the fix).</p><p>GET /api/projects/34/cards as an unrelated creator → HTTP 404, body: {&quot;error&quot;:&quot;Project not found&quot;} (was HTTP 200 before the fix).</p></div>
         
     <div class="findings">
       
       
       
-      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
-      <div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/reviews</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/cards</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/reviews</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/cards</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div>
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/reviews</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/cards</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/reviews</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/cards</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div>
     </div>
       </div>
     </div>
 
-    <div class="card ">
+    <div class="card has-findings">
       <span class="step-badge">#12</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/08-resolve-dashboard-influencer-legacy-page-still-live-differs-.png" alt="Resolve /dashboard/influencer — legacy page still live, differs from /dashboard/home" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/08-dashboard-influencer-redirects-to-dashboard-old-links-still-.png" alt="/dashboard/influencer redirects to /dashboard (old links still work)" loading="lazy" />
       <div class="cap">
-        <strong>Resolve /dashboard/influencer — legacy page still live, differs from /dashboard/home</strong>
-        <p class="url">http://localhost:3000/dashboard/influencer</p>
-        <div class="notes"><p>Loads without crashing. Shows creator name: true. Mentions verification: false. This is the page shell.tsx redirects a creator to when landing on bare /dashboard — confirmed DIFFERENT (much thinner) component from /dashboard/home, which is what every other step in this audit actually exercised.</p></div>
+        <strong>/dashboard/influencer redirects to /dashboard (old links still work)</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>Landed at: http://localhost:3000/dashboard</p></div>
         
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div>
+    </div>
       </div>
     </div>
 
     <div class="card ">
       <span class="step-badge">#13</span>
       <span class="badge ok">PASS</span>
-      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/09-bare-dashboard-redirects-a-creator-to-dashboard-influencer-c.png" alt="Bare /dashboard redirects a creator to /dashboard/influencer (confirms the stale-page routing)" loading="lazy" />
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/09-bare-dashboard-now-renders-the-creator-analytics-view-direct.png" alt="Bare /dashboard now renders the creator analytics view directly (no redirect needed)" loading="lazy" />
       <div class="cap">
-        <strong>Bare /dashboard redirects a creator to /dashboard/influencer (confirms the stale-page routing)</strong>
-        <p class="url">http://localhost:3000/dashboard/influencer</p>
-        <div class="notes"><p>Landed at: http://localhost:3000/dashboard/influencer</p></div>
+        <strong>Bare /dashboard now renders the creator analytics view directly (no redirect needed)</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>Landed at: http://localhost:3000/dashboard. Shows creator name: true.</p></div>
         
       </div>
     </div>
@@ -2333,7 +2137,7 @@
       <div class="cap">
         <strong>Notification bell shows unread activity and opens a dropdown</strong>
         <p class="url">http://localhost:3000/dashboard/home</p>
-        <div class="notes"><p>Body snippet after opening bell: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages 2 Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Search… / 2 Notifications  New collaboration request &quot;</p></div>
+        <div class="notes"><p>Body snippet after opening bell: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Search… / Notifications  New collaboration request  A b&quot;</p></div>
         
       </div>
     </div>
@@ -2357,7 +2161,7 @@
       <div class="cap">
         <strong>Business sends a real chat message to the creator via Stream</strong>
         <p class="url">http://localhost:3000/dashboard/messages</p>
-        <div class="notes"><p>Message sent: &quot;E2E audit test message 1785385642265&quot;. Visible immediately after send: true</p></div>
+        <div class="notes"><p>Message sent: &quot;E2E audit test message 1785390294053&quot;. Visible immediately after send: true</p></div>
         
       </div>
     </div>

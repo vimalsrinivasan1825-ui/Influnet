@@ -126,15 +126,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               }
             }
 
-            const currentPath = window.location.pathname;
-            if (p.role === "influencer" && currentPath === "/dashboard") {
-              router.push("/dashboard/influencer");
-            } else if (
-              p.role === "business_owner" &&
-              currentPath === "/dashboard/influencer"
-            ) {
-              router.push("/dashboard");
-            }
+            // No role-based redirect here any more: /dashboard renders the
+            // right analytics view for both roles itself, so the shell no
+            // longer needs to bounce creators to a separate URL. The old
+            // /dashboard/influencer route redirects here server-side.
           }
         } else {
           localStorage.removeItem("influnet_user");

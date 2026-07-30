@@ -34,7 +34,7 @@ interface Item {
 }
 
 const sections = (role: UserRole | null): Item[] => {
-  const dashboardHref = role === "influencer" ? "/dashboard/influencer" : "/dashboard";
+  const dashboardHref = "/dashboard";
   const base: Item[] = [
     { id: "s-home", label: "Home", href: "/dashboard/home", group: "Go to", icon: Home },
     { id: "s-dash", label: "Dashboard", href: dashboardHref, group: "Go to", icon: LayoutDashboard },

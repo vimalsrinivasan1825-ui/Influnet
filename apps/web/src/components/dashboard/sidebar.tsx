@@ -34,7 +34,7 @@ type NavItem = {
 
 const CREATOR_NAV: NavItem[] = [
   { label: "Home", href: "/dashboard/home", icon: Home },
-  { label: "Dashboard", href: "/dashboard/influencer", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },

@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { Runner, assert } from '../lib/harness.mjs';
 import { launchBrowser, newPage } from '../lib/browser.mjs';
 import { byLabel, fillByLabel, selectOpt, clickButton, clickWhenEnabled, waitForSelector } from '../lib/browser.mjs';
-import { waitForRow, getRow, assertFields, findAuthUserByEmail } from '../lib/db.mjs';
+import { waitForRow, getRow, assertFields, findAuthUserByEmail, sb } from '../lib/db.mjs';
 import { handlePostSignupAuth, loginAs } from '../lib/auth-helpers.mjs';
 import { generateReport } from '../lib/report.mjs';
 import { BASE_URL, CREATOR, BUSINESS, TEST_ADMIN } from '../lib/config.mjs';
@@ -185,18 +185,18 @@ async function main() {
     note('Pending banner correctly gone after approval.');
   });
 
-  // ── KNOWN APP BUG: sending a request with budget left blank 400s ──────
-  // CollabRequestSchema.budget is `z.number().positive().optional()`, which
-  // in Zod only accepts `undefined` for an absent value — NOT `null`. The
-  // page computes `budgetNum = form.budget ? Number(...) : null` and always
-  // sends that key, so leaving the (explicitly labeled "optional") budget
-  // field blank sends `budget: null` and the server 400s. Also: the real
-  // budget input is `type="text" inputMode="numeric"` (#req-budget), not
-  // `type="number"` — worth noting since it's an easy selector trap.
-  await runner.step('CONFIRMED BUG: sending a request with budget left blank fails with HTTP 400', bp, async ({ note }) => {
+  // REGRESSION GUARD: budget left blank used to send `budget: null`, and
+  // CollabRequestSchema's `z.number().positive().optional()` only accepted
+  // `undefined` — never null — so a field explicitly labeled optional 400'd.
+  // Fixed by making the schema `.nullish()` (packages/core/src/validators.ts).
+  // The request this creates is deleted immediately after, so the next step
+  // sending a second (real) request to the same creator doesn't collide with
+  // collab_requests' one-pending-request-per-pair constraint.
+  await runner.step('Sending a request with budget left blank now succeeds (was HTTP 400)', bp, async ({ note }) => {
     await bp.goto(`${BASE_URL}/dashboard/requests/new?to=${creatorUserId}`, { waitUntil: 'networkidle', timeout: 20000 });
     await bp.waitForTimeout(1200);
-    await bp.fill('#req-title', 'Blank-budget repro (E2E audit)');
+    const title = `Blank-budget guard (E2E audit) ${Date.now()}`;
+    await bp.fill('#req-title', title);
     let capturedStatus = null, capturedBody = null;
     const handler = async (res) => {
       if (res.url().includes('/api/collabs') && res.request().method() === 'POST') {
@@ -209,11 +209,15 @@ async function main() {
     await bp.waitForTimeout(1500);
     bp.off('response', handler);
     note(`POST /api/collabs with budget left blank → HTTP ${capturedStatus}: ${capturedBody}`);
-    assert(capturedStatus === 400, `expected this to reproduce the known 400-on-blank-budget bug; got ${capturedStatus} instead (bug may have been fixed)`);
+    assert(capturedStatus === 200, `expected a blank optional budget to be accepted, got HTTP ${capturedStatus}: ${capturedBody}`);
+
+    const { data: row } = await sb.from('collab_requests').select('id, budget').ilike('message', `${title}%`).maybeSingle();
+    assert(row && row.budget === null, `expected the row to exist with budget=null, got ${JSON.stringify(row)}`);
+    await sb.from('collab_requests').delete().eq('id', row.id); // clear the pending slot for the next step
   });
 
-  // ── Send collab request to the real creator (working around the bug above) ─
-  await runner.step('Business sends a collab request to the creator (with a budget, to avoid the blank-budget bug)', bp, async () => {
+  // ── Send collab request to the real creator ────────────────────────────
+  await runner.step('Business sends a collab request to the creator', bp, async () => {
     await bp.goto(`${BASE_URL}/dashboard/requests/new?to=${creatorUserId}`, { waitUntil: 'networkidle', timeout: 20000 });
     await bp.waitForTimeout(1200);
     await bp.fill('#req-title', 'YouTube Integration — Tamil Content (E2E audit)');
@@ -434,24 +438,35 @@ async function main() {
     }
   });
 
-  await runner.step('Business connections page — confirmed static stub', bp, async () => {
-    await bp.goto(`${BASE_URL}/dashboard/connections`, { waitUntil: 'networkidle', timeout: 15000 });
+  await runner.step('Business connections page loads real data (no longer a static stub)', bp, async () => {
+    const res = await bp.goto(`${BASE_URL}/dashboard/connections`, { waitUntil: 'networkidle', timeout: 15000 });
     await bp.waitForTimeout(600);
+    const bodyText = await bp.locator('body').innerText();
+    assert(res.status() < 400, `expected the Connections page to load, got HTTP ${res.status()}`);
+    assert(!/application error/i.test(bodyText), 'Connections page crashed');
   });
 
-  await runner.step('Business discover — same disabled-feature 404 UI as creator side', bp, async () => {
+  await runner.step('Business discover — same real 404 as creator side', bp, async () => {
     const res = await bp.goto(`${BASE_URL}/dashboard/discover`, { waitUntil: 'networkidle', timeout: 15000 });
     const bodyText = await bp.locator('body').innerText();
     assert(/404|page not found/i.test(bodyText), 'expected not-found UI for business role too');
+    assert(res.status() === 404, `expected a true HTTP 404, got ${res.status()}`);
   });
 
-  await runner.step('Block endpoint exists but has no UI entry point (confirmed gap)', bp, async ({ note }) => {
+  // REGRESSION GUARD: the block API/DB was fully wired but had no UI entry
+  // point anywhere — the 2026-07-30 audit flagged it as unreachable. Settings
+  // now has a "Blocked accounts" panel; the API itself is unchanged.
+  await runner.step('Blocked accounts panel is reachable from Settings', bp, async ({ note }) => {
     const result = await bp.evaluate(async () => {
       const res = await fetch('/api/blocks', { method: 'GET' });
       return { status: res.status };
     });
-    note(`GET /api/blocks while authenticated → HTTP ${result.status}. No nav link or button anywhere in the app reaches this — API/DB-only feature.`);
+    note(`GET /api/blocks while authenticated → HTTP ${result.status}.`);
     assert(result.status < 500, `unexpected server error from /api/blocks: ${result.status}`);
+
+    await bp.goto(`${BASE_URL}/dashboard/settings`, { waitUntil: 'networkidle', timeout: 20000 });
+    const bodyText = await bp.locator('body').innerText();
+    assert(/blocked accounts/i.test(bodyText), 'expected a "Blocked accounts" section on Settings');
   });
 
   await browser.close();

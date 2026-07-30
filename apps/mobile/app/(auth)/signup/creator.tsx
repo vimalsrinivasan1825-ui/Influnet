@@ -104,14 +104,16 @@ export default function CreatorSignup() {
               ? 'That handle is taken. Try another.'
               : availability === 'invalid' && username.length > 0
                 ? 'Use 3–30 letters, numbers, dots or underscores.'
-                : null
+                : availability === 'error'
+                  ? 'Could not check right now — try again in a moment.'
+                  : null
           }
           right={
             availability === 'checking' ? (
               <ActivityIndicator size="small" color={t.color.contentMuted} />
             ) : availability === 'available' ? (
               <Check size={19} color={t.color.ok} />
-            ) : availability === 'taken' ? (
+            ) : availability === 'taken' || availability === 'error' ? (
               <X size={19} color={t.color.danger} />
             ) : null
           }

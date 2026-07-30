@@ -1632,6 +1632,7 @@ export default function ProjectKanbanPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState<'spam' | 'harassment' | 'scam' | 'fake' | 'other'>('scam');
   const [reportDetails, setReportDetails] = useState('');
+  const [alsoBlock, setAlsoBlock] = useState(false);
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportDone, setReportDone] = useState(false);
 
@@ -2615,7 +2616,7 @@ export default function ProjectKanbanPage() {
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-content">Report this user</h3>
-              <button onClick={() => { setShowReportModal(false); setReportDone(false); }} className="text-content-muted hover:text-content">
+              <button onClick={() => { setShowReportModal(false); setReportDone(false); setAlsoBlock(false); }} className="text-content-muted hover:text-content">
                 <X size={20} />
               </button>
             </div>
@@ -2623,7 +2624,7 @@ export default function ProjectKanbanPage() {
               <div className="flex flex-col items-center gap-2 py-4 text-center">
                 <CheckCircle2 size={32} className="text-ok" />
                 <p className="text-sm font-semibold text-content">Thanks — our team will review this report.</p>
-                <Button variant="surface" size="sm" onClick={() => { setShowReportModal(false); setReportDone(false); }}>Close</Button>
+                <Button variant="surface" size="sm" onClick={() => { setShowReportModal(false); setReportDone(false); setAlsoBlock(false); }}>Close</Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -2648,6 +2649,20 @@ export default function ProjectKanbanPage() {
                   <Label>Details (optional)</Label>
                   <Textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} placeholder="What happened?" rows={3} />
                 </div>
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-hairline-strong bg-surface-muted px-3.5 py-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={alsoBlock}
+                    onChange={(e) => setAlsoBlock(e.target.checked)}
+                    className="mt-0.5 size-4 accent-danger"
+                  />
+                  <span>
+                    <span className="font-semibold text-content">Also block this user</span>
+                    <span className="block text-xs text-content-muted">
+                      They won&rsquo;t be able to message you or send new requests. Manage this later in Settings.
+                    </span>
+                  </span>
+                </label>
                 <Button
                   variant="destructive"
                   className="w-full"
@@ -2666,8 +2681,22 @@ export default function ProjectKanbanPage() {
                           project_id: Number(projectId),
                         }),
                       });
-                      if (res.ok) { setReportDone(true); setReportDetails(''); }
-                      else { toast.error(res.error || 'Failed to submit report'); }
+                      if (!res.ok) { toast.error(res.error || 'Failed to submit report'); return; }
+
+                      if (alsoBlock) {
+                        const blockRes = await apiFetch('/api/blocks', {
+                          method: 'POST',
+                          body: JSON.stringify({ blocked_id: reportedId }),
+                        });
+                        if (!blockRes.ok) {
+                          // Report already went through — don't lose that success over the
+                          // block failing separately (e.g. rate limit).
+                          toast.error(blockRes.error || 'Report sent, but blocking failed — try again from Settings.');
+                        }
+                      }
+                      setReportDone(true);
+                      setReportDetails('');
+                      setAlsoBlock(false);
                     } finally {
                       setSubmittingReport(false);
                     }

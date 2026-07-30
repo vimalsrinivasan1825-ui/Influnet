@@ -7,7 +7,7 @@ import { supabase } from './supabase';
 import { endpoints } from './api';
 import { useSession } from './session';
 
-type Availability = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
+type Availability = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'error';
 
 /**
  * Debounced availability check against /api/auth/check-username.
@@ -34,8 +34,25 @@ export function useUsernameAvailability(username: string) {
     const timer = setTimeout(async () => {
       const res = await endpoints.checkUsername(value);
       if (cancelled) return;
-      const available = (res.data as { available?: boolean } | null)?.available;
-      setStatus(res.ok && available ? 'available' : 'taken');
+
+      // Mirrors apps/web/src/lib/hooks/use-username-availability.ts, which had
+      // the same bug this fixes: any non-2xx (a network hiccup, a 429, a 500)
+      // fell straight through to "taken" — permanently blocking signup on a
+      // handle that was actually free, with no way to tell the two apart.
+      if (!res.ok) {
+        setStatus('error');
+        return;
+      }
+      const data = res.data as { available?: boolean; valid?: boolean } | null;
+      if (data?.valid === false) {
+        setStatus('invalid');
+        return;
+      }
+      if (typeof data?.available !== 'boolean') {
+        setStatus('error');
+        return;
+      }
+      setStatus(data.available ? 'available' : 'taken');
     }, 400);
 
     return () => {

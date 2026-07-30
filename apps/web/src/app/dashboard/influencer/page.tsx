@@ -1,53 +1,14 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api-client";
-import { InfluencerHomeView } from "@/components/dashboard/views/influencer-home";
-import { HomeSkeleton } from "@/components/dashboard/views/home-skeleton";
-import type { InfluencerHomeData } from "@/components/dashboard/views/types";
-
-const FALLBACK: InfluencerHomeData = {
-  profile: {
-    name: "Creator",
-    username: null,
-    niche: [],
-    verified_badge: false,
-    headline: null,
-    avatar_url: null,
-    bio: null,
-    location: null,
-  },
-  stats: {
-    collab_requests: 0,
-    active_discussions: 0,
-    active_projects: 0,
-    completed_projects: 0,
-    pipeline_value: 0,
-    proposals_awaiting_you: 0,
-  },
-  earnings_trend: [],
-  request_breakdown: [],
-  recent_collabs: null,
-  active_roster: null,
-};
-
-export default function InfluencerDashboardPage() {
-  const [data, setData] = useState<InfluencerHomeData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await apiFetch<InfluencerHomeData>("/api/influencer/dashboard");
-        if (res.ok && res.data) setData(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  if (loading) return <HomeSkeleton />;
-  return <InfluencerHomeView data={data ?? FALLBACK} />;
+/**
+ * Retired route. The creator's analytics Dashboard used to live here while the
+ * business one lived at /dashboard — the same view on two different URLs, one
+ * of them named after the legacy "influencer" role term. /dashboard now renders
+ * both roles in place.
+ *
+ * Kept as a permanent redirect because this URL is in users' history and
+ * bookmarks, and was the post-signup/post-login landing page for creators.
+ */
+export default function LegacyInfluencerDashboardPage() {
+  redirect("/dashboard");
 }

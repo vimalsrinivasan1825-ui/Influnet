@@ -1,7 +1,7 @@
 {
   "phaseId": "phase4-admin-and-public-routes",
   "phaseTitle": "Phase 4 — Admin, Public Routes & Guards",
-  "generatedAt": "2026-07-30T04:33:04.468Z",
+  "generatedAt": "2026-07-30T05:40:23.878Z",
   "summary": {
     "total": 17,
     "passed": 16,
@@ -21,8 +21,8 @@
       "consoleErrors": [],
       "networkErrors": [],
       "pageErrors": [],
-      "url": "http://localhost:3000/dashboard/influencer",
-      "timestamp": "2026-07-30T04:32:21.228Z"
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-30T05:38:52.374Z"
     },
     {
       "step": 2,
@@ -36,7 +36,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard",
-      "timestamp": "2026-07-30T04:32:25.133Z"
+      "timestamp": "2026-07-30T05:38:56.153Z"
     },
     {
       "step": 3,
@@ -50,7 +50,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin",
-      "timestamp": "2026-07-30T04:32:28.975Z"
+      "timestamp": "2026-07-30T05:39:00.179Z"
     },
     {
       "step": 4,
@@ -74,7 +74,7 @@
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/users",
-      "timestamp": "2026-07-30T04:32:32.676Z"
+      "timestamp": "2026-07-30T05:39:10.373Z"
     },
     {
       "step": 5,
@@ -98,7 +98,7 @@
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/users",
-      "timestamp": "2026-07-30T04:32:36.191Z"
+      "timestamp": "2026-07-30T05:39:14.928Z"
     },
     {
       "step": 6,
@@ -107,14 +107,14 @@
       "error": null,
       "skippedReason": null,
       "notes": [
-        "shell.tsx only redirects influencer/business_owner between /dashboard and /dashboard/influencer. A non-admin visiting /dashboard/admin/* sees the page shell render (sidebar, layout) even though the API calls above should reject their data request — worth a UX fix (redirect away) even though the security boundary (API) held."
+        "A non-admin visiting /dashboard/admin/* sees the page shell render (sidebar, layout) even though the API calls above should reject their data request — worth a UX fix (redirect away) even though the security boundary (API) held."
       ],
       "screenshot": null,
       "consoleErrors": [],
       "networkErrors": [],
       "pageErrors": [],
       "url": null,
-      "timestamp": "2026-07-30T04:32:36.192Z"
+      "timestamp": "2026-07-30T05:39:14.930Z"
     },
     {
       "step": 7,
@@ -128,7 +128,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin",
-      "timestamp": "2026-07-30T04:32:39.851Z"
+      "timestamp": "2026-07-30T05:39:20.895Z"
     },
     {
       "step": 8,
@@ -142,7 +142,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/collabs",
-      "timestamp": "2026-07-30T04:32:43.599Z"
+      "timestamp": "2026-07-30T05:39:31.689Z"
     },
     {
       "step": 9,
@@ -158,7 +158,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/projects",
-      "timestamp": "2026-07-30T04:32:47.600Z"
+      "timestamp": "2026-07-30T05:39:44.063Z"
     },
     {
       "step": 10,
@@ -174,7 +174,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/dashboard/admin/users",
-      "timestamp": "2026-07-30T04:32:51.596Z"
+      "timestamp": "2026-07-30T05:39:54.024Z"
     },
     {
       "step": 11,
@@ -188,7 +188,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/vf/totally-made-up-garbage-code-123",
-      "timestamp": "2026-07-30T04:32:53.057Z"
+      "timestamp": "2026-07-30T05:40:00.690Z"
     },
     {
       "step": 12,
@@ -202,7 +202,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/c/madangowri",
-      "timestamp": "2026-07-30T04:32:55.737Z"
+      "timestamp": "2026-07-30T05:40:06.670Z"
     },
     {
       "step": 13,
@@ -220,7 +220,7 @@
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/influnet/no-such-creator-xyz-123",
-      "timestamp": "2026-07-30T04:32:56.837Z"
+      "timestamp": "2026-07-30T05:40:08.150Z"
     },
     {
       "step": 14,
@@ -234,7 +234,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/login?next=/b/anything",
-      "timestamp": "2026-07-30T04:32:58.257Z"
+      "timestamp": "2026-07-30T05:40:10.869Z"
     },
     {
       "step": 15,
@@ -252,7 +252,7 @@
       ],
       "pageErrors": [],
       "url": "http://localhost:3000/b/some-business-with-no-relationship-xyz",
-      "timestamp": "2026-07-30T04:32:59.704Z"
+      "timestamp": "2026-07-30T05:40:12.530Z"
     },
     {
       "step": 16,
@@ -268,7 +268,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/reset-password",
-      "timestamp": "2026-07-30T04:33:02.455Z"
+      "timestamp": "2026-07-30T05:40:19.776Z"
     },
     {
       "step": 17,
@@ -282,7 +282,7 @@
       "networkErrors": [],
       "pageErrors": [],
       "url": "http://localhost:3000/reset-password?type=recovery",
-      "timestamp": "2026-07-30T04:33:04.199Z"
+      "timestamp": "2026-07-30T05:40:23.115Z"
     }
   ]
 }

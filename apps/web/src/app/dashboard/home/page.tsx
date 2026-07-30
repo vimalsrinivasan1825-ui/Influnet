@@ -753,7 +753,7 @@ export default function HomePage() {
 
       {/* Home is the summary; the numbers live one click away. */}
       <ButtonLink
-        href={isCreator ? "/dashboard/influencer" : "/dashboard"}
+        href="/dashboard"
         variant="surface"
         size="lg"
         className="self-start"

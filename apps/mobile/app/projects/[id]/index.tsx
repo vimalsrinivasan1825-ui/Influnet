@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Ban, Check, CircleCheck } from 'lucide-react-native';
+import { Ban, Check, CircleCheck, Flag } from 'lucide-react-native';
 import {
   STAGES,
   CANCELLATION_REASONS,
@@ -153,6 +153,70 @@ export default function ProjectDetailScreen() {
 
   const iRequestedCancellation = !!project?.cancel_requested_by && project.cancel_requested_by === me;
 
+  // ── Report / block (trust & safety) ────────────────────────────────────
+  // The API (POST /api/reports, POST /api/blocks) and the block LIST/unblock
+  // screen (app/blocked-accounts.tsx) already existed; there was simply no
+  // screen anywhere in the app that could ever CREATE a block or a report —
+  // this mirrors the combined report+block flow added on web.
+  const reportSheet = useRef<SheetRef>(null);
+  const REPORT_REASONS = [
+    { value: 'scam', label: 'Scam' },
+    { value: 'harassment', label: 'Harassment' },
+    { value: 'spam', label: 'Spam' },
+    { value: 'fake', label: 'Fake profile' },
+    { value: 'other', label: 'Other' },
+  ] as const;
+  const [reportReason, setReportReason] = useState<(typeof REPORT_REASONS)[number]['value']>('scam');
+  const [reportDetails, setReportDetails] = useState('');
+  const [alsoBlock, setAlsoBlock] = useState(false);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportDone, setReportDone] = useState(false);
+  const otherPartyId = project ? (isOwner ? project.counterparty_user_id : project.owner_user_id) : null;
+
+  async function submitReport() {
+    if (!otherPartyId) return;
+    setReportBusy(true);
+    setReportError(null);
+
+    const res = await endpoints.createReport({
+      reported_id: otherPartyId,
+      reason: reportReason,
+      details: reportDetails.trim() || undefined,
+      project_id: Number(id),
+    });
+    if (!res.ok) {
+      setReportBusy(false);
+      setReportError(res.error ?? 'Could not submit the report.');
+      return;
+    }
+
+    if (alsoBlock) {
+      const blockRes = await endpoints.createBlock({ blocked_id: otherPartyId });
+      if (!blockRes.ok) {
+        // The report already went through — don't lose that over the block
+        // failing separately (e.g. rate limit). Say so and let them retry the
+        // block alone from Settings.
+        setReportBusy(false);
+        setReportDone(true);
+        setReportError('Report sent, but blocking failed — try again from Settings > Blocked accounts.');
+        return;
+      }
+    }
+
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setReportBusy(false);
+    setReportDone(true);
+  }
+
+  function closeReportSheet() {
+    reportSheet.current?.close();
+    setReportDone(false);
+    setReportError(null);
+    setReportDetails('');
+    setAlsoBlock(false);
+  }
+
   return (
     <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
       {loading ? (
@@ -195,6 +259,20 @@ export default function ProjectDetailScreen() {
                 <Ban size={13} color={t.color.contentMuted} />
                 <Txt variant="footnote" tone="muted">
                   Request to cancel this project
+                </Txt>
+              </Pressable>
+            ) : null}
+
+            {otherPartyId ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => reportSheet.current?.expand()}
+                hitSlop={8}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}
+              >
+                <Flag size={13} color={t.color.contentMuted} />
+                <Txt variant="footnote" tone="muted">
+                  Report or block {partner}
                 </Txt>
               </Pressable>
             ) : null}
@@ -364,6 +442,126 @@ export default function ProjectDetailScreen() {
           icon={<Ban size={16} color={t.color.white} />}
           onPress={submitCancellationRequest}
         />
+      </Sheet>
+
+      <Sheet ref={reportSheet} title={`Report ${partner}`} onClose={closeReportSheet}>
+        {reportDone ? (
+          <View style={{ alignItems: 'center', gap: t.spacing.sm, paddingVertical: t.spacing.md }}>
+            <CircleCheck size={32} color={t.color.ok} />
+            <Txt variant="footnote" style={{ fontWeight: '700', textAlign: 'center' }}>
+              Thanks — our team will review this report.
+            </Txt>
+            {reportError ? (
+              <Txt variant="caption" tone="warn" style={{ textAlign: 'center' }}>
+                {reportError}
+              </Txt>
+            ) : null}
+            <Button label="Close" variant="secondary" size="md" onPress={closeReportSheet} />
+          </View>
+        ) : (
+          <>
+            <Txt variant="footnote" tone="muted">
+              Reports are private and sent to the Influnet team for review.
+            </Txt>
+
+            <View style={{ gap: t.spacing.xs }}>
+              <Txt variant="footnote" tone="soft">
+                Reason
+              </Txt>
+              {REPORT_REASONS.map((r) => {
+                const selected = reportReason === r.value;
+                return (
+                  <Pressable
+                    key={r.value}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    onPress={() => setReportReason(r.value)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: t.spacing.sm,
+                      paddingHorizontal: t.spacing.md,
+                      borderRadius: t.radii.md,
+                      borderWidth: 1,
+                      borderColor: selected ? t.color.brand : t.color.hairline,
+                      backgroundColor: selected ? t.color.brandSoft : t.color.surfaceCard,
+                    }}
+                  >
+                    <Txt variant="footnote" style={{ fontWeight: selected ? '700' : '400' }}>
+                      {r.label}
+                    </Txt>
+                    {selected ? <CircleCheck size={16} color={t.color.brand} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Field
+              label="Details (optional)"
+              placeholder="What happened?"
+              value={reportDetails}
+              onChangeText={setReportDetails}
+              multiline
+            />
+
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: alsoBlock }}
+              onPress={() => setAlsoBlock((v) => !v)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: t.spacing.sm,
+                padding: t.spacing.md,
+                borderRadius: t.radii.md,
+                borderWidth: 1,
+                borderColor: t.color.hairline,
+                backgroundColor: t.color.surfaceMuted,
+              }}
+            >
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 5,
+                  borderWidth: 1.5,
+                  borderColor: alsoBlock ? t.color.danger : t.color.hairlineStrong,
+                  backgroundColor: alsoBlock ? t.color.danger : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: 1,
+                }}
+              >
+                {alsoBlock ? <Check size={13} color={t.color.white} /> : null}
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Txt variant="footnote" style={{ fontWeight: '700' }}>
+                  Also block {partner}
+                </Txt>
+                <Txt variant="caption" tone="muted">
+                  They won&rsquo;t be able to message you or send new requests. Manage this later in
+                  Settings.
+                </Txt>
+              </View>
+            </Pressable>
+
+            {reportError ? (
+              <Txt variant="footnote" tone="danger">
+                {reportError}
+              </Txt>
+            ) : null}
+
+            <Button
+              label="Submit report"
+              variant="danger"
+              disabled={reportBusy}
+              loading={reportBusy}
+              icon={<Flag size={16} color={t.color.white} />}
+              onPress={submitReport}
+            />
+          </>
+        )}
       </Sheet>
     </ScreenScroll>
   );

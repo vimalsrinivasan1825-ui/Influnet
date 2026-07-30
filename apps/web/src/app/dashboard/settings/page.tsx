@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
 import { uploadToCloudinary } from "@/lib/storage/upload-client";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
+import { BlockedAccountsPanel } from "@/components/dashboard/blocked-accounts-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
 import { PortfolioEditor } from "@/components/dashboard/portfolio-editor";
 import { ProfileVisibilityEditor } from "@/components/dashboard/profile-visibility-editor";
@@ -550,6 +551,12 @@ export default function SettingsPage() {
             </>
           )}
         </Button>
+      </div>
+
+      <div className="mt-8">
+        <SectionCard eyebrow="Privacy" title="Blocked accounts" bodyClassName="p-0">
+          <BlockedAccountsPanel />
+        </SectionCard>
       </div>
 
       <div className="mt-8">

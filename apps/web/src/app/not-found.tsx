@@ -1,52 +1,55 @@
-import React from 'react';
-import Link from 'next/link';
+import Link from "next/link";
+import Image from "next/image";
+import { Compass } from "lucide-react";
+import { ButtonLink } from "@/components/ui/button";
 
+/**
+ * Was hardcoded to light-mode-only colors (bg-[#fafafb], text-gray-900, a
+ * fixed pink) instead of the app's semantic tokens (bg-surface, text-content,
+ * var(--brand)) — inconsistent with every other page and broken-looking in
+ * dark mode. Rebuilt on the same design system, and reusing the ambient-glow
+ * background the auth pages already establish as the site's look for a
+ * full-screen moment like this.
+ *
+ * A single "Go home" link is deliberate: "/" already redirects to /login for
+ * anonymous visitors and /login bounces a signed-in user straight to
+ * /dashboard, so one link correctly serves both cases without this page
+ * needing to know who's asking.
+ */
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 relative overflow-hidden font-sans">
-      {/* Soft Light Ambient Glows */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-pink-100/30 blur-[130px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-100/30 blur-[130px]" />
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-10">
+      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
+        <div
+          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
+        />
+        <div
+          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
+        />
       </div>
 
-      <div className="relative z-10 w-full max-w-[450px] text-center">
-        {/* Logo */}
-        <div className="mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
-            <img
-              src="/influet_logo.png"
-              alt="influnet"
-              className="h-10 w-auto flex-shrink-0 transition-transform group-hover:scale-105"
-            />
-            <span className="text-2xl font-black text-gray-900 tracking-tight">influnet</span>
-          </Link>
-        </div>
+      <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center">
+        <Link href="/" className="mb-8 inline-flex items-center gap-2.5">
+          <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" priority />
+          <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
+        </Link>
 
-        {/* Apple-like Premium Card */}
-        <div className="p-10 rounded-[2.5rem] bg-white border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.018)]">
-          {/* Custom Responsive SVG illustration */}
-          <div className="flex justify-center mb-6">
-            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#ee3e96" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M16 16s-1.5-2-4-2-4 2-4 2" />
-              <line x1="9" y1="9" x2="9.01" y2="9" />
-              <line x1="15" y1="9" x2="15.01" y2="9" />
-            </svg>
+        <div className="w-full rounded-3xl border border-hairline bg-surface-card p-10 shadow-[var(--shadow-soft)]">
+          <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-brand-soft">
+            <Compass size={30} className="text-brand-strong" />
           </div>
 
-          <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-3">404</h1>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Page Not Found</h2>
-          <p className="text-gray-400 font-semibold text-sm mb-8 leading-relaxed">
-            The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand">404</p>
+          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-content">Page not found</h1>
+          <p className="mt-2.5 text-sm leading-relaxed text-content-soft">
+            The page you're looking for doesn't exist, moved, or the link was mistyped.
           </p>
 
-          <Link
-            href="/dashboard"
-            className="w-full bg-[#ee3e96] hover:bg-[#db2777] active:scale-[0.98] text-white font-extrabold rounded-2xl h-13 transition-all outline-none text-base shadow-sm shadow-pink-200 inline-flex items-center justify-center font-sans"
-          >
-            Back to Dashboard
-          </Link>
+          <ButtonLink href="/" variant="brand" size="xl" className="mt-7 w-full">
+            Go home
+          </ButtonLink>
         </div>
       </div>
     </div>

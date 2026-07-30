@@ -259,26 +259,33 @@ async function main() {
     assert(!/no activity/i.test(bodyText) || bodyText.length > 200, 'activity page appears empty right after account creation');
   });
 
-  await runner.step('Connections page — confirmed static stub (known gap, not a bug)', page, async ({ note }) => {
-    await page.goto(`${BASE_URL}/dashboard/connections`, { waitUntil: 'networkidle', timeout: 20000 });
+  // REGRESSION GUARD: Connections used to be a static "No connections yet"
+  // stub regardless of real state. It now derives real rows from
+  // /api/conversations (lib/connections.ts) — assert it renders without
+  // crashing and doesn't 500. This creator has an active project/collab from
+  // earlier in this phase, but not asserting the row shows up here since the
+  // exact state depends on which earlier steps ran.
+  await runner.step('Connections page loads real data (no longer a static stub)', page, async ({ note }) => {
+    const res = await page.goto(`${BASE_URL}/dashboard/connections`, { waitUntil: 'networkidle', timeout: 20000 });
     await page.waitForTimeout(800);
     const bodyText = await page.locator('body').innerText();
-    note(`Body text snippet: "${bodyText.slice(0, 120).replace(/\n/g, ' ')}"`);
+    note(`Body text snippet: "${bodyText.slice(0, 150).replace(/\n/g, ' ')}"`);
+    assert(res.status() < 400, `expected the Connections page to load, got HTTP ${res.status()}`);
+    assert(!/application error/i.test(bodyText), 'Connections page crashed');
   });
 
-  await runner.step('Discover — renders the disabled-feature 404 UI, but as HTTP 200 not 404', page, async ({ note }) => {
+  // REGRESSION GUARD: discover/page.tsx used to be a "use client" component
+  // with ~470 lines of unreachable search UI behind a notFound() call —
+  // calling notFound() client-side rendered the right UI but the original
+  // document response had already gone out as HTTP 200, invisible to
+  // crawlers/monitoring. Rebuilt as a plain server component; see
+  // AUDIT_REMEDIATION_2026-07-30.md.
+  await runner.step('Discover renders a real HTTP 404, not a 200 with 404-shaped content', page, async ({ note }) => {
     const res = await page.goto(`${BASE_URL}/dashboard/discover`, { waitUntil: 'networkidle', timeout: 15000 });
     const bodyText = await page.locator('body').innerText();
+    note(`HTTP ${res.status()} (was 200 before the fix). Body snippet: "${bodyText.slice(0, 120).replace(/\n/g, ' ')}"`);
     assert(/404|page not found/i.test(bodyText), 'expected the not-found UI to render for /dashboard/discover');
-    // discover/page.tsx is a "use client" component calling next/navigation's
-    // notFound() — that only produces a true HTTP 404 when thrown from a
-    // Server Component render. Called client-side, Next still renders the
-    // nearest not-found boundary (confirmed: UI is correct) but the original
-    // document response was already sent as 200. Real finding: crawlers,
-    // uptime checks, and anything that reads status codes see this as a live
-    // 200 page, not a 404 — SEO/monitoring hygiene issue, not user-facing.
-    note(`HTTP status was ${res.status()} (expected true 404; UI itself is correct — see finding notes).`);
-    assert(res.status() === 200, `expected the known HTTP-200-not-404 status quirk; got ${res.status()} instead (behavior may have changed)`);
+    assert(res.status() === 404, `expected a true HTTP 404, got ${res.status()}`);
   });
 
   await runner.step('Messages page loads without crashing (empty state expected)', page, async () => {

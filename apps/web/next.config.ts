@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      // Discover is disabled for V1 (see the destination page's comment for
+      // why this has to be a rewrite to a route outside app/dashboard/,
+      // rather than a page living directly at this path).
+      { source: "/dashboard/discover", destination: "/dashboard-discover-disabled" },
+    ];
+  },
 };
 
 export default nextConfig;
