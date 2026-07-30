@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Alert, Linking, Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Bell, LogOut, Mail, ShieldOff, Trash2 } from 'lucide-react-native';
@@ -164,6 +165,25 @@ export default function SettingsScreen() {
       <Txt variant="caption" tone="muted" center>
         Influnet {Constants.expoConfig?.version ?? ''}
       </Txt>
+      <Txt variant="caption" tone="muted" center>
+        {Updates.isEmbeddedLaunch
+          ? 'Running embedded build'
+          : Updates.createdAt
+            ? `Updated ${Updates.createdAt.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })} at ${Updates.createdAt.toLocaleTimeString('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`
+            : 'No OTA update info'}
+      </Txt>
+      {showDiagnostics && Updates.updateId ? (
+        <Txt variant="caption" tone="muted" center>
+          Update ID: {Updates.updateId.slice(0, 8)}
+        </Txt>
+      ) : null}
 
       <Sheet ref={deleteSheet} title="Delete your account?">
         <Txt variant="body" tone="soft">
