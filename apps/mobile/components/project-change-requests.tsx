@@ -13,7 +13,7 @@
  * Shows pending requests prominently with action buttons, then recent history
  * below. A "Propose change" button opens a sheet with the editable fields.
  */
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Pressable, View, ScrollView } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
@@ -131,7 +131,7 @@ export function ProjectChangeRequests({
     { cacheKey: `change-requests:${projectId}` },
   );
 
-  const [proposeSheet, setProposeSheet] = useState<SheetRef | null>(null);
+  const proposeSheet = useRef<SheetRef>(null);
   const [form, setForm] = useState<ChangeForm>(EMPTY_FORM);
   const [proposing, setProposing] = useState(false);
   const [proposeError, setProposeError] = useState<string | null>(null);
@@ -172,7 +172,7 @@ export function ProjectChangeRequests({
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setForm(EMPTY_FORM);
-    proposeSheet?.close();
+    proposeSheet.current?.close();
     refresh();
   }
 
@@ -199,7 +199,7 @@ export function ProjectChangeRequests({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Propose a change"
-          onPress={() => proposeSheet?.expand()}
+          onPress={() => proposeSheet.current?.expand()}
           hitSlop={8}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
         >
@@ -354,7 +354,7 @@ export function ProjectChangeRequests({
 
       {/* Propose change sheet */}
       <Sheet
-        ref={(r) => setProposeSheet(r)}
+        ref={proposeSheet}
         title="Propose a change"
         snapPoints={['75%']}
       >

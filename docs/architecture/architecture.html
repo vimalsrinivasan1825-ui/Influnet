@@ -1396,6 +1396,11 @@
       </thead>
       <tbody>
         <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-30</td>
+          <td><strong>Mobile project screen crash fix</strong>: Fixed an infinite rendering loop in <span class="mono">ProjectChangeRequests</span> by refactoring the <span class="mono">proposeSheet</span> ref from a state-based ref (<span class="mono">useState</span>) to a stable mutable ref (<span class="mono">useRef</span>), resolving blank screen crash on project details page load. <b>Typecheck 7/7 ✅ Tests 214/220 ✅</b></td>
+          <td>Projects · Mobile</td>
+        </tr>
+        <tr>
           <td class="mono" style="white-space:nowrap">2026-07-29</td>
           <td><strong>Project deletion fix, rate limiting, realtime channels, connection pooling, mobile change requests</strong>: Cancelled projects frozen at API + UI layer — early status check in PATCH handler, red/danger styling, read-only ActivityTimeline, 15-day <span class="mono">deleted_at</span> retention. <b>Rate limiting</b> added to 9 API routes: auth/register, discover, blocks, projects list/detail, home, activity, collabs, push-token (in-process + Upstash Redis). <b>Realtime</b>: profiles + user_blocks subscriptions in mobile <span class="mono">lib/realtime.ts</span>. <b>Connection pooling</b>: <span class="mono">lib/supabase/pooler.ts</span> URL transformer + timeout config. <b>Deletion hardening</b>: cancelled-status checks on stage-items PATCH and payments POST routes. <b>Mobile change requests</b>: <span class="mono">ProjectChangeRequests</span> component with propose/accept/reject/withdraw sheet, inline diffs, and history. <b>Migration 092</b> applied. <b>Typecheck 7/7 ✅ Tests 214/220 ✅</b></td>
           <td>Projects · Rate limiting · Realtime · Mobile · Security · Infra</td>

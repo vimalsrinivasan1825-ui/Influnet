@@ -2,7 +2,22 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+## Session — 2026-07-30: Mobile Project Screen Infinite Render Loop Fix
+
+**Branch**: `dev`
+
+### Scope
+- **Project Detail Page Crash Fix (`apps/mobile/components/project-change-requests.tsx`)**:
+  - Identified and fixed an infinite rendering loop in the `ProjectChangeRequests` component caused by setting component state inside a React callback ref (`ref={(r) => setProposeSheet(r)}`).
+  - Refactored the `proposeSheet` sheet ref to use React's `useRef` hook (`useRef<SheetRef>(null)`), removing it from the component state and eliminating the infinite commit-render cycles on project details page load.
+  - Updated `architecture.html` status log to track this critical mobile client fix.
+
+### Key Lessons
+- Never set state directly inside a React callback ref defined as an inline function. Because the callback function instance changes on every render, React will invoke the old ref with `null` and the new ref with the element on every single commit phase, triggering endless state updates and render cycles.
+- Always use `useRef` for component refs unless you explicitly need dynamic callback logic that does not affect component state during render.
+
 ---
+
 
 ## Session — 2026-07-29: Real-time Architecture & Android App Store Distribution Runbook
 
