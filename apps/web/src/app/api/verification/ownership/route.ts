@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { fetchInstagramProfile, normalizeHandle, InstagramProviderError } from '@/lib/instagram';
-import { publicOrigin, publicOriginDisplay, publicProfileUrl } from '@/lib/site';
+import { publicOriginDisplay, publicProfileUrl } from '@/lib/site';
 
 // The confirm step scrapes the live bio (Apify actor ~15s).
 export const maxDuration = 60;

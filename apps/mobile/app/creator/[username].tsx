@@ -44,6 +44,9 @@ interface CreatorProfileView {
   location: string | null;
   niches: string[];
   isVerified: boolean;
+  /** Proven the handle is theirs — distinct from `isVerified`, which also
+   *  needs the trust-pipeline score to clear. See migration 095. */
+  ownershipVerified?: boolean;
   subtitleLead: string;
   subtitleAccent: string;
   tagline: string;
@@ -190,7 +193,13 @@ export default function CreatorDetail() {
                   />
                 ) : null}
                 <Badge
-                  label={creator.isVerified ? 'Verified creator' : 'Ownership not verified'}
+                  label={
+                    creator.isVerified
+                      ? 'Verified creator'
+                      : creator.ownershipVerified
+                        ? 'Verification in progress'
+                        : 'Ownership not verified'
+                  }
                   tone={creator.isVerified ? 'verified' : 'neutral'}
                   icon={creator.isVerified ? <VerifiedBadge size={13} /> : undefined}
                 />

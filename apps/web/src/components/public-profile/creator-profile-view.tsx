@@ -330,19 +330,28 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
             <section className={`${styles.hero} ${styles.herofull}`}>
               <div className={styles.herotop}>
                 <div className={styles.hleft}>
+                  {/*
+                    Two independent facts, not one boolean: `isVerified` (the
+                    badge) needs BOTH ownership proven AND the trust-pipeline
+                    score to clear. A creator who has proven ownership but
+                    scores low was, before migration 095, told this banner's
+                    fixed reason — "hasn't added their Influnet verification
+                    link" — which was simply false for them. `ownershipVerified`
+                    lets the banner say the true thing in both unverified cases.
+                  */}
                   <span className={data.isVerified ? styles.eyebrow : styles.eyebrowNeutral}>
                     {data.isVerified ? (
                       <VerifiedMark className={styles.eyebrowMark} />
                     ) : (
                       <Ic d="M12 2l2.4 6.9L21 9.2l-5.2 4.2 1.9 6.6L12 16.6 6.3 20l1.9-6.6L3 9.2l6.6-.3z" fill />
                     )}
-                    {data.isVerified ? 'Verified creator' : 'Ownership not verified'}
+                    {data.isVerified ? 'Verified creator' : data.ownershipVerified ? 'Verification in progress' : 'Ownership not verified'}
                     {!data.isVerified && (
                       <span className={styles.infoWrap} ref={unverifiedInfoRef}>
                         <button
                           type="button"
                           className={styles.infoBtn}
-                          aria-label="Why is this unverified?"
+                          aria-label="Why isn't this verified yet?"
                           aria-expanded={unverifiedInfoOpen}
                           onClick={() => setUnverifiedInfoOpen((v) => !v)}
                         >
@@ -352,7 +361,9 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                           role="tooltip"
                           className={`${styles.infoCard} ${unverifiedInfoOpen ? styles.infoCardOpen : ''}`}
                         >
-                          {`${data.name} hasn't added their Influnet verification link to their Instagram bio yet, so we can't confirm they own this account. This updates automatically once they do.`}
+                          {data.ownershipVerified
+                            ? `${data.name} has proven this Instagram account is theirs. We're still confirming their reach and activity — this can take a little time, and doesn't limit anything they can do meanwhile.`
+                            : `${data.name} hasn't added their Influnet verification link to their Instagram bio yet, so we can't confirm they own this account. This updates automatically once they do.`}
                         </span>
                       </span>
                     )}

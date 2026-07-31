@@ -28,6 +28,7 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
+import Image from "next/image";
 
 const TOTAL = 19_000;
 
@@ -452,7 +453,7 @@ export function VerifyGuideAnimation({
                 <span data-el="infIcon" className="flex flex-col items-center gap-1">
                   {/* The real app icon: the Influnet mark on white, not a letter tile. */}
                   <span data-el="infIconTile" className="flex size-10 items-center justify-center rounded-[11px] bg-white shadow-md">
-                    <img src="/influet_logo.png" alt="" className="size-7 object-contain" />
+                    <Image src="/influet_logo.png" alt="" width={28} height={28} className="size-7 object-contain" />
                   </span>
                   <span className="text-[7.5px] font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">Influnet</span>
                 </span>
@@ -563,11 +564,22 @@ function Avatar({ size }: { size: number }) {
   );
 }
 
+/**
+ * The SAME mark shown everywhere else in the product — lucide's `BadgeCheck`
+ * outline (components/ui/verified-badge.tsx), filled instead of stroked for a
+ * bigger hero moment. An earlier version hand-drew a 12-point rosette from
+ * straight line segments; it was asymmetric and never quite read as a circle.
+ * lucide's outline is built from matched-radius arcs, so it's a true circular
+ * locus with crisp scalloped edges — "fully circled," reliably, at any size.
+ */
 function VerifiedMark({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className="block">
-      <path d="M12 1.35l2.62 2.02 3.29-.33 1.03 3.15 2.84 1.7-1.06 3.14 1.06 3.14-2.84 1.7-1.03 3.15-3.29-.33L12 22.65l-2.62-2.02-3.29.33-1.03-3.15-2.84-1.7 1.06-3.14L2.22 9.83l2.84-1.7 1.03-3.15 3.29.33L12 1.35z" fill="var(--verified, #ff0b8d)" />
-      <path d="M8.1 12.25l2.75 2.75 5.15-5.4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"
+        fill="var(--verified, #ff0b8d)"
+      />
+      <path d="m9 12 2 2 4-4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

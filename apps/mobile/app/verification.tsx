@@ -1,15 +1,22 @@
 /**
  * Instagram ownership verification.
  *
- * Three states in one screen: not started, code issued (waiting for the user to
- * put it in their bio), and verified. The code step is where mobile beats the
- * web — copy the code, tap through to the Instagram app, come back, confirm.
+ * Three states in one screen: not started, link issued (waiting for the user to
+ * put it in their bio), and verified. The link step is where mobile beats the
+ * web — copy the link, tap through to the Instagram app, come back, confirm.
+ *
+ * The marker used to be a throwaway one-time code. It is now the creator's own
+ * public profile link (see the matching change in
+ * apps/web/src/app/api/verification/ownership/route.ts) — a link they have a
+ * reason to keep in their bio, so this stops being a chore undone immediately
+ * after and becomes something we can re-check later.
  */
 import { useCallback, useState } from 'react';
 import { Linking, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { BadgeCheck, Copy, ExternalLink } from 'lucide-react-native';
+import { BadgeCheck, Copy, ExternalLink, PlayCircle } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -76,10 +83,11 @@ const PIPELINE_LABEL: Record<PipelineState['status'], string> = {
 
 export default function VerificationScreen() {
   const t = useTheme();
+  const router = useRouter();
   const profile = useSession((s) => s.profile);
   const loadProfile = useSession((s) => s.loadProfile);
 
-  const [code, setCode] = useState<string | null>(null);
+  // `verifyUrl` is now the creator's public profile link, not a one-time code.
   const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -133,7 +141,7 @@ export default function VerificationScreen() {
     setBusy(true);
     setMessage(null);
 
-    const res = await endpoints.checkOwnership<{ code: string; verify_url: string }>({
+    const res = await endpoints.checkOwnership<{ profile_url?: string; verify_url: string; code: string }>({
       action: 'initiate',
       handle: igHandle,
     });
@@ -143,8 +151,7 @@ export default function VerificationScreen() {
       setMessage(res.error);
       return;
     }
-    setCode(res.data?.code ?? null);
-    setVerifyUrl(res.data?.verify_url ?? null);
+    setVerifyUrl(res.data?.profile_url ?? res.data?.verify_url ?? res.data?.code ?? null);
   }, [igHandle]);
 
   const confirm = useCallback(async () => {
@@ -169,7 +176,7 @@ export default function VerificationScreen() {
     if (res.data?.verified) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setMessage(
-        'Ownership confirmed — you can remove the code from your bio now. Running your verification…'
+        'Ownership confirmed. Leave the link in your bio — it points brands at your profile. Running your verification…'
       );
       // Ownership is only a PREREQUISITE for the badge: /api/verification is
       // what actually grants it, and it will not auto-verify until the
@@ -184,7 +191,7 @@ export default function VerificationScreen() {
     } else {
       setMessage(
         res.data?.message ??
-          "We couldn't find the code in your bio yet. Make sure your account is public and the code is saved, then try again."
+          "We couldn't find your profile link in the bio yet. Make sure your account is public and the link is saved, then try again."
       );
     }
   }, [igHandle, loadProfile, refresh, refreshPipeline]);
@@ -285,10 +292,21 @@ export default function VerificationScreen() {
       ) : (
         <>
           <View style={{ gap: 6 }}>
-            <Txt variant="title1">Verify your Instagram</Txt>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: t.spacing.sm }}>
+              <Txt variant="title1" style={{ flex: 1 }}>
+                Verify your Instagram
+              </Txt>
+              <Button
+                label="Watch the guide"
+                variant="ghost"
+                icon={<PlayCircle size={15} color={t.color.brand} />}
+                onPress={() => router.push('/verification-guide')}
+              />
+            </View>
             <Txt variant="body" tone="soft">
-              Prove the account is yours by putting a one-time code in your bio.
-              It takes about a minute and you can remove the code afterwards.
+              Prove the account is yours by putting your Influnet profile link in
+              your bio. Takes about a minute — and you can leave the link there,
+              it&apos;s the page you want brands to land on anyway.
             </Txt>
           </View>
 
@@ -308,9 +326,9 @@ export default function VerificationScreen() {
             </Card>
           )}
 
-          {!code ? (
+          {!verifyUrl ? (
             <Button
-              label="Get my code"
+              label="Get my link"
               onPress={initiate}
               loading={busy}
               disabled={!profile?.instagram_handle}
@@ -329,20 +347,17 @@ export default function VerificationScreen() {
                     alignItems: 'center',
                   }}
                 >
-                  <Txt
-                    variant="title2"
-                    style={{ letterSpacing: 2, fontVariant: ['tabular-nums'] }}
-                  >
-                    {code}
+                  <Txt variant="bodyStrong" center>
+                    {verifyUrl}
                   </Txt>
                 </View>
 
                 <Button
-                  label={copied ? 'Copied' : 'Copy code'}
+                  label={copied ? 'Copied' : 'Copy link'}
                   variant="secondary"
                   icon={<Copy size={16} color={t.color.content} />}
                   onPress={async () => {
-                    await Clipboard.setStringAsync(verifyUrl ?? code);
+                    await Clipboard.setStringAsync(verifyUrl);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}
@@ -354,8 +369,9 @@ export default function VerificationScreen() {
                   Step 2 — paste it in your bio
                 </Txt>
                 <Txt variant="callout" tone="soft">
-                  Open Instagram, edit your profile, paste the code anywhere in
-                  your bio and save. Keep your account public while we check.
+                  Open Instagram, edit your profile, paste the link anywhere in
+                  your bio and save. Keep your account public while we check —
+                  and it&apos;s fine to leave it there afterwards.
                 </Txt>
                 <Button
                   label="Open Instagram"
@@ -369,7 +385,7 @@ export default function VerificationScreen() {
                 <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
                   Step 3 — come back here
                 </Txt>
-                <Button label="I've added the code" onPress={confirm} loading={busy} />
+                <Button label="I've added the link" onPress={confirm} loading={busy} />
               </Card>
             </>
           )}

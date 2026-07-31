@@ -27,6 +27,7 @@ export function VerificationPanel() {
   const [data, setData] = useState<StatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     const res = await apiFetch<StatusResponse>("/api/verification");
@@ -38,9 +39,17 @@ export function VerificationPanel() {
 
   const runVerification = async () => {
     setRunning(true);
+    setError(null);
     try {
+      // The failure branch used to be silent — no error, no toast, the button
+      // just re-enabled with nothing to show for it, which reads as "nothing
+      // happened" even when the run was rejected (rate limit, provider outage).
       const res = await apiFetch("/api/verification", { method: "POST" });
-      if (res.ok) await load();
+      if (res.ok) {
+        await load();
+      } else {
+        setError(res.error || "Could not run verification — try again in a moment.");
+      }
     } finally {
       setRunning(false);
     }
@@ -85,6 +94,8 @@ export function VerificationPanel() {
           </Button>
           {isBusy && <span className="text-xs text-content-muted">Runs in the background — nothing is blocked.</span>}
         </div>
+
+        {error && <p className="text-xs font-semibold text-danger">{error}</p>}
       </div>
     </SectionCard>
   );

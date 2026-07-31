@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { Bell, LogOut, Mail, ShieldOff, Trash2 } from 'lucide-react-native';
+import { Bell, LogOut, Mail, PlayCircle, ShieldOff, Trash2 } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession, useSignOutAction } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
@@ -114,6 +114,20 @@ export default function SettingsScreen() {
               subtitle={testingPush ? "Registering and verifying token..." : "Verify FCM token registration with server"}
               left={<Bell size={19} color={t.color.brand} />}
               onPress={testPushRegistration}
+            />
+          </ListGroup>
+        </>
+      ) : null}
+
+      {profile?.role === 'influencer' ? (
+        <>
+          <SectionLabel>Verification</SectionLabel>
+          <ListGroup>
+            <ListRow
+              title="How to verify"
+              subtitle="Watch a quick guide — copy your link, paste it in your bio"
+              left={<PlayCircle size={19} color={t.color.brand} />}
+              onPress={() => router.push('/verification-guide')}
             />
           </ListGroup>
         </>
