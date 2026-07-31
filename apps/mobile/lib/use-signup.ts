@@ -142,7 +142,7 @@ export function usePhoneAvailability(phone: string) {
   return { status, message };
 }
 
-export function useInstagramAvailability(handle: string, debounceMs = 2000): AvailabilityResult {
+export function useInstagramAvailability(handle: string, debounceMs = 600): AvailabilityResult {
   const [status, setStatus] = useState<Availability>('idle');
   const [message, setMessage] = useState('');
 

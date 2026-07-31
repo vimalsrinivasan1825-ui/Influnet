@@ -461,13 +461,15 @@ function InfluencerSignupContent() {
               </div>
               <Button 
                 variant="surface" 
-                className="w-full" 
+                className="w-full relative overflow-hidden" 
                 onClick={handleConnectInstagram} 
                 disabled={isConnecting || !instagramHandle || instagramStatus === "checking" || instagramStatus === "taken" || instagramStatus === "invalid"}
               >
                 {isConnecting ? (
                   <>
-                    <Loader2 className="animate-spin mr-2 size-4" /> Fetching profile...
+                    <div className="absolute inset-0 bg-brand/10 animate-pulse" />
+                    <Loader2 className="animate-spin mr-2 size-4 relative z-10" /> 
+                    <span className="relative z-10 font-medium">Fetching profile...</span>
                   </>
                 ) : (
                   "Auto-fill my details"
