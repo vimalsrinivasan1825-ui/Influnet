@@ -1,6 +1,7 @@
-// Landing page for the ownership-verification links users place in their bio
-// (…/vf/<code>). The code is matched server-side by scraping the bio — this page
-// is just a friendly, legible destination if someone taps the link.
+// Landing page for the LEGACY ownership-verification links (…/vf/<code>) from
+// before the bio marker became the creator's own public profile link — see
+// api/verification/ownership/route.ts. New claims never mint one of these; this
+// stays only so any already-issued vf_ link still lands somewhere sensible.
 
 export const metadata = {
   title: "Influnet verification",

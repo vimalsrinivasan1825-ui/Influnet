@@ -7,6 +7,7 @@
 // are special and keep their existing dedicated flows instead of a plain
 // two-sided confirm:
 //   - sent_for_review  → the brand forks (request revisions OR approve draft)
+//   - revisions        → the creator reworks and resubmits (one-sided)
 //   - final_payment    → dual-confirm completion (existing confirm_completion)
 //   - project_completed → terminal, nothing to confirm
 // Those are listed in NON_SIGNOFF_STAGES and the UI renders their own controls.
@@ -85,8 +86,17 @@ export const STAGE_GUIDE: Record<Stage, StageGuide> = {
 };
 
 // Stages that do NOT use plain two-sided sign-off — they have their own controls.
+//
+// `revisions` is one-sided on purpose. The brand has already spoken: it asked
+// for changes, which is what put the project here. The stage is the creator
+// doing the rework, and the brand's next say is the re-review it goes back to —
+// STAGE_ACTOR has always said 'creator' and the stage guide has always read
+// "Resubmit the updated draft". Running it as a mutual sign-off made the brand
+// confirm that someone else's work was finished, then immediately review it
+// again: two approvals for one decision, and the first one meaningless.
 export const NON_SIGNOFF_STAGES: ReadonlySet<string> = new Set([
   'sent_for_review',
+  'revisions',
   'final_payment',
   'project_completed',
 ]);

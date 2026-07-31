@@ -71,6 +71,11 @@ interface QueueItem {
   } | null;
   influencer: InfluencerDetails | null;
   business: BusinessDetails | null;
+  /** null for business rows — the ownership gate only applies to influencers (086). */
+  ownershipVerified: boolean | null;
+  /** How many open (unresolved) checks are stacked behind this one — one card
+   *  shows the latest, this says how many times they've run it since. */
+  openAttempts: number;
 }
 
 type Decision = "verified" | "rejected" | "needs_more_info";
@@ -177,6 +182,23 @@ function QueueRow({
                 <ShieldAlert className="size-3" /> Flagged
               </Badge>
             )}
+            {/* Ownership is a SEPARATE fact from the confidence score — a low
+                score with ownership proven is exactly the case this queue was
+                missing before (needs_more_info was excluded entirely). Shown
+                up front because it decides whether Verify below will work. */}
+            {item.role === "influencer" && (
+              <Badge variant={item.ownershipVerified ? "success" : "neutral"} size="sm" className="gap-1">
+                <BadgeCheck className="size-3" /> {item.ownershipVerified ? "Ownership proven" : "Ownership not proven"}
+              </Badge>
+            )}
+            {/* This card shows their LATEST check; older stacked ones from
+                repeat "Run verification" clicks are collapsed into this count
+                rather than each getting their own duplicate card. */}
+            {item.openAttempts > 1 && (
+              <Badge variant="neutral" size="sm">
+                Run {item.openAttempts}×
+              </Badge>
+            )}
           </div>
           <p className="mt-0.5 text-xs text-content-soft">{item.profile?.email}</p>
         </div>
@@ -223,11 +245,24 @@ function QueueRow({
         </div>
       )}
 
+      {item.role === "influencer" && !item.ownershipVerified && (
+        <p className="text-xs text-content-muted">
+          Verify is disabled — the server refuses to grant the badge without a proven bio-link
+          claim (086), regardless of what an admin decides. Ask them to complete ownership
+          verification first.
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
           className="bg-ok text-white hover:bg-ok/90"
-          disabled={acting}
+          disabled={acting || (item.role === "influencer" && !item.ownershipVerified)}
+          title={
+            item.role === "influencer" && !item.ownershipVerified
+              ? "Ownership not proven yet — the server will refuse this"
+              : undefined
+          }
           onClick={() => onDecide(item.user_id, "verified")}
         >
           <BadgeCheck /> {acting ? "…" : "Verify"}

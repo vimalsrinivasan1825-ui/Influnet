@@ -3,9 +3,10 @@ import { Linking, Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
-import { Check, Clock, Paperclip } from 'lucide-react-native';
+import { Check, Clock, Paperclip, RefreshCw, ThumbsUp } from 'lucide-react-native';
 import {
   STAGES,
+  STAGE_ACTOR,
   STAGE_GUIDE,
   isMutualSignoffStage,
   isSkippableStage,
@@ -137,6 +138,9 @@ export default function StageScreen() {
 
   const project = data?.project;
   const stageItems = (data?.items ?? []).filter((item) => item.stage_key === stage);
+  // Mirrors web's `requiredDone`: the server enforces this gate (409 with the
+  // blocking labels), but the button should say so before you tap it.
+  const requiredDone = stageItems.every((item) => !item.is_required || !!item.done_at);
   const stageEntries = (data?.entries ?? []).filter((entry) => entry.stage_key === stage);
   const stageKey = stage as Stage;
   const guide = STAGE_GUIDE[stageKey];
@@ -174,6 +178,27 @@ export default function StageScreen() {
   // on the phone could be carried all the way to final payment and then never
   // finished — 'signoff' is rejected outright by the API for this stage.
   const isCompletionStage = stageKey === 'final_payment';
+
+  // The review fork. `sent_for_review` is in NON_SIGNOFF_STAGES, so it is
+  // neither a sign-off stage nor the completion stage — which is exactly how it
+  // used to fall through both footer branches and render NOTHING. A project run
+  // from the phone reached stage 8 of 12 and stopped dead: the brand had no way
+  // to approve the draft or send it back. Same shape of bug as the completion
+  // branch above, one stage earlier.
+  //
+  // This is the only stage with two forward exits, so it uses `advance` with an
+  // explicit stage_key rather than sign-off — mirroring the web action zone.
+  const isReviewFork = stageKey === 'sent_for_review';
+
+  // The rework stage. One-sided by design: the brand already decided when it
+  // asked for changes, so this is the creator resubmitting, and the brand's next
+  // say is the re-review it goes back to.
+  const isResubmit = stageKey === 'revisions';
+
+  const stageActor = STAGE_ACTOR[stageKey as Stage];
+  const myRoleKey: 'business' | 'creator' = isOwner ? 'business' : 'creator';
+  const iAmActor = stageActor === 'either' || stageActor === myRoleKey;
+  const iAmReviewer = iAmActor;
   const iConfirmedCompletion = isOwner
     ? !!project?.owner_confirmed_complete
     : !!project?.counterparty_confirmed_complete;
@@ -246,11 +271,25 @@ export default function StageScreen() {
       | 'confirm_skip'
       | 'cancel_skip'
       | 'confirm_completion'
+      | 'advance',
+    /**
+     * Only the review fork passes this. Every other action operates on the
+     * project's CURRENT stage server-side, so the target is implicit; `advance`
+     * is the one action with two possible exits (back for revisions, or on to
+     * final approval) and has to name which. The key is `stage_key` — that is
+     * what PatchProjectActionSchema reads; the `stage` field below is ignored
+     * by the server and kept only because every existing call sends it.
+     */
+    stageTarget?: 'revisions' | 'final_approval'
   ) {
     setBusy(true);
     setActionError(null);
 
-    const res = await endpoints.updateProject(id, { action, stage: stageKey });
+    const res = await endpoints.updateProject(id, {
+      action,
+      stage: stageKey,
+      ...(stageTarget ? { stage_key: stageTarget } : {}),
+    });
     setBusy(false);
 
     if (!res.ok) {
@@ -536,6 +575,22 @@ export default function StageScreen() {
                   This stage moves on once you both confirm.
                 </Txt>
               </Card>
+            ) : isReviewFork ? (
+              <Card>
+                <Txt variant="footnote" tone="muted">
+                  {iAmReviewer
+                    ? 'This stage doesn’t use a two-sided confirmation — it’s a decision. Send the draft back for changes, or approve it to move on.'
+                    : `This stage is ${partner}’s call: they either request revisions or approve the draft.`}
+                </Txt>
+              </Card>
+            ) : isResubmit ? (
+              <Card>
+                <Txt variant="footnote" tone="muted">
+                  {iAmActor
+                    ? 'No confirmation needed here — the changes were already asked for. Make them, then send the draft back for review.'
+                    : `${partner} is making the changes you asked for. It comes back to you for review once they resubmit.`}
+                </Txt>
+              </Card>
             ) : (
               <Card>
                 <Txt variant="footnote" tone="muted">
@@ -577,6 +632,60 @@ export default function StageScreen() {
                 loading={busy}
               />
             </>
+          )}
+        </StickyFooter>
+      ) : isCurrent && isReviewFork ? (
+        <StickyFooter>
+          {iAmReviewer ? (
+            <>
+              <Txt variant="footnote" tone="muted" center>
+                {requiredDone
+                  ? 'Review the draft — send it back for changes, or approve it to move on.'
+                  : 'Finish the required steps above before deciding.'}
+              </Txt>
+              <Button
+                label="Approve draft"
+                icon={<ThumbsUp size={16} color={t.color.white} />}
+                onPress={() => act('advance', 'final_approval')}
+                disabled={!requiredDone}
+                loading={busy}
+              />
+              <Button
+                label="Request revisions"
+                icon={<RefreshCw size={16} color={t.color.content} />}
+                variant="secondary"
+                onPress={() => act('advance', 'revisions')}
+                disabled={!requiredDone}
+                loading={busy}
+              />
+            </>
+          ) : (
+            <Txt variant="footnote" tone="muted" center>
+              Waiting for {partner} to review the draft.
+            </Txt>
+          )}
+        </StickyFooter>
+      ) : isCurrent && isResubmit ? (
+        <StickyFooter>
+          {iAmActor ? (
+            <>
+              <Txt variant="footnote" tone="muted" center>
+                {requiredDone
+                  ? 'Send the updated draft back for review.'
+                  : 'Mark the requested changes done above first.'}
+              </Txt>
+              <Button
+                label="Resubmit for review"
+                icon={<RefreshCw size={16} color={t.color.white} />}
+                onPress={() => act('advance')}
+                disabled={!requiredDone}
+                loading={busy}
+              />
+            </>
+          ) : (
+            <Txt variant="footnote" tone="muted" center>
+              Waiting for {partner} to resubmit the draft.
+            </Txt>
           )}
         </StickyFooter>
       ) : isCurrent && usesSignoff ? (

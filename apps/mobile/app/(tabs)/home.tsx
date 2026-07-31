@@ -44,6 +44,7 @@ import {
   timeAgo,
 } from '@/lib/format';
 import { AppHeader } from '@/components/app-header';
+import { ApprovalBanner } from '@/components/approval-banner';
 import { ActionCard } from '@/components/action-card';
 import {
   Card,
@@ -286,6 +287,10 @@ export default function HomeScreen() {
         avatarName={profile?.name}
         unread={unreadNotifications}
       />
+
+      {/* Unapproved businesses land here first, so this is where web's shell
+          banner belongs. Renders nothing for everyone else. */}
+      <ApprovalBanner />
 
       <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
         {loading ? (

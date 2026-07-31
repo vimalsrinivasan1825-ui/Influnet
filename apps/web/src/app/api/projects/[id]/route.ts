@@ -209,7 +209,23 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         if (currentIdx >= STAGES.length - 1) {
           return jsonError(400, 'Already at final stage');
         }
-        nextStage = STAGES[currentIdx + 1];
+        // Default target = the stage's only legal transition, NOT the next
+        // array element. The explicit-stage_key branch above already validates
+        // against ALLOWED_TRANSITIONS; this branch skipped that check entirely
+        // and walked the array, so a bare "Advance" on `revisions` jumped to
+        // `final_approval` — past the re-review that ALLOWED_TRANSITIONS.revisions
+        // exists to require.
+        //
+        // A forking stage (sent_for_review) has no single default and must be
+        // told which way to go, which is what the review fork's buttons do.
+        const defaultNext: string[] = ALLOWED_TRANSITIONS[project.current_stage] || [];
+        if (defaultNext.length !== 1) {
+          return jsonError(
+            400,
+            `The ${STAGE_LABELS[project.current_stage] || project.current_stage} stage needs an explicit decision — pick where it goes next.`,
+          );
+        }
+        nextStage = defaultNext[0];
       }
 
       // Completion is DUAL-CONFIRM (see 1b and migration 056) — but this older
@@ -343,10 +359,30 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       let nextStage: string | null = null;
       if (bothSigned && currentIdx < STAGES.length - 1) {
-        // Both confirmed → complete this stage and move to the next one.
+        // Both confirmed → complete this stage and move on.
+        //
+        // The target comes from ALLOWED_TRANSITIONS, not STAGES[idx + 1]. For
+        // every stage but one those are the same answer, and the exception is
+        // the one that mattered: `revisions` is followed in the array by
+        // `final_approval`, but its only legal transition is BACK to
+        // `sent_for_review`. Advancing by index silently skipped the re-review,
+        // so a brand approved final content having never seen the resubmitted
+        // draft — and the `advance` path and this one disagreed about what the
+        // revision loop even does.
+        //
+        // A sign-off stage has exactly one exit by definition; anything with a
+        // fork (sent_for_review) is in NON_SIGNOFF_STAGES and never reaches
+        // here. Bail rather than guess if that ever stops being true.
+        const allowedNext: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
+        if (allowedNext.length !== 1) {
+          return jsonError(
+            500,
+            `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't advance by sign-off.`,
+          );
+        }
         entry.status = 'completed';
         entry.completed_at = now;
-        const ns = STAGES[currentIdx + 1] as string;
+        const ns = allowedNext[0];
         nextStage = ns;
         stageProgress[currentStage] = entry;
         stageProgress[ns] = {
@@ -456,7 +492,19 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (proposedBy === user.id) return jsonError(400, 'The other party has to confirm the skip you proposed.');
       if (currentIdx >= STAGES.length - 1) return jsonError(400, 'Already at the final stage');
 
-      const skipNext = STAGES[currentIdx + 1] as string;
+      // Same rule as sign-off above: the transition map decides where a stage
+      // leads, never the array order. No skippable stage forks or loops today,
+      // so this is defence in depth rather than a live fix — but it is the
+      // identical hazard, and leaving one of the two paths advancing by index
+      // is how they drift apart again.
+      const skipAllowed: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
+      if (skipAllowed.length !== 1) {
+        return jsonError(
+          500,
+          `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't be skipped.`,
+        );
+      }
+      const skipNext = skipAllowed[0];
       entry.status = 'skipped';
       entry.skipped_at = now;
       entry.skip_confirmed_by = user.id;
@@ -499,6 +547,46 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (action === 'confirm_completion') {
       if (project.current_stage !== 'final_payment') {
         return jsonError(400, 'Completion can only be confirmed at the final payment stage');
+      }
+
+      // The CREATOR may not confirm completion while the final payment gate is
+      // still open. Completing publishes the collaboration and a rating on their
+      // public profile and closes the change-request window — so "done" has to
+      // mean "and I was paid".
+      //
+      // Every other stage checks its required items before it can move; this one
+      // never did, which made final_payment the one gate a project could walk
+      // past. When in-app payments are configured that item only opens on a
+      // signed webhook, so this is a real money check, not a checkbox.
+      //
+      // Deliberately one-sided. The BUSINESS is the payer: if they want to close
+      // a project having settled off-platform, that is their money and their
+      // call, and blocking them would strand every manual-payment project. The
+      // creator is the one who needs protecting here, and they still hold the
+      // other half of the dual-confirm either way.
+      if (userRole === 'creator') {
+        const { data: finalItems, error: finalItemsErr } = await supabase
+          .from('project_stage_items')
+          .select('*')
+          .eq('project_id', id)
+          .eq('stage_key', 'final_payment');
+        // Same fail-open as the other checklist gates: a missing table (054 not
+        // applied) must not block completion outright.
+        if (finalItemsErr) {
+          log.warn('final payment checklist unavailable, skipping gate', { err: finalItemsErr.message });
+        } else {
+          const pendingFinal = blockingItems('final_payment', (finalItems || []) as StageItem[]);
+          if (pendingFinal.length > 0) {
+            return NextResponse.json(
+              {
+                error:
+                  'The final payment hasn’t been recorded yet. Once it is, you can confirm the project is complete.',
+                blocking: pendingFinal.map((it) => it.label),
+              },
+              { status: 409 },
+            );
+          }
+        }
       }
 
       // Read the confirmation columns here (added in migration 056). If they're

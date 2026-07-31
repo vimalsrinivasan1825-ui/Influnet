@@ -16,6 +16,7 @@ import { useFetch } from '@/lib/use-fetch';
 import { useLiveRefresh } from '@/lib/realtime';
 import { formatCurrency, timeAgo } from '@/lib/format';
 import { AppHeader } from '@/components/app-header';
+import { ApprovalBanner } from '@/components/approval-banner';
 import {
   Avatar,
   Badge,
@@ -96,7 +97,14 @@ export default function RequestsScreen() {
   return (
     <Screen padded={false}>
       <ScreenScroll
-        header={<AppHeader title={isCreator ? 'Requests' : 'Sent requests'} showBell={false} />}
+        header={
+          <>
+            <AppHeader title={isCreator ? 'Requests' : 'Sent requests'} showBell={false} />
+            {/* The outbox is where a rejected account actually feels it — the
+                server refuses its outreach — so the banner repeats here. */}
+            <ApprovalBanner />
+          </>
+        }
         refreshing={refreshing}
         onRefresh={refresh}
         centerShort={rows.length <= 3}

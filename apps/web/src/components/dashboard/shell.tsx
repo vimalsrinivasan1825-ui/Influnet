@@ -312,9 +312,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const themeClass = role ? THEME_CLASS[role] : "theme-brand";
 
-  // Soft verification banner for unapproved businesses. They can explore the
-  // dashboard and set up their profile, but outreach actions stay locked
-  // server-side until an admin approves (see /api/collabs POST). Dismissible.
+  // Soft verification banner for unapproved businesses. Dismissible, per status.
+  //
+  // `pending_review` no longer blocks anything: a business awaiting review can
+  // reach out immediately, and the creator sees the sender's approval status on
+  // the incoming request instead (see /api/collabs). Only `rejected` is refused
+  // server-side — a real negative decision, not "hasn't been looked at yet".
+  // Mirrored on mobile by <ApprovalBanner />.
   const showVerifBanner =
     isLoaded &&
     role === "business_owner" &&

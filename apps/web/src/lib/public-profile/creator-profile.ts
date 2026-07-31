@@ -116,6 +116,8 @@ export interface CreatorProfileView {
   languages: string[];
   niches: string[];
   isVerified: boolean;
+  /** See RawPublicProfile.ownershipVerified. */
+  ownershipVerified: boolean;
   heroStats: ProfileStat[];
   /** Per-platform metrics, deduplicated, for the column beside the avatar. */
   platformCards: PlatformCard[];
@@ -167,6 +169,10 @@ export interface RawPublicProfile {
   languages?: string[] | null;
   niche?: string[] | null;
   isVerified?: boolean | null;
+  /** Proven the handle is theirs (bio-link handshake) — distinct from `isVerified`,
+   *  which additionally requires the trust-pipeline score to clear. Added in
+   *  migration 095; optional so this stays backward-compatible before it's applied. */
+  ownershipVerified?: boolean | null;
   instagramFollowers?: number | null;
   youtubeSubscribers?: number | null;
   tiktokFollowers?: number | null;
@@ -701,6 +707,7 @@ export function buildCreatorProfileView(
     languages: (profile.languages ?? []).slice(0, 4),
     niches: (profile.niche ?? []).slice(0, 8),
     isVerified: !!profile.isVerified,
+    ownershipVerified: !!profile.ownershipVerified,
     heroStats,
     platformCards: platformCards.slice(0, 4),
     collabTypes: (profile.collabTypes ?? []).slice(0, 6),

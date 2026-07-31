@@ -33,7 +33,21 @@ import {
 import type { ProjectCard } from '@/types';
 import { CANCELLATION_REASONS, cancellationReasonLabel, cancellationReasonRequiresText } from '@influnet/core';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
-import { STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
+import { ALLOWED_TRANSITIONS, STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
+
+/**
+ * Where a stage actually leads, for labelling "Advance to X" / "Confirm → X".
+ *
+ * Not STAGE_CONFIG[idx + 1]: `revisions` is followed in the array by
+ * `final_approval` but loops BACK to `sent_for_review`, so array order promised
+ * the user a destination the server would not send them to. Returns null for a
+ * forking stage (sent_for_review), which has no single next step to name.
+ */
+function nextStageKey(currentStage: string | undefined): string | null {
+  if (!currentStage) return null;
+  const allowed = ALLOWED_TRANSITIONS[currentStage as Stage] || [];
+  return allowed.length === 1 ? allowed[0] : null;
+}
 import { STAGE_GUIDE, isMutualSignoffStage, stageSignoffAt, isSkippableStage, stageSkipProposal } from '@/lib/project-stage-guide';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -582,11 +596,13 @@ function StagePipeline({
     : undefined;
   const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
   const stage = STAGE_CONFIG[currentIdx];
-  const nextStage = STAGE_CONFIG[currentIdx + 1];
+  const nextStage = STAGE_CONFIG.find((s) => s.key === nextStageKey(currentStage));
   const isComplete = currentStage === 'project_completed';
   // 'sent_for_review' forks: the reviewer either sends the draft back for
   // revisions or approves it straight to final approval.
   const isReviewFork = currentStage === 'sent_for_review';
+  // One-sided rework: the brand already decided when it asked for changes.
+  const isResubmit = currentStage === 'revisions';
 
   const roleLabel = (r: string) => (r === 'business' ? 'Client' : r === 'creator' ? 'Creator' : 'Both');
 
@@ -776,6 +792,29 @@ function StagePipeline({
                 <div className="flex flex-col items-end justify-center py-2">
                   <span className="text-right text-[0.6875rem] text-content-muted">
                     Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to review the draft.
+                  </span>
+                </div>
+              )
+            ) : isResubmit ? (
+              STAGE_ACTOR[currentStage as Stage] === userRole ? (
+                <>
+                  <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance()} className="w-full lg:w-auto">
+                    {advancing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                    Resubmit for review
+                  </Button>
+                  <span className="text-right text-[0.6875rem] text-content-muted">
+                    Make the requested changes, then send the draft back for review.
+                  </span>
+                  {!canAdvance && (
+                    <span className="text-right text-[0.6875rem] text-warn block mt-1">
+                      Mark the requested changes done above first.
+                    </span>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-end justify-center py-2">
+                  <span className="text-right text-[0.6875rem] text-content-muted">
+                    Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to resubmit the draft.
                   </span>
                 </div>
               )
@@ -1256,9 +1295,11 @@ function GuidedFlow({
   const roleLabel = (r: string) => (r === 'business' ? 'Brand' : r === 'creator' ? 'Creator' : 'Both');
   const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
   const stage = STAGE_CONFIG[currentIdx];
-  const nextStage = STAGE_CONFIG[currentIdx + 1];
+  const nextStage = STAGE_CONFIG.find((s) => s.key === nextStageKey(currentStage));
   const isComplete = currentStage === 'project_completed';
   const isReviewFork = currentStage === 'sent_for_review';
+  // One-sided rework: the brand already decided when it asked for changes.
+  const isResubmit = currentStage === 'revisions';
   const isAdvancePayment = currentStage === 'advance_payment';
   const mutual = !!currentStage && isMutualSignoffStage(currentStage) && !isFinalPayment;
   const guide = currentStage ? STAGE_GUIDE[currentStage as Stage] : undefined;
@@ -1489,6 +1530,26 @@ function GuidedFlow({
                 ) : (
                   <span className="text-xs text-content-muted">
                     Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to review the draft.
+                  </span>
+                )}
+              </div>
+            ) : isResubmit ? (
+              <div className="flex flex-col gap-2">
+                {STAGE_ACTOR[currentStage as Stage] === userRole ? (
+                  <>
+                    <Button variant="brand" disabled={!requiredDone || advancing} onClick={() => onAdvance()}>
+                      {advancing ? <Loader2 className="animate-spin" /> : <RefreshCw />} Resubmit for review
+                    </Button>
+                    <span className="text-xs text-content-muted">
+                      Make the requested changes, then send the draft back for review.
+                    </span>
+                    {!requiredDone && (
+                      <span className="text-xs text-warn">Mark the requested changes done above first.</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-xs text-content-muted">
+                    Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to resubmit the draft.
                   </span>
                 )}
               </div>

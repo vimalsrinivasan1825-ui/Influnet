@@ -76,10 +76,24 @@ export async function GET(req: Request) {
     ];
     const approvalByUserId = new Map<string, string>();
     if (senderBusinessIds.length > 0) {
-      const { data: senderBiz } = await supabase
+      const { data: senderBiz, error: bizErr } = await supabase
         .from('business_profiles')
         .select('user_id, approval_status')
         .in('user_id', senderBusinessIds);
+      // Reading another business's approval_status needs the GRANT from
+      // migration 094. Until that is applied this errors, and swallowing it was
+      // the worst of both worlds: the approval GATE had already been removed
+      // (an unreviewed business can message creators now), while the precaution
+      // that replaced it silently rendered nothing. Creators got neither.
+      //
+      // Logged rather than 500'd — the request list is far more useful than the
+      // flag — but the flag now fails SAFE, below.
+      if (bizErr) {
+        console.error(
+          '[collabs] could not read sender approval status (is migration 094 applied?):',
+          bizErr.message,
+        );
+      }
       for (const b of senderBiz || []) approvalByUserId.set(b.user_id, b.approval_status);
     }
 
@@ -95,8 +109,16 @@ export async function GET(req: Request) {
       return {
         ...c,
         project: project ? { id: project.id, title: project.title, status: project.status } : null,
+        // Fail safe: a business sender whose status we could not read is
+        // reported as 'unknown', not null. Both clients show the precaution for
+        // any value other than 'approved', so an unreadable status now reads as
+        // "not confirmed approved" — which is exactly what it is. Null meant
+        // "hide the flag", i.e. the failure mode presented an unreviewed
+        // business as if it had been reviewed.
         sender_business_approval_status:
-          c.sender?.role === 'business_owner' ? (approvalByUserId.get(c.from_user_id) ?? null) : null,
+          c.sender?.role === 'business_owner'
+            ? (approvalByUserId.get(c.from_user_id) ?? 'unknown')
+            : null,
         deal_state:
           c.status !== 'accepted' ? c.status
           : open ? 'in_progress'
