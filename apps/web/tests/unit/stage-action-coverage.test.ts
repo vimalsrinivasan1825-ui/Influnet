@@ -35,7 +35,7 @@ import {
  * apps/mobile/app/projects/[id]/stage/[stage].tsx and the action zone in
  * apps/web/src/app/dashboard/projects/[id]/page.tsx.
  */
-const DEDICATED_CONTROL_STAGES: Stage[] = ['sent_for_review', 'final_payment'];
+const DEDICATED_CONTROL_STAGES: Stage[] = ['sent_for_review', 'revisions', 'final_payment'];
 const TERMINAL_STAGES: Stage[] = ['project_completed'];
 
 describe('stage action coverage', () => {
@@ -75,6 +75,16 @@ describe('stage action coverage', () => {
     // the fork buttons and the confirm button, and the two would disagree about
     // where the project goes next.
     expect(isMutualSignoffStage('sent_for_review')).toBe(false);
+  });
+
+  it('keeps the rework stage one-sided and owned by the creator', () => {
+    // `revisions` is not a negotiation. The brand already decided when it asked
+    // for changes; running it as a mutual sign-off made the brand approve
+    // someone else's rework and then immediately review it again — two
+    // approvals for one decision, the first of them meaningless.
+    expect(isMutualSignoffStage('revisions')).toBe(false);
+    expect(STAGE_ACTOR.revisions).toBe('creator');
+    expect(ALLOWED_TRANSITIONS.revisions).toEqual(['sent_for_review']);
   });
 
   it('only lets the review fork target stages the server will accept', () => {

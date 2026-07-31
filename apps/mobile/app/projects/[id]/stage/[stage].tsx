@@ -189,8 +189,16 @@ export default function StageScreen() {
   // This is the only stage with two forward exits, so it uses `advance` with an
   // explicit stage_key rather than sign-off — mirroring the web action zone.
   const isReviewFork = stageKey === 'sent_for_review';
-  const reviewActor = STAGE_ACTOR[stageKey as Stage];
-  const iAmReviewer = reviewActor === 'either' || reviewActor === (isOwner ? 'business' : 'creator');
+
+  // The rework stage. One-sided by design: the brand already decided when it
+  // asked for changes, so this is the creator resubmitting, and the brand's next
+  // say is the re-review it goes back to.
+  const isResubmit = stageKey === 'revisions';
+
+  const stageActor = STAGE_ACTOR[stageKey as Stage];
+  const myRoleKey: 'business' | 'creator' = isOwner ? 'business' : 'creator';
+  const iAmActor = stageActor === 'either' || stageActor === myRoleKey;
+  const iAmReviewer = iAmActor;
   const iConfirmedCompletion = isOwner
     ? !!project?.owner_confirmed_complete
     : !!project?.counterparty_confirmed_complete;
@@ -575,6 +583,14 @@ export default function StageScreen() {
                     : `This stage is ${partner}’s call: they either request revisions or approve the draft.`}
                 </Txt>
               </Card>
+            ) : isResubmit ? (
+              <Card>
+                <Txt variant="footnote" tone="muted">
+                  {iAmActor
+                    ? 'No confirmation needed here — the changes were already asked for. Make them, then send the draft back for review.'
+                    : `${partner} is making the changes you asked for. It comes back to you for review once they resubmit.`}
+                </Txt>
+              </Card>
             ) : (
               <Card>
                 <Txt variant="footnote" tone="muted">
@@ -646,6 +662,29 @@ export default function StageScreen() {
           ) : (
             <Txt variant="footnote" tone="muted" center>
               Waiting for {partner} to review the draft.
+            </Txt>
+          )}
+        </StickyFooter>
+      ) : isCurrent && isResubmit ? (
+        <StickyFooter>
+          {iAmActor ? (
+            <>
+              <Txt variant="footnote" tone="muted" center>
+                {requiredDone
+                  ? 'Send the updated draft back for review.'
+                  : 'Mark the requested changes done above first.'}
+              </Txt>
+              <Button
+                label="Resubmit for review"
+                icon={<RefreshCw size={16} color={t.color.white} />}
+                onPress={() => act('advance')}
+                disabled={!requiredDone}
+                loading={busy}
+              />
+            </>
+          ) : (
+            <Txt variant="footnote" tone="muted" center>
+              Waiting for {partner} to resubmit the draft.
             </Txt>
           )}
         </StickyFooter>

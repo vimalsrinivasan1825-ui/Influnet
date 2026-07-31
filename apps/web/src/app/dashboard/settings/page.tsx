@@ -376,7 +376,11 @@ export default function SettingsPage() {
       {(isBusiness || isInfluencer) && <VerificationPanel />}
 
       {isInfluencer && profile?.instagram_handle && (
-        <InstagramOwnershipPanel handle={profile.instagram_handle} />
+        <InstagramOwnershipPanel
+          handle={profile.instagram_handle}
+          username={username || profile?.username}
+          name={name || profile?.name}
+        />
       )}
 
       <SectionCard title="Profile information">
