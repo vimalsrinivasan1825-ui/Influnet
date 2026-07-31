@@ -31,12 +31,21 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     // status instead, same as GET /api/collabs (list).
     let sender_business_approval_status: string | null = null;
     if (collab.sender?.role === 'business_owner') {
-      const { data: biz } = await supabase
+      const { data: biz, error: bizErr } = await supabase
         .from('business_profiles')
         .select('approval_status')
         .eq('user_id', collab.from_user_id)
         .maybeSingle();
-      sender_business_approval_status = biz?.approval_status ?? null;
+      if (bizErr) {
+        console.error(
+          '[collabs/:id] could not read sender approval status (is migration 094 applied?):',
+          bizErr.message,
+        );
+      }
+      // 'unknown' rather than null when unreadable — see the list route. Null
+      // hides the precaution, which would present an unreviewed business as
+      // reviewed on the one screen where the creator decides whether to reply.
+      sender_business_approval_status = biz?.approval_status ?? 'unknown';
     }
 
     return NextResponse.json({ collab: { ...collab, sender_business_approval_status } });
