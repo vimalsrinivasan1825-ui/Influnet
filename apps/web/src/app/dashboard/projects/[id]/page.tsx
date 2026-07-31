@@ -33,7 +33,21 @@ import {
 import type { ProjectCard } from '@/types';
 import { CANCELLATION_REASONS, cancellationReasonLabel, cancellationReasonRequiresText } from '@influnet/core';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
-import { STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
+import { ALLOWED_TRANSITIONS, STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
+
+/**
+ * Where a stage actually leads, for labelling "Advance to X" / "Confirm → X".
+ *
+ * Not STAGE_CONFIG[idx + 1]: `revisions` is followed in the array by
+ * `final_approval` but loops BACK to `sent_for_review`, so array order promised
+ * the user a destination the server would not send them to. Returns null for a
+ * forking stage (sent_for_review), which has no single next step to name.
+ */
+function nextStageKey(currentStage: string | undefined): string | null {
+  if (!currentStage) return null;
+  const allowed = ALLOWED_TRANSITIONS[currentStage as Stage] || [];
+  return allowed.length === 1 ? allowed[0] : null;
+}
 import { STAGE_GUIDE, isMutualSignoffStage, stageSignoffAt, isSkippableStage, stageSkipProposal } from '@/lib/project-stage-guide';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -582,7 +596,7 @@ function StagePipeline({
     : undefined;
   const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
   const stage = STAGE_CONFIG[currentIdx];
-  const nextStage = STAGE_CONFIG[currentIdx + 1];
+  const nextStage = STAGE_CONFIG.find((s) => s.key === nextStageKey(currentStage));
   const isComplete = currentStage === 'project_completed';
   // 'sent_for_review' forks: the reviewer either sends the draft back for
   // revisions or approves it straight to final approval.
@@ -1256,7 +1270,7 @@ function GuidedFlow({
   const roleLabel = (r: string) => (r === 'business' ? 'Brand' : r === 'creator' ? 'Creator' : 'Both');
   const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
   const stage = STAGE_CONFIG[currentIdx];
-  const nextStage = STAGE_CONFIG[currentIdx + 1];
+  const nextStage = STAGE_CONFIG.find((s) => s.key === nextStageKey(currentStage));
   const isComplete = currentStage === 'project_completed';
   const isReviewFork = currentStage === 'sent_for_review';
   const isAdvancePayment = currentStage === 'advance_payment';
