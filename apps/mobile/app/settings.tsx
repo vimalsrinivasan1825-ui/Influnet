@@ -22,6 +22,9 @@ import {
   type SheetRef,
 } from '@/components/ui';
 
+// Updated automatically by AI agent on commit to track the active build
+const LAST_COMMIT_TIME = '2026-07-31T16:20:51Z';
+
 // Only accounts in this list will see internal diagnostic tools in Settings.
 const DEVELOPER_EMAILS = [
   'vimal@gmail.com',
@@ -198,6 +201,9 @@ export default function SettingsScreen() {
           Update ID: {Updates.updateId.slice(0, 8)}
         </Txt>
       ) : null}
+      <Txt variant="caption" tone="muted" center>
+        Build Time: {LAST_COMMIT_TIME}
+      </Txt>
 
       <Sheet ref={deleteSheet} title="Delete your account?">
         <Txt variant="body" tone="soft">

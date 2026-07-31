@@ -7,6 +7,7 @@
 import { ActivityIndicator, View } from 'react-native';
 import { ShieldCheck } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+import { usePhoneAvailability } from '@/lib/use-signup';
 import { Button, Field, Txt } from '@/components/ui';
 import type { PhoneOtpState } from '@/lib/use-phone-otp';
 
@@ -25,6 +26,9 @@ export function PhoneOtpStep({
   const t = useTheme();
   const verified = !!otp.token;
   const phoneUsable = otp.phone.replace(/\D/g, '').length >= 10;
+  
+  const { status: phoneStatus, message: phoneMessage } = usePhoneAvailability(otp.phone);
+  const phoneOk = phoneStatus === 'available' || phoneStatus === 'error';
 
   if (!required) {
     return (
@@ -36,7 +40,8 @@ export function PhoneOtpStep({
         keyboardType="phone-pad"
         autoComplete="tel"
         autoFocus
-        hint="Optional. Brands use this to reach you about collaborations."
+        error={phoneStatus === 'taken' ? phoneMessage : undefined}
+        hint={phoneStatus === 'available' ? phoneMessage : "Optional. Brands use this to reach you about collaborations."}
       />
     );
   }
@@ -51,9 +56,9 @@ export function PhoneOtpStep({
         keyboardType="phone-pad"
         autoComplete="tel"
         editable={!verified}
-        error={otp.error}
-        hint={verified ? null : otp.notice ?? "We'll text you a code to confirm this number."}
-        right={verified ? <ShieldCheck size={19} color={t.color.ok} /> : null}
+        error={otp.error || (phoneStatus === 'taken' ? phoneMessage : undefined)}
+        hint={verified ? null : otp.notice || (phoneStatus === 'available' ? phoneMessage : "We'll text you a code to confirm this number.")}
+        right={phoneStatus === 'checking' ? <ActivityIndicator size="small" color={t.color.contentMuted} /> : verified ? <ShieldCheck size={19} color={t.color.ok} /> : null}
       />
 
       {verified ? (
@@ -74,7 +79,7 @@ export function PhoneOtpStep({
           <Button
             variant="secondary"
             onPress={() => void otp.sendOtp()}
-            disabled={!phoneUsable || otp.sending || otp.resendIn > 0}
+            disabled={!phoneUsable || !phoneOk || otp.sending || otp.resendIn > 0}
             label={
               otp.sending
                 ? 'Sending…'

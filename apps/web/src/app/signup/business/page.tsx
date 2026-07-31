@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
+import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
+import { Check, X } from "lucide-react";
 
 type Step = 1 | 2 | 3 | 4;
 const STEP_LABELS = ["Account", "Company", "Verify", "Intent"];
@@ -56,6 +58,8 @@ function BusinessSignupContent() {
 
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameSuggestionsFallback, setUsernameSuggestionsFallback] = useState<string[]>([]);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneToken, setPhoneToken] = useState<string | null>(null);
@@ -70,6 +74,12 @@ function BusinessSignupContent() {
   const [marketingBudget, setMarketingBudget] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
+  const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(companyName || fullName, username.length === 0);
+  const { status: emailStatus, message: emailMessage } = useEmailAvailability(email);
+
+  const usernameOk = usernameStatus === "available" || usernameStatus === "error";
+  const emailOk = emailStatus === "available" || emailStatus === "error";
   const emailValid = EMAIL_RE.test(email);
   const passwordOk = password.length >= 8;
   // Both fields are optional, so blank stays valid — only a filled-in value is checked.
@@ -81,7 +91,7 @@ function BusinessSignupContent() {
     // number anyway, so don't let the wizard advance past it.
     if (step === 1)
       return (
-        !!fullName && !!companyName && emailValid && passwordOk &&
+        !!fullName && !!companyName && !!username && usernameOk && emailValid && emailOk && passwordOk &&
         (!phoneOtpEnabled || !!phoneToken)
       );
     if (step === 2) return !!businessType && !!industry && websiteValid;
@@ -99,6 +109,7 @@ function BusinessSignupContent() {
         name: fullName,
         role: "business_owner",
         companyName,
+        username,
         phone,
         businessType,
         industry,
@@ -134,6 +145,10 @@ function BusinessSignupContent() {
         });
         if (!res.ok) {
           const resData = await res.json();
+          if (resData.reason === "username_taken") {
+            recoverFromTakenUsername(resData.error || "That username is already taken");
+            return;
+          }
           setError(resData.error || "Failed to create profile record");
           return;
         }
@@ -168,6 +183,20 @@ function BusinessSignupContent() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const recoverFromTakenUsername = async (message: string) => {
+    setError(message);
+    setStep(1);
+    setUsernameSuggestionsFallback([]);
+
+    try {
+      const res = await fetch(`/api/auth/suggest-username?name=${encodeURIComponent(companyName || fullName)}`);
+      const data = await res.json();
+      if (data.suggestions) {
+        setUsernameSuggestionsFallback(data.suggestions);
+      }
+    } catch { /* ignore */ }
   };
 
   return (
@@ -240,17 +269,88 @@ function BusinessSignupContent() {
                 <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your company name" />
               </div>
               <div>
+                <Label>Username</Label>
+                <div className="relative">
+                  <Input
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
+                      setUsernameSuggestionsFallback([]);
+                    }}
+                    placeholder="company_name"
+                    className="pr-10"
+                    aria-invalid={usernameStatus === "taken" || usernameStatus === "invalid"}
+                    autoComplete="off"
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {usernameStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {usernameStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
+                {(suggestions.length > 0 || usernameSuggestionsFallback.length > 0) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-content-muted">Try:</span>
+                    {(suggestions.length > 0 ? suggestions : usernameSuggestionsFallback).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          setUsername(s);
+                          setUsernameSuggestionsFallback([]);
+                        }}
+                        className="rounded-lg border border-hairline-strong bg-surface-muted px-2.5 py-1 text-xs font-bold text-brand-strong transition-colors hover:border-brand hover:bg-brand-soft"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {usernameMessage && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      usernameStatus === "available" && "text-emerald-600",
+                      (usernameStatus === "taken" || usernameStatus === "invalid") && "text-danger",
+                      (usernameStatus === "checking" || usernameStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {usernameMessage}
+                  </p>
+                )}
+              </div>
+              <div>
                 <Label>Work email</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  aria-invalid={email.length > 0 && !emailValid}
-                  autoComplete="email"
-                />
+                <div className="relative">
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    aria-invalid={(email.length > 0 && !emailValid) || emailStatus === "taken" || emailStatus === "invalid"}
+                    autoComplete="email"
+                    className="pr-10"
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {emailStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {emailStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(emailStatus === "taken" || emailStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
                 {email.length > 0 && !emailValid && (
                   <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
+                )}
+                {emailMessage && emailValid && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      emailStatus === "available" && "text-emerald-600",
+                      (emailStatus === "taken" || emailStatus === "invalid") && "text-danger",
+                      (emailStatus === "checking" || emailStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {emailMessage}
+                  </p>
                 )}
               </div>
               <PhoneOtpField

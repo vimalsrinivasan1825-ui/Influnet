@@ -5,6 +5,7 @@ import { Check, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { usePhoneAvailability } from "@/lib/hooks/use-availability";
 
 const OTP_LENGTH = 6;
 
@@ -45,6 +46,9 @@ export function PhoneOtpField({
   const verified = !!verifiedToken;
   const phoneDigits = phone.replace(/\D/g, "");
   const phoneUsable = phoneDigits.length >= 10;
+
+  const { status: phoneStatus, message: phoneMessage } = usePhoneAvailability(phone);
+  const phoneOk = phoneStatus === "available" || phoneStatus === "error";
 
   // Resend cooldown ticker.
   useEffect(() => {
@@ -206,10 +210,10 @@ export function PhoneOtpField({
             type="button"
             variant="secondary"
             onClick={sendOtp}
-            disabled={disabled || sending || !phoneUsable || resendIn > 0}
+            disabled={disabled || sending || !phoneUsable || !phoneOk || resendIn > 0}
             className="shrink-0"
           >
-            {sending ? (
+            {sending || phoneStatus === "checking" ? (
               <Loader2 className="size-4 animate-spin" />
             ) : resendIn > 0 ? (
               `Resend in ${resendIn}s`
@@ -274,12 +278,20 @@ export function PhoneOtpField({
       )}
 
       {error && <p className="mt-1.5 text-xs font-semibold text-danger">{error}</p>}
-      {!error && notice && (
+      {!error && phoneMessage && !verified && !providerSessionId && (
+        <p className={cn(
+          "mt-1.5 text-xs font-semibold",
+          phoneStatus === "available" ? "text-emerald-600" : "text-danger"
+        )}>
+          {phoneMessage}
+        </p>
+      )}
+      {!error && !phoneMessage && notice && (
         <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
           <Check className="size-3" /> {notice}
         </p>
       )}
-      {!error && !notice && !verified && !providerSessionId && (
+      {!error && !phoneMessage && !notice && !verified && !providerSessionId && (
         <p className="mt-1.5 text-xs text-content-muted">
           We&apos;ll text you a code to confirm this number.
         </p>

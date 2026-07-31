@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Check, X } from 'lucide-react-native';
 import {
   BUDGET_RANGES,
   BUSINESS_TYPES,
@@ -12,7 +13,7 @@ import {
   normalizeWebsite,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
-import { completeSignup } from '@/lib/use-signup';
+import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
@@ -32,6 +33,7 @@ export default function BusinessSignup() {
 
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [industry, setIndustry] = useState('');
@@ -46,6 +48,13 @@ export default function BusinessSignup() {
 
   const otp = usePhoneOtp();
   const otpRequired = useOtpRequirement();
+
+  const usernameAvailability = useUsernameAvailability(username);
+  const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(company || name, username.length === 0);
+  const emailAvailability = useEmailAvailability(email);
+
+  const usernameOk = usernameAvailability === 'available' || usernameAvailability === 'error';
+  const emailOk = emailAvailability.status === 'available' || emailAvailability.status === 'error';
 
   // Both optional, so blank stays valid — only a filled-in value is checked.
   // Mirrors the web wizard's gstValid / websiteValid.
@@ -64,6 +73,7 @@ export default function BusinessSignup() {
       phone: otp.phone.trim() || undefined,
       phoneVerificationToken: otp.token ?? undefined,
       companyName: company.trim(),
+      username: username.trim().toLowerCase(),
       industry,
       businessType: businessType || undefined,
       marketingBudget: budget || undefined,
@@ -99,7 +109,7 @@ export default function BusinessSignup() {
   const steps = [
     {
       title: 'Tell us about your business',
-      valid: name.trim().length > 1 && company.trim().length > 1,
+      valid: name.trim().length > 1 && company.trim().length > 1 && !!username && usernameOk,
       body: (
         <View style={{ gap: t.spacing.lg }}>
           <Field
@@ -116,12 +126,48 @@ export default function BusinessSignup() {
             onChangeText={setCompany}
             placeholder="Kadai Foods"
           />
+          <Field
+            label="Username"
+            value={username}
+            onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+            placeholder="kadaifoods"
+            autoCapitalize="none"
+            autoCorrect={false}
+            error={
+              usernameAvailability === 'taken'
+                ? 'That handle is taken. Try another.'
+                : usernameAvailability === 'invalid' && username.length > 0
+                  ? 'Use lowercase letters, numbers, and underscores.'
+                  : usernameAvailability === 'error'
+                    ? 'Could not check right now — try again in a moment.'
+                    : null
+            }
+            right={
+              usernameAvailability === 'checking' ? (
+                <ActivityIndicator size="small" color={t.color.contentMuted} />
+              ) : usernameAvailability === 'available' ? (
+                <Check size={19} color={t.color.ok} />
+              ) : usernameAvailability === 'taken' || usernameAvailability === 'error' ? (
+                <X size={19} color={t.color.danger} />
+              ) : null
+            }
+          />
+          {suggestions.length > 0 && (
+            <View style={{ gap: t.spacing.sm, marginTop: t.spacing.md }}>
+              <Txt variant="footnote" tone="soft">Try:</Txt>
+              <ChipWrap>
+                {suggestions.map((s) => (
+                  <Chip key={s} label={s} selected={false} onPress={() => setUsername(s)} />
+                ))}
+              </ChipWrap>
+            </View>
+          )}
         </View>
       ),
     },
     {
       title: 'Create your login',
-      valid: /\S+@\S+\.\S+/.test(email) && password.length >= 8,
+      valid: /\S+@\S+\.\S+/.test(email) && password.length >= 8 && emailOk,
       body: (
         <View style={{ gap: t.spacing.lg }}>
           <Field
@@ -133,6 +179,17 @@ export default function BusinessSignup() {
             autoCapitalize="none"
             autoComplete="email"
             placeholder="you@company.com"
+            error={emailAvailability.status === 'taken' || emailAvailability.status === 'invalid' ? emailAvailability.message : null}
+            hint={emailAvailability.status === 'available' ? emailAvailability.message : null}
+            right={
+              emailAvailability.status === 'checking' ? (
+                <ActivityIndicator size="small" color={t.color.contentMuted} />
+              ) : emailAvailability.status === 'available' ? (
+                <Check size={19} color={t.color.ok} />
+              ) : emailAvailability.status === 'taken' || emailAvailability.status === 'error' ? (
+                <X size={19} color={t.color.danger} />
+              ) : null
+            }
           />
           <Field
             label="Password"

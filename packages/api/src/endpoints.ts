@@ -29,6 +29,12 @@ export function createEndpoints(api: ApiClient) {
       api.post<T>('/api/profile/push-token', { token }),
     checkUsername: <T = unknown>(username: string) =>
       api.get<T>(`/api/auth/check-username?username=${encodeURIComponent(username)}`),
+    checkEmail: <T = unknown>(email: string) =>
+      api.get<T>(`/api/auth/check-email?email=${encodeURIComponent(email)}`),
+    checkPhone: <T = unknown>(phone: string) =>
+      api.get<T>(`/api/auth/check-phone?phone=${encodeURIComponent(phone)}`),
+    suggestUsername: <T = unknown>(name: string) =>
+      api.get<T>(`/api/auth/suggest-username?name=${encodeURIComponent(name)}`),
 
     // ── Portfolio ──────────────────────────────────────────────────
     /** Manual entries merged with completed platform projects (migration 087). */

@@ -6,7 +6,7 @@ import { Check, Sparkles, X } from 'lucide-react-native';
 import { COLLAB_TYPES, INDIAN_STATES, LANGUAGES, NICHES, PRICE_TIERS } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
-import { completeSignup, useUsernameAvailability } from '@/lib/use-signup';
+import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
@@ -97,12 +97,15 @@ export default function CreatorSignup() {
   }
 
   const availability = useUsernameAvailability(username);
+  const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(name, username.length === 0);
+  const emailAvailability = useEmailAvailability(email);
   const otp = usePhoneOtp();
   const otpRequired = useOtpRequirement();
 
   // Fail open on a failed check, exactly as the web wizard does: register_profile
   // still enforces uniqueness, so a flaky network must not hard-block signup.
   const usernameOk = availability === 'available' || availability === 'error';
+  const emailOk = emailAvailability.status === 'available' || emailAvailability.status === 'error';
 
   async function submit() {
     setBusy(true);
@@ -212,23 +215,45 @@ export default function CreatorSignup() {
             ) : null
           }
         />
-      ),
-    },
-    {
-      title: 'Create your login',
-      valid: /\S+@\S+\.\S+/.test(email) && password.length >= 8,
-      body: (
-        <View style={{ gap: t.spacing.lg }}>
-          <Field
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            // See the note on the sign-in email field: keyboardType
-            // "email-address" is what broke caret placement on Android.
-            autoCapitalize="none"
-            autoComplete="email"
-            placeholder="you@example.com"
-          />
+        {suggestions.length > 0 && (
+          <View style={{ gap: t.spacing.sm, marginTop: t.spacing.md }}>
+            <Txt variant="footnote" tone="soft">Try:</Txt>
+            <ChipWrap>
+              {suggestions.map((s) => (
+                <Chip key={s} label={s} selected={false} onPress={() => setUsername(s)} />
+              ))}
+            </ChipWrap>
+          </View>
+        )}
+      </View>
+    ),
+  },
+  {
+    title: 'Create your login',
+    valid: /\S+@\S+\.\S+/.test(email) && password.length >= 8 && emailOk,
+    body: (
+      <View style={{ gap: t.spacing.lg }}>
+        <Field
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          // See the note on the sign-in email field: keyboardType
+          // "email-address" is what broke caret placement on Android.
+          autoCapitalize="none"
+          autoComplete="email"
+          placeholder="you@example.com"
+          error={emailAvailability.status === 'taken' || emailAvailability.status === 'invalid' ? emailAvailability.message : null}
+          hint={emailAvailability.status === 'available' ? emailAvailability.message : null}
+          right={
+            emailAvailability.status === 'checking' ? (
+              <ActivityIndicator size="small" color={t.color.contentMuted} />
+            ) : emailAvailability.status === 'available' ? (
+              <Check size={19} color={t.color.ok} />
+            ) : emailAvailability.status === 'taken' || emailAvailability.status === 'error' ? (
+              <X size={19} color={t.color.danger} />
+            ) : null
+          }
+        />
           <Field
             label="Password"
             value={password}

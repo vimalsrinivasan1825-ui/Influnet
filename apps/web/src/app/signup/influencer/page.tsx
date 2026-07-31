@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
+import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
 import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { publicProfileUrlDisplay } from "@/lib/site";
@@ -111,13 +111,17 @@ function InfluencerSignupContent() {
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [usernameSuggestionsFallback, setUsernameSuggestionsFallback] = useState<string[]>([]);
   const usernameInputRef = useRef<HTMLInputElement>(null);
 
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
+  const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(`${firstName} ${lastName}`, username.length === 0);
+  const { status: emailStatus, message: emailMessage } = useEmailAvailability(email);
+
   // Fail open on network/server errors — the register RPC is the source of truth
   // and will still reject a taken name, so we never hard-block on a flaky check.
   const usernameOk = usernameStatus === "available" || usernameStatus === "error";
+  const emailOk = emailStatus === "available" || emailStatus === "error";
   const emailValid = EMAIL_RE.test(email);
   const passwordOk = password.length >= 8;
 
@@ -128,7 +132,7 @@ function InfluencerSignupContent() {
     if (step === 1) return true;
     if (step === 2)
       return (
-        !!firstName && !!lastName && !!username && usernameOk && emailValid && passwordOk &&
+        !!firstName && !!lastName && !!username && usernameOk && emailValid && emailOk && passwordOk &&
         // Mobile OTP is a hard gate when enabled — the server rejects an
         // unverified number anyway, so don't let the wizard advance.
         (!phoneOtpEnabled || !!phoneToken)
@@ -182,24 +186,15 @@ function InfluencerSignupContent() {
   const recoverFromTakenUsername = async (message: string) => {
     setError(message);
     setStep(2);
-    setUsernameSuggestions([]);
+    setUsernameSuggestionsFallback([]);
 
-    const candidates = [
-      `${username}${Math.floor(10 + Math.random() * 90)}`,
-      `${username}_${(firstName || "creator").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6)}`,
-    ];
-    const checked = await Promise.all(
-      candidates.map(async (c) => {
-        try {
-          const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(c)}`);
-          const data = await res.json();
-          return data.available ? c : null;
-        } catch {
-          return null;
-        }
-      }),
-    );
-    setUsernameSuggestions(checked.filter((c): c is string => !!c));
+    try {
+      const res = await fetch(`/api/auth/suggest-username?name=${encodeURIComponent(`${firstName} ${lastName}`)}`);
+      const data = await res.json();
+      if (data.suggestions) {
+        setUsernameSuggestionsFallback(data.suggestions);
+      }
+    } catch { /* ignore */ }
 
     // Let the step-2 UI mount before focusing.
     setTimeout(() => usernameInputRef.current?.focus(), 50);
@@ -446,7 +441,7 @@ function InfluencerSignupContent() {
                     value={username}
                     onChange={(e) => {
                       setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
-                      setUsernameSuggestions([]);
+                      setUsernameSuggestionsFallback([]);
                     }}
                     placeholder="Choose username"
                     className="pr-10"
@@ -459,16 +454,16 @@ function InfluencerSignupContent() {
                     {(usernameStatus === "taken" || usernameStatus === "invalid") && <X className="size-4 text-danger" />}
                   </span>
                 </div>
-                {usernameSuggestions.length > 0 && (
+                {(suggestions.length > 0 || usernameSuggestionsFallback.length > 0) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold text-content-muted">Try:</span>
-                    {usernameSuggestions.map((s) => (
+                    {(suggestions.length > 0 ? suggestions : usernameSuggestionsFallback).map((s) => (
                       <button
                         key={s}
                         type="button"
                         onClick={() => {
                           setUsername(s);
-                          setUsernameSuggestions([]);
+                          setUsernameSuggestionsFallback([]);
                         }}
                         className="rounded-lg border border-hairline-strong bg-surface-muted px-2.5 py-1 text-xs font-bold text-brand-strong transition-colors hover:border-brand hover:bg-brand-soft"
                       >
@@ -495,16 +490,36 @@ function InfluencerSignupContent() {
               </div>
               <div>
                 <Label>Email address</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  aria-invalid={email.length > 0 && !emailValid}
-                  autoComplete="email"
-                />
+                <div className="relative">
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    aria-invalid={(email.length > 0 && !emailValid) || emailStatus === "taken" || emailStatus === "invalid"}
+                    autoComplete="email"
+                    className="pr-10"
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {emailStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {emailStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(emailStatus === "taken" || emailStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
                 {email.length > 0 && !emailValid && (
                   <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
+                )}
+                {emailMessage && emailValid && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      emailStatus === "available" && "text-emerald-600",
+                      (emailStatus === "taken" || emailStatus === "invalid") && "text-danger",
+                      (emailStatus === "checking" || emailStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {emailMessage}
+                  </p>
                 )}
               </div>
               <PhoneOtpField

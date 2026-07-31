@@ -64,6 +64,118 @@ export function useUsernameAvailability(username: string) {
   return status;
 }
 
+export function useEmailAvailability(email: string) {
+  const [status, setStatus] = useState<Availability>('idle');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const value = email.trim();
+    if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setStatus('idle');
+      setMessage('');
+      return;
+    }
+
+    setStatus('checking');
+    setMessage('');
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      const res = await endpoints.checkEmail(value);
+      if (cancelled) return;
+
+      if (!res.ok) {
+        setStatus('error');
+        setMessage('Network error, please try again.');
+        return;
+      }
+      const data = res.data as { available?: boolean };
+      setStatus(data.available ? 'available' : 'taken');
+      setMessage(data.available ? 'Email is available' : 'This email is already in use');
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [email]);
+
+  return { status, message };
+}
+
+export function usePhoneAvailability(phone: string) {
+  const [status, setStatus] = useState<Availability>('idle');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const value = phone.replace(/\D/g, '');
+    if (value.length < 10) {
+      setStatus('idle');
+      setMessage('');
+      return;
+    }
+
+    setStatus('checking');
+    setMessage('');
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      const res = await endpoints.checkPhone(value);
+      if (cancelled) return;
+
+      if (!res.ok) {
+        setStatus('error');
+        setMessage('Network error, please try again.');
+        return;
+      }
+      const data = res.data as { available?: boolean };
+      setStatus(data.available ? 'available' : 'taken');
+      setMessage(data.available ? 'Phone number is available' : 'This phone number is already registered');
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [phone]);
+
+  return { status, message };
+}
+
+export function useUsernameSuggestions(name: string, enabled: boolean) {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const value = name.trim();
+    if (!value || !enabled) {
+      setSuggestions([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      const res = await endpoints.suggestUsername(value);
+      if (cancelled) return;
+
+      setLoading(false);
+      if (res.ok && (res.data as any)?.suggestions) {
+        setSuggestions((res.data as any).suggestions);
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [name, enabled]);
+
+  return { suggestions, loading };
+}
+
 export interface SignupResult {
   ok: boolean;
   error?: string;
