@@ -148,9 +148,28 @@ export function createEndpoints(api: ApiClient) {
     // ── Verification ───────────────────────────────────────────────
     getVerification: <T = unknown>() => api.get<T>('/api/verification'),
     startVerification: <T = unknown>(body: unknown) => api.post<T>('/api/verification', body),
-    /** GET returns the current claim; POST drives it with { action: 'initiate' | 'confirm' }. */
-    checkOwnershipStatus: <T = unknown>() => api.get<T>('/api/verification/ownership'),
-    checkOwnership: <T = unknown>(body: unknown) => api.post<T>('/api/verification/ownership', body),
+    /**
+     * GET returns the current claim; POST drives it with
+     * { action: 'initiate' | 'confirm' }.
+     *
+     * Both REQUIRE a handle. The server keys claims on (user, platform, handle)
+     * — a user may hold several — so it cannot infer which one you mean:
+     * POST without a handle is a hard 400 ('A handle is required') and GET
+     * without one silently returns { status: 'none' }, which reads as "not
+     * started" rather than "you didn't ask properly". Mobile shipped calling
+     * both with no handle, which is why ownership verification was dead there.
+     * Making the parameter required in the signature is what stops that
+     * recurring.
+     */
+    checkOwnershipStatus: <T = unknown>(handle: string, platform = 'instagram') =>
+      api.get<T>(
+        `/api/verification/ownership?platform=${encodeURIComponent(platform)}&handle=${encodeURIComponent(handle)}`,
+      ),
+    checkOwnership: <T = unknown>(body: {
+      action: 'initiate' | 'confirm';
+      handle: string;
+      platform?: string;
+    }) => api.post<T>('/api/verification/ownership', { platform: 'instagram', ...body }),
     scrapeInstagram: <T = unknown>(body: unknown) => api.post<T>('/api/auth/scrape-instagram', body),
 
     // ── Chat & uploads ─────────────────────────────────────────────

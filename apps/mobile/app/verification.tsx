@@ -85,8 +85,25 @@ export default function VerificationScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const { data, error, loading, refresh } = useFetch(() =>
-    endpoints.checkOwnershipStatus<ClaimState>(), { cacheKey: 'verification' }
+  // The claim is keyed on the handle, so every ownership call needs it. Cleaned
+  // the same way the web panel does (strip a leading @) — the server lowercases
+  // and normalises, but sending '@name' where it expects 'name' is a needless
+  // round trip.
+  const igHandle = (profile?.instagram_handle ?? '').trim().replace(/^@/, '');
+
+  const { data, error, loading, refresh } = useFetch(
+    async () => {
+      // No handle on the profile yet — there is nothing to ask about, and
+      // calling with an empty one returns a misleading 'none'. The UI already
+      // tells the user to add their handle first.
+      if (!igHandle) {
+        return { ok: true, status: 200, error: null, data: { status: 'none' } as ClaimState };
+      }
+      return endpoints.checkOwnershipStatus<ClaimState>(igHandle);
+    },
+    // Keyed by handle: changing it in the profile must not read back the old
+    // handle's claim from cache.
+    { cacheKey: `verification:${igHandle || 'none'}` }
   );
 
   const { data: pipeline, refresh: refreshPipeline } = useFetch(() =>
@@ -118,6 +135,7 @@ export default function VerificationScreen() {
 
     const res = await endpoints.checkOwnership<{ code: string; verify_url: string }>({
       action: 'initiate',
+      handle: igHandle,
     });
     setBusy(false);
 
@@ -127,29 +145,49 @@ export default function VerificationScreen() {
     }
     setCode(res.data?.code ?? null);
     setVerifyUrl(res.data?.verify_url ?? null);
-  }, []);
+  }, [igHandle]);
 
   const confirm = useCallback(async () => {
     setBusy(true);
     setMessage(null);
 
-    const res = await endpoints.checkOwnership<{ status: string }>({ action: 'confirm' });
+    // The server answers { verified: boolean }, NOT { status }. Reading the
+    // wrong field meant a successful confirm still fell into the "couldn't find
+    // your code" branch — so even once the handle was being sent, the flow could
+    // never report success. `message` carries the server's own wording for the
+    // not-found case, which is more specific than the fallback below.
+    const res = await endpoints.checkOwnership<{ verified: boolean; message?: string }>({
+      action: 'confirm',
+      handle: igHandle,
+    });
     setBusy(false);
 
     if (!res.ok) {
       setMessage(res.error);
       return;
     }
-    if (res.data?.status === 'verified') {
+    if (res.data?.verified) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setMessage(
+        'Ownership confirmed — you can remove the code from your bio now. Running your verification…'
+      );
+      // Ownership is only a PREREQUISITE for the badge: /api/verification is
+      // what actually grants it, and it will not auto-verify until the
+      // ownership claim exists (anti-impersonation). Web fires this on confirm;
+      // mobile did not, so a creator who completed the handshake here sat at
+      // "unverified" with nothing queued and no indication anything was
+      // outstanding. Fire-and-forget, exactly as web does.
+      void endpoints.startVerification({}).catch(() => {});
       await loadProfile();
       refresh();
+      refreshPipeline();
     } else {
       setMessage(
-        "We couldn't find the code in your bio yet. Make sure your account is public and the code is saved, then try again."
+        res.data?.message ??
+          "We couldn't find the code in your bio yet. Make sure your account is public and the code is saved, then try again."
       );
     }
-  }, [loadProfile, refresh]);
+  }, [igHandle, loadProfile, refresh, refreshPipeline]);
 
   if (loading) {
     return (
