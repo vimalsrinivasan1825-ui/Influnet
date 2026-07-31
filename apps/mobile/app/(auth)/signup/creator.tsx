@@ -189,6 +189,7 @@ export default function CreatorSignup() {
       subtitle: 'It becomes your public profile link.',
       valid: usernameOk,
       body: (
+        <View style={{ gap: t.spacing.lg }}>
         <Field
           label="Username"
           value={username}
