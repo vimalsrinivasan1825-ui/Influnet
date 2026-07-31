@@ -6,7 +6,7 @@ import { Check, Sparkles, X } from 'lucide-react-native';
 import { COLLAB_TYPES, INDIAN_STATES, LANGUAGES, NICHES, PRICE_TIERS } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
-import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from '@/lib/use-signup';
+import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
@@ -99,6 +99,7 @@ export default function CreatorSignup() {
   const availability = useUsernameAvailability(username);
   const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(name, username.length === 0);
   const emailAvailability = useEmailAvailability(email);
+  const instagramAvailability = useInstagramAvailability(instagram);
   const otp = usePhoneOtp();
   const otpRequired = useOtpRequirement();
 
@@ -288,24 +289,34 @@ export default function CreatorSignup() {
       subtitle: 'We pull your follower count and engagement so brands see real numbers.',
       // Web requires at least one handle rather than Instagram specifically.
       valid:
-        instagram.trim().length > 1 || youtube.trim().length > 1 || twitter.trim().length > 1,
+        (instagram.trim().length > 1 && instagramAvailability.status !== 'taken' && instagramAvailability.status !== 'invalid') || youtube.trim().length > 1 || twitter.trim().length > 1,
       body: (
         <View style={{ gap: t.spacing.lg }}>
           <View style={{ gap: t.spacing.sm }}>
-            <Field
-              label="Instagram handle"
-              value={instagram}
-              onChangeText={(v) => {
-                setInstagram(v);
-                // A changed handle invalidates whatever the last one pulled in.
-                if (prefilled) setPrefilled(false);
-                if (prefillError) setPrefillError(null);
-              }}
-              placeholder="@yourhandle"
-              autoCapitalize="none"
-              autoCorrect={false}
-              error={prefillError}
-            />
+              <Field
+                label="Instagram handle"
+                value={instagram}
+                onChangeText={(v) => {
+                  setInstagram(v.replace(/^@/, ''));
+                  // A changed handle invalidates whatever the last one pulled in.
+                  if (prefilled) setPrefilled(false);
+                  if (prefillError) setPrefillError(null);
+                }}
+                placeholder="@yourhandle"
+                autoCapitalize="none"
+                autoCorrect={false}
+                error={instagramAvailability.status === 'taken' || instagramAvailability.status === 'invalid' ? instagramAvailability.message : prefillError}
+                hint={instagramAvailability.status === 'available' ? instagramAvailability.message : null}
+                right={
+                  instagramAvailability.status === 'checking' ? (
+                    <ActivityIndicator size="small" color={t.color.contentMuted} />
+                  ) : instagramAvailability.status === 'available' ? (
+                    <Check size={19} color={t.color.ok} />
+                  ) : instagramAvailability.status === 'taken' || instagramAvailability.status === 'error' ? (
+                    <X size={19} color={t.color.danger} />
+                  ) : null
+                }
+              />
             <Button
               label={
                 prefilling
@@ -324,7 +335,7 @@ export default function CreatorSignup() {
               variant="secondary"
               size="md"
               onPress={prefillFromInstagram}
-              disabled={instagram.trim().length < 2 || prefilling || prefilled}
+              disabled={instagram.trim().length < 2 || prefilling || prefilled || instagramAvailability.status === 'checking' || instagramAvailability.status === 'taken' || instagramAvailability.status === 'invalid'}
               loading={prefilling}
             />
             {prefilled ? (

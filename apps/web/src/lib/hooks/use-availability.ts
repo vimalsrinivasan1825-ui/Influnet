@@ -19,7 +19,7 @@ export function useUsernameAvailability(username: string, debounceMs = 450): Ava
   const requestId = useRef(0);
 
   useEffect(() => {
-    const value = username.trim().toLowerCase();
+    const value = username.replace(/\s+/g, '').toLowerCase();
 
     if (value.length < 3) {
       setStatus('idle');
@@ -83,7 +83,7 @@ export function useEmailAvailability(email: string, debounceMs = 600): Availabil
   const requestId = useRef(0);
 
   useEffect(() => {
-    const value = email.trim().toLowerCase();
+    const value = email.replace(/\s+/g, '').toLowerCase();
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!EMAIL_RE.test(value)) {
@@ -142,13 +142,77 @@ export function useEmailAvailability(email: string, debounceMs = 600): Availabil
   return { status, message };
 }
 
+export function useInstagramAvailability(handle: string, debounceMs = 600): AvailabilityResult {
+  const [status, setStatus] = useState<AvailabilityStatus>('idle');
+  const [message, setMessage] = useState<string | null>(null);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    const value = handle.replace(/^@/, '').trim().toLowerCase();
+
+    if (!value) {
+      setStatus('idle');
+      setMessage(null);
+      return;
+    }
+
+    setStatus('checking');
+    setMessage('Checking handle…');
+    const id = ++requestId.current;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-instagram?handle=${encodeURIComponent(value)}`);
+        const data = (await res.json()) as { available?: boolean; valid?: boolean; reason?: string; };
+        if (id !== requestId.current) return;
+
+        if (res.status === 429) {
+          setStatus('error');
+          setMessage('Too many checks — try again in a moment.');
+          return;
+        }
+        if (!res.ok) {
+          setStatus('error');
+          setMessage('Could not check right now');
+          return;
+        }
+        if (data.valid === false) {
+          setStatus('invalid');
+          setMessage(data.reason ?? 'Invalid handle.');
+          return;
+        }
+        if (typeof data.available !== 'boolean') {
+          setStatus('error');
+          setMessage('Could not check right now');
+          return;
+        }
+        if (data.available) {
+          setStatus('available');
+          setMessage('Handle is available');
+        } else {
+          setStatus('taken');
+          setMessage('This ID is already used');
+        }
+      } catch {
+        if (id !== requestId.current) return;
+        setStatus('error');
+        setMessage('Could not check right now');
+      }
+    }, debounceMs);
+
+    return () => clearTimeout(timer);
+  }, [handle, debounceMs]);
+
+  return { status, message };
+}
+
 export function usePhoneAvailability(phone: string, debounceMs = 600): AvailabilityResult {
   const [status, setStatus] = useState<AvailabilityStatus>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
-    const value = phone.trim();
+    const value = phone.replace(/\s+/g, '');
     if (value.replace(/\D/g, '').length < 10) {
       setStatus('idle');
       setMessage(null);

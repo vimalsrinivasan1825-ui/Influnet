@@ -33,6 +33,8 @@ export function createEndpoints(api: ApiClient) {
       api.get<T>(`/api/auth/check-email?email=${encodeURIComponent(email)}`),
     checkPhone: <T = unknown>(phone: string) =>
       api.get<T>(`/api/auth/check-phone?phone=${encodeURIComponent(phone)}`),
+    checkInstagram: <T = unknown>(handle: string) =>
+      api.get<T>(`/api/auth/check-instagram?handle=${encodeURIComponent(handle)}`),
     suggestUsername: <T = unknown>(name: string) =>
       api.get<T>(`/api/auth/suggest-username?name=${encodeURIComponent(name)}`),
 

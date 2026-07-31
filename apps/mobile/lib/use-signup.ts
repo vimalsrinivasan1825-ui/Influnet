@@ -17,7 +17,7 @@ export function useUsernameAvailability(username: string) {
   const [status, setStatus] = useState<Availability>('idle');
 
   useEffect(() => {
-    const value = username.trim().toLowerCase();
+    const value = username.replace(/\s+/g, '').toLowerCase();
 
     if (!value) {
       setStatus('idle');
@@ -69,7 +69,7 @@ export function useEmailAvailability(email: string) {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const value = email.trim();
+    const value = email.replace(/\s+/g, '').toLowerCase();
     if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
       setStatus('idle');
       setMessage('');
@@ -108,8 +108,8 @@ export function usePhoneAvailability(phone: string) {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const value = phone.replace(/\D/g, '');
-    if (value.length < 10) {
+    const value = phone.replace(/\s+/g, '');
+    if (value.replace(/\D/g, '').length < 10) {
       setStatus('idle');
       setMessage('');
       return;
@@ -138,6 +138,55 @@ export function usePhoneAvailability(phone: string) {
       clearTimeout(timer);
     };
   }, [phone]);
+
+  return { status, message };
+}
+
+export function useInstagramAvailability(handle: string) {
+  const [status, setStatus] = useState<Availability>('idle');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const value = handle.replace(/^@/, '').trim().toLowerCase();
+    if (!value) {
+      setStatus('idle');
+      setMessage('');
+      return;
+    }
+
+    setStatus('checking');
+    setMessage('');
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      const res = await endpoints.checkInstagram(value);
+      if (cancelled) return;
+
+      if (!res.ok) {
+        setStatus('error');
+        setMessage('Network error, please try again.');
+        return;
+      }
+      const data = res.data as { available?: boolean; valid?: boolean; reason?: string };
+      if (data.valid === false) {
+        setStatus('invalid');
+        setMessage(data.reason ?? 'Invalid handle');
+        return;
+      }
+      if (typeof data.available !== 'boolean') {
+        setStatus('error');
+        setMessage('Could not check right now');
+        return;
+      }
+      setStatus(data.available ? 'available' : 'taken');
+      setMessage(data.available ? 'Handle is available' : 'This ID is already used');
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [handle]);
 
   return { status, message };
 }

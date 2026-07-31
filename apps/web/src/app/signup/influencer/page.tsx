@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
+import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from "@/lib/hooks/use-availability";
 import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { publicProfileUrlDisplay } from "@/lib/site";
@@ -114,6 +114,53 @@ function InfluencerSignupContent() {
   const [usernameSuggestionsFallback, setUsernameSuggestionsFallback] = useState<string[]>([]);
   const usernameInputRef = useRef<HTMLInputElement>(null);
 
+  // Load saved state on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("influencerSignupState");
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.step) setStep(data.step);
+        if (data.followerCount !== undefined) setFollowerCount(data.followerCount);
+        if (data.prefilled !== undefined) setPrefilled(data.prefilled);
+        if (data.firstName) setFirstName(data.firstName);
+        if (data.lastName) setLastName(data.lastName);
+        if (data.username) setUsername(data.username);
+        if (data.email) setEmail(data.email);
+        if (data.phone) setPhone(data.phone);
+        if (data.gender) setGender(data.gender);
+        if (data.city) setCity(data.city);
+        if (data.state) setState(data.state);
+        if (data.languages) setLanguages(data.languages);
+        if (data.primaryNiche) setPrimaryNiche(data.primaryNiche);
+        if (data.secondaryNiches) setSecondaryNiches(data.secondaryNiches);
+        if (data.bio) setBio(data.bio);
+        if (data.instagramHandle) setInstagramHandle(data.instagramHandle);
+        if (data.youtubeHandle) setYoutubeHandle(data.youtubeHandle);
+        if (data.twitterHandle) setTwitterHandle(data.twitterHandle);
+        if (data.collabTypes) setCollabTypes(data.collabTypes);
+        if (data.priceRange) setPriceRange(data.priceRange);
+      }
+    } catch {}
+  }, []);
+
+  // Save state on change
+  useEffect(() => {
+    sessionStorage.setItem(
+      "influencerSignupState",
+      JSON.stringify({
+        step, followerCount, prefilled, firstName, lastName, username, email, phone, gender, city, state,
+        languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
+        collabTypes, priceRange,
+      })
+    );
+  }, [
+    step, followerCount, prefilled, firstName, lastName, username, email, phone, gender, city, state,
+    languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
+    collabTypes, priceRange,
+  ]);
+
+  const { status: instagramStatus, message: instagramMessage } = useInstagramAvailability(instagramHandle);
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
   const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(`${firstName} ${lastName}`, username.length === 0);
   const { status: emailStatus, message: emailMessage } = useEmailAvailability(email);
@@ -129,7 +176,7 @@ function InfluencerSignupContent() {
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
 
   const canProceed = (): boolean => {
-    if (step === 1) return true;
+    if (step === 1) return instagramStatus !== "taken";
     if (step === 2)
       return (
         !!firstName && !!lastName && !!username && usernameOk && emailValid && emailOk && passwordOk &&
@@ -276,11 +323,14 @@ function InfluencerSignupContent() {
           method: "POST",
           headers: { Authorization: `Bearer ${data.session.access_token}` },
         }).catch(() => {});
+        sessionStorage.removeItem("influencerSignupState");
         router.push(nextParam);
       } else {
         // Email confirmation required: no session yet, so register_profile can't
         // run now. Stash the payload so login can replay it once confirmed —
         // otherwise all of this wizard's data would be lost.
+        // Clear the session storage now that we are done.
+        sessionStorage.removeItem("influencerSignupState");
         // The OTP token rides along so login can replay it, but it only lives
         // 30 minutes — hence the sharper message when the gate is on.
         try {
@@ -382,17 +432,38 @@ function InfluencerSignupContent() {
               )}
               <div>
                 <Label>Instagram handle</Label>
-                <Input 
-                  value={instagramHandle} 
-                  onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ''))} 
-                  placeholder="username" 
-                />
+                <div className="relative">
+                  <Input 
+                    value={instagramHandle} 
+                    onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ''))} 
+                    placeholder="username" 
+                    className="pr-10"
+                    aria-invalid={instagramStatus === "taken" || instagramStatus === "invalid"}
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {instagramStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {instagramStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(instagramStatus === "taken" || instagramStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
+                {instagramMessage && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      instagramStatus === "available" && "text-emerald-600",
+                      (instagramStatus === "taken" || instagramStatus === "invalid") && "text-danger",
+                      (instagramStatus === "checking" || instagramStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {instagramMessage}
+                  </p>
+                )}
               </div>
               <Button 
                 variant="surface" 
                 className="w-full" 
                 onClick={handleConnectInstagram} 
-                disabled={isConnecting || !instagramHandle}
+                disabled={isConnecting || !instagramHandle || instagramStatus === "checking" || instagramStatus === "taken" || instagramStatus === "invalid"}
               >
                 {isConnecting ? (
                   <>
@@ -414,6 +485,7 @@ function InfluencerSignupContent() {
                 variant="ghost" 
                 className="w-full text-content-soft" 
                 onClick={() => setStep(2)}
+                disabled={instagramStatus === "checking" || instagramStatus === "taken" || instagramStatus === "invalid"}
               >
                 Skip and fill manually
               </Button>

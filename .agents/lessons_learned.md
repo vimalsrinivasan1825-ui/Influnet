@@ -2,23 +2,59 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
-## Session — 2026-07-30: OTA Update Timestamp in Settings + Commit Cleanup
+### Session — 2026-07-31: Wizard State Persistence & Instagram Real-Time Checks
 
 **Branch**: `dev`
 
 ### Scope
-- **Settings Screen (`apps/mobile/app/settings.tsx`)**: Added `expo-updates` import to display the OTA update timestamp and build info at the bottom of the Settings screen only. All users see the human-readable update date; only `vimal@gmail.com` sees the short Update ID for cross-referencing with the EAS Dashboard.
-- **Commit Cleanup**: Separated and committed two logical feature sets that were uncommitted:
-  1. `feat(auth): add optional phone OTP verification step to signup (mobile + web)` — 19 files.
-  2. `feat(mobile/settings): show OTA update timestamp and build info in settings screen` — 1 file.
+- **Wizard State Persistence (`apps/web/src/app/signup/influencer/page.tsx` & `apps/web/src/app/signup/business/page.tsx`)**:
+  - Implemented `sessionStorage` to persist all form values across steps. This prevents data loss if the user accidentally reloads the page during the multi-step signup process.
+  - Cleared `sessionStorage` upon successful signup to ensure fresh states for future signups.
+- **Instagram Handle Real-Time Checks**:
+  - Added a new Supabase RPC `check_instagram_available` to query both `influencer_profiles` and `business_profiles` for existing Instagram handles.
+  - Added the `/api/auth/check-instagram` endpoint to the web backend.
+  - Added `useInstagramAvailability` hook in both `apps/web/src/lib/hooks/use-availability.ts` and `apps/mobile/lib/use-signup.ts`.
+  - Implemented UI feedback on the first step of the Creator signup (both web and mobile) to instantly warn users if the entered Instagram handle is already registered.
+  - Disabled "Connect to Instagram" and "Skip" buttons while the check is running or if the handle is taken/invalid.
+
+### Broken & Resolved
+- **Data Loss on Reload**: The user reported that reloading the page during signup wiped all entered data and returned them to Step 1. Resolved by syncing state to `sessionStorage` using `useEffect` hooks.
+- **Missing Availability Check for Instagram Handle**: The user pointed out that entering an already registered Instagram ID didn't warn them during Step 1. Resolved by adding a dedicated RPC and endpoint for real-time handle validation.
 
 ### Key Lessons
-- `Updates.isEmbeddedLaunch` is `true` when the app is running the original binary bundle (no OTA applied). `Updates.createdAt` is the published timestamp of the currently active OTA bundle. Together they provide a reliable way to diagnose update state in the field.
-- The OTA update channel in the installed app binary is locked at build time. A production binary (`eas build --profile production`) always reads from the `production` channel; preview binaries read from `preview`. Pushing to the wrong channel has no effect on already-installed production apps.
-- To manually push a production OTA update without merging to `main`, run `eas-cli update --channel production` locally — it publishes from the current working directory's code.
+- **State Persistence**: For multi-step client-side forms in Next.js, `sessionStorage` is a straightforward and secure way to prevent data loss on accidental reloads, as it persists across reloads but clears when the tab is closed.
+- **Early Validation**: It's crucial to validate unique identifiers (like Instagram handles) as early as possible in the flow to prevent users from proceeding with taken credentials.
 
 ### Next Target
-- Push the 3 local commits to `origin/dev` and trigger the manual OTA update command to deploy the settings change to the production channel.
+- Continue resolving UI bugs and feature requests based on user feedback.
+
+---
+
+## Session — 2026-07-31: Mobile Signup Availability Checks & Settings Build Time
+
+**Branch**: `dev`
+
+### Scope
+- **Settings Build Timestamp (`apps/mobile/app/settings.tsx`)**:
+  - Embedded a hardcoded `LAST_COMMIT_TIME` string at the bottom of the Settings screen.
+  - This allows the developer to instantly verify whether the physical device is running the latest codebase without relying on OTA push metadata or navigating dev menus.
+- **Mobile Real-time Availability (`apps/mobile/lib/use-signup.ts`)**:
+  - Ported `useEmailAvailability`, `usePhoneAvailability`, and `useUsernameSuggestions` hooks to React Native, leveraging the same `@influnet/api` endpoints.
+- **Mobile Signup Wizards (`apps/mobile/app/(auth)/signup/`)**:
+  - Updated `creator.tsx` and `business.tsx` to include live feedback chips and availability validation logic.
+  - Integrated `usePhoneAvailability` into `phone-otp-step.tsx` to explicitly gate OTP dispatching behind backend uniqueness checks.
+  - Prevented moving forward in the wizard unless all input fields resolve to "available" or "error" (to fail-open on network issues).
+
+### Key Lessons
+- Providing deterministic build timestamps in native app Settings screens is the best way to verify whether the deployed APK/OTA bundle actually picked up your latest local edits.
+- Reusing API-bound hooks (like `useUsernameSuggestions`) across Web and Mobile requires abstracting the network calls (e.g. `endpoints.suggestUsername`) behind a unified client, allowing the presentation layer to remain unique while behavior remains identical.
+
+### Next Target
+- Push the commits to `origin/dev` and deploy these changes to mobile.
+
+---
+
+## Session — 2026-07-30: OTA Update Timestamp in Settings + Commit Cleanup
 
 ---
 

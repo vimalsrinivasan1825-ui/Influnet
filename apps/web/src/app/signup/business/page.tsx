@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -73,6 +73,44 @@ function BusinessSignupContent() {
   const [gstNumber, setGstNumber] = useState("");
   const [marketingBudget, setMarketingBudget] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Load saved state on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("businessSignupState");
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.step) setStep(data.step);
+        if (data.fullName) setFullName(data.fullName);
+        if (data.companyName) setCompanyName(data.companyName);
+        if (data.username) setUsername(data.username);
+        if (data.email) setEmail(data.email);
+        if (data.phone) setPhone(data.phone);
+        if (data.businessType) setBusinessType(data.businessType);
+        if (data.industry) setIndustry(data.industry);
+        if (data.website) setWebsite(data.website);
+        if (data.city) setCity(data.city);
+        if (data.state) setState(data.state);
+        if (data.registeredAddress) setRegisteredAddress(data.registeredAddress);
+        if (data.gstNumber) setGstNumber(data.gstNumber);
+        if (data.marketingBudget) setMarketingBudget(data.marketingBudget);
+      }
+    } catch {}
+  }, []);
+
+  // Save state on change
+  useEffect(() => {
+    sessionStorage.setItem(
+      "businessSignupState",
+      JSON.stringify({
+        step, fullName, companyName, username, email, phone, businessType, industry,
+        website, city, state, registeredAddress, gstNumber, marketingBudget
+      })
+    );
+  }, [
+    step, fullName, companyName, username, email, phone, businessType, industry,
+    website, city, state, registeredAddress, gstNumber, marketingBudget
+  ]);
 
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
   const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(companyName || fullName, username.length === 0);
@@ -158,11 +196,13 @@ function BusinessSignupContent() {
           method: "POST",
           headers: { Authorization: `Bearer ${data.session.access_token}` },
         }).catch(() => {});
+        sessionStorage.removeItem("businessSignupState");
         router.push(nextParam);
       } else {
         // Email confirmation required: no session yet, so register_profile can't
         // run now. Stash the payload so login can replay it once confirmed —
         // otherwise all of this wizard's data would be lost.
+        sessionStorage.removeItem("businessSignupState");
         // The OTP token rides along so login can replay it, but it only lives
         // 30 minutes — hence the sharper message when the gate is on.
         try {
