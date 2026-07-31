@@ -549,6 +549,46 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(400, 'Completion can only be confirmed at the final payment stage');
       }
 
+      // The CREATOR may not confirm completion while the final payment gate is
+      // still open. Completing publishes the collaboration and a rating on their
+      // public profile and closes the change-request window — so "done" has to
+      // mean "and I was paid".
+      //
+      // Every other stage checks its required items before it can move; this one
+      // never did, which made final_payment the one gate a project could walk
+      // past. When in-app payments are configured that item only opens on a
+      // signed webhook, so this is a real money check, not a checkbox.
+      //
+      // Deliberately one-sided. The BUSINESS is the payer: if they want to close
+      // a project having settled off-platform, that is their money and their
+      // call, and blocking them would strand every manual-payment project. The
+      // creator is the one who needs protecting here, and they still hold the
+      // other half of the dual-confirm either way.
+      if (userRole === 'creator') {
+        const { data: finalItems, error: finalItemsErr } = await supabase
+          .from('project_stage_items')
+          .select('*')
+          .eq('project_id', id)
+          .eq('stage_key', 'final_payment');
+        // Same fail-open as the other checklist gates: a missing table (054 not
+        // applied) must not block completion outright.
+        if (finalItemsErr) {
+          log.warn('final payment checklist unavailable, skipping gate', { err: finalItemsErr.message });
+        } else {
+          const pendingFinal = blockingItems('final_payment', (finalItems || []) as StageItem[]);
+          if (pendingFinal.length > 0) {
+            return NextResponse.json(
+              {
+                error:
+                  'The final payment hasn’t been recorded yet. Once it is, you can confirm the project is complete.',
+                blocking: pendingFinal.map((it) => it.label),
+              },
+              { status: 409 },
+            );
+          }
+        }
+      }
+
       // Read the confirmation columns here (added in migration 056). If they're
       // not present yet, guide the operator to apply the migration rather than
       // silently misbehaving.
