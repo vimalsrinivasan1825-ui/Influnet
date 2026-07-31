@@ -85,7 +85,9 @@ export default function BusinessSignup() {
       return;
     }
     if (result.needsConfirmation) {
-      setError('Check your email to confirm your address, then sign in.');
+      setError(
+        'Check your email to confirm your address, then sign in — your details are saved.'
+      );
       return;
     }
     // New businesses land on the review screen, not the tabs.

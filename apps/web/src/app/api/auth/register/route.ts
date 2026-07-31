@@ -17,7 +17,77 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
     }
 
-    const rawPayload = await req.json();
+    const rawBody = await req.json().catch(() => ({}));
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+      }
+    );
+
+    // Recovery path: rebuild the payload from auth metadata when the caller
+    // hasn't got one.
+    //
+    // With email confirmation on, signUp returns no session, so register_profile
+    // can't run at signup time. Web stashed the wizard answers in localStorage
+    // and replayed them on first login — which works only in the browser that
+    // filled the form. Confirm the email on your phone, or sign up on mobile at
+    // all (which stashed nothing), and the answers were gone: you ended up
+    // signed in with no profile row, dropped into the app with nothing behind
+    // you and no route back to the wizard.
+    //
+    // The answers were never actually lost. Both wizards pass them to signUp as
+    // `options.data`, so they live on the auth user as user_metadata — server
+    // side, device independent, and already there. Reading them here means
+    // recovery needs no client storage at all.
+    //
+    // Deliberately NOT merged with the body: a caller who sends a payload gets
+    // exactly that payload validated, and metadata is consulted only when there
+    // is nothing to validate. Half-and-half would let a partial body silently
+    // inherit fields nobody re-confirmed.
+    let rawPayload = rawBody;
+    const reconstructed = !rawBody || typeof rawBody !== 'object' || !('role' in rawBody);
+    if (reconstructed) {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData?.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      // Idempotent: if the profile is already there this is a no-op, not an
+      // error. Both clients call this on any "signed in but no profile" state,
+      // which races with a profile that just appeared.
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userData.user.id)
+        .maybeSingle();
+      if (existing) {
+        return NextResponse.json({ ok: true, already_registered: true });
+      }
+
+      const metadata = (userData.user.user_metadata ?? {}) as Record<string, unknown>;
+      if (!metadata.role) {
+        return NextResponse.json(
+          {
+            error:
+              'We could not find your signup details. Please sign up again — nothing was charged and no account is left behind.',
+            reason: 'no_signup_metadata',
+          },
+          { status: 422 },
+        );
+      }
+      // The OTP token is deliberately absent from metadata (it is single-use and
+      // short-lived, and auth metadata is permanent). A recovering caller must
+      // supply a FRESH one in the body — see the phone gate below. Reconstruction
+      // must never be a way to skip mobile verification.
+      rawPayload = { ...metadata, phoneVerificationToken: rawBody?.phoneVerificationToken };
+    }
 
     // Validate the body — role is guaranteed to be business_owner | influencer after this.
     // 'admin' is not an accepted value and will cause a 400.
@@ -60,18 +130,6 @@ export async function POST(req: Request) {
       }
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    );
-
     const { data, error } = await supabase.rpc('register_profile', { payload });
 
     if (error) {
@@ -96,7 +154,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, data });
+    return NextResponse.json({ ok: true, data, reconstructed });
   } catch (error: any) {
     console.error('Unexpected error in register route:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

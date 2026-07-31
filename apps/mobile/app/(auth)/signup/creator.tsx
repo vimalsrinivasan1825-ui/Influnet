@@ -102,7 +102,9 @@ export default function CreatorSignup() {
       return;
     }
     if (result.needsConfirmation) {
-      setError('Check your email to confirm your address, then sign in.');
+      setError(
+        'Check your email to confirm your address, then sign in — your details are saved.'
+      );
       return;
     }
     router.replace('/');

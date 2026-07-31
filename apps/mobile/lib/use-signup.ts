@@ -98,6 +98,14 @@ export async function completeSignup(
 
   // Email-confirmation projects return a user with no session. The profile
   // can't be registered without a bearer token, so stop and say so plainly.
+  //
+  // The wizard answers are NOT lost by stopping here: they went to signUp above
+  // as `options.data`, so they are on the auth user as user_metadata. On the
+  // next sign-in, app/index.tsx sees a session with no profile and posts an
+  // empty body to /api/auth/register, which rebuilds from exactly that metadata.
+  // Web used to lean on localStorage for this, which only worked in the browser
+  // that filled the form; reading the server's own copy works from any device
+  // and needs no client storage at all.
   if (!data.session) {
     return { ok: true, needsConfirmation: true };
   }
