@@ -80,9 +80,18 @@ export async function completeSignup(
   password: string,
   payload: Record<string, unknown>
 ): Promise<SignupResult> {
+  // The OTP token is deliberately kept out of auth metadata — that object is
+  // permanent on the auth user, and a single-use verification token has no
+  // business living there. Same split the web wizards make.
+  const { phoneVerificationToken, ...metadata } = payload;
+
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
+    // Mirrors web: the wizard answers ride along as user metadata, so the
+    // profile can still be reconstructed if register fails after the auth user
+    // was created.
+    options: { data: { ...metadata, email: email.trim() } },
   });
 
   if (error) return { ok: false, error: error.message };
@@ -93,8 +102,13 @@ export async function completeSignup(
     return { ok: true, needsConfirmation: true };
   }
 
-  const res = await endpoints.register(payload);
+  const res = await endpoints.register({ ...payload, email: email.trim() });
   if (!res.ok) return { ok: false, error: res.error ?? 'Could not create your profile.' };
+
+  // Kick off social verification so the trust badge starts processing straight
+  // away, as web does. Fire-and-forget: never blocks signup, and it can be
+  // re-run from the verification screen if it fails.
+  void endpoints.startVerification({}).catch(() => {});
 
   await useSession.getState().loadProfile();
   return { ok: true };

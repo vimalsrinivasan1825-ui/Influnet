@@ -10,10 +10,36 @@ import { useTheme } from '@/lib/theme';
 import { Button, Field, Txt } from '@/components/ui';
 import type { PhoneOtpState } from '@/lib/use-phone-otp';
 
-export function PhoneOtpStep({ otp }: { otp: PhoneOtpState }) {
+export function PhoneOtpStep({
+  otp,
+  /**
+   * False when the server has the OTP gate off. The number is still collected —
+   * it just isn't verified, matching how the web field degrades to a plain
+   * input (apps/web/src/components/signup/phone-otp-field.tsx).
+   */
+  required = true,
+}: {
+  otp: PhoneOtpState;
+  required?: boolean;
+}) {
   const t = useTheme();
   const verified = !!otp.token;
   const phoneUsable = otp.phone.replace(/\D/g, '').length >= 10;
+
+  if (!required) {
+    return (
+      <Field
+        label="Mobile number"
+        value={otp.phone}
+        onChangeText={otp.setPhone}
+        placeholder="+91 98765 43210"
+        keyboardType="phone-pad"
+        autoComplete="tel"
+        autoFocus
+        hint="Optional. Brands use this to reach you about collaborations."
+      />
+    );
+  }
 
   return (
     <View style={{ gap: t.spacing.lg }}>

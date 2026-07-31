@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Check, X } from 'lucide-react-native';
 import { COLLAB_TYPES, INDIAN_STATES, LANGUAGES, NICHES, PRICE_TIERS } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
+import { endpoints } from '@/lib/api';
 import { completeSignup, useUsernameAvailability } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { WizardStep } from '@/components/wizard';
@@ -14,6 +15,14 @@ import { Chip, ChipWrap, Field, Txt } from '@/components/ui';
 function toggle(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
+
+/** Same four options the web wizard offers, same stored values. */
+const GENDERS = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'non-binary', label: 'Non-binary' },
+  { value: 'prefer-not-to-say', label: 'Prefer not to say' },
+];
 
 export default function CreatorSignup() {
   const t = useTheme();
@@ -28,6 +37,10 @@ export default function CreatorSignup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [instagram, setInstagram] = useState('');
+  const [youtube, setYoutube] = useState('');
+  const [twitter, setTwitter] = useState('');
+  const [bio, setBio] = useState('');
+  const [gender, setGender] = useState('');
   const [niche, setNiche] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
@@ -39,18 +52,40 @@ export default function CreatorSignup() {
   const otp = usePhoneOtp();
   const otpRequired = useOtpRequirement();
 
+  // Fail open on a failed check, exactly as the web wizard does: register_profile
+  // still enforces uniqueness, so a flaky network must not hard-block signup.
+  const usernameOk = availability === 'available' || availability === 'error';
+
   async function submit() {
     setBusy(true);
     setError(null);
 
+    // Final guard before the auth user is created: the live check gates the
+    // handle step, but the name can be claimed while someone works through the
+    // later steps. Catching it here avoids an orphaned auth account with no
+    // profile — the same reason web re-checks at submit time.
+    const recheck = await endpoints.checkUsername(username.trim().toLowerCase());
+    const checked = recheck.data as { available?: boolean; valid?: boolean } | null;
+    if (recheck.ok && checked?.available === false) {
+      setBusy(false);
+      setError('That username was just taken by someone else — pick another.');
+      setStep(1);
+      return;
+    }
+
     const result = await completeSignup(email, password, {
       role: 'influencer',
       name: name.trim(),
-      ...(otpRequired
-        ? { phone: otp.phone.trim(), phoneVerificationToken: otp.token ?? undefined }
-        : {}),
+      // Phone is collected either way; the token only exists when the gate is on
+      // and register ignores it when off.
+      phone: otp.phone.trim() || undefined,
+      phoneVerificationToken: otp.token ?? undefined,
       username: username.trim().toLowerCase(),
-      instagramHandle: instagram.trim().replace(/^@/, ''),
+      instagramHandle: instagram.trim().replace(/^@/, '') || undefined,
+      youtubeHandle: youtube.trim().replace(/^@/, '') || undefined,
+      twitterHandle: twitter.trim().replace(/^@/, '') || undefined,
+      bio: bio.trim() || undefined,
+      gender: gender || undefined,
       niche,
       languages,
       collabTypes,
@@ -94,7 +129,7 @@ export default function CreatorSignup() {
     {
       title: 'Claim your handle',
       subtitle: 'It becomes your public profile link.',
-      valid: availability === 'available',
+      valid: usernameOk,
       body: (
         <Field
           label="Username"
@@ -153,38 +188,73 @@ export default function CreatorSignup() {
         </View>
       ),
     },
-    // Only present when the server has the gate on — see useOtpRequirement().
-    ...(otpRequired
-      ? [
-          {
-            title: 'Verify your mobile',
-            subtitle: 'We text you a 6-digit code. Brands trust verified numbers.',
-            valid: !!otp.token,
-            body: <PhoneOtpStep otp={otp} />,
-          },
-        ]
-      : []),
+    // Always present: the number is collected either way. Only the verification
+    // requirement is server-driven — see useOtpRequirement().
     {
-      title: 'Link your Instagram',
+      title: otpRequired ? 'Verify your mobile' : 'Your mobile number',
+      subtitle:
+        otpRequired === null
+          ? 'Checking whether verification is required…'
+          : otpRequired
+            ? 'We text you a 6-digit code. Brands trust verified numbers.'
+            : 'So brands can reach you about collaborations.',
+      // `null` means the requirement is still loading. Blocking for that moment
+      // is safer than letting someone past a gate that turns out to be on, which
+      // register would then reject with the account already created.
+      valid: otpRequired === null ? false : otpRequired ? !!otp.token : true,
+      body: <PhoneOtpStep otp={otp} required={otpRequired === true} />,
+    },
+    {
+      title: 'Link your socials',
       subtitle: 'We pull your follower count and engagement so brands see real numbers.',
-      valid: instagram.trim().length > 1,
+      // Web requires at least one handle rather than Instagram specifically.
+      valid:
+        instagram.trim().length > 1 || youtube.trim().length > 1 || twitter.trim().length > 1,
       body: (
-        <Field
-          label="Instagram handle"
-          value={instagram}
-          onChangeText={setInstagram}
-          placeholder="@yourhandle"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <View style={{ gap: t.spacing.lg }}>
+          <Field
+            label="Instagram handle"
+            value={instagram}
+            onChangeText={setInstagram}
+            placeholder="@yourhandle"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Field
+            label="YouTube channel"
+            value={youtube}
+            onChangeText={setYoutube}
+            placeholder="@yourchannel"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Field
+            label="X (Twitter) handle"
+            value={twitter}
+            onChangeText={setTwitter}
+            placeholder="@yourhandle"
+            autoCapitalize="none"
+            autoCorrect={false}
+            hint="At least one of the three, so brands can see your work."
+          />
+        </View>
       ),
     },
     {
       title: 'What do you make?',
       subtitle: 'Pick the niches and formats you work in. Brands filter by these.',
-      valid: niche.length > 0 && collabTypes.length > 0,
+      valid: niche.length > 0 && collabTypes.length > 0 && bio.trim().length > 0,
       body: (
         <View style={{ gap: t.spacing.xl }}>
+          <Field
+            label="Short bio"
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Food and travel creator from Chennai. I make recipe reels and honest restaurant reviews."
+            multiline
+            hint="This is the first thing brands read on your profile."
+          />
+
           <View style={{ gap: t.spacing.sm }}>
             <Txt variant="footnote" tone="soft">
               Niches
@@ -233,9 +303,25 @@ export default function CreatorSignup() {
     {
       title: 'Rate and location',
       subtitle: 'You can change these any time.',
-      valid: !!priceRange && !!state,
+      valid: !!priceRange && !!state && !!gender,
       body: (
         <View style={{ gap: t.spacing.xl }}>
+          <View style={{ gap: t.spacing.sm }}>
+            <Txt variant="footnote" tone="soft">
+              Gender
+            </Txt>
+            <ChipWrap>
+              {GENDERS.map((g) => (
+                <Chip
+                  key={g.value}
+                  label={g.label}
+                  selected={gender === g.value}
+                  onPress={() => setGender(g.value)}
+                />
+              ))}
+            </ChipWrap>
+          </View>
+
           <View style={{ gap: t.spacing.sm }}>
             <Txt variant="footnote" tone="soft">
               Typical rate per collaboration
