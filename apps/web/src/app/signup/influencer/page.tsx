@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,8 +9,10 @@ import { createClient } from "@/lib/supabase/client";
 import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
+import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from "@/lib/hooks/use-availability";
+import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
+import { publicProfileUrlDisplay } from "@/lib/site";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -79,7 +81,7 @@ function InfluencerSignupContent() {
   const searchParams = useSearchParams();
   const nextParam = (() => {
     const n = searchParams.get("next");
-    return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard/influencer";
+    return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard";
   })();
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState("");
@@ -94,6 +96,7 @@ function InfluencerSignupContent() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneToken, setPhoneToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [gender, setGender] = useState("");
   const [city, setCity] = useState("");
@@ -108,11 +111,64 @@ function InfluencerSignupContent() {
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [usernameSuggestionsFallback, setUsernameSuggestionsFallback] = useState<string[]>([]);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
 
+  // Load saved state on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("influencerSignupState");
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.step) setStep(data.step);
+        if (data.followerCount !== undefined) setFollowerCount(data.followerCount);
+        if (data.prefilled !== undefined) setPrefilled(data.prefilled);
+        if (data.firstName) setFirstName(data.firstName);
+        if (data.lastName) setLastName(data.lastName);
+        if (data.username) setUsername(data.username);
+        if (data.email) setEmail(data.email);
+        if (data.phone) setPhone(data.phone);
+        if (data.gender) setGender(data.gender);
+        if (data.city) setCity(data.city);
+        if (data.state) setState(data.state);
+        if (data.languages) setLanguages(data.languages);
+        if (data.primaryNiche) setPrimaryNiche(data.primaryNiche);
+        if (data.secondaryNiches) setSecondaryNiches(data.secondaryNiches);
+        if (data.bio) setBio(data.bio);
+        if (data.instagramHandle) setInstagramHandle(data.instagramHandle);
+        if (data.youtubeHandle) setYoutubeHandle(data.youtubeHandle);
+        if (data.twitterHandle) setTwitterHandle(data.twitterHandle);
+        if (data.collabTypes) setCollabTypes(data.collabTypes);
+        if (data.priceRange) setPriceRange(data.priceRange);
+      }
+    } catch {}
+  }, []);
+
+  // Save state on change
+  useEffect(() => {
+    sessionStorage.setItem(
+      "influencerSignupState",
+      JSON.stringify({
+        step, followerCount, prefilled, firstName, lastName, username, email, phone, gender, city, state,
+        languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
+        collabTypes, priceRange,
+      })
+    );
+  }, [
+    step, followerCount, prefilled, firstName, lastName, username, email, phone, gender, city, state,
+    languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
+    collabTypes, priceRange,
+  ]);
+
+  const { status: instagramStatus, message: instagramMessage } = useInstagramAvailability(instagramHandle);
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
+  const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(`${firstName} ${lastName}`, username.length === 0);
+  const { status: emailStatus, message: emailMessage } = useEmailAvailability(email);
+
   // Fail open on network/server errors — the register RPC is the source of truth
   // and will still reject a taken name, so we never hard-block on a flaky check.
   const usernameOk = usernameStatus === "available" || usernameStatus === "error";
+  const emailOk = emailStatus === "available" || emailStatus === "error";
   const emailValid = EMAIL_RE.test(email);
   const passwordOk = password.length >= 8;
 
@@ -120,10 +176,13 @@ function InfluencerSignupContent() {
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
 
   const canProceed = (): boolean => {
-    if (step === 1) return true;
+    if (step === 1) return instagramStatus !== "taken";
     if (step === 2)
       return (
-        !!firstName && !!lastName && !!username && usernameOk && emailValid && passwordOk
+        !!firstName && !!lastName && !!username && usernameOk && emailValid && emailOk && passwordOk &&
+        // Mobile OTP is a hard gate when enabled — the server rejects an
+        // unverified number anyway, so don't let the wizard advance.
+        (!phoneOtpEnabled || !!phoneToken)
       );
     if (step === 3) return !!gender && !!city && !!state && languages.length > 0;
     if (step === 4) return !!primaryNiche && !!bio && (!!instagramHandle || !!youtubeHandle || !!twitterHandle);
@@ -165,6 +224,29 @@ function InfluencerSignupContent() {
     }
   };
 
+  // Someone else took `username` between step 2 and here. Rather than dead-
+  // ending on the last step with a "go back to step 2" instruction the
+  // creator has to act on manually, jump the wizard back there ourselves,
+  // focus the field, and offer two alternatives that are actually free right
+  // now — asking someone to walk backwards through a wizard they just
+  // finished is exactly where signups get abandoned.
+  const recoverFromTakenUsername = async (message: string) => {
+    setError(message);
+    setStep(2);
+    setUsernameSuggestionsFallback([]);
+
+    try {
+      const res = await fetch(`/api/auth/suggest-username?name=${encodeURIComponent(`${firstName} ${lastName}`)}`);
+      const data = await res.json();
+      if (data.suggestions) {
+        setUsernameSuggestionsFallback(data.suggestions);
+      }
+    } catch { /* ignore */ }
+
+    // Let the step-2 UI mount before focusing.
+    setTimeout(() => usernameInputRef.current?.focus(), 50);
+  };
+
   const handleSubmit = async () => {
     setError("");
     setIsLoading(true);
@@ -176,11 +258,11 @@ function InfluencerSignupContent() {
         const check = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
         const checkData = await check.json();
         if (checkData.valid === false || checkData.available === false) {
-          setError(
-            checkData.valid === false
-              ? checkData.reason || "That username isn’t allowed."
-              : "That username was just taken. Please pick another and go back to step 2.",
-          );
+          if (checkData.valid === false) {
+            setError(checkData.reason || "That username isn’t allowed.");
+          } else {
+            await recoverFromTakenUsername("That username was just taken by someone else — pick another.");
+          }
           return;
         }
       } catch {
@@ -225,7 +307,9 @@ function InfluencerSignupContent() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${data.session.access_token}`,
           },
-          body: JSON.stringify(payload),
+          // The OTP token is deliberately NOT part of `payload` — that object
+          // becomes permanent auth metadata and is stashed in localStorage.
+          body: JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
         });
         if (!res.ok) {
           const resData = await res.json();
@@ -239,16 +323,27 @@ function InfluencerSignupContent() {
           method: "POST",
           headers: { Authorization: `Bearer ${data.session.access_token}` },
         }).catch(() => {});
+        sessionStorage.removeItem("influencerSignupState");
         router.push(nextParam);
       } else {
         // Email confirmation required: no session yet, so register_profile can't
         // run now. Stash the payload so login can replay it once confirmed —
         // otherwise all of this wizard's data would be lost.
+        // Clear the session storage now that we are done.
+        sessionStorage.removeItem("influencerSignupState");
+        // The OTP token rides along so login can replay it, but it only lives
+        // 30 minutes — hence the sharper message when the gate is on.
         try {
-          localStorage.setItem("influnet_pending_registration", JSON.stringify(payload));
+          localStorage.setItem(
+            "influnet_pending_registration",
+            JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
+          );
         } catch { /* ignore */ }
+        const message = phoneOtpEnabled
+          ? "Check your email to confirm your account — please do it within 30 minutes so your mobile verification is still valid"
+          : "Check your email to confirm your account";
         router.push(
-          `/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`,
+          `/login?message=${encodeURIComponent(message)}&next=${encodeURIComponent(nextParam)}`,
         );
       }
     } catch {
@@ -337,21 +432,44 @@ function InfluencerSignupContent() {
               )}
               <div>
                 <Label>Instagram handle</Label>
-                <Input 
-                  value={instagramHandle} 
-                  onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ''))} 
-                  placeholder="username" 
-                />
+                <div className="relative">
+                  <Input 
+                    value={instagramHandle} 
+                    onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ''))} 
+                    placeholder="username" 
+                    className="pr-10"
+                    aria-invalid={instagramStatus === "taken" || instagramStatus === "invalid"}
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {instagramStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {instagramStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(instagramStatus === "taken" || instagramStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
+                {instagramMessage && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      instagramStatus === "available" && "text-emerald-600",
+                      (instagramStatus === "taken" || instagramStatus === "invalid") && "text-danger",
+                      (instagramStatus === "checking" || instagramStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {instagramMessage}
+                  </p>
+                )}
               </div>
               <Button 
                 variant="surface" 
-                className="w-full" 
+                className="w-full relative overflow-hidden" 
                 onClick={handleConnectInstagram} 
-                disabled={isConnecting || !instagramHandle}
+                disabled={isConnecting || !instagramHandle || instagramStatus === "checking" || instagramStatus === "taken" || instagramStatus === "invalid"}
               >
                 {isConnecting ? (
                   <>
-                    <Loader2 className="animate-spin mr-2 size-4" /> Fetching profile...
+                    <div className="absolute inset-0 bg-brand/10 animate-pulse" />
+                    <Loader2 className="animate-spin mr-2 size-4 relative z-10" /> 
+                    <span className="relative z-10 font-medium">Fetching profile...</span>
                   </>
                 ) : (
                   "Auto-fill my details"
@@ -369,6 +487,7 @@ function InfluencerSignupContent() {
                 variant="ghost" 
                 className="w-full text-content-soft" 
                 onClick={() => setStep(2)}
+                disabled={instagramStatus === "checking" || instagramStatus === "taken" || instagramStatus === "invalid"}
               >
                 Skip and fill manually
               </Button>
@@ -392,8 +511,12 @@ function InfluencerSignupContent() {
                 <Label>Username</Label>
                 <div className="relative">
                   <Input
+                    ref={usernameInputRef}
                     value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                    onChange={(e) => {
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
+                      setUsernameSuggestionsFallback([]);
+                    }}
                     placeholder="Choose username"
                     className="pr-10"
                     aria-invalid={usernameStatus === "taken" || usernameStatus === "invalid"}
@@ -405,6 +528,24 @@ function InfluencerSignupContent() {
                     {(usernameStatus === "taken" || usernameStatus === "invalid") && <X className="size-4 text-danger" />}
                   </span>
                 </div>
+                {(suggestions.length > 0 || usernameSuggestionsFallback.length > 0) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-content-muted">Try:</span>
+                    {(suggestions.length > 0 ? suggestions : usernameSuggestionsFallback).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          setUsername(s);
+                          setUsernameSuggestionsFallback([]);
+                        }}
+                        className="rounded-lg border border-hairline-strong bg-surface-muted px-2.5 py-1 text-xs font-bold text-brand-strong transition-colors hover:border-brand hover:bg-brand-soft"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {usernameMessage && (
                   <p
                     className={cn(
@@ -418,27 +559,49 @@ function InfluencerSignupContent() {
                   </p>
                 )}
                 <p className="mt-1 text-xs text-content-muted">
-                  Your public profile will be influnet.com/c/{username || "username"}
+                  Your public profile will be {publicProfileUrlDisplay("c", username || "username")}
                 </p>
               </div>
               <div>
                 <Label>Email address</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  aria-invalid={email.length > 0 && !emailValid}
-                  autoComplete="email"
-                />
+                <div className="relative">
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    aria-invalid={(email.length > 0 && !emailValid) || emailStatus === "taken" || emailStatus === "invalid"}
+                    autoComplete="email"
+                    className="pr-10"
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {emailStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {emailStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(emailStatus === "taken" || emailStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
                 {email.length > 0 && !emailValid && (
                   <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
                 )}
+                {emailMessage && emailValid && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      emailStatus === "available" && "text-emerald-600",
+                      (emailStatus === "taken" || emailStatus === "invalid") && "text-danger",
+                      (emailStatus === "checking" || emailStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {emailMessage}
+                  </p>
+                )}
               </div>
-              <div>
-                <Label>Phone (optional)</Label>
-                <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" />
-              </div>
+              <PhoneOtpField
+                phone={phone}
+                onPhoneChange={setPhone}
+                verifiedToken={phoneToken}
+                onVerifiedChange={setPhoneToken}
+              />
               <div>
                 <Label>Password</Label>
                 <div className="relative">
@@ -636,7 +799,7 @@ function InfluencerSignupContent() {
         <p className="mt-5 text-center text-sm font-medium text-content-soft">
           Already have an account?{" "}
           <Link
-            href={nextParam && nextParam !== "/dashboard/influencer" ? `/login?next=${encodeURIComponent(nextParam)}` : "/login"}
+            href={nextParam && nextParam !== "/dashboard" ? `/login?next=${encodeURIComponent(nextParam)}` : "/login"}
             className="font-bold text-brand transition-colors hover:text-brand-strong"
           >
             Sign in

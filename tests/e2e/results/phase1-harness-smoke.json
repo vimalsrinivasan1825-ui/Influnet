@@ -1,0 +1,153 @@
+{
+  "phaseId": "phase1-harness-smoke",
+  "phaseTitle": "Phase 1 — Harness Smoke Test",
+  "generatedAt": "2026-07-30T05:24:16.770Z",
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "findings": 2
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Marketing landing page (apps/landing) loads with hero",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/01-marketing-landing-page-apps-landing-loads-with-hero.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "networkErrors": [
+        "404 GET http://localhost:3001/AZ8n2wqgm9kiSBAYwYSpdA-AZ8n2yRuC5hH5dk0gCMkFw.png"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3001/",
+      "timestamp": "2026-07-30T05:24:08.550Z"
+    },
+    {
+      "step": 2,
+      "name": "apps/web root intentionally redirects anon visitors to /login",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/02-apps-web-root-intentionally-redirects-anon-visitors-to-login.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login",
+      "timestamp": "2026-07-30T05:24:10.866Z"
+    },
+    {
+      "step": 3,
+      "name": "Login page renders sign-in form",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/03-login-page-renders-sign-in-form.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login",
+      "timestamp": "2026-07-30T05:24:11.754Z"
+    },
+    {
+      "step": 4,
+      "name": "Signup role-selection page has creator + business links",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/04-signup-role-selection-page-has-creator-business-links.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup",
+      "timestamp": "2026-07-30T05:24:13.153Z"
+    },
+    {
+      "step": 5,
+      "name": "Anon access to protected /dashboard/discover redirects to login (auth gate)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/05-anon-access-to-protected-dashboard-discover-redirects-to-log.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login?next=%2Fdashboard%2Fdiscover",
+      "timestamp": "2026-07-30T05:24:14.019Z"
+    },
+    {
+      "step": 6,
+      "name": "Anon access to an unknown route gets a real 404, not a login redirect",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "HTTP 404, landed at http://localhost:3000/this-route-does-not-exist-e2e-audit, body mentions \"not found\": true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/06-anon-access-to-an-unknown-route-gets-a-real-404-not-a-login-.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "networkErrors": [
+        "404 GET http://localhost:3000/this-route-does-not-exist-e2e-audit"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/this-route-does-not-exist-e2e-audit",
+      "timestamp": "2026-07-30T05:24:15.282Z"
+    },
+    {
+      "step": 7,
+      "name": "Anon access to /dashboard (protected) still redirects to login",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase1-harness-smoke/07-anon-access-to-dashboard-protected-still-redirects-to-login.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/login?next=%2Fdashboard",
+      "timestamp": "2026-07-30T05:24:16.138Z"
+    },
+    {
+      "step": 8,
+      "name": "DB check: admin profile row exists and has role=admin",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:24:16.487Z"
+    },
+    {
+      "step": 9,
+      "name": "DB check: the 9 real accounts survive Phase 0, and every extra is an audit account",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "9 real accounts, 3 audit accounts (e2e.creator.madangowri@influnet-audit.test, e2e.business.jupiter@influnet-audit.test, e2e.admin.audit@influnet-audit.test)."
+      ],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:24:16.640Z"
+    }
+  ]
+}

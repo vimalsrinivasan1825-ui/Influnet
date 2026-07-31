@@ -1,47 +1,135 @@
-/* Creator media kit — ported from docs/product/mockups/creator-media-kit.html.
-   Keep visual parity with the mockup; only selector scoping changed for CSS modules. */
+/* Creator public profile — animated premium redesign */
 
   .stage{
-    --bg:#F6F5F9; --card:#FFFFFF; --tile:#F5F4F8; --soft:#FCE6F0;
+    --bg:#FAF8FF; --card:#FFFFFF; --tile:#F7F5FC; --soft:#FCE6F0;
     --ink:#16182A; --ink-2:#585F73; --ink-3:#8F94A6;
-    --line:#EDECF3; --line-2:#E1E0EA;
-    --accent:#EC2C7A; --accent-2:#FF6FA6; --accent-ink:#C51E63;
+    --line:#EDE9F5; --line-2:#E0DBEE;
+    --accent:#7B4FE0; --accent-2:#A27FFF; --accent-ink:#5C35C5;
     --ok:#12B981; --wa:#25D366;
-    --c1:var(--accent); --c2:#7C6BF6; --c3:#F5A623; --c4:#2ED3B7;
+    /* Ownership-verification trust mark — fixed, sampled from the Influnet
+       logo mark itself. Deliberately NOT --accent: the accent recolors by
+       role/theme elsewhere in the app, but "verified by Influnet" must look
+       identical to every viewer, and must not be mistaken for ordinary brand
+       chrome (buttons, tags, gradient text all already use --accent on this
+       page). Stays constant in dark mode too — see .stage.dark below for
+       only the soft background tint being adjusted for contrast. */
+    --verified:#FF0B8D; --verified-soft:#FFE4F3;
+    --attn:#E23744; --attn-soft:#FDEBEC;
+    --c1:#EC2C7A; --c2:#F58529; --c3:#F5A623; --c4:var(--ok);
     --ig:linear-gradient(135deg,#F58529,#DD2A7B,#8134AF); --yt:#FF0033; --tt:#010101;
-    --shadow:0 16px 40px -26px rgba(60,30,80,.30); --shadow-sm:0 6px 18px -12px rgba(60,30,80,.25);
-    --r:12px; --r-sm:9px; --r-xs:6px;
+    --shadow:0 16px 40px -26px rgba(80,40,160,.22); --shadow-sm:0 6px 18px -12px rgba(80,40,160,.18);
+    --r:14px; --r-sm:10px; --r-xs:6px;
     --font:var(--font-plus-jakarta,system-ui),-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     font-family:var(--font);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
     position:relative;overflow:hidden;
     background:
-      radial-gradient(44rem 22rem at 92% -6%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 60%),
-      radial-gradient(34rem 20rem at 2% 4%,color-mix(in srgb,var(--c2) 12%,transparent),transparent 55%),
-      var(--bg);
-    padding:clamp(1rem,2vw,1.4rem) clamp(1rem,2.5vw,1.6rem) 1.4rem;
+      radial-gradient(ellipse 65% 50% at 88% 0%,  rgba(236,100,170,.28) 0%, rgba(200,120,255,.14) 45%, transparent 70%),
+      radial-gradient(ellipse 45% 35% at 0% 100%, rgba(130,80,220,.15) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(170,140,255,.08) 0%, transparent 70%),
+      linear-gradient(160deg, #FFF5FB 0%, #F9F7FF 55%, #F3F1FF 100%);
+    padding:clamp(1rem,2vw,1.4rem) clamp(1.5rem,3vw,3rem) 1.4rem;
   }
   .stage.dark{
     --bg:#0B0D16;--card:#141826;--tile:#1B1F30;--soft:#2A1622;
     --ink:#EEF0F8;--ink-2:#A2A8C0;--ink-3:#727890;--line:#242840;--line-2:#333856;--accent-ink:#FF8FBB;
     --shadow:0 24px 50px -26px rgba(0,0,0,.75);--shadow-sm:0 10px 26px -14px rgba(0,0,0,.7);
+    --verified-soft:#3A1428;
+    --attn-soft:#3A1418;
   }
   .stage *{box-sizing:border-box;}
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
   .ico{width:1em;height:1em;display:inline-block;vertical-align:-.12em;}
-  .wrap{max-width:1180px;margin:0 auto;position:relative;z-index:1;}
+  .wrap{max-width:1280px;margin:0 auto;position:relative;z-index:1;}
   .bg{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
-  .blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.45;}
-  .b1{width:30rem;height:30rem;top:-11rem;right:-7rem;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 55%,transparent),transparent 70%);animation:drift 24s ease-in-out infinite;}
-  .b2{width:24rem;height:24rem;bottom:-9rem;left:-7rem;background:radial-gradient(circle,color-mix(in srgb,var(--c2) 45%,transparent),transparent 70%);animation:drift 30s ease-in-out infinite reverse;}
-  @keyframes drift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-2.5rem,1.5rem) scale(1.12);}}
+  .blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.38;}
+  /* Soft pink bloom top-right — gradient background accent */
+  .b1{width:38rem;height:28rem;top:-10rem;right:-6rem;background:radial-gradient(circle,rgba(240,130,190,.45),rgba(180,100,255,.18) 55%,transparent 78%);animation:drift 22s ease-in-out infinite;}
+  /* Soft purple bloom bottom-left */
+  .b2{width:26rem;height:26rem;bottom:-10rem;left:-6rem;background:radial-gradient(circle,rgba(130,80,220,.22),rgba(160,100,255,.10) 55%,transparent 76%);animation:drift 28s ease-in-out infinite reverse;}
+  @keyframes drift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-2rem,1.5rem) scale(1.1);}}
+  @keyframes wavemove{0%{background-position:0 50%;}100%{background-position:200% 50%;}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes spinreverse{to{transform:rotate(-360deg);}}
+  @keyframes pulse{0%,100%{opacity:.6;transform:scale(1);}50%{opacity:1;transform:scale(1.06);}}
+  @keyframes floatup{0%,100%{transform:translateY(0) rotate(0deg);opacity:.7;}50%{transform:translateY(-14px) rotate(8deg);opacity:1;}}
+  @keyframes igring1{0%{transform:rotate(0) scale(1);}50%{transform:rotate(180deg) scale(1.05);}100%{transform:rotate(360deg) scale(1);}}
+  @keyframes igring2{0%{transform:rotate(0);}100%{transform:rotate(-360deg);}}
+  @keyframes igfloat{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+  @keyframes slidein{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 
-  .topbar{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;}
-  .brand{display:flex;align-items:center;gap:.5rem;font-weight:800;letter-spacing:-.01em;text-decoration:none;color:var(--ink);font-size:1.05rem;}
-  .blogo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:800;}
-  .url{display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.45rem .9rem;box-shadow:var(--shadow-sm);margin:0 auto;}
-  .url b{color:var(--ink);font-weight:600;}
-  .url .cp{cursor:pointer;color:var(--ink-3);display:grid;place-items:center;}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;font-size:.86rem;font-weight:600;cursor:pointer;border-radius:var(--r-sm);padding:.6rem 1rem;border:1px solid var(--line-2);background:var(--card);color:var(--ink);text-decoration:none;}
+  /* Masthead — three tracks so the brand is centred against the PAGE, not
+     against whatever happens to sit beside it. The empty left track mirrors
+     the actions on the right; without it the wordmark drifts left by half the
+     button's width, which is what made the old bar look off-axis. */
+  .topbar{
+    display:grid;grid-template-columns:1fr auto 1fr;
+    align-items:center;gap:1rem;
+    margin-bottom:1.1rem;
+  }
+  .topspacer{display:block;}
+  .topactions{justify-self:end;display:flex;align-items:center;gap:.5rem;}
+  .brand{
+    justify-self:center;
+    display:flex;align-items:center;gap:.75rem;
+    font-weight:800;letter-spacing:-.025em;text-decoration:none;color:var(--ink);
+    font-size:1.85rem;
+  }
+  .brand img{width:48px;height:48px;object-fit:contain;border-radius:12px;}
+  .brand:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:var(--r-xs);}
+
+  /* Copy link — the one action in the masthead, so it carries the accent fill
+     and a slow expanding ring to advertise itself. The ring is a growing
+     box-shadow rather than an opacity flash: nothing here blinks, which keeps
+     it clear of the WCAG flash threshold while still catching the eye. */
+  .copytop{
+    position:relative;
+    display:inline-flex;align-items:center;gap:.5rem;
+    font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;
+    color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    border:none;border-radius:999px;padding:.62rem 1.15rem;
+    box-shadow:0 8px 22px -8px color-mix(in srgb,var(--accent) 75%,transparent);
+    transition:transform .18s,box-shadow .18s,background .25s;
+    white-space:nowrap;
+  }
+  .copytop::after{
+    content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    animation:copypulse 2.6s ease-out infinite;
+  }
+  @keyframes copypulse{
+    0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 45%,transparent);}
+    70%{box-shadow:0 0 0 14px rgba(0,0,0,0);}
+    100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}
+  }
+  .copytop:hover{transform:translateY(-1px);box-shadow:0 10px 26px -8px color-mix(in srgb,var(--accent) 85%,transparent);}
+  .copytop:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+  /* Confirmed state: green, and the pulse stops — it has done its job. */
+  .copytop.done{background:linear-gradient(135deg,var(--ok),#4BD9A8);}
+  .copytop.done::after{animation:none;}
+
+  .livepulse{
+    width:8px;height:8px;border-radius:50%;background:#4BD9A8;
+    box-shadow:0 0 8px #4BD9A8;flex-shrink:0;
+    animation:liveblink 1.8s ease-in-out infinite;
+  }
+  @keyframes liveblink{
+    0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 10px #4BD9A8;}
+    50%{opacity:.45;transform:scale(.75);box-shadow:0 0 3px #4BD9A8;}
+  }
+
+  @media(max-width:560px){
+    .topbar{gap:.5rem;}
+    .brand{font-size:1.55rem;gap:.55rem;}
+    .brand img{width:42px;height:42px;object-fit:contain;}
+    /* Icon-only, but kept to a comfortable thumb target rather than shrinking
+       to the glyph — 32px cleared the WCAG minimum and still felt fiddly. */
+    .copytop{padding:0;gap:0;min-width:44px;min-height:44px;justify-content:center;}
+    /* Icon-only on a phone — the label is the first thing worth losing when
+       it would otherwise push the wordmark off centre. */
+    .copylabel{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
+  }
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;font-size:.86rem;font-weight:600;cursor:pointer;border-radius:var(--r-sm);padding:.6rem 1rem;border:1px solid var(--line-2);background:var(--card);color:var(--ink);text-decoration:none;transition:transform .18s,box-shadow .18s;}
+  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--shadow);}
   .btn.accent{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border:none;box-shadow:var(--shadow-sm);}
   .btn.ghost{background:transparent;}
   .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
@@ -63,121 +151,536 @@
   .previewbanner span{display:inline-flex;align-items:center;gap:.5rem;font-size:.84rem;font-weight:600;color:var(--accent-ink);}
   .stage.previewing .previewbanner{display:flex;} .stage.previewing .toolbar{display:none;}
 
-  .layout{display:grid;grid-template-columns:1fr 300px;gap:1.2rem;align-items:start;}
+  /* Layout: hero + sidebar share the same row; hero stretches to sidebar height */
+  .layout{display:grid;grid-template-columns:1fr 300px;gap:1.2rem;align-items:stretch;}
   @media(max-width:900px){.layout{grid-template-columns:1fr;}}
-  .main{display:flex;flex-direction:column;gap:1.2rem;min-width:0;}
+  .main{display:flex;flex-direction:column;gap:1.2rem;min-width:0;height:100%;}
   .side{display:flex;flex-direction:column;gap:1.2rem;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);}
+  /* Full-width content sections below the hero+sidebar row */
+  .fullcontent{display:flex;flex-direction:column;gap:1.2rem;margin-top:1.2rem;}
+  .card{
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .2s, transform .2s;
+    overflow:hidden;
+    /* Subtle accent-tinted gradient — each card feels alive but clean */
+    background:
+      radial-gradient(ellipse 85% 60% at 100% 0%, rgba(123,79,224,.06) 0%, transparent 65%),
+      radial-gradient(ellipse 60% 50% at 0% 100%, rgba(221,42,123,.04) 0%, transparent 60%),
+      var(--card);
+  }
+  .card:hover{
+    box-shadow:var(--shadow);
+    transform:translateY(-1px);
+  }
   .pad{padding:1.1rem 1.2rem;}
   .chead{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;}
   .ctitle{display:flex;align-items:center;gap:.5rem;font-size:1.02rem;font-weight:660;letter-spacing:-.01em;}
   .ctitle .ci{color:var(--accent);display:inline-flex;}
   .viewall{font-size:.78rem;font-weight:600;color:var(--accent-ink);cursor:pointer;}
 
-  .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:1.2rem;align-items:center;}
-  @media(max-width:640px){.hero{grid-template-columns:1fr;}}
-  .eyebrow{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-ink);background:var(--soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);padding:.32rem .7rem;border-radius:999px;}
-  .hero h1{font-size:clamp(2rem,4.4vw,2.9rem);margin:.7rem 0 .15rem;letter-spacing:-.03em;font-weight:720;line-height:1.03;}
-  .subtitle{font-size:clamp(1.1rem,2.2vw,1.4rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
+  /* Hero card — glassmorphic; subtle accent gradient corner tints */
+  .hero{
+    background:
+      radial-gradient(ellipse 70% 55% at 100% 0%,  rgba(123,79,224,.10) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 0% 100%, rgba(221,42,123,.07) 0%, transparent 55%),
+      rgba(255,255,255,.78);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    border:1px solid rgba(255,255,255,.88);
+    border-radius:calc(var(--r) * 1.6);
+    box-shadow:0 8px 40px -12px rgba(120,60,200,.16), 0 2px 0 rgba(255,255,255,.9) inset;
+    padding:clamp(1.1rem,2.2vw,1.7rem);
+    overflow:hidden;
+    animation:slidein .5s ease both;
+  }
+  /* herofull: fills height, but content stacks naturally without forced gaps */
+  .herofull{height:100%;display:flex;flex-direction:column;gap:1.4rem;}
+  /* Hero: 2-column — identity text on the left, avatar + platform cards on the right */
+  .herotop{
+    display:grid;
+    grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+    gap:clamp(.8rem,2vw,1.6rem);
+    align-items:center;
+    /* The sidebar is taller than this content, and .herofull stretches to meet
+       it. Absorbing the slack here spreads it around the identity block instead
+       of pooling it into one dead band above the stat cards. */
+    flex:1;
+  }
+  /* Avatar sits a little lower and the platform cards clear it — the gap is
+     honest now that the rings no longer paint outside .havatar. */
+  .hmid{display:flex;flex-direction:column;align-items:center;gap:1.35rem;}
+  @media(max-width:800px){
+    .herotop{grid-template-columns:1fr;}
+    .hmid{flex-direction:row;justify-content:center;gap:1rem;}
+  }
+  @media(max-width:480px){.hmid{flex-direction:column;}}
+  .hleft{min-width:0;}
+  /* Verified state — solid brand-pink, not the soft pastel every other pill
+     on this page uses, so "confirmed by Influnet" reads as its own distinct
+     trust mark rather than blending into ordinary UI chrome. */
+  .eyebrow{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--verified);background:var(--verified-soft);border:1px solid color-mix(in srgb,var(--verified) 35%,transparent);padding:.32rem .7rem;border-radius:999px;}
+  /* Neutral variant for the unverified state — "not yet done", not a warning. */
+  .eyebrowNeutral{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);background:var(--tile);border:1px solid var(--line);padding:.32rem .7rem;border-radius:999px;}
+  .hero h1{font-size:clamp(2.2rem,4.8vw,3.2rem);margin:.7rem 0 .2rem;letter-spacing:-.035em;font-weight:740;line-height:1.0;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
+  /* The mark is now self-contained (seal shape + fill baked in), so this is
+     just sizing/position — no background/border-radius needed here anymore. */
+  .vtick{width:.8em;height:.8em;display:inline-grid;place-items:center;flex-shrink:0;}
+  .eyebrowMark{width:.9em;height:.9em;display:inline-block;flex-shrink:0;}
+  .vtickMark{width:100%;height:100%;display:inline-block;}
+
+  /* "Why is this unverified?" — a small info button on the neutral chip that
+     reveals an explainer card on hover (desktop) or tap (touch; handled via
+     the infoCardOpen class in JS, since touch devices never fire :hover). */
+  .infoWrap{position:relative;display:inline-flex;margin-left:.05rem;}
+  .infoBtn{
+    width:1.15em;height:1.15em;border-radius:50%;flex-shrink:0;
+    display:grid;place-items:center;padding:0;
+    font-size:.7em;font-weight:800;line-height:1;font-family:inherit;text-transform:none;letter-spacing:0;
+    color:var(--attn);background:var(--attn-soft);border:1px solid color-mix(in srgb,var(--attn) 40%,transparent);
+    cursor:help;transition:filter .15s ease;
+  }
+  .infoBtn:hover,.infoBtn:focus-visible{filter:brightness(0.92);}
+  .infoBtn:focus-visible{outline:2px solid var(--attn);outline-offset:2px;}
+  .infoCard{
+    /* Opens downward, not upward — .hero clips overflow, and this sits near
+       its top edge with too little padding above to ever show a card that
+       expands upward; it was rendering fully clipped/invisible.
+       Centered on the button rather than anchored to either edge: the "?"
+       sits well into the "Ownership not verified" pill, which on a narrow
+       viewport already spans most of the width. Anchoring left OR right grows
+       a ~260px card almost entirely to one side, and there's rarely 260px of
+       room on either side alone — it pushed past the screen edge and forced
+       the whole page to scroll horizontally to reveal it. Centered on the
+       button, it only needs ~130px clear on each side, which fits. */
+    position:absolute;top:calc(100% + .5rem);left:50%;z-index:50;
+    width:max-content;max-width:min(260px,calc(100vw - 2.5rem));
+    background:var(--card);color:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    box-shadow:var(--shadow);padding:.65rem .75rem;
+    font-size:.72rem;font-weight:500;line-height:1.5;text-transform:none;letter-spacing:0;
+    opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,4px);
+    transition:opacity .15s ease,transform .15s ease;
+  }
+  .infoWrap:hover .infoCard,.infoWrap:focus-within .infoCard,.infoCardOpen{
+    opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0);
+  }
+  .subtitle{font-size:clamp(1.1rem,2.3vw,1.45rem);margin:0;font-weight:600;color:var(--ink-2);letter-spacing:-.01em;}
   .grad{background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .tag{color:var(--ink-2);font-size:.95rem;margin:.7rem 0 0;max-width:42ch;}
-  .cta{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;}
+  .tag{color:var(--ink-2);font-size:.98rem;margin:.8rem 0 0;max-width:48ch;line-height:1.55;}
 
-  .havatar{position:relative;aspect-ratio:1;max-width:380px;margin:0 auto;display:grid;place-items:center;}
-  .halo{position:absolute;inset:6%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--accent) 30%,transparent);animation:spin 30s linear infinite;}
-  .haloglow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 66%);}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .avatar{width:56%;aspect-ratio:1;border-radius:50%;padding:5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;box-shadow:var(--shadow);}
+  .contact{list-style:none;margin:.85rem 0 0;padding:0;display:flex;flex-direction:column;gap:.4rem;}
+  .contact li{display:flex;align-items:center;gap:.5rem;font-size:.86rem;min-width:0;}
+  .contact .ci2{color:var(--accent);display:inline-flex;flex-shrink:0;}
+  .contact a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .contact a:hover{color:var(--accent-ink);}
+  .contact a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .cta{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem;}
+
+  /* Platform cards — bigger and more spacious */
+  .pstack{
+    list-style:none;margin:0;padding:0;
+    display:grid;grid-template-columns:1fr 1fr;gap:.5rem;width:100%;
+  }
+  .pcard{
+    display:flex;align-items:center;gap:.6rem;
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r-sm);padding:.65rem .8rem;
+    box-shadow:var(--shadow-sm);min-width:0;
+    transition:transform .2s,box-shadow .2s;
+  }
+  .pcard:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+  .pmeta{min-width:0;}
+  .pcard b{display:block;font-size:1rem;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.01em;font-weight:720;}
+  .pcard small{display:block;font-size:.68rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;}
+  @media(max-width:380px){.pstack{grid-template-columns:1fr;}}
+
+  /* Headline numbers — three standalone cards, not a divided strip. These are
+     the figures a brand scans first, so they get card weight and the largest
+     numerals on the page. */
+  .herostats{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;
+  }
+  @media(max-width:560px){
+    .herostats{grid-template-columns:repeat(3,1fr);gap:.4rem;}
+    .hstat{
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      padding:.75rem .35rem;
+      gap:.35rem;
+      border-radius:var(--r-sm);
+    }
+    .hstat .si{
+      width:34px;height:34px;font-size:.9rem;
+      border-radius:var(--r-xs);margin:0 auto;
+    }
+    .hsmeta{text-align:center;width:100%;}
+    .hstat b{font-size:1.15rem;line-height:1.1;letter-spacing:-.02em;}
+    .hstat small{
+      font-size:.68rem;margin-top:.15rem;font-weight:500;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      display:block;width:100%;
+    }
+  }
+  .hstat{
+    display:flex;align-items:center;gap:.85rem;min-width:0;
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r);padding:1rem 1.1rem;
+    box-shadow:var(--shadow-sm);
+    transition:transform .2s,box-shadow .2s;
+  }
+  .hstat:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+  .hstat .si{width:44px;height:44px;border-radius:var(--r-sm);background:var(--soft);border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0;font-size:1.05rem;}
+  .hsmeta{min-width:0;}
+  .hstat b{display:block;font-size:1.85rem;font-weight:760;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;}
+  .hstat small{display:block;font-size:.8rem;color:var(--ink-3);font-weight:500;margin-top:.25rem;}
+  @media(max-width:1100px){.hstat b{font-size:1.55rem;}}
+
+  /* Avatar — bigger with extra rings.
+     Every ring is inset INSIDE .havatar's box. They used to sit at -9% and
+     -18%, i.e. outside it, so the outer ring crossed the platform cards below
+     no matter what gap .hmid used — the box reported one size and painted
+     another. Keeping them inside means the layout gap is the real gap. */
+  .havatar{position:relative;aspect-ratio:1;max-width:260px;width:100%;margin:.4rem auto 0;display:grid;place-items:center;}
+  @media(max-width:640px){.havatar{max-width:190px;}}
+  /* Inner solid gradient ring, hugging the portrait */
+  .halo{position:absolute;inset:9%;border-radius:50%;border:2px solid transparent;background:linear-gradient(white,white) padding-box,linear-gradient(135deg,#DD2A7B,#8134AF,#405DE6) border-box;animation:spin 8s linear infinite;}
+  /* Mid dashed ring */
+  .halo2{position:absolute;inset:4%;border-radius:50%;border:1.5px dashed rgba(123,79,224,.3);animation:spin 20s linear infinite reverse;}
+  /* Outer faint ring — the widest thing drawn, still within the box */
+  .halo3{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(221,42,123,.15);animation:spin 35s linear infinite;}
+  .haloglow{position:absolute;inset:6%;border-radius:50%;background:radial-gradient(circle at 50% 45%,rgba(123,79,224,.22),transparent 66%);animation:pulse 4s ease-in-out infinite;}
+  .avatar{width:68%;aspect-ratio:1;border-radius:50%;padding:4px;background:linear-gradient(135deg,#F58529,#DD2A7B,#8134AF,#405DE6);position:relative;box-shadow:0 8px 30px -8px rgba(123,79,224,.45);}
   .avimg{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;background:var(--tile);}
-  .vbadge{position:absolute;bottom:6%;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:.45rem;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.3rem .65rem .3rem .35rem;box-shadow:var(--shadow-sm);white-space:nowrap;}
-  .vbadge .vi{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:800;font-size:.8rem;}
-  .vbadge b{font-size:.78rem;} .vbadge small{font-size:.62rem;color:var(--ink-3);display:block;line-height:1;}
-  .fstack{position:absolute;right:-4%;top:14%;display:flex;flex-direction:column;gap:.55rem;}
-  .fcard{display:flex;align-items:center;gap:.5rem;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:.4rem .6rem;box-shadow:var(--shadow-sm);animation:bob 5.5s ease-in-out infinite;}
-  .fcard:nth-child(2){animation-delay:.5s;} .fcard:nth-child(3){animation-delay:1s;}
-  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
-  .fi{width:28px;height:28px;border-radius:var(--r-xs);display:grid;place-items:center;color:#fff;flex-shrink:0;}
-  .fcard b{display:block;font-size:.82rem;line-height:1.1;font-variant-numeric:tabular-nums;} .fcard small{display:block;font-size:.6rem;color:var(--ink-3);}
+  .avfallback{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--tile);font-size:2.4rem;font-weight:800;color:var(--ink-3);}
+  .fi{width:30px;height:30px;border-radius:var(--r-xs);display:grid;place-items:center;color:#fff;flex-shrink:0;}
 
-  .statchips{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;}
-  @media(max-width:520px){.statchips{grid-template-columns:1fr;}}
-  .statchips .card{padding:1rem 1.1rem;}
-  .stat .si{width:36px;height:36px;border-radius:var(--r-sm);background:var(--soft);color:var(--accent-ink);display:grid;place-items:center;margin-bottom:.6rem;}
-  .stat .sn{font-size:1.55rem;font-weight:720;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1;}
-  .stat .sl{font-size:.78rem;color:var(--ink-3);margin-top:.3rem;font-weight:500;}
+  /* ── Rails ────────────────────────────────────────────────────────── */
+  .cmeta{display:flex;align-items:center;gap:.7rem;}
+  .railnav{display:inline-flex;gap:.3rem;}
+  .railnav button{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);cursor:pointer;padding:0;}
+  .railnav button:hover:not(:disabled){color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,transparent);}
+  .railnav button:disabled{opacity:.35;cursor:default;}
+  .railnav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .rail{
+    display:grid;grid-auto-flow:column;gap:.55rem;
+    overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;
+    grid-auto-columns:calc((100% - 5 * .55rem) / 6);
+    padding-bottom:.15rem;
+  }
+  .rail::-webkit-scrollbar{display:none;}
+  .rail > *{scroll-snap-align:start;}
+  @media(max-width:900px){.rail{grid-auto-columns:calc((100% - 3 * .55rem) / 4);}}
+  @media(max-width:720px){.rail{grid-auto-columns:calc((100% - 2 * .55rem) / 3);}}
+  @media(max-width:460px){.rail{grid-auto-columns:calc((100% - .55rem) / 2);}}
+  .rail:has(.vid){grid-auto-columns:calc((100% - 2 * .55rem) / 3);}
+  @media(max-width:900px){.rail:has(.vid){grid-auto-columns:calc((100% - .55rem) / 2);}}
+  @media(max-width:560px){.rail:has(.vid){grid-auto-columns:86%;}}
 
-  .thumbs6{display:grid;grid-template-columns:repeat(6,1fr);gap:.55rem;}
-  @media(max-width:720px){.thumbs6{grid-template-columns:repeat(3,1fr);}}
-  .th{position:relative;aspect-ratio:3/4;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line);background-size:cover;background-position:center;}
+  /* Instagram badge on featured header */
+  .igbadge{display:inline-flex;align-items:center;gap:.35rem;font-size:.74rem;font-weight:700;color:#fff;background:var(--ig);border-radius:999px;padding:.28rem .65rem;}
+  .igbadge svg{flex-shrink:0;}
+
+  .th{position:relative;aspect-ratio:3/4;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line);background-size:cover;background-position:center;transition:transform .2s;}
+  .th:hover{transform:scale(1.03);}
   .th::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.5));}
   .th .ov{position:absolute;left:.4rem;bottom:.4rem;z-index:1;font-size:.68rem;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);display:inline-flex;align-items:center;gap:.2rem;}
   .th .dur{position:absolute;right:.4rem;bottom:.4rem;z-index:1;font-size:.62rem;font-weight:700;color:#fff;background:rgba(0,0,0,.78);border-radius:4px;padding:0 .28rem;}
   .th .play{position:absolute;inset:0;margin:auto;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.45);display:grid;place-items:center;color:#fff;z-index:1;}
 
-  .aud3{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;}
-  @media(max-width:720px){.aud3{grid-template-columns:1fr;}}
-  .subcard{background:var(--tile);border:1px solid var(--line);border-radius:var(--r-sm);padding:.9rem;}
-  .subcard h4{margin:0 0 .7rem;font-size:.82rem;font-weight:660;}
-  .bar{display:grid;grid-template-columns:2.2rem 1fr 2rem;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.72rem;color:var(--ink-2);}
+  /* ── Audience insights ─────────────────────────────────────────────── */
+  .aud{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.7rem;}
+  .subcard{
+    background:var(--tile);border:1px solid var(--line);border-radius:var(--r-sm);padding:.9rem;
+    border-left:3px solid var(--accent);
+    transition:transform .2s;
+  }
+  .subcard:hover{transform:translateY(-2px);}
+  .subcard:nth-child(2){border-left-color:#F5A623;}
+  .subcard:nth-child(3){border-left-color:#2E90FA;}
+  .subcard:nth-child(4){border-left-color:var(--ok);}
+  .subcard h4{margin:0 0 .75rem;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);}
+  .bar{display:grid;grid-template-columns:minmax(3.2rem,auto) 1fr 2.1rem;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.74rem;color:var(--ink-2);}
+  .barlabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bar .track{height:7px;border-radius:99px;background:var(--line-2);overflow:hidden;}
   .bar .fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-2));}
   .bar .pct{text-align:right;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+
   .donutwrap{display:flex;align-items:center;gap:.8rem;}
-  .donut{width:82px;height:82px;border-radius:50%;flex-shrink:0;position:relative;}
-  .donut::after{content:"";position:absolute;inset:24%;border-radius:50%;background:var(--tile);}
-  .legend{display:flex;flex-direction:column;gap:.3rem;font-size:.72rem;flex:1;}
+  .donut{width:96px;height:96px;border-radius:50%;flex-shrink:0;position:relative;display:grid;place-items:center;}
+  .donut::after{content:"";position:absolute;inset:22%;border-radius:50%;background:var(--tile);}
+  .donutmid{position:relative;z-index:1;text-align:center;line-height:1.05;}
+  .donutmid b{display:block;font-size:.76rem;font-weight:720;letter-spacing:-.01em;}
+  .donutmid small{display:block;font-size:.55rem;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;}
+  .legend{display:flex;flex-direction:column;gap:.3rem;font-size:.72rem;flex:1;min-width:0;}
   .legend div{display:flex;align-items:center;gap:.4rem;color:var(--ink-2);}
   .legend .dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
   .legend b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums;}
+
+  /* Gender: vivid blue for male, vivid pink for female */
+  .genders{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
+  .gcell{text-align:center;}
+  .gicon{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;margin:0 auto .4rem;color:#fff;box-shadow:0 4px 12px -4px currentColor;}
+  .gA{background:linear-gradient(135deg,#2E90FA,#6AB6FF);color:#2E90FA;} /* Male — blue */
+  .gB{background:linear-gradient(135deg,#EC2C7A,#FF6FA6);color:#EC2C7A;} /* Female — pink */
+  .gcell b{display:block;font-size:1.2rem;font-weight:720;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1;}
+  .gcell small{display:block;font-size:.68rem;color:var(--ink-3);margin-top:.15rem;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:.35rem;}
+  .tchip{display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.28rem .6rem;}
+  .tchip b{color:var(--accent-ink);font-variant-numeric:tabular-nums;}
+
+  /* YouTube video tiles */
+  .vids{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;}
+  @media(max-width:720px){.vids{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:460px){.vids{grid-template-columns:1fr;}}
+  .vid{text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:.4rem;}
+  .vthumb{position:relative;aspect-ratio:16/9;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line);background-size:cover;background-position:center;background-color:var(--tile);}
+  .vthumb::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 55%,rgba(0,0,0,.55));}
+  .vplay{position:absolute;inset:0;margin:auto;width:34px;height:34px;border-radius:50%;background:rgba(255,0,0,.88);display:grid;place-items:center;color:#fff;z-index:1;}
+  .vviews{position:absolute;left:.4rem;bottom:.4rem;z-index:1;font-size:.68rem;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);display:inline-flex;align-items:center;gap:.22rem;}
+  .vtitle{font-size:.76rem;font-weight:640;line-height:1.35;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+
+  /* Ratings */
+  .ratehead{display:flex;align-items:baseline;gap:.5rem;}
+  .ratebig{font-size:1.6rem;font-weight:760;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .ratecount{font-size:.76rem;color:var(--ink-3);}
+  .stars{display:inline-flex;gap:.1rem;color:#F5A623;}
+  .revlist{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin-top:.9rem;}
+  @media(max-width:720px){.revlist{grid-template-columns:1fr;}}
+  .rev{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--tile);padding:.8rem;display:flex;flex-direction:column;gap:.4rem;}
+  .revtop{display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+  .revwho{font-size:.8rem;font-weight:700;color:var(--ink);}
+  .revtext{font-size:.78rem;line-height:1.5;color:var(--ink-2);}
+  .revmeta{font-size:.68rem;color:var(--ink-3);}
 
   .brands{display:grid;grid-template-columns:repeat(6,1fr);gap:.6rem;}
   @media(max-width:720px){.brands{grid-template-columns:repeat(3,1fr);}}
   .brand-c{display:grid;place-items:center;height:56px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);font-weight:800;font-size:.82rem;letter-spacing:.02em;color:var(--ink-2);text-align:center;padding:.3rem;}
 
-  .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;}
-  @media(max-width:720px){.prices{grid-template-columns:1fr;}}
-  .price{border:1px solid var(--line);border-radius:var(--r);padding:1rem;background:var(--card);position:relative;}
-  .price.feat{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent);}
-  .price .ph{display:flex;align-items:center;gap:.5rem;font-weight:660;font-size:.9rem;}
-  .price .plogo{width:28px;height:28px;border-radius:var(--r-xs);display:grid;place-items:center;color:#fff;}
-  .price .pdesc{font-size:.76rem;color:var(--ink-3);margin:.5rem 0;}
-  .price .amt{font-size:1.3rem;font-weight:720;letter-spacing:-.02em;}
-  .price ul{list-style:none;margin:.6rem 0 .9rem;padding:0;display:flex;flex-direction:column;gap:.35rem;}
-  .price li{font-size:.76rem;color:var(--ink-2);display:flex;align-items:center;gap:.4rem;}
-  .price li .ck{color:var(--accent);font-weight:800;}
-  .note{text-align:center;font-size:.76rem;color:var(--ink-3);margin-top:.9rem;}
+  /* ── PORTFOLIO ─────────────────────────────────────────────────────
+     Two provenances share this grid and must never be mistaken for one
+     another: platform cards carry the verified mark and a border in the
+     trust colour, self-reported ones are plainly labelled as a claim. The
+     difference is drawn in border, label AND icon — colour alone fails for
+     anyone who cannot distinguish it. */
+  .pfgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;}
+  @media(max-width:760px){.pfgrid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:420px){.pfgrid{grid-template-columns:1fr;}}
 
+  .pfcard{
+    display:flex;flex-direction:column;border:1px solid var(--line);
+    border-radius:var(--r-sm);background:var(--card);overflow:hidden;
+    text-decoration:none;color:inherit;transition:border-color .16s ease,transform .16s ease;
+  }
+  a.pfcard:hover{border-color:var(--line-2);transform:translateY(-2px);}
+  .pfcard--verified{border-color:color-mix(in srgb,var(--verified) 38%,transparent);}
+
+  .pfthumb{aspect-ratio:16/10;background:var(--tile);position:relative;display:grid;place-items:center;}
+
+  /* Platform badge, top-left — same corner every card uses for this, so a
+     brand scanning the grid learns the position once and reads it everywhere. */
+  .pfbadge{position:absolute;top:.4rem;left:.4rem;width:22px;height:22px;border-radius:6px;
+    display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.35);}
+  .pfbadge--yt{background:#FF0000;}
+  .pfbadge--ig{background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%);}
+  .pfthumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pfthumb svg{opacity:.4;}
+
+  .pfbody{padding:.7rem .75rem .8rem;display:flex;flex-direction:column;gap:.28rem;}
+  .pftitle{font-size:.82rem;font-weight:700;line-height:1.35;color:var(--ink);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .pfbrand{font-size:.72rem;color:var(--ink-2);}
+  .pfmeta{font-size:.68rem;color:var(--ink-3);font-variant-numeric:tabular-nums;}
+
+  .pfprov{display:inline-flex;align-items:center;gap:.28rem;font-size:.66rem;font-weight:700;
+    letter-spacing:.02em;margin-top:.1rem;}
+  .pfprov--verified{color:var(--verified);}
+  .pfmark{width:.86rem;height:.86rem;flex:none;}
+  .pfseal{width:30px;height:30px;opacity:.85;}
+  .pfprov--self{color:var(--ink-3);font-weight:600;}
+
+  /* ── WORK WITH ME (Pricing Cards) ─────────────────────────────────── */
+  .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+  @media(max-width:760px){.prices{grid-template-columns:1fr;}}
+  .price{
+    border:1px solid var(--line);border-radius:var(--r);
+    padding:1.25rem 1.15rem;background:var(--card);position:relative;
+    display:flex;flex-direction:column;
+    box-shadow:var(--shadow-sm);
+    transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+  }
+  .price:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+  .price.feat{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent), var(--shadow-sm);
+  }
+  .price .ph{display:flex;align-items:center;gap:.65rem;font-weight:720;font-size:1.08rem;color:var(--ink);}
+  .price .plogo{
+    width:34px;height:34px;border-radius:var(--r-xs);
+    display:grid;place-items:center;color:#fff;flex-shrink:0;
+  }
+  .price .pdesc{font-size:.82rem;color:var(--ink-2);margin:.6rem 0 .9rem;line-height:1.45;min-height:2.6em;}
+  .price .amt{font-size:1.6rem;font-weight:800;letter-spacing:-.025em;color:var(--ink);margin-bottom:.4rem;}
+  .price ul{list-style:none;margin:.8rem 0 1.2rem;padding:0;display:flex;flex-direction:column;gap:.45rem;flex:1;}
+  .price li{font-size:.82rem;color:var(--ink-2);display:flex;align-items:center;gap:.5rem;font-weight:500;}
+  .price li .ck{color:var(--accent);font-weight:800;font-size:.92rem;}
+  .note{text-align:center;font-size:.8rem;color:var(--ink-3);margin-top:1.1rem;font-weight:500;}
+
+  .promogrid{
+    display:flex;gap:1rem;justify-content:center;align-items:stretch;
+    width:100%;max-width:640px;margin:0 auto;
+  }
+  @media(max-width:640px){.promogrid{flex-direction:column;align-items:center;}}
+
+  /* ── Animated Instagram promo card ───────────────────────────────── */
+  .igcard{
+    position:relative;overflow:hidden;
+    border-radius:var(--r);max-width:280px;width:100%;margin:0 auto;
+    aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    cursor:pointer;text-decoration:none;color:#fff;
+    box-shadow:0 20px 50px -16px rgba(221,42,123,.5);
+    transition:transform .25s ease,box-shadow .25s ease;
+  }
+  .igcard:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 28px 60px -16px rgba(221,42,123,.6);}
+  /* Gradient background */
+  .igcardbg{
+    position:absolute;inset:0;
+    background:linear-gradient(145deg,#F58529 0%,#DD2A7B 45%,#8134AF 80%,#405DE6 100%);
+    z-index:0;
+  }
+  /* Animated overlay shimmer */
+  .igcardbg::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.12) 50%,transparent 70%);
+    background-size:200%;animation:wavemove 3s linear infinite;
+  }
+  /* Floating particles */
+  .igp{position:absolute;border-radius:50%;background:rgba(255,255,255,.18);animation:floatup 3s ease-in-out infinite;z-index:1;}
+  .igp1{width:40px;height:40px;top:12%;left:10%;animation-delay:0s;}
+  .igp2{width:24px;height:24px;top:20%;right:14%;animation-delay:1s;}
+  .igp3{width:16px;height:16px;top:60%;left:22%;animation-delay:2s;}
+  .igp4{width:30px;height:30px;bottom:28%;right:8%;animation-delay:.5s;}
+  /* Ring container wrapping the IG logo */
+  .iglogozone{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:2;top:-10%;
+  }
+  .igring1{
+    position:absolute;width:120px;height:120px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.35);
+    animation:igring1 8s linear infinite;
+  }
+  .igring2{
+    position:absolute;width:90px;height:90px;border-radius:50%;
+    border:1.5px dashed rgba(255,255,255,.5);
+    animation:igring2 5s linear infinite;
+  }
+  .iglogobox{
+    width:56px;height:56px;border-radius:18px;
+    background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);
+    display:grid;place-items:center;
+    animation:igfloat 3s ease-in-out infinite;
+    backdrop-filter:blur(4px);
+  }
+  /* Bottom info overlay */
+  .iginfo{
+    position:relative;z-index:3;width:100%;
+    background:linear-gradient(transparent,rgba(0,0,0,.55));
+    padding:1.2rem 1rem .9rem;text-align:center;
+  }
+  .iguname{display:block;font-size:.92rem;font-weight:700;margin-bottom:.2rem;text-shadow:0 1px 6px rgba(0,0,0,.4);}
+  .igcta{display:inline-flex;align-items:center;gap:.3rem;font-size:.76rem;font-weight:600;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:.28rem .7rem;backdrop-filter:blur(4px);}
+
+  /* ── Animated YouTube promo card ───────────────────────────────── */
+  .ytcard{
+    position:relative;overflow:hidden;
+    border-radius:var(--r);max-width:280px;width:100%;margin:0 auto;
+    aspect-ratio:4/5;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    cursor:pointer;text-decoration:none;color:#fff;
+    box-shadow:0 20px 50px -16px rgba(255,0,0,.45);
+    transition:transform .25s ease,box-shadow .25s ease;
+  }
+  .ytcard:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 28px 60px -16px rgba(255,0,0,.6);}
+  .ytcardbg{
+    position:absolute;inset:0;
+    background:linear-gradient(145deg,#FF0000 0%,#D00000 45%,#990000 80%,#660000 100%);
+    z-index:0;
+  }
+  .ytcardbg::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.14) 50%,transparent 70%);
+    background-size:200%;animation:wavemove 3s linear infinite;
+  }
+  .ytp{position:absolute;border-radius:50%;background:rgba(255,255,255,.18);animation:floatup 3s ease-in-out infinite;z-index:1;}
+  .ytp1{width:38px;height:38px;top:14%;left:12%;animation-delay:0s;}
+  .ytp2{width:22px;height:22px;top:22%;right:12%;animation-delay:1.2s;}
+  .ytp3{width:16px;height:16px;top:58%;left:20%;animation-delay:2.1s;}
+  .ytp4{width:28px;height:28px;bottom:26%;right:10%;animation-delay:.6s;}
+  .ytlogozone{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:2;top:-10%;
+  }
+  .ytring1{
+    position:absolute;width:120px;height:120px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.35);
+    animation:igring1 8s linear infinite;
+  }
+  .ytring2{
+    position:absolute;width:90px;height:90px;border-radius:50%;
+    border:1.5px dashed rgba(255,255,255,.5);
+    animation:igring2 5s linear infinite;
+  }
+  .ytlogobox{
+    width:56px;height:56px;border-radius:18px;
+    background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);
+    display:grid;place-items:center;
+    animation:igfloat 3s ease-in-out infinite;
+    backdrop-filter:blur(4px);
+  }
+  .ytinfo{
+    position:relative;z-index:3;width:100%;
+    background:linear-gradient(transparent,rgba(0,0,0,.65));
+    padding:1.2rem 1rem .9rem;text-align:center;
+  }
+  .ytuname{display:block;font-size:.92rem;font-weight:700;margin-bottom:.2rem;text-shadow:0 1px 6px rgba(0,0,0,.5);}
+  .ytcta{display:inline-flex;align-items:center;gap:.35rem;font-size:.76rem;font-weight:600;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:.28rem .7rem;backdrop-filter:blur(4px);}
+
+  /* Sidebar cards */
   .side h3{margin:0 0 .1rem;font-size:1rem;font-weight:660;}
   .share-title{text-align:center;} .share-title p{margin:.15rem 0 0;font-size:.78rem;color:var(--ink-3);}
-  .qrbox{margin:.9rem auto;width:180px;height:180px;background:#fff;border:3px solid var(--accent);box-shadow:0 8px 24px -8px var(--accent);border-radius:24px;display:grid;place-items:center;position:relative;padding:10px;}
-  .qrbox svg{width:100%;height:100%;}
-  .qrlogo{position:absolute;inset:0;margin:auto;width:48px;height:48px;display:grid;place-items:center;}
-  .urlmini{display:flex;align-items:center;justify-content:center;gap:.5rem;font-size:.78rem;color:var(--ink-2);background:var(--tile);border:1px solid var(--line);border-radius:var(--r-sm);padding:.45rem .7rem;}
+  /* Copy sits in the share row, styled as one of its destinations. */
+  .svcopy{background:linear-gradient(135deg,var(--accent),var(--accent-2));}
+  .svdone{background:linear-gradient(135deg,var(--ok),#4BD9A8);}
   .divlabel{text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:.9rem 0 .6rem;}
   .sharevia{display:flex;justify-content:center;gap:.6rem;}
-  .svbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;border:none;cursor:pointer;}
+  .svbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;border:none;cursor:pointer;transition:transform .18s,filter .18s;}
+  .svbtn:hover{transform:scale(1.12);filter:brightness(1.1);}
   .aboutlist{display:flex;flex-direction:column;gap:.6rem;margin-top:.8rem;}
   .aboutlist div{display:flex;align-items:center;gap:.55rem;font-size:.82rem;color:var(--ink-2);}
   .aboutlist .ai{color:var(--ink-3);display:inline-flex;} .aboutlist b{color:var(--ink);font-weight:600;}
   .createpills{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.8rem;}
   .cpill{font-size:.76rem;font-weight:600;color:var(--accent-ink);background:var(--soft);border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);border-radius:999px;padding:.28rem .7rem;}
   .collabtxt{font-size:.82rem;color:var(--ink-2);margin:.6rem 0 .9rem;}
-  .quote{position:relative;padding-top:.4rem;}
-  .quote .qm{font-family:Georgia,serif;font-size:2rem;color:var(--accent);line-height:0;opacity:.4;}
-  .quote p{font-size:.84rem;color:var(--ink-2);font-style:italic;margin:.3rem 0 .6rem;}
-  .quote .qa{font-size:.78rem;font-weight:700;}
-  .dots{display:flex;gap:.3rem;margin-top:.7rem;}
-  .dots span{width:6px;height:6px;border-radius:50%;background:var(--line-2);} .dots span.on{background:var(--accent);width:16px;border-radius:99px;}
   .growcard{text-align:center;} .growcard p{font-size:.82rem;color:var(--ink-2);margin:.5rem 0 .9rem;}
 
-  .mkfooter{max-width:1180px;margin:1.4rem auto 0;padding-top:1.1rem;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;font-size:.78rem;color:var(--ink-3);position:relative;z-index:1;}
+  .mkfooter{max-width:1280px;margin:1.4rem auto 0;padding-top:1.1rem;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;font-size:.78rem;color:var(--ink-3);position:relative;z-index:1;}
   footer .flinks{display:flex;gap:1.1rem;} footer .fsoc{display:flex;gap:.7rem;}
 
-  @media(prefers-reduced-motion:reduce){.halo,.fcard,.blob{animation:none;}}
+  @media(prefers-reduced-motion:reduce){
+    .halo,.halo2,.halo3,.blob{animation:none;}
+    .rail{scroll-behavior:auto;}
+    .haloglow{animation:none;}
+    /* `.url::before` used to be listed here; the URL pill it belonged to is
+       gone. The copy button's attention ring takes its place. */
+    .igcardbg::after,.copytop::after{animation:none;}
+  }
 
-  .stage.editing .card, .stage.editing .hleft, .stage.editing .havatar { outline: 1.5px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 6px; border-radius: var(--r-card); }
+  .stage.editing .card, .stage.editing .hero, .stage.editing .hleft, .stage.editing .havatar { outline: 1.5px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 6px; }
 
-  .previewbanner { display: none; align-items: center; justify-content: space-between; gap: 1rem; max-width: 1180px; margin: 0 auto 1rem;
+  .previewbanner { display: none; align-items: center; justify-content: space-between; gap: 1rem; max-width: 1280px; margin: 0 auto 1rem;
     background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card));
     border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-radius: var(--r); padding: .6rem .9rem; position: relative; z-index: 2; box-shadow: var(--shadow-sm); }
   .previewbanner span { display: inline-flex; align-items: center; gap: .5rem; font-size: .86rem; font-weight: 600; color: var(--accent-ink); }

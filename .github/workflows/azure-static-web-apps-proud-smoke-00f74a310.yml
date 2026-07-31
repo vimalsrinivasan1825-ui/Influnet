@@ -4,10 +4,14 @@ on:
   push:
     branches:
       - dev
+    paths:
+      - 'apps/landing/**'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
       - dev
+    paths:
+      - 'apps/landing/**'
 
 jobs:
   build_and_deploy_job:

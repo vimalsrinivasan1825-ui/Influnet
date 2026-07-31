@@ -6,6 +6,10 @@
 // not-yet-available analytics with mock data, controlled by a flag. Flip the flag
 // off (or pass ?mock=0) once real `social_connections` data is wired in.
 
+import { PRICE_TIERS } from '@influnet/core';
+import { publicOrigin } from '@/lib/site';
+import type { PublicPortfolioItem } from './get-portfolio';
+
 export type SocialPlatform = 'instagram' | 'youtube' | 'tiktok';
 
 export interface ProfileStat {
@@ -32,6 +36,71 @@ export interface FloatingBadge {
   label: string;
 }
 
+/** One YouTube upload, ready for display. */
+export interface YouTubeVideoItem {
+  url: string;
+  title: string;
+  thumbUrl: string | null;
+  /** Formatted view count, e.g. "210K"; null when YouTube didn't report one. */
+  views: string | null;
+  publishedAt: string | null;
+}
+
+/** A rating left by a brand on a completed project (migration 080). */
+export interface ReviewItem {
+  id: string;
+  rating: number;
+  comment: string | null;
+  reviewerName: string;
+  createdAt: string | null;
+}
+
+export interface ReviewSummary {
+  count: number;
+  /** Mean rating to one decimal, or null when there are no reviews. */
+  average: number | null;
+  items: ReviewItem[];
+}
+
+/**
+ * A way to reach the creator, lifted out of the free-text bio.
+ *
+ * The RPC deliberately does NOT expose `profiles.email` / `phone` — those are
+ * private columns and publishing them for every creator would leak PII from
+ * people who never agreed to it. What a creator typed into their own public bio
+ * is already public by their choice, so the profile promotes it to a labelled
+ * row instead of leaving it buried mid-paragraph.
+ */
+export interface ContactMethod {
+  kind: 'email' | 'phone';
+  value: string;
+  href: string;
+}
+
+/** One metric in the platform column beside the avatar. */
+export interface PlatformCard {
+  platform: 'instagram' | 'youtube';
+  label: string;
+  value: string;
+}
+
+/** A real recent post, shown as the "what a collaboration looks like" sample. */
+export interface PostPreview {
+  imageUrl: string;
+  href: string;
+  /** Formatted likes, e.g. "10.2K"; null when the snapshot didn't report any. */
+  likes: string | null;
+}
+
+export interface ProfilePackage {
+  platform: 'instagram' | 'youtube' | 'other';
+  title: string;
+  description: string;
+  perks: string[];
+  priceLabel: string;
+  featured?: boolean;
+}
+
 export interface CreatorProfileView {
   name: string;
   username: string;
@@ -41,25 +110,49 @@ export interface CreatorProfileView {
   /** Accented part of the subtitle, e.g. "Content Creator". */
   subtitleAccent: string;
   tagline: string;
+  /** Email/phone the creator published in their bio, as tappable rows. */
+  contact: ContactMethod[];
   location: string | null;
   languages: string[];
   niches: string[];
   isVerified: boolean;
-  heroChips: ProfileStat[];
+  /** See RawPublicProfile.ownershipVerified. */
+  ownershipVerified: boolean;
   heroStats: ProfileStat[];
-  floating: FloatingBadge[];
+  /** Per-platform metrics, deduplicated, for the column beside the avatar. */
+  platformCards: PlatformCard[];
   stats: ProfileStat[];
   featured: PlatformContentItem[];
   audience?: {
     locations: { label: string; pct: number }[];
     ages: { label: string; pct: number }[];
     genders: { label: string; pct: number }[];
+    /** Topic affinities. Empty unless the creator has filled them in. */
+    interests: { label: string; pct: number }[];
   } | null;
   pastCollaborations: string[];
-  pricing: { title: string; desc: string; amount: string; features: string[] }[];
+  /**
+   * Past work as cards, replacing the bare brand-name chips above. Carries its
+   * own `verified` flag per item: platform-completed projects are vouched for,
+   * self-added entries are not, and the UI must keep the two distinguishable.
+   */
+  portfolio: PublicPortfolioItem[];
+  /** The formats this creator takes on, from `collab_types`. */
+  collabTypes: string[];
+  /** Human-readable rate, e.g. "₹25K+". Null when the creator hasn't set one. */
+  priceLabel: string | null;
+  /** Sample of the creator's actual work for the collaborate section. */
+  postPreview: PostPreview | null;
+  /** Recent uploads from the captured YouTube snapshot; null when unconnected. */
+  videos: YouTubeVideoItem[];
+  /** Ratings from completed in-app projects; null when there are none. */
+  reviews: ReviewSummary | null;
   usingMock: boolean;
   profileUrl: string;
   snapshotAge: string | null;
+  instagramHandle?: string | null;
+  youtubeHandle?: string | null;
+  packages: ProfilePackage[];
 }
 
 /** Loosely-typed shape of the `get_public_influencer` RPC payload. */
@@ -76,6 +169,10 @@ export interface RawPublicProfile {
   languages?: string[] | null;
   niche?: string[] | null;
   isVerified?: boolean | null;
+  /** Proven the handle is theirs (bio-link handshake) — distinct from `isVerified`,
+   *  which additionally requires the trust-pipeline score to clear. Added in
+   *  migration 095; optional so this stays backward-compatible before it's applied. */
+  ownershipVerified?: boolean | null;
   instagramFollowers?: number | null;
   youtubeSubscribers?: number | null;
   tiktokFollowers?: number | null;
@@ -155,18 +252,97 @@ export function pickKey(obj: Record<string, unknown> | null | undefined, keys: s
   return null;
 }
 
-/** Map the raw audience_demographics jsonb into the three display breakdowns. */
+/**
+ * Tidy a creator-typed slice label for display: "india" → "India".
+ *
+ * These are hand-entered, so casing is whatever the creator happened to type.
+ * Left-alone they render as "india 30%" next to "Male 68%", which reads as a
+ * rendering bug rather than as the creator's own text.
+ */
+export function titleCaseLabel(label: string): string {
+  return label
+    .split(/(\s+|-)/)
+    .map((part) =>
+      /^[a-z]/.test(part) ? part.charAt(0).toUpperCase() + part.slice(1) : part,
+    )
+    .join('');
+}
+
+/** Map the raw audience_demographics jsonb into the display breakdowns. */
 export function parseAudience(demo: Record<string, unknown> | null | undefined): {
   locations: AudienceSlice[];
   ages: AudienceSlice[];
   genders: AudienceSlice[];
+  interests: AudienceSlice[];
 } | null {
   if (!demo) return null;
+  const tidy = (slices: AudienceSlice[] | null) =>
+    (slices ?? []).map((s) => ({ ...s, label: titleCaseLabel(s.label) }));
+
   const locations = parseAudienceSlices(pickKey(demo, ['locations', 'top_locations', 'topLocations', 'countries']));
   const ages = parseAudienceSlices(pickKey(demo, ['ages', 'age', 'age_range', 'ageRange']));
   const genders = parseAudienceSlices(pickKey(demo, ['genders', 'gender']));
-  if (!locations && !ages && !genders) return null;
-  return { locations: locations ?? [], ages: ages ?? [], genders: genders ?? [] };
+  // Topic affinity. No creator has filled this in yet — the signup flow doesn't
+  // collect it — so the panel stays hidden rather than inventing percentages.
+  const interests = parseAudienceSlices(
+    pickKey(demo, ['interests', 'interest', 'topics', 'audience_interests', 'audienceInterests']),
+  );
+  if (!locations && !ages && !genders && !interests) return null;
+  return {
+    locations: tidy(locations),
+    ages: tidy(ages),
+    genders: tidy(genders),
+    interests: tidy(interests),
+  };
+}
+
+const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]*[a-zA-Z]/g;
+// Indian mobile numbers: 10 digits starting 6-9, optionally +91-prefixed, and
+// tolerant of the spaces/hyphens people type. Bounded by non-digits so a long
+// id or a follower count can never be mistaken for a phone number.
+const PHONE_RE = /(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?!\d)/g;
+
+/**
+ * Pull contact details out of the bio, and return the bio without them.
+ *
+ * Creators paste "Sponsorships: name@brand.com / 9025380083" into the one free
+ * text field they have, so the page rendered a wall of prose with the single
+ * most actionable thing in it buried mid-sentence. Extracting them lets the
+ * profile show a mailto: and a tel: row a brand can actually tap, and keeps the
+ * bio to the sentence it was meant to be.
+ */
+export function extractContact(bio: string): { contact: ContactMethod[]; rest: string } {
+  const contact: ContactMethod[] = [];
+  const seen = new Set<string>();
+  let rest = bio;
+
+  for (const match of bio.match(EMAIL_RE) ?? []) {
+    const value = match.trim();
+    if (seen.has(value.toLowerCase())) continue;
+    seen.add(value.toLowerCase());
+    contact.push({ kind: 'email', value, href: `mailto:${value}` });
+    rest = rest.replace(match, ' ');
+  }
+
+  for (const match of rest.match(PHONE_RE) ?? []) {
+    const value = match.trim();
+    const digits = value.replace(/\D/g, '');
+    if (seen.has(digits)) continue;
+    seen.add(digits);
+    contact.push({ kind: 'phone', value, href: `tel:+${digits.length === 10 ? `91${digits}` : digits}` });
+    rest = rest.replace(match, ' ');
+  }
+
+  // Tidy what the removals left behind: orphaned separators, doubled spaces,
+  // and a trailing label like "For Sponsorships:" with nothing after it.
+  rest = rest
+    .replace(/\s*[/|,·-]\s*(?=\s|$)/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,])/g, '$1')
+    .replace(/[\s:;,\-/|]+$/, '')
+    .trim();
+
+  return { contact, rest };
 }
 
 /** Normalise self-reported past collaborations (strings or {brand|name} objects) to names. */
@@ -288,52 +464,98 @@ const MOCK = {
   ]
 };
 
+/** Snapshot of a creator's YouTube channel, as read by get-youtube-snapshot.ts. */
+export interface YouTubeSnapshotInput {
+  subscriberCount: number | null;
+  avgViews: number | null;
+  videos: { url: string; title: string; thumbUrl: string | null; views: number | null; publishedAt: string | null }[];
+  fetchedAt: string | null;
+}
+
+const DAY_MS = 86_400_000;
+/** Below this many days of captured content, a monthly run-rate is noise. */
+const MIN_DAYS_TO_EXTRAPOLATE = 5;
+
+/**
+ * The headline reach figure, across every connected platform.
+ *
+ * This used to sum Instagram LIKES (falling back to them whenever views were
+ * missing, which is always — see postViews in apify-instagram.ts), drop the
+ * three oldest posts on the guess that they might be pinned, and scale the rest
+ * to 30 days. It reported 886K for a creator whose actual monthly views run to
+ * several million, and the number it reported wasn't views at all.
+ *
+ * Now: real view counts only, from posts and videos published inside the
+ * window. When no platform reports views we say so by relabelling the stat —
+ * audience size is a fact worth showing, but it is not reach, and captioning it
+ * as reach is the thing brands would have priced against.
+ */
+export function computeReachStat(
+  posts: { views: number | null; takenAt?: string | null }[],
+  videos: { views: number | null; publishedAt: string | null }[],
+  audienceSize: number,
+): ProfileStat {
+  const now = Date.now();
+  const cutoff = now - 30 * DAY_MS;
+  let total = 0;
+  let oldest = Infinity;
+
+  const consider = (views: number | null, when: string | null | undefined) => {
+    if (typeof views !== 'number' || views <= 0) return;
+    const t = when ? Date.parse(when) : NaN;
+    if (!Number.isFinite(t) || t < cutoff || t > now) return;
+    total += views;
+    oldest = Math.min(oldest, t);
+  };
+  for (const p of posts) consider(p.views, p.takenAt);
+  for (const v of videos) consider(v.views, v.publishedAt);
+
+  if (total === 0) return { label: 'Total Audience', value: formatCount(audienceSize) };
+
+  // Both feeds carry a fixed number of recent items, so a creator who posts
+  // daily gives us a window far shorter than a month; scaling to 30 days is
+  // what makes two creators comparable. The cutoff above caps daysCovered at
+  // 30, so this only ever scales up — and only from a sample wide enough to
+  // mean anything, since one big day times thirty is a fantasy, not a forecast.
+  const daysCovered = Math.max((now - oldest) / DAY_MS, 1);
+  const value =
+    daysCovered >= MIN_DAYS_TO_EXTRAPOLATE ? Math.round((total / daysCovered) * 30) : total;
+
+  return { label: '30-Day Reach', value: formatCount(value) };
+}
+
 export function buildCreatorProfileView(
   profile: RawPublicProfile,
   opts: {
     useMock: boolean;
     instagram?: InstagramSnapshotView | null;
+    youtube?: YouTubeSnapshotInput | null;
+    reviews?: ReviewSummary | null;
     origin?: string;
     /** Brand names from completed collaborations in-app; merged with self-reported. */
     autoCollaborations?: string[];
+    /** Portfolio cards from get_creator_portfolio (migration 087). */
+    portfolio?: PublicPortfolioItem[];
   },
 ): CreatorProfileView {
   const ig = opts.instagram ?? null;
+  const yt = opts.youtube ?? null;
   // A captured snapshot beats mock data: once real analytics exist, always show
   // them. Mock remains only the development placeholder for snapshot-less accounts.
-  const useMock = opts.useMock && !ig;
+  const useMock = opts.useMock && !ig && !yt;
   const { lead, accent } = splitSubtitle(profile);
   const username = cleanHandle(profile.username);
 
   const igFollowersReal = ig?.followerCount ?? profile.instagramFollowers ?? 0;
-  const ytSubsReal = profile.youtubeSubscribers ?? 0;
-  let reachReal = igFollowersReal + ytSubsReal + (profile.tiktokFollowers ?? 0);
-  
-  if (ig && ig.posts.length > 0) {
-    // Attempt to calculate 30-day reach from scraped views
-    const postsWithDates = ig.posts.filter(p => p.takenAt).sort((a, b) => Date.parse(b.takenAt!) - Date.parse(a.takenAt!));
-    const totalViews = ig.posts.reduce((sum, p) => sum + (p.views || p.likes || 0), 0);
-    if (postsWithDates.length >= 4) {
-      // Drop the oldest 3 posts assuming they might be old pinned posts
-      const recent = postsWithDates.slice(0, postsWithDates.length - 3);
-      const recentViews = recent.reduce((sum, p) => sum + (p.views || p.likes || 0), 0);
-      const newestDate = Date.parse(recent[0].takenAt!);
-      const oldestDate = Date.parse(recent[recent.length - 1].takenAt!);
-      const daysDiff = Math.max((newestDate - oldestDate) / (1000 * 60 * 60 * 24), 1);
-      reachReal = Math.round((recentViews / daysDiff) * 30);
-    } else if (postsWithDates.length >= 2) {
-      const newestDate = Date.parse(postsWithDates[0].takenAt!);
-      const oldestDate = Date.parse(postsWithDates[postsWithDates.length - 1].takenAt!);
-      const daysDiff = Math.max((newestDate - oldestDate) / (1000 * 60 * 60 * 24), 1);
-      reachReal = Math.round((totalViews / daysDiff) * 30);
-    } else {
-      reachReal = totalViews;
-    }
-  }
+  // A captured channel beats the self-reported number — the creator types the
+  // latter and it goes stale the day after they type it.
+  const ytSubsReal = yt?.subscriberCount ?? profile.youtubeSubscribers ?? 0;
+  const audienceSize = igFollowersReal + ytSubsReal + (profile.tiktokFollowers ?? 0);
+  const reachStat = computeReachStat(ig?.posts ?? [], yt?.videos ?? [], audienceSize);
 
   // Hero stat chips
   const heroStats: ProfileStat[] = [
-    { label: '30-Day Reach', value: useMock ? MOCK.reach : formatCount(reachReal) },
+    useMock ? { label: '30-Day Reach', value: MOCK.reach } : reachStat,
     {
       label: 'Followers',
       value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal),
@@ -345,15 +567,53 @@ export function buildCreatorProfileView(
     heroStats.push({ label: 'Engagement', value: MOCK.engagement });
   }
 
-  // Hero stat chips (small pills under avatar)
-  const heroChips: ProfileStat[] = [];
-  if (igFollowersReal > 0 || useMock) heroChips.push({ label: 'Followers', value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal) });
-  if (ytSubsReal > 0 || useMock) heroChips.push({ label: 'Subscribers', value: useMock ? MOCK.youtube.subscribers : formatCount(ytSubsReal) });
-  if (ig?.postsCount || useMock) heroChips.push({ label: 'Posts', value: useMock ? MOCK.instagram.posts : formatCount(ig?.postsCount) });
+  /**
+   * The platform column beside the avatar.
+   *
+   * Every entry is a DISTINCT metric. The previous hero showed follower counts
+   * twice — once as a chip and again as a floating badge labelled "Instagram" —
+   * so the same 635K appeared twice in the same eyeline, which reads as broken
+   * rather than emphatic.
+   */
+  const platformCards: PlatformCard[] = [];
+  if (igFollowersReal > 0 || useMock) {
+    platformCards.push({
+      platform: 'instagram',
+      label: 'Instagram followers',
+      value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal),
+    });
+  }
+  if (ytSubsReal > 0 || useMock) {
+    platformCards.push({
+      platform: 'youtube',
+      label: 'YouTube subscribers',
+      value: useMock ? MOCK.youtube.subscribers : formatCount(ytSubsReal),
+    });
+  }
+  if (ig?.postsCount || useMock) {
+    platformCards.push({
+      platform: 'instagram',
+      label: 'Posts published',
+      value: useMock ? MOCK.instagram.posts : formatCount(ig?.postsCount),
+    });
+  }
+  if (ig?.avgViews != null) {
+    platformCards.push({
+      platform: 'instagram',
+      label: 'Avg views per post',
+      value: formatCount(ig.avgViews),
+    });
+  } else if (yt?.avgViews != null) {
+    platformCards.push({
+      platform: 'youtube',
+      label: 'Avg views per video',
+      value: formatCount(yt.avgViews),
+    });
+  }
 
   // Main stat cards
   const stats: ProfileStat[] = [
-    { label: '30-Day Reach', value: useMock ? MOCK.reach : formatCount(reachReal) },
+    useMock ? { label: '30-Day Reach', value: MOCK.reach } : reachStat,
     { label: 'Followers', value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal) },
   ];
   if (ig?.engagementRate != null) {
@@ -362,6 +622,9 @@ export function buildCreatorProfileView(
     stats.push({ label: 'Engagement', value: MOCK.engagement });
   } else if (ig?.avgViews != null) {
     stats.push({ label: 'Avg Views', value: formatCount(ig.avgViews) });
+  } else if (yt?.avgViews != null) {
+    // Instagram rarely reports usable view counts; YouTube's feed always does.
+    stats.push({ label: 'Avg Views', value: formatCount(yt.avgViews) });
   }
 
   // Featured Content (6 tiles max)
@@ -382,33 +645,12 @@ export function buildCreatorProfileView(
     featured.push(...MOCK.instagram.content.map(c => ({ ...c, isVideo: true, href: '#' })), ...MOCK.youtube.content.map(c => ({ ...c, isVideo: true, href: '#' })));
   }
 
-  // Floating orbit badges
-  const floating: FloatingBadge[] = [];
-  if (hasIg) {
-    floating.push({
-      platform: 'instagram',
-      value: useMock ? MOCK.instagram.followers : formatCount(igFollowersReal),
-      label: 'Instagram',
-    });
-  }
-  const hasYt = useMock || !!profile.youtubeHandle || ytSubsReal > 0;
-  if (hasYt) {
-    floating.push({
-      platform: 'youtube',
-      value: useMock ? MOCK.youtube.subscribers : formatCount(ytSubsReal),
-      label: 'YouTube',
-    });
-  }
-  if (profile.isVerified) {
-    floating.push({ platform: 'verified', value: 'Verified', label: 'by Influnet' });
-  }
-
   // Real self-reported audience demographics take precedence over mock.
   const realAudience = parseAudience(profile.audienceDemographics);
   const audience = realAudience
-    ? { locations: realAudience.locations, ages: realAudience.ages, genders: realAudience.genders }
+    ? realAudience
     : useMock
-      ? MOCK.audience
+      ? { ...MOCK.audience, interests: [] }
       : null;
 
   // Past collaborations: in-app completed collabs (trustworthy) merged with the
@@ -425,7 +667,31 @@ export function buildCreatorProfileView(
   }
   const pastCollaborations = merged.length ? merged.slice(0, 24) : useMock ? MOCK.pastCollaborations : [];
 
-  const origin = (opts.origin || 'https://influnet.app').replace(/\/$/, '');
+  const origin = (opts.origin || publicOrigin()).replace(/\/$/, '');
+
+  // Contact details the creator published in their own bio, promoted out of the
+  // paragraph. `rest` is the bio with them removed, so nothing appears twice.
+  const { contact, rest: bioWithoutContact } = extractContact(
+    (profile.bio || profile.headline || '').trim(),
+  );
+
+  // The rate the creator picked at signup is stored as a TIER SLUG ('pro'), not
+  // a number — rendering it raw printed the literal word "pro" where a price
+  // belonged. PRICE_TIERS is the only thing that knows what a slug is worth.
+  const priceLabel =
+    PRICE_TIERS.find((t) => t.value === profile.priceRange)?.range ??
+    (profile.pricingMin ? `₹${formatCount(profile.pricingMin)}+` : null);
+
+  // One real post as a sample of the work. Pulled from the same snapshot the
+  // Featured strip uses, so it is genuinely this creator's most recent content.
+  const previewSource = (ig?.posts ?? []).find((p) => p.thumbUrl);
+  const postPreview: PostPreview | null = previewSource
+    ? {
+        imageUrl: previewSource.thumbUrl as string,
+        href: previewSource.url,
+        likes: previewSource.likes != null ? formatCount(previewSource.likes) : null,
+      }
+    : null;
 
   return {
     name: profile.name || (profile.username ? `@${profile.username}` : 'Creator'),
@@ -434,27 +700,109 @@ export function buildCreatorProfileView(
     subtitleLead: lead,
     subtitleAccent: accent,
     tagline:
-      (profile.bio || profile.headline || '').trim() ||
+      bioWithoutContact ||
       'Creating content that helps brands reach and move real audiences.',
+    contact,
     location: profile.city ? [profile.city, profile.state].filter(Boolean).join(', ') : (profile.location ?? null),
     languages: (profile.languages ?? []).slice(0, 4),
     niches: (profile.niche ?? []).slice(0, 8),
     isVerified: !!profile.isVerified,
+    ownershipVerified: !!profile.ownershipVerified,
     heroStats,
-    heroChips,
-    floating,
+    platformCards: platformCards.slice(0, 4),
+    collabTypes: (profile.collabTypes ?? []).slice(0, 6),
+    priceLabel,
+    postPreview,
     stats,
     featured: featured.slice(0, 6),
     audience,
     pastCollaborations,
-    pricing: profile.pricingMin ? [{
-      title: 'Instagram Post',
-      desc: 'Single image post with caption featuring your brand.',
-      amount: profile.priceRange || `$${profile.pricingMin.toLocaleString()}`,
-      features: ['Permanent post', 'Brand tagging'],
-    }] : (useMock ? MOCK.pricing : []),
+    // Never mocked: an invented portfolio would put fake work on a real
+    // creator's page, and every card here is a claim about a specific post.
+    portfolio: opts.portfolio ?? [],
+    // Videos are their own section rather than merged into `featured`: a
+    // YouTube upload has a title worth reading, an Instagram tile doesn't.
+    videos: (yt?.videos ?? [])
+      .filter((v) => v.thumbUrl)
+      .slice(0, 6)
+      .map((v) => ({
+        url: v.url,
+        title: v.title,
+        thumbUrl: v.thumbUrl,
+        views: v.views != null ? formatCount(v.views) : null,
+        publishedAt: v.publishedAt,
+      })),
+    // Never synthesised: a fabricated rating is the one number on this page a
+    // brand would make a spending decision on.
+    reviews: opts.reviews && opts.reviews.count > 0 ? opts.reviews : null,
     usingMock: useMock,
     profileUrl: `${origin}/c/${username}`,
     snapshotAge: relativeAge(ig?.fetchedAt ?? null),
+    instagramHandle: cleanHandle(profile.instagramHandle ?? null),
+    youtubeHandle: cleanHandle(profile.youtubeHandle ?? (yt as any)?.handle ?? null),
+    packages: buildProfilePackages(profile),
   };
+}
+
+const PACKAGE_COPY: Record<string, Omit<ProfilePackage, 'priceLabel' | 'featured'>> = {
+  Post: {
+    platform: 'instagram',
+    title: 'Instagram Post',
+    description: 'Single image post with caption featuring your brand.',
+    perks: ['1 feed post', 'Caption + tags', 'Story mention'],
+  },
+  Reel: {
+    platform: 'instagram',
+    title: 'Instagram Reel',
+    description: 'Engaging reel to showcase your product or service.',
+    perks: ['1 reel (15–60s)', 'Caption + tags', '2 story mentions'],
+  },
+  Story: {
+    platform: 'instagram',
+    title: 'Instagram Story',
+    description: 'Story feature with link sticker and brand mention.',
+    perks: ['2 story frames', 'Link sticker', 'Brand tag'],
+  },
+  'YouTube Video': {
+    platform: 'youtube',
+    title: 'YouTube Video',
+    description: 'Dedicated video review or integration.',
+    perks: ['1 YouTube video', 'Description + links', 'Community post'],
+  },
+  'Event Appearance': {
+    platform: 'other',
+    title: 'Event Appearance',
+    description: 'In-person appearance, launch, or meet-and-greet.',
+    perks: ['On-site appearance', 'Social coverage', 'Audience meet & greet'],
+  },
+};
+
+function priceLabelOf(profile: RawPublicProfile): string {
+  const min = profile.pricingMin;
+  const max = profile.pricingMax;
+  const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+  if (min != null && max != null) return `${inr(min)} – ${inr(max)}`;
+  if (min != null) return `${inr(min)}+`;
+  const PRICE_RANGE_LABEL: Record<string, string> = {
+    entry: '₹1K – ₹5K',
+    standard: '₹5K – ₹10K',
+    premium: '₹10K – ₹25K',
+    pro: '₹25K+',
+  };
+  const range = (profile.priceRange ?? '').toLowerCase();
+  return PRICE_RANGE_LABEL[range] ?? '₹25,000+';
+}
+
+function buildProfilePackages(profile: RawPublicProfile): ProfilePackage[] {
+  let types = (profile.collabTypes ?? []).filter((t) => PACKAGE_COPY[t]);
+  if (types.length === 0) {
+    types = ['YouTube Video', 'Event Appearance', 'Post'];
+  }
+  const priceLabel = priceLabelOf(profile);
+  const featuredIdx = types.length >= 3 ? 1 : types.length - 1;
+  return types.slice(0, 3).map((t, i) => ({
+    ...PACKAGE_COPY[t],
+    priceLabel,
+    featured: i === featuredIdx,
+  }));
 }

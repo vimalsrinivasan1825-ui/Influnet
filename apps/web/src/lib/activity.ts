@@ -16,6 +16,7 @@ export type ActivityType =
   | 'terms_change_proposed'
   | 'terms_change_accepted'
   | 'terms_change_rejected'
+  | 'terms_edited'
   | 'payment_paid'
   | 'completion_confirmed'
   | 'project_completed'

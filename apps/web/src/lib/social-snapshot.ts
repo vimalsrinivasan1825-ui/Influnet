@@ -37,9 +37,14 @@ export interface InstagramMetrics {
 export function computeInstagramMetrics(user: HikerInstagramUser): InstagramMetrics {
   const posts = user.recentPosts ?? [];
 
+  // Views at or below the like count are a provider placeholder, not a
+  // measurement (see postViews in apify-instagram.ts) — averaging them in is
+  // how a 636K-follower account came to advertise "1 avg view per post". The
+  // provider filters these already; the guard is repeated here because the
+  // metric is what gets published and there is more than one provider.
   const viewCounts = posts
     .map((p) => p.views)
-    .filter((v): v is number => typeof v === 'number' && v > 0);
+    .filter((v, i): v is number => typeof v === 'number' && v > 0 && v > (posts[i].likes ?? 0));
   const avgViews = viewCounts.length
     ? Math.round(viewCounts.reduce((a, b) => a + b, 0) / viewCounts.length)
     : null;

@@ -9,7 +9,10 @@ import {
 
 const BodySchema = z.object({
   purpose: z.enum(['stage', 'avatar', 'profile']),
-  hash: z.string().optional(),
+  // Must be exactly the SHA-256 hex digest computeFileHash() produces — no
+  // slashes, no arbitrary length. Anything else isn't a content hash, and
+  // this value becomes half of the Cloudinary public_id below.
+  hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 });
 
 // POST: hand the browser a short-lived Cloudinary upload signature. Auth-gated
@@ -36,10 +39,15 @@ export async function POST(req: Request) {
     const folder = UPLOAD_FOLDERS[parsed.data.purpose];
     const timestamp = Math.floor(Date.now() / 1000);
     const paramsToSign: Record<string, string | number> = { folder, timestamp };
-    
-    // CAS Deduplication: Use hash as public_id to prevent duplicates
+
+    // CAS deduplication: use the hash as public_id so re-uploading identical
+    // bytes overwrites in place. Namespaced under the caller's own user id so
+    // one account can never address — and overwrite — another account's
+    // asset, even though both compute the same content hash.
+    let publicId: string | undefined;
     if (parsed.data.hash) {
-      paramsToSign.public_id = parsed.data.hash;
+      publicId = `${user.id}/${parsed.data.hash}`;
+      paramsToSign.public_id = publicId;
       paramsToSign.overwrite = 'true';
     }
 
@@ -51,7 +59,7 @@ export async function POST(req: Request) {
       timestamp,
       signature,
       folder,
-      public_id: parsed.data.hash || undefined,
+      public_id: publicId,
     });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);

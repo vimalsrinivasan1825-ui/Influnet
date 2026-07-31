@@ -5,6 +5,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { apiFetch } from '@/lib/api-client';
+import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh';
 import {
   DndContext, DragOverlay, useSensor, useSensors,
   PointerSensor, useDraggable, useDroppable,
@@ -27,16 +28,31 @@ import {
   ListChecks, LayoutGrid, Hourglass, History,
   UserPlus, Banknote, SkipForward, Pencil,
   Send, Paperclip, Link2, Download,
-  Waypoints, PartyPopper,
+  Waypoints, PartyPopper, Ban, AlertTriangle,
 } from 'lucide-react';
 import type { ProjectCard } from '@/types';
+import { CANCELLATION_REASONS, cancellationReasonLabel, cancellationReasonRequiresText } from '@influnet/core';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
-import { STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
+import { ALLOWED_TRANSITIONS, STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
+
+/**
+ * Where a stage actually leads, for labelling "Advance to X" / "Confirm → X".
+ *
+ * Not STAGE_CONFIG[idx + 1]: `revisions` is followed in the array by
+ * `final_approval` but loops BACK to `sent_for_review`, so array order promised
+ * the user a destination the server would not send them to. Returns null for a
+ * forking stage (sent_for_review), which has no single next step to name.
+ */
+function nextStageKey(currentStage: string | undefined): string | null {
+  if (!currentStage) return null;
+  const allowed = ALLOWED_TRANSITIONS[currentStage as Stage] || [];
+  return allowed.length === 1 ? allowed[0] : null;
+}
 import { STAGE_GUIDE, isMutualSignoffStage, stageSignoffAt, isSkippableStage, stageSkipProposal } from '@/lib/project-stage-guide';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, ButtonLink } from '@/components/ui/button';
-import { Input, Label, Textarea } from '@/components/ui/input';
+import { Input, Label, Select, Textarea } from '@/components/ui/input';
 import { PaymentGate } from '@/components/dashboard/payment-gate';
 import { ProjectFlow } from '@/components/dashboard/project-flow';
 import { uploadToCloudinary } from '@/lib/storage/upload-client';
@@ -580,18 +596,20 @@ function StagePipeline({
     : undefined;
   const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
   const stage = STAGE_CONFIG[currentIdx];
-  const nextStage = STAGE_CONFIG[currentIdx + 1];
+  const nextStage = STAGE_CONFIG.find((s) => s.key === nextStageKey(currentStage));
   const isComplete = currentStage === 'project_completed';
   // 'sent_for_review' forks: the reviewer either sends the draft back for
   // revisions or approves it straight to final approval.
   const isReviewFork = currentStage === 'sent_for_review';
+  // One-sided rework: the brand already decided when it asked for changes.
+  const isResubmit = currentStage === 'revisions';
 
   const roleLabel = (r: string) => (r === 'business' ? 'Client' : r === 'creator' ? 'Creator' : 'Both');
 
   return (
     <div className="flex-shrink-0 border-b border-hairline bg-surface-card">
-      {/* Tracker */}
-      <div className="flex items-center gap-1 overflow-x-auto px-4 py-2.5">
+      {/* Tracker — full labelled pill strip on desktop */}
+      <div className="hidden items-center gap-1 overflow-x-auto px-4 py-2.5 lg:flex">
         {STAGE_CONFIG.map((s, i) => {
           const state = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'upcoming';
           return (
@@ -613,6 +631,38 @@ function StagePipeline({
             </div>
           );
         })}
+      </div>
+
+      {/* Tracker — compact fit-to-width meter on mobile (no horizontal scroll) */}
+      <div className="px-4 py-2.5 lg:hidden">
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+            Stage {currentIdx + 1}/{STAGE_CONFIG.length}
+          </span>
+          <span className="truncate text-sm font-extrabold text-content">
+            {isComplete ? 'Completed' : stage?.label}
+          </span>
+        </div>
+        <div
+          className="flex items-center gap-1"
+          role="progressbar"
+          aria-valuenow={currentIdx + 1}
+          aria-valuemin={1}
+          aria-valuemax={STAGE_CONFIG.length}
+          aria-label={`Stage ${currentIdx + 1} of ${STAGE_CONFIG.length}`}
+        >
+          {STAGE_CONFIG.map((s, i) => {
+            const filled = i <= currentIdx;
+            const active = i === currentIdx && !isComplete;
+            return (
+              <span
+                key={s.key}
+                title={s.label}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${filled ? 'bg-brand' : 'bg-hairline-strong'} ${active ? 'ring-2 ring-brand-soft' : ''}`}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {/* Current stage checklist + advance */}
@@ -745,6 +795,29 @@ function StagePipeline({
                   </span>
                 </div>
               )
+            ) : isResubmit ? (
+              STAGE_ACTOR[currentStage as Stage] === userRole ? (
+                <>
+                  <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance()} className="w-full lg:w-auto">
+                    {advancing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                    Resubmit for review
+                  </Button>
+                  <span className="text-right text-[0.6875rem] text-content-muted">
+                    Make the requested changes, then send the draft back for review.
+                  </span>
+                  {!canAdvance && (
+                    <span className="text-right text-[0.6875rem] text-warn block mt-1">
+                      Mark the requested changes done above first.
+                    </span>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-end justify-center py-2">
+                  <span className="text-right text-[0.6875rem] text-content-muted">
+                    Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to resubmit the draft.
+                  </span>
+                </div>
+              )
             ) : (
               <>
                 <Button variant="brand" size="sm" disabled={!canAdvance || advancing} onClick={() => onAdvance()} className="w-full lg:w-auto">
@@ -779,21 +852,23 @@ function StagePipeline({
 
 // ─── Change requests (propose → accept/reject term edits) ───
 const CR_FIELD_LABEL: Record<string, string> = {
-  title: 'Title', budget: 'Budget', description: 'Description', deliverables: 'Deliverables',
+  title: 'Title', budget: 'Budget', advance_amount: 'Advance', due_date: 'Due date',
+  description: 'Description', deliverables: 'Deliverables',
 };
 function crFormatVal(key: string, v: unknown): string {
   if (v == null || v === '') return '—';
-  if (key === 'budget') return `₹${Number(v).toLocaleString('en-IN')}`;
+  if (key === 'budget' || key === 'advance_amount') return `₹${Number(v).toLocaleString('en-IN')}`;
   const s = String(v);
   return s.length > 80 ? `${s.slice(0, 80)}…` : s;
 }
 
-function ChangeRequestsPanel({ requests, userId, onAct, onOpenPropose, busy }: {
+function ChangeRequestsPanel({ requests, userId, onAct, onOpenPropose, busy, conversationId }: {
   requests: any[];
   userId: string | null;
   onAct: (id: string, action: 'accept' | 'reject' | 'withdraw', note?: string) => void;
   onOpenPropose: () => void;
   busy: boolean;
+  conversationId?: string | null;
 }) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const pending = requests.filter((r) => r.status === 'pending');
@@ -819,6 +894,16 @@ function ChangeRequestsPanel({ requests, userId, onAct, onOpenPropose, busy }: {
                 </div>
               ))}
             </div>
+            {conversationId && (
+              <ButtonLink
+                href={`/dashboard/messages?conv=${conversationId}`}
+                variant="surface"
+                size="sm"
+                className="mb-2"
+              >
+                <MessageSquare size={13} /> Discuss in chat
+              </ButtonLink>
+            )}
             {mine ? (
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-content-muted">Waiting for the other party to review.</span>
@@ -866,6 +951,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
   const [advanceAmount, setAdvanceAmount] = useState(project?.advance_amount != null ? String(project.advance_amount) : '');
   const [deliverables, setDeliverables] = useState(project?.deliverables || '');
   const [description, setDescription] = useState(project?.description || '');
+  const [dueDate, setDueDate] = useState(project?.due_date || '');
   const [err, setErr] = useState<string | null>(null);
 
   const submit = () => {
@@ -873,6 +959,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
     if (title.trim() && title.trim() !== (project?.title || '')) changes.title = title.trim();
     if (budget !== '' && Number(budget) !== Number(project?.budget)) changes.budget = Number(budget);
     if (advanceAmount !== '' && Number(advanceAmount) !== Number(project?.advance_amount)) changes.advance_amount = Number(advanceAmount);
+    if (dueDate && dueDate !== (project?.due_date || '')) changes.due_date = dueDate;
     if (deliverables !== (project?.deliverables || '')) changes.deliverables = deliverables;
     if (description !== (project?.description || '')) changes.description = description;
     if (Object.keys(changes).length === 0) { setErr('Change at least one field.'); return; }
@@ -891,6 +978,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
           <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
           <div><Label>Budget (₹)</Label><Input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} /></div>
           <div><Label>Advance Payment (₹)</Label><Input type="number" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} placeholder="Leave blank for 100% advance" /></div>
+          <div><Label>Due date</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
           <div><Label>Deliverables</Label><Textarea rows={2} value={deliverables} onChange={(e) => setDeliverables(e.target.value)} placeholder="What the creator will deliver…" /></div>
           <div><Label>Description</Label><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
           {err && <span className="text-xs font-semibold text-warn">{err}</span>}
@@ -898,6 +986,93 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
             <Button variant="surface" size="sm" onClick={onClose}>Cancel</Button>
             <Button variant="brand" size="sm" disabled={busy} onClick={submit}>
               {busy ? <Loader2 className="animate-spin" /> : <Pencil />} Send proposal
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Request to cancel the project ───
+// Bilateral: this only asks — the other side has to accept before anything
+// actually changes (StatusCancellationBanner below handles their side).
+function CancelProjectModal({
+  paidAmount,
+  serverError,
+  onClose,
+  onSubmit,
+  busy,
+}: {
+  /** Non-zero when money has already moved — shown as an explicit warning before they can submit. */
+  paidAmount: number;
+  /** Set by the parent after a failed submit (e.g. a request already pending). */
+  serverError?: string | null;
+  onClose: () => void;
+  onSubmit: (payload: { reason_category: string; note?: string }) => void;
+  busy: boolean;
+}) {
+  const [category, setCategory] = useState<string>(CANCELLATION_REASONS[0].value);
+  const [note, setNote] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const textRequired = cancellationReasonRequiresText(category);
+
+  const submit = () => {
+    if (textRequired && !note.trim()) {
+      setErr('Add a note — "Other" needs a bit of context for the other side.');
+      return;
+    }
+    onSubmit({ reason_category: category, note: note.trim() || undefined });
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-extrabold tracking-tight text-content">Request to cancel this project</h3>
+          <button onClick={onClose} className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"><X size={16} /></button>
+        </div>
+        <p className="mb-4 text-xs text-content-muted">
+          The other side sees your reason and has to agree before the project actually closes.
+          Nothing is deleted either way — the record and any payments stay available to both of you.
+        </p>
+
+        {paidAmount > 0 && (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 p-3 text-xs text-content">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-warn" />
+            <span>
+              <strong>₹{paidAmount.toLocaleString()}</strong> has already been paid on this project. Cancelling
+              closes the project, but doesn't move any money back — sort out a refund with the other side
+              directly if one's needed.
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3.5">
+          <div>
+            <Label>Reason</Label>
+            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CANCELLATION_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>{textRequired ? 'What happened?' : 'Add more detail (optional)'}</Label>
+            <Textarea
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Give the other side enough context to understand why…"
+            />
+          </div>
+          {(err || serverError) && (
+            <span className="text-xs font-semibold text-warn">{err || serverError}</span>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="surface" size="sm" onClick={onClose}>Never mind</Button>
+            <Button variant="destructive" size="sm" disabled={busy} onClick={submit}>
+              {busy ? <Loader2 className="animate-spin" /> : <Ban size={14} />} Request cancellation
             </Button>
           </div>
         </div>
@@ -979,6 +1154,7 @@ const ACTIVITY_ICON: Record<string, { icon: React.ComponentType<any>; tone: stri
   terms_change_proposed: { icon: Pencil, tone: 'bg-brand-soft text-brand-strong' },
   terms_change_accepted: { icon: Check, tone: 'bg-ok-soft text-ok' },
   terms_change_rejected: { icon: X, tone: 'bg-danger-soft text-danger' },
+  terms_edited: { icon: Pencil, tone: 'bg-brand-soft text-brand-strong' },
   payment_paid: { icon: Banknote, tone: 'bg-ok-soft text-ok' },
   completion_confirmed: { icon: ThumbsUp, tone: 'bg-ok-soft text-ok' },
   project_completed: { icon: Award, tone: 'bg-ok-soft text-ok' },
@@ -1119,9 +1295,11 @@ function GuidedFlow({
   const roleLabel = (r: string) => (r === 'business' ? 'Brand' : r === 'creator' ? 'Creator' : 'Both');
   const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
   const stage = STAGE_CONFIG[currentIdx];
-  const nextStage = STAGE_CONFIG[currentIdx + 1];
+  const nextStage = STAGE_CONFIG.find((s) => s.key === nextStageKey(currentStage));
   const isComplete = currentStage === 'project_completed';
   const isReviewFork = currentStage === 'sent_for_review';
+  // One-sided rework: the brand already decided when it asked for changes.
+  const isResubmit = currentStage === 'revisions';
   const isAdvancePayment = currentStage === 'advance_payment';
   const mutual = !!currentStage && isMutualSignoffStage(currentStage) && !isFinalPayment;
   const guide = currentStage ? STAGE_GUIDE[currentStage as Stage] : undefined;
@@ -1355,6 +1533,26 @@ function GuidedFlow({
                   </span>
                 )}
               </div>
+            ) : isResubmit ? (
+              <div className="flex flex-col gap-2">
+                {STAGE_ACTOR[currentStage as Stage] === userRole ? (
+                  <>
+                    <Button variant="brand" disabled={!requiredDone || advancing} onClick={() => onAdvance()}>
+                      {advancing ? <Loader2 className="animate-spin" /> : <RefreshCw />} Resubmit for review
+                    </Button>
+                    <span className="text-xs text-content-muted">
+                      Make the requested changes, then send the draft back for review.
+                    </span>
+                    {!requiredDone && (
+                      <span className="text-xs text-warn">Mark the requested changes done above first.</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-xs text-content-muted">
+                    Waiting on the {roleLabel(STAGE_ACTOR[currentStage as Stage] || 'both')} to resubmit the draft.
+                  </span>
+                )}
+              </div>
             ) : mutual ? (
               skipProposal ? (
                 /* A skip has been proposed — needs the other side's consent. */
@@ -1434,6 +1632,16 @@ function GuidedFlow({
   );
 }
 
+/**
+ * The independently refreshable parts of this page.
+ *
+ * The initial load fetches eight endpoints in one go (fetchData); these are the
+ * subset a live event can invalidate. Cards, reviews and the payment config are
+ * absent on purpose — nothing a realtime watch on this page can observe changes
+ * them, so they stay on the load-on-mount / load-on-action path.
+ */
+type Slice = 'project' | 'activity' | 'change_requests' | 'stage_items' | 'stage_entries';
+
 // ─── Main Page ───
 export default function ProjectKanbanPage() {
   const params = useParams();
@@ -1450,6 +1658,7 @@ export default function ProjectKanbanPage() {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [modalCard, setModalCard] = useState<ProjectCard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notAccessible, setNotAccessible] = useState(false);
   const [view, setView] = useState<'guided' | 'board' | 'activity' | 'flow'>('guided');
   const [activity, setActivity] = useState<any[]>([]);
   const [celebrateLabel, setCelebrateLabel] = useState<string | null>(null);
@@ -1468,6 +1677,11 @@ export default function ProjectKanbanPage() {
   const [entryBusy, setEntryBusy] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
+  // Cancellation state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
   // Reviews state
   const [reviews, setReviews] = useState<any[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -1479,6 +1693,7 @@ export default function ProjectKanbanPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState<'spam' | 'harassment' | 'scam' | 'fake' | 'other'>('scam');
   const [reportDetails, setReportDetails] = useState('');
+  const [alsoBlock, setAlsoBlock] = useState(false);
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportDone, setReportDone] = useState(false);
 
@@ -1498,6 +1713,7 @@ export default function ProjectKanbanPage() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
+      setNotAccessible(false);
       const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes, payRes] = await Promise.all([
         apiFetch<{ project: any }>(`/api/projects/${projectId}`),
         apiFetch<{ cards: ProjectCard[] }>(`/api/projects/${projectId}/cards`),
@@ -1509,6 +1725,13 @@ export default function ProjectKanbanPage() {
         apiFetch<{ configured: boolean; key_id: string | null }>(`/api/projects/${projectId}/payments`),
       ]);
       if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
+      else if (projRes.status === 403 || projRes.status === 404) {
+        // Non-participant (or a guessed id). A bare "Forbidden" reads like a
+        // glitch, so name the situation and stop offering Retry.
+        setError('This project doesn’t exist, or you don’t have access to it.');
+        setNotAccessible(true);
+        return;
+      }
       else { setError(projRes.error || 'Failed to load project'); }
       if (cardsRes.ok && cardsRes.data) { const d = cardsRes.data; setCards(d.cards || []); }
       else { setError(cardsRes.error || 'Failed to load cards'); }
@@ -1531,6 +1754,126 @@ export default function ProjectKanbanPage() {
     };
     init();
   }, [fetchData]);
+
+  // ─── Live updates (Supabase Realtime) ───
+  //
+  // This page used to load once and never listen. A stage advanced, skipped or
+  // signed off by the other side (or by you in another tab) only appeared after
+  // a manual reload, which is what made the chat message land instantly while
+  // the workspace behind it stayed on the old stage.
+  //
+  // Deliberately NOT wired to fetchData(): that fans out to eight endpoints, and
+  // a project is a page people sit on for weeks. Re-running all eight on every
+  // checklist tick from the other side would be a self-inflicted stampede. Each
+  // watched table refreshes only the slices it can actually invalidate, worked
+  // out from the writers in src/app/api/projects/[id]/**:
+  //
+  //   campaign_projects       — every stage action (advance / signoff / skip /
+  //                             cancellation / completion) writes current_stage
+  //                             + stage_progress here, and each of those also
+  //                             writes an activity row. Accepting a change
+  //                             request lands here too, via apply_change_request
+  //                             (082), which is why the change-request list is
+  //                             refreshed as well — the accepted proposal has to
+  //                             stop showing as pending on the other side.
+  //                             Cards, reviews and the payment config cannot be
+  //                             touched by any of those paths, so they are not
+  //                             refetched.
+  //   project_change_requests — proposal raised / rejected / withdrawn: the list,
+  //                             plus activity (each action logs one) and the
+  //                             project itself for the accept path.
+  //   project_stage_items     — a checklist tick. Nothing else moves: the items
+  //                             are seeded for every stage on first load
+  //                             (buildDefaultStageItems), so advancing never
+  //                             creates one, and PATCH writes no activity row.
+  //   project_stage_entries   — a stage update posted. Writes no activity row
+  //                             either (stage-entries/route.ts notifies but does
+  //                             not log), so the entries are the whole story.
+  //
+  // The three child tables need migration 091 to be in the publication. Until it
+  // is applied their listeners subscribe and never fire, exactly as 090's did
+  // before it was applied — the page keeps working, those slices just stay on
+  // the old load-on-action behaviour.
+  const refreshSlices = useCallback(async (slices: readonly Slice[]) => {
+    // A background refresh nobody asked for must never take the page down: on
+    // failure we keep what we have and log, unlike fetchData() which is allowed
+    // to raise a full error state because the user is waiting on it.
+    const jobs: Array<Promise<void>> = [];
+    const want = new Set(slices);
+    if (want.has('project')) jobs.push((async () => {
+      const r = await apiFetch<{ project: any }>(`/api/projects/${projectId}`);
+      if (r.ok && r.data) setProject(r.data.project);
+    })());
+    if (want.has('activity')) jobs.push((async () => {
+      const r = await apiFetch<{ activity: any[] }>(`/api/projects/${projectId}/activity`);
+      if (r.ok && r.data) setActivity(r.data.activity || []);
+    })());
+    if (want.has('change_requests')) jobs.push((async () => {
+      const r = await apiFetch<{ change_requests: any[] }>(`/api/projects/${projectId}/change-requests`);
+      if (r.ok && r.data) setChangeRequests(r.data.change_requests || []);
+    })());
+    if (want.has('stage_items')) jobs.push((async () => {
+      const r = await apiFetch<{ items: StageItem[] }>(`/api/projects/${projectId}/stage-items`);
+      if (r.ok && r.data) setStageItems(r.data.items || []);
+    })());
+    if (want.has('stage_entries')) jobs.push((async () => {
+      const r = await apiFetch<{ entries: any[] }>(`/api/projects/${projectId}/stage-entries`);
+      if (r.ok && r.data) setStageEntries(r.data.entries || []);
+    })());
+    try { await Promise.all(jobs); }
+    catch (e) { console.error('[project live refresh]', e); }
+  }, [projectId]);
+
+  // Busy gate. This page is full of optimistic local state, and a refetch that
+  // lands mid-action would repaint the very thing the user is changing: the
+  // checklist tick applied optimistically before its PATCH returns, the project
+  // row a stage action is about to replace with the server's own copy. The hook
+  // retries rather than drops, so a deferred update still arrives once idle.
+  //
+  // `itemToggles` is a ref counter rather than state because handleToggleItem
+  // has no busy flag of its own by design — the tick is meant to feel instant —
+  // and giving it one would re-render the checklist on every toggle.
+  const itemTogglesRef = useRef(0);
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = advancing || cancelBusy || crBusy || entryBusy;
+  }, [advancing, cancelBusy, crBusy, entryBusy]);
+
+  useRealtimeRefresh({
+    channelName: `project-detail-live-${projectId}`,
+    enabled: !!projectId,
+    // One filter per table: the project id is exact, and both participants sit
+    // on the same row / the same project_id, so there is no "either side" split
+    // to do here the way the list pages have to.
+    watches: projectId
+      ? [
+          { table: 'campaign_projects', filters: [`id=eq.${projectId}`] },
+          { table: 'project_stage_items', filters: [`project_id=eq.${projectId}`] },
+          { table: 'project_stage_entries', filters: [`project_id=eq.${projectId}`] },
+          { table: 'project_change_requests', filters: [`project_id=eq.${projectId}`] },
+        ]
+      : [],
+    onChange: (changed) => {
+      const slices = new Set<Slice>();
+      // Empty means the notification backstop fired, which knows a type but not
+      // a table — refresh the core stage slices rather than guessing.
+      if (changed.size === 0) { slices.add('project'); slices.add('activity'); }
+      if (changed.has('campaign_projects')) {
+        slices.add('project'); slices.add('activity'); slices.add('change_requests');
+      }
+      if (changed.has('project_change_requests')) {
+        slices.add('change_requests'); slices.add('activity'); slices.add('project');
+      }
+      if (changed.has('project_stage_items')) slices.add('stage_items');
+      if (changed.has('project_stage_entries')) slices.add('stage_entries');
+      void refreshSlices([...slices]);
+    },
+    shouldDefer: () => busyRef.current || itemTogglesRef.current > 0,
+    // Backstop for a page channel that failed to subscribe while the shell's
+    // notifications channel is healthy. Same hook, so it shares this debounce
+    // window and the gate above instead of racing past them.
+    notifyTypes: ['project_stage', 'project_cancel'],
+  });
 
   // Celebrate whenever the project moves forward to a new stage.
   const prevStageRef = useRef<string | null>(null);
@@ -1575,6 +1918,10 @@ export default function ProjectKanbanPage() {
       ? { ...it, done_at: done ? new Date().toISOString() : null, done_by: done ? userId : null }
       : it));
     setAdvanceError(null);
+    // Counted, not a boolean: ticks are fast enough to overlap, and a boolean
+    // would let the first one to return open the gate while the second is still
+    // in flight. Kept in a ref so the optimistic tick stays a single re-render.
+    itemTogglesRef.current += 1;
     try {
       const res = await apiFetch<{ item: StageItem }>(`/api/projects/${projectId}/stage-items`, {
         method: 'PATCH',
@@ -1582,6 +1929,7 @@ export default function ProjectKanbanPage() {
       });
       if (!res.ok) { setAdvanceError(res.error || 'Could not update that step.'); await fetchData(); }
     } catch (e) { console.error(e); await fetchData(); }
+    finally { itemTogglesRef.current -= 1; }
   };
 
   const handleAdvance = async (stageKey?: string) => {
@@ -1630,6 +1978,58 @@ export default function ProjectKanbanPage() {
       else { setAdvanceError(res.error || 'Could not update the skip.'); }
     } catch (e) { console.error(e); setAdvanceError('Network error while updating the skip.'); }
     finally { setAdvancing(false); }
+  };
+
+  // Cancellation: bilateral — request with a reason, the OTHER side accepts
+  // or declines. Never a delete; see migration 089 for why that matters.
+  const handleRequestCancellation = async (payload: { reason_category: string; note?: string }) => {
+    setCancelBusy(true);
+    setCancelError(null);
+    try {
+      const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'request_cancellation', ...payload }),
+      });
+      if (res.ok && res.data) {
+        setProject(res.data.project);
+        setShowCancelModal(false);
+        toast.success('Cancellation requested — the other side has been notified.');
+      } else {
+        setCancelError(res.error || 'Could not request cancellation.');
+      }
+    } catch (e) { console.error(e); setCancelError('Network error while requesting cancellation.'); }
+    finally { setCancelBusy(false); }
+  };
+
+  // Same endpoint declines the OTHER side's request or withdraws your own —
+  // the server tells us which happened via `was_requested_by`.
+  const handleDeclineCancellation = async () => {
+    setCancelBusy(true);
+    try {
+      const res = await apiFetch<{ project: any }>(`/api/projects/${projectId}`, {
+        method: 'PATCH', body: JSON.stringify({ action: 'decline_cancellation' }),
+      });
+      if (res.ok && res.data) { setProject(res.data.project); toast.success('Cancellation dismissed.'); }
+      else { toast.error(res.error || 'Could not update the cancellation request.'); }
+    } catch (e) { console.error(e); toast.error('Network error.'); }
+    finally { setCancelBusy(false); }
+  };
+
+  const handleAcceptCancellation = async () => {
+    setCancelBusy(true);
+    try {
+      const res = await apiFetch<{ project: any; cancelled: boolean }>(`/api/projects/${projectId}`, {
+        method: 'PATCH', body: JSON.stringify({ action: 'accept_cancellation' }),
+      });
+      if (res.ok && res.data) {
+        if (res.data.project) setProject(res.data.project);
+        toast.success('Project cancelled. The record and any payments stay available to both of you.');
+        void fetchData();
+      } else {
+        toast.error(res.error || 'Could not cancel the project.');
+      }
+    } catch (e) { console.error(e); toast.error('Network error.'); }
+    finally { setCancelBusy(false); }
   };
 
   // Change requests: propose an edit to the terms, or act on one.
@@ -1834,92 +2234,199 @@ export default function ProjectKanbanPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-surface">
       {/* Top Bar */}
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-hairline bg-surface-card px-4 py-2.5">
-        <div className="flex items-center gap-3">
-          <Button variant="surface" size="icon" onClick={() => router.push('/dashboard/projects')} aria-label="Back to projects">
+      <div className="flex flex-shrink-0 flex-col gap-2 border-b border-hairline bg-surface-card px-4 py-2.5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button variant="surface" size="icon" onClick={() => router.push('/dashboard/projects')} aria-label="Back to projects" className="shrink-0">
             <ArrowLeft size={16} />
           </Button>
-          <div className="flex items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             {project && (
               <Avatar
                 name={(project.owner_user_id === userId ? project.counterparty : project.owner)?.name}
                 size="sm"
                 square
+                className="shrink-0"
               />
             )}
-            <div>
-              <div className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">
+            <div className="min-w-0">
+              <div className="truncate text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">
                 {project && (project.owner_user_id === userId ? 'Client portal' : 'Creator portal')}
                 {project ? ` · With ${(project.owner_user_id === userId ? project.counterparty : project.owner)?.name || 'Partner'}` : ''}
               </div>
-              <h1 className="text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || 'Loading…'}</h1>
+              <h1 className="truncate text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || (loading ? 'Loading…' : 'Project')}</h1>
             </div>
+            {/* Stage badge rides along on the identity row (mobile only) */}
+            <Badge variant="neutral" size="sm" className="ml-auto shrink-0 lg:hidden">
+              {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
+            </Badge>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Guided ↔ Board view toggle */}
-          <div className="flex items-center gap-0.5 rounded-lg border border-hairline bg-surface-muted p-0.5">
+          {/* Guided ↔ Board view toggle — full-width segmented on mobile */}
+          <div className="flex flex-1 items-center gap-0.5 rounded-lg border border-hairline bg-surface-muted p-0.5 lg:flex-none">
             <button
               onClick={() => setView('guided')}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'guided' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors lg:flex-none lg:py-1 ${view === 'guided' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
               title="Step-by-step guided flow"
             >
               <ListChecks size={13} /> Guided
             </button>
             <button
               onClick={() => setView('board')}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'board' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors lg:flex-none lg:py-1 ${view === 'board' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
               title="Schedule board"
             >
               <LayoutGrid size={13} /> Board
             </button>
             <button
               onClick={() => setView('activity')}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'activity' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors lg:flex-none lg:py-1 ${view === 'activity' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
               title="Activity timeline"
             >
               <History size={13} /> Activity
             </button>
             <button
               onClick={() => setView('flow')}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold transition-colors ${view === 'flow' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
+              className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold transition-colors lg:flex-none lg:py-1 ${view === 'flow' ? 'bg-surface-card text-content shadow-sm' : 'text-content-muted hover:text-content'}`}
               title="Stage-by-stage recap"
             >
               <Waypoints size={13} /> Flow
             </button>
           </div>
           {project?.budget != null && project.budget !== '' && (
-            <Badge variant="success" size="md">
-              ₹{Number(project.budget).toLocaleString()} 
-              {project?.advance_amount != null && project.advance_amount !== '' && Number(project.advance_amount) < Number(project.budget) 
-                ? ` (₹${Number(project.advance_amount).toLocaleString()} advance)` 
+            <Badge variant="success" size="md" className="hidden lg:inline-flex">
+              ₹{Number(project.budget).toLocaleString()}
+              {project?.advance_amount != null && project.advance_amount !== '' && Number(project.advance_amount) < Number(project.budget)
+                ? ` (₹${Number(project.advance_amount).toLocaleString()} advance)`
                 : ''}
             </Badge>
           )}
           {project?.conversation_id && (
-            <ButtonLink href={`/dashboard/messages?conv=${project.conversation_id}`} variant="surface" size="sm">
-              <MessageSquare size={14} /> Chat
+            <ButtonLink href={`/dashboard/messages?conv=${project.conversation_id}`} variant="surface" size="sm" className="shrink-0" aria-label="Open chat">
+              <MessageSquare size={14} /> <span className="hidden sm:inline">Chat</span>
             </ButtonLink>
           )}
           {project && (
-            <Button variant="surface" size="icon" onClick={() => setShowReportModal(true)} aria-label="Report this user" title="Report this user">
+            <Button variant="surface" size="icon" onClick={() => setShowReportModal(true)} aria-label="Report this user" title="Report this user" className="shrink-0">
               <Flag size={14} />
             </Button>
           )}
           {project?.status === 'completed' && (
-            <Button variant="surface" size="sm" onClick={() => setShowReviewModal(true)}>
-              <Star size={14} fill={reviews.some(r => r.from_user?.id === userId) ? "var(--brand)" : "none"} color="var(--brand)" /> 
-              {reviews.some(r => r.from_user?.id === userId) ? 'View Reviews' : 'Leave a Review'}
+            <Button variant="surface" size="sm" onClick={() => setShowReviewModal(true)} className="shrink-0">
+              <Star size={14} fill={reviews.some(r => r.from_user?.id === userId) ? "var(--brand)" : "none"} color="var(--brand)" />
+              <span className="hidden sm:inline">{reviews.some(r => r.from_user?.id === userId) ? 'View Reviews' : 'Leave a Review'}</span>
             </Button>
           )}
-          <Badge variant="neutral" size="md">
+          {project?.status === 'cancelled' && (
+            <Badge variant="danger" size="md">
+              <Ban size={13} /> Cancelled
+            </Badge>
+          )}
+          {/* Active, nothing already pending — the pending state gets its own
+              banner below with Accept/Decline/Withdraw, not this button. */}
+          {project?.status === 'active' && !project?.cancel_requested_by && (
+            <Button variant="surface" size="icon" onClick={() => setShowCancelModal(true)} aria-label="Request to cancel this project" title="Cancel project" className="shrink-0">
+              <Ban size={14} />
+            </Button>
+          )}
+          <Badge variant="neutral" size="md" className="hidden lg:inline-flex">
             Stage {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
           </Badge>
         </div>
       </div>
 
+      {/* Pending cancellation — shown to BOTH sides, worded for whichever one
+          they are. Sits above everything else: while this is open, it is the
+          only thing on the project that matters. */}
+      {project?.cancel_requested_by && (
+        <div className="border-b border-warn/30 bg-warn/10 px-4 py-3">
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2.5">
+              <Ban size={16} className="mt-0.5 shrink-0 text-warn" />
+              <div>
+                {project.cancel_requested_by === userId ? (
+                  <p className="text-sm font-semibold text-content">
+                    You asked to cancel this project — {cancellationReasonLabel(project.cancel_reason_category)}.
+                    Waiting for the other side to respond.
+                  </p>
+                ) : (
+                  <p className="text-sm font-semibold text-content">
+                    The {userRole === 'business' ? 'creator' : 'brand'} asked to cancel this project —{' '}
+                    {cancellationReasonLabel(project.cancel_reason_category)}.
+                  </p>
+                )}
+                {project.cancellation_reason && (
+                  <p className="mt-0.5 text-xs text-content-soft">&ldquo;{project.cancellation_reason}&rdquo;</p>
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {project.cancel_requested_by === userId ? (
+                <Button variant="surface" size="sm" disabled={cancelBusy} onClick={handleDeclineCancellation}>
+                  {cancelBusy ? <Loader2 className="animate-spin" /> : null} Withdraw request
+                </Button>
+              ) : (
+                <>
+                  <Button variant="surface" size="sm" disabled={cancelBusy} onClick={handleDeclineCancellation}>
+                    Decline
+                  </Button>
+                  <Button variant="destructive" size="sm" disabled={cancelBusy} onClick={handleAcceptCancellation}>
+                    {cancelBusy ? <Loader2 className="animate-spin" /> : <Check size={14} />} Accept &amp; cancel
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancelled — frozen banner, shown in place of the stage pipeline.
+          The project is a read-only record at this point. The reason survives
+          from the cancellation request (migration 089 leaves it untouched on
+          the row), so the reader can see why it ended. Red/danger tint so it
+          reads as a terminal state at a glance, like OK/green for completed. */}
+      {project?.status === 'cancelled' && (
+        <div className="border-b border-danger/20 bg-danger-soft/60 px-4 py-4">
+          <div className="mx-auto flex max-w-5xl items-start gap-3">
+            <Ban size={18} className="mt-0.5 shrink-0 text-danger" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-content">
+                This project was cancelled on{' '}
+                {project.cancelled_at
+                  ? new Date(project.cancelled_at).toLocaleDateString('en-IN', {
+                      day: 'numeric', month: 'long', year: 'numeric',
+                    })
+                  : 'an unspecified date'}
+                .
+              </p>
+              {project.cancel_reason_category && (
+                <p className="mt-1 text-xs text-content-soft">
+                  Reason: {cancellationReasonLabel(project.cancel_reason_category)}
+                  {project.cancellation_reason && (
+                    <> &mdash; &ldquo;{project.cancellation_reason}&rdquo;</>
+                  )}
+                </p>
+              )}
+              {project.deleted_at ? (
+                <p className="mt-1 text-xs font-semibold text-danger">
+                  <Ban size={11} className="inline" /> This project will be automatically removed on{' '}
+                  {new Date(project.deleted_at).toLocaleDateString('en-IN', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
+                  . View it while you can.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-content-soft">
+                  The record and any payments stay available for reference, but no further changes can be made.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stage Pipeline — the spine of the collaboration (board view only) */}
-      {view === 'board' && !loading && !error && project && (
+      {view === 'board' && !loading && !error && project && project.status !== 'cancelled' && (
         <StagePipeline
           currentStage={currentStage}
           items={currentStageItems}
@@ -1948,6 +2455,14 @@ export default function ProjectKanbanPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="size-8 animate-spin rounded-full border-[3px] border-hairline border-t-brand" />
         </div>
+      ) : notAccessible ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <h2 className="text-base font-extrabold text-content">{error}</h2>
+          <p className="max-w-sm text-sm text-content-soft">
+            Only the business and the creator on a project can open it.
+          </p>
+          <ButtonLink href="/dashboard/projects" variant="brand">Back to projects</ButtonLink>
+        </div>
       ) : error ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3">
           <h2 className="text-base font-extrabold text-content">{error}</h2>
@@ -1968,6 +2483,7 @@ export default function ProjectKanbanPage() {
                 onAct={handleActOnChange}
                 onOpenPropose={() => setProposeOpen(true)}
                 busy={crBusy}
+                conversationId={project?.conversation_id}
               />
             </div>
           )}
@@ -2010,6 +2526,10 @@ export default function ProjectKanbanPage() {
       ) : view === 'flow' ? (
         <div className="flex-1 overflow-auto bg-surface">
           <ProjectFlow project={project} entries={stageEntries} userId={userId} />
+        </div>
+      ) : project?.status === 'cancelled' ? (
+        <div className="flex-1 overflow-auto bg-surface">
+          <ActivityTimeline activity={activity} userId={userId} />
         </div>
       ) : (
         <div style={{ flex: 1, overflow: 'auto', display: 'flex', padding: '0 0 0 10px' }}>
@@ -2121,6 +2641,26 @@ export default function ProjectKanbanPage() {
         />
       )}
 
+      {showCancelModal && project && (
+        <CancelProjectModal
+          // Not an authoritative payment ledger read — just the honest signal
+          // already on this page: the advance/final-payment stage having been
+          // signed off as complete. A precise figure would need its own fetch
+          // against project_payments, which this page doesn't otherwise load.
+          paidAmount={
+            project.stage_progress?.final_payment?.status === 'completed'
+              ? Number(project.budget || 0)
+              : project.stage_progress?.advance_payment?.status === 'completed'
+                ? Number(project.advance_amount || project.budget || 0)
+                : 0
+          }
+          serverError={cancelError}
+          onClose={() => { setShowCancelModal(false); setCancelError(null); }}
+          onSubmit={handleRequestCancellation}
+          busy={cancelBusy}
+        />
+      )}
+
       {lightboxImage && (
         <div onClick={() => setLightboxImage(null)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm cursor-zoom-out">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2137,7 +2677,7 @@ export default function ProjectKanbanPage() {
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-content">Report this user</h3>
-              <button onClick={() => { setShowReportModal(false); setReportDone(false); }} className="text-content-muted hover:text-content">
+              <button onClick={() => { setShowReportModal(false); setReportDone(false); setAlsoBlock(false); }} className="text-content-muted hover:text-content">
                 <X size={20} />
               </button>
             </div>
@@ -2145,7 +2685,7 @@ export default function ProjectKanbanPage() {
               <div className="flex flex-col items-center gap-2 py-4 text-center">
                 <CheckCircle2 size={32} className="text-ok" />
                 <p className="text-sm font-semibold text-content">Thanks — our team will review this report.</p>
-                <Button variant="surface" size="sm" onClick={() => { setShowReportModal(false); setReportDone(false); }}>Close</Button>
+                <Button variant="surface" size="sm" onClick={() => { setShowReportModal(false); setReportDone(false); setAlsoBlock(false); }}>Close</Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -2170,6 +2710,20 @@ export default function ProjectKanbanPage() {
                   <Label>Details (optional)</Label>
                   <Textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} placeholder="What happened?" rows={3} />
                 </div>
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-hairline-strong bg-surface-muted px-3.5 py-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={alsoBlock}
+                    onChange={(e) => setAlsoBlock(e.target.checked)}
+                    className="mt-0.5 size-4 accent-danger"
+                  />
+                  <span>
+                    <span className="font-semibold text-content">Also block this user</span>
+                    <span className="block text-xs text-content-muted">
+                      They won&rsquo;t be able to message you or send new requests. Manage this later in Settings.
+                    </span>
+                  </span>
+                </label>
                 <Button
                   variant="destructive"
                   className="w-full"
@@ -2188,8 +2742,22 @@ export default function ProjectKanbanPage() {
                           project_id: Number(projectId),
                         }),
                       });
-                      if (res.ok) { setReportDone(true); setReportDetails(''); }
-                      else { toast.error(res.error || 'Failed to submit report'); }
+                      if (!res.ok) { toast.error(res.error || 'Failed to submit report'); return; }
+
+                      if (alsoBlock) {
+                        const blockRes = await apiFetch('/api/blocks', {
+                          method: 'POST',
+                          body: JSON.stringify({ blocked_id: reportedId }),
+                        });
+                        if (!blockRes.ok) {
+                          // Report already went through — don't lose that success over the
+                          // block failing separately (e.g. rate limit).
+                          toast.error(blockRes.error || 'Report sent, but blocking failed — try again from Settings.');
+                        }
+                      }
+                      setReportDone(true);
+                      setReportDetails('');
+                      setAlsoBlock(false);
                     } finally {
                       setSubmittingReport(false);
                     }

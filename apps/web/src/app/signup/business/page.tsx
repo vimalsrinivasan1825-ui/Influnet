@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from "@/lib/constants";
+import { isValidGstin, isValidWebsite, normalizeWebsite } from "@influnet/core";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
+import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
+import { Check, X } from "lucide-react";
 
 type Step = 1 | 2 | 3 | 4;
 const STEP_LABELS = ["Account", "Company", "Verify", "Intent"];
@@ -54,8 +58,11 @@ function BusinessSignupContent() {
 
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameSuggestionsFallback, setUsernameSuggestionsFallback] = useState<string[]>([]);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneToken, setPhoneToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [industry, setIndustry] = useState("");
@@ -67,13 +74,66 @@ function BusinessSignupContent() {
   const [marketingBudget, setMarketingBudget] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  // Load saved state on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("businessSignupState");
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.step) setStep(data.step);
+        if (data.fullName) setFullName(data.fullName);
+        if (data.companyName) setCompanyName(data.companyName);
+        if (data.username) setUsername(data.username);
+        if (data.email) setEmail(data.email);
+        if (data.phone) setPhone(data.phone);
+        if (data.businessType) setBusinessType(data.businessType);
+        if (data.industry) setIndustry(data.industry);
+        if (data.website) setWebsite(data.website);
+        if (data.city) setCity(data.city);
+        if (data.state) setState(data.state);
+        if (data.registeredAddress) setRegisteredAddress(data.registeredAddress);
+        if (data.gstNumber) setGstNumber(data.gstNumber);
+        if (data.marketingBudget) setMarketingBudget(data.marketingBudget);
+      }
+    } catch {}
+  }, []);
+
+  // Save state on change
+  useEffect(() => {
+    sessionStorage.setItem(
+      "businessSignupState",
+      JSON.stringify({
+        step, fullName, companyName, username, email, phone, businessType, industry,
+        website, city, state, registeredAddress, gstNumber, marketingBudget
+      })
+    );
+  }, [
+    step, fullName, companyName, username, email, phone, businessType, industry,
+    website, city, state, registeredAddress, gstNumber, marketingBudget
+  ]);
+
+  const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
+  const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(companyName || fullName, username.length === 0);
+  const { status: emailStatus, message: emailMessage } = useEmailAvailability(email);
+
+  const usernameOk = usernameStatus === "available" || usernameStatus === "error";
+  const emailOk = emailStatus === "available" || emailStatus === "error";
   const emailValid = EMAIL_RE.test(email);
   const passwordOk = password.length >= 8;
+  // Both fields are optional, so blank stays valid — only a filled-in value is checked.
+  const websiteValid = isValidWebsite(website);
+  const gstValid = !gstNumber.trim() || isValidGstin(gstNumber);
 
   const canProceed = (): boolean => {
-    if (step === 1) return !!fullName && !!companyName && emailValid && passwordOk;
-    if (step === 2) return !!businessType && !!industry;
-    if (step === 3) return !!city && !!state && !!registeredAddress;
+    // Mobile OTP is a hard gate when enabled — the server rejects an unverified
+    // number anyway, so don't let the wizard advance past it.
+    if (step === 1)
+      return (
+        !!fullName && !!companyName && !!username && usernameOk && emailValid && emailOk && passwordOk &&
+        (!phoneOtpEnabled || !!phoneToken)
+      );
+    if (step === 2) return !!businessType && !!industry && websiteValid;
+    if (step === 3) return !!city && !!state && !!registeredAddress && gstValid;
     if (step === 4) return !!marketingBudget;
     return false;
   };
@@ -87,14 +147,15 @@ function BusinessSignupContent() {
         name: fullName,
         role: "business_owner",
         companyName,
+        username,
         phone,
         businessType,
         industry,
-        website,
+        website: normalizeWebsite(website),
         city,
         state,
         registeredAddress,
-        gstNumber,
+        gstNumber: gstNumber.trim().toUpperCase(),
         marketingBudget,
         location: `${city}, ${state}`,
       };
@@ -116,10 +177,16 @@ function BusinessSignupContent() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${data.session.access_token}`,
           },
-          body: JSON.stringify(payload),
+          // The OTP token is deliberately NOT part of `payload` — that object
+          // becomes permanent auth metadata and is stashed in localStorage.
+          body: JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
         });
         if (!res.ok) {
           const resData = await res.json();
+          if (resData.reason === "username_taken") {
+            recoverFromTakenUsername(resData.error || "That username is already taken");
+            return;
+          }
           setError(resData.error || "Failed to create profile record");
           return;
         }
@@ -129,16 +196,26 @@ function BusinessSignupContent() {
           method: "POST",
           headers: { Authorization: `Bearer ${data.session.access_token}` },
         }).catch(() => {});
+        sessionStorage.removeItem("businessSignupState");
         router.push(nextParam);
       } else {
         // Email confirmation required: no session yet, so register_profile can't
         // run now. Stash the payload so login can replay it once confirmed —
         // otherwise all of this wizard's data would be lost.
+        sessionStorage.removeItem("businessSignupState");
+        // The OTP token rides along so login can replay it, but it only lives
+        // 30 minutes — hence the sharper message when the gate is on.
         try {
-          localStorage.setItem("influnet_pending_registration", JSON.stringify(payload));
+          localStorage.setItem(
+            "influnet_pending_registration",
+            JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
+          );
         } catch { /* ignore */ }
+        const message = phoneOtpEnabled
+          ? "Check your email to confirm your account — please do it within 30 minutes so your mobile verification is still valid"
+          : "Check your email to confirm your account";
         router.push(
-          `/login?message=Check your email to confirm your account&next=${encodeURIComponent(nextParam)}`,
+          `/login?message=${encodeURIComponent(message)}&next=${encodeURIComponent(nextParam)}`,
         );
       }
     } catch {
@@ -146,6 +223,20 @@ function BusinessSignupContent() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const recoverFromTakenUsername = async (message: string) => {
+    setError(message);
+    setStep(1);
+    setUsernameSuggestionsFallback([]);
+
+    try {
+      const res = await fetch(`/api/auth/suggest-username?name=${encodeURIComponent(companyName || fullName)}`);
+      const data = await res.json();
+      if (data.suggestions) {
+        setUsernameSuggestionsFallback(data.suggestions);
+      }
+    } catch { /* ignore */ }
   };
 
   return (
@@ -218,23 +309,96 @@ function BusinessSignupContent() {
                 <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your company name" />
               </div>
               <div>
-                <Label>Work email</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  aria-invalid={email.length > 0 && !emailValid}
-                  autoComplete="email"
-                />
-                {email.length > 0 && !emailValid && (
-                  <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
+                <Label>Username</Label>
+                <div className="relative">
+                  <Input
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
+                      setUsernameSuggestionsFallback([]);
+                    }}
+                    placeholder="company_name"
+                    className="pr-10"
+                    aria-invalid={usernameStatus === "taken" || usernameStatus === "invalid"}
+                    autoComplete="off"
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {usernameStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {usernameStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
+                {(suggestions.length > 0 || usernameSuggestionsFallback.length > 0) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-content-muted">Try:</span>
+                    {(suggestions.length > 0 ? suggestions : usernameSuggestionsFallback).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          setUsername(s);
+                          setUsernameSuggestionsFallback([]);
+                        }}
+                        className="rounded-lg border border-hairline-strong bg-surface-muted px-2.5 py-1 text-xs font-bold text-brand-strong transition-colors hover:border-brand hover:bg-brand-soft"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {usernameMessage && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      usernameStatus === "available" && "text-emerald-600",
+                      (usernameStatus === "taken" || usernameStatus === "invalid") && "text-danger",
+                      (usernameStatus === "checking" || usernameStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {usernameMessage}
+                  </p>
                 )}
               </div>
               <div>
-                <Label>Phone (optional)</Label>
-                <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" />
+                <Label>Work email</Label>
+                <div className="relative">
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    aria-invalid={(email.length > 0 && !emailValid) || emailStatus === "taken" || emailStatus === "invalid"}
+                    autoComplete="email"
+                    className="pr-10"
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {emailStatus === "checking" && <Loader2 className="size-4 animate-spin text-content-muted" />}
+                    {emailStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(emailStatus === "taken" || emailStatus === "invalid") && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
+                {email.length > 0 && !emailValid && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
+                )}
+                {emailMessage && emailValid && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      emailStatus === "available" && "text-emerald-600",
+                      (emailStatus === "taken" || emailStatus === "invalid") && "text-danger",
+                      (emailStatus === "checking" || emailStatus === "error") && "text-content-muted",
+                    )}
+                  >
+                    {emailMessage}
+                  </p>
+                )}
               </div>
+              <PhoneOtpField
+                phone={phone}
+                onPhoneChange={setPhone}
+                verifiedToken={phoneToken}
+                onVerifiedChange={setPhoneToken}
+              />
               <div>
                 <Label>Password</Label>
                 <div className="relative">
@@ -255,7 +419,10 @@ function BusinessSignupContent() {
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
-                {password.length > 0 && (() => {
+                {password.length > 72 && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">Password must be 72 characters or fewer</p>
+                )}
+                {password.length > 0 && password.length <= 72 && (() => {
                   const s = passwordStrength(password);
                   return (
                     <div className="mt-2">
@@ -270,9 +437,7 @@ function BusinessSignupContent() {
                           />
                         ))}
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-content-muted">
-                        {passwordOk ? `Password strength: ${s.label}` : "Use at least 8 characters"}
-                      </p>
+                      <p className="mt-1 text-[0.6875rem] font-semibold text-content-muted">{s.label}</p>
                     </div>
                   );
                 })()}
@@ -282,16 +447,7 @@ function BusinessSignupContent() {
 
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Company information</h2>
-              <div>
-                <Label>Business type</Label>
-                <Select value={businessType} onChange={(e) => setBusinessType(e.target.value)}>
-                  <option value="">Select business type</option>
-                  {BUSINESS_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </Select>
-              </div>
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Company details</h2>
               <div>
                 <Label>Industry</Label>
                 <Select value={industry} onChange={(e) => setIndustry(e.target.value)}>
@@ -302,8 +458,20 @@ function BusinessSignupContent() {
                 </Select>
               </div>
               <div>
+                <Label>Business type</Label>
+                <Select value={businessType} onChange={(e) => setBusinessType(e.target.value)}>
+                  <option value="">Select business type</option>
+                  {BUSINESS_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
                 <Label>Website (optional)</Label>
-                <Input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourcompany.com" />
+                <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourcompany.com" />
+                {!websiteValid && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid website, e.g. yourcompany.com</p>
+                )}
               </div>
             </div>
           )}
@@ -332,7 +500,17 @@ function BusinessSignupContent() {
               </div>
               <div>
                 <Label>GST number (optional)</Label>
-                <Input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="22AAAAA0000A1Z5" />
+                <Input
+                  value={gstNumber}
+                  onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                  placeholder="22AAAAA0000A1Z5"
+                  maxLength={15}
+                />
+                {!gstValid && (
+                  <p className="mt-1.5 text-xs font-semibold text-danger">
+                    Enter a valid 15-character GST number, e.g. 22AAAAA0000A1Z5
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -362,7 +540,7 @@ function BusinessSignupContent() {
               </div>
               <div className="rounded-xl border border-brand/15 bg-brand-soft px-4 py-3">
                 <p className="text-sm leading-relaxed text-content-soft">
-                  Your account will be reviewed by our team. You&rsquo;ll get dashboard access once approved.
+                  Your account will be reviewed by our team. Outbound campaign requests unlock once approved.
                 </p>
               </div>
             </div>

@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
 import { notifyUser } from '@/lib/notify';
 import { logActivity } from '@/lib/activity';
 import { logger, requestId } from '@/lib/logger';
+import { CANCELLATION_REASONS, cancellationReasonLabel } from '@influnet/core';
+
+const CANCELLATION_REASON_VALUES = CANCELLATION_REASONS.map((r) => r.value) as [string, ...string[]];
 
 const PatchProjectActionSchema = z.object({
   action: z.enum(['advance', 'signoff', 'revoke_signoff', 'propose_skip', 'confirm_skip', 'cancel_skip', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
@@ -13,7 +17,12 @@ const PatchProjectActionSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   deliverables: z.string().optional(),
+  note: z.string().max(2000).optional(),
+  // request_cancellation only. The requester's choice, shown to the other
+  // side before they decide — see packages/core/src/project-cancellation.ts.
+  reason_category: z.enum(CANCELLATION_REASON_VALUES).optional(),
 });
+
 
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -74,6 +83,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       userId: user.id,
     });
 
+    // Rate limit: project mutations are high-impact actions.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'projects:update', limit: 20, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
+
     let body;
     try {
       body = await req.json();
@@ -104,6 +119,37 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     const { action } = result.data;
     const { STAGES, ALLOWED_TRANSITIONS, STAGE_ACTOR, STAGE_LABELS, Stage } = require('@/lib/project-lifecycle');
+
+    // Legacy safety net. Migration 071 stopped creating 'pending_acceptance'
+    // projects (terms now live in project_proposals until accepted), but rows
+    // created by 069 can still be sitting in that state on a database that
+    // hasn't caught up. Without this gate such a project renders as a normal
+    // live one and a single "Advance stage" click would start work neither
+    // side ever agreed to. Read separately so it degrades cleanly if the
+    // column isn't there.
+    const { data: statusRow } = await supabase
+      .from('campaign_projects')
+      .select('status')
+      .eq('id', id)
+      .maybeSingle();
+    if (statusRow?.status === 'pending_acceptance') {
+      return jsonError(
+        409,
+        'These terms have not been accepted by both sides yet, so this project cannot move. Accept or decline them from the conversation first.',
+      );
+    }
+
+    // A cancelled project is a frozen record — no further changes beyond
+    // the cancellation RPCs (which already check for this themselves).
+    // Without this gate the advance/signoff/skip flows proceed until they
+    // hit the UPDATE policy (status <> 'cancelled') and return an opaque RLS
+    // error instead of a clean message.
+    if (statusRow?.status === 'cancelled') {
+      return jsonError(
+        409,
+        'This project has been cancelled. The record is available for reference, but no further changes can be made.',
+      );
+    }
 
     // Get user's role in the project
     const userRole = project.owner_user_id === user.id ? 'business' : 'creator';
@@ -163,7 +209,37 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         if (currentIdx >= STAGES.length - 1) {
           return jsonError(400, 'Already at final stage');
         }
-        nextStage = STAGES[currentIdx + 1];
+        // Default target = the stage's only legal transition, NOT the next
+        // array element. The explicit-stage_key branch above already validates
+        // against ALLOWED_TRANSITIONS; this branch skipped that check entirely
+        // and walked the array, so a bare "Advance" on `revisions` jumped to
+        // `final_approval` — past the re-review that ALLOWED_TRANSITIONS.revisions
+        // exists to require.
+        //
+        // A forking stage (sent_for_review) has no single default and must be
+        // told which way to go, which is what the review fork's buttons do.
+        const defaultNext: string[] = ALLOWED_TRANSITIONS[project.current_stage] || [];
+        if (defaultNext.length !== 1) {
+          return jsonError(
+            400,
+            `The ${STAGE_LABELS[project.current_stage] || project.current_stage} stage needs an explicit decision — pick where it goes next.`,
+          );
+        }
+        nextStage = defaultNext[0];
+      }
+
+      // Completion is DUAL-CONFIRM (see 1b and migration 056) — but this older
+      // `advance` path could still walk straight into 'project_completed', and
+      // STAGE_ACTOR['final_payment'] is 'business'. That meant a brand alone
+      // could close a project the creator never agreed was finished, which ends
+      // the change-request window, locks the workspace, and now also publishes
+      // the collaboration and a rating on the creator's public profile.
+      // Completion has exactly one door, and it is confirm_completion.
+      if (nextStage === 'project_completed') {
+        return jsonError(
+          400,
+          'Completion needs both sides. Use “Confirm completion” — the project closes once you and the other party have both confirmed.',
+        );
       }
 
       // Mark current stage as completed in stage_progress
@@ -283,10 +359,30 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       let nextStage: string | null = null;
       if (bothSigned && currentIdx < STAGES.length - 1) {
-        // Both confirmed → complete this stage and move to the next one.
+        // Both confirmed → complete this stage and move on.
+        //
+        // The target comes from ALLOWED_TRANSITIONS, not STAGES[idx + 1]. For
+        // every stage but one those are the same answer, and the exception is
+        // the one that mattered: `revisions` is followed in the array by
+        // `final_approval`, but its only legal transition is BACK to
+        // `sent_for_review`. Advancing by index silently skipped the re-review,
+        // so a brand approved final content having never seen the resubmitted
+        // draft — and the `advance` path and this one disagreed about what the
+        // revision loop even does.
+        //
+        // A sign-off stage has exactly one exit by definition; anything with a
+        // fork (sent_for_review) is in NON_SIGNOFF_STAGES and never reaches
+        // here. Bail rather than guess if that ever stops being true.
+        const allowedNext: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
+        if (allowedNext.length !== 1) {
+          return jsonError(
+            500,
+            `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't advance by sign-off.`,
+          );
+        }
         entry.status = 'completed';
         entry.completed_at = now;
-        const ns = STAGES[currentIdx + 1] as string;
+        const ns = allowedNext[0];
         nextStage = ns;
         stageProgress[currentStage] = entry;
         stageProgress[ns] = {
@@ -396,7 +492,19 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (proposedBy === user.id) return jsonError(400, 'The other party has to confirm the skip you proposed.');
       if (currentIdx >= STAGES.length - 1) return jsonError(400, 'Already at the final stage');
 
-      const skipNext = STAGES[currentIdx + 1] as string;
+      // Same rule as sign-off above: the transition map decides where a stage
+      // leads, never the array order. No skippable stage forks or loops today,
+      // so this is defence in depth rather than a live fix — but it is the
+      // identical hazard, and leaving one of the two paths advancing by index
+      // is how they drift apart again.
+      const skipAllowed: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
+      if (skipAllowed.length !== 1) {
+        return jsonError(
+          500,
+          `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't be skipped.`,
+        );
+      }
+      const skipNext = skipAllowed[0];
       entry.status = 'skipped';
       entry.skipped_at = now;
       entry.skip_confirmed_by = user.id;
@@ -439,6 +547,46 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (action === 'confirm_completion') {
       if (project.current_stage !== 'final_payment') {
         return jsonError(400, 'Completion can only be confirmed at the final payment stage');
+      }
+
+      // The CREATOR may not confirm completion while the final payment gate is
+      // still open. Completing publishes the collaboration and a rating on their
+      // public profile and closes the change-request window — so "done" has to
+      // mean "and I was paid".
+      //
+      // Every other stage checks its required items before it can move; this one
+      // never did, which made final_payment the one gate a project could walk
+      // past. When in-app payments are configured that item only opens on a
+      // signed webhook, so this is a real money check, not a checkbox.
+      //
+      // Deliberately one-sided. The BUSINESS is the payer: if they want to close
+      // a project having settled off-platform, that is their money and their
+      // call, and blocking them would strand every manual-payment project. The
+      // creator is the one who needs protecting here, and they still hold the
+      // other half of the dual-confirm either way.
+      if (userRole === 'creator') {
+        const { data: finalItems, error: finalItemsErr } = await supabase
+          .from('project_stage_items')
+          .select('*')
+          .eq('project_id', id)
+          .eq('stage_key', 'final_payment');
+        // Same fail-open as the other checklist gates: a missing table (054 not
+        // applied) must not block completion outright.
+        if (finalItemsErr) {
+          log.warn('final payment checklist unavailable, skipping gate', { err: finalItemsErr.message });
+        } else {
+          const pendingFinal = blockingItems('final_payment', (finalItems || []) as StageItem[]);
+          if (pendingFinal.length > 0) {
+            return NextResponse.json(
+              {
+                error:
+                  'The final payment hasn’t been recorded yet. Once it is, you can confirm the project is complete.',
+                blocking: pendingFinal.map((it) => it.label),
+              },
+              { status: 409 },
+            );
+          }
+        }
       }
 
       // Read the confirmation columns here (added in migration 056). If they're
@@ -518,11 +666,22 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(400, `Invalid stage key: ${stage_key}`);
       }
 
-      // Sanitize updates to prevent tampering with stage status/dates directly
-      const sanitizedUpdates = { ...updates };
-      delete sanitizedUpdates.status;
-      delete sanitizedUpdates.started_at;
-      delete sanitizedUpdates.completed_at;
+      // Allow-list, not a deny-list: stage_progress[stage_key] is also where
+      // sign-off consent state lives (owner_signoff_at, creator_signoff_at,
+      // skip_proposed_by, ...). A deny-list of just status/started_at/
+      // completed_at left those forgeable — either party could write the
+      // COUNTERPARTY's sign-off/skip-proposal into their own entry and then
+      // satisfy the "both sides agreed" check alone. Only presentational
+      // fields may be merged here.
+      const ALLOWED_STAGE_FIELDS = ['notes', 'meeting_link', 'deliverables'] as const;
+      const sanitizedUpdates = Object.fromEntries(
+        Object.entries(updates as Record<string, unknown>).filter(([k]) =>
+          (ALLOWED_STAGE_FIELDS as readonly string[]).includes(k),
+        ),
+      );
+      if (Object.keys(sanitizedUpdates).length === 0) {
+        return jsonError(400, 'No updatable fields provided.');
+      }
 
       const stageProgress = (project.stage_progress || {}) as Record<string, any>;
       stageProgress[stage_key] = {
@@ -544,9 +703,42 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ project: updated });
     }
 
-    // 3) Update project title / description / deliverables
+    // 3) Update project title / description / deliverables.
+    //
+    // These are exactly the fields the propose -> notify -> accept loop in
+    // /api/projects/[id]/change-requests exists to protect: any change is
+    // meant to be proposed, snapshotted against its previous value, and
+    // notified to the other side before it takes effect. Editing them
+    // directly here bypassed all of that — no consent, no notification, no
+    // activity entry, and no length limit (change-requests caps these at
+    // 4000 chars). The only safe direct edit is the proposer tidying up terms
+    // nobody has accepted yet; once a project is active, this must go through
+    // a change request instead.
     if (action === 'update_project') {
-      const { title, description, deliverables } = result.data;
+      const { data: statusForEdit } = await supabase
+        .from('campaign_projects')
+        .select('status, created_by_user_id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (statusForEdit?.status !== 'pending_acceptance' || statusForEdit?.created_by_user_id !== user.id) {
+        return jsonError(
+          409,
+          'Agreed terms can only be changed through a change request, so the other side can review it.',
+        );
+      }
+
+      const EditableTermsSchema = z.object({
+        title: z.string().trim().min(1).max(200).optional(),
+        description: z.string().max(4000).optional(),
+        deliverables: z.string().max(4000).optional(),
+      });
+      const termsResult = EditableTermsSchema.safeParse(result.data);
+      if (!termsResult.success) {
+        return NextResponse.json({ error: 'Validation failed', details: termsResult.error.format() }, { status: 400 });
+      }
+      const { title, description, deliverables } = termsResult.data;
+
       const updateData: any = { updated_at: new Date().toISOString() };
       if (title !== undefined) updateData.title = title;
       if (description !== undefined) updateData.description = description;
@@ -560,88 +752,144 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .single();
 
       if (updateErr) return jsonError(500, 'Failed to update project details', updateErr);
+
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'terms_edited',
+        summary: 'Edited the proposed terms before they were accepted',
+      });
+
       return NextResponse.json({ project: updated });
     }
 
-    // 4) Cancellation flows
+    // 4) Cancellation flows — bilateral: one requests with a reason, the
+    //
+    // NOTE: these branches come AFTER the cancelled-status gate above, so
+    // they will never see a cancelled project. The RPCs guard themselves
+    // anyway (cannot_cancel_now / already_cancelled); this comment exists
+    // so a future reader doesn't wonder why the gate is above and the
+    // cancellation handlers are here.
+    // OTHER side accepts or declines. Enforced again at the database level
+    // (migration 089's extension of enforce_project_consent), so this route
+    // is the friendly error path, not the only guard.
     if (action === 'request_cancellation') {
-      const { data: updated, error: updateErr } = await supabase
-        .from('campaign_projects')
-        .update({ cancel_requested_by: user.id, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-      if (updateErr) return jsonError(500, 'Failed to request cancellation', updateErr);
+      if (!result.data.reason_category) {
+        return jsonError(400, 'Choose a reason for the cancellation.');
+      }
+
+      const { data: rpcData, error: rpcErr } = await (supabase.rpc as any)(
+        'request_project_cancellation',
+        {
+          p_project_id: Number(id),
+          p_reason_category: result.data.reason_category,
+          p_reason_text: result.data.note ?? null,
+        },
+      );
+
+      if (rpcErr) {
+        const known: Record<string, [number, string]> = {
+          cannot_cancel_now: [409, 'Only an active project can be cancelled.'],
+          cancellation_already_pending: [409, 'A cancellation request is already waiting on a response.'],
+          invalid_reason_category: [400, 'Choose a reason from the list.'],
+          reason_text_required: [400, "Add a note explaining what's changed."],
+          not_a_participant: [403, 'You are not part of this project.'],
+        };
+        const hit = Object.entries(known).find(([k]) => rpcErr.message?.includes(k));
+        if (hit) return jsonError(hit[1][0], hit[1][1]);
+        return jsonError(500, 'Failed to request cancellation', rpcErr);
+      }
+
+      const reasonLabel = cancellationReasonLabel(result.data.reason_category);
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, type: 'cancellation_requested',
-        summary: 'Requested to cancel the project',
+        summary: `Requested to cancel the project — ${reasonLabel}`,
+        metadata: { reason_category: result.data.reason_category, reason_text: result.data.note ?? null },
       });
       if (counterpartyId) {
         await notifyUser({
           userId: counterpartyId,
           type: 'project_cancel',
           title: `${projectLabel}: cancellation requested`,
-          body: `The ${userRole === 'business' ? 'brand' : 'creator'} asked to cancel this project. Review it to accept or decline.`,
+          body: `The ${userRole === 'business' ? 'brand' : 'creator'} asked to cancel this project — ${reasonLabel}. Open it to discuss or respond.`,
           link: projectLink,
         });
       }
-      return NextResponse.json({ project: updated });
+      return NextResponse.json({ project: rpcData?.project ?? rpcData });
     }
 
     if (action === 'decline_cancellation') {
-      const { data: updated, error: updateErr } = await supabase
-        .from('campaign_projects')
-        .update({ cancel_requested_by: null, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-      if (updateErr) return jsonError(500, 'Failed to decline cancellation', updateErr);
+      const { data: rpcData, error: rpcErr } = await (supabase.rpc as any)(
+        'decline_project_cancellation',
+        { p_project_id: Number(id) },
+      );
+      if (rpcErr) {
+        if (rpcErr.message?.includes('no_cancellation_requested')) {
+          return jsonError(400, 'There is no pending cancellation request to decline.');
+        }
+        if (rpcErr.message?.includes('not_a_participant')) {
+          return jsonError(403, 'You are not part of this project.');
+        }
+        return jsonError(500, 'Failed to decline cancellation', rpcErr);
+      }
+
+      // Same action either declines the OTHER side's request or withdraws
+      // your own — the RPC doesn't distinguish, so neither does the summary.
+      const wasRequester = rpcData?.was_requested_by === user.id;
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, type: 'cancellation_declined',
-        summary: 'Declined the cancellation — project continues',
+        summary: wasRequester ? 'Withdrew the cancellation request' : 'Declined the cancellation — project continues',
       });
       if (counterpartyId) {
         await notifyUser({
           userId: counterpartyId,
           type: 'project_cancel',
-          title: `${projectLabel}: cancellation declined`,
-          body: 'Your request to cancel this project was declined. The project continues.',
+          title: wasRequester ? `${projectLabel}: cancellation withdrawn` : `${projectLabel}: cancellation declined`,
+          body: wasRequester
+            ? 'The cancellation request was withdrawn. The project continues.'
+            : 'Your request to cancel this project was declined. The project continues.',
           link: projectLink,
         });
       }
-      return NextResponse.json({ project: updated });
+      return NextResponse.json({ project: rpcData?.project ?? rpcData });
     }
 
     if (action === 'accept_cancellation') {
-      const { data: cancelProject, error: fetchCancelErr } = await supabase
-        .from('campaign_projects')
-        .select('cancel_requested_by')
-        .eq('id', id)
-        .single();
-      if (fetchCancelErr) return jsonError(500, 'Failed to fetch project', fetchCancelErr);
-      if (!cancelProject.cancel_requested_by) {
-        return jsonError(400, 'No active cancellation request found');
-      }
-      if (cancelProject.cancel_requested_by === user.id) {
-        return jsonError(400, 'Cannot accept your own cancellation request');
-      }
-
-      const { error: deleteErr } = await supabase
-        .from('campaign_projects')
-        .delete()
-        .eq('id', id);
-
-      if (deleteErr) return jsonError(500, 'Failed to delete project', deleteErr);
-      log.info('project cancellation accepted — project deleted', { actor: userRole });
-      // Notify the party who requested the cancellation that it was accepted.
-      await notifyUser({
-        userId: cancelProject.cancel_requested_by,
-        type: 'project_cancel',
-        title: `${projectLabel} was cancelled`,
-        body: 'Your cancellation request was accepted. The project has been closed.',
-        link: '/dashboard/projects',
+      // Cancelling is a STATE CHANGE, not a delete. The row, its payment
+      // ledger, its activity timeline and its assets all survive — both sides
+      // keep a read-only record of what was agreed and what was paid.
+      const { data: cancelResult, error: cancelErr } = await (supabase.rpc as any)('cancel_project', {
+        p_project_id: Number(id),
       });
-      return NextResponse.json({ ok: true, deleted: true });
+      if (cancelErr) {
+        const known: Record<string, [number, string]> = {
+          no_cancellation_requested: [400, 'No active cancellation request found.'],
+          requester_cannot_accept: [400, 'The other party has to accept the cancellation you requested.'],
+          already_cancelled: [409, 'This project is already cancelled.'],
+          cannot_cancel_completed: [409, 'A completed project cannot be cancelled.'],
+          not_a_participant: [403, 'You are not part of this project.'],
+        };
+        const hit = Object.entries(known).find(([k]) => cancelErr.message?.includes(k));
+        if (hit) return jsonError(hit[1][0], hit[1][1]);
+        return jsonError(500, 'Failed to cancel the project', cancelErr);
+      }
+
+      log.info('project cancelled by mutual agreement', { actor: userRole });
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'cancellation_accepted',
+        summary: 'Both sides agreed to cancel the project',
+      });
+
+      const requesterId = cancelResult?.notify_user_id as string | undefined;
+      if (requesterId) {
+        await notifyUser({
+          userId: requesterId,
+          type: 'project_cancel',
+          title: `${projectLabel} was cancelled`,
+          body: 'Your cancellation request was accepted. The project is closed — the record and any payments stay available.',
+          link: projectLink,
+        });
+      }
+
+      return NextResponse.json({ ok: true, cancelled: true, project: cancelResult?.project ?? null });
     }
 
     return jsonError(400, 'Unknown action');

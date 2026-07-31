@@ -15,9 +15,15 @@
     "test:unit": "vitest run tests/unit/",
     "test:integration": "vitest run tests/integration/",
     "test:e2e": "node scripts/e2e-exercise.mjs",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "setup:webhook": "node ../../scripts/setup-stream-webhook.mjs",
+    "check:push": "node ../../scripts/check-push-tokens.mjs"
   },
   "dependencies": {
+    "@influnet/api": "*",
+    "@influnet/core": "*",
+    "@influnet/tokens": "*",
+    "@influnet/types": "*",
     "@base-ui/react": "^1.6.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",

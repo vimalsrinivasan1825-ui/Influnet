@@ -115,12 +115,29 @@ export async function checkRateLimit(opts: {
 }
 
 /**
- * Best-effort client identity for anonymous/pre-auth rate limiting. Prefers the
- * left-most X-Forwarded-For hop (the original client) behind Vercel/Azure.
+ * Best-effort client identity for anonymous/pre-auth rate limiting.
+ *
+ * X-Forwarded-For is a comma-separated list that grows as a request passes
+ * through proxies — each hop APPENDS the address it saw. That means the
+ * platform's own edge proxy appends the real client address as the LAST
+ * (right-most) entry; anything to its left is whatever the client itself
+ * claimed in the header it sent, which is entirely spoofable. Trusting the
+ * left-most hop (the previous behaviour) let a caller rotate a fake IP on
+ * every request and bypass every limiter keyed on it — including the
+ * unauthenticated scrape:instagram bucket, which spends paid provider credits
+ * per call. Vercel also injects its own header with the value it verified,
+ * which is preferred here when present.
  */
 export function clientKey(req: Request): string {
+  const vercel = req.headers.get('x-vercel-forwarded-for');
+  if (vercel) return vercel.trim();
+
   const xff = req.headers.get('x-forwarded-for');
-  if (xff) return xff.split(',')[0]!.trim();
+  if (xff) {
+    const hops = xff.split(',').map((s) => s.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1]!;
+  }
+
   return (
     req.headers.get('x-real-ip') ||
     req.headers.get('cf-connecting-ip') ||

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 // GET all campaign projects (admin view)
 export async function GET(req: Request) {
@@ -32,7 +33,7 @@ export async function DELETE(req: Request) {
   try {
     const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const { project_id } = await req.json();
     if (!project_id) {
@@ -57,6 +58,12 @@ export async function DELETE(req: Request) {
       .eq('id', project_id);
 
     if (deleteErr) throw deleteErr;
+
+    await auditAdmin({
+      actorId: user.id, actorEmail: user.email, action: 'project_deleted',
+      targetId: String(project_id), targetType: 'campaign_project',
+      metadata: { title: project.title }, req,
+    });
 
     return NextResponse.json({
       ok: true,

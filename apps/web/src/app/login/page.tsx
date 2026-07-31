@@ -65,19 +65,80 @@ function LoginContent() {
                 method: "POST",
                 headers: { Authorization: `Bearer ${data.session.access_token}` },
               }).catch(() => {});
+            } else if (res.status === 403) {
+              // Mobile verification lapsed before the email was confirmed (the
+              // token is good for 30 minutes). Say so instead of dropping the
+              // user into the app with no profile row.
+              const body = await res.json().catch(() => ({}));
+              if (body?.reason === "phone_unverified") {
+                setError(
+                  "Your mobile verification expired before you confirmed your email. Please sign up again to re-verify your number.",
+                );
+                localStorage.removeItem("influnet_pending_registration");
+                await sb.auth.signOut();
+                return;
+              }
             }
           }
         } catch {
           /* best-effort; fall through to normal routing */
         }
 
-        const { data: profile } = await sb
+        let { data: profile } = await sb
           .from("profiles")
           .select("role")
           .eq("id", data.user.id)
           .maybeSingle();
+
+        // Still no profile. The localStorage replay above only fires in the
+        // browser that filled the wizard — confirm the email on a different
+        // device (or sign up on mobile, which stashes nothing) and there is
+        // nothing to replay. Without this the user lands in the dashboard with
+        // no profile row: the shell guards every read on `if (profile)`, so it
+        // renders a signed-in app with no role, no name and no way back.
+        //
+        // The answers aren't gone: both wizards pass them to signUp as
+        // `options.data`, so they're on the auth user server-side. An empty POST
+        // asks the API to rebuild from those.
+        if (!profile) {
+          const res = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+            body: "{}",
+          });
+
+          if (res.ok) {
+            void fetch("/api/verification", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${data.session.access_token}` },
+            }).catch(() => {});
+            ({ data: profile } = await sb
+              .from("profiles")
+              .select("role")
+              .eq("id", data.user.id)
+              .maybeSingle());
+          } else {
+            const body = await res.json().catch(() => ({}));
+            // Mobile verification can't be inherited — the token is single-use
+            // and short-lived, and rebuilding must never be a way around the
+            // OTP gate. Send them to the wizard to re-verify rather than
+            // creating a profile with an unverified number.
+            setError(
+              body?.reason === "phone_unverified"
+                ? "Your mobile verification expired before you confirmed your email. Please sign up again to re-verify your number."
+                : body?.error ||
+                  "We couldn't finish setting up your account. Please sign up again.",
+            );
+            await sb.auth.signOut();
+            return;
+          }
+        }
+
         const role = (profile as { role?: string } | null)?.role;
-        if (role === "influencer") router.push(nextParam || "/dashboard/influencer");
+        if (role === "influencer") router.push(nextParam || "/dashboard");
         else if (role === "admin") router.push(nextParam || "/dashboard/admin");
         else router.push(nextParam || "/dashboard");
       }

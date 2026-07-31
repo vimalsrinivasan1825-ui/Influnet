@@ -5,6 +5,14 @@ import { z } from 'zod';
 const PatchNotificationsSchema = z.object({
   action: z.enum(['mark_read']),
   notificationIds: z.array(z.string().uuid()).optional(),
+  /**
+   * Clear the `type: 'message'` notifications for one conversation — what
+   * opening a chat thread means. Without this the only options were "these
+   * exact ids" (which a chat screen doesn't know) or "every notification you
+   * have", and reading a chat would have had to wipe unrelated project alerts
+   * to clear its own.
+   */
+  conversationId: z.string().uuid().optional(),
 });
 
 export async function GET(req: Request) {
@@ -49,11 +57,23 @@ export async function PATCH(req: Request) {
   if (!result.success) {
     return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
   }
-  const { action, notificationIds } = result.data;
+  const { action, notificationIds, conversationId } = result.data;
 
   if (action === 'mark_read') {
     const nowStr = new Date().toISOString();
-    if (notificationIds && notificationIds.length > 0) {
+    if (conversationId) {
+      // notify.ts stores the conversation in the link as
+      // `/dashboard/messages?conv=<uuid>` — match on that rather than adding a
+      // column, so this stays in step with whatever notify.ts writes.
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read_at: nowStr })
+        .eq('user_id', user.id)
+        .eq('type', 'message')
+        .is('read_at', null)
+        .like('link', `%conv=${conversationId}%`);
+      if (error) return jsonError(500, 'Failed to mark conversation as read', error);
+    } else if (notificationIds && notificationIds.length > 0) {
       const { error } = await supabase
         .from('notifications')
         .update({ read_at: nowStr })

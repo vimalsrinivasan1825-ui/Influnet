@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { ProfileUpdateSchema, BusinessProfileUpdateSchema } from '@/lib/validators';
+import { refreshYouTubeSnapshot } from '@/lib/youtube';
 
 // GET current user's profile (both base profile + extended profile)
 export async function GET(req: Request) {
@@ -29,6 +30,11 @@ export async function GET(req: Request) {
       verification_status: p.verification_status ?? 'unverified',
       verified_badge: p.verified_badge ?? false,
       verified_at: p.verified_at ?? null,
+      // Undefined (rather than null) when migration 077 hasn't been applied,
+      // so the nudge falls back to its localStorage behaviour for that window.
+      mediakit_nudge_dismissed_at: 'mediakit_nudge_dismissed_at' in p ? p.mediakit_nudge_dismissed_at : undefined,
+      // Same undefined-until-migration-085 fallback for the ownership nudge.
+      ownership_nudge_dismissed_at: 'ownership_nudge_dismissed_at' in p ? p.ownership_nudge_dismissed_at : undefined,
     };
 
     // Get extended profile based on role.
@@ -90,10 +96,17 @@ export async function GET(req: Request) {
           tiktok_handle: inf.tiktok_handle,
           avatar_url: inf.avatar_url,
           cover_image_url: inf.cover_image_url,
-          is_verified: inf.is_verified,
+          verified_badge: p.verified_badge ?? false,
           availability_status: inf.availability_status,
           engagement_rate: inf.engagement_rate,
           media_kit_url: inf.media_kit_url,
+          // Undefined until migration 088 rather than null/{}: distinguishes
+          // "this backend doesn't have the column yet" from "creator has an
+          // empty (all-visible) preference", which the settings UI needs to
+          // tell apart to avoid PATCHing a value it never actually read.
+          profile_section_visibility: 'profile_section_visibility' in inf
+            ? inf.profile_section_visibility
+            : undefined,
         });
       }
     }
@@ -174,13 +187,28 @@ export async function PATCH(req: Request) {
       }
     } else if (role === 'influencer' && Object.keys(validatedData).length > 0) {
       const infUpdates: any = { ...validatedData, updated_at: new Date().toISOString() };
-      const { error: infError } = await supabase
+      const { data: infRow, error: infError } = await supabase
         .from('influencer_profiles')
         .update(infUpdates)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select('youtube_handle')
+        .maybeSingle();
       if (infError) {
         if (infError.code === '23505') return jsonError(409, 'That username is already taken');
         return jsonError(500, 'Failed to update influencer profile', infError);
+      }
+
+      // Connecting or updating a YouTube channel should populate the profile straight away —
+      // a creator who saves their handle and sees an empty video grid assumes it
+      // didn't work. The capture is two public fetches (channel page + Atom
+      // feed), so it runs AFTER the response rather than making a settings save
+      // wait several seconds for it. Failure is silent by design: lib/youtube.ts
+      // never throws, and the creator can still refresh manually.
+      if (infRow?.youtube_handle) {
+        const handle = infRow.youtube_handle;
+        after(async () => {
+          await refreshYouTubeSnapshot(user.id, handle);
+        });
       }
     }
 

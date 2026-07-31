@@ -94,6 +94,38 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       .update({ updated_at: new Date().toISOString() })
       .eq('id', id);
 
+    // Notify recipient(s)
+    try {
+      const { data: participants } = await supabase
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', id)
+        .neq('user_id', user.id);
+
+      if (participants && participants.length > 0) {
+        const { data: senderProfile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        const senderName = senderProfile?.name || 'A user';
+        const { notifyUser } = await import('@/lib/notify');
+
+        for (const p of participants) {
+          await notifyUser({
+            userId: p.user_id,
+            type: 'message',
+            title: `New message from ${senderName}`,
+            body: content.length > 100 ? content.slice(0, 97) + '...' : content,
+            link: `/dashboard/messages?conv=${id}`,
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('[Messages API] Failed to notify user:', notifErr);
+    }
+
     return NextResponse.json({ message: msg });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);

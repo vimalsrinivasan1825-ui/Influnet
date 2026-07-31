@@ -32,6 +32,81 @@ function serviceClient() {
 }
 
 /**
+ * Push the notification to the recipient's phone, if they have one registered
+ * (migration 079's `profiles.expo_push_token`, set by the mobile app on
+ * launch — see apps/mobile/lib/push.ts).
+ *
+ * Without this, `notifications` rows only reach someone who happens to open
+ * the app — for a turn-based product ("waiting on the creator") that means
+ * the other side finds out only on their next visit. This is best-effort in
+ * every sense: no token, missing migration, or a failed Expo request all just
+ * log and return — a push is a bonus, never a dependency of the action that
+ * triggered it.
+ */
+async function sendPush(
+  sb: NonNullable<ReturnType<typeof serviceClient>>,
+  userId: string,
+  title: string,
+  body: string,
+  link: string | null,
+): Promise<void> {
+  try {
+    const { data, error } = await sb
+      .from('profiles')
+      .select('expo_push_token')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) return; // migration 079 not applied yet — no column to read
+    const token = (data as { expo_push_token?: string | null } | null)?.expo_push_token;
+    if (!token) return;
+
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        to: token,
+        title,
+        body,
+        sound: 'default',
+        // Android routes by channel; 'default' is the one the app creates at
+        // MAX importance (apps/mobile/lib/push.ts). Without naming it here the
+        // notification can land on a lower-importance fallback channel and
+        // never show a heads-up banner. `priority: high` is the FCM-side
+        // equivalent — it also lets the message wake a dozing device.
+        channelId: 'default',
+        priority: 'high',
+        // The mobile app reads this on tap to deep-link — see
+        // lib/notification-link.ts's toMobileHref().
+        data: link ? { link } : undefined,
+      }),
+    });
+    if (!res.ok) {
+      console.error('[notify] Expo push request failed:', res.status, await res.text().catch(() => ''));
+      return;
+    }
+
+    /**
+     * Expo answers 200 even when it refuses the message — the verdict is in
+     * the ticket. DeviceNotRegistered (app uninstalled, token rotated) is the
+     * common one, and left in place it means every later push for this user is
+     * silently dropped, so the dead token is cleared here.
+     */
+    const ticket = (await res.json().catch(() => null)) as
+      | { data?: { status?: string; message?: string; details?: { error?: string } } }
+      | null;
+    const status = ticket?.data?.status;
+    if (status && status !== 'ok') {
+      console.error('[notify] Expo push ticket error:', ticket?.data?.message, ticket?.data?.details);
+      if (ticket?.data?.details?.error === 'DeviceNotRegistered') {
+        await sb.from('profiles').update({ expo_push_token: null }).eq('id', userId);
+      }
+    }
+  } catch (err) {
+    console.error('[notify] exception while sending push:', err);
+  }
+}
+
+/**
  * Best-effort notification write. This NEVER throws: a failed notification must
  * not roll back or break the action that triggered it (advancing a stage, etc.).
  * Returns whether the row was written so callers can log if they care.
@@ -54,6 +129,7 @@ export async function notifyUser(input: NotifyInput): Promise<boolean> {
       console.error('[notify] failed to insert notification:', error.message);
       return false;
     }
+    await sendPush(sb, input.userId, input.title, input.body ?? '', input.link ?? null);
     return true;
   } catch (err) {
     console.error('[notify] exception while notifying:', err);

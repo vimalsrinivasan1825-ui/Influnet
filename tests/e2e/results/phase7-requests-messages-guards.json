@@ -1,0 +1,325 @@
+{
+  "phaseId": "phase7-requests-messages-guards",
+  "phaseTitle": "Phase 7 — Requests Actions, Messages, Notifications & Guards",
+  "generatedAt": "2026-07-30T05:45:06.011Z",
+  "summary": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0,
+    "skipped": 0,
+    "findings": 2
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Resolve ids and log in both sides",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/01-resolve-ids-and-log-in-both-sides.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-30T05:43:54.219Z"
+    },
+    {
+      "step": 2,
+      "name": "Business sends a throwaway request to cancel",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/02-business-sends-a-throwaway-request-to-cancel.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-30T05:43:57.883Z"
+    },
+    {
+      "step": 3,
+      "name": "Business cancels the request it just sent",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Clicked Cancel on the sent request."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/03-business-cancels-the-request-it-just-sent.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-30T05:44:14.939Z"
+    },
+    {
+      "step": 4,
+      "name": "DB: cancelled request has status=cancelled",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:44:15.122Z"
+    },
+    {
+      "step": 5,
+      "name": "Business sends a second throwaway request for the decline test",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/04-business-sends-a-second-throwaway-request-for-the-decline-te.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-30T05:44:18.670Z"
+    },
+    {
+      "step": 6,
+      "name": "Creator declines it (native confirm dialog + 6s undo window)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Undo toast visible during the 6s window: true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/05-creator-declines-it-native-confirm-dialog-6s-undo-window.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-30T05:44:28.456Z"
+    },
+    {
+      "step": 7,
+      "name": "DB: declined request has status=declined after the undo window elapses",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:44:28.625Z"
+    },
+    {
+      "step": 8,
+      "name": "Creator reopens the declined request",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Clicked Reopen."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/06-creator-reopens-the-declined-request.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-30T05:44:32.370Z"
+    },
+    {
+      "step": 9,
+      "name": "DB: reopened request is back to pending",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:44:32.509Z"
+    },
+    {
+      "step": 10,
+      "name": "Clean up throwaway cancel/decline test requests",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Deleted 2 throwaway request(s)."
+      ],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:44:32.656Z"
+    },
+    {
+      "step": 11,
+      "name": "SECURITY CHECK: unrelated project's core data never reaches the creator",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Page HTTP 200. Underlying /api/projects/34/* calls: [{\"url\":\"http://localhost:3000/api/projects/34/reviews\",\"status\":404,\"body\":{\"error\":\"Project not found\"}},{\"url\":\"http://localhost:3000/api/projects/34/cards\",\"status\":404,\"body\":{\"error\":\"Project not found\"}},{\"url\":\"http://localhost:3000/api/projects/34\",\"status\":404,\"body\":{\"error\":\"Project not found\"}},{\"url\":\"http://localhost:3000/api/projects/34/payments\",\"status\":200,\"body\":{\"configured\":true,\"key_id\":\"rzp_test_TDMnEwU0s6YqwA\"}},{\"url\":\"http://localhost:3000/api/projects/34/stage-entries. Page body snippet: \"influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Searc\"",
+        "Base project record / activity / change-requests / stage-entries / reviews / cards correctly denied (4xx): true. The page now renders a clear \"doesn't exist, or you don't have access\" state instead of the indefinite \"Loading…\" spinner the audit found.",
+        "/stage-items returned HTTP 500 ({\"error\":\"Failed to seed stage items\"}) instead of a clean 403 — the route tries to auto-seed default checklist rows on first GET, RLS correctly blocks that INSERT for a non-participant, but the route surfaces it as a generic 500 rather than catching the specific case and returning 403. No stage data was exposed (the response is an error, not a checklist).",
+        "/payments returned HTTP 200 with {\"configured\":true,\"key_id\":\"rzp_test_TDMnEwU0s6YqwA\"} — this is app-wide \"is Razorpay configured\" config plus its public key_id (meant to be public — used client-side to open Checkout), not this project's actual payment records. Not a leak, but the route still never checked membership before answering.",
+        "GET /api/projects/34/reviews as an unrelated creator → HTTP 404, body: {\"error\":\"Project not found\"} (was HTTP 200 before the fix).",
+        "GET /api/projects/34/cards as an unrelated creator → HTTP 404, body: {\"error\":\"Project not found\"} (was HTTP 200 before the fix)."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/07-security-check-unrelated-project-s-core-data-never-reaches-t.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "networkErrors": [
+        "404 GET http://localhost:3000/api/projects/34/reviews",
+        "404 GET http://localhost:3000/api/projects/34/cards",
+        "404 GET http://localhost:3000/api/projects/34",
+        "404 GET http://localhost:3000/api/projects/34/stage-entries",
+        "404 GET http://localhost:3000/api/projects/34/change-requests",
+        "404 GET http://localhost:3000/api/projects/34/activity",
+        "500 GET http://localhost:3000/api/projects/34/stage-items",
+        "404 GET http://localhost:3000/api/projects/34/reviews",
+        "404 GET http://localhost:3000/api/projects/34/cards",
+        "404 GET http://localhost:3000/api/projects/34"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/34",
+      "timestamp": "2026-07-30T05:44:36.714Z"
+    },
+    {
+      "step": 12,
+      "name": "/dashboard/influencer redirects to /dashboard (old links still work)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Landed at: http://localhost:3000/dashboard"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/08-dashboard-influencer-redirects-to-dashboard-old-links-still-.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "networkErrors": [
+        "404 GET http://localhost:3000/api/projects/34/stage-entries",
+        "404 GET http://localhost:3000/api/projects/34/change-requests",
+        "404 GET http://localhost:3000/api/projects/34/activity",
+        "500 GET http://localhost:3000/api/projects/34/stage-items"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-30T05:44:41.824Z"
+    },
+    {
+      "step": 13,
+      "name": "Bare /dashboard now renders the creator analytics view directly (no redirect needed)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Landed at: http://localhost:3000/dashboard. Shows creator name: true."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/09-bare-dashboard-now-renders-the-creator-analytics-view-direct.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-30T05:44:44.037Z"
+    },
+    {
+      "step": 14,
+      "name": "Notification bell shows unread activity and opens a dropdown",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Body snippet after opening bell: \"influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Search… / Notifications  New collaboration request  A b\""
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/10-notification-bell-shows-unread-activity-and-opens-a-dropdown.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/home",
+      "timestamp": "2026-07-30T05:44:47.671Z"
+    },
+    {
+      "step": 15,
+      "name": "DB: notifications table has real rows for the creator (project stage, requests, etc.)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:44:47.864Z"
+    },
+    {
+      "step": 16,
+      "name": "Business sends a real chat message to the creator via Stream",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Message sent: \"E2E audit test message 1785390294053\". Visible immediately after send: true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/11-business-sends-a-real-chat-message-to-the-creator-via-stream.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages",
+      "timestamp": "2026-07-30T05:44:56.731Z"
+    },
+    {
+      "step": 17,
+      "name": "Real message persisted server-side (survives a reload, not just optimistic local state)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Message still visible after a full page reload: true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/12-real-message-persisted-server-side-survives-a-reload-not-jus.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages",
+      "timestamp": "2026-07-30T05:45:00.068Z"
+    },
+    {
+      "step": 18,
+      "name": "Creator sees the same message on their side",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Message visible to the creator: true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase7-requests-messages-guards/13-creator-sees-the-same-message-on-their-side.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages",
+      "timestamp": "2026-07-30T05:45:05.768Z"
+    }
+  ]
+}

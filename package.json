@@ -11,9 +11,14 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "setup:webhook": "node scripts/setup-stream-webhook.mjs",
+    "check:push": "node scripts/check-push-tokens.mjs"
   },
   "devDependencies": {
+    "expo": "~57.0.7",
+    "expo-router": "~57.0.7",
+    "playwright": "^1.62.0",
     "turbo": "^2.5.0"
   }
 }

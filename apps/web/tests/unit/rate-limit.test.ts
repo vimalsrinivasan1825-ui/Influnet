@@ -44,11 +44,22 @@ describe('checkRateLimit (in-process fallback)', () => {
 });
 
 describe('clientKey', () => {
-  it('prefers the left-most X-Forwarded-For hop', () => {
+  it('prefers the RIGHT-most X-Forwarded-For hop — the proxy appends the real client, so anything to its left is client-claimed and spoofable', () => {
     const req = new Request('https://x.test', {
+      // A client rotating the left-most entry must not change the bucket.
       headers: { 'x-forwarded-for': '203.0.113.9, 10.0.0.1' },
     });
-    expect(clientKey(req)).toBe('203.0.113.9');
+    expect(clientKey(req)).toBe('10.0.0.1');
+  });
+
+  it('prefers x-vercel-forwarded-for over x-forwarded-for when present', () => {
+    const req = new Request('https://x.test', {
+      headers: {
+        'x-vercel-forwarded-for': '198.51.100.7',
+        'x-forwarded-for': '203.0.113.9, 10.0.0.1',
+      },
+    });
+    expect(clientKey(req)).toBe('198.51.100.7');
   });
 
   it('falls back to x-real-ip, then unknown', () => {

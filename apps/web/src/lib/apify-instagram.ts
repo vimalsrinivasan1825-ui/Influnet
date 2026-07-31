@@ -114,6 +114,27 @@ export async function getInstagramUser(username: string): Promise<HikerInstagram
   };
 }
 
+/**
+ * A post's play count, or null when the actor didn't really report one.
+ *
+ * `videoViewCount` is the only view-ish field this actor returns, and on many
+ * accounts it comes back as a placeholder rather than a count: @a2d_army's
+ * newest reel reported `1`, then `2` the next day, against 29,000 likes. Fed
+ * straight through, that placeholder became the average and the creator's
+ * public profile advertised "1 avg view per post" to brands.
+ *
+ * A post cannot have fewer views than likes, so anything at or below the like
+ * count is a placeholder, not data. Returning null costs us the metric (the
+ * profile falls back to the creator's YouTube view counts, which are real);
+ * returning the placeholder costs us the creator's credibility.
+ */
+function postViews(raw: unknown, likes: number | null): number | null {
+  const views = toNum(raw);
+  if (views == null || views <= 0) return null;
+  if (likes != null && views <= likes) return null;
+  return views;
+}
+
 /** Map the actor's `latestPosts` array to the shared recent-post shape. */
 function mapRecentPosts(raw: unknown): InstagramRecentPost[] {
   if (!Array.isArray(raw)) return [];
@@ -124,15 +145,16 @@ function mapRecentPosts(raw: unknown): InstagramRecentPost[] {
     const url = typeof p.url === 'string' ? p.url : shortcode ? `https://www.instagram.com/p/${shortcode}/` : null;
     if (!shortcode || !url) continue;
     const type = p.type === 'Video' || p.type === 'Sidecar' ? p.type : 'Image';
+    const likes = toNum(p.likesCount);
     posts.push({
       url,
       shortcode,
       type,
       // Trim captions: they're display hints, not content storage.
       caption: typeof p.caption === 'string' ? p.caption.slice(0, 200) : null,
-      likes: toNum(p.likesCount),
+      likes,
       comments: toNum(p.commentsCount),
-      views: toNum(p.videoViewCount),
+      views: postViews(p.videoViewCount, likes),
       takenAt: typeof p.timestamp === 'string' ? p.timestamp : null,
       displayUrl: typeof p.displayUrl === 'string' ? p.displayUrl : null,
       pinned: Boolean(p.isPinned),

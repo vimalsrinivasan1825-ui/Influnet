@@ -11,7 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
 import { uploadToCloudinary } from "@/lib/storage/upload-client";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
+import { BlockedAccountsPanel } from "@/components/dashboard/blocked-accounts-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
+import { PortfolioEditor } from "@/components/dashboard/portfolio-editor";
+import { ProfileVisibilityEditor } from "@/components/dashboard/profile-visibility-editor";
+import { publicProfileUrlDisplay } from "@/lib/site";
 
 type Slice = { label: string; pct: number };
 type SliceRow = { label: string; pct: string };
@@ -39,6 +43,8 @@ interface Profile {
   pricing_max?: number | null;
   past_collaborations?: unknown[] | null;
   audience_demographics?: AudienceDemographics | null;
+  // Undefined = migration 088 not applied; {} = applied with everything on.
+  profile_section_visibility?: Record<string, boolean> | null;
   avatar_url?: string;
   logo_url?: string;
   cover_image_url?: string;
@@ -370,7 +376,11 @@ export default function SettingsPage() {
       {(isBusiness || isInfluencer) && <VerificationPanel />}
 
       {isInfluencer && profile?.instagram_handle && (
-        <InstagramOwnershipPanel handle={profile.instagram_handle} />
+        <InstagramOwnershipPanel
+          handle={profile.instagram_handle}
+          username={username || profile?.username}
+          name={name || profile?.name}
+        />
       )}
 
       <SectionCard title="Profile information">
@@ -409,7 +419,7 @@ export default function SettingsPage() {
           }
         >
           <div className="flex flex-col gap-4">
-            <Field label="Platform username" hint={`Public URL: influnet.app/b/${username || "yourusername"}`}>
+            <Field label="Platform username" hint={`Public URL: ${publicProfileUrlDisplay("b", username || "yourusername")}`}>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
@@ -443,7 +453,7 @@ export default function SettingsPage() {
           }
         >
           <div className="flex flex-col gap-4">
-            <Field label="Platform username" hint={`Public URL: influnet.app/c/${username || "yourusername"}`}>
+            <Field label="Platform username" hint={`Public URL: ${publicProfileUrlDisplay("c", username || "yourusername")}`}>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
@@ -465,6 +475,13 @@ export default function SettingsPage() {
           </div>
         </SectionCard>
       )}
+
+      {/* Above the media-kit fields: this is what the public profile now leads
+          with, so it should be what a creator meets first here too. */}
+      {isInfluencer && (
+        <ProfileVisibilityEditor initial={profile?.profile_section_visibility ?? undefined} />
+      )}
+      {isInfluencer && <PortfolioEditor />}
 
       {isInfluencer && (
         <SectionCard title="Media kit details">
@@ -491,7 +508,10 @@ export default function SettingsPage() {
               </Field>
             </div>
 
-            <Field label="Past collaborations" hint="One brand per line. Shown as a logo/name wall on your media kit.">
+            <Field
+              label="Past collaborations"
+              hint="One brand per line — a plain name wall on your media kit. For work you can actually show, add it under Selected work above instead."
+            >
               <Textarea
                 value={pastCollabs}
                 onChange={(e) => setPastCollabs(e.target.value)}
@@ -535,6 +555,12 @@ export default function SettingsPage() {
             </>
           )}
         </Button>
+      </div>
+
+      <div className="mt-8">
+        <SectionCard eyebrow="Privacy" title="Blocked accounts" bodyClassName="p-0">
+          <BlockedAccountsPanel />
+        </SectionCard>
       </div>
 
       <div className="mt-8">

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import {
   BadgeCheck,
   DollarSign,
+  FileClock,
   FolderGit2,
   MapPin,
   MessageSquare,
@@ -20,19 +22,28 @@ import { AreaChart, DonutChart, type ChartConfig } from "@/components/ui/chart";
 import type { InfluencerHomeData } from "./types";
 import { WelcomeModal } from "./welcome-modal";
 import { MediaKitNudge } from "@/components/dashboard/media-kit-nudge";
+import { VerifyOwnershipNudge } from "@/components/dashboard/verify-ownership-nudge";
 
 const earningsConfig: ChartConfig = {
-  amount: { label: "Pipeline", color: "var(--brand)" },
+  amount: { label: "Earnings", color: "var(--brand)" },
 };
 
 export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
   const p = data.profile;
   const s = data.stats;
+  // The welcome card, the ownership nudge, and the media-kit nudge all compete
+  // for a first-time creator's attention. Hold both nudges back until the
+  // welcome card is out of the way, and show at most one nudge at a time —
+  // ownership takes priority since it gates auto-verification and the
+  // business-facing trust signal, which the media kit doesn't.
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [ownershipNudgeVisible, setOwnershipNudgeVisible] = useState(false);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 sm:p-6">
-      <WelcomeModal username={p.username} />
-      <MediaKitNudge />
+      <WelcomeModal username={p.username} seen={p.welcome_seen} onOpenChange={setWelcomeOpen} />
+      {!welcomeOpen && <VerifyOwnershipNudge onVisibilityChange={setOwnershipNudgeVisible} />}
+      {!welcomeOpen && !ownershipNudgeVisible && <MediaKitNudge />}
       {/* Header */}
       <Reveal className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -42,14 +53,14 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
               <h1 className="truncate text-2xl font-extrabold tracking-tight text-content sm:text-3xl">
                 Welcome back, {p.name.split(' ')[0]}!
               </h1>
-              {p.is_verified && (
+              {p.verified_badge && (
                 <Badge variant="success" size="sm" className="hidden sm:inline-flex">
                   <BadgeCheck className="size-3" />
                 </Badge>
               )}
             </div>
             <p className="flex items-center gap-1.5 text-sm text-content-soft">
-              <span>@{p.username}</span>
+              {p.username ? <span>@{p.username}</span> : <span>Choose a username in Settings</span>}
               {p.location && (
                 <>
                   <span className="text-content-muted">·</span>
@@ -71,26 +82,35 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       </Reveal>
 
       {/* KPIs */}
-      <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-4" start={0.05}>
+      <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-5" start={0.05}>
+        {s.proposals_awaiting_you > 0 && (
+          <StatCard
+            label="Terms awaiting you"
+            value={s.proposals_awaiting_you}
+            hint="A brand proposed a project"
+            tone="warning"
+            icon={<FileClock />}
+          />
+        )}
         <StatCard
-          label="Pipeline value"
+          label="Active pipeline"
           value={`₹${s.pipeline_value.toLocaleString()}`}
-          hint="From accepted requests"
-          tone="success"
+          hint={`Across ${s.active_projects} active project(s)`}
+          tone="brand"
           icon={<DollarSign />}
         />
         <StatCard
-          label="Active projects"
-          value={s.active_projects}
-          hint="In production"
-          tone="info"
-          icon={<FolderGit2 />}
+          label="Completed value"
+          value={`₹${(s.completed_value || 0).toLocaleString()}`}
+          hint={`${s.completed_projects || 0} project(s) delivered`}
+          tone="success"
+          icon={<BadgeCheck />}
         />
         <StatCard
           label="Open chats"
           value={s.active_discussions}
           hint="Ongoing conversations"
-          tone="brand"
+          tone="info"
           icon={<MessageSquare />}
         />
         <StatCard
@@ -105,7 +125,7 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.1} className="lg:col-span-2">
-          <SectionCard eyebrow="Pipeline" title="Weekly pipeline trend" className="h-full">
+          <SectionCard eyebrow="Earnings" title="Weekly earnings" className="h-full">
             <AreaChart
               data={data.earnings_trend}
               config={earningsConfig}
@@ -138,36 +158,31 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       {/* Profile + activity */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.18}>
-          <SectionCard eyebrow="Brands" title="Active Roster" className="h-full">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted border border-hairline">
-                  <span className="text-sm font-bold text-content">L'O</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-content">L'Oreal Paris</p>
-                  <p className="truncate text-xs text-content-muted">Skincare Campaign</p>
-                </div>
-                <Badge variant="success" size="sm" dot>Active</Badge>
+          <SectionCard eyebrow="Projects" title="Project Roster" className="h-full">
+            {!data.active_roster || data.active_roster.length === 0 ? (
+              <EmptyState
+                icon={<FolderGit2 />}
+                title="No projects yet"
+                description="Brands you work with will show up here once a project is agreed."
+              />
+            ) : (
+              <div className="flex flex-col gap-4">
+                {data.active_roster.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar name={r.brand_name} size="sm" square />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-content">{r.brand_name}</p>
+                        <p className="truncate text-xs text-content-muted">{r.project_title}</p>
+                      </div>
+                    </div>
+                    <Badge variant={statusVariant(r.status || 'active')} size="sm" dot>
+                      {r.status === 'completed' ? 'Completed' : 'Active'}
+                    </Badge>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted border border-hairline">
-                  <span className="text-sm font-bold text-content">NK</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-content">Nike</p>
-                  <p className="truncate text-xs text-content-muted">Summer Athletics</p>
-                </div>
-                <Badge variant="info" size="sm" dot>Review</Badge>
-              </div>
-              
-              <div className="mt-2 flex items-center justify-between rounded-xl border border-hairline bg-surface-muted px-4 py-3">
-                <span className="text-sm font-semibold text-content-soft">Total Reach</span>
-                <span className="text-lg font-extrabold text-brand">
-                  1.2M+
-                </span>
-              </div>
-            </div>
+            )}
           </SectionCard>
         </Reveal>
 

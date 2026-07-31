@@ -8,6 +8,7 @@ import MediaKitViewComponent from '@/components/public-profile/media-kit-view';
 import { buildMediaKitView, type MediaKitReview } from '@/lib/public-profile/media-kit';
 import type { RawPublicProfile } from '@/lib/public-profile/creator-profile';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
+import { publicOrigin } from '@/lib/site';
 
 // Anon client for public reads (profile RPC + public reviews).
 const supabaseAnon = createClient(
@@ -93,7 +94,7 @@ export default async function MediaKitPage({
   const hdrs = await headers();
   const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host');
   const proto = hdrs.get('x-forwarded-proto') ?? 'https';
-  const origin = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'https://influnet.app');
+  const origin = host ? `${proto}://${host}` : publicOrigin();
 
   const view = buildMediaKitView(profile, instagram, reviews, { origin });
 

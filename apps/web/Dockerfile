@@ -30,14 +30,29 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # env vars CANNOT change already-built client JS. Railway must pass these as
 # *build* variables (build args). If omitted, the client bundle ships blank
 # Supabase/Stream config and the browser app cannot authenticate.
+#
+# Every NEXT_PUBLIC_* var referenced by client ("use client") code MUST be
+# listed here. A var missing from this list still resolves correctly in
+# server code (Route Handlers read live process.env at request time), which
+# is exactly what makes this failure mode confusing: server routes report the
+# new value immediately, while every client bundle keeps the old one until a
+# real rebuild happens with the ARG wired through. Bit us for
+# NEXT_PUBLIC_PHONE_OTP_ENABLED on 2026-07-31 — see
+# docs/operations/WEB_MOBILE_PARITY_2026-07-31.md.
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_STREAM_API_KEY
 ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_PHONE_OTP_ENABLED
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_RAZORPAY_KEY_ID
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
     NEXT_PUBLIC_STREAM_API_KEY=$NEXT_PUBLIC_STREAM_API_KEY \
-    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+    NEXT_PUBLIC_PHONE_OTP_ENABLED=$NEXT_PUBLIC_PHONE_OTP_ENABLED \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_RAZORPAY_KEY_ID=$NEXT_PUBLIC_RAZORPAY_KEY_ID
 
 # Build the Next.js app in standalone mode
 RUN npm run build --workspace=web

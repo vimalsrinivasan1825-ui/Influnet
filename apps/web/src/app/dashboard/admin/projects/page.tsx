@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowLeftRight, CalendarDays, FolderKanban, Search, Tras
 import { apiFetch } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { styleForStatus } from "@/lib/project-status";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -131,8 +132,8 @@ export default function AdminProjectsPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-bold text-content">{p.title}</span>
-                      <Badge variant={isActive ? "info" : "neutral"} size="sm">
-                        {isActive ? "Active" : p.status}
+                      <Badge variant={styleForStatus(p.status).variant} size="sm">
+                        {isActive ? "Active" : styleForStatus(p.status).label}
                       </Badge>
                       <Badge variant="brand" size="sm">
                         {stageLabel}

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireProjectParticipant } from '@/lib/project-access';
+import { enforceRateLimit } from '@/lib/rate-limit';
 
 // Helper for error responses. Server-side details are logged, never returned
 // to the client, to avoid leaking DB internals.
@@ -22,6 +24,9 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return jsonError(401, 'Unauthorized');
+
+    const access = await requireProjectParticipant(supabase, id, user.id);
+    if (!access.ok) return access.res;
 
     // Fetch reviews for the project
     const { data: reviews, error } = await supabase
@@ -56,7 +61,17 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return jsonError(401, 'Unauthorized');
 
-    const body = await req.json();
+    // A review is published on a public profile and can't be edited afterwards,
+    // so it gets the same guards every other write path has. This one had
+    // neither: no length cap (every other free-text field is capped — change
+    // requests and proposal notes at 4000/2000) and no rate limit, on an
+    // endpoint that writes a permanent, public rating.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'reviews:create', limit: 10, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
+
+    const body = await req.json().catch(() => ({}));
     const { rating, comment } = body;
 
     if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -64,6 +79,9 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     }
     if (comment !== undefined && comment !== null && typeof comment !== 'string') {
       return jsonError(400, 'Comment must be a string');
+    }
+    if (typeof comment === 'string' && comment.length > 2000) {
+      return jsonError(400, 'Keep your review under 2000 characters.');
     }
 
     // Check project status and access

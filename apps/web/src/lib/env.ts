@@ -42,6 +42,15 @@ const envSchema = z.object({
   STREAM_API_KEY: z.string().optional(),
   STREAM_API_SECRET: z.string().optional(),
 
+  // Mobile-number OTP (2Factor). The provider key is NOT here — it lives only
+  // as the phone-otp Edge Function's TWOFACTOR_API_KEY secret. This flag is the
+  // signup gate, and defaults to false on purpose: switching it on before that
+  // function is deployed would block every new registration.
+  NEXT_PUBLIC_PHONE_OTP_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   // Email — optional; sends are gated by NOTIFY_EMAILS_ENABLED anyway.
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
@@ -162,6 +171,14 @@ export function describeEnv(): {
       value: present('NEXT_PUBLIC_STREAM_API_KEY')
         ? process.env.NEXT_PUBLIC_STREAM_API_KEY!
         : 'disabled',
+      ok: true,
+    },
+    {
+      label: 'Mobile OTP',
+      value:
+        process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === 'true'
+          ? 'ENABLED (2Factor, signup gated)'
+          : 'disabled (NEXT_PUBLIC_PHONE_OTP_ENABLED=false)',
       ok: true,
     },
     {

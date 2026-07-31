@@ -17,6 +17,9 @@ import {
   PanelLeftClose,
   PanelLeft,
   X,
+  History,
+  LayoutDashboard,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,19 +33,25 @@ type NavItem = {
 };
 
 const CREATOR_NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard/influencer", icon: Home },
+  { label: "Home", href: "/dashboard/home", icon: Home },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
+  { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
 
 const BUSINESS_NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard", icon: Home },
+  { label: "Home", href: "/dashboard/home", icon: Home },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
+  { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
 
 const ADMIN_NAV: NavItem[] = [

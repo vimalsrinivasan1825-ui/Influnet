@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { requireProjectParticipant } from '@/lib/project-access';
 import { z } from 'zod';
 
 const PostProjectCardSchema = z.object({
@@ -19,9 +20,12 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const { id } = await context.params;
+
+    const access = await requireProjectParticipant(supabase, id, user.id);
+    if (!access.ok) return access.res;
 
     const { data: cards, error } = await supabase
       .from('project_cards')
@@ -44,6 +48,9 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     const { supabase, user } = auth;
 
     const { id } = await context.params;
+
+    const access = await requireProjectParticipant(supabase, id, user.id);
+    if (!access.ok) return access.res;
 
     let body;
     try {
@@ -97,9 +104,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const { id } = await context.params;
+
+    const access = await requireProjectParticipant(supabase, id, user.id);
+    if (!access.ok) return access.res;
 
     let body;
     try {

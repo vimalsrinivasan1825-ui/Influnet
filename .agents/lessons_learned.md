@@ -2,6 +2,510 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-07-31: Wizard State Persistence & Instagram Real-Time Checks
+
+**Branch**: `dev`
+
+### Scope
+- **Wizard State Persistence (`apps/web/src/app/signup/influencer/page.tsx` & `apps/web/src/app/signup/business/page.tsx`)**:
+  - Implemented `sessionStorage` to persist all form values across steps. This prevents data loss if the user accidentally reloads the page during the multi-step signup process.
+  - Cleared `sessionStorage` upon successful signup to ensure fresh states for future signups.
+- **Instagram Handle Real-Time Checks**:
+  - Added a new Supabase RPC `check_instagram_available` to query both `influencer_profiles` and `business_profiles` for existing Instagram handles.
+  - Added the `/api/auth/check-instagram` endpoint to the web backend.
+  - Added `useInstagramAvailability` hook in both `apps/web/src/lib/hooks/use-availability.ts` and `apps/mobile/lib/use-signup.ts`.
+  - Implemented UI feedback on the first step of the Creator signup (both web and mobile) to instantly warn users if the entered Instagram handle is already registered.
+  - Disabled "Connect to Instagram" and "Skip" buttons while the check is running or if the handle is taken/invalid.
+
+### Broken & Resolved
+- **Data Loss on Reload**: The user reported that reloading the page during signup wiped all entered data and returned them to Step 1. Resolved by syncing state to `sessionStorage` using `useEffect` hooks.
+- **Missing Availability Check for Instagram Handle**: The user pointed out that entering an already registered Instagram ID didn't warn them during Step 1. Resolved by adding a dedicated RPC and endpoint for real-time handle validation.
+
+### Key Lessons
+- **State Persistence**: For multi-step client-side forms in Next.js, `sessionStorage` is a straightforward and secure way to prevent data loss on accidental reloads, as it persists across reloads but clears when the tab is closed.
+- **Early Validation**: It's crucial to validate unique identifiers (like Instagram handles) as early as possible in the flow to prevent users from proceeding with taken credentials.
+
+### Next Target
+- Continue resolving UI bugs and feature requests based on user feedback.
+
+---
+
+## Session — 2026-07-31: Mobile Signup Availability Checks & Settings Build Time
+
+**Branch**: `dev`
+
+### Scope
+- **Settings Build Timestamp (`apps/mobile/app/settings.tsx`)**:
+  - Embedded a hardcoded `LAST_COMMIT_TIME` string at the bottom of the Settings screen.
+  - This allows the developer to instantly verify whether the physical device is running the latest codebase without relying on OTA push metadata or navigating dev menus.
+- **Mobile Real-time Availability (`apps/mobile/lib/use-signup.ts`)**:
+  - Ported `useEmailAvailability`, `usePhoneAvailability`, and `useUsernameSuggestions` hooks to React Native, leveraging the same `@influnet/api` endpoints.
+- **Mobile Signup Wizards (`apps/mobile/app/(auth)/signup/`)**:
+  - Updated `creator.tsx` and `business.tsx` to include live feedback chips and availability validation logic.
+  - Integrated `usePhoneAvailability` into `phone-otp-step.tsx` to explicitly gate OTP dispatching behind backend uniqueness checks.
+  - Prevented moving forward in the wizard unless all input fields resolve to "available" or "error" (to fail-open on network issues).
+
+### Key Lessons
+- Providing deterministic build timestamps in native app Settings screens is the best way to verify whether the deployed APK/OTA bundle actually picked up your latest local edits.
+- Reusing API-bound hooks (like `useUsernameSuggestions`) across Web and Mobile requires abstracting the network calls (e.g. `endpoints.suggestUsername`) behind a unified client, allowing the presentation layer to remain unique while behavior remains identical.
+
+### Next Target
+- Push the commits to `origin/dev` and deploy these changes to mobile.
+
+---
+
+## Session — 2026-07-30: OTA Update Timestamp in Settings + Commit Cleanup
+
+---
+
+
+
+**Branch**: `dev`
+
+### Scope
+- **Project Detail Page Crash Fix (`apps/mobile/components/project-change-requests.tsx`)**:
+  - Identified and fixed an infinite rendering loop in the `ProjectChangeRequests` component caused by setting component state inside a React callback ref (`ref={(r) => setProposeSheet(r)}`).
+  - Refactored the `proposeSheet` sheet ref to use React's `useRef` hook (`useRef<SheetRef>(null)`), removing it from the component state and eliminating the infinite commit-render cycles on project details page load.
+  - Updated `architecture.html` status log to track this critical mobile client fix.
+
+### Key Lessons
+- Never set state directly inside a React callback ref defined as an inline function. Because the callback function instance changes on every render, React will invoke the old ref with `null` and the new ref with the element on every single commit phase, triggering endless state updates and render cycles.
+- Always use `useRef` for component refs unless you explicitly need dynamic callback logic that does not affect component state during render.
+
+---
+
+
+## Session — 2026-07-29: Real-time Architecture & Android App Store Distribution Runbook
+
+**Branch**: `dev`
+
+### Scope
+- **Android Distribution Documentation (`docs/operations/ANDROID_DISTRIBUTION.md`, `docs/README.md`)**:
+  - Authored a comprehensive runbook outlining Android App Bundle (.aab) building using EAS CLI (`eas build --platform android --profile production`), Google Play Console app setup, internal testing tracks, tester email list invitations, and the Google Play 20-tester closed beta policy.
+  - Linked the new document into the primary documentation registry map in `docs/README.md`.
+- **Real-Time Architecture & Design Documentation (`docs/architecture/REALTIME_COMMUNICATION.md`)**:
+  - Compiled our full discussion on pull-based (polling) vs. push-based (SSE, WebSockets) architectures, traditional database setups (PostgreSQL LISTEN/NOTIFY), and the detailed problem/solution analysis for the Influnet dynamic dashboard updating.
+- **Zustand & Supabase Realtime Architecture Analysis**:
+  - Analyzed and documented the project's real-time communication layout, comparing Stream Chat (messages), Supabase Realtime subscriptions in `shell.tsx`, and database notification fanning in `notify.ts`.
+  - Pinpointed the current page reload bugs and outlined a phased fix plan to wire up direct `collab_requests` table triggers using Supabase Postgres CDC subscriptions to enable instant web dashboard updates without requiring manually reloads.
+
+### Key Lessons
+- Google Play Developer Console internal testing track enables instant releases to 100 invitees without wait times for review.
+- Over-The-Air (OTA) updates push JavaScript bundle modifications but cannot update native resource files like `google-services.json` or permission mappings; native app updates require a full cloud build (`eas build`).
+
+---
+
+## Session — 2026-07-28: Bio Link Ownership Verification & Brand Safety Disclaimer System
+
+**Branch**: `dev`
+
+### Scope
+- **Ownership Verification Engine & Scraper (`apps/web/src/lib/`, `supabase/migrations/`)**:
+  - Added migrations `084_search_influencers_verified_badge.sql`, `085_ownership_nudge_dismissed.sql`, and `086_admin_verify_requires_ownership.sql` enforcing verified badge integrity across search and admin review.
+  - Implemented creator bio link verification nudge (`VerifyOwnershipNudge`) on Creator Dashboard with copyable Influnet link (`influnet.com/c/[username]`), visual guide, and dismiss persistence.
+  - Built creator profile overlay preview and updated search & collaboration request flows with verified owner badges & brand safety disclaimers.
+
+### Key Lessons
+- Providing zero-cost bio-link verification nudges right on the dashboard gives creators immediate actionable path to verification without blocking initial signup friction.
+
+---
+
+## Session — 2026-07-28: Verified Badge Signal Unification Across Dashboard & Mobile APIs
+
+**Branch**: `dev`
+
+### Scope
+- **Verification Alignment**: Unified dashboard APIs (`api/home/route.ts`, `api/influencer/dashboard/route.ts`, `api/profile/route.ts`) and mobile profile view (`apps/mobile/app/(tabs)/profile.tsx`) to check `verified_badge` from `profiles` instead of relying solely on the legacy `is_verified` column.
+- **Result**: Legitimate creators verified via HikerAPI or admin approval now consistently see their verification badge across both web dashboard headers and mobile profile screens.
+
+---
+
+## Session — 2026-07-28: E2E Creator Journey Audit Fixes & Cleanup
+
+**Branch**: `dev`
+
+### Scope
+- **Verification & Security (#1 & #2)**: Verified migration `083_influencer_verified_badge_lockdown.sql` locked down `influencer_profiles.is_verified` column updates and pointed `get_public_influencer` badge at the real `profiles.verified_badge` pipeline.
+- **Budget Ranges (#5)**: Removed duplicate `'₹50K – ₹100K'` entry from `packages/core/src/constants.ts`.
+- **Password Length & Review Gate Copy (#4 & #6)**: Added step 1 validation error for passwords >72 chars and updated signup copy to correctly state *"Outbound campaign requests unlock once approved"*.
+
+### Key Lessons
+- Aligning signup copy with exact RLS/RPC gating ensures user expectations match live app capabilities.
+
+---
+
+## Session — 2026-07-28: YouTube Scraper & Social Snapshot Unit Test Suite Expansion
+
+**Branch**: `dev`
+
+### Scope
+- **Scraper & Snapshot Testing (`apps/web/tests/unit/`)**:
+  - Added unit test suite `youtube.test.ts` covering YouTube handle resolution (`pageHeaderViewModel` JSON & fallback regexes), subscriber parsing (`parseSubscriberCount`), and error handling.
+  - Updated `public-profile.test.ts` and `social-snapshot.test.ts` to assert owner subscriber count priority over featured sidebar channels.
+  - Verified 166 passing unit tests across 14 test suites in Vitest.
+
+### Key Lessons
+- Unit tests mocking raw YouTube HTML with featured channels ensure scraper regex changes do not regression-parse sidebar subscriber counts.
+
+---
+
+## Session — 2026-07-28: Public Profile Work With Me Section Overhaul (Media-Kit Package Cards)
+
+**Branch**: `dev`
+
+### Scope
+- **Public Profile UI (`apps/web/src/components/public-profile/`)**:
+  - Replaced simple formats list in the public profile's **Work With Me** section with the 3-column interactive **Media-Kit Package Cards** (`.prices`, `.price`, `.ph`, `.amt`).
+  - Added `packages: ProfilePackage[]` data construction in `creator-profile.ts` with platform logo icons, custom pricing tags (`₹25,000+`), feature checkmark lists (`✓`), highlighted featured middle card (`.feat`), and direct `Select` CTA buttons.
+
+### Key Lessons
+- Reusing high-performing UI patterns (like the Media Kit's interactive package cards) across both public profile and media kit views maintains design consistency and boosts brand conversion.
+
+---
+
+## Session — 2026-07-28: Topbar Brand Logo & Wordmark Sizing Enlargement
+
+**Branch**: `dev`
+
+### Scope
+- **Brand Logo & Wordmark (`apps/web/src/components/public-profile/` & `apps/mobile/components/app-header.tsx`)**:
+  - Enlarged the topbar Influnet logo image (from `40px` to `48px` on desktop, `36px` to `42px` on mobile web, `30px` to `38px` in mobile app `AppHeader`).
+  - Enlarged the brand title text font size (`1.85rem` desktop, `1.55rem` mobile web with `font-weight: 800`).
+
+### Key Lessons
+- Prominent topbar branding establishes immediate visual recognition across both web and native app views without crowding header controls.
+
+---
+
+## Session — 2026-07-28: Mobile Herostats Horizontal 3-Card Grid
+
+**Branch**: `dev`
+
+### Scope
+- **Public Profile CSS (`apps/web/src/components/public-profile/creator-profile.module.css`)**:
+  - Transformed `.herostats` into a compact **3-card side-by-side horizontal grid (`repeat(3, 1fr)`)** on mobile screens (`@media(max-width:560px)`).
+  - Aligned each card vertically (`flex-direction: column; align-items: center`): Icon at top, numeral in middle (`1.15rem`), and label below (`0.68rem`).
+
+### Key Lessons
+- For mobile hero metric rows, fitting 3 cards side-by-side with top-aligned icon and centered numerals gives a compact, modern app aesthetic while zeroing out vertical scroll length.
+
+---
+
+## Session — 2026-07-28: Mobile Herostats Vertical Alignment Fix
+
+**Branch**: `dev`
+
+### Scope
+- **Public Profile CSS (`apps/web/src/components/public-profile/creator-profile.module.css`)**:
+  - Replaced variable group centering (`justify-content: center`) on mobile `.hstat` cards with consistent left alignment (`justify-content: flex-start; padding: 1.1rem 1.4rem;`).
+  - Guaranteed that all stat icons and numerals (Reach, Followers, Engagement) align along a single ruler-straight vertical axis across all cards on mobile screens.
+
+### Key Lessons
+- Centering flex items with varying label lengths across stacked cards causes icons to shift horizontally between rows. Use fixed left margins (`justify-content: flex-start`) with consistent padding for stacked metric cards to keep icons and numerals aligned vertically.
+
+---
+
+## Session — 2026-07-28: Mobile Public Profile Layout Refinements & YouTube Promo Card
+
+**Branch**: `dev`
+
+### Scope
+- **Public Profile Mobile UI (`apps/web/src/components/public-profile/`)**:
+  - Fixed logo image sizing and aspect ratio in topbar (`object-fit: contain`) to prevent stretching.
+  - Added an animated live green pulse indicator (`.livepulse`) to the top-right share/copy link button.
+  - Centered hero stats cards (`.hstat`) on mobile viewports (`@media(max-width:560px)`) to balance card content and eliminate right-hand whitespace.
+  - Added an animated **YouTube Promo Card** (`.ytcard`) alongside the Instagram card in the **Work with me** promo grid (`.promogrid`).
+
+### Key Lessons
+- When rendering mobile stats cards with single-column stacked grids, center card items (`justify-content: center; text-align: center`) so metric values sit balanced within wide card boundaries.
+
+---
+
+## Session — 2026-07-28: Mobile Verification Access & Profile Refresh Cache Invalidation
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Verification & Profile Refresh (`apps/mobile/app/(tabs)/profile.tsx` & `apps/mobile/app/verification.tsx`)**:
+  - Added a **"Re-verify & Refresh Data"** button to `apps/mobile/app/verification.tsx` so verified creators can trigger re-verification and social count updates on mobile anytime.
+  - Added a permanent **"Verification & Trust Badge"** row under the **Manage** section in `ProfileScreen` so verified users can always tap into `/verification`.
+  - Added `invalidateFetchCache('profile-public')` inside `refreshSocial()` in `ProfileScreen` so tapping **"Refresh my numbers"** purges the in-memory cache and refetches live social data immediately.
+
+### Key Lessons
+- Mobile in-memory fetch caches (`useFetch` with `cacheKey`) preserve payload snapshots across screen mounts. When performing backend data refresh mutations (like `refreshProfile()`), always invalidate the associated cache key (`invalidateFetchCache(key)`) before refetching so stale cached data is purged.
+
+---
+
+## Session — 2026-07-28: YouTube Owner Subscriber Count Extraction Fix
+
+**Branch**: `dev`
+
+### Scope
+- **YouTube Channel Scraper (`apps/web/src/lib/youtube.ts`)**:
+  - Updated `resolveChannel` to parse YouTube's `ytInitialData` header JSON (`pageHeaderRenderer` -> `pageHeaderViewModel` -> `metadataRows`) before falling back to generic HTML regex matches.
+  - Resolved incorrect subscriber count parsing for channels with featured/recommended channels on their layout (e.g. A2D channel parsing 568K instead of 2.51M).
+
+### What broke
+- **Incorrect YouTube Subscriber Count (2.51M parsed as 568K)**: When scraping YouTube channel pages like `@a2dchannel`, fallback regex matched subscriber counts from featured/recommended channels (like 568K) that appeared early in the HTML string before reaching the channel owner's subscriber count (2.51M).
+
+### Fix
+- **Header JSON Parsing**: Extracted `ytInitialData` from the raw HTML payload and traversed `headerObj.pageHeaderRenderer.content.pageHeaderViewModel.metadata.contentMetadataViewModel.metadataRows` to extract the owner's exact subscriber count string directly from YouTube's canonical header structure.
+
+### Key Lessons
+- YouTube channel page HTML embeds subscriber counts for featured/sidebar channels in the body. Always parse the canonical channel header JSON structure (`pageHeaderViewModel` / `c4TabbedHeaderRenderer`) inside `ytInitialData` to guarantee subscriber count extraction belongs to the channel owner.
+
+---
+
+## Session — 2026-07-27: Production Structured Logging & Observability Guide
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Structured Logging Utility (`apps/mobile/lib/logger.ts`)**:
+  - Created a zero-dependency structured logger for React Native matching `apps/web/src/lib/logger.ts`.
+  - Outputs structured JSON log lines containing `level`, `time`, `msg`, `platform`, `userId`, `route`, and serializable Error stack traces.
+- **Production Observability Documentation**:
+  - Outlined integration patterns for Sentry (exception tracing), PostHog (session recordings & product analytics), Axiom/Better Stack (log aggregation), and structured JSON logging.
+
+### Key Lessons
+- Avoid raw unstructured `console.log("something failed")` in production applications. Emitting structured JSON logs (`logger.info("payment_processed", { amount, userId })`) enables automated log platforms (Axiom, CloudWatch, Datadog, Railway) to index and filter logs by `userId`, `status`, or `traceId` instantly.
+
+---
+
+## Session — 2026-07-27: Mobile Sign-out Navigation Transition & Logging Guide
+
+**Branch**: `dev`
+
+### Scope
+- **Sign-out Navigation Sequence (`apps/mobile/app/settings.tsx` & `apps/mobile/app/_layout.tsx`)**:
+  - Reordered the logout flow so `router.replace('/welcome')` or `router.replace('/login')` executes before clearing the user session in Zustand and Supabase.
+  - Resolved visual glitching and flashing on sign-out caused by simultaneous stack route unmounting and session state wipe.
+
+### What broke
+- **Sign-out Animation Glitch**: Tapping "Sign out" in mobile Settings caused the login/welcome screen to glitch and flash. This occurred because `signOut()` destroyed the Supabase session token first, causing `index.tsx` (the root stack entry gate) to trigger an automatic `<Redirect href="/welcome" />` while `settings.tsx` was simultaneously executing `router.replace('/welcome')` and unmounting mid-animation.
+
+### Fix
+- **Pre-transition Navigation**: Called `router.replace('/welcome')` prior to invoking `await signOut()`, allowing Expo Router to execute a smooth screen transition before the session and active tab stores are reset.
+
+### Key Lessons
+- When implementing sign-out in mobile stack navigators, always initiate the screen navigation transition *before* destroying the session token or clearing shared state stores. Otherwise, reactive entry gate screens (like `<Redirect />` or `onAuthStateChange`) will fire simultaneously with the user's manual navigation call, causing screen flashing and unmount glitches.
+
+---
+
+## Session — 2026-07-27: Mobile Staging & Production API Target (`https://dev.influnet.io`)
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Target Configuration (`apps/mobile/app.json` & `apps/mobile/eas.json`)**:
+  - Updated `extra.apiBaseUrl` in `apps/mobile/app.json` from `http://localhost:3000` to `https://dev.influnet.io`, and added fallback `supabaseUrl` and `supabaseAnonKey` entries to ensure standalone mobile builds target the live staging server even when environment secrets are omitted.
+  - Updated `eas.json` profiles (`preview`, `preview-device`, `production`) to explicitly declare `EXPO_PUBLIC_API_BASE_URL: "https://dev.influnet.io"`, `EXPO_PUBLIC_SUPABASE_URL`, and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+
+### What broke
+- **Physical Phone API Failures**: When testing a compiled mobile app or OTA bundle on a physical mobile phone, API calls failed with network errors because `extra.apiBaseUrl` defaulted to `http://localhost:3000`. On a physical phone, `localhost` points to the phone's loopback interface (`127.0.0.1`), where no backend server exists.
+
+### Fix
+- **Staging URL Default**: Configured `https://dev.influnet.io` as the default API target across `app.json` extra properties and `eas.json` build profiles.
+
+### Key Lessons
+- Never leave `extra.apiBaseUrl` set to `http://localhost:3000` in `app.json` because OTA updates or standalone APKs built without explicit `EXPO_PUBLIC_API_BASE_URL` flags will attempt to connect to the phone's own loopback interface rather than your remote staging/production backend.
+
+---
+
+## Session — 2026-07-27: Mobile Android OkHttp Header Newline & Control Character Sanitization
+
+**Branch**: `dev`
+
+### Scope
+- **Environment & Auth Header Sanitization (`apps/mobile/lib/supabase.ts`, `@influnet/api/src/client.ts`, `apps/mobile/.env.local`)**:
+  - Sanitized `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and `EXPO_PUBLIC_API_BASE_URL` in `apps/mobile/lib/supabase.ts` using `val.replace(/[\r\n\s]+/g, '')` to prevent newlines or trailing whitespace from reaching the Supabase client.
+  - Sanitized access tokens and request headers in `packages/api/src/client.ts` to strip control characters (`\r`, `\n`) before constructing `Authorization` headers.
+  - Formatted `apps/mobile/.env.local` to strip spaces around assignment operators and ensure clean environment variable values.
+
+### What broke
+- **Android Sign-in Crash (`java.lang.IllegalArgumentException: Unexpected char 0x0a at 53 in Authorization value`)**:
+  - Tapping "Sign in" on Android raised `fetch failed: Call to function 'NativeRequest.start' has been rejected. Caused by: java.lang.IllegalArgumentException: Unexpected char 0x0a at 53 in Authorization value`.
+  - Android's native OkHttp HTTP client strictly validates header values against ASCII control characters (`0x00`-`0x1f`). Index 53 (`Bearer ` [7 chars] + `sb_publishable...` [46 chars] = 53) contained an un-trimmed newline `0x0a` (`\n`) present at the end of the `SUPABASE_ANON_KEY` or `access_token` string, causing native Android OkHttp to reject the request before sending it.
+
+### Fix
+- **Control Character Stripping**: Added global `sanitize` helper in `apps/mobile/lib/supabase.ts` and token/header cleaner in `packages/api/src/client.ts` to strip all `\r`, `\n`, and whitespace characters from environment variables and `Authorization` tokens prior to initializing the Supabase client or dispatching fetch calls.
+
+### Key Lessons
+- Unlike web browsers (which silently strip trailing newlines in HTTP headers), React Native Android uses Java's `okhttp3.Headers`, which throws a hard `java.lang.IllegalArgumentException` if any header contains `0x0a` (`\n`) or `0x0d` (`\r`). Always sanitize environment variables and auth tokens with `.replace(/[\r\n\s]+/g, '')` before passing them to native HTTP clients or SDK initializers.
+
+---
+
+## Session — 2026-07-26: Public Profile Layout & Visual Polish Redesign
+
+**Branch**: `dev`
+
+### Scope
+- **Hero & Card Layout Refinement (`creator-profile-view.tsx` & `creator-profile.module.css`)**:
+  - **Sizing & Space Cleanup**: Enlarged avatar size (`havatar` max-width 260px), increased hero header text sizes (`h1` clamp 2.2rem-3.2rem, `subtitle` clamp 1.1rem-1.45rem), and eliminated vertical gap between hero top and stats strip by removing `justify-content: space-between` from `.herofull` and using `margin-top: auto` on `.herostats`.
+  - **Contact Info Removal**: Removed email and phone number listings from the hero left column as requested so visitors proceed directly through the connection CTAs.
+  - **Smooth Scroll CTA**: Updated "View my work" CTA button to trigger smooth scrolling (`element.scrollIntoView({ behavior: 'smooth' })`) down to `#featured`.
+  - **Card Aesthetic Polish**: Applied subtle dual radial gradient corner tints on cards and glassmorphic hero background, completely removing noisy background wave SVG lines for a clean, modern aesthetic.
+
+### What broke
+- **Dead Vertical Space in Hero**: When the hero layout shared a row with the sidebar, `justify-content: space-between` forced a large empty gap between the hero description text and the bottom stat strip.
+- **Instant Jump on Anchor**: Clicking "View my work" jumped instantly down the page without animation.
+
+### Fix
+- **Flex Layout Fix**: Replaced `justify-content: space-between` with natural flex column layout and anchored `.herostats` to `margin-top: auto` with tighter padding.
+- **Smooth Scroll Handler**: Intercepted link click on "View my work" with `onClick={(e) => { e.preventDefault(); document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}`.
+
+### Key Lessons
+- In grid flex containers with dynamic heights, avoid `justify-content: space-between` on column children if content density varies, as it introduces ugly vertical whitespace. `margin-top: auto` on the footer/stats element provides predictable alignment.
+
+---
+
+## Session — 2026-07-26: Public Profile Hero Layout Redesign
+
+**Branch**: `dev`
+
+### Scope
+- **Hero Section Grid Redesign (`components/public-profile/creator-profile-view.tsx` + `creator-profile.module.css`)**: Converted the hero from a 3-column grid (hleft | avatar | pstack) to a clean 2-column layout (hleft | hmid). The right column (`.hmid`) now stacks the avatar on top and platform stat cards in a **2×2 CSS grid** below — all 4 cards align symmetrically without any dead space. The Instagram / YouTube featured content rails continue to live as full-width sections in the main content column below the hero, so no horizontal gap is created beside the content.
+
+### Key Lessons
+- **3-col → 2-col hero**: Moving the platform cards from a standalone 3rd grid column into `.hmid` as a nested `grid-template-columns: 1fr 1fr` eliminates the orphaned right column and ensures the cards are always anchored to the avatar width.
+- **Avatar max-width matters**: Setting `max-width: 200px` on `.havatar` keeps the right column proportional. At 300px the column was too wide and the cards stretched.
+- **Content rails must be full-width**: Featured content (Instagram/YouTube) should never share a row with the hero's right column — they live in `.main` (flex-direction column) underneath the hero card, so this is already correct structurally.
+
+### Next Target
+- Optionally animate the platform card 2×2 grid entrance (stagger-in effect) for a premium first impression.
+- Consider showing a skeleton placeholder for platform cards when data is still loading.
+
+---
+
+## Session — 2026-07-26: Chat & Push Notifications Sync
+
+
+**Branch**: `dev`
+
+### Scope
+- **Chat Push & In-App Notification Fanning (`/api/stream/webhook` and `POST /api/conversations/[id]/messages`)**: Integrated `notifyUser` calls so whenever a chat message arrives via Stream webhook or REST endpoint, all conversation participants receive an Expo push notification and an in-app notification row.
+- **Unread Message Badge Sync (`/api/notifications/summary`)**: Replaced hardcoded `unreadMessages = 0` with live server-side Stream Chat SDK queries (`streamClient.queryUsers({ id: user.id })`) to retrieve `total_unread_count`, falling back to unread database notification counts of type `message` when Stream is unreachable or returns zero.
+- **Conversation Preview Enrichment (`GET /api/conversations`)**: Added server-side Stream Chat channel queries (`queryChannels`) when fetching conversation lists so message previews and timestamps reflect live Stream data immediately without waiting for database webhook ingestion or clicking into the chat.
+- **Stream Chat Webhook Configuration (`scripts/setup-stream-webhook.mjs`)**: Created helper script and configured Stream Chat v2 event hooks (`hook_type: 'webhook'`, `webhook_url: 'https://dev.influnet.io/api/stream/webhook'`, `enabled: true`) to ensure Stream actively calls our webhook when new messages arrive.
+- **Android FCM Native Push Setup & On-Device Diagnostics (`apps/mobile/app/settings.tsx`)**: Unignored and committed `google-services.json`, added `check:push` shortcut scripts to web/mobile workspaces, and added an on-screen "Test Push Notifications" diagnostic button to mobile Settings restricted strictly to `vimal@gmail.com` to debug FCM token registration directly on physical Android/iOS devices without exposing debug UI to public users or other admins.
+- **Stream Chat Client Configuration (`apps/mobile/app.json`)**: Added `"streamApiKey": "kw5uagr7nxs7"` to `expo.extra` in `app.json` so standalone EAS APK builds automatically configure the Stream Chat SDK even when `EXPO_PUBLIC_STREAM_API_KEY` is not provided via EAS environment secrets.
+- **YouTube Verification Scrape & Re-Verification (`api/verification`, `api/profile`)**: Updated verification endpoint to invoke `refreshYouTubeSnapshot` alongside Instagram scraping, updated `VerificationPanel` to allow verified creators to click "Re-verify & Refresh Data", and updated `api/profile` to always query the updated `youtube_handle` row so saving profile settings reliably triggers a background YouTube scrape.
+- **Mobile Profile Refresh Endpoint Authentication (`api/profile/refresh`)**: Switched user authentication from cookie-based `createRSCClient()` to header-based `withAuth(req)` helper to prevent mobile requests (which use `Bearer` auth headers rather than browser cookies) from receiving `401 Unauthorized` responses and triggering automatic app logouts.
+- **YouTube Metadata Scraper & Resolution Robustness (`lib/youtube`)**: Updated channel resolution regex to scan for explicit channel owner metadata tags (`itemprop="channelId"`, canonical `rel` links, etc.) and updated subscriber count scraping to target owner-specific headers (`metadataParts`, `subtitle` with handle context, `accessibilityLabel`) before falling back to generic matching. This prevents matching recommend/featured sidebar channels (like Tamil Gaming) and ensures we parse the correct owner subscriber count (e.g. 2.51M instead of 568K).
+- **Dynamic App Origin Fallback (`lib/site.ts`)**: Updated `publicOrigin()` to fall back to `window.location.origin` (if running in the browser) and `process.env.VERCEL_URL` (if running server-side on Vercel) when `NEXT_PUBLIC_APP_URL` is undefined, resolving hardcoded `localhost:3000` links in deployed staging/dev environments.
+
+### What broke
+- **Missing Push & In-App Indications for Chat**: Sending messages via Stream Chat from web or mobile never triggered push notifications or updated the notification bell / badge because neither the Stream webhook nor the message REST endpoint invoked `notifyUser`.
+- **Zeroed Unread Message Badges**: Mobile and web header message badges always showed zero because `/api/notifications/summary` returned a hardcoded `const unreadMessages = 0;`.
+- **Stale Conversation List Previews**: When a message was sent via Stream, the conversation list preview did not update until the user tapped into the conversation because `GET /api/conversations` only queried Postgres `messages`, which lags behind Stream if webhooks are delayed or not configured in local development.
+- **Unconfigured Stream Webhook**: Even after adding notification fanning to `/api/stream/webhook`, chat messages were not triggering push notifications because Stream Chat app settings had zero event hooks configured (`event_hooks: []`), so Stream never sent webhook HTTP requests to our server.
+- **EAS Build Failure on `google-services.json` & Silent Push Failures**: EAS Build failed with `"google-services.json is missing"` because it was listed in `.gitignore`. Once resolved, testing via OTA updates failed to register push tokens because OTA updates cannot add or modify native Android resources like `google-services.json`. Furthermore, any push token registration errors (such as missing EAS FCM V1 credentials or denied permissions) failed silently in background `console.warn` logs on standalone APK builds.
+- **"Chat is not configured in this build" Error in Standalone APKs**: Tapping into a chat conversation in a compiled Android APK displayed `"Chat is not configured in this build."` at the top and hung on `"Connecting..."`. This occurred because `EXPO_PUBLIC_STREAM_API_KEY` was defined only in `.env.local` (which is gitignored and not uploaded to EAS Build cloud servers), and `app.json` lacked a fallback under `expo.extra.streamApiKey`.
+- **No YouTube Scrape on Verification or Verified Re-Runs**: When a creator connected their YouTube channel and clicked "Run verification", YouTube statistics and videos were never scraped or refreshed because `POST /api/verification` only invoked Instagram scraping (`captureInstagramSnapshot`). Furthermore, once an account reached `"verified"` status, the verification button became disabled, preventing creators from manually re-running verification or refreshing their social data from the dashboard.
+- **App Logout on "Refresh my numbers"**: Tapping "Refresh my numbers" on the mobile Profile screen immediately logged out the user. This occurred because `POST /api/profile/refresh` authenticated users via browser-cookie-bound `createRSCClient()`, which returned `401 Unauthorized` for mobile clients sending `Bearer` tokens in `Authorization` headers. The mobile API client triggers an automatic session teardown/logout whenever it encounters a `401`.
+- **YouTube Scraper Incorrect Channel & Stats Matching**: Entering a channel handle (like `@a2dchannel`) fetched details and subscriber counts for a different channel (like "Tamil Gaming"). This occurred because `resolveChannel` matched the first instances of `"channelId":` and general `"subscribers"` text found in the raw HTML payload, which belonged to featured channels on the home page rather than the channel owner.
+- **Staging/Production Localhost Links**: Shareable profile URLs, copy-text widgets, and instructions displayed `localhost:3000` on deployed staging/production instances because `NEXT_PUBLIC_APP_URL` was not configured on hosting providers, causing the application to fall back to the local dev default.
+
+### Fix
+- **Webhook & REST Notification Triggering**: Injected `notifyUser({ userId, type: 'message', title: 'New message from...', link: '/dashboard/messages?conv=' + id })` in `/api/stream/webhook` (service role) and `POST /api/conversations/[id]/messages`.
+- **Live Stream Unread Querying**: Upgraded `/api/notifications/summary` to query `getStreamClient().queryUsers()` for `total_unread_count`, with a database query fallback against `notifications` where `type = 'message'`.
+- **Stream Channel Preview Reconciliation**: Updated `/api/conversations` to query `getStreamClient().queryChannels({ id: { $in: channelIds } })` and override message bodies and `updated_at` timestamps whenever Stream has a newer timestamp than Postgres.
+- **Stream Event Hook Setup**: Added `scripts/setup-stream-webhook.mjs` and executed it against `https://dev.influnet.io/api/stream/webhook`, enabling live webhook delivery for `message.new`, `message.updated`, and `message.deleted`.
+- **FCM Unignore & Restricted Diagnostic Button**: Removed `google-services.json` from `.gitignore` so EAS Build bundles it into native Android APKs. Added `testPushRegistration()` button in `apps/mobile/app/settings.tsx` wrapped in an allowlist check (`DEVELOPER_EMAILS = ['vimal@gmail.com']`) to surface exact Expo push token registration errors via native Alert dialogs exclusively for the lead developer.
+- **Stream API Key Fallback in `app.json`**: Added `"streamApiKey": "kw5uagr7nxs7"` to `expo.extra` in `apps/mobile/app.json` so `STREAM_API_KEY` in `lib/stream.ts` resolves successfully in all cloud builds.
+- **YouTube Refresh Integration & Re-Verification**: Added `await refreshYouTubeSnapshot(user.id, handle)` to `POST /api/verification` for influencers with connected YouTube channels. Enabled the Verification button for verified accounts (`canRun` includes `"verified"`) with updated text `"Re-verify & Refresh Data"`. In `POST /api/profile`, updated the Supabase query to `update(infUpdates).select('youtube_handle').maybeSingle()`, ensuring that saving profile settings always retrieves the current YouTube handle and triggers a background YouTube scrape.
+- **Bearer Token Support for Profile Refresh**: Updated `POST /api/profile/refresh` to use `withAuth(req)` instead of `createRSCClient()`, ensuring both browser-cookie and mobile-header request credentials authenticate correctly.
+- **Robust YouTube Channel ID & Subscriber Count Extraction**: Updated `resolveChannel` in `lib/youtube.ts` to query explicit owner metadata tags (`itemprop="channelId"`, canonical `rel` links, etc.) and owner-specific subscriber keys (`metadataParts`, `subtitle` with handle context, etc.) first. Also updated `parseSubscriberCount` to support full-text numbers (e.g. "million", "billion", "thousand") alongside short letters ("M", "B", "K"). This guarantees we extract both the correct channel ID and the correct subscriber count (e.g. 2.51M instead of 568K) for the owner channel.
+- **Dynamic App Origin Fallback**: Updated `publicOrigin()` in `apps/web/src/lib/site.ts` to fallback to browser window location origin (`window.location.origin`) on clients and `process.env.VERCEL_URL` on servers, eliminating hardcoded `localhost:3000` URLs on deployed staging and dev servers.
+
+### Key Lessons
+- When using a hosted chat transport like Stream Chat alongside a local relational database, never rely solely on asynchronous webhooks for immediate UI feedback; always enrich list endpoints and summary badges by querying the hosted service SDK server-side.
+- In Stream Chat v2 hook architecture, `webhook_url` at the top app level is deprecated; you must configure webhooks via `client.updateAppSettings({ event_hooks: [{ hook_type: 'webhook', webhook_url: '...', enabled: true, event_types: [...] }] })`. Note that new event hooks default to `enabled: false` unless explicitly set to `true`.
+- In-app and push notification fanning for messaging should be triggered both at the webhook receiving layer (for messages sent directly via external SDKs) and at any REST fallback endpoints to guarantee delivery across all client platforms.
+- `google-services.json` is **not** a secret or private key; Google explicitly documents that it contains only public client configuration embedded into public Android APKs anyway. Never put `google-services.json` in `.gitignore` if using EAS Build, because EAS CLI only uploads git-tracked files to cloud prebuild workers.
+- Over-The-Air (OTA) updates (`eas update`) only update JavaScript and React UI bundles; they cannot update or install native Android/iOS resources such as `google-services.json`, FCM SDKs, or native notification channels. Native config changes always require a full standalone build (`eas build`).
+
+---
+
+## Session — 2026-07-26: Mobile OTA Automation & Supabase Service Role Audit
+
+**Branch**: `dev`
+
+### Scope
+- **Automated Mobile OTA CI/CD Pipeline (`mobile-update.yml`)**: Created a dedicated GitHub Actions workflow to monitor changes in `apps/mobile/**` and `packages/**`. When code is pushed to `dev` or `staging`, it automatically publishes an Over-The-Air (OTA) update to Expo's `preview` channel using `eas-cli update`. When pushed to `main`, it publishes to `production` channel.
+- **Service Role Key Verification**: Audited and confirmed that `apps/web/.env.local` uses the required `service_role` secret JWT (`eyJ...`) to enable server-side analytics ingestion (YouTube and Instagram snapshots), distinguishing it from the legacy management access token (`sbp_...`).
+- **OTA Update Strategy Documentation**: Clarified for mobile deployment that EAS OTA updates (`expo-updates`) push JavaScript/React Native UI changes (such as deal acceptance and checklist interactivity) without altering the native app store version number (`v1.0.0`), applying updates silently on app restart.
+
+### What broke
+- **Manual Mobile Deployments**: Previously, pushing mobile fixes required running manual terminal commands (`eas update`) for each environment, creating potential drift between web backend deployments and mobile JS bundles.
+
+### Fix
+- **GitHub Actions Integration**: Added `.github/workflows/mobile-update.yml` with path filters and non-interactive `eas-cli` execution authenticated via repository secret `EXPO_TOKEN`.
+
+### Key Lessons
+- Over-The-Air (OTA) updates in Expo modify the bundle timestamp/hash within the installed runtime (`policy: appVersion`) without requiring a version increment in `app.json` or new app store submissions, unless native modules or permissions change.
+- Automated CI/CD pipelines for monorepos should use precise path filtering (`apps/mobile/**`, `packages/**`) so mobile OTA builds only trigger when mobile-relevant code changes.
+
+---
+
+## Session — 2026-07-25: Mobile Parity & Core Flow Bug Fixes
+
+**Branch**: `dev`
+
+### Scope
+- **Decline Undo (`PATCH /api/collabs`)**: Enabled receivers (creators) to reopen a previously declined collaboration request back to `pending`, notifying the business owner. Previously, a declined request was terminal on both sides.
+- **Mobile Deal Sheet Closing**: Updated mobile deal sheet (`chat deal sheet`) to directly invoke deal endpoints (`accept`/`decline`/`withdraw`) via `PATCH` using a new `respondToDeal` helper, replacing the read-only web prompt.
+- **Mobile Stage Management**: Added client-side gating of checklist items by `owner_role` to match server checks, added confirm/cancel dialogs for counterparty stage skips, and added a verification removal reminder for Instagram bio link validation.
+- **Blocked Accounts UI & API**: Created blocked accounts screen and fixed API route (`removeBlock()`) to use JSON body parsing and embedded profile data in blocks lists.
+- **Push Notifications Pipeline**: Integrated Expo Push Notification fanning into `notifyUser()` (`apps/web/src/lib/notify.ts`), created mobile token registration client helper (`apps/mobile/lib/push.ts`), and backed storage via migration `079_expo_push_token.sql`. Applied migrations 075 through 079 to remote database.
+- **Discover Route Protection & Search Cleanup**: Removed the "Discover creators" navigation item from the Command Palette search bar (`command-palette.tsx`), protected `/dashboard/discover` with an immediate `notFound()` 404 response, and protected `/api/discover` to return 404 on general browsing queries while preserving single-id lookups needed for pitch previews.
+- **Frontend API Wrapper Normalization (`apiFetch`)**: Replaced raw browser `fetch()` calls to `/api/notifications` in `header.tsx` and `/api/profile/refresh` in `creator-profile-view.tsx` with `apiFetch`, resolving `401 Missing Authorization header` console warnings and Zod payload schema mismatches.
+- **Dashboard Analytics Completion Tracking & Status Mapping**: Upgraded both Influencer and Business dashboard endpoints (`/api/influencer/dashboard` and `/api/business/dashboard`) and frontend views (web + mobile) to include both active ongoing projects and completed project counts/values in the KPI cards and project roster list. Updated `statusVariant()` mappings in Roster lists to properly cross-reference `campaign_projects` statuses (`active` vs `completed`) instead of showing static labels.
+
+### What broke
+- **Supabase Service Role Key Auth**: In `apps/web/.env.local`, `SUPABASE_SERVICE_ROLE_KEY` was accidentally populated with an access token (`sbp_...` format) instead of the actual service role JWT (`eyJ...`). This silently caused operations bypassing RLS (such as server-side push notification fanning in `notifyUser()`) to fail or skip inserts.
+- **Expo Push Go Limitation**: In Expo SDK 53+, remote push notification delivery is no longer supported inside the Expo Go app. Attempting to test notifications via Expo Go results in token generation errors.
+- **Missing Authorization Headers on Raw Fetch**: Using raw browser `fetch("/api/...")` from frontend components failed to attach the active Supabase bearer token, triggering `401 Missing Authorization header` server warnings on every dashboard mount and notification interaction.
+- **Dashboard Static Status Labels & Missing Completed Metrics**: Dashboard Roster cards previously rendered static "Active" badges and only counted ongoing pipeline budgets, leaving completed/settled projects hidden and making the dashboard less insightful for creators and brands tracking delivered value.
+
+### Fix
+- **Service Role Key Format**: Validated and updated `SUPABASE_SERVICE_ROLE_KEY` with the proper service role JWT from the Supabase dashboard, moving the management access token to `SUPABASE_ACCESS_TOKEN`.
+- **Push Notification Verification Setup**: Identified that physical device testing via EAS Build (dev client or TestFlight / standalone apk) and APN key configuration in Apple Developer portal are required to verify push notifications end-to-end.
+- **API Fetch Wrapper**: Upgraded raw frontend fetch calls in `header.tsx`, `shell.tsx`, and `creator-profile-view.tsx` to use `apiFetch()`, ensuring automatic token injection and aligned Zod request body schemas (`action: "mark_read", notificationIds`).
+- **Completed Value & Roster Cross-Referencing**: Added `completed_value` calculation to both dashboard API routes and updated `influencer-home.tsx`, `business-home.tsx`, and mobile `home.tsx` to display both active pipeline and completed delivery metrics. Used `statusVariant(r.status || 'active')` in web and mobile rosters to render dynamic badges (`Completed` vs `Active`).
+
+### Key Lessons
+- Always differentiate between Supabase personal/management access tokens (`sbp_...`), which are for CLI and Management API operations, and service role JWTs (`eyJ...`), which are required for backend server SDK clients to bypass Row Level Security.
+- When working with Expo SDK 53+, always plan for standalone EAS builds (dev client or production builds) early when developing or testing features dependent on native push notification tokens.
+- Never use raw browser `fetch()` for `/api/*` endpoints in web frontend components; always use the `apiFetch()` helper from `@/lib/api-client` to ensure the live Supabase bearer token is injected and JSON error bodies are parsed safely without throwing.
+- In dashboard analytics and Roster UI lists, never hardcode static badge text like "Active" or ignore completed states; always cross-reference `campaign_projects` status and pass dynamic labels to `Badge` so both ongoing and historical engagements are transparent and insightful.
+
+---
+
+## Session — 2026-07-18: Azure CI/CD Pipeline & Staging Environment
+
+**Branch**: `staging`
+
+### Scope
+Built a complete, automated GitHub Actions CI/CD pipeline to deploy the Next.js backend to Azure Container Apps whenever code is merged to the `staging` branch.
+
+### What broke
+- **Container Registry Auth**: Azure Container Apps failed to pull the newly built Docker image from the private Azure Container Registry with an `UNAUTHORIZED` error.
+- **Missing Runtime Env Vars**: Next.js threw a 500 Internal Server Error upon deployment because it lacked the runtime environment variables (Supabase keys) needed to connect to the database.
+
+### Fix
+- **Registry Auth**: Passed `registryUrl`, `registryUsername`, and `registryPassword` directly into the `azure/container-apps-deploy-action@v1` step in the GitHub workflow so the Container App receives the credentials during deployment.
+- **Runtime Env Vars**: Guided the user to manually input the `.env.local` variables directly into the Azure Container App's "Environment variables" tab via the Azure Portal UI, allowing the server to reboot and successfully initialize Supabase.
+
+### Key Lessons
+- GitHub Actions needs registry credentials to *push* the Docker image, but Azure Container Apps *also* needs those same credentials injected at deployment time to *pull* it.
+- Environment variables must be set in two places for Docker deployments: as `--build-arg` in the Dockerfile for build-time static generation, and as runtime environment variables inside the Container App for server-side API connections.
+- Always use isolated Supabase projects (Dev vs. Staging vs. Prod) by injecting environment-specific keys into the respective Azure Container App settings.
+
+### Next Target
+- Implement IP restrictions or password protection on the staging environment to block public users.
+- Configure DNS custom domains for `staging.influnet.io`.
+
 ---
 
 ## Session — 2026-07-14: Auth Hardening, Data Leaks & Media Kit Settings

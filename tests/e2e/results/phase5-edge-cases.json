@@ -1,0 +1,190 @@
+{
+  "phaseId": "phase5-edge-cases",
+  "phaseTitle": "Phase 5 — Edge Cases & Validation",
+  "generatedAt": "2026-07-30T05:43:35.454Z",
+  "summary": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0,
+    "skipped": 0,
+    "findings": 0
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Signup: duplicate email is rejected with a clear error",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Body after duplicate-email submit attempt: \"influnet Create your account  Join as a creator.  1 2 3 4 5 CONNECT ACCOUNT PROFILE CREATOR COLLAB Profile details GENDER Select gender Male Female Non-binary Prefer not to say CITY STATE Select state\""
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/01-signup-duplicate-email-is-rejected-with-a-clear-error.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/influencer",
+      "timestamp": "2026-07-30T05:41:04.959Z"
+    },
+    {
+      "step": 2,
+      "name": "Signup: weak password keeps Continue disabled on step 2",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Continue button enabled with a 3-char password: false"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/02-signup-weak-password-keeps-continue-disabled-on-step-2.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/influencer",
+      "timestamp": "2026-07-30T05:41:07.482Z"
+    },
+    {
+      "step": 3,
+      "name": "Signup: invalid email format keeps Continue disabled",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Continue button enabled with an invalid email format: false"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/03-signup-invalid-email-format-keeps-continue-disabled.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/influencer",
+      "timestamp": "2026-07-30T05:41:08.463Z"
+    },
+    {
+      "step": 4,
+      "name": "Signup: duplicate username triggers the alternative-suggestion recovery flow",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Body after entering a taken username: \"influnet Create your account  Join as a creator.  1 2 3 4 5 CONNECT ACCOUNT PROFILE CREATOR COLLAB Account details FIRST NAME LAST NAME USERNAME  That username is already taken  Your public profile wi\""
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/04-signup-duplicate-username-triggers-the-alternative-suggestio.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/influencer",
+      "timestamp": "2026-07-30T05:41:11.340Z"
+    },
+    {
+      "step": 5,
+      "name": "Business signup blocks a garbage website URL",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Garbage website \"not a url at all!!\" → Continue disabled: true; inline error shown: true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/05-business-signup-blocks-a-garbage-website-url.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/business",
+      "timestamp": "2026-07-30T05:41:16.241Z"
+    },
+    {
+      "step": 6,
+      "name": "Business signup blocks a garbage GST number, accepts a real one",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Garbage GST blocked: true. Valid GSTIN \"27AABCU1234D1ZV\" re-enables Continue: true."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/06-business-signup-blocks-a-garbage-gst-number-accepts-a-real-o.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/signup/business",
+      "timestamp": "2026-07-30T05:41:18.185Z"
+    },
+    {
+      "step": 7,
+      "name": "Creator settings: Tamil unicode bio saves and renders correctly",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Tamil unicode + emoji round-tripped through save correctly."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/07-creator-settings-tamil-unicode-bio-saves-and-renders-correct.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/settings",
+      "timestamp": "2026-07-30T05:41:29.139Z"
+    },
+    {
+      "step": 8,
+      "name": "CONFIRMED SAFE: an XSS payload in bio is stored as data, not executed as a script",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Payload stored verbatim in DB (expected — sanitize on render, not on write). Script executed on public profile render: false"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/08-confirmed-safe-an-xss-payload-in-bio-is-stored-as-data-not-e.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/settings",
+      "timestamp": "2026-07-30T05:41:43.077Z"
+    },
+    {
+      "step": 9,
+      "name": "A negative budget is rejected, not silently flipped to positive",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Typed \"-500\" → inline error shown: true; row created in DB: false (expected none)."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/09-a-negative-budget-is-rejected-not-silently-flipped-to-positi.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests/new?to=021faad5-a304-4899-929b-782e2f999041",
+      "timestamp": "2026-07-30T05:41:52.884Z"
+    },
+    {
+      "step": 10,
+      "name": "A blank (optional) budget is accepted, not rejected with a 400",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Blank budget → row created: true, budget=null (previously a 400 because Zod .optional() rejected the explicit null)."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/10-a-blank-optional-budget-is-accepted-not-rejected-with-a-400.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-30T05:41:59.649Z"
+    },
+    {
+      "step": 11,
+      "name": "Send-request: absurdly large budget (1 trillion) is accepted with no upper bound",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "No client-side upper bound on budget — accepted \"null\" (₹1 trillion) without a warning or cap."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase5-edge-cases/11-send-request-absurdly-large-budget-1-trillion-is-accepted-wi.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-30T05:43:35.242Z"
+    }
+  ]
+}

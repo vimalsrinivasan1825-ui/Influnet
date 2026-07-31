@@ -16,8 +16,51 @@ export async function GET(req: Request) {
 
     if (notifError) throw notifError;
 
-    // 2. Unread Stream Chat messages (client-side handles Stream Chat unread counts via Stream SDK)
-    const unreadMessages = 0;
+    /**
+     * 2. Unread Stream Chat messages.
+     *
+     * This MUST use getUnreadCount(), not queryUsers(). `total_unread_count` is
+     * only populated for the *connected* user on a client-side connection — a
+     * server-side queryUsers() returns the field as 0 for everyone, always. So
+     * this reported "no unread messages" no matter how many were waiting, and
+     * the messages badge never appeared. getUnreadCount is the server-side API
+     * for exactly this and returns the real number.
+     */
+    let unreadMessages = 0;
+    let streamAnswered = false;
+    try {
+      if (process.env.NEXT_PUBLIC_STREAM_API_KEY && process.env.STREAM_API_SECRET) {
+        const { getStreamClient } = await import('@/lib/stream');
+        const streamClient = getStreamClient();
+        const counts = await streamClient.getUnreadCount(user.id);
+        unreadMessages = counts.total_unread_count ?? 0;
+        streamAnswered = true;
+      }
+    } catch (streamErr) {
+      // A Stream outage costs the badge, not the endpoint — but log it, because
+      // silence here previously looked identical to "you have no messages".
+      console.error('[notifications/summary] Stream unread lookup failed:', streamErr);
+    }
+
+    /**
+     * Fall back to notification rows ONLY when Stream could not answer.
+     *
+     * Keying this off `unreadMessages === 0` instead would misreport the common
+     * case: once someone reads a chat, Stream correctly returns 0 while their
+     * `type: 'message'` notification rows are still unread (they never opened
+     * the bell), so the messages badge would stay lit on an already-read
+     * conversation. Stream is the source of truth for chat; these rows are the
+     * standby for when it is unreachable.
+     */
+    if (!streamAnswered) {
+      const { count: msgNotifCount } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('type', 'message')
+        .is('read_at', null);
+      unreadMessages = msgNotifCount ?? 0;
+    }
 
     // 3. Pending collab_requests count.
     //    Real table: `collab_requests` with `from_user_id` / `to_user_id`.

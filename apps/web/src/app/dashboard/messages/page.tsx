@@ -14,8 +14,9 @@ import {
   ChannelHeader,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/index.css";
-import { MessageSquare, Plus, FolderKanban, MoreVertical, Trash2, Loader2 } from "lucide-react";
+import { MessageSquare, Plus, FolderKanban, MoreVertical, Trash2, Loader2, ArrowLeft } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { DealPanel } from "@/components/dashboard/deal-panel";
 import { cn } from "@/lib/utils";
 
 const STREAM_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
@@ -108,6 +109,10 @@ function MessagesContent() {
   const [menuOpenConv, setMenuOpenConv] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeChannel, setActiveChannel] = useState<ReturnType<StreamChat["channel"]> | null>(null);
+  // Who this conversation is with, resolved from our own tables. The Stream
+  // channel name is shared by both members, so it can never be the partner's
+  // name — that is what made each side see themselves in the header.
+  const [activePartner, setActivePartner] = useState<string | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
 
   const { client: streamClient, status: streamStatus } = useStreamConnect(userId);
@@ -132,11 +137,28 @@ function MessagesContent() {
     })();
   }, []);
 
+  // Deep-link from a notification (?conv=…). This has to wait for BOTH the
+  // conversation list and the Stream client: openConversation() resolves the
+  // other participant from `conversations`, so firing it on mount — while the
+  // list was still empty — selected nothing and left the pane stuck on
+  // "Loading conversation…" with no clue which chat was meant.
+  const deepLinked = useRef<string | null>(null);
   useEffect(() => {
     const convFromUrl = searchParams.get("conv");
-    if (convFromUrl) openConversation(convFromUrl);
+    if (!convFromUrl || loading || !streamClient) return;
+    if (deepLinked.current === convFromUrl) return;
+
+    const conv = conversations.find((c) => c.id === convFromUrl);
+    const project = projects.find((p) => p.conversation_id === convFromUrl);
+    const otherId =
+      conv?.participants?.find((p) => p.user_id !== userId)?.user_id ?? project?.partner?.id;
+    if (!conv && !project) return; // list not settled yet, or not ours
+
+    deepLinked.current = convFromUrl;
+    const other = conv?.participants?.find((p) => p.user_id !== userId)?.profile;
+    openConversation(convFromUrl, otherId, project?.title || other?.name || "Chat");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, loading, streamClient, conversations, projects, userId]);
 
   useEffect(() => {
     if (!streamClient || (conversations.length === 0 && projects.length === 0)) return;
@@ -193,12 +215,12 @@ function MessagesContent() {
     }
   };
 
-  const ensureChannel = async (convId: string, otherUserId: string, channelName?: string) => {
+  const ensureChannel = async (convId: string, otherUserId: string) => {
     if (!streamClient) return null;
     const channelId = `conv_${convId}`;
     await apiFetch("/api/stream/channel", {
       method: "POST",
-      body: JSON.stringify({ conversationId: convId, otherUserId, channelName: channelName || "Chat" }),
+      body: JSON.stringify({ conversationId: convId, otherUserId }),
     });
     const channel = streamClient.channel("messaging", channelId);
     await channel.watch();
@@ -209,14 +231,19 @@ function MessagesContent() {
     setActiveConvId(convId);
     if (title) setActiveProjectTitle(title);
 
+    const conv = conversations.find((c) => c.id === convId);
+    const otherProfile = conv?.participants?.find((p) => p.user_id !== userId)?.profile;
+    const projectPartner = projects.find((p) => p.conversation_id === convId)?.partner;
+    setActivePartner(
+      otherProfile?.name || projectPartner?.company_name || projectPartner?.name || null,
+    );
+
     if (!otherUserId) {
-      const conv = conversations.find((c) => c.id === convId);
-      const other = conv?.participants?.find((p) => p.user_id !== userId);
-      otherUserId = other?.user_id;
+      otherUserId = conv?.participants?.find((p) => p.user_id !== userId)?.user_id;
     }
     if (streamClient && otherUserId) {
       try {
-        const channel = await ensureChannel(convId, otherUserId, title || "Chat");
+        const channel = await ensureChannel(convId, otherUserId);
         if (channel) {
           setActiveChannel(channel);
           setActiveChannelId(`messaging:conv_${convId}`);
@@ -259,6 +286,7 @@ function MessagesContent() {
           setActiveChannelId(null);
           setActiveChannel(null);
           setActiveProjectTitle(null);
+          setActivePartner(null);
         }
         await fetchConversations();
       }
@@ -277,8 +305,14 @@ function MessagesContent() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-surface">
-      {/* Sidebar */}
-      <div className="flex w-full max-w-[20rem] shrink-0 flex-col border-r border-hairline bg-surface-card max-md:max-w-[16rem]">
+      {/* Sidebar — full-width on mobile; hides when a conversation is open so
+          the chat gets the whole screen (single-pane). Two-pane on md+. */}
+      <div
+        className={cn(
+          "flex w-full max-w-[20rem] shrink-0 flex-col border-r border-hairline bg-surface-card max-md:max-w-none",
+          activeConvId && "max-md:hidden",
+        )}
+      >
         <div className="flex items-center justify-between px-4 pb-2 pt-4">
           <h2 className="text-base font-extrabold tracking-tight text-content">Messages</h2>
           {streamStatus === "connecting" && <Loader2 className="size-3.5 animate-spin text-content-muted" />}
@@ -405,8 +439,32 @@ function MessagesContent() {
         </div>
       </div>
 
-      {/* Chat area */}
-      <div className="str-chat flex min-w-0 flex-1 flex-col bg-surface-card">
+      {/* Chat area — on mobile it's hidden until a conversation is open, then
+          fills the screen. Always visible alongside the list on md+. */}
+      <div
+        className={cn(
+          "str-chat flex min-w-0 flex-1 flex-col bg-surface-card",
+          !activeConvId && "max-md:hidden",
+        )}
+      >
+        {activeConvId && (
+          <button
+            onClick={() => setActiveConvId(null)}
+            className="flex items-center gap-2 border-b border-hairline px-4 py-3 text-sm font-semibold text-content-soft transition-colors hover:text-content md:hidden"
+          >
+            <ArrowLeft className="size-4" /> Back to conversations
+          </button>
+        )}
+        {/* The deal card rides above the chat: the request that started this
+            conversation, and the accept → negotiate → propose → start-project
+            steps, so nothing about the deal happens off-screen. */}
+        {activeConvId && (
+          <DealPanel
+            key={activeConvId}
+            conversationId={activeConvId}
+            onProjectCreated={fetchConversations}
+          />
+        )}
         {!activeConvId ? (
           <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">
             <span className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-brand-soft text-brand">
@@ -424,7 +482,12 @@ function MessagesContent() {
           <Chat client={streamClient}>
             <Channel channel={activeChannel}>
               <Window>
-                <ChannelHeader />
+                {/* Title comes from our data, not the channel, so each side
+                    sees the OTHER person. Falls back to a neutral label rather
+                    than undefined — that would let Stream fall through to the
+                    shared channel name, which is exactly the poisoned value
+                    this fix exists to bypass on already-created channels. */}
+                <ChannelHeader title={activePartner ?? "Chat"} />
                 <MessageList />
                 <MessageComposer />
               </Window>

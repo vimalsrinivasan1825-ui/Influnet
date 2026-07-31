@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { conversationId, otherUserId, channelName } = await req.json();
+    const { conversationId, otherUserId } = await req.json();
 
     if (!conversationId || !otherUserId) {
       return NextResponse.json({ error: 'Missing conversationId or otherUserId' }, { status: 400 });
@@ -49,25 +49,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'otherUserId is not a participant' }, { status: 400 });
     }
 
-    // Ensure both users exist in Stream
-    await ensureStreamUser(user.id);
-    
-    // Get other user's profile for Stream
-    const { data: otherProfile } = await supabase
+    // Register BOTH members in Stream under their real names, so message
+    // avatars and sender labels read correctly for either side.
+    const { data: profs } = await supabase
       .from('profiles')
-      .select('name')
-      .eq('id', otherUserId)
-      .single();
+      .select('id, name')
+      .in('id', [user.id, otherUserId]);
 
-    const otherName = (otherProfile as { name?: string } | null)?.name || otherUserId;
-    await ensureStreamUser(otherUserId, otherName);
+    const nameOf = (id: string) =>
+      (profs as { id: string; name?: string }[] | null)?.find((p) => p.id === id)?.name || null;
 
-    // Create/ensure the Stream channel
-    await ensureStreamChannel(
-      conversationId,
-      [user.id, otherUserId],
-      channelName || 'Chat',
-    );
+    await Promise.all([
+      ensureStreamUser(user.id, nameOf(user.id)),
+      ensureStreamUser(otherUserId, nameOf(otherUserId)),
+    ]);
+
+    // Deliberately NO channel name. A channel has one name shared by both
+    // members, so naming it after "the other person" made whoever opened it
+    // last overwrite it — and the other party then saw their own name in the
+    // header. The header is rendered per-viewer from our own data instead.
+    await ensureStreamChannel(conversationId, [user.id, otherUserId]);
 
     return NextResponse.json({ success: true, channelId: `conv_${conversationId}` });
   } catch (err) {

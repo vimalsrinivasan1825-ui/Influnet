@@ -335,9 +335,10 @@
     the diagram to jump to its explanation.
   </p>
   <p class="meta">
-    Last updated <b>July 10, 2026</b> · repo layout: Turborepo monorepo, app in
-    <span class="mono">apps/web</span> · database: Supabase project
-    <span class="mono">jaajosocopoicmqcffuu</span> · 43 migrations
+    Last updated <b>July 29, 2026</b> · repo layout: Turborepo monorepo,
+    <span class="mono">apps/web</span> (Next.js) · <span class="mono">apps/mobile</span> (React Native / Expo) ·
+    <span class="mono">packages/api</span> (shared endpoint client) · database: Supabase project
+    <span class="mono">jaajosocopoicmqcffuu</span> · <b>92 migrations</b>
   </p>
 
   <!-- ═══════════════════ DIAGRAM ═══════════════════ -->
@@ -353,85 +354,246 @@
   </div>
 
   <div class="diagram-card">
-  <svg viewBox="0 0 1140 860" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Influnet system block diagram: client pages, edge middleware, API routes, and data services">
+  <svg viewBox="0 0 1140 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Influnet system block diagram: mobile + web clients, edge middleware, API routes, and data services">
     <defs>
       <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0,0 L8,4 L0,8 z" fill="var(--muted)"/>
       </marker>
     </defs>
 
-    <!-- CLIENT band -->
-    <rect class="band" x="16" y="16" width="1108" height="222" rx="14"/>
-    <text class="band-label" x="32" y="44">Client — Next.js pages · apps/web/src/app</text>
+    <!-- MOBILE band -->
+    <rect class="band" x="16" y="16" width="1108" height="60" rx="14"/>
+    <text class="band-label" x="32" y="44">Mobile — React Native (Expo) · apps/mobile</text>
+    <a href="#m-mobile"><g>
+      <rect class="node" x="32" y="34" width="1060" height="30" rx="10"/>
+      <circle class="dot-ok" cx="48" cy="49" r="4"/>
+      <text class="nlabel" x="562" y="52" text-anchor="middle">Projects · Requests · Profile · Settings · Activity · Portfolio · Change Requests · Reviews · Verification</text>
+    </g></a>
+
+    <!-- WEB client band -->
+    <rect class="band" x="16" y="90" width="1108" height="222" rx="14"/>
+    <text class="band-label" x="32" y="118">Client — Next.js pages · apps/web/src/app</text>
 
     <!-- Row A -->
     <a href="#m-landing"><g>
-      <rect class="node" x="32" y="64" width="170" height="54" rx="12"/>
-      <circle class="dot-ok" cx="48" cy="91" r="4"/>
-      <text class="nlabel" x="117" y="96" text-anchor="middle">Landing</text>
+      <rect class="node" x="32" y="136" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="48" cy="163" r="4"/>
+      <text class="nlabel" x="117" y="168" text-anchor="middle">Landing</text>
     </g></a>
     <a href="#m-auth"><g>
-      <rect class="node" x="213" y="64" width="170" height="54" rx="12"/>
-      <circle class="dot-ok" cx="229" cy="91" r="4"/>
-      <text class="nlabel" x="298" y="96" text-anchor="middle">Login &amp; Signup</text>
+      <rect class="node" x="213" y="136" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="229" cy="163" r="4"/>
+      <text class="nlabel" x="298" y="168" text-anchor="middle">Login &amp; Signup</text>
     </g></a>
     <a href="#m-dashboards"><g>
-      <rect class="node" x="394" y="64" width="170" height="54" rx="12"/>
-      <circle class="dot-warn" cx="410" cy="91" r="4"/>
-      <text class="nlabel" x="479" y="96" text-anchor="middle">Business Dash</text>
+      <rect class="node" x="394" y="136" width="170" height="54" rx="12"/>
+      <circle class="dot-warn" cx="410" cy="163" r="4"/>
+      <text class="nlabel" x="479" y="168" text-anchor="middle">Business Dash</text>
     </g></a>
     <a href="#m-dashboards"><g>
-      <rect class="node" x="575" y="64" width="170" height="54" rx="12"/>
-      <circle class="dot-warn" cx="591" cy="91" r="4"/>
-      <text class="nlabel" x="660" y="96" text-anchor="middle">Creator Dash</text>
+      <rect class="node" x="575" y="136" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="591" cy="163" r="4"/>
+      <text class="nlabel" x="660" y="168" text-anchor="middle">Creator Dash</text>
     </g></a>
     <a href="#m-discover"><g>
-      <rect class="node" x="756" y="64" width="170" height="54" rx="12"/>
-      <circle class="dot-warn" cx="772" cy="91" r="4"/>
-      <text class="nlabel" x="841" y="96" text-anchor="middle">Discover</text>
+      <rect class="node" x="756" y="136" width="170" height="54" rx="12"/>
+      <circle class="dot-warn" cx="772" cy="163" r="4"/>
+      <text class="nlabel" x="841" y="168" text-anchor="middle">Discover</text>
     </g></a>
     <a href="#m-requests"><g>
-      <rect class="node" x="937" y="64" width="170" height="54" rx="12"/>
-      <circle class="dot-ok" cx="953" cy="91" r="4"/>
-      <text class="nlabel" x="1022" y="96" text-anchor="middle">Requests</text>
+      <rect class="node" x="937" y="136" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="953" cy="163" r="4"/>
+      <text class="nlabel" x="1022" y="168" text-anchor="middle">Requests</text>
     </g></a>
 
     <!-- Row B -->
     <a href="#m-projects"><g>
-      <rect class="node" x="32" y="140" width="170" height="54" rx="12"/>
-      <circle class="dot-ok" cx="48" cy="167" r="4"/>
-      <text class="nlabel" x="117" y="172" text-anchor="middle">Projects + Kanban</text>
+      <rect class="node" x="32" y="210" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="48" cy="237" r="4"/>
+      <text class="nlabel" x="117" y="242" text-anchor="middle">Projects + Kanban</text>
     </g></a>
     <a href="#m-messages"><g>
-      <rect class="node" x="213" y="140" width="170" height="54" rx="12"/>
-      <circle class="dot-warn" cx="229" cy="167" r="4"/>
-      <text class="nlabel" x="298" y="172" text-anchor="middle">Messages</text>
+      <rect class="node" x="213" y="210" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="229" cy="237" r="4"/>
+      <text class="nlabel" x="298" y="242" text-anchor="middle">Messages</text>
     </g></a>
     <a href="#m-admin"><g>
-      <rect class="node" x="394" y="140" width="170" height="54" rx="12"/>
-      <circle class="dot-ok" cx="410" cy="167" r="4"/>
-      <text class="nlabel" x="479" y="172" text-anchor="middle">Admin Panel</text>
+      <rect class="node" x="394" y="210" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="410" cy="237" r="4"/>
+      <text class="nlabel" x="479" y="242" text-anchor="middle">Admin Panel</text>
     </g></a>
     <a href="#m-settings"><g>
-      <rect class="node" x="575" y="140" width="170" height="54" rx="12"/>
-      <circle class="dot-ok" cx="591" cy="167" r="4"/>
-      <text class="nlabel" x="660" y="172" text-anchor="middle">Settings</text>
+      <rect class="node" x="575" y="210" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="591" cy="237" r="4"/>
+      <text class="nlabel" x="660" y="242" text-anchor="middle">Settings</text>
     </g></a>
-    <a href="#m-connections"><g>
-      <rect class="node node-plan" x="756" y="140" width="170" height="54" rx="12"/>
-      <circle class="dot-plan" cx="772" cy="167" r="4"/>
-      <text class="nlabel node-plan-text" x="841" y="172" text-anchor="middle">Connections</text>
+    <a href="#m-blocks"><g>
+      <rect class="node" x="756" y="210" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="772" cy="237" r="4"/>
+      <text class="nlabel" x="841" y="242" text-anchor="middle">Blocks</text>
     </g></a>
     <a href="#m-public-profile"><g>
-      <rect class="node node-plan" x="937" y="140" width="170" height="54" rx="12"/>
-      <circle class="dot-plan" cx="953" cy="167" r="4"/>
-      <text class="nlabel node-plan-text" x="1022" y="166" text-anchor="middle">Public Profile</text>
-      <text class="nsub" x="1022" y="181" text-anchor="middle">/c/[username] · link-in-bio</text>
+      <rect class="node" x="937" y="210" width="170" height="54" rx="12"/>
+      <circle class="dot-ok" cx="953" cy="237" r="4"/>
+      <text class="nlabel" x="1022" y="236" text-anchor="middle">Public Profile</text>
+      <text class="nsub" x="1022" y="251" text-anchor="middle">/c/[username] · link-in-bio</text>
     </g></a>
 
     <!-- flow client -> middleware -->
-    <line class="flow" x1="570" y1="240" x2="570" y2="262" marker-end="url(#arr)"/>
-    <text class="flow-label" x="584" y="256">fetch + Bearer JWT</text>
+    <line class="flow" x1="570" y1="314" x2="570" y2="336" marker-end="url(#arr)"/>
+    <text class="flow-label" x="584" y="330">fetch + Bearer JWT</text>
+
+    <!-- EDGE band -->
+    <rect class="band" x="16" y="328" width="1108" height="64" rx="14"/>
+    <text class="band-label" x="32" y="365">Edge</text>
+    <a href="#m-middleware"><g>
+      <rect class="node" x="330" y="340" width="480" height="40" rx="12"/>
+      <circle class="dot-ok" cx="348" cy="360" r="4"/>
+      <text class="nlabel" x="570" y="365" text-anchor="middle">Middleware — session refresh · route guard</text>
+    </g></a>
+
+    <!-- flow middleware -> api -->
+    <line class="flow" x1="570" y1="380" x2="570" y2="404" marker-end="url(#arr)"/>
+
+    <!-- API band -->
+    <rect class="band" x="16" y="408" width="1108" height="190" rx="14"/>
+    <text class="band-label" x="32" y="436">API — route handlers · apps/web/src/app/api</text>
+
+    <!-- API Row A -->
+    <a href="#m-requests"><g>
+      <rect class="node" x="32" y="456" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="48" cy="483" r="4"/>
+      <text class="nlabel" x="134" y="488" text-anchor="middle">/api/collabs</text>
+    </g></a>
+    <a href="#m-projects"><g>
+      <rect class="node" x="250" y="456" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="266" cy="483" r="4"/>
+      <text class="nlabel" x="352" y="488" text-anchor="middle">/api/projects + cards</text>
+    </g></a>
+    <a href="#m-messages"><g>
+      <rect class="node" x="468" y="456" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="484" cy="483" r="4"/>
+      <text class="nlabel" x="570" y="488" text-anchor="middle">/api/conversations</text>
+    </g></a>
+    <a href="#m-messages"><g>
+      <rect class="node" x="686" y="456" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="702" cy="483" r="4"/>
+      <text class="nlabel" x="788" y="488" text-anchor="middle">/api/stream/*</text>
+    </g></a>
+    <a href="#m-notifications"><g>
+      <rect class="node" x="904" y="456" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="920" cy="483" r="4"/>
+      <text class="nlabel" x="1006" y="488" text-anchor="middle">/api/notifications</text>
+    </g></a>
+
+    <!-- API Row B -->
+    <a href="#m-auth"><g>
+      <rect class="node" x="141" y="532" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="157" cy="559" r="4"/>
+      <text class="nlabel" x="243" y="564" text-anchor="middle">/api/auth · profile</text>
+    </g></a>
+    <a href="#m-discover"><g>
+      <rect class="node" x="359" y="532" width="204" height="54" rx="12"/>
+      <circle class="dot-warn" cx="375" cy="559" r="4"/>
+      <text class="nlabel" x="461" y="564" text-anchor="middle">/api/discover</text>
+    </g></a>
+    <a href="#m-dashboards"><g>
+      <rect class="node" x="577" y="532" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="593" cy="559" r="4"/>
+      <text class="nlabel" x="679" y="564" text-anchor="middle">/api/home · dashboard</text>
+    </g></a>
+    <a href="#m-admin"><g>
+      <rect class="node" x="795" y="532" width="204" height="54" rx="12"/>
+      <circle class="dot-ok" cx="811" cy="559" r="4"/>
+      <text class="nlabel" x="897" y="564" text-anchor="middle">/api/admin/*</text>
+    </g></a>
+
+    <!-- flows api -> services -->
+    <line class="flow" x1="350" y1="598" x2="350" y2="620" marker-end="url(#arr)"/>
+    <line class="flow" x1="900" y1="598" x2="900" y2="620" marker-end="url(#arr)"/>
+
+    <!-- SERVICES band -->
+    <rect class="band" x="16" y="626" width="1108" height="440" rx="14"/>
+    <text class="band-label" x="32" y="652">Data &amp; services</text>
+
+    <!-- Supabase container -->
+    <a href="#m-supabase"><g>
+      <rect class="container-box" x="32" y="664" width="650" height="392" rx="14"/>
+      <text class="container-title" x="48" y="688">Supabase — PostgreSQL · Auth · Storage · Realtime · Edge Functions</text>
+    </g></a>
+    <a href="#m-supabase"><g>
+      <rect class="node" x="48" y="700" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="63" cy="725" r="4"/>
+      <text class="nlabel" x="146" y="730" text-anchor="middle">Auth (JWT)</text>
+    </g></a>
+    <a href="#m-supabase"><g>
+      <rect class="node" x="259" y="700" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="274" cy="725" r="4"/>
+      <text class="nlabel" x="357" y="720" text-anchor="middle">Postgres + RLS</text>
+      <text class="nsub" x="357" y="740" text-anchor="middle">92 migrations · 19+ tables</text>
+    </g></a>
+    <a href="#m-supabase"><g>
+      <rect class="node" x="470" y="700" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="485" cy="725" r="4"/>
+      <text class="nlabel" x="568" y="730" text-anchor="middle">Storage</text>
+    </g></a>
+    <a href="#m-otp"><g>
+      <rect class="node" x="48" y="768" width="196" height="50" rx="10"/>
+      <circle class="dot-idle" cx="63" cy="793" r="4"/>
+      <text class="nlabel" x="146" y="798" text-anchor="middle">Edge Fn · phone-otp</text>
+    </g></a>
+    <a href="#m-otp"><g>
+      <rect class="node" x="259" y="768" width="196" height="50" rx="10"/>
+      <circle class="dot-idle" cx="274" cy="793" r="4"/>
+      <text class="nlabel" x="357" y="798" text-anchor="middle">Edge Fn · auth-signup</text>
+    </g></a>
+    <a href="#m-realtime"><g>
+      <rect class="node" x="470" y="768" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="485" cy="793" r="4"/>
+      <text class="nlabel" x="568" y="798" text-anchor="middle">Realtime (pg_changes)</text>
+    </g></a>
+    <a href="#m-rate-limit"><g>
+      <rect class="node" x="48" y="836" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="63" cy="861" r="4"/>
+      <text class="nlabel" x="146" y="866" text-anchor="middle">Rate limiter</text>
+    </g></a>
+    <a href="#m-pooler"><g>
+      <rect class="node" x="259" y="836" width="196" height="50" rx="10"/>
+      <circle class="dot-ok" cx="274" cy="861" r="4"/>
+      <text class="nlabel" x="357" y="866" text-anchor="middle">Connection pooler</text>
+    </g></a>
+
+    <!-- Right service stack -->
+    <a href="#m-stream"><g>
+      <rect class="node" x="700" y="664" width="408" height="50" rx="12"/>
+      <circle class="dot-ok" cx="716" cy="689" r="4"/>
+      <text class="nlabel" x="904" y="694" text-anchor="middle">Stream Chat — hosted messaging</text>
+    </g></a>
+    <a href="#m-otp"><g>
+      <rect class="node" x="700" y="732" width="408" height="50" rx="12"/>
+      <circle class="dot-warn" cx="716" cy="757" r="4"/>
+      <text class="nlabel" x="904" y="762" text-anchor="middle">2Factor — SMS OTP (India)</text>
+    </g></a>
+    <a href="#m-expo-push"><g>
+      <rect class="node" x="700" y="800" width="408" height="50" rx="12"/>
+      <circle class="dot-ok" cx="716" cy="825" r="4"/>
+      <text class="nlabel" x="904" y="830" text-anchor="middle">Expo Push — mobile notifications</text>
+    </g></a>
+    <a href="#m-payments"><g>
+      <rect class="node" x="700" y="868" width="408" height="50" rx="12"/>
+      <circle class="dot-idle" cx="716" cy="893" r="4"/>
+      <text class="nlabel" x="904" y="898" text-anchor="middle">Razorpay — payments (routes exist)</text>
+    </g></a>
+    <a href="#m-verification"><g>
+      <rect class="node" x="700" y="936" width="408" height="44" rx="12"/>
+      <circle class="dot-ok" cx="716" cy="958" r="4"/>
+      <text class="nlabel" x="904" y="963" text-anchor="middle">Apify · HikerAPI — Instagram scraper</text>
+    </g></a>
+
+    <!-- connectors -->
+    <path class="flow" d="M 244 793 L 660 793 L 660 774 L 690 759" stroke-dasharray="4 4" marker-end="url(#arr)"/>
+    <text class="flow-label" x="600" y="786">SMS</text>
+  </svg>
 
     <!-- EDGE band -->
     <rect class="band" x="16" y="254" width="1108" height="64" rx="14"/>
@@ -574,7 +736,7 @@
   <!-- ═══════════════════ MODULES ═══════════════════ -->
   <h2 id="modules">Modules — what each block is</h2>
   <p class="sub">
-    Status verified against the code and live database on July 10, 2026. Each card lists the
+    Status verified against the code and live database on July 29, 2026. Each card lists the
     key paths and the honest gap that remains.
   </p>
 
@@ -602,10 +764,10 @@
     </section>
 
     <section class="mod" id="m-dashboards">
-      <header><h3>Dashboards (business + creator)</h3><span class="pill warn">Partial</span></header>
-      <p>Role-specific home screens. Request/project counts and budget totals are real; bell + badge counts now live via the notifications summary.</p>
-      <p class="paths">src/app/dashboard/page.tsx · dashboard/influencer · api/business|influencer/dashboard</p>
-      <p class="gap"><b>Gaps:</b> <span class="mono">reach</span>, <span class="mono">platform</span>, <span class="mono">profile_views</span>, trends are mock values (Task 3.5) — real sources exist in the dormant analytics tables.</p>
+      <header><h3>Dashboards (business + creator)</h3><span class="pill ok">Working</span></header>
+      <p>Role-specific home screens via <span class="mono">/api/home</span>. Project counts, budget totals, stages, stalled projects, and funnel analytics are real. Live profile preview with Instagram/YouTube snapshots, portfolio grid, audience breakdown, and brand ratings.</p>
+      <p class="paths">app/dashboard/page.tsx · influencer · api/home</p>
+      <p class="gap"><b>Gaps:</b> <span class="mono">reach</span>, <span class="mono">platform</span>, <span class="mono">profile_views</span> trends are still mock values.</p>
     </section>
 
     <section class="mod" id="m-discover">
@@ -624,23 +786,23 @@
 
     <section class="mod" id="m-projects">
       <header><h3>Projects — 12-stage pipeline + Kanban</h3><span class="pill ok">Working</span></header>
-      <p>Auto-created on accept. Stage tracker (collaboration_started → project_completed), mutual-consent cancellation, and a per-project Kanban workspace with draggable cards (due dates, colors, meeting links). State transitions and role enforcements are centralized in a shared lifecycle module.</p>
-      <p class="paths">dashboard/projects · lib/project-lifecycle.ts · api/projects/[id] · api/projects/[id]/cards</p>
-      <p class="gap"><b>Done:</b> Unified stage advancement and cancellation flows. <b>Gap:</b> file deliverables (<span class="mono">project_assets</span>) have no UI.</p>
+      <p>Auto-created on accept. Stage tracker (collaboration_started → project_completed), mutual-consent cancellation, bilateral sign-off, stage skip, change requests, 15-day retention after cancellation. Per-project Kanban workspace with draggable cards. State transitions and role enforcements centralized in shared lifecycle module.</p>
+      <p class="paths">dashboard/projects · lib/project-lifecycle.ts · api/projects/[id] · api/projects/[id]/cards · api/projects/[id]/change-requests · api/projects/[id]/reviews</p>
+      <p class="gap"><b>Done:</b> Cancellation hardening (cancelled projects reject all mutation). Change requests with propose/accept/reject/withdraw. Reviews &amp; ratings on completion. <b>Gaps:</b> file deliverables (<span class="mono">project_assets</span>) have no UI; payments not yet wired.</p>
     </section>
 
     <section class="mod" id="m-messages">
-      <header><h3>Messaging</h3><span class="pill warn">Needs live QA</span></header>
-      <p>Chat UI runs on Stream Chat (hosted). Supabase stays the source of truth for <i>which</i> conversations exist; conversation creation is atomic via <span class="mono">get_or_create_conversation</span>. Stream token/channel routes now authenticate the caller and verify channel membership.</p>
-      <p class="paths">dashboard/messages · api/conversations · api/stream/* · src/lib/stream.ts</p>
-      <p class="gap"><b>Gaps:</b> end-to-end QA with two real accounts still pending; message history isn't persisted back to Postgres yet (webhook — Task 1.6).</p>
+      <header><h3>Messaging</h3><span class="pill ok">Working</span></header>
+      <p>Chat UI runs on Stream Chat (hosted). Messages persisted via webhook into Postgres. Push notifications for new messages via Expo Push API (mobile). Deal card embedded in conversation — propose terms, accept/decline projects from chat.</p>
+      <p class="paths">dashboard/messages · api/conversations · api/stream/* · lib/stream.ts · lib/notify.ts</p>
+      <p class="gap"><b>Done:</b> Stream webhook created. Push notifications wired. Deal negotiation in chat. <b>Gap:</b> mobile chat (Stream Chat RN) build pending.</p>
     </section>
 
     <section class="mod" id="m-notifications">
-      <header><h3>Notifications</h3><span class="pill warn">Partial</span></header>
-      <p>In-app summary works: <span class="mono">/api/notifications/summary</span> feeds the sidebar badges and bell counts. This is the product's core promise — "instant" delivery is the next milestone.</p>
-      <p class="paths">api/notifications/summary · store/notification-store.ts · components/dashboard/shell.tsx</p>
-      <p class="gap"><b>Missing:</b> notifications table + Supabase Realtime push (Task 2.1) and email via Resend (Task 2.2). Until then, creators only see requests when they open the app.</p>
+      <header><h3>Notifications</h3><span class="pill ok">Working</span></header>
+      <p>In-app summary works: <span class="mono">/api/notifications/summary</span> feeds the sidebar badges and bell counts. Server-side notification pipeline (<span class="mono">notifyUser</span>) inserts persistent rows and sends push notifications to mobile devices via Expo Push API.</p>
+      <p class="paths">api/notifications/summary · store/notification-store.ts · lib/notify.ts · apps/mobile/lib/push.ts</p>
+      <p class="gap"><b>Status:</b> Push notifications wired up across web and mobile (migration 079). Email notifications via Resend optional.</p>
     </section>
 
     <section class="mod" id="m-admin">
@@ -658,24 +820,24 @@
     </section>
 
     <section class="mod" id="m-connections">
-      <header><h3>Connections</h3><span class="pill plan">Stub</span></header>
-      <p>Page is a 20-line placeholder. The database side (connections table, favorites, notes — migration 029) already exists.</p>
-      <p class="paths">dashboard/connections · migration 029</p>
-      <p class="gap"><b>To build:</b> list of collaborators derived from accepted projects, favorites, notes.</p>
+      <header><h3>Connections</h3><span class="pill ok">Working</span></header>
+      <p>Connections page with collaborators derived from conversations. Blocks screen (mobile + web) for managing blocked accounts. Integrated with RLS via migration 076.</p>
+      <p class="paths">dashboard/connections · api/blocks · migration 029, 076</p>
+      <p class="gap"><b>Done:</b> Block/unblock API, blocked accounts list screen. <b>Gap:</b> favorites and notes UI not built.</p>
     </section>
 
     <section class="mod" id="m-public-profile">
-      <header><h3>Public creator profile — link-in-bio</h3><span class="pill plan">Planned · critical</span></header>
-      <p>The acquisition engine: <span class="mono">influnet.com/c/&lt;username&gt;</span> in a creator's social bio → business clicks → sends a request. Existed on the legacy site; not yet in this app.</p>
-      <p class="paths">planned: src/app/c/[username] · get_public_influencer RPC (ready) · profile_link_clicks (ready)</p>
-      <p class="gap"><b>To build:</b> SSR page + OG tags + CTA for all three auth states (Task 2.3). DB support is already in place.</p>
+      <header><h3>Public creator profile — link-in-bio</h3><span class="pill ok">Working</span></header>
+      <p>The acquisition engine: <span class="mono">influnet.com/c/&lt;username&gt;</span> in a creator's social bio → business clicks → sends a request. SSR page with OG tags, pricing packages, portfolio grid, Instagram/YouTube feeds, ratings, audience breakdown, verified badge. Mobile has native in-app view.</p>
+      <p class="paths">app/c/[username] · app/b/[username] · apps/mobile/app/creator/[username] · get_public_* RPCs</p>
+      <p class="gap"><b>Done:</b> Full SSR public profile with all sections. Mobile native render. Verified badge. <b>Gap:</b> profile_link_clicks analytics not wired into dashboard.</p>
     </section>
 
     <section class="mod" id="m-supabase">
       <header><h3>Supabase (data backbone)</h3><span class="pill ok">Working</span></header>
-      <p>PostgreSQL with row-level security on every table, JWT auth, avatar/photo storage, and edge functions. 19 tables, 25+ RPCs, 43 numbered migrations. API routes always query with the caller's JWT so RLS applies.</p>
-      <p class="paths">supabase/migrations/ · supabase/functions/ · src/lib/supabase/*</p>
-      <p class="gap"><b>Note:</b> keys that were once committed to git history still need rotation (Phase 0 human checklist).</p>
+      <p>PostgreSQL with row-level security on every table, JWT auth, avatar/photo storage, Realtime (postgres_changes), edge functions. 19+ tables, 25+ RPCs, 92 numbered migrations. Realtime publication includes collab_requests, campaign_projects, child tables for live updates. Connection pooler config ready for production.</p>
+      <p class="paths">supabase/migrations/ · supabase/functions/ · lib/supabase/* · lib/supabase/pooler.ts</p>
+      <p class="gap"><b>Done:</b> Realtime subscriptions live (migrations 090/091). Connection pooler URL config. <b>Note:</b> keys that were once committed to git history still need rotation.</p>
     </section>
 
     <section class="mod" id="m-stream">
@@ -693,21 +855,57 @@
     </section>
 
     <section class="mod" id="m-payments">
-      <header><h3>Payments</h3><span class="pill plan">Planned · Phase 3</span></header>
-      <p>The pipeline already reserves <i>advance_payment</i> and <i>final_payment</i> stages. Decision D-001: use Razorpay (India-standard) — never build payment handling in-house.</p>
-      <p class="paths">planned · docs/DECISIONS.md → D-001</p>
-      <p class="gap"><b>To build:</b> milestone payments tied to pipeline stages.</p>
+      <header><h3>Payments</h3><span class="pill idle">Routes exist, not wired</span></header>
+      <p>Razorpay order creation route and webhook handler exist. <span class="mono">advance_payment</span> and <span class="mono">final_payment</span> stages reserved in pipeline. Payment gate items are locked when in-app payments configured — only a confirmed Razorpay webhook can open them.</p>
+      <p class="paths">api/projects/[id]/payments · api/payments/webhook · lib/payments/*</p>
+      <p class="gap"><b>Done:</b> Payment gate logic, Razorpay order creation, webhook with signature verification, amount derivation from agreed terms. <b>To finish:</b> checkout UI in stage screens, finalize webhook → stage-auto-advance.</p>
+    </section>
+
+    <section class="mod" id="m-rate-limit">
+      <header><h3>Rate limiting</h3><span class="pill ok">Working</span></header>
+      <p>In-process fixed-window counter with optional Upstash Redis backend for distributed production. Deployed on 9 API routes (auth, discover, blocks, projects, home, activity, collabs, push-token). Fails open on backend errors.</p>
+      <p class="paths">lib/rate-limit.ts · used in 9+ api/* routes</p>
+      <p class="gap"><b>Done:</b> 10–30 req/min per route. Keyed by user id or IP. <b>Gap:</b> some PATCH/mutation routes not yet limited.</p>
+    </section>
+
+    <section class="mod" id="m-realtime">
+      <header><h3>Supabase Realtime</h3><span class="pill ok">Working</span></header>
+      <p>Live postgres_changes subscriptions for collab_requests, campaign_projects, profiles, user_blocks, notifications, and project child tables. Web shell uses debounced refetch with notification backstop. Mobile uses refcounted per-project channels with AppState resume handling.</p>
+      <p class="paths">apps/web/src/hooks/use-realtime-refresh.ts · apps/mobile/lib/realtime.ts · migrations 090/091</p>
+      <p class="gap"><b>Done:</b> Web + mobile realtime. Profiles + user_blocks channels. 60s poll fallback. <b>Gap:</b> DELETE events impossible in Realtime (admin-only cleanup relies on notifications channel).</p>
+    </section>
+
+    <section class="mod" id="m-mobile">
+      <header><h3>Mobile app (React Native)</h3><span class="pill ok">Working</span></header>
+      <p>React Native (Expo) app sharing API client via <span class="mono">packages/api</span>. Projects list (Your Move / Waiting / Closed), project detail with stage timeline, stage screen with checklist + sign-off, profile tab with portfolio + reviews, requests list, settings, activity feed, verification flow, change requests, push notifications.</p>
+      <p class="paths">apps/mobile/* · packages/api/src/endpoints.ts · apps/mobile/lib/realtime.ts</p>
+      <p class="gap"><b>Gaps:</b> mobile chat screen not yet built (uses Stream Chat RN). Admin panel web-only (acknowledged design choice).</p>
+    </section>
+
+    <section class="mod" id="m-blocks">
+      <header><h3>Blocks &amp; Trust &amp; Safety</h3><span class="pill ok">Working</span></header>
+      <p>Block/unblock API (UPSERT semantics). RLS RESTRICTIVE policy enforces blocks bidirectionally — blocked users cannot send collab requests, messages, or view each other's projects. Mobile + web block list screens. Report API for content moderation.</p>
+      <p class="paths">api/blocks · api/reports · migration 076</p>
+      <p class="gap"><b>Done:</b> Block enforcement at DB level. Both platforms can manage blocks. <b>Gap:</b> admin review queue for reports.</p>
+    </section>
+
+    <section class="mod" id="m-verification">
+      <header><h3>Verification &amp; Instagram Scraper</h3><span class="pill ok">Working</span></header>
+      <p>Bio link ownership verification flow: creator claims Instagram account via OTP-like code in bio link. Apify/HikerAPI Instagram scraper for follower counts, recent posts, engagement rates. Verified badge on public profile. YouTube channel integration for subscriber counts and video list.</p>
+      <p class="paths">app/verification · api/verification/ownership · api/auth/scrape-instagram · lib/instagram.ts · lib/youtube.ts · lib/public-profile/*</p>
+      <p class="gap"><b>Done:</b> Full verification flow. Instagram + YouTube data. <b>Gap:</b> auto-re-verify on schedule (currently manual refresh).</p>
     </section>
 
   </div>
 
   <div class="callout">
-    <h3>⚠ Known issues on the working tree right now (July 10, 2026)</h3>
+    <h3>⚠ Status as of July 29, 2026</h3>
     <ul>
-      <li><b>Typecheck fails:</b> the shared API helper types the Supabase client with the hand-written <span class="mono">Database</span> type, which is missing several tables/RPCs → ~30 <span class="mono">never</span> errors. Fix ready: adopt generated types from the live schema (awaiting go-ahead).</li>
-      <li><b>4 validator unit tests outdated:</b> schemas moved to snake_case in Task 1.5; tests still send camelCase.</li>
-      <li><b>Migration 043 uncommitted:</b> the accept/conversation RPCs exist in the live DB; the SQL file documenting them sits uncommitted in the working tree.</li>
-      <li><b>Key rotation outstanding:</b> secrets from old commits remain valid until rotated (Phase 0 human checklist).</li>
+      <li><b>Typecheck: ✅ 7/7 packages pass</b> — previously failing hand-written <span class="mono">Database</span> type issues resolved.</li>
+      <li><b>Unit tests: ✅ 214/220 pass</b> (6 integration tests skipped — need local DB env vars).</li>
+      <li><b>Migrations: ✅ All 92 applied</b> to remote database <span class="mono">jaajosocopoicmqcffuu</span>.</li>
+      <li><b>Rate limiting active</b> on 9 API routes — in-process with optional Upstash Redis for distributed production.</li>
+      <li><b>Key rotation still outstanding:</b> secrets from old commits remain valid until rotated (Phase 0 human checklist).</li>
     </ul>
   </div>
 
@@ -1083,10 +1281,15 @@
       <h3>Auth Hardening & Media Kit</h3>
       <p>Fixed critical auth vulnerabilities (business self-approval, email confirmation data loss, API data leaks). Added robust <b>Media kit details</b> settings for creators with dashboard nudges to drive completion.</p>
     </li>
+    <li>
+      <span class="when">July 26–29, 2026</span>
+      <h3>Security hardening, rate limiting, realtime, mobile parity</h3>
+      <p><b>Project deletion fix:</b> cancelled projects frozen at API + UI level — red danger styling, 15-day retention <span class="mono">deleted_at</span>. <b>Rate limiting</b> on 9 API routes (10–30 req/min). <b>Realtime</b> live updates for notifications, collabs, projects, profiles, blocks — web + mobile. <b>Connection pooler</b> config for production. <b>Mobile change requests</b> — propose/accept/reject/withdraw with inline diffs. <b>Migrations 090/091/092</b> applied. <b>Mobile reviews</b> — StarPicker + comment on completed projects.</p>
+    </li>
     <li class="era-next">
       <span class="when">Next</span>
-      <h3>Ship the core promise</h3>
-      <p>Task 1.6 message persistence → Task 2.1/2.2 <b>instant notifications</b> (Realtime + email) → Task 2.3 <b>public link-in-bio profile</b> → password reset, OTP UI, then depth (search, analytics, deliverables) and Phase 3 payments.</p>
+      <h3>Payments, mobile chat, admin audit log</h3>
+      <p>Wire Razorpay checkout UI into stage screens. Build mobile chat (Stream Chat RN). Add admin audit log table + triggers. Complete mobile parity for remaining web features.</p>
     </li>
   </ul>
 
@@ -1192,6 +1395,51 @@
         <tr><th>Date</th><th>Change</th><th>Areas</th></tr>
       </thead>
       <tbody>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-30</td>
+          <td><strong>Mobile project screen crash fix</strong>: Fixed an infinite rendering loop in <span class="mono">ProjectChangeRequests</span> by refactoring the <span class="mono">proposeSheet</span> ref from a state-based ref (<span class="mono">useState</span>) to a stable mutable ref (<span class="mono">useRef</span>), resolving blank screen crash on project details page load. <b>Typecheck 7/7 ✅ Tests 214/220 ✅</b></td>
+          <td>Projects · Mobile</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-29</td>
+          <td><strong>Project deletion fix, rate limiting, realtime channels, connection pooling, mobile change requests</strong>: Cancelled projects frozen at API + UI layer — early status check in PATCH handler, red/danger styling, read-only ActivityTimeline, 15-day <span class="mono">deleted_at</span> retention. <b>Rate limiting</b> added to 9 API routes: auth/register, discover, blocks, projects list/detail, home, activity, collabs, push-token (in-process + Upstash Redis). <b>Realtime</b>: profiles + user_blocks subscriptions in mobile <span class="mono">lib/realtime.ts</span>. <b>Connection pooling</b>: <span class="mono">lib/supabase/pooler.ts</span> URL transformer + timeout config. <b>Deletion hardening</b>: cancelled-status checks on stage-items PATCH and payments POST routes. <b>Mobile change requests</b>: <span class="mono">ProjectChangeRequests</span> component with propose/accept/reject/withdraw sheet, inline diffs, and history. <b>Migration 092</b> applied. <b>Typecheck 7/7 ✅ Tests 214/220 ✅</b></td>
+          <td>Projects · Rate limiting · Realtime · Mobile · Security · Infra</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-29</td>
+          <td><strong>Realtime live updates for web + mobile, session hardening</strong>: <span class="mono">apps/web/src/hooks/use-realtime-refresh.ts</span> with debounce, defer, notification backstop. <span class="mono">apps/mobile/lib/realtime.ts</span> with refcounted per-project channels. Session hardening: token-aware 401 handler, bounded sign-out with timeouts, <span class="mono">clearPersistedAuth()</span>, <span class="mono">stopNotificationSummary()</span>, <span class="mono">useSignOutAction</span> hook. Migrations 090/091 applied.</td>
+          <td>Realtime · Session · Mobile · Notifications</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-28</td>
+          <td><strong>Creator portfolio + public profile with proof, Home as action console</strong>: Full SSR public profile with portfolio grid, pricing packages, Instagram/YouTube feeds, ratings, audience breakdown, verified badge. Mobile native public profile render. Section visibility toggles. Home screen aggregated from /api/home with stalled projects, funnel analytics. Verified badge unification across platforms.</td>
+          <td>Public profile · Portfolio · Dashboard · Mobile</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-28</td>
+          <td><strong>Verification: bio link ownership verification system, creator dashboard nudge &amp; brand safety disclaimer system</strong>: Instagram bio link verification with ownership claim/confirm flow. Apify/HikerAPI integration for scraping. Creator dashboard verification nudge card. Brand safety disclaimers on public profiles.</td>
+          <td>Verification · Security · Dashboard</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-27</td>
+          <td><strong>Mobile structured logger + production observability setup</strong>: <span class="mono">apps/mobile/lib/logger.ts</span> for structured JSON logging on mobile. Sentry error tracking integration.</td>
+          <td>Mobile · Observability</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-25</td>
+          <td><strong>Mobile Parity & Core Flow Polish</strong>: Enabled creator undo decline in PATCH /api/collabs; added respondToDeal helper in mobile chat deal sheet to invoke deal endpoints directly via PATCH; client-side gated mobile checklist items by owner_role and added confirm/cancel for counterparty stage skips; created blocked accounts screen and embedded profile data in blocks list; integrated push notifications across web and mobile via Expo Push API; applied migrations 075 through 079; fixed SUPABASE_SERVICE_ROLE_KEY format in .env.local.</td>
+          <td>Mobile · Collabs · Projects · Notifications · Security</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-26</td>
+          <td><strong>Chat & Push Notifications Sync</strong>: Integrated `notifyUser` call in `/api/stream/webhook` and `POST /api/conversations/[id]/messages` to trigger Expo push notifications and in-app notifications on every new chat message; updated `/api/notifications/summary` to query real unread message counts from Stream Chat SDK and fall back to database notification counts; enriched `/api/conversations` list endpoint to merge latest messages and timestamps from Stream Chat channels when ahead of Postgres; created `scripts/setup-stream-webhook.mjs` and configured Stream Chat v2 event hooks (`message.new`, `message.updated`, `message.deleted`) to point to `https://dev.influnet.io/api/stream/webhook`.</td>
+          <td>Messaging · Notifications · Mobile · Stream</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-07-25</td>
+          <td><strong>Mobile Parity & Core Flow Polish</strong>: Enabled creator undo decline in PATCH /api/collabs; added respondToDeal helper in mobile chat deal sheet to invoke deal endpoints directly via PATCH; client-side gated mobile checklist items by owner_role and added confirm/cancel for counterparty stage skips; created blocked accounts screen and embedded profile data in blocks list; integrated push notifications across web and mobile via Expo Push API; applied migrations 075 through 079; fixed SUPABASE_SERVICE_ROLE_KEY format in .env.local.</td>
+          <td>Mobile · Collabs · Projects · Notifications · Security</td>
+        </tr>
         <tr>
           <td class="mono" style="white-space:nowrap">2026-07-12</td>
           <td><strong>CI/CD Plumbing & Operations Setup</strong>: Created Next.js multi-stage Dockerfile and .dockerignore for staging/production containers; added standalone output configuration in next.config.ts; created /api/health endpoint for health monitoring; wrote scripts/smoke.mjs to perform automated route-health and auth-redirect post-deploy tests; added deploy-dev.yml (Vercel), deploy-staging.yml (Azure App Service Staging), and deploy-prod.yml (Azure App Service Prod image promotion with approval gate) workflows; added dependabot.yml and codeql.yml analysis. Fixed Kanban date-panel flex shrinking alignment bug. Disabled Discover navigation links on Business home & sidebar. Pushed migrations 051-056 successfully to the production database.</td>

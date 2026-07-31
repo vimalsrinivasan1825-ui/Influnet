@@ -1,11 +1,12 @@
 "use client";
 import { toast } from "sonner";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowRight, Check, Clock, Eye, Rocket } from "lucide-react";
+import { AlertTriangle, ArrowRight, Ban, Check, Clock, Eye, Rocket } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 import { STAGE_ACTOR, type Stage } from "@/lib/project-lifecycle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
+import { dealStateOf } from "@/lib/project-status";
 
 const STAGES = [
   { key: "collaboration_started", label: "Started", desc: "Collaboration initiated between brand and creator." },
@@ -37,8 +39,10 @@ interface Project {
   description?: string | null;
   budget?: number | string | null;
   current_stage: string;
+  status?: string | null;
   updated_at: string;
   owner_user_id: string;
+  created_by_user_id?: string | null;
   owner?: { name?: string | null; role?: string } | null;
   counterparty?: { name?: string | null; role?: string } | null;
 }
@@ -76,6 +80,42 @@ export default function ProjectsPage() {
     if (!res.ok || !res.data) throw new Error(res.error || "Failed to load projects");
     setProjects(res.data.projects || []);
   };
+
+  // Live updates: the other side advancing a stage, signing off, completing or
+  // cancelling a project repaints this list without a reload. Two filters
+  // because a postgres_changes listener takes one filter and a project is
+  // interesting from either end (owner and counterparty).
+  //
+  // Held off while an advance of our own is in flight so the optimistic
+  // "Updating…" state isn't yanked out from under the button; the refetch is
+  // retried, not dropped. A failed background refresh is swallowed on purpose —
+  // the user asked for nothing, so a full-page error state would be wrong.
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = updatingId !== null;
+  }, [updatingId]);
+  useRealtimeRefresh({
+    channelName: "dashboard-projects-live",
+    enabled: !!userId,
+    watches: userId
+      ? [
+          {
+            table: "campaign_projects",
+            filters: [`owner_user_id=eq.${userId}`, `counterparty_user_id=eq.${userId}`],
+          },
+        ]
+      : [],
+    onChange: () => {
+      void fetchProjects().catch((e) => console.error("[projects live refresh]", e));
+    },
+    shouldDefer: () => busyRef.current,
+    // Backstop for the case where this page's own channel failed to subscribe
+    // while the shell's notifications channel is still healthy. Same hook, so
+    // it shares the debounce and the `shouldDefer` gate above instead of
+    // double-fetching past them — a stage write produces both a
+    // campaign_projects UPDATE and a notifications INSERT.
+    notifyTypes: ["project_stage", "project_cancel"],
+  });
 
   const handleAdvanceStage = async (projectId: string, currentStage: string) => {
     const currentIndex = STAGES.findIndex((s) => s.key === currentStage);
@@ -148,6 +188,10 @@ export default function ProjectsPage() {
             const stageIndex = STAGES.findIndex((s) => s.key === p.current_stage);
             const currentStage = STAGES[stageIndex] || STAGES[0];
             const isCompleted = p.current_stage === "completed" || stageIndex === STAGES.length - 1;
+            // Colour the whole card by its state, not just the badge, so a
+            // finished project reads as finished at a glance.
+            const state = dealStateOf(isCompleted ? "completed" : p.status);
+            const isCancelled = state === "cancelled";
             const isAdvancing = updatingId === p.id;
             const userRole: "business" | "creator" = isOwner ? "business" : "creator";
             const actor = STAGE_ACTOR[p.current_stage as Stage] || "either";
@@ -161,7 +205,11 @@ export default function ProjectsPage() {
                 <Card
                   interactive
                   onClick={() => router.push(`/dashboard/projects/${p.id}`)}
-                  className="cursor-pointer p-5 sm:p-6"
+                  className={cn(
+                    "cursor-pointer p-5 sm:p-6",
+                    state === "completed" && "border-ok/30 bg-ok-soft/40",
+                    state === "cancelled" && "border-danger/30 bg-danger-soft/60",
+                  )}
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -173,8 +221,7 @@ export default function ProjectsPage() {
                         <span className="text-sm font-semibold text-content-soft">
                           With {counterparty?.name || "Partner"} (
                           {counterparty?.role === "influencer" ? "Creator" : "Brand"})
-                        </span>
-                        {!isCompleted && myTurn && (
+                        </span>                              {!isCompleted && !isCancelled && myTurn && (
                           <>
                             <span className="text-content-muted">·</span>
                             <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-brand-strong">
@@ -193,91 +240,101 @@ export default function ProjectsPage() {
                       )}
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-4">
-                      {p.budget != null && p.budget !== "" && (
-                        <div className="text-right">
-                          <div className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">
-                            Budget
-                          </div>
-                          <div className="text-lg font-extrabold text-content">
-                            ₹{Number(p.budget).toLocaleString()}
-                          </div>
-                        </div>
-                      )}
-                      {isCompleted ? (
-                        <Badge variant="success" size="md">
-                          <Check /> Completed
-                        </Badge>
-                      ) : isFork ? (
-                        <Button
-                          variant="brand"
-                          size="lg"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/projects/${p.id}`);
-                          }}
-                        >
-                          <Eye /> Review draft
-                        </Button>
-                      ) : myTurn ? (
-                        <Button
-                          variant="brand"
-                          size="lg"
-                          disabled={isAdvancing}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAdvanceStage(p.id, p.current_stage);
-                          }}
-                        >
-                          {isAdvancing ? "Updating…" : "Advance stage"}
-                          <ArrowRight />
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-1.5 rounded-xl bg-surface-muted px-3 py-2.5 text-xs font-semibold text-content-muted">
-                          <Clock className="size-3.5 shrink-0" />
-                          Waiting on {counterparty?.name || (userRole === "business" ? "the creator" : "the brand")}
-                        </div>
-                      )}
+                    <div className="flex shrink-0 items-center gap-4">                      {p.budget != null && p.budget !== "" && (
+                            <div className="text-right">
+                              <div className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">
+                                Budget
+                              </div>
+                              <div className="text-lg font-extrabold text-content">
+                                ₹{Number(p.budget).toLocaleString()}
+                              </div>
+                            </div>
+                          )}
+                          {isCancelled ? (
+                            <Badge variant="danger" size="md">
+                              <Ban size={13} /> Cancelled
+                            </Badge>
+                          ) : isCompleted ? (
+                            <Badge variant="success" size="md">
+                              <Check /> Completed
+                            </Badge>
+                          ) : isFork ? (
+                            <Button
+                              variant="brand"
+                              size="lg"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/dashboard/projects/${p.id}`);
+                              }}
+                            >
+                              <Eye /> Review draft
+                            </Button>
+                          ) : myTurn ? (
+                            <Button
+                              variant="brand"
+                              size="lg"
+                              disabled={isAdvancing}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAdvanceStage(p.id, p.current_stage);
+                              }}
+                            >
+                              {isAdvancing ? "Updating…" : "Advance stage"}
+                              <ArrowRight />
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-1.5 rounded-xl bg-surface-muted px-3 py-2.5 text-xs font-semibold text-content-muted">
+                              <Clock className="size-3.5 shrink-0" />
+                              Waiting on {counterparty?.name || (userRole === "business" ? "the creator" : "the brand")}
+                            </div>
+                          )}
                     </div>
                   </div>
 
-                  {/* Stepper */}
-                  <div className="mt-5 flex items-center gap-0 overflow-x-auto pb-2">
+                  {/* Stage progress — a segmented meter that always fits the card
+                      width (no horizontal scroll). The textual "Stage X/12" below
+                      carries the detail. */}
+                  <div
+                    className="mt-5 flex items-center gap-1"
+                    role="progressbar"
+                    aria-valuenow={stageIndex + 1}
+                    aria-valuemin={1}
+                    aria-valuemax={STAGES.length}
+                    aria-label={`Stage ${stageIndex + 1} of ${STAGES.length}: ${currentStage.label}`}
+                  >
                     {STAGES.map((s, idx) => {
-                      const active = idx === stageIndex;
-                      const past = idx < stageIndex;
+                      const filled = idx <= stageIndex;
+                      const active = idx === stageIndex && !isCompleted;
                       return (
-                        <div key={s.key} className="flex min-w-[2.75rem] flex-1 items-center">
-                          <span
-                            title={s.label}
-                            className={cn(
-                              "flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-bold",
-                              active && "bg-brand text-white shadow-[0_0_0_4px_var(--brand-soft)]",
-                              past && "bg-brand text-white",
-                              !active && !past && "bg-surface-muted text-content-muted",
-                            )}
-                          >
-                            {past ? "✓" : idx + 1}
-                          </span>
-                          {idx < STAGES.length - 1 && (
-                            <span
-                              className={cn(
-                                "h-0.5 flex-1",
-                                past ? "bg-brand" : "bg-hairline-strong",
-                              )}
-                            />
+                        <span
+                          key={s.key}
+                          title={s.label}
+                          className={cn(
+                            "h-1.5 flex-1 rounded-full transition-colors",
+                            filled ? (state === "completed" ? "bg-ok" : state === "cancelled" ? "bg-danger" : "bg-brand") : "bg-hairline-strong",
+                            active && "ring-2 ring-brand-soft",
                           )}
-                        </div>
+                        />
                       );
                     })}
                   </div>
 
                   {/* Current stage detail */}
-                  <div className="mt-1 rounded-xl border border-hairline bg-surface-muted px-4 py-3">
+                  <div                      className={cn(
+                      "mt-1 rounded-xl border px-4 py-3",
+                      state === "completed"
+                        ? "border-ok/25 bg-ok-soft/60"
+                        : state === "cancelled"
+                        ? "border-danger/25 bg-danger-soft/60"
+                        : "border-hairline bg-surface-muted",
+                    )}
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm font-bold text-content">
                         Stage {stageIndex + 1}/{STAGES.length}:{" "}
-                        <span className="text-brand-strong">{currentStage.label}</span>
+                        <span className={state === "completed" ? "text-ok" : state === "cancelled" ? "text-danger" : "text-brand-strong"}>
+                          {currentStage.label}
+                        </span>
                       </span>
                       <span className="text-xs font-semibold text-content-muted">
                         Updated {new Date(p.updated_at).toLocaleDateString()}

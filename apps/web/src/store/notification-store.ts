@@ -34,7 +34,7 @@ interface NotificationState {
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
-  summary: { unread_messages_count: 0, pending_requests_count: 0 },
+  summary: { unread_notifications_count: 0, unread_messages_count: 0, pending_requests_count: 0 },
   notifications: [],
   unread_notifications_count: 0,
   isLoading: false,

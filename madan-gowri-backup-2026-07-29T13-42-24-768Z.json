@@ -1,0 +1,165 @@
+{
+  "removed_at": "2026-07-29T13-42-24-768Z",
+  "user": {
+    "id": "061a55f6-e0e4-4bba-9cbc-ffb2462d23b9",
+    "email": "testcreator_2607@influnet.com",
+    "name": "Madan Gowri",
+    "role": "influencer",
+    "created_at": "2026-07-28T05:32:39.396998+00:00"
+  },
+  "influencer_profile": [
+    {
+      "user_id": "061a55f6-e0e4-4bba-9cbc-ffb2462d23b9",
+      "bio": "Global 🌏 MG Squad 🖖🏻 \nBusiness: madangowri@mcholas.com",
+      "niche": [
+        "Education",
+        "Entertainment",
+        "Finance"
+      ],
+      "instagram_handle": "madangowri",
+      "youtube_handle": "madangowri",
+      "twitter_handle": "",
+      "created_at": "2026-07-28T05:32:39.396998+00:00",
+      "updated_at": "2026-07-28T05:36:52.958387+00:00",
+      "gender": "male",
+      "facebook_handle": null,
+      "linkedin_handle": null,
+      "extra_social_links": [],
+      "profile_slug": null,
+      "avatar_url": "https://jaajosocopoicmqcffuu.supabase.co/storage/v1/object/public/social-cache/ig/061a55f6-e0e4-4bba-9cbc-ffb2462d23b9/profile.jpg",
+      "tiktok_handle": null,
+      "instagram_followers": 2832508,
+      "youtube_subscribers": 0,
+      "tiktok_followers": 0,
+      "engagement_rate": null,
+      "media_kit_url": null,
+      "portfolio": [],
+      "pricing_min": 25000,
+      "pricing_max": null,
+      "is_verified": false,
+      "city": "Chennai",
+      "state": "Tamil Nadu",
+      "languages": [
+        "Tamil",
+        "English"
+      ],
+      "collab_types": [
+        "YouTube Video",
+        "Reel"
+      ],
+      "price_range": "pro",
+      "facebook_followers": 0,
+      "username": "madangowri",
+      "username_changed_at": null,
+      "headline": null,
+      "cover_image_url": null,
+      "availability_status": null,
+      "audience_demographics": {},
+      "past_collaborations": [],
+      "onboarding_step": 2,
+      "is_profile_complete": false,
+      "secondary_categories": [],
+      "onboarding_completed": false,
+      "profile_section_visibility": {}
+    }
+  ],
+  "collab_requests": [
+    {
+      "id": "679011d7-4ec8-4698-8f47-aa8474a19ba5",
+      "from_user_id": "8b3c72bc-19a4-4756-8a09-49cac8a8262d",
+      "to_user_id": "061a55f6-e0e4-4bba-9cbc-ffb2462d23b9",
+      "status": "pending"
+    },
+    {
+      "id": "9c9bf142-b291-4806-a944-9a25c4d88954",
+      "from_user_id": "25862af4-43cf-488b-a510-4c5edd5209eb",
+      "to_user_id": "061a55f6-e0e4-4bba-9cbc-ffb2462d23b9",
+      "status": "accepted"
+    }
+  ],
+  "projects": [
+    {
+      "id": 55,
+      "title": "Zestly Millet Snacks — Tamil YouTube Integration + Reel",
+      "owner_user_id": "25862af4-43cf-488b-a510-4c5edd5209eb",
+      "counterparty_user_id": "061a55f6-e0e4-4bba-9cbc-ffb2462d23b9"
+    }
+  ],
+  "conversation_parts": [
+    {
+      "conversation_id": "683e9b40-3b61-47eb-9b5c-728d33511573",
+      "user_id": "061a55f6-e0e4-4bba-9cbc-ffb2462d23b9"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "eee822d5-9bc5-4640-b0f0-d56cf2c1ca51",
+      "type": "collab_request"
+    },
+    {
+      "id": "28c3c6b7-28f6-497c-b65b-e05cbd1200e5",
+      "type": "verification_in_review"
+    },
+    {
+      "id": "b78dfee2-a8fa-481c-95a4-6e27bc6f880f",
+      "type": "project_stage"
+    },
+    {
+      "id": "87a4a4da-4e25-4420-baf7-a6df60f44130",
+      "type": "project_stage"
+    },
+    {
+      "id": "0fe416c9-79ef-4185-81a7-bba1de329888",
+      "type": "collab_request"
+    },
+    {
+      "id": "f6892dea-30a7-456c-ae79-e5bd6b68c307",
+      "type": "collab_request"
+    },
+    {
+      "id": "98b12001-da45-45e6-8917-fabebb26bf91",
+      "type": "project_stage"
+    },
+    {
+      "id": "13ad9593-f809-41c4-bc40-f4bb7ebb0e25",
+      "type": "project_stage"
+    },
+    {
+      "id": "8fa799e4-9881-4778-a350-8628613092b1",
+      "type": "collab_request"
+    }
+  ],
+  "reviews": [],
+  "blocks": [],
+  "change_requests": [],
+  "stage_entries": [],
+  "stage_items": [],
+  "payments": [],
+  "reports": [],
+  "ownership": [],
+  "snapshots": [
+    {
+      "id": "67cbd7c4-aee0-436c-a9ad-a2914dfdc265"
+    }
+  ],
+  "portfolio": [],
+  "activity": [
+    {
+      "id": "3f92e592-bd15-42e3-adab-3680e71ff5d6"
+    },
+    {
+      "id": "041216f4-89e5-4dd2-8fb5-60a81a20b7b1"
+    }
+  ],
+  "profile_views": [],
+  "proposals": [
+    {
+      "id": "ee565f7a-1f37-4587-9c02-12c1c6ada082",
+      "proposed_by": "061a55f6-e0e4-4bba-9cbc-ffb2462d23b9",
+      "resolved_by": "25862af4-43cf-488b-a510-4c5edd5209eb"
+    }
+  ],
+  "presence": [],
+  "expo_tokens": [],
+  "admin_logs": []
+}

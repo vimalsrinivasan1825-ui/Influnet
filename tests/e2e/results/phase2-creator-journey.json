@@ -1,0 +1,236 @@
+{
+  "phaseId": "phase2-creator-journey",
+  "phaseTitle": "Phase 2 — Creator Journey",
+  "generatedAt": "2026-07-30T05:25:11.484Z",
+  "summary": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0,
+    "skipped": 0,
+    "findings": 1
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Account already exists from a prior run — logging in directly instead of re-running signup",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Reusing existing account 021faad5-a304-4899-929b-782e2f999041 (e2e.creator.madangowri@influnet-audit.test). Signup wizard steps skipped — already exercised in an earlier run."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/01-account-already-exists-from-a-prior-run-logging-in-directly-.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard",
+      "timestamp": "2026-07-30T05:24:22.890Z"
+    },
+    {
+      "step": 2,
+      "name": "DB: profiles row created with role=influencer",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:24:23.059Z"
+    },
+    {
+      "step": 3,
+      "name": "DB: influencer_profiles row created with correct fields",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:24:23.208Z"
+    },
+    {
+      "step": 4,
+      "name": "DB: anti-impersonation gate holds — creator is NOT auto-verified without ownership proof",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-30T05:24:23.364Z"
+    },
+    {
+      "step": 5,
+      "name": "Dashboard home renders identity card + verification guide",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/02-dashboard-home-renders-identity-card-verification-guide.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/home",
+      "timestamp": "2026-07-30T05:24:30.702Z"
+    },
+    {
+      "step": 6,
+      "name": "Home: verification guide / \"get verified\" prompt shown (unverified state)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Verification-related text present: true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/03-home-verification-guide-get-verified-prompt-shown-unverified.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/home",
+      "timestamp": "2026-07-30T05:24:31.174Z"
+    },
+    {
+      "step": 7,
+      "name": "Public profile /c/madangowri renders with owner \"Edit profile\" CTA",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/04-public-profile-c-madangowri-renders-with-owner-edit-profile-.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/c/madangowri",
+      "timestamp": "2026-07-30T05:24:36.588Z"
+    },
+    {
+      "step": 8,
+      "name": "Public profile: scroll to audience/stats section",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/05-public-profile-scroll-to-audience-stats-section.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/c/madangowri",
+      "timestamp": "2026-07-30T05:24:37.775Z"
+    },
+    {
+      "step": 9,
+      "name": "Media kit page /c/madangowri/media-kit renders with QR code",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/06-media-kit-page-c-madangowri-media-kit-renders-with-qr-code.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/c/madangowri/media-kit",
+      "timestamp": "2026-07-30T05:24:42.100Z"
+    },
+    {
+      "step": 10,
+      "name": "Settings page pre-fills creator fields correctly",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/07-settings-page-pre-fills-creator-fields-correctly.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/settings",
+      "timestamp": "2026-07-30T05:24:48.197Z"
+    },
+    {
+      "step": 11,
+      "name": "Settings: edit headline, save, DB-verify the write landed",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/08-settings-edit-headline-save-db-verify-the-write-landed.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/settings",
+      "timestamp": "2026-07-30T05:24:50.230Z"
+    },
+    {
+      "step": 12,
+      "name": "Activity page shows at least one event (account_created)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/09-activity-page-shows-at-least-one-event-account-created.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/activity",
+      "timestamp": "2026-07-30T05:24:54.455Z"
+    },
+    {
+      "step": 13,
+      "name": "Connections page loads real data (no longer a static stub)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Body text snippet: \"influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Searc\""
+      ],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/10-connections-page-loads-real-data-no-longer-a-static-stub.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/connections",
+      "timestamp": "2026-07-30T05:24:59.786Z"
+    },
+    {
+      "step": 14,
+      "name": "Discover renders a real HTTP 404, not a 200 with 404-shaped content",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "HTTP 404 (was 200 before the fix). Body snippet: \"influnet  404  Page not found  The page you're looking for doesn't exist, moved, or the link was mistyped.  Go home\""
+      ],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/11-discover-renders-a-real-http-404-not-a-200-with-404-shaped-c.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "networkErrors": [
+        "404 GET http://localhost:3000/dashboard/discover"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/discover",
+      "timestamp": "2026-07-30T05:25:01.300Z"
+    },
+    {
+      "step": 15,
+      "name": "Messages page loads without crashing (empty state expected)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase2-creator-journey/12-messages-page-loads-without-crashing-empty-state-expected.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages",
+      "timestamp": "2026-07-30T05:25:10.972Z"
+    }
+  ]
+}

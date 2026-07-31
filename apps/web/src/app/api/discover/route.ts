@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const PAGE_SIZE = 24;
@@ -13,15 +14,25 @@ const QuerySchema = z.object({
   id: z.string().uuid().optional(),
 });
 
-// Discover creators (for businesses) or brands (for influencers).
-// Search/filtering/pagination run server-side in SECURITY DEFINER RPCs
-// (see migration 048) so only curated public fields ever leave the DB.
+// Creator lookup, open to any signed-in role (used by the topbar command palette).
+// Deliberately a lookup, not a discovery/browse tool — the client wants this
+// reachable only by someone who already knows the creator's username, not a way
+// to stumble onto creators via name/niche/bio. The RPC (migration 048) matches
+// broader fields for its other callers, so results are filtered down to
+// username-prefix/substring matches here before they ever reach the client.
+
 export async function GET(req: Request) {
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
+    const { supabase, role, user } = auth;
 
-    const { supabase, role } = auth;
+    // Rate limit: creator search is a paid-resource route (RPC behind the
+    // scenes) and can be used for data-scraping at scale. Authenticated.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'discover:search', limit: 30, windowMs: 60_000, key: user.id,
+    });
+    if (limited) return limited;
 
     const url = new URL(req.url);
     const parsed = QuerySchema.safeParse({
@@ -37,10 +48,6 @@ export async function GET(req: Request) {
     }
     const { q, niche, industry, location, cursor, id } = parsed.data;
 
-    if (role !== 'business_owner' && role !== 'admin') {
-      return jsonError(403, 'Forbidden: Discover is only available for businesses');
-    }
-
     const { data, error } = await supabase.rpc('search_influencers', {
       p_q: q ?? null,
       p_niche: niche ?? null,
@@ -51,7 +58,12 @@ export async function GET(req: Request) {
     });
     if (error) return jsonError(500, 'Failed to fetch creators', error);
 
-    const results = (data as any[]) || [];
+    let results = (data as any[]) || [];
+    // Username-only lookup: drop any row that only matched on name/headline/bio.
+    if (q && !id) {
+      const needle = q.trim().toLowerCase();
+      results = results.filter((r) => (r.username ?? '').toLowerCase().includes(needle));
+    }
     return NextResponse.json({
       userRole: role,
       results,

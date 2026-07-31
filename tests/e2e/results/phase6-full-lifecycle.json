@@ -1,0 +1,804 @@
+{
+  "phaseId": "phase6-full-lifecycle",
+  "phaseTitle": "Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)",
+  "generatedAt": "2026-07-29T19:44:46.164Z",
+  "summary": {
+    "total": 34,
+    "passed": 34,
+    "failed": 0,
+    "skipped": 0,
+    "findings": 16
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Resolve business/creator user ids",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:39:30.327Z"
+    },
+    {
+      "step": 2,
+      "name": "Business logs in and sends a fresh collab request",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/01-business-logs-in-and-sends-a-fresh-collab-request.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/requests",
+      "timestamp": "2026-07-29T19:39:40.164Z"
+    },
+    {
+      "step": 3,
+      "name": "Creator accepts it",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/02-creator-accepts-it.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages?conv=e04f5910-89e5-4673-bd37-b4c4e258c37d",
+      "timestamp": "2026-07-29T19:39:51.372Z"
+    },
+    {
+      "step": 4,
+      "name": "Business proposes the project (with an advance)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/03-business-proposes-the-project-with-an-advance.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages",
+      "timestamp": "2026-07-29T19:39:59.690Z"
+    },
+    {
+      "step": 5,
+      "name": "Creator accepts the proposal → project created",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/04-creator-accepts-the-proposal-project-created.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/messages",
+      "timestamp": "2026-07-29T19:40:09.456Z"
+    },
+    {
+      "step": 6,
+      "name": "DB: fresh campaign_projects row created",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:40:09.629Z"
+    },
+    {
+      "step": 7,
+      "name": "Stage 1 (collaboration_started): bilateral signoff advances the project",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "current_stage after both sign off: project_discussion"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/05-stage-1-collaboration-started-bilateral-signoff-advances-the.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:40:31.439Z"
+    },
+    {
+      "step": 8,
+      "name": "Stage 2: business proposes a change to the terms",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/06-stage-2-business-proposes-a-change-to-the-terms.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:40:39.759Z"
+    },
+    {
+      "step": 9,
+      "name": "DB: project_change_requests row created, status=pending",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:40:40.121Z"
+    },
+    {
+      "step": 10,
+      "name": "Creator accepts the change request",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Change request accepted."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/07-creator-accepts-the-change-request.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:40:45.405Z"
+    },
+    {
+      "step": 11,
+      "name": "DB: campaign_projects.budget updated to 85000, change request accepted",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:40:45.721Z"
+    },
+    {
+      "step": 12,
+      "name": "Stage 2 → advance via bilateral signoff",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "current_stage: advance_payment"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/08-stage-2-advance-via-bilateral-signoff.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:41:03.903Z"
+    },
+    {
+      "step": 13,
+      "name": "Stage 3 (advance_payment): real Razorpay order + simulated webhook capture",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Real Razorpay order created: order_TJRApxyvp4ZNlR, amount 3000000 INR.",
+        "Simulated signed webhook capture → HTTP 200: {\"received\":true,\"recorded\":true}",
+        "Payment-gate checklist item auto-completed by the webhook, as designed."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/09-stage-3-advance-payment-real-razorpay-order-simulated-webhoo.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Refused to get unsafe header \"x-rtb-fingerprint-id\"",
+        "Refused to get unsafe header \"request-id\"",
+        "Permissions policy violation: accelerometer is not allowed in this document.",
+        "Permissions policy violation: accelerometer is not allowed in this document.",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:41:15.533Z"
+    },
+    {
+      "step": 14,
+      "name": "Stage 3 → advance via bilateral signoff (payment gate now open)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "current_stage: content_planning"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/10-stage-3-advance-via-bilateral-signoff-payment-gate-now-open.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:41:31.408Z"
+    },
+    {
+      "step": 15,
+      "name": "Stage 4: business proposes skipping content_planning",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Skip proposed by business."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/11-stage-4-business-proposes-skipping-content-planning.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:41:37.481Z"
+    },
+    {
+      "step": 16,
+      "name": "Creator confirms the skip",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Skip confirmed by creator — stage should now be skipped."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/12-creator-confirms-the-skip.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:41:41.812Z"
+    },
+    {
+      "step": 17,
+      "name": "DB: content_planning was skipped, project moved to content_confirmation",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:41:41.989Z"
+    },
+    {
+      "step": 18,
+      "name": "Stage 5 (content_confirmation) → advance",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "current_stage: shooting_in_progress"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/13-stage-5-content-confirmation-advance.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:42:01.746Z"
+    },
+    {
+      "step": 19,
+      "name": "Stage 6 (shooting_in_progress) → advance",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "current_stage: editing_in_progress"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/14-stage-6-shooting-in-progress-advance.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:42:20.608Z"
+    },
+    {
+      "step": 20,
+      "name": "Stage 7 (editing_in_progress) → advance",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "current_stage: sent_for_review"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/15-stage-7-editing-in-progress-advance.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:42:41.219Z"
+    },
+    {
+      "step": 21,
+      "name": "Creator ticks \"Draft submitted for review\" before the fork can be used",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Ticked 1/1 pending item(s) for sent_for_review."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/16-creator-ticks-draft-submitted-for-review-before-the-fork-can.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:42:45.958Z"
+    },
+    {
+      "step": 22,
+      "name": "Stage 8: business approves the draft (review fork)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Draft approved."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/17-stage-8-business-approves-the-draft-review-fork.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:42:50.735Z"
+    },
+    {
+      "step": 23,
+      "name": "DB: project advanced to final_approval via the review fork",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:42:51.829Z"
+    },
+    {
+      "step": 24,
+      "name": "Stage 10 (final_approval) → advance",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "current_stage: final_payment"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/18-stage-10-final-approval-advance.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9",
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:43:11.957Z"
+    },
+    {
+      "step": 25,
+      "name": "Stage 11 (final_payment): real Razorpay order + simulated webhook capture",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Real Razorpay order created: order_TJRD3xvSu0qsjM, amount 5500000 INR.",
+        "Simulated signed webhook capture → HTTP 200: {\"received\":true,\"recorded\":true}",
+        "Payment-gate checklist item auto-completed by the webhook, as designed."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/19-stage-11-final-payment-real-razorpay-order-simulated-webhook.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()",
+        "Refused to get unsafe header \"x-rtb-fingerprint-id\"",
+        "Refused to get unsafe header \"request-id\"",
+        "Permissions policy violation: accelerometer is not allowed in this document.",
+        "Permissions policy violation: accelerometer is not allowed in this document.",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:43:22.719Z"
+    },
+    {
+      "step": 26,
+      "name": "Business confirms completion",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Business confirmed completion (1 of 2)."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/20-business-confirms-completion.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:43:27.886Z"
+    },
+    {
+      "step": 27,
+      "name": "DB: only one side confirmed — project NOT yet completed (real dual-consent check)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "owner_confirmed_complete=true, counterparty_confirmed_complete=false, current_stage=final_payment"
+      ],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:43:28.056Z"
+    },
+    {
+      "step": 28,
+      "name": "Creator confirms completion too → project completes (dual-consent verified live)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Creator confirmed completion (2 of 2) — both sides now in."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/21-creator-confirms-completion-too-project-completes-dual-conse.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:43:32.804Z"
+    },
+    {
+      "step": 29,
+      "name": "DB: project is now genuinely completed (both sides confirmed)",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:43:32.967Z"
+    },
+    {
+      "step": 30,
+      "name": "Business leaves a 5-star review for the creator",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Business submitted a 5-star review."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/22-business-leaves-a-5-star-review-for-the-creator.png",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 403 ()"
+      ],
+      "networkErrors": [
+        "403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9"
+      ],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:44:06.775Z"
+    },
+    {
+      "step": 31,
+      "name": "DB: reviews row created from business → creator, rating=5",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:44:06.979Z"
+    },
+    {
+      "step": 32,
+      "name": "Creator leaves a review for the business too",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "Creator submitted a 4-star review."
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/23-creator-leaves-a-review-for-the-business-too.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/dashboard/projects/80",
+      "timestamp": "2026-07-29T19:44:40.483Z"
+    },
+    {
+      "step": 33,
+      "name": "DB: reviews row created from creator → business, and both reviews are now public",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [],
+      "screenshot": null,
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": null,
+      "timestamp": "2026-07-29T19:44:40.668Z"
+    },
+    {
+      "step": 34,
+      "name": "Public profile /c/madangowri now shows the completed collaboration",
+      "status": "PASS",
+      "error": null,
+      "skippedReason": null,
+      "notes": [
+        "\"Jupiter Media Audit\" or the review text visible on public profile: true"
+      ],
+      "screenshot": "tests/e2e/screenshots/phase6-full-lifecycle/24-public-profile-c-madangowri-now-shows-the-completed-collabor.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "pageErrors": [],
+      "url": "http://localhost:3000/c/madangowri",
+      "timestamp": "2026-07-29T19:44:45.744Z"
+    }
+  ]
+}

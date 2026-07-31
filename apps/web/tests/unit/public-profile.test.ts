@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildCreatorProfileView,
+  computeReachStat,
+  extractContact,
   formatCount,
   resolveMockMode,
+  titleCaseLabel,
   type RawPublicProfile,
 } from '@/lib/public-profile/creator-profile';
 
@@ -77,24 +80,39 @@ describe('buildCreatorProfileView — mock mode', () => {
 });
 
 describe('buildCreatorProfileView — verified badge', () => {
-  it('includes the verified orbit badge when the profile is verified', () => {
+  it('reports verified when the profile is verified', () => {
     const view = buildCreatorProfileView(baseProfile, { useMock: true });
     expect(view.isVerified).toBe(true);
-    expect(view.floating.some((f) => f.platform === 'verified')).toBe(true);
   });
 
-  it('omits the verified orbit badge when the profile is not verified', () => {
+  it('reports unverified when the profile is not verified', () => {
     for (const useMock of [true, false]) {
       const view = buildCreatorProfileView({ ...baseProfile, isVerified: false }, { useMock });
       expect(view.isVerified).toBe(false);
-      expect(view.floating.some((f) => f.platform === 'verified')).toBe(false);
     }
   });
 
   it('treats a missing isVerified field as unverified', () => {
     const { isVerified: _omit, ...rest } = baseProfile;
     const view = buildCreatorProfileView(rest, { useMock: true });
-    expect(view.floating.some((f) => f.platform === 'verified')).toBe(false);
+    expect(view.isVerified).toBe(false);
+  });
+});
+
+describe('buildCreatorProfileView — platform column', () => {
+  it('never repeats the same metric twice', () => {
+    const view = buildCreatorProfileView(baseProfile, { useMock: true });
+    const labels = view.platformCards.map((c) => c.label);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('omits a platform the creator has no presence on', () => {
+    const view = buildCreatorProfileView(
+      { userId: 'u9', name: 'IG only', username: 'igonly', instagramFollowers: 5000 },
+      { useMock: false },
+    );
+    expect(view.platformCards.some((c) => c.platform === 'youtube')).toBe(false);
+    expect(view.platformCards.some((c) => c.platform === 'instagram')).toBe(true);
   });
 });
 
@@ -110,9 +128,12 @@ describe('buildCreatorProfileView — real mode', () => {
     expect(view.stats.map((s) => s.label)).not.toContain('Engagement');
   });
 
-  it('total reach sums real platform counts', () => {
-    const reach = view.stats.find((s) => s.label === '30-Day Reach');
-    expect(reach?.value).toBe('340K'); // 248000 + 92400 = 340400 -> 340K
+  it('calls audience size by its name when no platform reports views', () => {
+    // Follower counts are not reach. With no captured posts there is nothing to
+    // measure, so the stat shows the audience and says that is what it is.
+    expect(view.stats.find((s) => s.label === '30-Day Reach')).toBeUndefined();
+    const audience = view.stats.find((s) => s.label === 'Total Audience');
+    expect(audience?.value).toBe('340K'); // 248000 + 92400 = 340400 -> 340K
   });
 
   it('omits a platform entirely when there is no handle or followers', () => {
@@ -144,8 +165,8 @@ describe('buildCreatorProfileView — live Instagram snapshot', () => {
   it('overrides mock mode entirely when a snapshot exists', () => {
     const view = buildCreatorProfileView(baseProfile, { useMock: true, instagram: snapshot });
     expect(view.usingMock).toBe(false);
-    expect(view.heroChips.find((s) => s.label === 'Followers')?.value).toBe('87.8M');
-    expect(view.heroChips.find((s) => s.label === 'Posts')?.value).toBe('489');
+    expect(view.platformCards.find((s) => s.label === 'Instagram followers')?.value).toBe('87.8M');
+    expect(view.platformCards.find((s) => s.label === 'Posts published')?.value).toBe('489');
     expect(view.snapshotAge).toMatch(/^2h ago$/);
   });
 
@@ -162,11 +183,14 @@ describe('buildCreatorProfileView — live Instagram snapshot', () => {
     expect(view.featured[1].views).toBe('8.4M');
   });
 
-  it('shows the real engagement chip and snapshot-driven reach', () => {
+  it('shows the real engagement chip, and never counts likes as reach', () => {
     const view = buildCreatorProfileView(baseProfile, { useMock: false, instagram: snapshot });
     expect(view.stats.find((s) => s.label === 'Engagement')?.value).toBe('3.3%');
-    // reach = sum of views/likes in recent posts when no dates are available = 14.9M
-    expect(view.stats.find((s) => s.label === '30-Day Reach')?.value).toBe('14.9M');
+    // These posts carry no dates, so none of them fall inside the 30-day window
+    // and there is no reach to report. The old code summed likes here and
+    // published the total as "30-Day Reach".
+    expect(view.stats.find((s) => s.label === '30-Day Reach')).toBeUndefined();
+    expect(view.stats.find((s) => s.label === 'Total Audience')?.value).toBe('87.8M');
   });
 
   it('falls back to the cached profile pic when no avatar is set', () => {
@@ -177,5 +201,128 @@ describe('buildCreatorProfileView — live Instagram snapshot', () => {
       { useMock: false, instagram: snapshot },
     );
     expect(withAvatar.avatarUrl).toBe('https://example.com/me.jpg');
+  });
+});
+
+describe('extractContact', () => {
+  // The real bio that motivated this: a sentence with the only actionable
+  // details buried inside it.
+  const realBio =
+    'The official page of A2D channel This Page is handled by Admin For Sponsorships: collab@a2dmediagroup.com NukePC - @nukepc.in / 9025380083';
+
+  it('pulls the email and phone out of a real bio', () => {
+    const { contact } = extractContact(realBio);
+    expect(contact).toEqual([
+      { kind: 'email', value: 'collab@a2dmediagroup.com', href: 'mailto:collab@a2dmediagroup.com' },
+      { kind: 'phone', value: '9025380083', href: 'tel:+919025380083' },
+    ]);
+  });
+
+  it('leaves the bio readable, with no leftover contact text', () => {
+    const { rest } = extractContact(realBio);
+    expect(rest).not.toContain('collab@a2dmediagroup.com');
+    expect(rest).not.toContain('9025380083');
+    expect(rest).toContain('The official page of A2D channel');
+    // No doubled spaces or dangling separators where the removals happened.
+    expect(rest).not.toMatch(/\s{2,}/);
+    expect(rest).not.toMatch(/[:;,\-/|]\s*$/);
+  });
+
+  it('does not mistake a social handle for an email address', () => {
+    const { contact } = extractContact('Reach me @nukepc.in on Instagram');
+    expect(contact).toEqual([]);
+  });
+
+  it('does not mistake a long number for a phone number', () => {
+    const { contact } = extractContact('Order id 90253800835512 shipped');
+    expect(contact.filter((c) => c.kind === 'phone')).toEqual([]);
+  });
+
+  it('normalises a +91-prefixed number with separators to a tel: href', () => {
+    const { contact } = extractContact('Call +91 90253-80083');
+    expect(contact[0].href).toBe('tel:+919025380083');
+  });
+
+  it('keeps each contact once even when repeated', () => {
+    const { contact } = extractContact('a@b.com and again a@b.com');
+    expect(contact).toHaveLength(1);
+  });
+
+  it('returns an empty list and the untouched bio when there is nothing to find', () => {
+    const { contact, rest } = extractContact('Just a creator who makes things.');
+    expect(contact).toEqual([]);
+    expect(rest).toBe('Just a creator who makes things.');
+  });
+});
+
+describe('titleCaseLabel', () => {
+  it('fixes creator-typed casing without touching what is already right', () => {
+    expect(titleCaseLabel('india')).toBe('India');
+    expect(titleCaseLabel('united states')).toBe('United States');
+    expect(titleCaseLabel('Sri Lanka')).toBe('Sri Lanka');
+    expect(titleCaseLabel('18-25')).toBe('18-25');
+  });
+});
+
+describe('buildCreatorProfileView — contact and rate', () => {
+  it('surfaces bio contact details as tappable rows', () => {
+    const view = buildCreatorProfileView(
+      { ...baseProfile, bio: 'Sponsorships: hi@brand.com / 9876543210' },
+      { useMock: false },
+    );
+    expect(view.contact.map((c) => c.kind)).toEqual(['email', 'phone']);
+    expect(view.tagline).not.toContain('hi@brand.com');
+  });
+
+  it('renders a price tier slug as the range it means, never the raw slug', () => {
+    const view = buildCreatorProfileView(
+      { ...baseProfile, priceRange: 'pro' },
+      { useMock: false },
+    );
+    expect(view.priceLabel).toBe('₹25K+');
+  });
+
+  it('has no rate at all when the creator never set one', () => {
+    const view = buildCreatorProfileView(baseProfile, { useMock: false });
+    expect(view.priceLabel).toBeNull();
+  });
+});
+
+describe('computeReachStat', () => {
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+
+  it('sums real views from both platforms inside the window', () => {
+    const stat = computeReachStat(
+      [{ views: 200_000, takenAt: daysAgo(3) }],
+      [
+        { views: 300_000, publishedAt: daysAgo(6) },
+        { views: 500_000, publishedAt: daysAgo(10) },
+      ],
+      3_000_000,
+    );
+    // 1M views over a 10-day window, scaled to 30 days.
+    expect(stat.label).toBe('30-Day Reach');
+    expect(stat.value).toBe('3M');
+  });
+
+  it('barely moves a figure that already covers the whole window', () => {
+    const stat = computeReachStat([], [{ views: 900_000, publishedAt: daysAgo(30) }], 100);
+    expect(stat.value).toBe('900K');
+  });
+
+  it('ignores likes, and content older than the window', () => {
+    const stat = computeReachStat(
+      // A post with no view count contributes nothing, however many likes it has.
+      [{ views: null, takenAt: daysAgo(1) }],
+      [{ views: 9_000_000, publishedAt: daysAgo(45) }],
+      420_000,
+    );
+    expect(stat).toEqual({ label: 'Total Audience', value: '420K' });
+  });
+
+  it('reports the raw total when the sample is too thin to project', () => {
+    const stat = computeReachStat([{ views: 50_000, takenAt: daysAgo(1) }], [], 10_000);
+    // One day of content scaled by 30 would claim 1.5M — the sum is the honest figure.
+    expect(stat).toEqual({ label: '30-Day Reach', value: '50K' });
   });
 });

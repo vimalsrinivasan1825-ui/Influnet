@@ -1,0 +1,80 @@
+{
+  "expo": {
+    "name": "Influnet",
+    "slug": "influnet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "influnet",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.influnet.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.influnet.app",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-image",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Influnet needs access to your photos so you can set a profile picture and cover image.",
+          "cameraPermission": "Influnet needs access to your camera so you can take a new profile picture."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/logo-mark.png",
+          "imageWidth": 124
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#ffffff"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://dev.influnet.io",
+      "supabaseUrl": "https://jaajosocopoicmqcffuu.supabase.co",
+      "supabaseAnonKey": "sb_publishable_zbfMv-IHhMwsLBj_wAXbng_b6byZL5x",
+      "streamApiKey": "kw5uagr7nxs7",
+      "router": {},
+      "eas": {
+        "projectId": "edd0c6bd-e125-4fe4-956b-8c074ec576fb"
+      }
+    },
+    "owner": "vimalsrini",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/edd0c6bd-e125-4fe4-956b-8c074ec576fb"
+    }
+  }
+}

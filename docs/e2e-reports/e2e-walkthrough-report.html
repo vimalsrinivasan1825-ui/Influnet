@@ -1,0 +1,2195 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Influnet — Full E2E Audit</title>
+<style>
+  :root{--bg:#f7f7f9;--surface:#fff;--ink:#17171d;--muted:#6f6c7c;--line:#e7e5ee;--accent:#b23ad1;--ok:#1a9c5b;--fail:#d3374a;--warn:#c98a1d;--skip:#8a87a0}
+  @media(prefers-color-scheme:dark){:root{--bg:#101014;--surface:#17171e;--ink:#ecebf3;--muted:#9b99a8;--line:#2a2933;--accent:#e07ff5;--ok:#3ddc8a;--fail:#ff6b7d;--warn:#f0b64c;--skip:#a5a2b8}}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;font-size:15px;line-height:1.55}
+  .w{max-width:1300px;margin:0 auto;padding:36px 24px 80px}
+  h1{font-size:28px;font-weight:800;letter-spacing:-.03em;margin:0 0 8px}
+  h2{font-size:19px;font-weight:800;margin:0 0 14px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .phase-stats{font-size:12px;font-weight:600;color:var(--muted);text-transform:none}
+  .lede{color:var(--muted);max-width:70ch}
+  .stats{display:flex;gap:16px;margin:20px 0 32px;flex-wrap:wrap}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 20px}
+  .stat-n{font-size:24px;font-weight:800}.stat-l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .stat-n.fail{color:var(--fail)}.stat-n.ok{color:var(--ok)}.stat-n.skip{color:var(--skip)}
+  .phase{margin-bottom:44px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;position:relative}
+  .card.has-findings{border-color:var(--fail)}
+  .step-badge{position:absolute;top:10px;left:10px;z-index:2;background:rgba(0,0,0,.55);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px}
+  .badge{position:absolute;top:10px;right:10px;z-index:2;font-size:11px;font-weight:800;padding:3px 10px;border-radius:99px;color:#fff}
+  .badge.ok{background:var(--ok)}.badge.fail{background:var(--fail)}.badge.skip{background:var(--skip)}
+  .card img{width:100%;display:block;border-bottom:1px solid var(--line);background:#ddd}
+  .cap{padding:12px 16px 16px}
+  .cap strong{font-size:13px;display:block;margin-bottom:4px}
+  .cap .url{margin:0 0 6px;font-size:11px;color:var(--muted);font-family:ui-monospace,monospace;word-break:break-all}
+  .notes p{margin:2px 0;font-size:12px;color:var(--muted)}
+  .findings{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+  .finding-row{font-size:11.5px;font-family:ui-monospace,monospace;padding:3px 6px;border-radius:6px;margin-bottom:4px;word-break:break-word}
+  .finding-row.fail{background:rgba(211,55,74,.12);color:var(--fail)}
+  .finding-row.warn{background:rgba(201,138,29,.12);color:var(--warn)}
+  .finding-row.skip{background:rgba(138,135,160,.12);color:var(--skip)}
+  .findings-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .findings-table th,.findings-table td{text-align:left;padding:8px 12px;font-size:13px;border-bottom:1px solid var(--line)}
+  .findings-table tr.row-fail td:last-child{color:var(--fail)}
+  .findings-table tr.row-warn td:last-child{color:var(--warn)}
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .ux-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+  .ux-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:relative}
+  .ux-card.ux-strength{border-left:3px solid var(--ok)}
+  .ux-card.ux-rough{border-left:3px solid var(--warn)}
+  .ux-card.ux-suggestion{border-left:3px solid var(--accent)}
+  .ux-tone{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:99px;margin-bottom:8px}
+  .ux-strength .ux-tone{background:rgba(26,156,91,.14);color:var(--ok)}
+  .ux-rough .ux-tone{background:rgba(201,138,29,.14);color:var(--warn)}
+  .ux-suggestion .ux-tone{background:rgba(178,58,209,.14);color:var(--accent)}
+  .ux-card strong{display:block;font-size:13.5px;margin-bottom:6px}
+  .ux-card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.55}
+</style></head><body>
+<div class="w">
+  <h1>Influnet — Full E2E Audit</h1>
+  <p class="lede">Every step below carries a real pass/fail verdict — recorded from actual page state and DB assertions, never written in advance. Findings (failures, console errors, 4xx/5xx responses) are surfaced per-step and rolled up below.</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-n">134</div><div class="stat-l">Total steps</div></div>
+    <div class="stat"><div class="stat-n ok">125</div><div class="stat-l">Passed</div></div>
+    <div class="stat"><div class="stat-n fail">1</div><div class="stat-l">Failed</div></div>
+    <div class="stat"><div class="stat-n skip">8</div><div class="stat-l">Skipped</div></div>
+    <div class="stat"><div class="stat-n fail">28</div><div class="stat-l">Findings</div></div>
+    <div class="stat"><div class="stat-n">7/30/2026</div><div class="stat-l">Generated</div></div>
+  </div>
+  
+    <section class="phase findings-summary">
+      <h2>Findings <span class="phase-stats">28 item(s) needing attention</span></h2>
+      <table class="findings-table">
+        <thead><tr><th>Phase</th><th>#</th><th>Step</th><th>Detail</th></tr></thead>
+        <tbody>
+          
+            <tr class="row-warn">
+              <td>Phase 1 — Harness Smoke Test</td>
+              <td>1</td>
+              <td>Marketing landing page (apps/landing) loads with hero</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · Failed to load resource: the server responded with a status of 404 (Not Found)</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 1 — Harness Smoke Test</td>
+              <td>6</td>
+              <td>Anon access to an unknown route gets a real 404, not a login redirect</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/this-route-does-not-exist-e2e-audit</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 2 — Creator Journey</td>
+              <td>14</td>
+              <td>Discover renders a real HTTP 404, not a 200 with 404-shaped content</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/dashboard/discover</td>
+            </tr>
+            <tr class="row-fail">
+              <td>Phase 3 — Business Journey</td>
+              <td>15</td>
+              <td>DB: project_proposals row created (bilateral, not yet a project)</td>
+              <td>assertFields(project_proposals(new)) mismatch:
+  status: expected &quot;pending&quot;, got &quot;accepted&quot;</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 3 — Business Journey</td>
+              <td>29</td>
+              <td>Business discover — same real 404 as creator side</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/dashboard/discover</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 3 — Business Journey</td>
+              <td>30</td>
+              <td>Blocked accounts panel is reachable from Settings</td>
+              <td>Failed to load resource: the server responded with a status of 401 (Unauthorized) · 401 GET http://localhost:3000/api/blocks</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 4 — Admin, Public Routes &amp; Guards</td>
+              <td>4</td>
+              <td>SECURITY CHECK: creator (influencer) hitting /api/admin/users directly gets rejected</td>
+              <td>Failed to load resource: the server responded with a status of 403 (Forbidden) · Failed to load resource: the server responded with a status of 403 (Forbidden)</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 4 — Admin, Public Routes &amp; Guards</td>
+              <td>5</td>
+              <td>SECURITY CHECK: business (business_owner) hitting /api/admin/users directly gets rejected</td>
+              <td>Failed to load resource: the server responded with a status of 403 (Forbidden) · Failed to load resource: the server responded with a status of 403 (Forbidden)</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 4 — Admin, Public Routes &amp; Guards</td>
+              <td>13</td>
+              <td>/influnet/[slug] 404s for a nonexistent slug</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/influnet/no-such-creator-xyz-123</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 4 — Admin, Public Routes &amp; Guards</td>
+              <td>15</td>
+              <td>/b/[username] 404s for a creator with no relationship to that business</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · 404 GET http://localhost:3000/b/some-business-with-no-relationship-xyz</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>2</td>
+              <td>Business logs in and sends a fresh collab request</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>4</td>
+              <td>Business proposes the project (with an advance)</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>7</td>
+              <td>Stage 1 (collaboration_started): bilateral signoff advances the project</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>8</td>
+              <td>Stage 2: business proposes a change to the terms</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>12</td>
+              <td>Stage 2 → advance via bilateral signoff</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>13</td>
+              <td>Stage 3 (advance_payment): real Razorpay order + simulated webhook capture</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Refused to get unsafe header &quot;x-rtb-fingerprint-id&quot;</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>14</td>
+              <td>Stage 3 → advance via bilateral signoff (payment gate now open)</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>15</td>
+              <td>Stage 4: business proposes skipping content_planning</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>18</td>
+              <td>Stage 5 (content_confirmation) → advance</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>19</td>
+              <td>Stage 6 (shooting_in_progress) → advance</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>20</td>
+              <td>Stage 7 (editing_in_progress) → advance</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>22</td>
+              <td>Stage 8: business approves the draft (review fork)</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>24</td>
+              <td>Stage 10 (final_approval) → advance</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Failed to load resource: the server responded with a status of 403 ()</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>25</td>
+              <td>Stage 11 (final_payment): real Razorpay order + simulated webhook capture</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · Refused to get unsafe header &quot;x-rtb-fingerprint-id&quot;</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>26</td>
+              <td>Business confirms completion</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews)</td>
+              <td>30</td>
+              <td>Business leaves a 5-star review for the creator</td>
+              <td>Failed to load resource: the server responded with a status of 403 () · 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
+              <td>11</td>
+              <td>SECURITY CHECK: unrelated project&#39;s core data never reaches the creator</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · Failed to load resource: the server responded with a status of 404 (Not Found)</td>
+            </tr>
+            <tr class="row-warn">
+              <td>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards</td>
+              <td>12</td>
+              <td>/dashboard/influencer redirects to /dashboard (old links still work)</td>
+              <td>Failed to load resource: the server responded with a status of 404 (Not Found) · Failed to load resource: the server responded with a status of 404 (Not Found)</td>
+            </tr>
+        </tbody>
+      </table>
+    </section>
+  
+    <section class="phase ux-remarks">
+      <h2>UX &amp; Design Remarks <span class="phase-stats">qualitative — not from automated assertions</span></h2>
+      <p class="lede" style="margin-bottom:16px">What the product actually looks and feels like to use, based on reviewing the screenshots above — separate from the pass/fail checks. Not exhaustive; a starting point for design review.</p>
+      <div class="ux-grid">
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Landing page (apps/landing)</strong>
+      <p>Clean, modern hero with a clear one-line value prop and a single obvious CTA. The animated node graphic next to the headline communicates &quot;network of creators/brands&quot; without needing a caption.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Creator signup wizard</strong>
+      <p>The 5-step progress stepper (Connect → Account → Profile → Creator → Collab) keeps orientation clear throughout a long form. Live username availability and the 4-segment password-strength meter give immediate feedback instead of failing silently at submit. The Instagram auto-fill step reduces real signup friction significantly when it works.</p>
+    </div>
+
+    <div class="ux-card ux-rough">
+      <span class="ux-tone">Rough edge</span>
+      <strong>Creator signup wizard</strong>
+      <p>When Instagram auto-fill fails (network hiccup, rate limit, or the account is momentarily unreachable), the fallback is a plain &quot;Skip and fill manually&quot; button with no explanation of *why* auto-fill failed — a user just sees it silently give up. A one-line reason (&quot;couldn&#39;t reach Instagram right now&quot;) would reduce confusion.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Dashboard home (creator)</strong>
+      <p>The &quot;get verified in 3 steps&quot; card is well-placed for an unverified creator — it&#39;s the single most important next action and it&#39;s not buried. Collaboration counters (Ongoing/Completed/Needs you/Awaiting them) as clickable shortcut cards is a nice pattern that turns a stat into a direct action.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Public profile (/c/username)</strong>
+      <p>Real Instagram/YouTube numbers rendered as a clean stat row rather than a wall of text, and the price-tier cards (₹1K–₹5K style ranges) read like a menu, which sets expectations for a business before they even reach out. The circular niche-badge avatar treatment is a nice distinctive touch.</p>
+    </div>
+
+    <div class="ux-card ux-rough">
+      <span class="ux-tone">Rough edge</span>
+      <strong>Business dashboard (new/empty account)</strong>
+      <p>A brand-new business account sees ₹0 everywhere at once (pipeline value, weekly trend chart, campaign stages, recent collaborations all empty simultaneously) with no onboarding nudge (&quot;try Discover&quot; is dead — see below — so there isn&#39;t even an obvious first action to suggest). It reads as a working but idle product rather than a guided next step.</p>
+    </div>
+
+    <div class="ux-card ux-rough">
+      <span class="ux-tone">Rough edge</span>
+      <strong>Discover (creator + business)</strong>
+      <p>The feature is fully built (search, filters, niche chips) but hard-disabled behind an unconditional notFound() for V1. The 404 page itself is well-branded, but the *sidebar nav link to it is still present* — a user has no way to know it&#39;s intentionally disabled versus a broken page until they click through.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Project workspace — Guided view</strong>
+      <p>This is the best-designed screen in the product. The 12-stage horizontal tracker, &quot;STEP X of 12&quot; heading, and the two-column &quot;YOU (BRAND)&quot; / &quot;PARTNER (CREATOR)&quot; checklist give both sides a shared, unambiguous mental model of whose move it is. The &quot;waiting on the other side&quot; state (grayed-out name + hourglass icon) is a small touch that removes a lot of anxiety in an async back-and-forth.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Project workspace — payment gate</strong>
+      <p>&quot;Pay ₹X securely&quot; with a visible &quot;Secured by Razorpay · the gate opens automatically once payment is confirmed&quot; caption sets expectations well — the user knows they don&#39;t need to do anything else after paying.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Project workspace — change requests &amp; skip</strong>
+      <p>Both &quot;Propose a change to the terms&quot; and &quot;This stage isn&#39;t needed — propose skipping it&quot; are deliberately low-emphasis ghost-text links, not buttons — a good signal that these are secondary/occasional actions, not the main flow, without hiding them.</p>
+    </div>
+
+    <div class="ux-card ux-suggestion">
+      <span class="ux-tone">Suggestion</span>
+      <strong>Reviews</strong>
+      <p>The star-rating buttons have no visible numeric label or hover tooltip (e.g. &quot;5 — Excellent&quot;) — fine for a quick tap, but a screen-reader or keyboard-only user has only the filled-star count to go on.</p>
+    </div>
+
+    <div class="ux-card ux-rough">
+      <span class="ux-tone">Rough edge</span>
+      <strong>Business account shell (every page)</strong>
+      <p>Every single page a business account loads fires a console error from a stale direct-to-PostgREST query that was cut off by a security migration (403, silently ignored). Invisible to a normal user, but it&#39;s constant noise for anyone who opens devtools, and worth cleaning up since dead code paths like this tend to accumulate.</p>
+    </div>
+
+    <div class="ux-card ux-suggestion">
+      <span class="ux-tone">Suggestion</span>
+      <strong>Admin panel</strong>
+      <p>Functionally solid but visually a tier below the main app — plain tables, no charts on the collabs/projects pages (the home page has KPI cards, but drilling in loses that polish). Fine for an internal tool, but a stark contrast if an admin is also a business/creator user elsewhere in the same session.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Payment gate (real Razorpay Checkout)</strong>
+      <p>The actual Razorpay modal is well-integrated — price summary, saved-card option, &quot;Secured by Razorpay&quot; branding all present, and a clear &quot;Test Mode&quot; ribbon so nobody mistakes a sandbox run for a live charge. This is a real third-party checkout working cleanly inside the app chrome, not an awkward redirect.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Guided view — completed project</strong>
+      <p>The finished 12-stage tracker (all stages ticked green, &quot;Stage 12/12&quot;) is a satisfying, legible summary of a long collaboration — genuinely nice payoff for what is otherwise a long, many-step process. The in-context &quot;Leave a Review&quot; modal appearing right at the completed stage (not a separate page) keeps the finishing action low-friction.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Public profile after a completed project</strong>
+      <p>This is the best &quot;proof&quot; surface in the product: a real per-project portfolio card (&quot;Verified on Influnet&quot;), a genuine star rating computed from actual reviews (not a placeholder), and the project folded automatically into &quot;Past collaborations&quot; — a brand landing on this profile sees real, checkable social proof rather than self-reported claims.</p>
+    </div>
+
+    <div class="ux-card ux-rough">
+      <span class="ux-tone">Rough edge</span>
+      <strong>Unauthorized project access</strong>
+      <p>Opening a project you have no relationship to: the core record, activity, and change-requests are correctly denied, but the page itself has no error-state handling for that case — it just spins on &quot;Loading…&quot; forever instead of a clear &quot;not found&quot; message. Separately (see security findings), the reviews and cards endpoints for that project don&#39;t check membership at all, though no real content happened to leak in this specific test.</p>
+    </div>
+
+    <div class="ux-card ux-strength">
+      <span class="ux-tone">Strength</span>
+      <strong>Messaging (Stream Chat)</strong>
+      <p>The chat composer round-trips a real message end-to-end — sent by one side, still there after a hard page reload, and visible to the other side without any manual refresh. Straightforward, no surprises, works like a normal chat app should.</p>
+    </div></div>
+    </section>
+  
+    <section class="phase">
+      <h2>Phase 1 — Harness Smoke Test <span class="phase-stats">9/9 passed · 0 failed · 0 skipped</span></h2>
+      <div class="grid">
+    <div class="card has-findings">
+      <span class="step-badge">#1</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/01-marketing-landing-page-apps-landing-loads-with-hero.png" alt="Marketing landing page (apps/landing) loads with hero" loading="lazy" />
+      <div class="cap">
+        <strong>Marketing landing page (apps/landing) loads with hero</strong>
+        <p class="url">http://localhost:3001/</p>
+        
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3001/AZ8n2wqgm9kiSBAYwYSpdA-AZ8n2yRuC5hH5dk0gCMkFw.png</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#2</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/02-apps-web-root-intentionally-redirects-anon-visitors-to-login.png" alt="apps/web root intentionally redirects anon visitors to /login" loading="lazy" />
+      <div class="cap">
+        <strong>apps/web root intentionally redirects anon visitors to /login</strong>
+        <p class="url">http://localhost:3000/login</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#3</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/03-login-page-renders-sign-in-form.png" alt="Login page renders sign-in form" loading="lazy" />
+      <div class="cap">
+        <strong>Login page renders sign-in form</strong>
+        <p class="url">http://localhost:3000/login</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#4</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/04-signup-role-selection-page-has-creator-business-links.png" alt="Signup role-selection page has creator + business links" loading="lazy" />
+      <div class="cap">
+        <strong>Signup role-selection page has creator + business links</strong>
+        <p class="url">http://localhost:3000/signup</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#5</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/05-anon-access-to-protected-dashboard-discover-redirects-to-log.png" alt="Anon access to protected /dashboard/discover redirects to login (auth gate)" loading="lazy" />
+      <div class="cap">
+        <strong>Anon access to protected /dashboard/discover redirects to login (auth gate)</strong>
+        <p class="url">http://localhost:3000/login?next=%2Fdashboard%2Fdiscover</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#6</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/06-anon-access-to-an-unknown-route-gets-a-real-404-not-a-login-.png" alt="Anon access to an unknown route gets a real 404, not a login redirect" loading="lazy" />
+      <div class="cap">
+        <strong>Anon access to an unknown route gets a real 404, not a login redirect</strong>
+        <p class="url">http://localhost:3000/this-route-does-not-exist-e2e-audit</p>
+        <div class="notes"><p>HTTP 404, landed at http://localhost:3000/this-route-does-not-exist-e2e-audit, body mentions &quot;not found&quot;: true</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/this-route-does-not-exist-e2e-audit</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase1-harness-smoke/07-anon-access-to-dashboard-protected-still-redirects-to-login.png" alt="Anon access to /dashboard (protected) still redirects to login" loading="lazy" />
+      <div class="cap">
+        <strong>Anon access to /dashboard (protected) still redirects to login</strong>
+        <p class="url">http://localhost:3000/login?next=%2Fdashboard</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#8</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB check: admin profile row exists and has role=admin</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#9</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB check: the 9 real accounts survive Phase 0, and every extra is an audit account</strong>
+        
+        <div class="notes"><p>9 real accounts, 3 audit accounts (e2e.creator.madangowri@influnet-audit.test, e2e.business.jupiter@influnet-audit.test, e2e.admin.audit@influnet-audit.test).</p></div>
+        
+      </div>
+    </div></div>
+    </section>
+  
+
+    <section class="phase">
+      <h2>Phase 2 — Creator Journey <span class="phase-stats">15/15 passed · 0 failed · 0 skipped</span></h2>
+      <div class="grid">
+    <div class="card ">
+      <span class="step-badge">#1</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/01-account-already-exists-from-a-prior-run-logging-in-directly-.png" alt="Account already exists from a prior run — logging in directly instead of re-running signup" loading="lazy" />
+      <div class="cap">
+        <strong>Account already exists from a prior run — logging in directly instead of re-running signup</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>Reusing existing account 021faad5-a304-4899-929b-782e2f999041 (e2e.creator.madangowri@influnet-audit.test). Signup wizard steps skipped — already exercised in an earlier run.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#2</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: profiles row created with role=influencer</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#3</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: influencer_profiles row created with correct fields</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#4</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: anti-impersonation gate holds — creator is NOT auto-verified without ownership proof</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#5</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/02-dashboard-home-renders-identity-card-verification-guide.png" alt="Dashboard home renders identity card + verification guide" loading="lazy" />
+      <div class="cap">
+        <strong>Dashboard home renders identity card + verification guide</strong>
+        <p class="url">http://localhost:3000/dashboard/home</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#6</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/03-home-verification-guide-get-verified-prompt-shown-unverified.png" alt="Home: verification guide / &quot;get verified&quot; prompt shown (unverified state)" loading="lazy" />
+      <div class="cap">
+        <strong>Home: verification guide / &quot;get verified&quot; prompt shown (unverified state)</strong>
+        <p class="url">http://localhost:3000/dashboard/home</p>
+        <div class="notes"><p>Verification-related text present: true</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/04-public-profile-c-madangowri-renders-with-owner-edit-profile-.png" alt="Public profile /c/madangowri renders with owner &quot;Edit profile&quot; CTA" loading="lazy" />
+      <div class="cap">
+        <strong>Public profile /c/madangowri renders with owner &quot;Edit profile&quot; CTA</strong>
+        <p class="url">http://localhost:3000/c/madangowri</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#8</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/05-public-profile-scroll-to-audience-stats-section.png" alt="Public profile: scroll to audience/stats section" loading="lazy" />
+      <div class="cap">
+        <strong>Public profile: scroll to audience/stats section</strong>
+        <p class="url">http://localhost:3000/c/madangowri</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#9</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/06-media-kit-page-c-madangowri-media-kit-renders-with-qr-code.png" alt="Media kit page /c/madangowri/media-kit renders with QR code" loading="lazy" />
+      <div class="cap">
+        <strong>Media kit page /c/madangowri/media-kit renders with QR code</strong>
+        <p class="url">http://localhost:3000/c/madangowri/media-kit</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#10</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/07-settings-page-pre-fills-creator-fields-correctly.png" alt="Settings page pre-fills creator fields correctly" loading="lazy" />
+      <div class="cap">
+        <strong>Settings page pre-fills creator fields correctly</strong>
+        <p class="url">http://localhost:3000/dashboard/settings</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#11</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/08-settings-edit-headline-save-db-verify-the-write-landed.png" alt="Settings: edit headline, save, DB-verify the write landed" loading="lazy" />
+      <div class="cap">
+        <strong>Settings: edit headline, save, DB-verify the write landed</strong>
+        <p class="url">http://localhost:3000/dashboard/settings</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#12</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/09-activity-page-shows-at-least-one-event-account-created.png" alt="Activity page shows at least one event (account_created)" loading="lazy" />
+      <div class="cap">
+        <strong>Activity page shows at least one event (account_created)</strong>
+        <p class="url">http://localhost:3000/dashboard/activity</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#13</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/10-connections-page-loads-real-data-no-longer-a-static-stub.png" alt="Connections page loads real data (no longer a static stub)" loading="lazy" />
+      <div class="cap">
+        <strong>Connections page loads real data (no longer a static stub)</strong>
+        <p class="url">http://localhost:3000/dashboard/connections</p>
+        <div class="notes"><p>Body text snippet: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Searc&quot;</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#14</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/11-discover-renders-a-real-http-404-not-a-200-with-404-shaped-c.png" alt="Discover renders a real HTTP 404, not a 200 with 404-shaped content" loading="lazy" />
+      <div class="cap">
+        <strong>Discover renders a real HTTP 404, not a 200 with 404-shaped content</strong>
+        <p class="url">http://localhost:3000/dashboard/discover</p>
+        <div class="notes"><p>HTTP 404 (was 200 before the fix). Body snippet: &quot;influnet  404  Page not found  The page you&#39;re looking for doesn&#39;t exist, moved, or the link was mistyped.  Go home&quot;</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/dashboard/discover</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#15</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase2-creator-journey/12-messages-page-loads-without-crashing-empty-state-expected.png" alt="Messages page loads without crashing (empty state expected)" loading="lazy" />
+      <div class="cap">
+        <strong>Messages page loads without crashing (empty state expected)</strong>
+        <p class="url">http://localhost:3000/dashboard/messages</p>
+        
+        
+      </div>
+    </div></div>
+    </section>
+  
+
+    <section class="phase">
+      <h2>Phase 3 — Business Journey <span class="phase-stats">22/30 passed · 1 failed · 7 skipped</span></h2>
+      <div class="grid">
+    <div class="card ">
+      <span class="step-badge">#1</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/01-business-account-already-exists-from-a-prior-run-logging-in-.png" alt="Business account already exists from a prior run — logging in directly" loading="lazy" />
+      <div class="cap">
+        <strong>Business account already exists from a prior run — logging in directly</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>Reusing existing account 4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#2</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/02-admin-logs-in-and-opens-approvals-queue.png" alt="Admin logs in and opens approvals queue" loading="lazy" />
+      <div class="cap">
+        <strong>Admin logs in and opens approvals queue</strong>
+        <p class="url">http://localhost:3000/dashboard/admin/approvals</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#3</span>
+      <span class="badge skip">SKIPPED</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/03-admin-approves-jupiter-media-audit.png" alt="Admin approves &quot;Jupiter Media Audit&quot;" loading="lazy" />
+      <div class="cap">
+        <strong>Admin approves &quot;Jupiter Media Audit&quot;</strong>
+        <p class="url">http://localhost:3000/dashboard/admin/approvals</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#4</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: business_profiles.approval_status is now &quot;approved&quot;</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#5</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/04-business-re-logs-in-with-approved-status.png" alt="Business re-logs in with approved status" loading="lazy" />
+      <div class="cap">
+        <strong>Business re-logs in with approved status</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#6</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/05-business-dashboard-renders-stats-no-pending-banner.png" alt="Business dashboard renders stats (no pending banner)" loading="lazy" />
+      <div class="cap">
+        <strong>Business dashboard renders stats (no pending banner)</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>Pending banner correctly gone after approval.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/06-sending-a-request-with-budget-left-blank-now-succeeds-was-ht.png" alt="Sending a request with budget left blank now succeeds (was HTTP 400)" loading="lazy" />
+      <div class="cap">
+        <strong>Sending a request with budget left blank now succeeds (was HTTP 400)</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        <div class="notes"><p>POST /api/collabs with budget left blank → HTTP 200: {&quot;collab&quot;:{&quot;id&quot;:&quot;14116c91-50bf-4546-9dca-b9b239e072b1&quot;,&quot;from_user_id&quot;:&quot;4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9&quot;,&quot;to_user_id&quot;:&quot;021faad5-a304-4899-929b-782e2f999041&quot;,&quot;message&quot;:&quot;Blank-budget guard (E2E audit) 1785389581873&quot;,&quot;budget&quot;:null,&quot;status&quot;:&quot;pending&quot;,&quot;created_at&quot;:&quot;2026-07-30T05:33:02.723281+00:00&quot;,&quot;updated_at&quot;:&quot;2026-07-30T05:33:02.723281+00:00&quot;,&quot;advance_amount&quot;:null}}</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#8</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/07-business-sends-a-collab-request-to-the-creator.png" alt="Business sends a collab request to the creator" loading="lazy" />
+      <div class="cap">
+        <strong>Business sends a collab request to the creator</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#9</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: collab_requests row created, status=pending</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#10</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/08-business-requests-outbox-shows-awaiting-reply.png" alt="Business requests outbox shows &quot;awaiting reply&quot;" loading="lazy" />
+      <div class="cap">
+        <strong>Business requests outbox shows &quot;awaiting reply&quot;</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        <div class="notes"><p>Outbox text contains &quot;awaiting&quot;: true</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#11</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/09-creator-logs-in-and-sees-the-incoming-request.png" alt="Creator logs in and sees the incoming request" loading="lazy" />
+      <div class="cap">
+        <strong>Creator logs in and sees the incoming request</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#12</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/10-creator-accepts-the-request.png" alt="Creator accepts the request" loading="lazy" />
+      <div class="cap">
+        <strong>Creator accepts the request</strong>
+        <p class="url">http://localhost:3000/dashboard/messages?conv=e04f5910-89e5-4673-bd37-b4c4e258c37d</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#13</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: collab_requests.status is now &quot;accepted&quot;</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#14</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/11-business-opens-the-conversation-and-proposes-project-terms.png" alt="Business opens the conversation and proposes project terms" loading="lazy" />
+      <div class="cap">
+        <strong>Business opens the conversation and proposes project terms</strong>
+        <p class="url">http://localhost:3000/dashboard/messages</p>
+        <div class="notes"><p>Proposal sent.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#15</span>
+      <span class="badge fail">FAIL</span>
+      
+      <div class="cap">
+        <strong>DB: project_proposals row created (bilateral, not yet a project)</strong>
+        
+        
+        
+    <div class="findings">
+      <div class="finding-row fail">Assertion failed: assertFields(project_proposals(new)) mismatch:
+  status: expected &quot;pending&quot;, got &quot;accepted&quot;</div>
+      
+      
+      
+      
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#16</span>
+      <span class="badge skip">SKIPPED</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/12-creator-opens-the-conversation-and-accepts-the-proposal-proj.png" alt="Creator opens the conversation and accepts the proposal → project created" loading="lazy" />
+      <div class="cap">
+        <strong>Creator opens the conversation and accepts the proposal → project created</strong>
+        <p class="url">http://localhost:3000/dashboard/messages</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#17</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: campaign_projects row created with status=active</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#18</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/13-project-page-loads-with-stage-timeline.png" alt="Project page loads with stage timeline" loading="lazy" />
+      <div class="cap">
+        <strong>Project page loads with stage timeline</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        <div class="notes"><p>Opened project 84.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#19</span>
+      <span class="badge skip">SKIPPED</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/14-business-ticks-required-checklist-items-for-stage-1-guided-v.png" alt="Business ticks required checklist items for stage 1 (Guided view)" loading="lazy" />
+      <div class="cap">
+        <strong>Business ticks required checklist items for stage 1 (Guided view)</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#20</span>
+      <span class="badge skip">SKIPPED</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/15-business-signs-off-on-stage-1-confirm-this-stage.png" alt="Business signs off on stage 1 (&quot;Confirm this stage&quot;)" loading="lazy" />
+      <div class="cap">
+        <strong>Business signs off on stage 1 (&quot;Confirm this stage&quot;)</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#21</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/16-creator-ticks-their-items-and-signs-off-too-stage-should-adv.png" alt="Creator ticks their items and signs off too — stage should advance (bilateral)" loading="lazy" />
+      <div class="cap">
+        <strong>Creator ticks their items and signs off too — stage should advance (bilateral)</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        <div class="notes"><p>Ticked 0/0 pending checklist item(s) as the creator.</p><p>Creator side: &quot;Confirm this stage&quot; not available/enabled after ticking their items.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#22</span>
+      <span class="badge skip">SKIPPED</span>
+      
+      <div class="cap">
+        <strong>DB: campaign_projects.current_stage reflects the bilateral advance</strong>
+        
+        <div class="notes"><p>current_stage=project_discussion, status=cancelled</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#23</span>
+      <span class="badge skip">SKIPPED</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/17-request-project-cancellation-with-a-reason.png" alt="Request project cancellation with a reason" loading="lazy" />
+      <div class="cap">
+        <strong>Request project cancellation with a reason</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#24</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: campaign_projects reflects cancellation request</strong>
+        
+        <div class="notes"><p>status=cancelled, cancel_reason_category=scope_not_needed, requested_by=null</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#25</span>
+      <span class="badge skip">SKIPPED</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/18-creator-other-party-sees-and-accepts-the-cancellation.png" alt="Creator (other party) sees and accepts the cancellation" loading="lazy" />
+      <div class="cap">
+        <strong>Creator (other party) sees and accepts the cancellation</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/84</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#26</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: project is now cancelled</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#27</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/19-business-settings-page-pre-fills-company-fields.png" alt="Business settings page pre-fills company fields" loading="lazy" />
+      <div class="cap">
+        <strong>Business settings page pre-fills company fields</strong>
+        <p class="url">http://localhost:3000/dashboard/settings</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#28</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/20-business-connections-page-loads-real-data-no-longer-a-static.png" alt="Business connections page loads real data (no longer a static stub)" loading="lazy" />
+      <div class="cap">
+        <strong>Business connections page loads real data (no longer a static stub)</strong>
+        <p class="url">http://localhost:3000/dashboard/connections</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#29</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/21-business-discover-same-real-404-as-creator-side.png" alt="Business discover — same real 404 as creator side" loading="lazy" />
+      <div class="cap">
+        <strong>Business discover — same real 404 as creator side</strong>
+        <p class="url">http://localhost:3000/dashboard/discover</p>
+        
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/dashboard/discover</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#30</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase3-business-journey/22-blocked-accounts-panel-is-reachable-from-settings.png" alt="Blocked accounts panel is reachable from Settings" loading="lazy" />
+      <div class="cap">
+        <strong>Blocked accounts panel is reachable from Settings</strong>
+        <p class="url">http://localhost:3000/dashboard/settings</p>
+        <div class="notes"><p>GET /api/blocks while authenticated → HTTP 401.</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)</div>
+      <div class="finding-row warn">Network: 401 GET http://localhost:3000/api/blocks</div>
+    </div>
+      </div>
+    </div></div>
+    </section>
+  
+
+    <section class="phase">
+      <h2>Phase 4 — Admin, Public Routes &amp; Guards <span class="phase-stats">16/17 passed · 0 failed · 1 skipped</span></h2>
+      <div class="grid">
+    <div class="card ">
+      <span class="step-badge">#1</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/01-creator-logs-in-non-admin-session-for-guard-checks.png" alt="Creator logs in (non-admin session for guard checks)" loading="lazy" />
+      <div class="cap">
+        <strong>Creator logs in (non-admin session for guard checks)</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#2</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/02-business-logs-in-non-admin-session-for-guard-checks.png" alt="Business logs in (non-admin session for guard checks)" loading="lazy" />
+      <div class="cap">
+        <strong>Business logs in (non-admin session for guard checks)</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#3</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/03-test-admin-logs-in.png" alt="Test admin logs in" loading="lazy" />
+      <div class="cap">
+        <strong>Test admin logs in</strong>
+        <p class="url">http://localhost:3000/dashboard/admin</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#4</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/04-security-check-creator-influencer-hitting-api-admin-users-di.png" alt="SECURITY CHECK: creator (influencer) hitting /api/admin/users directly gets rejected" loading="lazy" />
+      <div class="cap">
+        <strong>SECURITY CHECK: creator (influencer) hitting /api/admin/users directly gets rejected</strong>
+        <p class="url">http://localhost:3000/dashboard/admin/users</p>
+        <div class="notes"><p>GET /api/admin/users as influencer: HTTP 401 — {&quot;error&quot;:&quot;Missing Authorization header&quot;}</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 (Forbidden)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 (Forbidden)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)</div>
+      <div class="finding-row warn">Network: 403 GET http://localhost:3000/api/admin/users</div><div class="finding-row warn">Network: 403 GET http://localhost:3000/api/admin/users</div><div class="finding-row warn">Network: 401 GET http://localhost:3000/api/admin/users</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#5</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/05-security-check-business-business-owner-hitting-api-admin-use.png" alt="SECURITY CHECK: business (business_owner) hitting /api/admin/users directly gets rejected" loading="lazy" />
+      <div class="cap">
+        <strong>SECURITY CHECK: business (business_owner) hitting /api/admin/users directly gets rejected</strong>
+        <p class="url">http://localhost:3000/dashboard/admin/users</p>
+        <div class="notes"><p>GET /api/admin/users as business_owner: HTTP 401 — {&quot;error&quot;:&quot;Missing Authorization header&quot;}</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 (Forbidden)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 (Forbidden)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)</div>
+      <div class="finding-row warn">Network: 403 GET http://localhost:3000/api/admin/users</div><div class="finding-row warn">Network: 403 GET http://localhost:3000/api/admin/users</div><div class="finding-row warn">Network: 401 GET http://localhost:3000/api/admin/users</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#6</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>Note: /dashboard/admin/* pages have no client-side role redirect (confirmed via code review)</strong>
+        
+        <div class="notes"><p>A non-admin visiting /dashboard/admin/* sees the page shell render (sidebar, layout) even though the API calls above should reject their data request — worth a UX fix (redirect away) even though the security boundary (API) held.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/06-admin-home-renders-kpi-cards.png" alt="Admin home renders KPI cards" loading="lazy" />
+      <div class="cap">
+        <strong>Admin home renders KPI cards</strong>
+        <p class="url">http://localhost:3000/dashboard/admin</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#8</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/07-admin-collabs-page-lists-requests-with-search.png" alt="Admin collabs page lists requests with search" loading="lazy" />
+      <div class="cap">
+        <strong>Admin collabs page lists requests with search</strong>
+        <p class="url">http://localhost:3000/dashboard/admin/collabs</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#9</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/08-admin-projects-page-lists-projects-delete-requires-confirm.png" alt="Admin projects page lists projects, delete requires confirm" loading="lazy" />
+      <div class="cap">
+        <strong>Admin projects page lists projects, delete requires confirm</strong>
+        <p class="url">http://localhost:3000/dashboard/admin/projects</p>
+        <div class="notes"><p>&quot;Confirm delete&quot; step appears before actual deletion: true</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#10</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/09-admin-users-page-is-read-only-no-suspend-promote-actions-mat.png" alt="Admin users page is read-only (no suspend/promote actions) — matches code review" loading="lazy" />
+      <div class="cap">
+        <strong>Admin users page is read-only (no suspend/promote actions) — matches code review</strong>
+        <p class="url">http://localhost:3000/dashboard/admin/users</p>
+        <div class="notes"><p>Confirmed: no suspend/promote/demote controls on this page — read-only by design per code review.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#11</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/10-vf-code-renders-a-static-verification-info-page-for-any-code.png" alt="/vf/[code] renders a static verification-info page for any code" loading="lazy" />
+      <div class="cap">
+        <strong>/vf/[code] renders a static verification-info page for any code</strong>
+        <p class="url">http://localhost:3000/vf/totally-made-up-garbage-code-123</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#12</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/11-influnet-slug-redirects-to-canonical-c-username-for-a-real-s.png" alt="/influnet/[slug] redirects to canonical /c/[username] for a real slug" loading="lazy" />
+      <div class="cap">
+        <strong>/influnet/[slug] redirects to canonical /c/[username] for a real slug</strong>
+        <p class="url">http://localhost:3000/c/madangowri</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#13</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/12-influnet-slug-404s-for-a-nonexistent-slug.png" alt="/influnet/[slug] 404s for a nonexistent slug" loading="lazy" />
+      <div class="cap">
+        <strong>/influnet/[slug] 404s for a nonexistent slug</strong>
+        <p class="url">http://localhost:3000/influnet/no-such-creator-xyz-123</p>
+        
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/influnet/no-such-creator-xyz-123</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#14</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/13-b-username-private-business-profile-redirects-anon-visitors-.png" alt="/b/[username] (private business profile) redirects anon visitors to login" loading="lazy" />
+      <div class="cap">
+        <strong>/b/[username] (private business profile) redirects anon visitors to login</strong>
+        <p class="url">http://localhost:3000/login?next=/b/anything</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#15</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/14-b-username-404s-for-a-creator-with-no-relationship-to-that-b.png" alt="/b/[username] 404s for a creator with no relationship to that business" loading="lazy" />
+      <div class="cap">
+        <strong>/b/[username] 404s for a creator with no relationship to that business</strong>
+        <p class="url">http://localhost:3000/b/some-business-with-no-relationship-xyz</p>
+        
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/b/some-business-with-no-relationship-xyz</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#16</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/15-reset-password-request-form-email-input-send-reset-link.png" alt="Reset-password request form: email input + Send Reset Link" loading="lazy" />
+      <div class="cap">
+        <strong>Reset-password request form: email input + Send Reset Link</strong>
+        <p class="url">http://localhost:3000/reset-password</p>
+        <div class="notes"><p>Body after submit: &quot;influnet Reset your password  Enter your email and we&#39;ll send you a reset link  Check your inbox  If an account exists for e2e.reset.check@influnet-au&quot;</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#17</span>
+      <span class="badge skip">SKIPPED</span>
+      <img src="../../tests/e2e/screenshots/phase4-admin-and-public-routes/16-reset-password-validation-mismatched-passwords-rejected-edge.png" alt="Reset-password validation: mismatched passwords rejected (edge case)" loading="lazy" />
+      <div class="cap">
+        <strong>Reset-password validation: mismatched passwords rejected (edge case)</strong>
+        <p class="url">http://localhost:3000/reset-password?type=recovery</p>
+        
+        
+      </div>
+    </div></div>
+    </section>
+  
+
+    <section class="phase">
+      <h2>Phase 5 — Edge Cases &amp; Validation <span class="phase-stats">11/11 passed · 0 failed · 0 skipped</span></h2>
+      <div class="grid">
+    <div class="card ">
+      <span class="step-badge">#1</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/01-signup-duplicate-email-is-rejected-with-a-clear-error.png" alt="Signup: duplicate email is rejected with a clear error" loading="lazy" />
+      <div class="cap">
+        <strong>Signup: duplicate email is rejected with a clear error</strong>
+        <p class="url">http://localhost:3000/signup/influencer</p>
+        <div class="notes"><p>Body after duplicate-email submit attempt: &quot;influnet Create your account  Join as a creator.  1 2 3 4 5 CONNECT ACCOUNT PROFILE CREATOR COLLAB Profile details GENDER Select gender Male Female Non-binary Prefer not to say CITY STATE Select state&quot;</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#2</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/02-signup-weak-password-keeps-continue-disabled-on-step-2.png" alt="Signup: weak password keeps Continue disabled on step 2" loading="lazy" />
+      <div class="cap">
+        <strong>Signup: weak password keeps Continue disabled on step 2</strong>
+        <p class="url">http://localhost:3000/signup/influencer</p>
+        <div class="notes"><p>Continue button enabled with a 3-char password: false</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#3</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/03-signup-invalid-email-format-keeps-continue-disabled.png" alt="Signup: invalid email format keeps Continue disabled" loading="lazy" />
+      <div class="cap">
+        <strong>Signup: invalid email format keeps Continue disabled</strong>
+        <p class="url">http://localhost:3000/signup/influencer</p>
+        <div class="notes"><p>Continue button enabled with an invalid email format: false</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#4</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/04-signup-duplicate-username-triggers-the-alternative-suggestio.png" alt="Signup: duplicate username triggers the alternative-suggestion recovery flow" loading="lazy" />
+      <div class="cap">
+        <strong>Signup: duplicate username triggers the alternative-suggestion recovery flow</strong>
+        <p class="url">http://localhost:3000/signup/influencer</p>
+        <div class="notes"><p>Body after entering a taken username: &quot;influnet Create your account  Join as a creator.  1 2 3 4 5 CONNECT ACCOUNT PROFILE CREATOR COLLAB Account details FIRST NAME LAST NAME USERNAME  That username is already taken  Your public profile wi&quot;</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#5</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/05-business-signup-blocks-a-garbage-website-url.png" alt="Business signup blocks a garbage website URL" loading="lazy" />
+      <div class="cap">
+        <strong>Business signup blocks a garbage website URL</strong>
+        <p class="url">http://localhost:3000/signup/business</p>
+        <div class="notes"><p>Garbage website &quot;not a url at all!!&quot; → Continue disabled: true; inline error shown: true</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#6</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/06-business-signup-blocks-a-garbage-gst-number-accepts-a-real-o.png" alt="Business signup blocks a garbage GST number, accepts a real one" loading="lazy" />
+      <div class="cap">
+        <strong>Business signup blocks a garbage GST number, accepts a real one</strong>
+        <p class="url">http://localhost:3000/signup/business</p>
+        <div class="notes"><p>Garbage GST blocked: true. Valid GSTIN &quot;27AABCU1234D1ZV&quot; re-enables Continue: true.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/07-creator-settings-tamil-unicode-bio-saves-and-renders-correct.png" alt="Creator settings: Tamil unicode bio saves and renders correctly" loading="lazy" />
+      <div class="cap">
+        <strong>Creator settings: Tamil unicode bio saves and renders correctly</strong>
+        <p class="url">http://localhost:3000/dashboard/settings</p>
+        <div class="notes"><p>Tamil unicode + emoji round-tripped through save correctly.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#8</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/08-confirmed-safe-an-xss-payload-in-bio-is-stored-as-data-not-e.png" alt="CONFIRMED SAFE: an XSS payload in bio is stored as data, not executed as a script" loading="lazy" />
+      <div class="cap">
+        <strong>CONFIRMED SAFE: an XSS payload in bio is stored as data, not executed as a script</strong>
+        <p class="url">http://localhost:3000/dashboard/settings</p>
+        <div class="notes"><p>Payload stored verbatim in DB (expected — sanitize on render, not on write). Script executed on public profile render: false</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#9</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/09-a-negative-budget-is-rejected-not-silently-flipped-to-positi.png" alt="A negative budget is rejected, not silently flipped to positive" loading="lazy" />
+      <div class="cap">
+        <strong>A negative budget is rejected, not silently flipped to positive</strong>
+        <p class="url">http://localhost:3000/dashboard/requests/new?to=021faad5-a304-4899-929b-782e2f999041</p>
+        <div class="notes"><p>Typed &quot;-500&quot; → inline error shown: true; row created in DB: false (expected none).</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#10</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/10-a-blank-optional-budget-is-accepted-not-rejected-with-a-400.png" alt="A blank (optional) budget is accepted, not rejected with a 400" loading="lazy" />
+      <div class="cap">
+        <strong>A blank (optional) budget is accepted, not rejected with a 400</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        <div class="notes"><p>Blank budget → row created: true, budget=null (previously a 400 because Zod .optional() rejected the explicit null).</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#11</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase5-edge-cases/11-send-request-absurdly-large-budget-1-trillion-is-accepted-wi.png" alt="Send-request: absurdly large budget (1 trillion) is accepted with no upper bound" loading="lazy" />
+      <div class="cap">
+        <strong>Send-request: absurdly large budget (1 trillion) is accepted with no upper bound</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>No client-side upper bound on budget — accepted &quot;null&quot; (₹1 trillion) without a warning or cap.</p></div>
+        
+      </div>
+    </div></div>
+    </section>
+  
+
+    <section class="phase">
+      <h2>Phase 6 — Full Project Lifecycle (Payments, Skip, Change Requests, Completion, Reviews) <span class="phase-stats">34/34 passed · 0 failed · 0 skipped</span></h2>
+      <div class="grid">
+    <div class="card ">
+      <span class="step-badge">#1</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>Resolve business/creator user ids</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#2</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/01-business-logs-in-and-sends-a-fresh-collab-request.png" alt="Business logs in and sends a fresh collab request" loading="lazy" />
+      <div class="cap">
+        <strong>Business logs in and sends a fresh collab request</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#3</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/02-creator-accepts-it.png" alt="Creator accepts it" loading="lazy" />
+      <div class="cap">
+        <strong>Creator accepts it</strong>
+        <p class="url">http://localhost:3000/dashboard/messages?conv=e04f5910-89e5-4673-bd37-b4c4e258c37d</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#4</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/03-business-proposes-the-project-with-an-advance.png" alt="Business proposes the project (with an advance)" loading="lazy" />
+      <div class="cap">
+        <strong>Business proposes the project (with an advance)</strong>
+        <p class="url">http://localhost:3000/dashboard/messages</p>
+        
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#5</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/04-creator-accepts-the-proposal-project-created.png" alt="Creator accepts the proposal → project created" loading="lazy" />
+      <div class="cap">
+        <strong>Creator accepts the proposal → project created</strong>
+        <p class="url">http://localhost:3000/dashboard/messages</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#6</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: fresh campaign_projects row created</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/05-stage-1-collaboration-started-bilateral-signoff-advances-the.png" alt="Stage 1 (collaboration_started): bilateral signoff advances the project" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 1 (collaboration_started): bilateral signoff advances the project</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>current_stage after both sign off: project_discussion</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#8</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/06-stage-2-business-proposes-a-change-to-the-terms.png" alt="Stage 2: business proposes a change to the terms" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 2: business proposes a change to the terms</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#9</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: project_change_requests row created, status=pending</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#10</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/07-creator-accepts-the-change-request.png" alt="Creator accepts the change request" loading="lazy" />
+      <div class="cap">
+        <strong>Creator accepts the change request</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Change request accepted.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#11</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: campaign_projects.budget updated to 85000, change request accepted</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#12</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/08-stage-2-advance-via-bilateral-signoff.png" alt="Stage 2 → advance via bilateral signoff" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 2 → advance via bilateral signoff</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>current_stage: advance_payment</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#13</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/09-stage-3-advance-payment-real-razorpay-order-simulated-webhoo.png" alt="Stage 3 (advance_payment): real Razorpay order + simulated webhook capture" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 3 (advance_payment): real Razorpay order + simulated webhook capture</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Real Razorpay order created: order_TJRApxyvp4ZNlR, amount 3000000 INR.</p><p>Simulated signed webhook capture → HTTP 200: {&quot;received&quot;:true,&quot;recorded&quot;:true}</p><p>Payment-gate checklist item auto-completed by the webhook, as designed.</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Refused to get unsafe header &quot;x-rtb-fingerprint-id&quot;</div><div class="finding-row warn">Console error: Refused to get unsafe header &quot;request-id&quot;</div><div class="finding-row warn">Console error: Permissions policy violation: accelerometer is not allowed in this document.</div><div class="finding-row warn">Console error: Permissions policy violation: accelerometer is not allowed in this document.</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#14</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/10-stage-3-advance-via-bilateral-signoff-payment-gate-now-open.png" alt="Stage 3 → advance via bilateral signoff (payment gate now open)" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 3 → advance via bilateral signoff (payment gate now open)</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>current_stage: content_planning</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#15</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/11-stage-4-business-proposes-skipping-content-planning.png" alt="Stage 4: business proposes skipping content_planning" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 4: business proposes skipping content_planning</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Skip proposed by business.</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#16</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/12-creator-confirms-the-skip.png" alt="Creator confirms the skip" loading="lazy" />
+      <div class="cap">
+        <strong>Creator confirms the skip</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Skip confirmed by creator — stage should now be skipped.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#17</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: content_planning was skipped, project moved to content_confirmation</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#18</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/13-stage-5-content-confirmation-advance.png" alt="Stage 5 (content_confirmation) → advance" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 5 (content_confirmation) → advance</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>current_stage: shooting_in_progress</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#19</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/14-stage-6-shooting-in-progress-advance.png" alt="Stage 6 (shooting_in_progress) → advance" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 6 (shooting_in_progress) → advance</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>current_stage: editing_in_progress</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#20</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/15-stage-7-editing-in-progress-advance.png" alt="Stage 7 (editing_in_progress) → advance" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 7 (editing_in_progress) → advance</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>current_stage: sent_for_review</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#21</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/16-creator-ticks-draft-submitted-for-review-before-the-fork-can.png" alt="Creator ticks &quot;Draft submitted for review&quot; before the fork can be used" loading="lazy" />
+      <div class="cap">
+        <strong>Creator ticks &quot;Draft submitted for review&quot; before the fork can be used</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Ticked 1/1 pending item(s) for sent_for_review.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#22</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/17-stage-8-business-approves-the-draft-review-fork.png" alt="Stage 8: business approves the draft (review fork)" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 8: business approves the draft (review fork)</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Draft approved.</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#23</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: project advanced to final_approval via the review fork</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#24</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/18-stage-10-final-approval-advance.png" alt="Stage 10 (final_approval) → advance" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 10 (final_approval) → advance</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>current_stage: final_payment</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div><div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#25</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/19-stage-11-final-payment-real-razorpay-order-simulated-webhook.png" alt="Stage 11 (final_payment): real Razorpay order + simulated webhook capture" loading="lazy" />
+      <div class="cap">
+        <strong>Stage 11 (final_payment): real Razorpay order + simulated webhook capture</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Real Razorpay order created: order_TJRD3xvSu0qsjM, amount 5500000 INR.</p><p>Simulated signed webhook capture → HTTP 200: {&quot;received&quot;:true,&quot;recorded&quot;:true}</p><p>Payment-gate checklist item auto-completed by the webhook, as designed.</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div><div class="finding-row warn">Console error: Refused to get unsafe header &quot;x-rtb-fingerprint-id&quot;</div><div class="finding-row warn">Console error: Refused to get unsafe header &quot;request-id&quot;</div><div class="finding-row warn">Console error: Permissions policy violation: accelerometer is not allowed in this document.</div><div class="finding-row warn">Console error: Permissions policy violation: accelerometer is not allowed in this document.</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div><div class="finding-row warn">Console error: Failed to load resource: net::ERR_CONNECTION_REFUSED</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#26</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/20-business-confirms-completion.png" alt="Business confirms completion" loading="lazy" />
+      <div class="cap">
+        <strong>Business confirms completion</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Business confirmed completion (1 of 2).</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#27</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: only one side confirmed — project NOT yet completed (real dual-consent check)</strong>
+        
+        <div class="notes"><p>owner_confirmed_complete=true, counterparty_confirmed_complete=false, current_stage=final_payment</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#28</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/21-creator-confirms-completion-too-project-completes-dual-conse.png" alt="Creator confirms completion too → project completes (dual-consent verified live)" loading="lazy" />
+      <div class="cap">
+        <strong>Creator confirms completion too → project completes (dual-consent verified live)</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Creator confirmed completion (2 of 2) — both sides now in.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#29</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: project is now genuinely completed (both sides confirmed)</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#30</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/22-business-leaves-a-5-star-review-for-the-creator.png" alt="Business leaves a 5-star review for the creator" loading="lazy" />
+      <div class="cap">
+        <strong>Business leaves a 5-star review for the creator</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Business submitted a 5-star review.</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 403 ()</div>
+      <div class="finding-row warn">Network: 403 GET https://jaajosocopoicmqcffuu.supabase.co/rest/v1/business_profiles?select=approval_status&amp;user_id=eq.4393a0b2-91f0-4e67-b45d-75a2f9c6b7f9</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#31</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: reviews row created from business → creator, rating=5</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#32</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/23-creator-leaves-a-review-for-the-business-too.png" alt="Creator leaves a review for the business too" loading="lazy" />
+      <div class="cap">
+        <strong>Creator leaves a review for the business too</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/80</p>
+        <div class="notes"><p>Creator submitted a 4-star review.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#33</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: reviews row created from creator → business, and both reviews are now public</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#34</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase6-full-lifecycle/24-public-profile-c-madangowri-now-shows-the-completed-collabor.png" alt="Public profile /c/madangowri now shows the completed collaboration" loading="lazy" />
+      <div class="cap">
+        <strong>Public profile /c/madangowri now shows the completed collaboration</strong>
+        <p class="url">http://localhost:3000/c/madangowri</p>
+        <div class="notes"><p>&quot;Jupiter Media Audit&quot; or the review text visible on public profile: true</p></div>
+        
+      </div>
+    </div></div>
+    </section>
+  
+
+    <section class="phase">
+      <h2>Phase 7 — Requests Actions, Messages, Notifications &amp; Guards <span class="phase-stats">18/18 passed · 0 failed · 0 skipped</span></h2>
+      <div class="grid">
+    <div class="card ">
+      <span class="step-badge">#1</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/01-resolve-ids-and-log-in-both-sides.png" alt="Resolve ids and log in both sides" loading="lazy" />
+      <div class="cap">
+        <strong>Resolve ids and log in both sides</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#2</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/02-business-sends-a-throwaway-request-to-cancel.png" alt="Business sends a throwaway request to cancel" loading="lazy" />
+      <div class="cap">
+        <strong>Business sends a throwaway request to cancel</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#3</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/03-business-cancels-the-request-it-just-sent.png" alt="Business cancels the request it just sent" loading="lazy" />
+      <div class="cap">
+        <strong>Business cancels the request it just sent</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        <div class="notes"><p>Clicked Cancel on the sent request.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#4</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: cancelled request has status=cancelled</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#5</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/04-business-sends-a-second-throwaway-request-for-the-decline-te.png" alt="Business sends a second throwaway request for the decline test" loading="lazy" />
+      <div class="cap">
+        <strong>Business sends a second throwaway request for the decline test</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#6</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/05-creator-declines-it-native-confirm-dialog-6s-undo-window.png" alt="Creator declines it (native confirm dialog + 6s undo window)" loading="lazy" />
+      <div class="cap">
+        <strong>Creator declines it (native confirm dialog + 6s undo window)</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        <div class="notes"><p>Undo toast visible during the 6s window: true</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#7</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: declined request has status=declined after the undo window elapses</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#8</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/06-creator-reopens-the-declined-request.png" alt="Creator reopens the declined request" loading="lazy" />
+      <div class="cap">
+        <strong>Creator reopens the declined request</strong>
+        <p class="url">http://localhost:3000/dashboard/requests</p>
+        <div class="notes"><p>Clicked Reopen.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#9</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: reopened request is back to pending</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#10</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>Clean up throwaway cancel/decline test requests</strong>
+        
+        <div class="notes"><p>Deleted 2 throwaway request(s).</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#11</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/07-security-check-unrelated-project-s-core-data-never-reaches-t.png" alt="SECURITY CHECK: unrelated project&#39;s core data never reaches the creator" loading="lazy" />
+      <div class="cap">
+        <strong>SECURITY CHECK: unrelated project&#39;s core data never reaches the creator</strong>
+        <p class="url">http://localhost:3000/dashboard/projects/34</p>
+        <div class="notes"><p>Page HTTP 200. Underlying /api/projects/34/* calls: [{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/reviews&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/cards&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34&quot;,&quot;status&quot;:404,&quot;body&quot;:{&quot;error&quot;:&quot;Project not found&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/payments&quot;,&quot;status&quot;:200,&quot;body&quot;:{&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;}},{&quot;url&quot;:&quot;http://localhost:3000/api/projects/34/stage-entries. Page body snippet: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Searc&quot;</p><p>Base project record / activity / change-requests / stage-entries / reviews / cards correctly denied (4xx): true. The page now renders a clear &quot;doesn&#39;t exist, or you don&#39;t have access&quot; state instead of the indefinite &quot;Loading…&quot; spinner the audit found.</p><p>/stage-items returned HTTP 500 ({&quot;error&quot;:&quot;Failed to seed stage items&quot;}) instead of a clean 403 — the route tries to auto-seed default checklist rows on first GET, RLS correctly blocks that INSERT for a non-participant, but the route surfaces it as a generic 500 rather than catching the specific case and returning 403. No stage data was exposed (the response is an error, not a checklist).</p><p>/payments returned HTTP 200 with {&quot;configured&quot;:true,&quot;key_id&quot;:&quot;rzp_test_TDMnEwU0s6YqwA&quot;} — this is app-wide &quot;is Razorpay configured&quot; config plus its public key_id (meant to be public — used client-side to open Checkout), not this project&#39;s actual payment records. Not a leak, but the route still never checked membership before answering.</p><p>GET /api/projects/34/reviews as an unrelated creator → HTTP 404, body: {&quot;error&quot;:&quot;Project not found&quot;} (was HTTP 200 before the fix).</p><p>GET /api/projects/34/cards as an unrelated creator → HTTP 404, body: {&quot;error&quot;:&quot;Project not found&quot;} (was HTTP 200 before the fix).</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/reviews</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/cards</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/reviews</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/cards</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card has-findings">
+      <span class="step-badge">#12</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/08-dashboard-influencer-redirects-to-dashboard-old-links-still-.png" alt="/dashboard/influencer redirects to /dashboard (old links still work)" loading="lazy" />
+      <div class="cap">
+        <strong>/dashboard/influencer redirects to /dashboard (old links still work)</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>Landed at: http://localhost:3000/dashboard</p></div>
+        
+    <div class="findings">
+      
+      
+      
+      <div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 404 (Not Found)</div><div class="finding-row warn">Console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)</div>
+      <div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/stage-entries</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/change-requests</div><div class="finding-row warn">Network: 404 GET http://localhost:3000/api/projects/34/activity</div><div class="finding-row warn">Network: 500 GET http://localhost:3000/api/projects/34/stage-items</div>
+    </div>
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#13</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/09-bare-dashboard-now-renders-the-creator-analytics-view-direct.png" alt="Bare /dashboard now renders the creator analytics view directly (no redirect needed)" loading="lazy" />
+      <div class="cap">
+        <strong>Bare /dashboard now renders the creator analytics view directly (no redirect needed)</strong>
+        <p class="url">http://localhost:3000/dashboard</p>
+        <div class="notes"><p>Landed at: http://localhost:3000/dashboard. Shows creator name: true.</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#14</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/10-notification-bell-shows-unread-activity-and-opens-a-dropdown.png" alt="Notification bell shows unread activity and opens a dropdown" loading="lazy" />
+      <div class="cap">
+        <strong>Notification bell shows unread activity and opens a dropdown</strong>
+        <p class="url">http://localhost:3000/dashboard/home</p>
+        <div class="notes"><p>Body snippet after opening bell: &quot;influnet CREATOR WORKSPACE Home Dashboard Public profile Messages Requests Projects Connections My activity Settings  Welcome back, Madan Gowri  Search… / Notifications  New collaboration request  A b&quot;</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#15</span>
+      <span class="badge ok">PASS</span>
+      
+      <div class="cap">
+        <strong>DB: notifications table has real rows for the creator (project stage, requests, etc.)</strong>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#16</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/11-business-sends-a-real-chat-message-to-the-creator-via-stream.png" alt="Business sends a real chat message to the creator via Stream" loading="lazy" />
+      <div class="cap">
+        <strong>Business sends a real chat message to the creator via Stream</strong>
+        <p class="url">http://localhost:3000/dashboard/messages</p>
+        <div class="notes"><p>Message sent: &quot;E2E audit test message 1785390294053&quot;. Visible immediately after send: true</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#17</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/12-real-message-persisted-server-side-survives-a-reload-not-jus.png" alt="Real message persisted server-side (survives a reload, not just optimistic local state)" loading="lazy" />
+      <div class="cap">
+        <strong>Real message persisted server-side (survives a reload, not just optimistic local state)</strong>
+        <p class="url">http://localhost:3000/dashboard/messages</p>
+        <div class="notes"><p>Message still visible after a full page reload: true</p></div>
+        
+      </div>
+    </div>
+
+    <div class="card ">
+      <span class="step-badge">#18</span>
+      <span class="badge ok">PASS</span>
+      <img src="../../tests/e2e/screenshots/phase7-requests-messages-guards/13-creator-sees-the-same-message-on-their-side.png" alt="Creator sees the same message on their side" loading="lazy" />
+      <div class="cap">
+        <strong>Creator sees the same message on their side</strong>
+        <p class="url">http://localhost:3000/dashboard/messages</p>
+        <div class="notes"><p>Message visible to the creator: true</p></div>
+        
+      </div>
+    </div></div>
+    </section>
+  
+  <footer>Generated by the Influnet E2E audit harness (tests/e2e/lib) · assertions verified against live DB state, not narrated.</footer>
+</div></body></html>

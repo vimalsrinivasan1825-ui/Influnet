@@ -4,6 +4,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { buildSignals } from '@/lib/verification-scraper';
 import { enrichWithLiveData } from '@/lib/verification-live';
 import { captureInstagramSnapshot } from '@/lib/social-snapshot';
+import { refreshYouTubeSnapshot } from '@/lib/youtube';
 import { normalizeHandle } from '@/lib/instagram';
 import { decide, VERIFICATION_NOTIFICATION, type Role } from '@/lib/verification';
 
@@ -108,6 +109,22 @@ export async function POST(req: Request) {
     // snapshot failure must never affect the verification outcome.
     if (role === 'influencer' && liveProfile) {
       await captureInstagramSnapshot(user.id, liveProfile);
+    }
+    // Same fallback as /api/profile/refresh: creators re-run verification to get
+    // their public numbers updated, so a channel we have captured before must
+    // refresh even when the profile column has since been cleared.
+    if (role === 'influencer') {
+      let ytHandle: string | null = (input as any).youtube_handle || null;
+      if (!ytHandle) {
+        const { data: captured } = await supabase
+          .from('social_snapshots')
+          .select('handle')
+          .eq('user_id', user.id)
+          .eq('platform', 'youtube')
+          .maybeSingle();
+        ytHandle = (captured as { handle: string | null } | null)?.handle || null;
+      }
+      if (ytHandle) await refreshYouTubeSnapshot(user.id, ytHandle);
     }
 
     // Ownership gate: has the user PROVEN control of this Instagram handle via the

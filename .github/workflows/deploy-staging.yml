@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - staging
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-staging.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.REGISTRY_LOGIN_SERVER }}
@@ -20,6 +27,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Setup Node.js (for smoke tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies (needed for smoke test execution)
+        run: npm ci
+
       - name: Log in to Azure Container Registry
         uses: azure/docker-login@v1
         with:
@@ -34,6 +50,9 @@ jobs:
             --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
             --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ secrets.STREAM_API_KEY }}" \
             --build-arg NEXT_PUBLIC_APP_URL="https://influnet-staging.icysky-7414f4c6.southindia.azurecontainerapps.io" \
+            --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ secrets.NEXT_PUBLIC_PHONE_OTP_ENABLED }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
+            --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
             -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
           docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
@@ -51,3 +70,6 @@ jobs:
           registryUrl: ${{ env.ACR_LOGIN_SERVER }}
           registryUsername: ${{ env.ACR_USERNAME }}
           registryPassword: ${{ env.ACR_PASSWORD }}
+
+      - name: Run Smoke Tests
+        run: node scripts/smoke.mjs "https://influnet-staging.icysky-7414f4c6.southindia.azurecontainerapps.io"

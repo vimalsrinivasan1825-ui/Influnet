@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Rocket, Send } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
+import { VerifiedMark } from "@/components/icons/verified-mark";
 import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -17,6 +19,7 @@ interface CreatorPreview {
   username?: string;
   headline?: string;
   avatar_url?: string | null;
+  verified_badge?: boolean;
 }
 
 export default function NewRequestPage() {
@@ -75,7 +78,7 @@ export default function NewRequestPage() {
     (async () => {
       setCreatorLoading(true);
       try {
-        const res = await apiFetch<{ results: { user_id: string; profile?: { name: string }; username?: string; headline?: string; avatar_url?: string | null }[] }>(
+        const res = await apiFetch<{ results: { user_id: string; profile?: { name: string }; username?: string; headline?: string; avatar_url?: string | null; verified_badge?: boolean }[] }>(
           `/api/discover?id=${toUserId}`
         );
         const target = res.data?.results?.[0];
@@ -85,6 +88,7 @@ export default function NewRequestPage() {
             username: target.username,
             headline: target.headline,
             avatar_url: target.avatar_url ?? null,
+            verified_badge: target.verified_badge ?? false,
           });
         }
       } catch {
@@ -108,8 +112,11 @@ export default function NewRequestPage() {
     e.preventDefault();
     if (!form.title.trim()) { setError("Please enter a project title."); return; }
 
-    const budgetNum = form.budget ? Number(form.budget.replace(/[^0-9.]/g, "")) : null;
-    if (form.budget && (!budgetNum || budgetNum <= 0)) {
+    // Keep the sign in the sanitizer — stripping "-" first turned "-500" into
+    // 500 and slipped past the positive check below.
+    const rawBudget = form.budget.trim();
+    const budgetNum = rawBudget ? Number(rawBudget.replace(/[^0-9.-]/g, "")) : null;
+    if (rawBudget && (!Number.isFinite(budgetNum) || (budgetNum as number) <= 0)) {
       setError("Budget must be a positive number.");
       return;
     }
@@ -193,7 +200,13 @@ export default function NewRequestPage() {
           <>
             <Avatar name={creator.name} src={creator.avatar_url} size="lg" />
             <div className="min-w-0">
-              <p className="text-sm font-bold text-content">{creator.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-content">{creator.name}</p>
+                <Badge variant={creator.verified_badge ? "verified" : "warning"} size="sm">
+                  {creator.verified_badge && <VerifiedMark className="size-3" />}
+                  {creator.verified_badge ? "Verified" : "Unverified"}
+                </Badge>
+              </div>
               {creator.username && (
                 <p className="text-xs text-content-soft">@{creator.username}</p>
               )}
@@ -206,6 +219,16 @@ export default function NewRequestPage() {
           <p className="text-sm text-content-soft">Loading creator…</p>
         )}
       </Card>
+
+      {creator && !creator.verified_badge && (
+        <Card className="border-warn/30 bg-warn-soft p-3.5 text-sm text-warn">
+          <p className="font-bold">Ownership not verified</p>
+          <p className="mt-0.5 text-warn/90">
+            This creator hasn&apos;t confirmed they control the social accounts on their
+            profile. Double-check the handle before sending a paid request.
+          </p>
+        </Card>
+      )}
 
       {/* Request form */}
       <Card className="p-5 sm:p-6">

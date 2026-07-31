@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
+import { toast } from "sonner";
 import { Clock, XCircle, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { StreamChat } from "stream-chat";
@@ -19,8 +20,28 @@ const THEME_CLASS: Record<UserRole, string> = {
   admin: "theme-admin",
 };
 
+/**
+ * Which notification types are worth interrupting someone for.
+ *
+ * 'message' is deliberately absent: Stream Chat already surfaces new messages
+ * (badge, and the conversation itself if it's open), so a toast per chat
+ * message would be a second, noisier copy of something the user can already
+ * see. Everything else here is a state change on a deal that the user cannot
+ * find out about any other way without reloading.
+ *
+ * Keys mirror NotificationType in @/lib/notify.
+ */
+const TOASTABLE: Record<string, string> = {
+  collab_request: "New collaboration request",
+  collab_accepted: "Request accepted",
+  collab_declined: "Request declined",
+  project_stage: "Project updated",
+  project_cancel: "Project cancellation",
+};
+
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, token, setUser, setToken, setLoading } = useAuthStore();
   const { summary, setSummary, setUnreadMessages, addNotification } = useNotificationStore();
   const [role, setRole] = useState<UserRole | null>(null);
@@ -95,27 +116,20 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             setUser({ ...session.user, role: p.role, name: p.name } as any);
 
             if (p.role === "business_owner") {
-              const { data: bizProfile } = await sb
-                .from("business_profiles")
-                .select("approval_status")
-                .eq("user_id", session.user.id)
-                .single();
+              // Must go through the RPC: migration 053 revoked direct selects on
+              // business_profiles beyond (user_id, company_name, industry).
+              const { data: bizJson } = await sb.rpc("get_own_business_profile");
+              const biz = bizJson as { approval_status?: string } | null;
 
-              if (bizProfile) {
-                const bp = bizProfile as { approval_status: string };
-                setApprovalStatus(bp.approval_status);
+              if (biz?.approval_status) {
+                setApprovalStatus(biz.approval_status);
               }
             }
 
-            const currentPath = window.location.pathname;
-            if (p.role === "influencer" && currentPath === "/dashboard") {
-              router.push("/dashboard/influencer");
-            } else if (
-              p.role === "business_owner" &&
-              currentPath === "/dashboard/influencer"
-            ) {
-              router.push("/dashboard");
-            }
+            // No role-based redirect here any more: /dashboard renders the
+            // right analytics view for both roles itself, so the shell no
+            // longer needs to bounce creators to a separate URL. The old
+            // /dashboard/influencer route redirects here server-side.
           }
         } else {
           localStorage.removeItem("influnet_user");
@@ -129,15 +143,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         setIsLoaded(true);
 
         if (token) {
-          const notifRes = await fetch("/api/notifications/summary", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (notifRes.ok) {
-            const notifData = await notifRes.json();
+          const notifRes = await apiFetch<any>("/api/notifications/summary");
+          if (notifRes.ok && notifRes.data) {
             // The message count is owned by the Stream effect below; the server
             // always returns 0 for it, so don't let this clobber a live count.
             setSummary({
-              ...notifData,
+              ...notifRes.data,
               unread_messages_count:
                 useNotificationStore.getState().summary.unread_messages_count,
             });
@@ -152,6 +163,23 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
     loadSession();
   }, [router, setUser, setToken, setLoading, setSummary]);
+
+  // Read inside the realtime handler without making the subscription depend on
+  // it — otherwise every navigation would tear down and rebuild the channel.
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  // Same treatment, same reason. The effect below owns the Stream Chat
+  // connection as well as the realtime channel, so anything in its dependency
+  // list can force a chat reconnect. `router` is only ever used inside a toast
+  // callback; listing it would let a router identity change disconnect and
+  // re-establish the chat client for no reason at all.
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
 
   useEffect(() => {
     if (!user?.id || !token) return;
@@ -200,8 +228,35 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          addNotification(payload.new as NotificationItem);
+          const notif = payload.new as NotificationItem;
+          addNotification(notif);
           refreshSummary();
+
+          // An in-app toast is the only thing that tells someone already using
+          // the app that the other side just moved. The bell count changing is
+          // too quiet to notice; a push notification isn't delivered to a
+          // foregrounded browser tab.
+          const heading = TOASTABLE[notif.type];
+          if (!heading) return; // 'message' and anything unknown: stay quiet.
+
+          // Don't toast about the page they're already looking at — they can
+          // see the change happen. Compare paths only, so a query string
+          // (?conv=…) doesn't defeat the check.
+          const target = notif.link ? notif.link.split("?")[0].split("#")[0] : null;
+          if (target && target === pathnameRef.current) return;
+
+          toast(notif.title || heading, {
+            description: notif.body || undefined,
+            duration: 6000,
+            ...(notif.link
+              ? {
+                  action: {
+                    label: "View",
+                    onClick: () => routerRef.current.push(notif.link as string),
+                  },
+                }
+              : {}),
+          });
         },
       )
       .subscribe();
@@ -257,9 +312,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const themeClass = role ? THEME_CLASS[role] : "theme-brand";
 
-  // Soft verification banner for unapproved businesses. They can explore the
-  // dashboard and set up their profile, but outreach actions stay locked
-  // server-side until an admin approves (see /api/collabs POST). Dismissible.
+  // Soft verification banner for unapproved businesses. Dismissible, per status.
+  //
+  // `pending_review` no longer blocks anything: a business awaiting review can
+  // reach out immediately, and the creator sees the sender's approval status on
+  // the incoming request instead (see /api/collabs). Only `rejected` is refused
+  // server-side — a real negative decision, not "hasn't been looked at yet".
+  // Mirrored on mobile by <ApprovalBanner />.
   const showVerifBanner =
     isLoaded &&
     role === "business_owner" &&
@@ -299,6 +358,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         <DashboardHeader
           userName={userName}
           avatarUrl={avatarUrl}
+          role={role}
           onOpenMobile={() => setMobileOpen(true)}
         />
         <main className="flex-1">
@@ -325,7 +385,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                   <p className="mt-0.5 text-sm leading-relaxed text-content-soft">
                     {isRejected
                       ? "Our review team didn’t approve your business account. You can look around, but reaching out to creators is disabled. Think this is a mistake? Contact support and we’ll take another look."
-                      : "You’re all set to explore and finish setting up your profile. Reaching out to creators unlocks once our team approves your account — usually within 1–2 business days."}
+                      : "You can reach out to creators right away — creators will see your account is still being reviewed by our team until it's approved, usually within 1–2 business days."}
                   </p>
                 </div>
                 <button

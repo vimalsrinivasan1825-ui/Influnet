@@ -1,6 +1,6 @@
 # Influnet Platform — Architecture & Module Reference
 
-> **Generated:** July 7, 2026  
+> **Generated:** July 18, 2026  
 > **Stack:** Next.js 16.2 (App Router) + React 19 + Supabase (PostgreSQL, Auth, RLS)  
 > **State:** Zustand | **Styling:** Tailwind v4 + shadcn/ui | **Validation:** Zod v4  
 > **Target:** ~2,000 users, moderate concurrency
@@ -39,7 +39,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      Vercel (Hosting)                         │
+│       Azure Container Apps / Railway (Hosting)               │
 │                                                              │
 │  ┌─────────────────────────────────────────┐                 │
 │  │         Next.js 16 App Router            │                 │
@@ -383,12 +383,15 @@ Validation
         { from_user_id, to_user_id, message, budget, status: 'pending' }
 ```
 
-**PATCH /api/collabs (Accept/Decline):**
+**PATCH /api/collabs (Accept/Decline/Undo):**
 ```
 Request: { id, status }
     │
     ├── Verify user is participant (sender or receiver)
     ├── Update collab_requests.status
+    │
+    ├── If status === 'pending' (undo decline):
+    │   └── Receiver can reopen a previously declined request back to pending
     │
     └── If status === 'accepted':
         ├── Auto-create campaign_project:
@@ -667,6 +670,7 @@ On mount:
 
 **Files:**
 - `src/store/notification-store.ts` — Zustand: `{ unread_messages_count, pending_requests_count }`
+- `src/lib/notify.ts` — Server-side notification helper `notifyUser()` (inserts DB rows + fans out push notifications via Expo Push API)
 - Integrated in `DashboardShell` — fetches summary on mount
 
 **Flow:**
@@ -676,6 +680,12 @@ DashboardShell mounts
     ├── FETCH (from separate notification API or collab/conversation count)
     │
     └── Update Zustand store → sidebar badges update reactively
+
+Push Notifications (Server-Side)
+    │
+    ├── Event occurs (new collab request, message, deal proposal)
+    ├── notifyUser() inserts into notifications table
+    └── Look up profiles.expo_push_token → POST https://exp.host/--/api/v2/push/send
 ```
 
 ---
@@ -859,7 +869,7 @@ conversations                  │
 
 | Table | Primary Key | Foreign Keys | Key Columns |
 |---|---|---|---|
-| `profiles` | `id` (UUID, → auth.users) | — | `role` (enum), `email`, `name` |
+| `profiles` | `id` (UUID, → auth.users) | — | `role` (enum), `email`, `name`, `expo_push_token` |
 | `business_profiles` | `user_id` (UUID) | → `profiles.id` | `company_name`, `approval_status` |
 | `influencer_profiles` | `user_id` (UUID) | → `profiles.id` | `username`, `niche`, `price_range` |
 | `collab_requests` | `id` (UUID) | → `profiles.id` (x2) | `from_user_id`, `to_user_id`, `status` |
@@ -1029,7 +1039,8 @@ The codebase implements a complete 4-tier branch-to-environment lifecycle:
 2. **Dev Deployment (`deploy-dev.yml`)**: Automatically triggers on pushes to `dev` to compile and deploy preview builds to Vercel.
 3. **Staging Deployment (`deploy-staging.yml`)**: Automatically triggers on pushes to `staging`. Builds a optimized multi-stage Docker container (using Next.js standalone output tracing), pushes it to Azure Container Registry (ACR), deploys it to the Staging Azure App Service, and executes the post-deploy smoke test (`scripts/smoke.mjs`).
 4. **Production Deployment (`deploy-prod.yml`)**: Triggers on pushes to `main`. It promotes the exact container image built and tested in staging (by pulling and re-tagging `staging-latest` to `prod-latest`), deploys it to the Production Azure App Service under a manual-approval gate environment, and executes the post-deploy smoke test.
-5. **Security & Dependency Audits (`codeql.yml` & `dependabot.yml`)**: CodeQL static analysis runs on all PRs to scan for vulnerabilities. Dependabot runs weekly scans to create dependency update PRs.
+5. **Mobile OTA Deployment (`mobile-update.yml`)**: Automatically triggers on pushes to `dev`, `staging`, or `main` when files in `apps/mobile/**` or `packages/**` change. Executes `eas-cli update` non-interactively to publish Over-The-Air (OTA) JavaScript bundle updates to Expo's `preview` channel (on `dev`/`staging`) or `production` channel (on `main`) without altering native app store version numbers.
+6. **Security & Dependency Audits (`codeql.yml` & `dependabot.yml`)**: CodeQL static analysis runs on all PRs to scan for vulnerabilities. Dependabot runs weekly scans to create dependency update PRs.
 
 ### Deployment Health Check & Smoke Test
 - **`/api/health`**: A lightweight server endpoint returning `200 OK` if the app is active and can reach the Supabase database.

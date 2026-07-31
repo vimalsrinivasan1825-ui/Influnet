@@ -24,7 +24,7 @@ const influencer: InfluencerHomeData = {
     name: "Priya Sharma",
     username: "priyacreates",
     niche: ["Beauty", "Skincare", "Lifestyle"],
-    is_verified: true,
+    verified_badge: true,
     headline: "Beauty & skincare creator helping brands reach Gen-Z in South India.",
     avatar_url: null,
     bio: null,
@@ -36,6 +36,7 @@ const influencer: InfluencerHomeData = {
     active_projects: 3,
     completed_projects: 18,
     pipeline_value: 486500,
+    proposals_awaiting_you: 2,
   },
   earnings_trend: [
     { week: "W1", amount: 32000 },
@@ -55,6 +56,10 @@ const influencer: InfluencerHomeData = {
     { id: "1", name: "Lumé Skincare", amount: "₹80,000", status: "In Progress", sender_id: "a" },
     { id: "2", name: "Aether Apparel", amount: "₹1,20,000", status: "Completed", sender_id: "b" },
     { id: "3", name: "Wanderly Travel", amount: "₹45,000", status: "Pending", sender_id: "c" },
+  ],
+  active_roster: [
+    { id: 1, brand_name: "Lumé Skincare", project_title: "Spring Glow Campaign" },
+    { id: 2, brand_name: "Aether Apparel", project_title: "Monsoon Capsule" },
   ],
 };
 

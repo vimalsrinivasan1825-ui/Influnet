@@ -37,17 +37,22 @@ async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  const publicPaths = ['/', '/login', '/reset-password', '/influnet', '/ui-preview'];
-  const isPublicPath =
-    publicPaths.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
-    pathname.startsWith('/signup') ||
-    pathname.startsWith('/c/') ||
-    pathname.startsWith('/b/') ||
-    pathname.startsWith('/vf/');
+  // Only /dashboard/* actually requires a session at the middleware layer —
+  // every other real route (/, /login, /signup/*, /c/*, /b/*, /vf/*,
+  // /reset-password, /influnet, /ui-preview) is either public or does its own
+  // server-side auth check (e.g. /b/[username] redirects to login itself when
+  // it needs to). This used to gate on an explicit public-path allowlist and
+  // send EVERYTHING else to /login, which meant a typo'd or nonexistent URL
+  // (anonymous or not) was indistinguishable from a real protected page —
+  // masking genuine 404s as a login prompt. Gating on the one prefix that's
+  // actually protected lets an unmatched path fall through to Next's normal
+  // routing, which 404s it for real.
+  const requiresAuth = pathname === '/dashboard' || pathname.startsWith('/dashboard/');
 
-  if (!user && !isPublicPath) {
+  if (!user && requiresAuth) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
   }
 

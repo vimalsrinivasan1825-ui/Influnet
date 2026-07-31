@@ -107,7 +107,7 @@ export default async function PrivateBusinessProfilePage({
       <header className="bg-surface-card border-b border-hairline sticky top-0 z-50">
         <div className="max-w-[1000px] mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
           <Link href="/dashboard">
-            <Image src="/influet_logo.png" alt="Influnet" width={80} height={28} className="h-7 w-auto" />
+            <Image src="/influet_logo.png" alt="Influnet" width={28} height={28} className="size-7 shrink-0" />
           </Link>
           <Link href="/dashboard" className="text-sm font-bold text-content-soft hover:text-content transition-colors">
             Dashboard
