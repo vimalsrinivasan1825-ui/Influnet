@@ -142,7 +142,7 @@ export function usePhoneAvailability(phone: string) {
   return { status, message };
 }
 
-export function useInstagramAvailability(handle: string) {
+export function useInstagramAvailability(handle: string, debounceMs = 2000): AvailabilityResult {
   const [status, setStatus] = useState<Availability>('idle');
   const [message, setMessage] = useState('');
 
@@ -180,13 +180,13 @@ export function useInstagramAvailability(handle: string) {
       }
       setStatus(data.available ? 'available' : 'taken');
       setMessage(data.available ? 'Handle is available' : 'This ID is already used');
-    }, 400);
+    }, debounceMs);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [handle]);
+  }, [handle, debounceMs]);
 
   return { status, message };
 }

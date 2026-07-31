@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { fetchInstagramProfile } from '@/lib/instagram';
 
 export async function GET(req: Request) {
   const limited = await enforceRateLimit(req, {
@@ -37,6 +38,24 @@ export async function GET(req: Request) {
 
     if (error) {
       return jsonError(500, 'Could not check instagram availability', error);
+    }
+
+    if (data === true) {
+      // It is not claimed in our DB. Let's verify it actually exists on Instagram
+      // using the configured verification provider (Apify or HikerAPI).
+      try {
+        const profile = await fetchInstagramProfile(cleanHandle);
+        if (!profile) {
+          return NextResponse.json({
+            available: true, // It's not in our DB
+            valid: false,    // But it's not a real IG account
+            reason: 'This Instagram account does not exist.',
+          });
+        }
+      } catch (err: any) {
+        // If the provider fails (timeout, rate limit, exhausted credits), we
+        // shouldn't block the user from signing up. Just let it through.
+      }
     }
 
     return NextResponse.json({ available: data === true, valid: true });

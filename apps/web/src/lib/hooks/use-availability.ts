@@ -142,7 +142,7 @@ export function useEmailAvailability(email: string, debounceMs = 600): Availabil
   return { status, message };
 }
 
-export function useInstagramAvailability(handle: string, debounceMs = 600): AvailabilityResult {
+export function useInstagramAvailability(handle: string, debounceMs = 2000): AvailabilityResult {
   const [status, setStatus] = useState<AvailabilityStatus>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const requestId = useRef(0);
