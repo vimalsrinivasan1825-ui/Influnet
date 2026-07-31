@@ -105,9 +105,18 @@ export function createEndpoints(api: ApiClient) {
     listStageEntries: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/stage-entries`),
     createStageEntry: <T = unknown>(id: string, body: unknown) =>
       api.post<T>(`/api/projects/${id}/stage-entries`, body),
+    /**
+     * The stage checklist. Items are SEEDED from DEFAULT_STAGE_ITEMS on first
+     * read — there is no way to add one, on either client, by design: the
+     * checklist is the platform's definition of what a stage requires, and the
+     * gate that blocks advancement reads it. A user-authored required item
+     * would be a user-authored gate.
+     *
+     * (There was a `createStageItem` helper here pointing at a POST that has
+     * never existed on the route — GET and PATCH only. Nothing called it; it
+     * would have returned 405.)
+     */
     listStageItems: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/stage-items`),
-    createStageItem: <T = unknown>(id: string, body: unknown) =>
-      api.post<T>(`/api/projects/${id}/stage-items`, body),
     /** Toggle a single checklist item done/undone. */
     updateStageItem: <T = unknown>(id: string, body: { item_id: string; done: boolean }) =>
       api.patch<T>(`/api/projects/${id}/stage-items`, body),
@@ -170,7 +179,14 @@ export function createEndpoints(api: ApiClient) {
       handle: string;
       platform?: string;
     }) => api.post<T>('/api/verification/ownership', { platform: 'instagram', ...body }),
-    scrapeInstagram: <T = unknown>(body: unknown) => api.post<T>('/api/auth/scrape-instagram', body),
+    /**
+     * Signup-time Instagram prefill. GET with the handle in the query string —
+     * the route exports GET only, so the POST this helper used to send would
+     * have 405'd. Unauthenticated by design (it runs before the account exists)
+     * and rate-limited to 5/min per IP, since every call spends provider credit.
+     */
+    scrapeInstagram: <T = unknown>(handle: string) =>
+      api.get<T>(`/api/auth/scrape-instagram?handle=${encodeURIComponent(handle)}`),
 
     // ── Chat & uploads ─────────────────────────────────────────────
     streamToken: <T = unknown>() => api.post<T>('/api/stream/token'),

@@ -99,6 +99,18 @@ describe('ownership endpoints — handle propagation', () => {
     expect(body.platform).toBe('linkedin');
   });
 
+  it('fetches the signup Instagram prefill as a GET with a query handle', async () => {
+    // /api/auth/scrape-instagram exports GET only. The helper used to POST a
+    // body to it, which would have 405'd — the same class of mistake as the
+    // missing handle above, and equally invisible because nothing called it.
+    const endpoints = endpointsWithSpy({ profile: { followerCount: 1000 } });
+    await endpoints.scrapeInstagram('creatorname');
+
+    expect(calls[0].url).toContain('/api/auth/scrape-instagram?handle=creatorname');
+    expect(calls[0].init.method ?? 'GET').toBe('GET');
+    expect(calls[0].init.body).toBeUndefined();
+  });
+
   it('returns the server response unchanged, so callers read `verified`', async () => {
     // Guards the third bug: the confirm response is { verified }, never
     // { status }. If this shape ever changes, the mobile confirm handler and
