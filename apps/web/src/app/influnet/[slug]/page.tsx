@@ -33,5 +33,5 @@ export default async function InflunetSlugPage({
   }
 
   // Permanent redirect to the canonical creator profile URL
-  redirect(`/c/${data.username}`);
+  redirect(`/${data.username}`);
 }

@@ -25,8 +25,8 @@ export default function VerificationGuideScreen() {
   const [copied, setCopied] = useState(false);
 
   const username = profile?.username ?? '';
-  const profileUrl = username ? publicProfileUrl('c', username) : '';
-  const displayUrl = username ? publicProfileUrlDisplay('c', username) : 'influnet.in/c/yourname';
+  const profileUrl = username ? publicProfileUrl(username) : '';
+  const displayUrl = username ? publicProfileUrlDisplay(username) : 'influnet.in/yourname';
   const handle = (profile?.instagram_handle ?? 'yourhandle').replace(/^@/, '');
 
   const copy = useCallback(async () => {

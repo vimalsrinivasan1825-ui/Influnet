@@ -175,7 +175,7 @@ export default async function MyPublicProfilePage() {
             Edit profile
           </Link>
           <Link
-            href={`/c/${username}`}
+            href={`/${username}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-strong"

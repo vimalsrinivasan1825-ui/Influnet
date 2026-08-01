@@ -419,7 +419,7 @@ export default function SettingsPage() {
           }
         >
           <div className="flex flex-col gap-4">
-            <Field label="Platform username" hint={`Public URL: ${publicProfileUrlDisplay("b", username || "yourusername")}`}>
+            <Field label="Platform username" hint={`Public URL: ${publicProfileUrlDisplay(username || "yourusername")}`}>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
@@ -442,7 +442,7 @@ export default function SettingsPage() {
           action={
             profile?.username ? (
               <a
-                href={`/c/${profile.username}`}
+                href={`/${profile.username}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-strong"
@@ -453,7 +453,7 @@ export default function SettingsPage() {
           }
         >
           <div className="flex flex-col gap-4">
-            <Field label="Platform username" hint={`Public URL: ${publicProfileUrlDisplay("c", username || "yourusername")}`}>
+            <Field label="Platform username" hint={`Public URL: ${publicProfileUrlDisplay(username || "yourusername")}`}>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}

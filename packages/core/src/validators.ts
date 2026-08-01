@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
-// Usernames become public URLs (/c/<username>, /b/<username>) — block anything
-// that collides with app routes or impersonates the platform.
+// Usernames become public URLs at the ROOT (/<username>) — block anything that
+// collides with app routes or impersonates the platform. This list matters more
+// than it looks: a username now shares its namespace with every top-level route.
+// Static segments still win in Next's matcher, so a collision would strand the
+// profile rather than shadow the route, but it must not be reachable either way.
+// The format rules below already make the rest unregisterable — hyphens are
+// rejected (reset-password, ui-preview) and the 3-char minimum covers b, c, vf.
 const RESERVED_USERNAMES = new Set([
   'admin', 'api', 'app', 'b', 'c', 'business', 'connections', 'creator',
   'dashboard', 'discover', 'help', 'influnet', 'login', 'logout', 'mail',

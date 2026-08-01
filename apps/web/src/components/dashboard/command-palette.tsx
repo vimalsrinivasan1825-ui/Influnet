@@ -161,7 +161,7 @@ export function CommandPalette({
             id: `creator-${r.user_id}`,
             label: r.profile?.name || r.username,
             sub: r.headline ? r.headline : r.username ? `@${r.username}` : undefined,
-            href: `/c/${r.username}`,
+            href: `/${r.username}`,
             group: "Creators",
             avatar: r.profile?.name || r.username,
             username: r.username,

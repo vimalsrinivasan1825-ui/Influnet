@@ -32,7 +32,8 @@ const CONFIRMABLE_PLATFORMS = new Set(['instagram']);
  * that; see the note in the confirm branch.
  */
 function profileMarker(kind: 'c' | 'b', username: string): string {
-  return publicProfileUrl(kind, username);
+  void kind; // profile URLs no longer carry a /c or /b segment — see lib/site.ts
+  return publicProfileUrl(username);
 }
 
 /**
@@ -53,11 +54,20 @@ function bioContainsMarker(bio: string, marker: string): boolean {
       .replace(/^www\./, '')
       .replace(/\/+$/, '');
 
-  const needle = strip(marker);
   // Collapse whitespace so a bio that wraps mid-link still matches, and drop
   // zero-width characters Instagram sometimes injects into bio text.
   const haystack = strip(bio).replace(/[​-‏﻿]/g, '').replace(/\s+/g, '');
-  return haystack.includes(needle.replace(/\s+/g, ''));
+
+  // Profile URLs dropped their /c and /b segment, but bios did not: every
+  // creator who verified before that change still has host/c/<username> sitting
+  // in their Instagram bio, and it is re-scraped on every re-verification.
+  // Accept the legacy shapes as well as the current one, or the switch would
+  // silently un-verify everyone who already did the handshake.
+  const current = strip(marker);
+  const legacy = current.replace(/^([^/]+)\/(.+)$/, (_m, host, rest) => `${host}/c/${rest}`);
+  const legacyBusiness = current.replace(/^([^/]+)\/(.+)$/, (_m, host, rest) => `${host}/b/${rest}`);
+
+  return [current, legacy, legacyBusiness].some((n) => haystack.includes(n.replace(/\s+/g, '')));
 }
 
 // GET: current ownership-claim status for the caller's handle (drives the UI).

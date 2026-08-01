@@ -38,10 +38,13 @@ async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Only /dashboard/* actually requires a session at the middleware layer —
-  // every other real route (/, /login, /signup/*, /c/*, /b/*, /vf/*,
+  // every other real route (/, /login, /signup/*, /<username>, /vf/*,
   // /reset-password, /influnet, /ui-preview) is either public or does its own
-  // server-side auth check (e.g. /b/[username] redirects to login itself when
-  // it needs to). This used to gate on an explicit public-path allowlist and
+  // server-side auth check (the business branch of /[username] redirects to
+  // login itself when it needs to). Note that public profiles now sit at the
+  // ROOT, so an unmatched path is a username lookup before it is a 404 — which
+  // is exactly why nothing here may assume unknown paths are protected. This
+  // used to gate on an explicit public-path allowlist and
   // send EVERYTHING else to /login, which meant a typo'd or nonexistent URL
   // (anonymous or not) was indistinguishable from a real protected page —
   // masking genuine 404s as a login prompt. Gating on the one prefix that's

@@ -324,7 +324,7 @@ export default function CreatorDetail() {
                 left={<Globe size={19} color={t.color.contentSoft} />}
                 onPress={() =>
                   WebBrowser.openBrowserAsync(
-                    `${API_BASE_URL}/c/${encodeURIComponent(creator.username)}`,
+                    `${API_BASE_URL}/${encodeURIComponent(creator.username)}`,
                   )
                 }
               />

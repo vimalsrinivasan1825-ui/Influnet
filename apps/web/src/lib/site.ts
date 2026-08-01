@@ -26,12 +26,18 @@ export function publicOriginDisplay(): string {
   return publicOrigin().replace(/^https?:\/\//, '');
 }
 
-/** Full shareable URL for a creator's or business's public profile. */
-export function publicProfileUrl(kind: 'c' | 'b', username: string): string {
-  return `${publicOrigin()}/${kind}/${username}`;
+/**
+ * Full shareable URL for a creator's or business's public profile.
+ *
+ * No /c or /b segment: usernames are unique across both tables (migration
+ * 021), so the prefix told a visitor nothing and the type is resolved by
+ * app/[username]/page.tsx instead. The old paths still redirect here.
+ */
+export function publicProfileUrl(username: string): string {
+  return `${publicOrigin()}/${username}`;
 }
 
-/** Display-only form for hint text: "influnet.app/c/username". */
-export function publicProfileUrlDisplay(kind: 'c' | 'b', username: string): string {
-  return `${publicOriginDisplay()}/${kind}/${username}`;
+/** Display-only form for hint text: "influnet.app/username". */
+export function publicProfileUrlDisplay(username: string): string {
+  return `${publicOriginDisplay()}/${username}`;
 }

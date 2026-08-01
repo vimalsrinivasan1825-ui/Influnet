@@ -41,8 +41,8 @@ export function InstagramOwnershipPanel({
 
   // Shown before the server has issued anything, so the guide and the panel
   // agree on what the creator is about to paste.
-  const previewUrl = username ? publicProfileUrl("c", username) : "";
-  const previewDisplay = username ? publicProfileUrlDisplay("c", username) : "";
+  const previewUrl = username ? publicProfileUrl(username) : "";
+  const previewDisplay = username ? publicProfileUrlDisplay(username) : "";
   const shownUrl = verifyUrl || previewUrl;
 
   useEffect(() => {
