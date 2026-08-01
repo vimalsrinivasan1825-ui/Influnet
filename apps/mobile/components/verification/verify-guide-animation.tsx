@@ -251,7 +251,22 @@ export function VerifyGuideAnimation({
     const s = a[1].s + (b[1].s - a[1].s) * p;
     const x = a[1].x + (b[1].x - a[1].x) * p;
     const y = a[1].y + (b[1].y - a[1].y) * p;
-    return { transform: [{ translateX: x }, { translateY: y }, { scale: s }] };
+    // camFor works in web's coordinate space, where the rig carries
+    // `origin-top-left` and a local point cx therefore lands at cx*s + x.
+    // RN has no such class and scales about the view's CENTRE, so the same
+    // numbers put cx at cx*s + (W/2)(1-s) + x — every shot ended up
+    // (W/2)(s-1) too far left. At the wide shot (s~1.06) that is only ~11pt,
+    // but at a 2.6x zoom it is ~300pt: the subject slid off the left edge and
+    // the right half of the card went empty. Re-express the top-left-origin
+    // offset for a centre-origin transform; at s=1 both agree, so the wide
+    // shot is unchanged.
+    return {
+      transform: [
+        { translateX: x + (W / 2) * (s - 1) },
+        { translateY: y + (H / 2) * (s - 1) },
+        { scale: s },
+      ],
+    };
   });
 
   // ── pointer ──────────────────────────────────────────────────
