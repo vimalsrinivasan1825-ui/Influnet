@@ -44,6 +44,10 @@ export function InstagramOwnershipPanel({
   const previewUrl = username ? publicProfileUrl(username) : "";
   const previewDisplay = username ? publicProfileUrlDisplay(username) : "";
   const shownUrl = verifyUrl || previewUrl;
+  // Follow whatever is actually being shown. Pinning this to the local preview
+  // meant that once the server issued the real marker, the guide kept teaching
+  // the creator to paste a DIFFERENT string than the one verification checks.
+  const shownDisplay = shownUrl ? shownUrl.replace(/^https?:\/\//, "") : previewDisplay;
 
   useEffect(() => {
     if (!clean) {
@@ -211,7 +215,7 @@ export function InstagramOwnershipPanel({
           open={guideOpen}
           onClose={() => setGuideOpen(false)}
           profileUrl={shownUrl || previewUrl}
-          displayUrl={previewDisplay}
+          displayUrl={shownDisplay}
           handle={clean || "yourhandle"}
           name={name || "Your name"}
         />

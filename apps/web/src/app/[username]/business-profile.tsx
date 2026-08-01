@@ -68,7 +68,7 @@ export async function BusinessProfile({
 
   // Anonymous visitors can never see a business profile — send them to sign in.
   if (!user) {
-    redirect(`/login?next=/b/${username}`);
+    redirect(`/login?next=/${username}`);
   }
 
   // Cast: this RPC is newer than the generated Supabase types.

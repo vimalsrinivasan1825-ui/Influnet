@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { fetchInstagramProfile, normalizeHandle, InstagramProviderError } from '@/lib/instagram';
-import { publicOriginDisplay, publicProfileUrl } from '@/lib/site';
+import { originFromHeaders } from '@/lib/site';
 
 // The confirm step scrapes the live bio (Apify actor ~15s).
 export const maxDuration = 60;
@@ -31,9 +31,12 @@ const CONFIRMABLE_PLATFORMS = new Set(['instagram']);
  * owner's bio still carries the link. Blocking username reuse is the guard for
  * that; see the note in the confirm branch.
  */
-function profileMarker(kind: 'c' | 'b', username: string): string {
-  void kind; // profile URLs no longer carry a /c or /b segment — see lib/site.ts
-  return publicProfileUrl(username);
+function profileMarker(origin: string, username: string): string {
+  // Derived from the REQUEST origin, not the build-time one: this string is
+  // stored and later matched against the creator's live bio, so it has to be
+  // the same host the browser told them to paste. No /c or /b segment — see
+  // lib/site.ts.
+  return `${origin}/${username}`;
 }
 
 /**
@@ -134,7 +137,8 @@ export async function POST(req: Request) {
         'Set your Influnet username first — your public profile link is what we look for in your bio.',
       );
     }
-    const marker = profileMarker(kind, username);
+    const origin = originFromHeaders(req.headers);
+    const marker = profileMarker(origin, username);
 
     // ── INITIATE ────────────────────────────────────────────────────────────
     if (action === 'initiate') {
@@ -154,7 +158,7 @@ export async function POST(req: Request) {
         profile_url: marker,
         // Kept for older clients that read `verify_url`; same value now.
         verify_url: marker,
-        display_url: `${publicOriginDisplay()}/${kind}/${username}`,
+        display_url: marker.replace(/^https?:\/\//, ''),
         expires_in: TTL_SECONDS,
         instructions:
           `Add your Influnet profile link to your Instagram bio, keep your account public, then tap Verify. Nothing is posted to your account — and you can leave the link there, it is the page you want brands to land on anyway.`,
