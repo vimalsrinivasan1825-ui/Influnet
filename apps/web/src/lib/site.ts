@@ -47,10 +47,55 @@ export function publicOriginDisplay(): string {
  */
 export function originFromHeaders(h: Headers): string {
   const host = h.get('x-forwarded-host') ?? h.get('host');
-  if (!host) return publicOrigin();
-  const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+  if (!host || !isTrustedHost(host)) return publicOrigin();
+  const proto = h.get('x-forwarded-proto') ?? (isLocalHost(host) ? 'http' : 'https');
   return `${proto}://${host}`;
 }
+
+function isLocalHost(host: string): boolean {
+  const h = host.toLowerCase().split(':')[0];
+  return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.localhost');
+}
+
+/**
+ * Hosts we will echo back into a response. Everything else falls back to the
+ * configured origin.
+ *
+ * Host and X-Forwarded-Host are CLIENT-CONTROLLED — a proxy sets them, but
+ * nothing stops a request arriving with either one forged. That matters here
+ * because the ownership bio marker is `<origin>/<username>`, and a caller
+ * controls their own username too, so an unchecked host would let them mint an
+ * arbitrary `A/B` marker and pick one that already appears in someone ELSE's
+ * Instagram bio (bios are full of things like linktr.ee/<name>). Confirm then
+ * scrapes the victim's bio, finds the string, and hands the attacker a
+ * verified claim on a handle that is not theirs — the exact impersonation the
+ * ownership handshake exists to prevent.
+ */
+function isTrustedHost(host: string): boolean {
+  if (isLocalHost(host)) return true;
+  const h = host.toLowerCase().split(':')[0];
+
+  // The configured canonical origin is always trusted.
+  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  if (configured) {
+    try {
+      if (new URL(configured).hostname.toLowerCase() === h) return true;
+    } catch {
+      /* malformed config — fall through to the suffix list */
+    }
+  }
+
+  return TRUSTED_HOST_SUFFIXES.some((s) => h === s || h.endsWith(`.${s}`));
+}
+
+/** Domains this app is actually deployed under. */
+const TRUSTED_HOST_SUFFIXES = [
+  'influnet.io',
+  'influnet.com',
+  'influnet.in',
+  'azurecontainerapps.io',
+  'vercel.app',
+];
 
 /**
  * Full shareable URL for a creator's or business's public profile.
