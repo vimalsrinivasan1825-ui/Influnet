@@ -219,6 +219,18 @@ export function VerifyGuideAnimation({
     }
   }, [copyRect, verifyRect, linkCardRect, igIconRect, infIconRect, igEditRect, bioRowRect, igDoneRect, phoneRect, viewSize]);
 
+  // Fail-safe for the gate above. Requiring ALL nine rects means one that never
+  // reports freezes the entire guide at frame 0 — which is exactly what shipped
+  // when bioRowRef was left unattached: that rect could never be measured, the
+  // `every` check could never pass, and the animation was completely static.
+  // Never let measurement be load-bearing for playback: if anything is still
+  // missing by now, run regardless. Worst case is the old behaviour where one
+  // shot does not zoom, which beats a guide that does nothing at all.
+  useEffect(() => {
+    const id = setTimeout(() => { ready.value = 1; }, 1500);
+    return () => clearTimeout(id);
+  }, [ready]);
+
   // ── camera ───────────────────────────────────────────────────
   // Clamped against the DEVICE rect, not the viewport — a zoom that clamped to
   // the viewport dragged empty card background into shot beside a phone
@@ -564,7 +576,7 @@ export function VerifyGuideAnimation({
             </View>
             <View style={[styles.igeRow, { borderColor: c.hairline }]}><Txt style={rowK}>Name</Txt><Txt c={c.content} size={10.5} style={{ paddingTop: 2 }}>{name}</Txt></View>
             <View style={[styles.igeRow, { borderColor: c.hairline }]}><Txt style={rowK}>Username</Txt><Txt c={c.content} size={10.5} style={{ paddingTop: 2 }}>{handle}</Txt></View>
-            <Animated.View style={[styles.igeRow, bioRowStyle, { borderColor: c.hairline }]}>
+            <Animated.View ref={bioRowRef} onLayout={onBioRowLayout} style={[styles.igeRow, bioRowStyle, { borderColor: c.hairline }]}>
               <Txt style={rowK}>Bio</Txt>
               <Txt c={c.content} size={10.5} style={{ paddingTop: 2, lineHeight: 15 }}>
                 Food &amp; travel creator, Chennai
