@@ -201,6 +201,14 @@ export function VerifyGuideAnimation({
   // narrower than the card. Same fix as the web version, same reason.
   const camFor = useCallback(function camForImpl(r: Rect, pad: number, maxZoom: number, bounds: Rect, W: number, H: number) {
     'worklet';
+    // Mirrors the web version's `if (!r) return identity`. Measured rects start
+    // as ZERO_RECT (w=1,h=1) until their async measureInWindow resolves — without
+    // this guard the very first frames computed a real zoom from that phantom
+    // 1x1 rect, which clamps to maxZoom centered on a single pixel: the huge
+    // zoomed-in sliver stuck in the corner with everything else blank. ptrStyle
+    // below already guards the same way (`r.w > 1 ? ... : off`); this just
+    // brings the camera in line with it.
+    if (r.w <= 1 || bounds.w <= 1) return { s: 1, x: 0, y: 0 };
     const s = Math.max(1, Math.min(maxZoom, Math.min(W / (r.w + pad * 2), H / (r.h + pad * 2))));
     const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
     let x = W / 2 - cx * s, y = H / 2 - cy * s;
