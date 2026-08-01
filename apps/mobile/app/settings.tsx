@@ -23,7 +23,7 @@ import {
 } from '@/components/ui';
 
 // Updated automatically by AI agent on commit to track the active build
-const LAST_COMMIT_TIME = '2026-07-31T16:20:51Z';
+const LAST_COMMIT_TIME = '2026-08-01T00:29:02Z';
 
 // Only accounts in this list will see internal diagnostic tools in Settings.
 const DEVELOPER_EMAILS = [
