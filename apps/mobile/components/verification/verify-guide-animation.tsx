@@ -613,10 +613,21 @@ function IgStat({ n, label, c }: { n: string; label: string; c: { content: strin
 }
 
 const styles = StyleSheet.create({
+  // Matches web's `h-[330px]` exactly. Do not make this height dynamic: any
+  // state-driven resize re-fires every onLayout, and those re-measurements run
+  // WHILE the camera transform is live, so measureInWindow returns
+  // camera-warped rects that feed straight back into the camera keyframes.
   view: { height: 330, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   phone: {
+    // Web is `left:50%; top:50%; transform: translate(-50%,-50%) scale(0.7)`.
+    // translate(-50%,-50%) is half the element's OWN layout box (240x420), so
+    // the RN equivalent is -120/-210 — not -84/-147, which is half the
+    // *post-scale* size (168x294) and left the phone 36pt right and 63pt low
+    // of centre, hanging off the bottom of the card. RN scales about the
+    // centre, so the margins must cancel the untransformed box, not the
+    // scaled one.
     position: 'absolute', width: 240, height: 420, left: '50%', top: '50%',
-    marginLeft: -84, marginTop: -147, transform: [{ scale: 0.7 }],
+    marginLeft: -120, marginTop: -210, transform: [{ scale: 0.7 }],
     borderRadius: 26, borderWidth: 1, overflow: 'hidden',
   },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 6, height: 26 },
