@@ -50,7 +50,7 @@ jobs:
           docker build -f apps/web/Dockerfile \
             --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" \
             --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
-            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ secrets.STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
             --build-arg NEXT_PUBLIC_APP_URL="${{ env.STAGING_URL }}" \
             --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ secrets.NEXT_PUBLIC_PHONE_OTP_ENABLED }}" \
             --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
@@ -84,7 +84,7 @@ jobs:
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --set-env-vars \
                 "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-                "STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}" \
+                "STREAM_API_KEY=${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
                 "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}" \
                 "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" \
                 "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" \
