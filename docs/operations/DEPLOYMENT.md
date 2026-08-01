@@ -79,15 +79,19 @@ From `apps/web/.env.example`:
 
 ## 5. Operational gaps to close before real traffic
 
-These are **operational, not code defects** — several need an account/credential from you, then a small code wiring task.
+These are **operational, not code defects** — several need an account/credential from you, then a small code wiring task. Full writeup, priority order, and reasoning: [RELIABILITY_TRUST_ROADMAP_2026-08-01.md](RELIABILITY_TRUST_ROADMAP_2026-08-01.md).
 
-| Item | Why | You provide | Then |
-|---|---|---|---|
-| **Sentry** | API errors only hit server logs today; no trail for real-user errors. | Sentry project (Next.js platform) → `SENTRY_DSN`. | Wire client + server + edge + `app/error.tsx`. |
-| **Upstash Redis** | No app-level rate limiting (only OTP has a DB limit). | Upstash Redis DB → `UPSTASH_REDIS_REST_URL` + `_TOKEN`. | Limit register / reviews / collabs / discover / stream-token. |
-| **DB backups / PITR** | Data safety. | Enable PITR/scheduled backups on prod Supabase; verify one restore. | — |
-| **Admin audit log** | Approve/reject actions aren't recorded. | — | Add `admin_actions` table + writes in `/api/admin/*`. |
-| **Make CI a merge gate** | The branch shipped with a red build once. | — | Require `.github/workflows/ci.yml` green to merge `main`. |
+| Item | Why | You provide | Then | Status |
+|---|---|---|---|---|
+| **Confirm staging/prod use separate Supabase projects** | Both deploy workflows read a secret with the same name; unconfirmed from code whether the values differ. | Compare `NEXT_PUBLIC_SUPABASE_URL` + service-role key across GitHub Environments. | If they match: provision a separate prod project (own org account). | ⬜ Not started |
+| **Sentry** | API errors only hit server logs today; no trail for real-user errors. Currently a hand-rolled envelope-API shim (`lib/observability.ts`), not the real SDK. | Sentry project (Next.js + Expo platform) → `SENTRY_DSN`. | Install real SDK, wire client + server + edge + `app/error.tsx` + mobile. | ⬜ Not started |
+| **Raw error messages shown to users** | Several dashboard pages (`settings`, `admin`) render `err.message` directly in toasts. | — | Add `toUserMessage()` mapping helper; add `global-error.tsx` (web) + root error boundary (mobile). | ⬜ Not started |
+| **Support / ticket pipeline** | "Contact support" is dead text with no link; no in-app way to report a problem. | Decide: hosted helpdesk vs. in-house ticket table. | Wire error-boundary "Report this" into it. | ⬜ Not started |
+| **PostHog / product analytics** | No visibility into where creators/businesses drop off in the 12-stage pipeline. | PostHog project (cloud or self-host). | Instrument stage-pipeline funnel events. | ⬜ Not started |
+| **Upstash Redis** | No app-level rate limiting (only OTP has a DB limit). | Upstash Redis DB → `UPSTASH_REDIS_REST_URL` + `_TOKEN`. | Limit register / reviews / collabs / discover / stream-token. | ⬜ Not started |
+| **DB backups / PITR** | Data safety — no backup system exists today, only manual ad hoc JSON exports. | Enable PITR/scheduled backups on prod Supabase; verify one restore. | Add a second-layer scheduled `pg_dump` to encrypted storage. | ⬜ Not started |
+| **Admin audit log** | Approve/reject actions aren't recorded. | — | Add `admin_actions` table + writes in `/api/admin/*`. | ⬜ Not started |
+| **Make CI a merge gate** | The branch shipped with a red build once. | — | Require `.github/workflows/ci.yml` green to merge `main`. | ⬜ Not started |
 
 ---
 
