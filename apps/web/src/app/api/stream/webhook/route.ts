@@ -1,3 +1,4 @@
+import { jsonError } from '@/lib/api';
 import { NextResponse } from 'next/server';
 import { getStreamClient } from '@/lib/stream';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
@@ -142,8 +143,7 @@ export async function POST(req: Request) {
 
     // Acknowledge receipt of the webhook (important for Stream to stop retrying)
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error('[Stream Webhook] Exception:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Webhook processing failed', error);
   }
 }

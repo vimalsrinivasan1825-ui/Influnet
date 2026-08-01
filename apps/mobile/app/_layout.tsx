@@ -11,10 +11,17 @@ import { setUnauthorizedHandler } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import { syncPushToken, usePushNotificationRouting } from '@/lib/push';
 import { BrandSplash } from '@/components/brand/splash';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { identify, installGlobalErrorHandler, resetIdentity } from '@/lib/analytics';
 
 // Hold the native splash so the OS screen hands straight over to the animated
 // one. Without this the app flashes its first route between the two.
 void SplashScreen.preventAutoHideAsync();
+
+// Chain the JS crash handler at module scope so it is installed before any
+// screen mounts — an error thrown during the very first render is exactly the
+// kind we most need reported. No-op unless EXPO_PUBLIC_SENTRY_DSN is set.
+installGlobalErrorHandler();
 
 export default function RootLayout() {
   const router = useRouter();
@@ -46,6 +53,14 @@ export default function RootLayout() {
   useEffect(() => {
     if (session) void syncPushToken();
   }, [session]);
+
+  // Attach analytics events to the signed-in user, and detach on sign-out so
+  // the next account on a shared device is not merged into the previous one.
+  // No-op unless EXPO_PUBLIC_POSTHOG_KEY is set.
+  useEffect(() => {
+    if (profile?.id) identify(profile.id, profile.role);
+    else resetIdentity();
+  }, [profile?.id, profile?.role]);
 
   usePushNotificationRouting(router, appReady);
 
@@ -121,36 +136,47 @@ export default function RootLayout() {
         {/* The whole app re-tints itself off the signed-in role. */}
         <ThemeProvider role={role}>
           <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              headerShadowVisible: false,
-              headerStyle: { backgroundColor: palette.surface },
-              headerTitleStyle: { fontSize: 17, fontWeight: '600', color: palette.content },
-              headerTintColor: palette.content,
-              contentStyle: { backgroundColor: palette.surface },
-            }}
-          >
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
-            <Stack.Screen name="activity" options={{ title: 'My activity' }} />
-            <Stack.Screen name="connections" options={{ title: 'Connections' }} />
-            <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-            <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
-            <Stack.Screen name="verification" options={{ title: 'Verify Instagram' }} />
-            <Stack.Screen name="verification-guide" options={{ title: 'How to verify' }} />
-            <Stack.Screen name="search" options={{ title: 'Search' }} />
-            <Stack.Screen name="creator/[username]" options={{ title: '' }} />
-            <Stack.Screen name="portfolio/add" options={{ title: 'Add past work' }} />
-            <Stack.Screen name="requests/new" options={{ title: 'Send a request' }} />
-            <Stack.Screen name="requests/[id]" options={{ title: 'Request' }} />
-            <Stack.Screen name="conversations/[id]" options={{ title: '' }} />
-            <Stack.Screen name="projects/[id]/index" options={{ title: 'Project' }} />
-            <Stack.Screen name="projects/[id]/stage/[stage]" options={{ title: 'Stage' }} />
-            <Stack.Screen name="projects/[id]/change-requests" options={{ title: 'Change requests' }} />
-            <Stack.Screen name="projects/[id]/activity" options={{ title: 'Activity' }} />
-          </Stack>
+          {/* Inside ThemeProvider so the fallback screen is themed, and around
+              the navigator so a render error in any screen is contained
+              instead of unmounting the whole app. */}
+          <ErrorBoundary label="root">
+            <Stack
+              screenOptions={{
+                headerShadowVisible: false,
+                headerStyle: { backgroundColor: palette.surface },
+                headerTitleStyle: { fontSize: 17, fontWeight: '600', color: palette.content },
+                headerTintColor: palette.content,
+                contentStyle: { backgroundColor: palette.surface },
+              }}
+            >
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+              <Stack.Screen name="activity" options={{ title: 'My activity' }} />
+              <Stack.Screen name="connections" options={{ title: 'Connections' }} />
+              <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+              <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
+              <Stack.Screen name="verification" options={{ title: 'Verify Instagram' }} />
+              <Stack.Screen name="verification-guide" options={{ title: 'How to verify' }} />
+              <Stack.Screen name="search" options={{ title: 'Search' }} />
+              <Stack.Screen name="creator/[username]" options={{ title: '' }} />
+              <Stack.Screen name="portfolio/add" options={{ title: 'Add past work' }} />
+              <Stack.Screen name="requests/new" options={{ title: 'Send a request' }} />
+              <Stack.Screen name="requests/[id]" options={{ title: 'Request' }} />
+              <Stack.Screen name="conversations/[id]" options={{ title: '' }} />
+              <Stack.Screen name="projects/[id]/index" options={{ title: 'Project' }} />
+              <Stack.Screen name="projects/[id]/stage/[stage]" options={{ title: 'Stage' }} />
+              <Stack.Screen name="projects/[id]/change-requests" options={{ title: 'Change requests' }} />
+              <Stack.Screen name="projects/[id]/activity" options={{ title: 'Activity' }} />
+              {/* Directory route: the screen name is the file path, so
+                  app/support/index.tsx registers as "support/index" — same
+                  convention as projects/[id]/index above. */}
+              <Stack.Screen name="support/index" options={{ title: 'Help & support' }} />
+              <Stack.Screen name="support/[id]" options={{ title: 'Conversation' }} />
+              <Stack.Screen name="feedback" options={{ title: 'Send feedback' }} />
+            </Stack>
+          </ErrorBoundary>
 
           {/* Covers the first frame until the animation has played AND the
               stored session has been read, so no screen renders signed-out and

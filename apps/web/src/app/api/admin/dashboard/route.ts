@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/api';
+import { jsonError, withAdmin } from '@/lib/api';
 
 export async function GET(req: Request) {
   try {
@@ -45,8 +45,7 @@ export async function GET(req: Request) {
         completed_projects: completedProjects,
       }
     });
-  } catch (error: any) {
-    console.error('[Admin GET /api/admin/dashboard] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not load the admin dashboard', error);
   }
 }

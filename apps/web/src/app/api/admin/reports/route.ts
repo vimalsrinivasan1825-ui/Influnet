@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/api';
+import { jsonError, withAdmin } from '@/lib/api';
 
 // GET: moderation queue — open/reviewing reports with reporter + reported names.
 export async function GET(req: Request) {
@@ -20,9 +20,8 @@ export async function GET(req: Request) {
 
     if (error) throw error;
     return NextResponse.json({ reports: data || [] });
-  } catch (error: any) {
-    console.error('[Admin GET /api/admin/reports] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not load reports', error);
   }
 }
 
@@ -48,8 +47,7 @@ export async function PATCH(req: Request) {
 
     if (error) throw error;
     return NextResponse.json({ report: data });
-  } catch (error: any) {
-    console.error('[Admin PATCH /api/admin/reports] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not update this report', error);
   }
 }

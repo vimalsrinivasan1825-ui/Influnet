@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/api';
+import { jsonError, withAdmin } from '@/lib/api';
 
 export async function GET(req: Request) {
   try {
@@ -48,8 +48,7 @@ export async function GET(req: Request) {
     );
 
     return NextResponse.json({ users: enrichedUsers });
-  } catch (error: any) {
-    console.error('[Admin GET /api/admin/users] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not load users', error);
   }
 }

@@ -63,6 +63,18 @@ const envSchema = z.object({
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
 
+  // Product analytics (PostHog) — optional, and absent by default.
+  // With no key the analytics module is a no-op: the SDK is never even
+  // downloaded (it is behind a dynamic import), so an unconfigured deploy
+  // behaves exactly as it did before analytics existed.
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
+  NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
+
+  // The browser copy of APP_ENV. APP_ENV itself is server-only (no
+  // NEXT_PUBLIC_ prefix), so client-side error reports and analytics events
+  // cannot read it and would otherwise all be tagged 'unknown'.
+  NEXT_PUBLIC_APP_ENV: z.enum(APP_ENVS).optional(),
+
   // Distributed rate limiting — optional. Absent → limiter uses an in-process
   // fixed-window floor (fine for single instance; NOT correct across serverless
   // instances). Present → shared counters across all instances.

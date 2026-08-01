@@ -9,8 +9,10 @@ import './dashboard-fonts.css';
 import './connections-workspace.css';
 import './projects-workspace.css';
 import './business-messages-standalone.css';
+import { Suspense } from 'react';
 import { cn } from "@/lib/utils";
 import { Toaster } from 'sonner';
+import { ObservabilityProvider } from '@/components/observability-provider';
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -57,6 +59,14 @@ export default function RootLayout({
       <body className="min-h-[100dvh] flex flex-col bg-background text-foreground">
         {children}
         <Toaster richColors position="top-right" />
+        {/*
+          Suspense is required, not optional: ObservabilityProvider reads
+          useSearchParams(), and without a boundary that opts the ENTIRE app
+          out of static rendering. Analytics must not change how pages render.
+        */}
+        <Suspense fallback={null}>
+          <ObservabilityProvider />
+        </Suspense>
       </body>
     </html>
   );
