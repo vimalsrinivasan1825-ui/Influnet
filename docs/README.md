@@ -60,6 +60,7 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [HOME_ACTION_CONSOLE_2026-07-28.md](operations/HOME_ACTION_CONSOLE_2026-07-28.md) | Mobile Home rebuilt as a "whose move is it" console: the `projectTurn()` model, the stage-by-stage table of what each side sees, the two defects the stage-matrix sweep caught (deadlock + passive action text), and the portfolio work agreed for next round. |
 | [SUPABASE.md](operations/SUPABASE.md) | Supabase project setup, auth email templates, field mapping (UI → DB). |
 | [PHONE_OTP.md](operations/PHONE_OTP.md) | 2Factor SMS OTP setup: migration, edge-function deploy, client flows, security limits. |
+| [RELIABILITY_TRUST_ROADMAP_2026-08-01.md](operations/RELIABILITY_TRUST_ROADMAP_2026-08-01.md) | **Analysis only, not started.** Environments/DB isolation, backups & DR, user-facing error handling, support/ticket pipeline, observability (Sentry/PostHog/uptime), and an honest take on agentic auto-fix. Tracked as a checklist in [DEPLOYMENT.md §5](operations/DEPLOYMENT.md#5-operational-gaps-to-close-before-real-traffic). |
 
 ### reference/ — *copy-paste examples*
 | File | What it is |
