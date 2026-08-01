@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Ban, Check, CircleCheck, Flag } from 'lucide-react-native';
+import { Ban, Check, CircleCheck, EllipsisVertical, Flag, RotateCcw } from 'lucide-react-native';
 import {
   STAGES,
   CANCELLATION_REASONS,
@@ -19,13 +19,14 @@ import { styleForStatus } from '@/lib/deal-state-style';
 import { formatCurrency, formatDate, timeAgo } from '@/lib/format';
 import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
 import { ProjectReviews } from '@/components/project-reviews';
-import { ProjectChangeRequests } from '@/components/project-change-requests';
 import {
   Badge,
   Button,
   Card,
   ErrorState,
   Field,
+  ListGroup,
+  ListRow,
   ScreenScroll,
   SectionLabel,
   Sheet,
@@ -38,7 +39,6 @@ interface ProjectDetail {
   id: string;
   title: string;
   description: string | null;
-  deliverables: string | null;
   status: string;
   current_stage: string;
   budget: number | null;
@@ -58,12 +58,37 @@ interface ProjectDetail {
 /** One row from /api/projects/[id]/activity — newest first, actor pre-resolved. */
 interface ProjectActivityEvent {
   id: string;
-  type: string;
   summary: string;
   created_at: string;
   actor: { id: string; name: string | null } | null;
 }
 
+interface ChangeRequestSummary {
+  id: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+}
+
+/**
+ * The whole record used to live on this one screen: header, progress, the
+ * full change-request negotiation UI (with its own form sheet), and the
+ * entire activity log, all in one scroll. Two real problems came out of that:
+ *
+ * 1. Three separate `<Sheet>` (gorhom BottomSheet) instances were mounted as
+ *    children of the page's ScrollView. BottomSheet is documented to expect a
+ *    sibling of a fixed-size container, not scrollable content with
+ *    unbounded height — nested that way, and combined with pull-to-refresh's
+ *    own gesture handling on the same ScrollView, the sheets could flash open
+ *    on load with nothing pressed. Every Sheet on this screen (and the ones
+ *    that used to live inside ProjectChangeRequests) is now a sibling of
+ *    ScreenScroll, not a child of it.
+ * 2. Cancelling and reporting — rare, and one of them destructive — sat as
+ *    two permanently-visible text links in the header card, and the full
+ *    change-request history plus the entire audit trail rendered inline
+ *    regardless of whether there was anything pending. Change requests and
+ *    activity now get their own screens, reached from a one-line summary
+ *    row each; the rare actions collapse behind a single "more" button that
+ *    matches how the stage sub-screens are already reached.
+ */
 export default function ProjectDetailScreen() {
   const t = useTheme();
   const router = useRouter();
@@ -74,10 +99,14 @@ export default function ProjectDetailScreen() {
     endpoints.getProject<{ project: ProjectDetail }>(id), { cacheKey: `project:${id}` }
   );
 
-  // The project's audit trail. Web has this as a dedicated "Activity" tab;
-  // mobile had no way to see who did what when — only the current stage state.
-  // Fetched separately from the project so a missing/failed trail costs one
-  // card rather than the whole screen.
+  // Lightweight — just enough for the summary row's count and latest line.
+  // The full negotiation UI (and its propose-change sheet) lives on its own
+  // screen now; this shares that screen's cache key so navigating in doesn't
+  // re-fetch what we already have.
+  const { data: crData } = useFetch(() =>
+    endpoints.listChangeRequests<{ change_requests: ChangeRequestSummary[] }>(id),
+    { cacheKey: `change-requests:${id}` }
+  );
   const { data: activityData } = useFetch(() =>
     endpoints.projectActivity<{ activity: ProjectActivityEvent[] }>(id),
     { cacheKey: `project-activity:${id}` }
@@ -93,6 +122,12 @@ export default function ProjectDetailScreen() {
   const partner = (isOwner ? project?.counterparty?.name : project?.owner?.name) ?? 'Partner';
   const stageIndex = project ? STAGES.indexOf(project.current_stage as Stage) : -1;
   const s = styleForStatus(project?.status, t.color);
+
+  const pendingChangeCount = (crData?.change_requests ?? []).filter((cr) => cr.status === 'pending').length;
+  const latestActivity = activityData?.activity?.[0];
+
+  // ── "More" menu — the entry point for cancel and report/block ──────────
+  const menuSheet = useRef<SheetRef>(null);
 
   // ── Cancellation ──────────────────────────────────────────────────────
   const cancelSheet = useRef<SheetRef>(null);
@@ -172,10 +207,6 @@ export default function ProjectDetailScreen() {
   const iRequestedCancellation = !!project?.cancel_requested_by && project.cancel_requested_by === me;
 
   // ── Report / block (trust & safety) ────────────────────────────────────
-  // The API (POST /api/reports, POST /api/blocks) and the block LIST/unblock
-  // screen (app/blocked-accounts.tsx) already existed; there was simply no
-  // screen anywhere in the app that could ever CREATE a block or a report —
-  // this mirrors the combined report+block flow added on web.
   const reportSheet = useRef<SheetRef>(null);
   const REPORT_REASONS = [
     { value: 'scam', label: 'Scam' },
@@ -236,186 +267,181 @@ export default function ProjectDetailScreen() {
   }
 
   return (
-    <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
-      {loading ? (
-        <SkeletonCard />
-      ) : error ? (
-        <ErrorState message={error} onRetry={refresh} />
-      ) : project ? (
-        <>
-          <Card raised style={{ gap: t.spacing.md }}>
-            <View style={{ gap: 4 }}>
-              <Txt variant="title2">{project.title}</Txt>
-              <Txt variant="footnote" tone="muted">
-                With {partner} · started {formatDate(project.created_at)}
-              </Txt>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: t.spacing.sm, flexWrap: 'wrap' }}>
-              <Badge label={s.label} fg={s.fg} bg={s.bg} />
-              {project.budget ? (
-                <Badge label={formatCurrency(project.budget)} tone="neutral" />
-              ) : null}
-              <Badge label={`Step ${stageIndex + 1} of ${STAGES.length}`} tone="neutral" />
-            </View>
-
-            {project.description ? (
-              <Txt variant="callout" tone="soft">
-                {project.description}
-              </Txt>
-            ) : null}
-
-            {/* Active, nothing already pending — the pending state gets its
-                own card below with Accept/Decline/Withdraw, not this link. */}
-            {project.status === 'active' && !project.cancel_requested_by ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => cancelSheet.current?.expand()}
-                hitSlop={8}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}
-              >
-                <Ban size={13} color={t.color.contentMuted} />
-                <Txt variant="footnote" tone="muted">
-                  Request to cancel this project
-                </Txt>
-              </Pressable>
-            ) : null}
-
-            {otherPartyId ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => reportSheet.current?.expand()}
-                hitSlop={8}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}
-              >
-                <Flag size={13} color={t.color.contentMuted} />
-                <Txt variant="footnote" tone="muted">
-                  Report or block {partner}
-                </Txt>
-              </Pressable>
-            ) : null}
-          </Card>
-
-          {/* Pending cancellation — shown to BOTH sides, worded for whichever
-              one they are. This is deliberately the loudest card on the
-              screen while it's open. */}
-          {project.cancel_requested_by ? (
-            <Card raised style={{ gap: t.spacing.sm, borderColor: t.color.warn + '55' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.sm }}>
-                <Ban size={17} color={t.color.warn} style={{ marginTop: 1 }} />
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Txt variant="footnote" style={{ fontWeight: '700' }}>
-                    {iRequestedCancellation
-                      ? `You asked to cancel this project — ${cancellationReasonLabel(project.cancel_reason_category)}. Waiting for the other side.`
-                      : `${partner} asked to cancel this project — ${cancellationReasonLabel(project.cancel_reason_category)}.`}
+    <View style={{ flex: 1 }}>
+      <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
+        {loading ? (
+          <SkeletonCard />
+        ) : error ? (
+          <ErrorState message={error} onRetry={refresh} />
+        ) : project ? (
+          <>
+            <Card raised style={{ gap: t.spacing.md }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: t.spacing.sm }}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Txt variant="title2">{project.title}</Txt>
+                  <Txt variant="footnote" tone="muted">
+                    With {partner} · started {formatDate(project.created_at)}
                   </Txt>
-                  {project.cancellation_reason ? (
-                    <Txt variant="caption" tone="soft">
-                      “{project.cancellation_reason}”
-                    </Txt>
-                  ) : null}
                 </View>
+
+                {/* Cancel and report/block used to be two permanently-visible
+                    text links here. Both are rare, and one is destructive —
+                    they collapse behind this single button now. */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="More options"
+                  onPress={() => menuSheet.current?.expand()}
+                  hitSlop={10}
+                  style={{ padding: 4, marginTop: -4, marginRight: -6 }}
+                >
+                  <EllipsisVertical size={20} color={t.color.contentMuted} />
+                </Pressable>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: t.spacing.sm }}>
-                {iRequestedCancellation ? (
-                  <Button
-                    label="Withdraw request"
-                    variant="secondary"
-                    size="md"
-                    inline
-                    disabled={cancelBusy}
-                    loading={cancelBusy}
-                    onPress={declineOrWithdraw}
-                  />
-                ) : (
-                  <>
+              <View style={{ flexDirection: 'row', gap: t.spacing.sm, flexWrap: 'wrap' }}>
+                <Badge label={s.label} fg={s.fg} bg={s.bg} />
+                {project.budget ? (
+                  <Badge label={formatCurrency(project.budget)} tone="neutral" />
+                ) : null}
+                <Badge label={`Step ${stageIndex + 1} of ${STAGES.length}`} tone="neutral" />
+              </View>
+
+              {project.description ? (
+                <Txt variant="callout" tone="soft">
+                  {project.description}
+                </Txt>
+              ) : null}
+            </Card>
+
+            {/* Pending cancellation — shown to BOTH sides, worded for whichever
+                one they are. This is deliberately the loudest card on the
+                screen while it's open. */}
+            {project.cancel_requested_by ? (
+              <Card raised style={{ gap: t.spacing.sm, borderColor: t.color.warn + '55' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.sm }}>
+                  <Ban size={17} color={t.color.warn} style={{ marginTop: 1 }} />
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Txt variant="footnote" style={{ fontWeight: '700' }}>
+                      {iRequestedCancellation
+                        ? `You asked to cancel this project — ${cancellationReasonLabel(project.cancel_reason_category)}. Waiting for the other side.`
+                        : `${partner} asked to cancel this project — ${cancellationReasonLabel(project.cancel_reason_category)}.`}
+                    </Txt>
+                    {project.cancellation_reason ? (
+                      <Txt variant="caption" tone="soft">
+                        “{project.cancellation_reason}”
+                      </Txt>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: t.spacing.sm }}>
+                  {iRequestedCancellation ? (
                     <Button
-                      label="Decline"
+                      label="Withdraw request"
                       variant="secondary"
                       size="md"
                       inline
                       disabled={cancelBusy}
+                      loading={cancelBusy}
                       onPress={declineOrWithdraw}
                     />
-                    <Button
-                      label="Accept & cancel"
-                      variant="danger"
-                      size="md"
-                      inline
-                      disabled={cancelBusy}
-                      loading={cancelBusy}
-                      icon={<Check size={15} color={t.color.white} />}
-                      onPress={acceptCancellation}
-                    />
-                  </>
-                )}
-              </View>
-            </Card>
-          ) : null}
-
-          <SectionLabel>Progress</SectionLabel>
-          <Card>
-            <StageTimeline
-              currentStage={project.current_stage}
-              stageProgress={project.stage_progress}
-              onOpenStage={(stage) => router.push(`/projects/${id}/stage/${stage}`)}
-            />
-          </Card>
-
-          {/* Change requests — renegotiate terms mid-project. Only available
-              on ACTIVE projects (cancelled/completed are frozen records). */}
-          {project.status === 'active' ? (
-            <ProjectChangeRequests
-              projectId={id}
-              project={{
-                title: project.title,
-                description: project.description,
-                deliverables: project.deliverables,
-                budget: project.budget,
-                advance_amount: project.advance_amount,
-              }}
-              partner={partner}
-            />
-          ) : null}
-
-          {/* Rating is only possible once the work is done — and until now it
-              was only possible on the web, so a brand working from their phone
-              could finish a project and never rate the creator. Those ratings
-              are what the creator's public profile shows. */}
-          {project.status === 'completed' ? (
-            <ProjectReviews projectId={id} partner={partner} />
-          ) : null}
-
-          {activityData?.activity?.length ? (
-            <>
-              <SectionLabel>Activity</SectionLabel>
-              <Card style={{ gap: t.spacing.md }}>
-                {activityData.activity.map((event) => (
-                  <View key={event.id} style={{ flexDirection: 'row', gap: t.spacing.sm }}>
-                    <View
-                      style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: 4,
-                        marginTop: 5,
-                        backgroundColor: t.color.hairlineStrong,
-                      }}
-                    />
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Txt variant="footnote">{event.summary}</Txt>
-                      <Txt variant="caption" tone="muted">
-                        {event.actor?.name ? `${event.actor.name} · ` : ''}
-                        {timeAgo(event.created_at)}
-                      </Txt>
-                    </View>
-                  </View>
-                ))}
+                  ) : (
+                    <>
+                      <Button
+                        label="Decline"
+                        variant="secondary"
+                        size="md"
+                        inline
+                        disabled={cancelBusy}
+                        onPress={declineOrWithdraw}
+                      />
+                      <Button
+                        label="Accept & cancel"
+                        variant="danger"
+                        size="md"
+                        inline
+                        disabled={cancelBusy}
+                        loading={cancelBusy}
+                        icon={<Check size={15} color={t.color.white} />}
+                        onPress={acceptCancellation}
+                      />
+                    </>
+                  )}
+                </View>
               </Card>
-            </>
-          ) : null}
-        </>
-      ) : null}
+            ) : null}
+
+            <SectionLabel>Progress</SectionLabel>
+            <Card>
+              <StageTimeline
+                currentStage={project.current_stage}
+                stageProgress={project.stage_progress}
+                onOpenStage={(stage) => router.push(`/projects/${id}/stage/${stage}`)}
+              />
+            </Card>
+
+            {/* Change requests and activity are detail, not the primary task
+                of this screen — a one-line summary each, full UI one tap
+                away. Only shown for active projects: cancelled/completed
+                are frozen records with nothing left to negotiate. */}
+            {project.status === 'active' ? (
+              <ListGroup>
+                <ListRow
+                  title="Change requests"
+                  subtitle={pendingChangeCount > 0 ? `${pendingChangeCount} pending` : 'Propose or review terms'}
+                  left={<RotateCcw size={18} color={pendingChangeCount > 0 ? t.color.brand : t.color.contentMuted} />}
+                  right={pendingChangeCount > 0 ? <Badge label={String(pendingChangeCount)} tone="brand" /> : null}
+                  onPress={() => router.push(`/projects/${id}/change-requests`)}
+                />
+              </ListGroup>
+            ) : null}
+
+            {project.status === 'completed' ? (
+              <ProjectReviews projectId={id} partner={partner} />
+            ) : null}
+
+            <ListGroup>
+              <ListRow
+                title="Activity"
+                subtitle={latestActivity ? `${latestActivity.summary} · ${timeAgo(latestActivity.created_at)}` : 'No activity yet'}
+                onPress={() => router.push(`/projects/${id}/activity`)}
+              />
+            </ListGroup>
+          </>
+        ) : null}
+      </ScreenScroll>
+
+      {/* All sheets below are siblings of ScreenScroll, not children of it —
+          see the note at the top of this file for why that matters. */}
+
+      <Sheet ref={menuSheet} title={project?.title}>
+        {project?.status === 'active' && !project.cancel_requested_by ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              menuSheet.current?.close();
+              cancelSheet.current?.expand();
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, paddingVertical: t.spacing.sm }}
+          >
+            <Ban size={17} color={t.color.content} />
+            <Txt variant="callout">Request to cancel this project</Txt>
+          </Pressable>
+        ) : null}
+        {otherPartyId ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              menuSheet.current?.close();
+              reportSheet.current?.expand();
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, paddingVertical: t.spacing.sm }}
+          >
+            <Flag size={17} color={t.color.danger} />
+            <Txt variant="callout" tone="danger">Report or block {partner}</Txt>
+          </Pressable>
+        ) : null}
+      </Sheet>
 
       <Sheet ref={cancelSheet} title="Request to cancel this project">
         <Txt variant="footnote" tone="muted">
@@ -609,6 +635,6 @@ export default function ProjectDetailScreen() {
           </>
         )}
       </Sheet>
-    </ScreenScroll>
+    </View>
   );
 }
