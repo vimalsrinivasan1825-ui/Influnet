@@ -81,6 +81,27 @@ export async function withAdmin(
   return { ok: true, supabase, user: auth.user };
 }
 
+/**
+ * A Supabase client bound to the CALLER's JWT.
+ *
+ * Needed because `withAdmin` hands back a SERVICE-ROLE client, which has no
+ * `auth.uid()`. Any RPC that guards itself with `is_admin()` will therefore
+ * fail when called with it — the function cannot see who is asking. Admin
+ * routes that call such an RPC need this instead.
+ */
+export function callerClient(req: Request) {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: { Authorization: req.headers.get('Authorization') ?? '' },
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
+      },
+    }
+  );
+}
+
 export async function withAuth(
   req: Request,
   opts?: { role?: UserRole }

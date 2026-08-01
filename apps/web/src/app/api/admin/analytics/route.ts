@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { callerClient, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * Platform analytics, computed from our own database.
@@ -26,19 +26,8 @@ export async function GET(req: Request) {
     const daysRaw = Number(url.searchParams.get('days') ?? 30);
     const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 180) : 30;
 
-    // Rebuild a caller-scoped client so is_admin() sees a real auth.uid().
-    const { createClient } = await import('@supabase/supabase-js');
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const scoped = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: { Authorization: authHeader },
-          fetch: (input: any, init: any) => fetch(input, { ...init, cache: 'no-store' }),
-        },
-      }
-    );
+    // Caller-scoped so is_admin() inside the RPCs sees a real auth.uid().
+    const scoped = callerClient(req);
 
     const [growth, funnel, support] = await Promise.all([
       scoped.rpc('get_admin_growth_series', { p_days: days }),

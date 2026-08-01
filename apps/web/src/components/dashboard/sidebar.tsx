@@ -25,6 +25,8 @@ import {
   MessageSquareHeart,
   ShieldAlert,
   LifeBuoy,
+  Activity,
+  HeartPulse,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,7 +63,9 @@ const BUSINESS_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { label: "Overview", href: "/dashboard/admin", icon: Shield },
+  { label: "Live activity", href: "/dashboard/admin/activity", icon: Activity },
   { label: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
+  { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
   { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
   { label: "Support", href: "/dashboard/admin/support", icon: Inbox },
   // Reports had a working API since migration 056 and no screen at all — every
