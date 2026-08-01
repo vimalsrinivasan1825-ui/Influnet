@@ -43,7 +43,7 @@ export function WelcomeModal({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (username) setLink(`${window.location.origin}/c/${username}`);
+    if (username) setLink(`${window.location.origin}/${username}`);
 
     // The account already knows this card has been shown.
     if (seen) return;

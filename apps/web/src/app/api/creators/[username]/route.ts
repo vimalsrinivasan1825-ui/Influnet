@@ -46,7 +46,7 @@ export async function GET(
   // ctaHref is a web path, used by the web overlay's <Link>. ctaAction is the
   // same decision expressed platform-agnostically, so the mobile app (which has
   // its own routes) can drive the identical restriction without parsing a URL.
-  let ctaHref = `/c/${username}`;
+  let ctaHref = `/${username}`;
   let ctaLabel = 'View full profile';
   let ctaAction: 'edit' | 'work_with_me' | 'request_sent' | 'view_project' | 'view_only' = 'view_only';
   let ctaProjectId: string | null = null;

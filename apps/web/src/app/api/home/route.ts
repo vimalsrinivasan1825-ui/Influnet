@@ -62,7 +62,7 @@ export async function GET(req: Request) {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      publicPath = infl?.username ? `/c/${infl.username}` : null;
+      publicPath = infl?.username ? `/${infl.username}` : null;
 
       // Everything a brand sees on /c/[username], read from the same sources.
       // A creator's own dashboard showing a different set of numbers than their

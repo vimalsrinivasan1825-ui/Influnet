@@ -279,7 +279,7 @@ export function buildMediaKitView(
     languages: (profile.languages ?? []).slice(0, 4),
     niches: (profile.niche ?? []).slice(0, 8),
     topAudience: topAudienceOf(age),
-    profileUrl: `${opts.origin ?? publicOrigin()}/c/${username}`,
+    profileUrl: `${opts.origin ?? publicOrigin()}/${username}`,
     snapshotAge: relativeAge(instagram?.fetchedAt ?? null),
   };
 }

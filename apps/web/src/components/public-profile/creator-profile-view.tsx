@@ -851,7 +851,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
       <footer className={styles.mkfooter}>
         <span>© {new Date().getFullYear()} Influnet · All rights reserved</span>
         <div className={styles.flinks}>
-          <Link href={`/c/${data.username}/media-kit`} style={{ color: 'inherit', textDecoration: 'none' }}>View Media Kit</Link>
+          <Link href={`/${data.username}/media-kit`} style={{ color: 'inherit', textDecoration: 'none' }}>View Media Kit</Link>
         </div>
       </footer>
 

@@ -139,10 +139,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ title: 'Settings' }} />
             <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
             <Stack.Screen name="verification" options={{ title: 'Verify Instagram' }} />
-            <Stack.Screen
-              name="verification-guide"
-              options={{ title: 'How to verify', presentation: 'modal' }}
-            />
+            <Stack.Screen name="verification-guide" options={{ title: 'How to verify' }} />
             <Stack.Screen name="search" options={{ title: 'Search' }} />
             <Stack.Screen name="creator/[username]" options={{ title: '' }} />
             <Stack.Screen name="portfolio/add" options={{ title: 'Add past work' }} />
@@ -151,6 +148,8 @@ export default function RootLayout() {
             <Stack.Screen name="conversations/[id]" options={{ title: '' }} />
             <Stack.Screen name="projects/[id]/index" options={{ title: 'Project' }} />
             <Stack.Screen name="projects/[id]/stage/[stage]" options={{ title: 'Stage' }} />
+            <Stack.Screen name="projects/[id]/change-requests" options={{ title: 'Change requests' }} />
+            <Stack.Screen name="projects/[id]/activity" options={{ title: 'Activity' }} />
           </Stack>
 
           {/* Covers the first frame until the animation has played AND the

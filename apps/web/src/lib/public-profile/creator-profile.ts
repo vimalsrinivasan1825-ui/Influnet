@@ -736,7 +736,7 @@ export function buildCreatorProfileView(
     // brand would make a spending decision on.
     reviews: opts.reviews && opts.reviews.count > 0 ? opts.reviews : null,
     usingMock: useMock,
-    profileUrl: `${origin}/c/${username}`,
+    profileUrl: `${origin}/${username}`,
     snapshotAge: relativeAge(ig?.fetchedAt ?? null),
     instagramHandle: cleanHandle(profile.instagramHandle ?? null),
     youtubeHandle: cleanHandle(profile.youtubeHandle ?? (yt as any)?.handle ?? null),

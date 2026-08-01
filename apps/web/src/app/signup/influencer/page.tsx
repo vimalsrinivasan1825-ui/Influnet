@@ -559,7 +559,7 @@ function InfluencerSignupContent() {
                   </p>
                 )}
                 <p className="mt-1 text-xs text-content-muted">
-                  Your public profile will be {publicProfileUrlDisplay("c", username || "username")}
+                  Your public profile will be {publicProfileUrlDisplay(username || "username")}
                 </p>
               </div>
               <div>

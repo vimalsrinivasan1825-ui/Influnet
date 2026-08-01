@@ -125,7 +125,7 @@ export default function MediaKitViewComponent({ data, qrSvg, isOwner, ctaHref, c
 
         {isOwner && (
           <div className={styles.toolbar}>
-            <Link className={`${styles.btn} ${styles.sm}`} href={`/c/${data.username}`}><Ic d="M19 12H5M11 6l-6 6 6 6" />Back to profile</Link>
+            <Link className={`${styles.btn} ${styles.sm}`} href={`/${data.username}`}><Ic d="M19 12H5M11 6l-6 6 6 6" />Back to profile</Link>
             <div className={styles.grp}>
               <span className={styles.glbl}>Theme</span>
               <div className={styles.seg} role="group" aria-label="Theme">
@@ -352,7 +352,7 @@ export default function MediaKitViewComponent({ data, qrSvg, isOwner, ctaHref, c
       <footer className={styles.mkfooter}>
         <span>© {new Date().getFullYear()} Influnet · All rights reserved</span>
         <div className={styles.flinks}>
-          <Link href={`/c/${data.username}`} style={{ color: 'inherit', textDecoration: 'none' }}>View profile</Link>
+          <Link href={`/${data.username}`} style={{ color: 'inherit', textDecoration: 'none' }}>View profile</Link>
         </div>
       </footer>
     </div>

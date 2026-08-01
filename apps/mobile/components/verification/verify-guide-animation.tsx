@@ -121,6 +121,9 @@ export function VerifyGuideAnimation({
   const t = useSharedValue(0);
   const playingSV = useSharedValue(playing);
   const speedSV = useSharedValue(speed);
+  // 0 until every target rect has been measured. See the note in the effect
+  // that sets it: measuring must happen with the camera at identity.
+  const ready = useSharedValue(0);
   useEffect(() => { playingSV.value = playing; }, [playing, playingSV]);
   useEffect(() => { speedSV.value = speed; }, [speed, speedSV]);
 
@@ -132,7 +135,7 @@ export function VerifyGuideAnimation({
   }, [onStep]);
 
   useFrameCallback((frame) => {
-    if (!playingSV.value) return;
+    if (!playingSV.value || ready.value === 0) return;
     const dt = Math.min(frame.timeSincePreviousFrame ?? 16, 60);
     t.value = (t.value + dt * speedSV.value) % TOTAL;
     runOnJS(reportStep)(t.value);
@@ -193,7 +196,40 @@ export function VerifyGuideAnimation({
     rPhone.value = rel(phoneRect);
     vw.value = viewSize.w;
     vh.value = viewSize.h;
+
+    // Web measures with the rig's transform forced to "none", then restores it
+    // (see the web file's measure()). measureInWindow has no such escape: it
+    // reports ON-SCREEN coords, so anything measured while the camera is live
+    // comes back multiplied by whatever zoom was showing. Each rect resolves on
+    // its own requestAnimationFrame, so the first few to land start the camera
+    // moving and every later one is measured THROUGH it — a row measured at
+    // 2.4x reports 2.4x its true size, and camFor's
+    // `s = min(W/(r.w + pad*2), ...)` then collapses to 1. That is why the
+    // bio-row and edit-profile shots stopped zooming while the wide shot, which
+    // needs no zoom, still looked right.
+    //
+    // Holding the clock and the camera at identity until every rect is in is
+    // the direct equivalent of web's reset: all measuring then happens at
+    // scale 1, so every rect is true.
+    if (
+      [copyRect, verifyRect, linkCardRect, igIconRect, infIconRect,
+       igEditRect, bioRowRect, igDoneRect, phoneRect].every((r) => r.w > 1 && r.h > 1)
+    ) {
+      ready.value = 1;
+    }
   }, [copyRect, verifyRect, linkCardRect, igIconRect, infIconRect, igEditRect, bioRowRect, igDoneRect, phoneRect, viewSize]);
+
+  // Fail-safe for the gate above. Requiring ALL nine rects means one that never
+  // reports freezes the entire guide at frame 0 — which is exactly what shipped
+  // when bioRowRef was left unattached: that rect could never be measured, the
+  // `every` check could never pass, and the animation was completely static.
+  // Never let measurement be load-bearing for playback: if anything is still
+  // missing by now, run regardless. Worst case is the old behaviour where one
+  // shot does not zoom, which beats a guide that does nothing at all.
+  useEffect(() => {
+    const id = setTimeout(() => { ready.value = 1; }, 1500);
+    return () => clearTimeout(id);
+  }, [ready]);
 
   // ── camera ───────────────────────────────────────────────────
   // Clamped against the DEVICE rect, not the viewport — a zoom that clamped to
@@ -201,6 +237,14 @@ export function VerifyGuideAnimation({
   // narrower than the card. Same fix as the web version, same reason.
   const camFor = useCallback(function camForImpl(r: Rect, pad: number, maxZoom: number, bounds: Rect, W: number, H: number) {
     'worklet';
+    // Mirrors the web version's `if (!r) return identity`. Measured rects start
+    // as ZERO_RECT (w=1,h=1) until their async measureInWindow resolves — without
+    // this guard the very first frames computed a real zoom from that phantom
+    // 1x1 rect, which clamps to maxZoom centered on a single pixel: the huge
+    // zoomed-in sliver stuck in the corner with everything else blank. ptrStyle
+    // below already guards the same way (`r.w > 1 ? ... : off`); this just
+    // brings the camera in line with it.
+    if (r.w <= 1 || bounds.w <= 1) return { s: 1, x: 0, y: 0 };
     const s = Math.max(1, Math.min(maxZoom, Math.min(W / (r.w + pad * 2), H / (r.h + pad * 2))));
     const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
     let x = W / 2 - cx * s, y = H / 2 - cy * s;
@@ -210,6 +254,10 @@ export function VerifyGuideAnimation({
   }, []);
 
   const camStyle = useAnimatedStyle(() => {
+    // Identity while measuring, so every measureInWindow reads a true rect.
+    if (ready.value === 0) {
+      return { transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }] };
+    }
     const W = vw.value, H = vh.value, P = rPhone.value;
     const wide = camFor(P, 8, 2.4, P, W, H);
     type K = [number, { s: number; x: number; y: number }];
@@ -243,7 +291,22 @@ export function VerifyGuideAnimation({
     const s = a[1].s + (b[1].s - a[1].s) * p;
     const x = a[1].x + (b[1].x - a[1].x) * p;
     const y = a[1].y + (b[1].y - a[1].y) * p;
-    return { transform: [{ translateX: x }, { translateY: y }, { scale: s }] };
+    // camFor works in web's coordinate space, where the rig carries
+    // `origin-top-left` and a local point cx therefore lands at cx*s + x.
+    // RN has no such class and scales about the view's CENTRE, so the same
+    // numbers put cx at cx*s + (W/2)(1-s) + x — every shot ended up
+    // (W/2)(s-1) too far left. At the wide shot (s~1.06) that is only ~11pt,
+    // but at a 2.6x zoom it is ~300pt: the subject slid off the left edge and
+    // the right half of the card went empty. Re-express the top-left-origin
+    // offset for a centre-origin transform; at s=1 both agree, so the wide
+    // shot is unchanged.
+    return {
+      transform: [
+        { translateX: x + (W / 2) * (s - 1) },
+        { translateY: y + (H / 2) * (s - 1) },
+        { scale: s },
+      ],
+    };
   });
 
   // ── pointer ──────────────────────────────────────────────────
@@ -513,7 +576,7 @@ export function VerifyGuideAnimation({
             </View>
             <View style={[styles.igeRow, { borderColor: c.hairline }]}><Txt style={rowK}>Name</Txt><Txt c={c.content} size={10.5} style={{ paddingTop: 2 }}>{name}</Txt></View>
             <View style={[styles.igeRow, { borderColor: c.hairline }]}><Txt style={rowK}>Username</Txt><Txt c={c.content} size={10.5} style={{ paddingTop: 2 }}>{handle}</Txt></View>
-            <Animated.View style={[styles.igeRow, bioRowStyle, { borderColor: c.hairline }]}>
+            <Animated.View ref={bioRowRef} onLayout={onBioRowLayout} style={[styles.igeRow, bioRowStyle, { borderColor: c.hairline }]}>
               <Txt style={rowK}>Bio</Txt>
               <Txt c={c.content} size={10.5} style={{ paddingTop: 2, lineHeight: 15 }}>
                 Food &amp; travel creator, Chennai
@@ -605,10 +668,21 @@ function IgStat({ n, label, c }: { n: string; label: string; c: { content: strin
 }
 
 const styles = StyleSheet.create({
+  // Matches web's `h-[330px]` exactly. Do not make this height dynamic: any
+  // state-driven resize re-fires every onLayout, and those re-measurements run
+  // WHILE the camera transform is live, so measureInWindow returns
+  // camera-warped rects that feed straight back into the camera keyframes.
   view: { height: 330, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   phone: {
+    // Web is `left:50%; top:50%; transform: translate(-50%,-50%) scale(0.7)`.
+    // translate(-50%,-50%) is half the element's OWN layout box (240x420), so
+    // the RN equivalent is -120/-210 — not -84/-147, which is half the
+    // *post-scale* size (168x294) and left the phone 36pt right and 63pt low
+    // of centre, hanging off the bottom of the card. RN scales about the
+    // centre, so the margins must cancel the untransformed box, not the
+    // scaled one.
     position: 'absolute', width: 240, height: 420, left: '50%', top: '50%',
-    marginLeft: -84, marginTop: -147, transform: [{ scale: 0.7 }],
+    marginLeft: -120, marginTop: -210, transform: [{ scale: 0.7 }],
     borderRadius: 26, borderWidth: 1, overflow: 'hidden',
   },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 6, height: 26 },

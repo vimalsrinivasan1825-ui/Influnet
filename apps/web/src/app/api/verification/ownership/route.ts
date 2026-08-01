@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { fetchInstagramProfile, normalizeHandle, InstagramProviderError } from '@/lib/instagram';
-import { publicOriginDisplay, publicProfileUrl } from '@/lib/site';
+import { originFromHeaders } from '@/lib/site';
 
 // The confirm step scrapes the live bio (Apify actor ~15s).
 export const maxDuration = 60;
@@ -31,8 +31,12 @@ const CONFIRMABLE_PLATFORMS = new Set(['instagram']);
  * owner's bio still carries the link. Blocking username reuse is the guard for
  * that; see the note in the confirm branch.
  */
-function profileMarker(kind: 'c' | 'b', username: string): string {
-  return publicProfileUrl(kind, username);
+function profileMarker(origin: string, username: string): string {
+  // Derived from the REQUEST origin, not the build-time one: this string is
+  // stored and later matched against the creator's live bio, so it has to be
+  // the same host the browser told them to paste. No /c or /b segment — see
+  // lib/site.ts.
+  return `${origin}/${username}`;
 }
 
 /**
@@ -53,11 +57,20 @@ function bioContainsMarker(bio: string, marker: string): boolean {
       .replace(/^www\./, '')
       .replace(/\/+$/, '');
 
-  const needle = strip(marker);
   // Collapse whitespace so a bio that wraps mid-link still matches, and drop
   // zero-width characters Instagram sometimes injects into bio text.
   const haystack = strip(bio).replace(/[​-‏﻿]/g, '').replace(/\s+/g, '');
-  return haystack.includes(needle.replace(/\s+/g, ''));
+
+  // Profile URLs dropped their /c and /b segment, but bios did not: every
+  // creator who verified before that change still has host/c/<username> sitting
+  // in their Instagram bio, and it is re-scraped on every re-verification.
+  // Accept the legacy shapes as well as the current one, or the switch would
+  // silently un-verify everyone who already did the handshake.
+  const current = strip(marker);
+  const legacy = current.replace(/^([^/]+)\/(.+)$/, (_m, host, rest) => `${host}/c/${rest}`);
+  const legacyBusiness = current.replace(/^([^/]+)\/(.+)$/, (_m, host, rest) => `${host}/b/${rest}`);
+
+  return [current, legacy, legacyBusiness].some((n) => haystack.includes(n.replace(/\s+/g, '')));
 }
 
 // GET: current ownership-claim status for the caller's handle (drives the UI).
@@ -124,7 +137,8 @@ export async function POST(req: Request) {
         'Set your Influnet username first — your public profile link is what we look for in your bio.',
       );
     }
-    const marker = profileMarker(kind, username);
+    const origin = originFromHeaders(req.headers);
+    const marker = profileMarker(origin, username);
 
     // ── INITIATE ────────────────────────────────────────────────────────────
     if (action === 'initiate') {
@@ -144,7 +158,7 @@ export async function POST(req: Request) {
         profile_url: marker,
         // Kept for older clients that read `verify_url`; same value now.
         verify_url: marker,
-        display_url: `${publicOriginDisplay()}/${kind}/${username}`,
+        display_url: marker.replace(/^https?:\/\//, ''),
         expires_in: TTL_SECONDS,
         instructions:
           `Add your Influnet profile link to your Instagram bio, keep your account public, then tap Verify. Nothing is posted to your account — and you can leave the link there, it is the page you want brands to land on anyway.`,
