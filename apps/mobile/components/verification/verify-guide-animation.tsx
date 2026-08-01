@@ -121,6 +121,9 @@ export function VerifyGuideAnimation({
   const t = useSharedValue(0);
   const playingSV = useSharedValue(playing);
   const speedSV = useSharedValue(speed);
+  // 0 until every target rect has been measured. See the note in the effect
+  // that sets it: measuring must happen with the camera at identity.
+  const ready = useSharedValue(0);
   useEffect(() => { playingSV.value = playing; }, [playing, playingSV]);
   useEffect(() => { speedSV.value = speed; }, [speed, speedSV]);
 
@@ -132,7 +135,7 @@ export function VerifyGuideAnimation({
   }, [onStep]);
 
   useFrameCallback((frame) => {
-    if (!playingSV.value) return;
+    if (!playingSV.value || ready.value === 0) return;
     const dt = Math.min(frame.timeSincePreviousFrame ?? 16, 60);
     t.value = (t.value + dt * speedSV.value) % TOTAL;
     runOnJS(reportStep)(t.value);
@@ -193,6 +196,27 @@ export function VerifyGuideAnimation({
     rPhone.value = rel(phoneRect);
     vw.value = viewSize.w;
     vh.value = viewSize.h;
+
+    // Web measures with the rig's transform forced to "none", then restores it
+    // (see the web file's measure()). measureInWindow has no such escape: it
+    // reports ON-SCREEN coords, so anything measured while the camera is live
+    // comes back multiplied by whatever zoom was showing. Each rect resolves on
+    // its own requestAnimationFrame, so the first few to land start the camera
+    // moving and every later one is measured THROUGH it — a row measured at
+    // 2.4x reports 2.4x its true size, and camFor's
+    // `s = min(W/(r.w + pad*2), ...)` then collapses to 1. That is why the
+    // bio-row and edit-profile shots stopped zooming while the wide shot, which
+    // needs no zoom, still looked right.
+    //
+    // Holding the clock and the camera at identity until every rect is in is
+    // the direct equivalent of web's reset: all measuring then happens at
+    // scale 1, so every rect is true.
+    if (
+      [copyRect, verifyRect, linkCardRect, igIconRect, infIconRect,
+       igEditRect, bioRowRect, igDoneRect, phoneRect].every((r) => r.w > 1 && r.h > 1)
+    ) {
+      ready.value = 1;
+    }
   }, [copyRect, verifyRect, linkCardRect, igIconRect, infIconRect, igEditRect, bioRowRect, igDoneRect, phoneRect, viewSize]);
 
   // ── camera ───────────────────────────────────────────────────
@@ -218,6 +242,10 @@ export function VerifyGuideAnimation({
   }, []);
 
   const camStyle = useAnimatedStyle(() => {
+    // Identity while measuring, so every measureInWindow reads a true rect.
+    if (ready.value === 0) {
+      return { transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }] };
+    }
     const W = vw.value, H = vh.value, P = rPhone.value;
     const wide = camFor(P, 8, 2.4, P, W, H);
     type K = [number, { s: number; x: number; y: number }];
