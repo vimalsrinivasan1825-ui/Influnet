@@ -1,17 +1,23 @@
 name: Azure Static Web Apps CI/CD
 
 on:
+  # Manual run: the landing's login/signup links are baked in from
+  # NEXT_PUBLIC_APP_URL at build time, so repointing them at a different
+  # environment is a redeploy with no source change to trigger it.
+  workflow_dispatch:
   push:
     branches:
       - dev
     paths:
       - 'apps/landing/**'
+      - '.github/workflows/azure-static-web-apps-proud-smoke-00f74a310.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
       - dev
     paths:
       - 'apps/landing/**'
+      - '.github/workflows/azure-static-web-apps-proud-smoke-00f74a310.yml'
 
 jobs:
   build_and_deploy_job:
@@ -37,7 +43,7 @@ jobs:
           output_location: "" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
         env:
-          NEXT_PUBLIC_APP_URL: "https://dev.influnet.io"
+          NEXT_PUBLIC_APP_URL: "https://staging.influnet.io"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
