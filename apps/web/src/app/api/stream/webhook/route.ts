@@ -123,18 +123,13 @@ export async function POST(req: Request) {
             .eq('id', senderId)
             .maybeSingle();
 
-          const senderName = senderProfile?.name || message.user?.name || 'A user';
-          const { notifyUser } = await import('@/lib/notify');
-
-          for (const p of participants) {
-            await notifyUser({
-              userId: p.user_id,
-              type: 'message',
-              title: `New message from ${senderName}`,
-              body: messageText.length > 100 ? messageText.slice(0, 97) + '...' : messageText,
-              link: `/dashboard/messages?conv=${conversationId}`,
-            });
-          }
+          const { notifyNewMessage } = await import('@/lib/notify');
+          await notifyNewMessage({
+            conversationId,
+            recipientIds: participants.map((p) => p.user_id),
+            senderName: senderProfile?.name || message.user?.name || 'A user',
+            text: messageText,
+          });
         }
       } catch (notifErr) {
         console.error('[Stream Webhook] Failed to notify user:', notifErr);

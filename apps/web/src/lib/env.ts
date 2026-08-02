@@ -62,6 +62,8 @@ const envSchema = z.object({
   EMAIL_LOGO_URL: z.string().optional(),
   EMAIL_REQUIRE_VERIFIED: z.enum(['true', 'false']).optional(),
   EMAIL_DAILY_CAP: z.coerce.number().int().positive().optional(),
+  /** Comma-separated template ids to silence, e.g. "payment_failed,unread_messages". */
+  EMAIL_DISABLED_TEMPLATES: z.string().optional(),
   /** Resend webhook signing secret — without it, bounces are never suppressed. */
   RESEND_WEBHOOK_SECRET: z.string().optional(),
   NOTIFY_EMAILS_ENABLED: z

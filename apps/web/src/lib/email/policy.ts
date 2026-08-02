@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 import { sendEmail, emailsEnabled, isValidEmail } from './client';
-import { getTemplate, type EmailCategory, type TemplateDef } from './templates';
+import { getTemplate, type EmailCategory, type TemplateDef, type TemplateId } from './templates';
 import { unsubscribeUrl } from './unsubscribe';
 
 /**
@@ -16,6 +16,7 @@ import { unsubscribeUrl } from './unsubscribe';
 
 export type SkipReason =
   | 'disabled'
+  | 'template_disabled'
   | 'no_recipient'
   | 'unverified'
   | 'suppressed'
@@ -31,6 +32,33 @@ export type DeliveryResult =
 
 /** Tier-B mails per user per day. Beyond this we stop; the in-app feed still has everything. */
 const DAILY_CAP = Number(process.env.EMAIL_DAILY_CAP || 6);
+
+/**
+ * Per-template kill switch, e.g. `EMAIL_DISABLED_TEMPLATES=payment_failed,unread_messages`.
+ *
+ * The switches above it are all-or-nothing (`NOTIFY_EMAILS_ENABLED`) or
+ * per-person (`email_preferences`). Neither helps with the case this exists for:
+ * one template misbehaving — bad copy, a broken link, a loop mailing the same
+ * people — where you want that ONE mail silenced in seconds without a deploy and
+ * without taking password resets down with it.
+ *
+ * Read per call rather than cached at module load so changing the variable takes
+ * effect on the next send, not the next cold start.
+ *
+ * Deliberately applies to account-tier mail too. Every other gate exempts
+ * tier A, but this one is the operator's override of last resort — if a
+ * verification mail is the thing looping, "you may not turn it off" is the
+ * wrong answer.
+ */
+function templateDisabled(templateId: string): boolean {
+  const raw = (process.env.EMAIL_DISABLED_TEMPLATES || '').trim();
+  if (!raw) return false;
+  return raw
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(templateId.toLowerCase());
+}
 
 function service(): SupabaseClient | null {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -195,7 +223,8 @@ function requireVerified(): boolean {
 export interface DeliverInput {
   /** Recipient profile id. Used for preferences, cap and the unsubscribe token. */
   userId: string;
-  templateId: string;
+  /** Typed against the registry so a typo fails to compile, not at send time. */
+  templateId: TemplateId;
   data: Record<string, unknown>;
   /**
    * Unique per logical event, e.g. `payment:<razorpay_id>` or
@@ -221,6 +250,11 @@ export async function deliverEmail(input: DeliverInput): Promise<DeliveryResult>
   if (!tpl) {
     console.error('[email] unknown template:', input.templateId);
     return { sent: false, reason: 'unknown_template' };
+  }
+
+  if (templateDisabled(tpl.id)) {
+    console.info('[email] template switched off via EMAIL_DISABLED_TEMPLATES:', tpl.id);
+    return { sent: false, reason: 'template_disabled' };
   }
 
   const sb = service();

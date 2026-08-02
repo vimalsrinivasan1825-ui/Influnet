@@ -3,6 +3,8 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { fetchInstagramProfile, normalizeHandle, InstagramProviderError } from '@/lib/instagram';
 import { originFromHeaders } from '@/lib/site';
+import { deliverEmail } from '@/lib/email/policy';
+import { profileNames, nameOf } from '@/lib/email/context';
 
 // The confirm step scrapes the live bio (Apify actor ~15s).
 export const maxDuration = 60;
@@ -153,6 +155,31 @@ export async function POST(req: Request) {
         const already = /already verified/i.test(error.message || '');
         return jsonError(already ? 409 : 500, already ? error.message : 'Could not start verification', error);
       }
+      // Mail the marker too. Verification is a two-device job — you start it on
+      // the desktop dashboard and finish it in the Instagram app on your phone —
+      // so the link needs to exist somewhere reachable from the phone.
+      try {
+        const names = await profileNames([user.id]);
+        await deliverEmail({
+          userId: user.id,
+          templateId: 'verification_code',
+          // One mail per claim window per handle. Re-initiating the same handle
+          // inside the window is the common "I lost the tab" case and should
+          // not produce a second identical mail.
+          dedupeKey: `ownership:${platform}:${normHandle}:${user.id}`,
+          data: {
+            name: nameOf(names, user.id),
+            platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+            handle: `@${normHandle}`,
+            code: marker,
+            expiresInMinutes: Math.round(TTL_SECONDS / 60),
+            dashboardUrl: '/dashboard/verify',
+          },
+        });
+      } catch (emailErr) {
+        console.error('[ownership] verification email failed:', emailErr);
+      }
+
       return NextResponse.json({
         code: marker,
         profile_url: marker,

@@ -44,6 +44,10 @@ export async function GET(req: Request) {
       allowlist: process.env.EMAIL_ALLOWLIST || null,
       requireVerified: (process.env.EMAIL_REQUIRE_VERIFIED || 'true').trim() !== 'false',
       dailyCap: Number(process.env.EMAIL_DAILY_CAP || 6),
+      // Surfaced because this console exists to answer "why did nothing
+      // arrive?" — a silenced template with no visible cause is the worst
+      // possible version of that question.
+      disabledTemplates: process.env.EMAIL_DISABLED_TEMPLATES || null,
       webhookConfigured: !!process.env.RESEND_WEBHOOK_SECRET,
       environment: process.env.APP_ENV || process.env.NODE_ENV || 'local',
     },
@@ -114,6 +118,7 @@ export async function POST(req: Request) {
     if (!result.sent) {
       const explain: Record<string, string> = {
         disabled: 'NOTIFY_EMAILS_ENABLED is not "true" in this environment.',
+        template_disabled: `“${tpl.label}” is switched off via EMAIL_DISABLED_TEMPLATES in this environment.`,
         no_key: 'RESEND_API_KEY is not set in this environment.',
         not_allowlisted: `${to} is blocked by EMAIL_ALLOWLIST in this environment.`,
         invalid_address: 'That address is not valid.',

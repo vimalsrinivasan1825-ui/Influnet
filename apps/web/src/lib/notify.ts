@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { deliverEmail } from './email/policy';
-import type { EmailCategory } from './email/templates';
+import type { EmailCategory, TemplateId } from './email/templates';
 
 // Notification types persisted in public.notifications.type (see migration 047).
 export type NotificationType =
@@ -29,8 +29,11 @@ export interface NotifyEmailOptions {
    * Template id from lib/email/templates.ts. Omit to use the `generic`
    * layout built from this notification's own title/body/link — fine for
    * one-off events, worth upgrading for anything a user sees often.
+   *
+   * Typed against the registry so a typo is a compile error rather than a
+   * silent `unknown_template` at send time.
    */
-  templateId?: string;
+  templateId?: TemplateId;
   /** Data for that template. Missing fields fall back to the template's sample. */
   data?: Record<string, unknown>;
   /**
@@ -189,6 +192,61 @@ async function maybeEmail(input: NotifyInput): Promise<void> {
     }
   } catch (err) {
     console.error('[notify] exception while sending email:', err);
+  }
+}
+
+/**
+ * Fan a new chat message out to the other participants.
+ *
+ * Lives here because there are two ways a message arrives — the Stream webhook
+ * and the REST messages endpoint — and they must behave identically. In
+ * particular the dedupe key has to match byte-for-byte between them: it is what
+ * collapses a whole hour of chatter into one email, and two copies drifting
+ * apart would mean the same conversation mails twice in the same hour.
+ *
+ * Truncation, the hour bucket and the payload all live in this one function so
+ * that guarantee is structural rather than a comment asking two files to agree.
+ */
+export async function notifyNewMessage(input: {
+  conversationId: string;
+  recipientIds: string[];
+  senderName: string;
+  text: string;
+}): Promise<void> {
+  const { conversationId, recipientIds, senderName, text } = input;
+  if (recipientIds.length === 0) return;
+
+  const { hourBucket } = await import('./email/policy');
+  const { profileNames, nameOf } = await import('./email/context');
+
+  const preview = text.length > 100 ? `${text.slice(0, 97)}...` : text;
+  const chatLink = `/dashboard/messages?conv=${conversationId}`;
+  const names = await profileNames(recipientIds);
+
+  for (const userId of recipientIds) {
+    await notifyUser({
+      userId,
+      type: 'message',
+      title: `New message from ${senderName}`,
+      body: preview,
+      link: chatLink,
+      email: {
+        templateId: 'unread_messages',
+        // The only per-message email in the product. Everything inside one
+        // clock hour for this conversation collapses into the first send, so a
+        // busy chat produces one mail an hour rather than one per message.
+        dedupeKey: `message:${conversationId}:${userId}:${hourBucket()}`,
+        data: {
+          recipientName: nameOf(names, userId),
+          senderName,
+          // A conversation need not belong to a project — people talk before
+          // any project exists, which is the point of accepting a request.
+          projectName: null,
+          preview,
+          dashboardUrl: chatLink,
+        },
+      },
+    });
   }
 }
 

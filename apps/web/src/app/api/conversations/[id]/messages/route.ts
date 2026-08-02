@@ -109,18 +109,13 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
           .eq('id', user.id)
           .maybeSingle();
 
-        const senderName = senderProfile?.name || 'A user';
-        const { notifyUser } = await import('@/lib/notify');
-
-        for (const p of participants) {
-          await notifyUser({
-            userId: p.user_id,
-            type: 'message',
-            title: `New message from ${senderName}`,
-            body: content.length > 100 ? content.slice(0, 97) + '...' : content,
-            link: `/dashboard/messages?conv=${id}`,
-          });
-        }
+        const { notifyNewMessage } = await import('@/lib/notify');
+        await notifyNewMessage({
+          conversationId: id,
+          recipientIds: (participants as { user_id: string }[]).map((p) => p.user_id),
+          senderName: senderProfile?.name || 'A user',
+          text: content,
+        });
       }
     } catch (notifErr) {
       console.error('[Messages API] Failed to notify user:', notifErr);

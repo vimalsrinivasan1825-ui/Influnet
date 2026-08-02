@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireProjectParticipant } from '@/lib/project-access';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { deliverEmail } from '@/lib/email/policy';
+import { profileNames, nameOf } from '@/lib/email/context';
 
 // Helper for error responses. Server-side details are logged, never returned
 // to the client, to avoid leaking DB internals.
@@ -87,7 +89,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     // Check project status and access
     const { data: project, error: projErr } = await supabase
       .from('campaign_projects')
-      .select('status, owner_user_id, counterparty_user_id')
+      .select('status, owner_user_id, counterparty_user_id, title')
       .eq('id', id)
       .single();
 
@@ -119,6 +121,32 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         return jsonError(400, 'You have already reviewed this project');
       }
       return jsonError(500, 'Failed to insert review', insertErr);
+    }
+
+    // A review is permanent and public, and the person it is about was never
+    // told it existed. deliverEmail() rather than notifyUser() because
+    // `notifications.type` has no value for a review.
+    if (to_user_id) {
+      try {
+        const names = await profileNames([to_user_id, user.id]);
+        await deliverEmail({
+          userId: to_user_id,
+          templateId: 'review_received',
+          // One review per project per reviewer is already enforced by the
+          // unique index above, so the pair is a stable key.
+          dedupeKey: `review:${id}:${user.id}`,
+          data: {
+            recipientName: nameOf(names, to_user_id),
+            reviewerName: nameOf(names, user.id),
+            projectName: (project as { title?: string }).title || 'your project',
+            rating,
+            comment: comment || null,
+            profileUrl: '/dashboard/profile',
+          },
+        });
+      } catch (emailErr) {
+        console.error('[reviews] review email failed:', emailErr);
+      }
     }
 
     return NextResponse.json({ review });

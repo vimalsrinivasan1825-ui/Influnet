@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { notifyUser } from '@/lib/notify';
+import { profileNames, nameOf } from '@/lib/email/context';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -240,8 +241,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     }
 
     if (result?.awaiting_user_id) {
+      const awaitingId = result.awaiting_user_id as string;
+      const names = await profileNames([awaitingId]);
+      const chatLink = `/dashboard/messages?conv=${id}`;
+
       await notifyUser({
-        userId: result.awaiting_user_id as string,
+        userId: awaitingId,
         type: 'collab_request',
         title: `Terms proposed: “${title}”`,
         body: budget != null
@@ -249,7 +254,24 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
           : 'Open the chat to review the terms and start the project — or keep negotiating.',
         // Deep-links to THIS conversation so the notification says exactly
         // which chat to open.
-        link: `/dashboard/messages?conv=${id}`,
+        link: chatLink,
+        email: {
+          // Proposed terms are precisely "nothing moves until you answer",
+          // which is what this template says.
+          templateId: 'project_action_needed',
+          dedupeKey: `proposal:${result.proposal_id}`,
+          data: {
+            recipientName: nameOf(names, awaitingId),
+            projectName: title,
+            stage: 'Terms proposed',
+            action:
+              budget != null
+                ? `Review the terms — ₹${Number(budget).toLocaleString('en-IN')} — and accept them to start the project, or keep negotiating in the chat.`
+                : 'Review the terms and accept them to start the project, or keep negotiating in the chat.',
+            waitingSince: null,
+            dashboardUrl: chatLink,
+          },
+        },
       });
     }
 
@@ -292,6 +314,15 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
 
     const accepting = action === 'accept';
+
+    // Read the title BEFORE responding: respond_to_proposal returns ids only,
+    // and on the declined path there is no project row to read it back from.
+    const { data: proposalRow } = await supabase
+      .from('project_proposals')
+      .select('title')
+      .eq('id', proposal_id)
+      .maybeSingle();
+
     const { data: result, error } = await supabase.rpc('respond_to_proposal', {
       p_proposal_id: proposal_id,
       p_accept: accepting,
@@ -303,6 +334,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     const proposerId = result?.notify_user_id as string | undefined;
     if (proposerId) {
+      const names = await profileNames([proposerId, user.id]);
+      const actorName = nameOf(names, user.id);
+      const projectName = (proposalRow as { title?: string } | null)?.title || 'your project';
+      const destination =
+        accepting && result?.project_id
+          ? `/dashboard/projects/${result.project_id}`
+          : `/dashboard/messages?conv=${id}`;
+
       await notifyUser({
         userId: proposerId,
         type: 'project_stage',
@@ -312,9 +351,36 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           : note
             ? `Your terms were declined: “${note}” — pick it back up in the chat.`
             : 'Your terms were declined. Keep talking and propose new ones when you’re ready.',
-        link: accepting && result?.project_id
-          ? `/dashboard/projects/${result.project_id}`
-          : `/dashboard/messages?conv=${id}`,
+        link: destination,
+        email: accepting
+          ? {
+              templateId: 'project_stage',
+              dedupeKey: `proposal_accepted:${proposal_id}`,
+              data: {
+                recipientName: nameOf(names, proposerId),
+                projectName,
+                stage: 'brief',
+                actorName,
+                note: null,
+                dashboardUrl: destination,
+              },
+            }
+          : {
+              // project_stage would wrongly imply the project moved forward.
+              templateId: 'decision_outcome',
+              dedupeKey: `proposal_declined:${proposal_id}`,
+              data: {
+                recipientName: nameOf(names, proposerId),
+                actorName,
+                subjectName: projectName,
+                decision: 'Terms declined',
+                note: note || null,
+                consequence:
+                  'Nothing is lost — keep talking and propose new terms when you are ready.',
+                ctaLabel: 'Open the chat',
+                dashboardUrl: destination,
+              },
+            },
       });
     }
 

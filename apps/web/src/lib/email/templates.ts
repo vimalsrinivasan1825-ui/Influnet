@@ -72,6 +72,15 @@ const REASON: Record<EmailCategory, string> = {
 
 const inr = (amount: string | number) => `₹${typeof amount === 'number' ? amount.toLocaleString('en-IN') : amount}`;
 
+/** Minutes as something a person would say out loud — "24 hours", not "1440 minutes". */
+const duration = (minutes: number): string => {
+  if (!Number.isFinite(minutes) || minutes <= 0) return 'a short while';
+  if (minutes < 120) return `${Math.round(minutes)} minutes`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} hours`;
+  return `${Math.round(hours / 24)} days`;
+};
+
 // ── Tier A — account & security ─────────────────────────────────────────────
 
 export const welcomeEmail = define({
@@ -242,32 +251,38 @@ export const emailChangeEmail = define({
 
 export const verificationCodeEmail = define({
   id: 'verification_code',
-  label: 'Social ownership code',
-  description: 'The one-time code a creator puts in their Instagram/YouTube bio to prove ownership.',
+  label: 'Social ownership link',
+  description: 'The profile link a creator puts in their Instagram/YouTube bio to prove ownership.',
   tier: 'account',
   category: 'account',
   sample: {
     name: 'Ananya',
     platform: 'Instagram',
     handle: '@ananya.creates',
-    code: 'INF-4K2Q',
+    code: 'https://influnet.io/c/ananya',
     expiresInMinutes: 60,
     dashboardUrl: '/dashboard/verify',
   },
-  subject: (d) => `Your ${d.platform} verification code`,
+  subject: (d) => `Verify ${d.handle} on ${d.platform}`,
   render: (d) =>
     renderEmail({
-      preheader: `Add this code to your ${d.platform} bio to get verified.`,
-      heading: 'Your verification code',
+      preheader: `Add your Influnet profile link to your ${d.platform} bio to get verified.`,
+      heading: 'Verify your account',
       kicker: `To verify ${d.handle} on ${d.platform}.`,
       reason: REASON.account,
+      // The marker is the creator's PUBLIC PROFILE LINK, not a throwaway code
+      // (see api/verification/ownership/route.ts). The copy has to match that:
+      // telling someone to remove it afterwards would undo the one thing we
+      // actually want left in their bio.
       body: [
-        p(`Hi ${esc(d.name)}, add this code anywhere in your ${esc(d.platform)} bio, then come back and hit Check. Once we see it, you can remove it.`),
+        p(`Hi ${esc(d.name)}, add this link anywhere in your ${esc(d.platform)} bio, keep the account public, then come back and hit Check.`),
         code(d.code),
-        fineprint(`The code expires in ${d.expiresInMinutes} minutes. If it does, generate a new one from the dashboard.`),
+        p(`You can leave it there for good — it is the page you want brands landing on anyway, and it keeps your verified badge from lapsing.`),
+        // The window is 24h, so "1440 minutes" is technically right and useless.
+        fineprint(`This verification window stays open for ${duration(d.expiresInMinutes)}. If it closes before you finish, just start it again from the dashboard — there is no limit.`),
         button('Check my bio', d.dashboardUrl),
         divider(),
-        fineprint(`We never ask for your ${esc(d.platform)} password. Verification only ever reads your public bio.`),
+        fineprint(`We never ask for your ${esc(d.platform)} password. Verification only ever reads your public bio, and nothing is ever posted to your account.`),
       ].join(''),
     }),
 });
@@ -345,7 +360,6 @@ export const collabRequestEmail = define({
     budget: '25,000',
     deliverables: '2 Reels + 3 Stories',
     deadline: '20 Aug 2026',
-    expiresInDays: 7,
     dashboardUrl: '/dashboard/requests',
   },
   subject: (d) => `${d.businessName} wants to collaborate with you`,
@@ -366,7 +380,10 @@ export const collabRequestEmail = define({
         ]),
         p(`Nothing is committed yet — accepting opens a chat where you agree the details together before any project starts.`),
         button('Review the request', d.dashboardUrl),
-        fineprint(`This request expires in ${d.expiresInDays} days. Not a fit? Declining takes one tap and is completely fine.`),
+        // Requests do not expire: there is no expires_at column on
+        // collab_requests and nothing ages them out. Promising a deadline here
+        // would be the email inventing a lifecycle the product does not have.
+        fineprint(`Not a fit? Declining takes one tap and is completely fine.`),
       ].join(''),
     }),
 });
@@ -721,7 +738,13 @@ export const unreadMessagesEmail = define({
       unsubscribeUrl: ctx?.unsubscribeUrl,
       reason: REASON.message,
       body: [
-        p(`Hi ${esc(d.recipientName)}, <strong>${esc(d.senderName)}</strong> messaged you about <strong>${esc(d.projectName)}</strong>.`),
+        // Not every conversation belongs to a project — people talk before
+        // any project exists, which is the whole point of accepting a request.
+        p(
+          d.projectName
+            ? `Hi ${esc(d.recipientName)}, <strong>${esc(d.senderName)}</strong> messaged you about <strong>${esc(d.projectName)}</strong>.`
+            : `Hi ${esc(d.recipientName)}, <strong>${esc(d.senderName)}</strong> sent you a message.`,
+        ),
         d.preview ? quote(d.preview) : '',
         button('Reply', d.dashboardUrl),
         fineprint(`We roll these up — you will get at most one message email per conversation per hour.`),
@@ -758,6 +781,53 @@ export const genericEmail = define({
 });
 
 // ── Test ────────────────────────────────────────────────────────────────────
+
+/**
+ * One side answered the other: a cancellation asked for, accepted or declined,
+ * a proposed change taken or refused, terms turned down.
+ *
+ * These were six near-identical `generic` sends with their copy written inline
+ * in the route handlers, which put user-facing wording where nobody could
+ * preview it — the admin console lists this registry, so anything built from
+ * `generic` showed up there as lorem and could only be changed by editing an
+ * API route. They share one shape: who decided, about what, optionally why,
+ * and what is true now.
+ */
+export const decisionOutcomeEmail = define({
+  id: 'decision_outcome',
+  label: 'Decision on a shared item',
+  description:
+    'Cancellations, change requests and declined terms — someone answered, here is what changed.',
+  tier: 'activity',
+  category: 'project',
+  sample: {
+    recipientName: 'Ananya',
+    actorName: 'Nomad Coffee Co.',
+    subjectName: 'Winter roast launch',
+    decision: 'Cancellation requested',
+    // The other side's own words, when they gave any.
+    note: 'The campaign budget moved to next quarter.',
+    consequence:
+      'Nothing is cancelled yet — the project stays open until you respond, and the record and any payments remain available either way.',
+    ctaLabel: 'Open the project',
+    dashboardUrl: '/dashboard/projects',
+  },
+  subject: (d) => `${d.decision}: ${d.subjectName}`,
+  render: (d, ctx) =>
+    renderEmail({
+      preheader: d.consequence,
+      heading: d.decision,
+      kicker: d.subjectName,
+      unsubscribeUrl: ctx?.unsubscribeUrl,
+      reason: REASON.project,
+      body: [
+        p(`Hi ${esc(d.recipientName)}, <strong>${esc(d.actorName)}</strong> answered on <strong>${esc(d.subjectName)}</strong>.`),
+        d.note ? quote(d.note) : '',
+        p(esc(d.consequence)),
+        button(d.ctaLabel, d.dashboardUrl),
+      ].join(''),
+    }),
+});
 
 export const deliveryTestEmail = define({
   id: 'delivery_test',
@@ -813,6 +883,7 @@ export const TEMPLATES = {
   payment_received: paymentReceivedEmail,
   payment_failed: paymentFailedEmail,
   unread_messages: unreadMessagesEmail,
+  decision_outcome: decisionOutcomeEmail,
   generic: genericEmail,
   delivery_test: deliveryTestEmail,
 } satisfies Record<string, TemplateDef<any>>;

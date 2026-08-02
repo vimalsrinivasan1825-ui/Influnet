@@ -3,6 +3,7 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { CollabRequestSchema } from '@/lib/validators';
 import { notifyUser } from '@/lib/notify';
+import { profileNames, nameOf } from '@/lib/email/context';
 import { z } from 'zod';
 
 // PATCH Collab Schema (since it only exists here for now)
@@ -209,6 +210,8 @@ export async function POST(req: Request) {
       return jsonError(500, 'Failed to insert collab request', error);
     }
 
+    const names = await profileNames([to_user_id, user.id]);
+
     await notifyUser({
       userId: to_user_id,
       type: 'collab_request',
@@ -217,6 +220,21 @@ export async function POST(req: Request) {
         ? `A brand reached out about “${project_title}”. Accept it to open a conversation and talk terms.`
         : 'A brand reached out to collaborate. Accept it to open a conversation and talk terms.',
       link: '/dashboard/requests',
+      email: {
+        templateId: 'collab_request',
+        // Keyed on the request row, so a client retry that hits the unique
+        // index and re-POSTs can't mail the creator twice.
+        dedupeKey: `collab_request:${data.id}`,
+        data: {
+          creatorName: nameOf(names, to_user_id),
+          businessName: nameOf(names, user.id),
+          projectName: project_title || 'a collaboration',
+          budget: budget || null,
+          deliverables: project_description || null,
+          deadline: null,
+          dashboardUrl: '/dashboard/requests',
+        },
+      },
     });
 
     return NextResponse.json({ collab: data });
@@ -290,6 +308,15 @@ export async function PATCH(req: Request) {
       }
     }
 
+    // Both sides' names, for whichever notification branch runs below. Fetched
+    // here rather than beside the row fetch so the guards above — which can
+    // return 400/403/409 — don't pay for a lookup nothing will use. POST stores
+    // `project_title\n\ndescription` in one column, so the title is line one.
+    const names = await profileNames([collab.from_user_id, collab.to_user_id]);
+    const businessName = nameOf(names, collab.from_user_id);
+    const creatorName = nameOf(names, collab.to_user_id);
+    const projectName = collab.message?.split('\n')[0]?.trim() || 'a collaboration';
+
     let updated;
     let conversationId: string | null = null;
 
@@ -303,12 +330,21 @@ export async function PATCH(req: Request) {
       if (rpcError) return jsonError(500, 'Failed to accept collab request', rpcError);
       conversationId = (rpcResult?.conversation_id as string | undefined) ?? null;
 
+      const chatLink = conversationId
+        ? `/dashboard/messages?conv=${conversationId}`
+        : '/dashboard/messages';
+
       await notifyUser({
         userId: collab.from_user_id,
         type: 'collab_accepted',
         title: 'Your collaboration request was accepted',
         body: 'The creator accepted — start the conversation to agree on scope and budget, then create the project.',
-        link: conversationId ? `/dashboard/messages?conv=${conversationId}` : '/dashboard/messages',
+        link: chatLink,
+        email: {
+          templateId: 'collab_accepted',
+          dedupeKey: `collab_accepted:${collab.id}`,
+          data: { businessName, creatorName, projectName, dashboardUrl: chatLink },
+        },
       });
 
       // Fetch the updated collab to return
@@ -345,6 +381,11 @@ export async function PATCH(req: Request) {
           title: 'Collaboration request declined',
           body: 'The creator passed on this one.',
           link: '/dashboard/requests',
+          email: {
+            templateId: 'collab_declined',
+            dedupeKey: `collab_declined:${collab.id}`,
+            data: { businessName, creatorName, projectName, discoveryUrl: '/dashboard/discover' },
+          },
         });
       }
 
@@ -355,6 +396,25 @@ export async function PATCH(req: Request) {
           title: 'A creator reopened your request',
           body: 'They changed their mind — it’s back on. Accept it to open a conversation.',
           link: '/dashboard/requests',
+          email: {
+            // Deliberately `generic`, not collab_request: that template is
+            // addressed to the creator ("X wants to work with you") and the
+            // recipient here is the business getting its own request back.
+            templateId: 'generic',
+            // A request can be declined and reopened repeatedly, so the row id
+            // alone would suppress every reopen after the first. updated_at
+            // moves on each transition, which is exactly the granularity we
+            // want: retries of one reopen collapse, a later reopen does not.
+            dedupeKey: `collab_reopened:${collab.id}:${
+              (stdUpdated as { updated_at?: string } | null)?.updated_at ?? ''
+            }`,
+            data: {
+              title: `${creatorName} reopened your request`,
+              body: `${creatorName} changed their mind about “${projectName}” — the request is back in your dashboard. Accepting opens a conversation where you agree the details.`,
+              link: '/dashboard/requests',
+              ctaLabel: 'Open the request',
+            },
+          },
         });
       }
     }

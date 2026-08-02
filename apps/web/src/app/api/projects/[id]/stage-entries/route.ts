@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { z } from 'zod';
 import { notifyUser } from '@/lib/notify';
+import { profileNames, nameOf } from '@/lib/email/context';
 
 const PostSchema = z.object({
   stage_key: z.string().min(1),
@@ -105,12 +106,29 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     const senderRole = project.owner_user_id === user.id ? 'brand' : 'creator';
     if (counterpartyId) {
       const projectLabel = project.title ? `“${project.title}”` : 'your project';
+      const projectLink = `/dashboard/projects/${projectId}`;
+      const names = await profileNames([counterpartyId, user.id]);
+
       await notifyUser({
         userId: counterpartyId,
         type: 'project_stage',
         title: `${projectLabel}: new update`,
         body: `The ${senderRole} sent an update. Review it and reply.`,
-        link: `/dashboard/projects/${projectId}`,
+        link: projectLink,
+        email: {
+          templateId: 'project_stage',
+          // The entry row id — posting two updates on one stage should mail
+          // twice, so this must not be keyed on the stage.
+          dedupeKey: `stage_entry:${(created as { id?: string } | null)?.id ?? ''}`,
+          data: {
+            recipientName: nameOf(names, counterpartyId),
+            projectName: project.title || 'your project',
+            stage: stage_key,
+            actorName: nameOf(names, user.id),
+            note: 'They posted a new update on the project.',
+            dashboardUrl: projectLink,
+          },
+        },
       });
     }
 
