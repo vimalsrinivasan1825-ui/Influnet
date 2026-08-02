@@ -75,7 +75,7 @@ jobs:
 
       # Run-time: Backend secrets injected via az CLI (no Azure Portal access needed)
       - name: Set Backend Environment Variables on Container App
-        uses: azure/cli@v2
+        uses: azure/cli@v3
         with:
           azcliversion: latest
           inlineScript: |
