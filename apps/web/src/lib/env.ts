@@ -52,8 +52,18 @@ const envSchema = z.object({
     .transform((v) => v === 'true'),
 
   // Email — optional; sends are gated by NOTIFY_EMAILS_ENABLED anyway.
+  // Full setup: docs/operations/EMAIL_SYSTEM.md
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
+  EMAIL_REPLY_TO: z.string().optional(),
+  /** Comma-separated addresses or "@domain" suffixes. Set → only these can be mailed. */
+  EMAIL_ALLOWLIST: z.string().optional(),
+  EMAIL_UNSUBSCRIBE_SECRET: z.string().optional(),
+  EMAIL_LOGO_URL: z.string().optional(),
+  EMAIL_REQUIRE_VERIFIED: z.enum(['true', 'false']).optional(),
+  EMAIL_DAILY_CAP: z.coerce.number().int().positive().optional(),
+  /** Resend webhook signing secret — without it, bounces are never suppressed. */
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
   NOTIFY_EMAILS_ENABLED: z
     .enum(['true', 'false'])
     .default('false')
@@ -183,8 +193,27 @@ export function describeEnv(): {
     },
     {
       label: 'Email sends',
-      value: emailsOn ? 'ENABLED' : 'disabled (NOTIFY_EMAILS_ENABLED=false)',
+      value: !present('RESEND_API_KEY')
+        ? 'disabled (no RESEND_API_KEY)'
+        : emailsOn
+          ? `ENABLED as ${process.env.EMAIL_FROM || 'Influnet <noreply@influnet.io>'}`
+          : 'disabled (NOTIFY_EMAILS_ENABLED=false)',
       ok: true,
+    },
+    {
+      label: 'Email allowlist',
+      value: process.env.EMAIL_ALLOWLIST?.trim() || 'none (anyone can be mailed)',
+      // Sending enabled with no allowlist is correct in production and a
+      // liability anywhere else — flag it so a staging box pointed at real
+      // data doesn't quietly mail real users.
+      ok: true,
+    },
+    {
+      label: 'Bounce webhook',
+      value: present('RESEND_WEBHOOK_SECRET')
+        ? 'configured'
+        : 'NOT configured (bounces will not be suppressed)',
+      ok: !emailsOn || present('RESEND_WEBHOOK_SECRET'),
     },
     {
       label: 'Sentry',

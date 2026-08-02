@@ -11,3 +11,21 @@ verify_jwt = false
 
 [functions.auth-signup]
 verify_jwt = false
+
+# ── Auth Email (SMTP via Resend) ──────────────────────────────────────────────
+[auth.email]
+enable_confirmations = true
+
+[auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "env(SMTP_PASS)"
+admin_email = "noreply@influnet.io"
+sender_name = "Influnet"
+
+# ── Auth Email Templates ──────────────────────────────────────────────────────
+# Templates are generated via: npm run email:auth-templates
+# Then paste into Dashboard → Authentication → Email Templates
+# (CLI config.toml templates only work for local dev, not hosted projects)

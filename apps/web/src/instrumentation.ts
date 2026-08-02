@@ -23,7 +23,10 @@ export async function register() {
     cyan: '\x1b[36m',
   };
   const line = '━'.repeat(63);
-  const label = (s: string) => s.padEnd(13);
+  // Width follows the longest label rather than a fixed 13, so adding a row
+  // with a longer name doesn't run its label straight into its value.
+  const labelWidth = Math.max(13, ...info.rows.map((r) => r.label.length)) + 1;
+  const label = (s: string) => s.padEnd(labelWidth);
 
   const envColor =
     info.appEnv === 'production'

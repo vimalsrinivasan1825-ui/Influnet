@@ -1,0 +1,87 @@
+<!--
+  Influnet · Supabase Auth template: "Magic Link"
+
+  GENERATED FILE — do not edit by hand.
+  Source: apps/web/src/lib/email/templates.ts
+  Rebuild: npm run email:auth-templates  (from apps/web)
+
+  Paste the whole file into Supabase Dashboard → Authentication → Emails →
+  Magic Link → Message body (source view).
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="x-apple-disable-message-reformatting" />
+<meta name="color-scheme" content="light" />
+<meta name="supported-color-schemes" content="light" />
+<title>Confirm your email</title>
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<style>
+  /* Progressive enhancement only — everything critical is inlined below. */
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  table { border-collapse:collapse; }
+  img { -ms-interpolation-mode:bicubic; }
+  a { color:#ee3e96; }
+  @media only screen and (max-width:620px) {
+    .sm-px { padding-left:22px !important; padding-right:22px !important; }
+    .sm-py { padding-top:28px !important; padding-bottom:28px !important; }
+    .sm-h1 { font-size:23px !important; }
+  }
+  /* Light mode only — dark mode support removed. */
+</style>
+</head>
+<body style="margin:0;padding:0;background:#f5f6f8;font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;-webkit-font-smoothing:antialiased;">
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">One click confirms your address and finishes your Influnet signup.</div>
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f6f8;">
+    <tr>
+      <td align="center" style="padding:32px 12px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+
+          <!-- Header band -->
+          <tr>
+            <td class="sm-px" bgcolor="#ee3e96" background="" style="padding:30px 36px;border-radius:14px 14px 0 0;background-color:#ee3e96;background-image:linear-gradient(120deg, #ee3e96 0%, #f26e59 100%);">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td><span style="font-size:21px;font-weight:700;letter-spacing:-0.02em;color:#ffffff;">influnet<span style="color:#ffe3f0;">.</span></span></td></tr>
+                <tr><td style="padding-top:22px;">
+                  <h1 class="sm-h1" style="margin:0;font-size:26px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;color:#ffffff;">Confirm your email</h1>
+                  <p style="margin:8px 0 0;font-size:15px;line-height:1.5;color:#ffe9f3;">One last step.</p>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td class="sm-px sm-py" bgcolor="#ffffff" style="padding:32px 36px 28px;background:#ffffff;border:1px solid #e6e8ec;border-top:0;border-radius:0 0 14px 14px;">
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#4a5058;">Hi there, confirm this address to finish setting up your Influnet account.</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
+    <tr>
+      <td align="center" bgcolor="#ee3e96" style="border-radius:10px;">
+        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ .ConfirmationURL }}" style="height:46px;v-text-anchor:middle;width:240px;" arcsize="22%" stroke="f" fillcolor="#ee3e96"><w:anchorlock/><center style="color:#ffffff;font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;font-weight:600;"><![endif]-->
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 30px;font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:10px;">Confirm my email</a>
+        <!--[if mso]></center></v:roundrect><![endif]-->
+      </td>
+    </tr>
+  </table><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">This link expires in 1 hours. If it has expired, sign in and we will send you a new one.</p><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">If you did not create an Influnet account, ignore this email — nothing will be activated.</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;"><tr><td height="1" bgcolor="#e6e8ec" style="line-height:1px;font-size:0;">&nbsp;</td></tr></table><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">Button not working? Paste this into your browser:<br /><span style="color:#8b919b;word-break:break-all;">{{ .ConfirmationURL }}</span></p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td class="sm-px" style="padding:24px 36px 8px;text-align:center;">
+              <p style="margin:0 0 12px;font-size:12px;line-height:1.6;color:#8b919b;">This is an account security email for your Influnet account. We send these regardless of your notification settings.</p>
+              <p style="margin:0 0 10px;font-size:12px;line-height:1.6;color:#8b919b;"><a href="http://localhost:3000/dashboard" style="color:#8b919b;text-decoration:underline;">Dashboard</a><span style="color:#b4b9c1;"> &nbsp;·&nbsp; </span><a href="mailto:support@influnet.io" style="color:#8b919b;text-decoration:underline;">support@influnet.io</a></p>
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#b4b9c1;">&copy; 2026 Influnet &nbsp;·&nbsp; Made for creators and brands in India</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

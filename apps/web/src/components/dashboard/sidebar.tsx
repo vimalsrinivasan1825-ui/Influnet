@@ -20,6 +20,7 @@ import {
   History,
   LayoutDashboard,
   UserRound,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: "Users", href: "/dashboard/admin/users", icon: Users },
   { label: "Projects", href: "/dashboard/admin/projects", icon: FolderKanban },
   { label: "Requests", href: "/dashboard/admin/collabs", icon: Send },
+  { label: "Email", href: "/dashboard/admin/emails", icon: Mail },
 ];
 
 const ROLE_META: Record<

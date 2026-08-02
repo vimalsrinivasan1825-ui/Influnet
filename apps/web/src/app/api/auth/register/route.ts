@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { RegisterProfileSchema } from '@/lib/validators';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { phoneOtpEnabled, validatePhoneVerification } from '@/lib/phone-otp';
+import { deliverEmail } from '@/lib/email/policy';
 
 export async function POST(req: Request) {
   try {
@@ -152,6 +153,30 @@ export async function POST(req: Request) {
           console.error('mark_profile_phone_verified failed:', markErr.message);
         }
       }
+    }
+
+    // Welcome mail. Fired here rather than at signUp because this is the point
+    // a profile actually exists — signUp with email confirmation on produces an
+    // auth user and nothing else, and welcoming someone to a dashboard they
+    // have no profile for is worse than saying nothing.
+    //
+    // Awaited but never fatal: the account is created either way, and email is
+    // best-effort by design (see lib/email/policy.ts).
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (userId) {
+        await deliverEmail({
+          userId,
+          templateId: 'welcome',
+          data: { name: payload.name, role: payload.role, dashboardUrl: '/dashboard' },
+          // One welcome per account, ever — a re-registration attempt or a
+          // client retry must not produce a second one.
+          dedupeKey: `welcome:${userId}`,
+        });
+      }
+    } catch (emailErr) {
+      console.error('[register] welcome email failed:', emailErr);
     }
 
     return NextResponse.json({ ok: true, data, reconstructed });
