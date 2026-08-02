@@ -97,8 +97,12 @@ export default function AdminActivityPage() {
 
   // Keep the newest values available to the interval without making it a
   // dependency — re-creating the timer on every tick would drift the cadence.
+  // Synced in an effect (not during render) and declared above the loader so
+  // effect order guarantees `load` already sees the new value.
   const hoursRef = useRef(hours);
-  hoursRef.current = hours;
+  useEffect(() => {
+    hoursRef.current = hours;
+  }, [hours]);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);

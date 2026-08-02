@@ -62,7 +62,7 @@ async function isSuppressed(sb: SupabaseClient, email: string): Promise<boolean>
     .maybeSingle();
   if (error) {
     if (isMissingTable(error)) {
-      console.warn('[email] email_suppressions missing — migration 098 not applied; skipping suppression check');
+      console.warn('[email] email_suppressions missing — migration 100 not applied; skipping suppression check');
       return false;
     }
     // Fail OPEN on a transient read error: a database blip should not silence
@@ -139,7 +139,7 @@ async function claim(
   if (error) {
     if (error.code === '23505') return 'duplicate'; // unique violation on dedupe_key
     if (isMissingTable(error)) {
-      console.warn('[email] email_deliveries missing — migration 098 not applied; sending without dedupe');
+      console.warn('[email] email_deliveries missing — migration 100 not applied; sending without dedupe');
       return null;
     }
     console.error('[email] ledger insert failed:', error.message);

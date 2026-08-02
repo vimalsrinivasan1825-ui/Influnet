@@ -47,7 +47,7 @@ export async function GET(req: Request) {
       webhookConfigured: !!process.env.RESEND_WEBHOOK_SECRET,
       environment: process.env.APP_ENV || process.env.NODE_ENV || 'local',
     },
-    // Null rather than [] tells the UI to say "migration 098 not applied yet"
+    // Null rather than [] tells the UI to say "migration 100 not applied yet"
     // instead of pretending nothing has ever been sent.
     recent: recent ?? null,
   });

@@ -44,7 +44,7 @@ dashboard. Both kinds then look identical in the inbox.
    > Set it *before* the next Docker/Vercel build or every unsubscribe link points at the wrong host.
    > **Trap:** do not put an inline `# comment` after a value; not every loader strips it.
 
-4. **Apply migration 098** (`supabase/migrations/098_email_delivery.sql`). Until it is applied there
+4. **Apply migration 100** (`supabase/migrations/100_email_delivery.sql`). Until it is applied there
    are no opt-outs, no daily cap, no dedupe and no delivery log — email still sends, but
    unprotected. The admin console says so in plain words when the tables are missing.
 
@@ -169,7 +169,7 @@ Marketing defaults **off**. Under India's DPDP Act 2023 a pre-ticked box is not 
 8. Render, send, settle the ledger row with the Resend id
 
 Every check **fails open** on a transient database error: a database blip must not silence a
-password reset. Missing tables (migration 098 not applied) log a warning and continue.
+password reset. Missing tables (migration 100 not applied) log a warning and continue.
 
 ### Rollups instead of one-mail-per-message
 
@@ -217,7 +217,7 @@ received/failed, review received, unread messages, business approved/rejected. T
 tested, and the policy layer will gate them correctly the moment a call site opts in. Left off
 deliberately so volume can be ramped one flow at a time.
 
-### Database (migration 098)
+### Database (migration 100)
 
 | Table | Purpose | Access |
 |---|---|---|

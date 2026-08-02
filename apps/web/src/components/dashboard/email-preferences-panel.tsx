@@ -107,7 +107,7 @@ export function EmailPreferencesPanel() {
     <div className="flex flex-col">
       {pending && (
         <p className="mb-4 rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
-          These settings are not being saved yet — the database is missing migration 098. Ask an admin to apply it.
+          These settings are not being saved yet — the database is missing migration 100. Ask an admin to apply it.
         </p>
       )}
 

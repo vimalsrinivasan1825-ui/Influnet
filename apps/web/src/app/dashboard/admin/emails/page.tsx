@@ -377,7 +377,7 @@ export default function AdminEmailsPage() {
               <div className="flex items-start gap-2 rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
                 <Info className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  Migration <code>098_email_delivery.sql</code> has not been applied to this database yet, so no
+                  Migration <code>100_email_delivery.sql</code> has not been applied to this database yet, so no
                   delivery log, opt-outs, daily cap or dedupe are active. Test sends still work.
                 </span>
               </div>

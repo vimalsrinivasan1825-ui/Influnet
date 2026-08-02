@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 
 /**
- * Per-category email opt-outs (migration 098).
+ * Per-category email opt-outs (migration 100).
  *
  * Reads and writes go through the CALLER's RLS-scoped client, so the policies
  * on email_preferences are the access control — this route never needs the
