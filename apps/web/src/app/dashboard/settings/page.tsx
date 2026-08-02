@@ -2,6 +2,7 @@
 import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, Check, ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -408,14 +409,14 @@ export default function SettingsPage() {
           title="Business details"
           action={
             profile?.username ? (
-              <a
+              <Link
                 href={`/b/${profile.username}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-strong"
               >
                 Public profile <ExternalLink className="size-3.5" />
-              </a>
+              </Link>
             ) : undefined
           }
         >
@@ -442,14 +443,14 @@ export default function SettingsPage() {
           title="Creator profile"
           action={
             profile?.username ? (
-              <a
+              <Link
                 href={`/${profile.username}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-strong"
               >
                 Public profile <ExternalLink className="size-3.5" />
-              </a>
+              </Link>
             ) : undefined
           }
         >
