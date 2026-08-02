@@ -18,6 +18,8 @@ Influnet is a premium influencer-marketing platform connecting **businesses** an
 
 When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.md)** then **[operations/QA_AND_GO_LIVE.md](operations/QA_AND_GO_LIVE.md)**.
 
+Before handing the app to testers or users: **[operations/PRE_LAUNCH_CHECKLIST.md](operations/PRE_LAUNCH_CHECKLIST.md)** — the ordered, verifiable list of what must be switched on first.
+
 ---
 
 ## 📁 Doc map
@@ -46,6 +48,9 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [SECURITY.md](operations/SECURITY.md) | **Canonical.** Auth/data-access model, PII column lockdown, RLS conventions, and the full security-audit history (every finding + status). |
 | [DEPLOYMENT.md](operations/DEPLOYMENT.md) | Cloud deployment runbook: prod Supabase, env vars, host setup, edge functions, Stream webhook, post-deploy smoke test, infra to-dos (Sentry/Upstash/backups). |
 | [QA_AND_GO_LIVE.md](operations/QA_AND_GO_LIVE.md) | Manual QA / test script (step-by-step, expected results) + "path to a solid product" checklist. |
+| [PRE_LAUNCH_CHECKLIST.md](operations/PRE_LAUNCH_CHECKLIST.md) | **Start here before a tester round.** P0/P1/P2 checklist with why / do / how-to-verify for each item: pending migrations, auth-email rate limits, redirect URLs, Sentry, App Insights, log collection, webhook domains, the mobile OTA publish. Plus the daily routine and the tester-issue triage flow. |
+| [OBSERVABILITY.md](operations/OBSERVABILITY.md) | **Seeing inside the app during a tester round.** Which of the four questions (who signed up / where do they stall / is this deployment healthy / what broke) is answered where, request-id correlation, KQL queries, and what was deliberately not built. |
+| [ANALYTICS.md](operations/ANALYTICS.md) | Turning on PostHog, Sentry, App Insights and the support/feedback system — all built but inert until keyed. Includes what's deliberately disabled (autocapture, session replay) and why. |
 | [MOBILE_BUILD_STAGES.md](operations/MOBILE_BUILD_STAGES.md) | Mobile app build log: what each stage shipped, how it was verified, the remaining stages in order, and the Metro/dependency gotchas. |
 | [ANDROID_DISTRIBUTION.md](operations/ANDROID_DISTRIBUTION.md) | **Android App Bundle (.aab)** distribution via Google Play Console Internal Testing track, invite management, and the 20-tester rule. |
 | [E2E_SYSTEM_FLOW_TEST.md](operations/E2E_SYSTEM_FLOW_TEST.md) | **Deep "nothing hidden" walkthrough.** Every flow (signup→link→discover→request→accept→12-stage project→chat) broken down as user-sees / does / backend / DB rows / verify-SQL, plus negative tests and what was verified live. |

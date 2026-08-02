@@ -1,3 +1,4 @@
+import { jsonError } from '@/lib/api';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
@@ -152,7 +153,7 @@ export async function GET(req: Request) {
       recent_collabs: recent_collabs.length > 0 ? recent_collabs : null,
     });
 
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not load your dashboard', error);
   }
 }

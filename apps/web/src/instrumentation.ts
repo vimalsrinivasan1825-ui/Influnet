@@ -76,3 +76,56 @@ export async function register() {
   out.push('');
   console.log(out.join('\n'));
 }
+
+/**
+ * Next's error hook: fires for every uncaught server-side error — in a route
+ * handler, a Server Component, or the framework itself.
+ *
+ * This is the piece that makes errors traceable without editing 65 route
+ * files. `jsonError` already reports the faults it is given, but it only sees
+ * errors a handler caught and converted; anything that throws past a handler,
+ * or fails while rendering a page, previously produced a stack in stdout and
+ * nothing else.
+ *
+ * The `x-request-id` middleware stamped on the request is attached here, so a
+ * Sentry event, the request the user made, and the container log line all
+ * carry the same id.
+ */
+export async function onRequestError(
+  err: unknown,
+  request: { path?: string; method?: string; headers?: Record<string, string | string[] | undefined> },
+  context: { routerKind?: string; routePath?: string; routeType?: string },
+) {
+  try {
+    const { captureException } = await import('./lib/observability');
+    const { logger } = await import('./lib/logger');
+
+    const rawId = request.headers?.['x-request-id'];
+    const requestId = Array.isArray(rawId) ? rawId[0] : rawId;
+
+    // The path can carry query params, and query params on this app carry
+    // reset tokens and invite codes. Log and report the path only.
+    const path = request.path?.split('?')[0];
+
+    logger.error('unhandled server error', {
+      err,
+      path,
+      method: request.method,
+      routePath: context.routePath,
+      routeType: context.routeType,
+      requestId,
+    });
+
+    captureException(err, {
+      tags: {
+        ...(path ? { path } : {}),
+        ...(request.method ? { method: request.method } : {}),
+        ...(context.routeType ? { route_type: context.routeType } : {}),
+        ...(requestId ? { request_id: requestId } : {}),
+      },
+      extra: { routePath: context.routePath, routerKind: context.routerKind },
+    });
+  } catch {
+    // Never let the error reporter become the error.
+  }
+}

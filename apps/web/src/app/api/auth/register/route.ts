@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { jsonError } from '@/lib/api';
 import { RegisterProfileSchema } from '@/lib/validators';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { phoneOtpEnabled, validatePhoneVerification } from '@/lib/phone-otp';
@@ -135,6 +136,10 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error('Error calling register_profile:', error);
+      // Passed through on purpose: register_profile raises messages written
+      // for the person signing up ('Username already taken', 'Invalid Influnet
+      // username' — see migration 031). Replacing them with a generic string
+      // would turn a fixable form error into a dead end.
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -180,8 +185,10 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, data, reconstructed });
-  } catch (error: any) {
-    console.error('Unexpected error in register route:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    // Unlike the register_profile branch above, an exception here is an
+    // unexpected fault (network, JSON parse, a thrown library error) whose
+    // message is written for a developer, not a user.
+    return jsonError(500, 'Could not complete signup. Please try again.', error);
   }
 }

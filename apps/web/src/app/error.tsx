@@ -2,7 +2,10 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { captureException } from '@/lib/observability';
+// The browser reporter, not @/lib/observability — that one is server-side and
+// drags the zod env schema (which requires the service-role key) into the
+// client bundle. Same Sentry project, correct runtime tag.
+import { captureBrowserError } from '@/lib/observability-client';
 
 export default function ErrorPage({
   error,
@@ -14,7 +17,10 @@ export default function ErrorPage({
   useEffect(() => {
     console.error('Unhandled app-level error:', error);
     // Report to Sentry (no-op unless NEXT_PUBLIC_SENTRY_DSN is configured).
-    captureException(error, { tags: { boundary: 'app-error', ...(error.digest ? { digest: error.digest } : {}) } });
+    captureBrowserError(error, {
+      kind: 'app-error-boundary',
+      ...(error.digest ? { digest: error.digest } : {}),
+    });
   }, [error]);
 
   return (
