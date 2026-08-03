@@ -1,4 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { deliverEmail } from './email/policy';
+import type { EmailCategory, TemplateId } from './email/templates';
 
 // Notification types persisted in public.notifications.type (see migration 047).
 export type NotificationType =
@@ -9,6 +11,41 @@ export type NotificationType =
   | 'project_cancel'
   | 'message';
 
+/**
+ * Which opt-out category each notification type falls under, so a user who
+ * turns off "messages" in settings doesn't also lose payment mail.
+ */
+const CATEGORY_BY_TYPE: Record<NotificationType, EmailCategory> = {
+  collab_request: 'collab',
+  collab_accepted: 'collab',
+  collab_declined: 'collab',
+  project_stage: 'project',
+  project_cancel: 'project',
+  message: 'message',
+};
+
+export interface NotifyEmailOptions {
+  /**
+   * Template id from lib/email/templates.ts. Omit to use the `generic`
+   * layout built from this notification's own title/body/link — fine for
+   * one-off events, worth upgrading for anything a user sees often.
+   *
+   * Typed against the registry so a typo is a compile error rather than a
+   * silent `unknown_template` at send time.
+   */
+  templateId?: TemplateId;
+  /** Data for that template. Missing fields fall back to the template's sample. */
+  data?: Record<string, unknown>;
+  /**
+   * Unique per logical event, e.g. `payment:<razorpay_id>`. Without one, a
+   * retried webhook sends the mail twice. For rollups, include an hour bucket:
+   * `message:<channelId>:<userId>:<hourBucket()>`.
+   */
+  dedupeKey?: string;
+  /** Files the send under a different opt-out category than the type implies. */
+  category?: EmailCategory;
+}
+
 export interface NotifyInput {
   /** Recipient profile id. */
   userId: string;
@@ -17,6 +54,15 @@ export interface NotifyInput {
   body?: string;
   /** In-app path, e.g. /dashboard/projects/<id>. */
   link?: string | null;
+  /**
+   * Email for this notification.
+   *
+   * Default is NO email — an in-app row plus a push is the baseline, and email
+   * is an escalation you opt into per call site. That default is deliberate:
+   * this function has ~21 call sites, some of them per chat message, and
+   * flipping them all on at once is how a sending domain gets blacklisted.
+   */
+  email?: NotifyEmailOptions | false;
 }
 
 // A service-role client is required because a notification is written for a
@@ -107,6 +153,104 @@ async function sendPush(
 }
 
 /**
+ * Third channel: email, but only when the call site asked for it.
+ *
+ * Every gate that decides whether this actually leaves the building — opt-outs,
+ * suppression list, daily cap, dedupe — lives in lib/email/policy.ts. This
+ * function only translates a notification into that call. Best-effort in the
+ * same sense as push: it swallows everything.
+ */
+async function maybeEmail(input: NotifyInput): Promise<void> {
+  if (!input.email) return;
+  try {
+    const opts = input.email;
+    const templateId = opts.templateId ?? 'generic';
+    const data =
+      opts.data ??
+      // Generic fallback: reuse the notification's own copy so a call site can
+      // opt into email without authoring a template first.
+      {
+        title: input.title,
+        body: input.body ?? '',
+        link: input.link ?? '/dashboard',
+        ctaLabel: 'Open Influnet',
+      };
+
+    const result = await deliverEmail({
+      userId: input.userId,
+      templateId,
+      data,
+      dedupeKey: opts.dedupeKey,
+      // A real template already knows its own category; only the shapeless
+      // `generic` one needs to borrow it from the notification type.
+      categoryOverride:
+        opts.category ?? (templateId === 'generic' ? CATEGORY_BY_TYPE[input.type] : undefined),
+    });
+
+    if (!result.sent && result.reason !== 'disabled' && result.reason !== 'duplicate') {
+      console.info('[notify] email not sent:', result.reason, { template: templateId });
+    }
+  } catch (err) {
+    console.error('[notify] exception while sending email:', err);
+  }
+}
+
+/**
+ * Fan a new chat message out to the other participants.
+ *
+ * Lives here because there are two ways a message arrives — the Stream webhook
+ * and the REST messages endpoint — and they must behave identically. In
+ * particular the dedupe key has to match byte-for-byte between them: it is what
+ * collapses a whole hour of chatter into one email, and two copies drifting
+ * apart would mean the same conversation mails twice in the same hour.
+ *
+ * Truncation, the hour bucket and the payload all live in this one function so
+ * that guarantee is structural rather than a comment asking two files to agree.
+ */
+export async function notifyNewMessage(input: {
+  conversationId: string;
+  recipientIds: string[];
+  senderName: string;
+  text: string;
+}): Promise<void> {
+  const { conversationId, recipientIds, senderName, text } = input;
+  if (recipientIds.length === 0) return;
+
+  const { hourBucket } = await import('./email/policy');
+  const { profileNames, nameOf } = await import('./email/context');
+
+  const preview = text.length > 100 ? `${text.slice(0, 97)}...` : text;
+  const chatLink = `/dashboard/messages?conv=${conversationId}`;
+  const names = await profileNames(recipientIds);
+
+  for (const userId of recipientIds) {
+    await notifyUser({
+      userId,
+      type: 'message',
+      title: `New message from ${senderName}`,
+      body: preview,
+      link: chatLink,
+      email: {
+        templateId: 'unread_messages',
+        // The only per-message email in the product. Everything inside one
+        // clock hour for this conversation collapses into the first send, so a
+        // busy chat produces one mail an hour rather than one per message.
+        dedupeKey: `message:${conversationId}:${userId}:${hourBucket()}`,
+        data: {
+          recipientName: nameOf(names, userId),
+          senderName,
+          // A conversation need not belong to a project — people talk before
+          // any project exists, which is the point of accepting a request.
+          projectName: null,
+          preview,
+          dashboardUrl: chatLink,
+        },
+      },
+    });
+  }
+}
+
+/**
  * Best-effort notification write. This NEVER throws: a failed notification must
  * not roll back or break the action that triggered it (advancing a stage, etc.).
  * Returns whether the row was written so callers can log if they care.
@@ -130,6 +274,7 @@ export async function notifyUser(input: NotifyInput): Promise<boolean> {
       return false;
     }
     await sendPush(sb, input.userId, input.title, input.body ?? '', input.link ?? null);
+    await maybeEmail(input);
     return true;
   } catch (err) {
     console.error('[notify] exception while notifying:', err);

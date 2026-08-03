@@ -5,7 +5,16 @@ import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { Bell, LogOut, Mail, PlayCircle, ShieldOff, Trash2 } from 'lucide-react-native';
+import {
+  Bell,
+  LifeBuoy,
+  LogOut,
+  Mail,
+  MessageSquareHeart,
+  PlayCircle,
+  ShieldOff,
+  Trash2,
+} from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession, useSignOutAction } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
@@ -135,6 +144,22 @@ export default function SettingsScreen() {
           </ListGroup>
         </>
       ) : null}
+
+      <SectionLabel>Help</SectionLabel>
+      <ListGroup>
+        <ListRow
+          title="Help & support"
+          subtitle="Ask us anything — a real person reads every request"
+          left={<LifeBuoy size={19} color={t.color.brand} />}
+          onPress={() => router.push('/support')}
+        />
+        <ListRow
+          title="Send feedback"
+          subtitle="An idea, something confusing, or something we got right"
+          left={<MessageSquareHeart size={19} color={t.color.contentSoft} />}
+          onPress={() => router.push('/feedback')}
+        />
+      </ListGroup>
 
       <SectionLabel>Privacy</SectionLabel>
       <ListGroup>

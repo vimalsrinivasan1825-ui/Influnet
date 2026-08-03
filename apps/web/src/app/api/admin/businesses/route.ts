@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/api';
+import { jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
+import { deliverEmail } from '@/lib/email/policy';
 
 // GET all business profiles (for admin review)
 export async function GET(req: Request) {
@@ -22,9 +23,8 @@ export async function GET(req: Request) {
     if (error) throw error;
 
     return NextResponse.json({ businesses: businesses || [] });
-  } catch (error: any) {
-    console.error('[Admin GET /api/admin/businesses] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not load businesses', error);
   }
 }
 
@@ -36,7 +36,10 @@ export async function PATCH(req: Request) {
     const { supabase, user } = auth;
 
     const body = await req.json();
-    const { user_id, approval_status } = body;
+    // `reason` is optional and only meaningful on a rejection — it becomes the
+    // "what needs fixing" panel in the mail, which is the difference between a
+    // business that can resubmit and one that just gets told no.
+    const { user_id, approval_status, reason } = body;
 
     if (!user_id || !approval_status) {
       return NextResponse.json({ error: 'user_id and approval_status are required' }, { status: 400 });
@@ -61,9 +64,34 @@ export async function PATCH(req: Request) {
       metadata: { approval_status }, req,
     });
 
+    // Tell them. Until now an approval decision was completely silent — the
+    // business found out by logging in and noticing the block had lifted, or
+    // never found out at all that they had been rejected.
+    //
+    // deliverEmail() rather than notifyUser(): `notifications.type` has no
+    // value for an approval decision, and adding one is a migration. This is
+    // account-tier mail, so it ignores opt-outs by design.
+    try {
+      const approved = approval_status === 'approved';
+      await deliverEmail({
+        userId: user_id,
+        templateId: approved ? 'business_approved' : 'business_rejected',
+        // Keyed on the decision, so flipping a business approved → rejected →
+        // approved mails on each real change but not on a double-submit.
+        dedupeKey: `business_${approval_status}:${user_id}`,
+        data: {
+          businessName:
+            (updated as { company_name?: string } | null)?.company_name || 'Your business',
+          reason: typeof reason === 'string' && reason.trim() ? reason.trim() : null,
+          dashboardUrl: approved ? '/dashboard' : '/dashboard/settings',
+        },
+      });
+    } catch (emailErr) {
+      console.error('[admin/businesses] approval email failed:', emailErr);
+    }
+
     return NextResponse.json({ business: updated });
-  } catch (error: any) {
-    console.error('[Admin PATCH /api/admin/businesses] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not update this business', error);
   }
 }

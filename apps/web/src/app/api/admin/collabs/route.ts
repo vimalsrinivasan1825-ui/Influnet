@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAdmin } from '@/lib/api';
+import { jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 
 // GET all collaboration requests (admin view)
@@ -22,9 +22,8 @@ export async function GET(req: Request) {
     if (error) throw error;
 
     return NextResponse.json({ collabs: collabs || [] });
-  } catch (error: any) {
-    console.error('[Admin GET /api/admin/collabs] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not load collaboration requests', error);
   }
 }
 
@@ -69,9 +68,8 @@ export async function DELETE(req: Request) {
       deleted: true,
       message: 'Collaboration request has been deleted by admin.'
     });
-  } catch (error: any) {
-    console.error('[Admin DELETE /api/admin/collabs] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not delete this request', error);
   }
 }
 
@@ -109,8 +107,7 @@ export async function PATCH(req: Request) {
     });
 
     return NextResponse.json({ collab: updated });
-  } catch (error: any) {
-    console.error('[Admin PATCH /api/admin/collabs] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not update this request', error);
   }
 }

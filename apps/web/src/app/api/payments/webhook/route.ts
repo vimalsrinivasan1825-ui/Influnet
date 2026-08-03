@@ -4,6 +4,7 @@ import { jsonError } from '@/lib/api';
 import { verifyWebhookSignature } from '@/lib/payments/razorpay';
 import { captureException } from '@/lib/observability';
 import { notifyUser } from '@/lib/notify';
+import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
 
 // Razorpay posts server-to-server. We verify the HMAC signature over the RAW
@@ -31,7 +32,13 @@ export async function POST(req: Request) {
   const orderId = entity?.order_id ?? entity?.id;
   const paymentId = event?.payload?.payment?.entity?.id ?? null;
 
-  if (type !== 'payment.captured' && type !== 'order.paid') {
+  // A failed payment is handled too, but only to inform the payer — it never
+  // advances the pipeline. `failed` has been a legal status since migration 059
+  // and nothing ever wrote it, so a card decline was silent: the ledger row sat
+  // at 'created' and the business was told nothing at all.
+  const isFailure = type === 'payment.failed';
+
+  if (type !== 'payment.captured' && type !== 'order.paid' && !isFailure) {
     return NextResponse.json({ received: true, ignored: type ?? 'unknown' });
   }
   if (!orderId) return NextResponse.json({ received: true, ignored: 'no-order-id' });
@@ -63,9 +70,54 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, warning: 'no-ledger-row' });
     }
 
-    // Idempotent: if already paid, we're done.
+    // Idempotent: if already paid, we're done. Checked before the failure
+    // branch too — a late `payment.failed` for an order that was ultimately
+    // captured on a retry must not tell the business their payment failed.
     if (payment.status === 'paid') {
       return NextResponse.json({ received: true, already: true });
+    }
+
+    if (isFailure) {
+      await admin.from('project_payments').update({ status: 'failed' }).eq('id', payment.id);
+
+      if (payment.payer_id) {
+        const { data: proj } = await admin
+          .from('campaign_projects')
+          .select('title')
+          .eq('id', payment.project_id)
+          .single();
+
+        const rupees = Math.round((payment.amount || 0) / 100);
+        const names = await profileNames([payment.payer_id]);
+        // Razorpay's own words for what went wrong ("insufficient funds",
+        // "card declined") are more useful to the payer than anything we'd
+        // invent, but the field is not guaranteed to be present.
+        const reason =
+          (entity?.error_description as string | undefined) ||
+          (entity?.error_reason as string | undefined) ||
+          'The payment could not be completed.';
+
+        await notifyUser({
+          userId: payment.payer_id,
+          type: 'project_stage',
+          title: 'Payment failed',
+          body: `Your ₹${rupees.toLocaleString('en-IN')} payment did not go through. ${reason}`,
+          link: `/dashboard/projects/${payment.project_id}`,
+          email: {
+            templateId: 'payment_failed',
+            dedupeKey: `payment_failed:${paymentId ?? orderId}`,
+            data: {
+              recipientName: nameOf(names, payment.payer_id),
+              projectName: (proj as { title?: string } | null)?.title || 'your project',
+              amount: rupees,
+              reason,
+              dashboardUrl: `/dashboard/projects/${payment.project_id}`,
+            },
+          },
+        });
+      }
+
+      return NextResponse.json({ received: true, recorded: 'failed' });
     }
 
     // Defense in depth: the order route now derives the amount from the
@@ -134,12 +186,35 @@ export async function POST(req: Request) {
 
       if (proj?.counterparty_user_id) {
         const projectLabel = proj.title ? `“${proj.title}”` : 'your project';
+        const names = await profileNames([proj.counterparty_user_id]);
         await notifyUser({
           userId: proj.counterparty_user_id,
           type: 'project_stage',
           title: `${amountLabel} ${label} received`,
           body: `The brand paid the ${label} for ${projectLabel}.`,
           link: `/dashboard/projects/${payment.project_id}`,
+          email: {
+            templateId: 'payment_received',
+            // Razorpay retries the same event until it gets a 2xx, and this
+            // handler is reached again on every retry. The gateway payment id
+            // is the one value that is stable across those retries.
+            dedupeKey: `payment_received:${paymentId}`,
+            data: {
+              recipientName: nameOf(names, proj.counterparty_user_id),
+              projectName: proj.title || 'your project',
+              amount: rupees,
+              // The template keys off 'advance' | 'final' | 'full' — `label` is
+              // the prose form ('final payment') and would miss that lookup.
+              paymentType: isAdvance ? 'advance' : 'final',
+              paymentId,
+              paidOn: new Date().toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              }),
+              dashboardUrl: `/dashboard/projects/${payment.project_id}`,
+            },
+          },
         });
       }
 

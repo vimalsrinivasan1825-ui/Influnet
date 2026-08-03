@@ -18,6 +18,8 @@ Influnet is a premium influencer-marketing platform connecting **businesses** an
 
 When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.md)** then **[operations/QA_AND_GO_LIVE.md](operations/QA_AND_GO_LIVE.md)**.
 
+Before handing the app to testers or users: **[operations/PRE_LAUNCH_CHECKLIST.md](operations/PRE_LAUNCH_CHECKLIST.md)** — the ordered, verifiable list of what must be switched on first.
+
 ---
 
 ## 📁 Doc map
@@ -46,6 +48,9 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [SECURITY.md](operations/SECURITY.md) | **Canonical.** Auth/data-access model, PII column lockdown, RLS conventions, and the full security-audit history (every finding + status). |
 | [DEPLOYMENT.md](operations/DEPLOYMENT.md) | Cloud deployment runbook: prod Supabase, env vars, host setup, edge functions, Stream webhook, post-deploy smoke test, infra to-dos (Sentry/Upstash/backups). |
 | [QA_AND_GO_LIVE.md](operations/QA_AND_GO_LIVE.md) | Manual QA / test script (step-by-step, expected results) + "path to a solid product" checklist. |
+| [PRE_LAUNCH_CHECKLIST.md](operations/PRE_LAUNCH_CHECKLIST.md) | **Start here before a tester round.** P0/P1/P2 checklist with why / do / how-to-verify for each item: pending migrations, auth-email rate limits, redirect URLs, Sentry, App Insights, log collection, webhook domains, the mobile OTA publish. Plus the daily routine and the tester-issue triage flow. |
+| [OBSERVABILITY.md](operations/OBSERVABILITY.md) | **Seeing inside the app during a tester round.** Which of the four questions (who signed up / where do they stall / is this deployment healthy / what broke) is answered where, request-id correlation, KQL queries, and what was deliberately not built. |
+| [ANALYTICS.md](operations/ANALYTICS.md) | Turning on PostHog, Sentry, App Insights and the support/feedback system — all built but inert until keyed. Includes what's deliberately disabled (autocapture, session replay) and why. |
 | [MOBILE_BUILD_STAGES.md](operations/MOBILE_BUILD_STAGES.md) | Mobile app build log: what each stage shipped, how it was verified, the remaining stages in order, and the Metro/dependency gotchas. |
 | [ANDROID_DISTRIBUTION.md](operations/ANDROID_DISTRIBUTION.md) | **Android App Bundle (.aab)** distribution via Google Play Console Internal Testing track, invite management, and the 20-tester rule. |
 | [E2E_SYSTEM_FLOW_TEST.md](operations/E2E_SYSTEM_FLOW_TEST.md) | **Deep "nothing hidden" walkthrough.** Every flow (signup→link→discover→request→accept→12-stage project→chat) broken down as user-sees / does / backend / DB rows / verify-SQL, plus negative tests and what was verified live. |
@@ -59,6 +64,7 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 | [FULL_AUDIT_PLAN_2026-07-30.md](operations/FULL_AUDIT_PLAN_2026-07-30.md) | **Plan only, not started.** Proposed scope for a wider audit beyond the core-loop work already done: admin surfaces, full mobile device pass, systematic per-route authorization sweep, migration/RLS audit, performance, accessibility. Awaiting go-ahead. |
 | [HOME_ACTION_CONSOLE_2026-07-28.md](operations/HOME_ACTION_CONSOLE_2026-07-28.md) | Mobile Home rebuilt as a "whose move is it" console: the `projectTurn()` model, the stage-by-stage table of what each side sees, the two defects the stage-matrix sweep caught (deadlock + passive action text), and the portfolio work agreed for next round. |
 | [SUPABASE.md](operations/SUPABASE.md) | Supabase project setup, auth email templates, field mapping (UI → DB). |
+| [EMAIL_SYSTEM.md](operations/EMAIL_SYSTEM.md) | **Canonical email doc.** The two kinds of email (ours vs Supabase Auth) and who sends each, the three consent tiers, the send-decision order in `policy.ts`, migration 100, the `/dashboard/admin/emails` console for previewing and test-sending every template, the human-only Resend/DNS/Supabase checklist, and a runbook. |
 | [PHONE_OTP.md](operations/PHONE_OTP.md) | 2Factor SMS OTP setup: migration, edge-function deploy, client flows, security limits. |
 | [RELIABILITY_TRUST_ROADMAP_2026-08-01.md](operations/RELIABILITY_TRUST_ROADMAP_2026-08-01.md) | **Analysis only, not started.** Environments/DB isolation, backups & DR, user-facing error handling, support/ticket pipeline, observability (Sentry/PostHog/uptime), and an honest take on agentic auto-fix. Tracked as a checklist in [DEPLOYMENT.md §5](operations/DEPLOYMENT.md#5-operational-gaps-to-close-before-real-traffic). |
 

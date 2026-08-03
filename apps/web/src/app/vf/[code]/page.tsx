@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 // Landing page for the LEGACY ownership-verification links (…/vf/<code>) from
 // before the bio marker became the creator's own public profile link — see
 // api/verification/ownership/route.ts. New claims never mint one of these; this
@@ -23,12 +25,12 @@ export default async function VerificationLinkPage({
           your bio to verify your account, you can return to Influnet and tap <strong>Verify</strong> — then remove
           this link once you&apos;re verified.
         </p>
-        <a
+        <Link
           href="/dashboard/settings"
           className="mt-6 inline-flex items-center justify-center rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong"
         >
           Back to Influnet
-        </a>
+        </Link>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAdmin, withAuth } from '@/lib/api';
+import { jsonError, withAdmin, withAuth } from '@/lib/api';
 import { VERIFICATION_NOTIFICATION } from '@/lib/verification';
 import { auditAdmin } from '@/lib/admin-audit';
 
@@ -110,9 +110,8 @@ export async function GET(req: Request) {
     }));
 
     return NextResponse.json({ queue });
-  } catch (error: any) {
-    console.error('[Admin GET /api/admin/verifications] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not load verification requests', error);
   }
 }
 
@@ -160,8 +159,7 @@ export async function PATCH(req: Request) {
     });
 
     return NextResponse.json({ result: data });
-  } catch (error: any) {
-    console.error('[Admin PATCH /api/admin/verifications] Error:', error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not update this verification request', error);
   }
 }

@@ -1,3 +1,4 @@
+import { jsonError } from '@/lib/api';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
@@ -221,7 +222,7 @@ export async function GET(req: Request) {
       active_roster: active_roster.length > 0 ? active_roster : null,
     });
 
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return jsonError(500, 'Could not load your dashboard', error);
   }
 }

@@ -13,12 +13,15 @@ export async function GET() {
 
     if (error) {
       console.error("Health check database query error:", error);
+      // No error detail in the body: /api/health is unauthenticated (the
+      // uptime monitor and the deploy smoke test both hit it anonymously), so
+      // anything returned here is public. A Postgres error string names
+      // tables, columns and roles. The detail is logged above instead.
       return NextResponse.json(
         {
           status: "unhealthy",
           timestamp: new Date().toISOString(),
           database: "disconnected",
-          error: error.message,
         },
         { status: 500 }
       );

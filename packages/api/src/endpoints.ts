@@ -162,6 +162,17 @@ export function createEndpoints(api: ApiClient) {
       api.request<T>('/api/blocks', { method: 'DELETE', body: JSON.stringify({ blocked_id: blockedId }) }),
     createReport: <T = unknown>(body: unknown) => api.post<T>('/api/reports', body),
 
+    // ── Support & feedback ─────────────────────────────────────────
+    listTickets: <T = unknown>() => api.get<T>('/api/support/tickets'),
+    createTicket: <T = unknown>(body: unknown) => api.post<T>('/api/support/tickets', body),
+    getTicket: <T = unknown>(id: string) =>
+      api.get<T>(`/api/support/tickets/${encodeURIComponent(id)}`),
+    replyToTicket: <T = unknown>(id: string, message: string) =>
+      api.post<T>(`/api/support/tickets/${encodeURIComponent(id)}`, { message }),
+    closeTicket: <T = unknown>(id: string) =>
+      api.patch<T>(`/api/support/tickets/${encodeURIComponent(id)}`, { status: 'closed' }),
+    sendFeedback: <T = unknown>(body: unknown) => api.post<T>('/api/feedback', body),
+
     // ── Verification ───────────────────────────────────────────────
     getVerification: <T = unknown>() => api.get<T>('/api/verification'),
     startVerification: <T = unknown>(body: unknown) => api.post<T>('/api/verification', body),

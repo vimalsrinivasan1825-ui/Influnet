@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { z } from 'zod';
 import { notifyUser } from '@/lib/notify';
+import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
 
 // The deal terms that can be changed via the propose → confirm loop.
@@ -112,12 +113,27 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     const proposerRole = project.owner_user_id === user.id ? 'brand' : 'creator';
     const projectLabel = project.title ? `“${project.title}”` : 'your project';
     if (counterpartyId) {
+      const projectLink = `/dashboard/projects/${projectId}`;
+      const names = await profileNames([counterpartyId, user.id]);
       await notifyUser({
         userId: counterpartyId,
         type: 'project_stage',
         title: `${projectLabel}: change proposed`,
         body: `The ${proposerRole} proposed changing ${describeChanges(changes)}. Review to accept or reject.`,
-        link: `/dashboard/projects/${projectId}`,
+        link: projectLink,
+        email: {
+          // Agreed terms cannot change without this person, so it is their turn.
+          templateId: 'project_action_needed',
+          dedupeKey: `change_proposed:${(created as { id?: string } | null)?.id ?? ''}`,
+          data: {
+            recipientName: nameOf(names, counterpartyId),
+            projectName: project.title || 'your project',
+            stage: 'Change proposed',
+            action: `${nameOf(names, user.id)} proposed changing ${describeChanges(changes)}. The agreed terms stay as they are until you accept or reject.`,
+            waitingSince: null,
+            dashboardUrl: projectLink,
+          },
+        },
       });
     }
     await logActivity(supabase, {
@@ -186,6 +202,11 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .eq('id', request_id).eq('project_id', projectId).select().single();
       if (upErr) return jsonError(500, 'Could not reject the change request', upErr);
       if (cr.proposed_by) {
+        const destination = project.conversation_id
+          ? `/dashboard/messages?conv=${project.conversation_id}`
+          : `/dashboard/projects/${projectId}`;
+        const names = await profileNames([cr.proposed_by, user.id]);
+
         await notifyUser({
           userId: cr.proposed_by, type: 'project_stage',
           title: `${projectLabel}: change rejected`,
@@ -194,9 +215,22 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             : `The ${actorRole} rejected your proposed change. Talk it through in chat and propose new terms.`,
           // Rejection means "let's discuss", so this drops them straight into
           // the conversation rather than back onto the card they just lost.
-          link: project.conversation_id
-            ? `/dashboard/messages?conv=${project.conversation_id}`
-            : `/dashboard/projects/${projectId}`,
+          link: destination,
+          email: {
+            templateId: 'decision_outcome',
+            dedupeKey: `change_rejected:${request_id}`,
+            data: {
+              recipientName: nameOf(names, cr.proposed_by),
+              actorName: nameOf(names, user.id),
+              subjectName: project.title || 'the project',
+              decision: 'Change rejected',
+              note: note || null,
+              consequence:
+                'The agreed terms are unchanged — talk it through in the chat and propose new ones when you are ready.',
+              ctaLabel: 'Open the chat',
+              dashboardUrl: destination,
+            },
+          },
         });
       }
       await logActivity(supabase, {
@@ -241,11 +275,27 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (upErr) return jsonError(500, 'Could not read back the change request', upErr);
 
     if (cr.proposed_by) {
+      const projectLink = `/dashboard/projects/${projectId}`;
+      const names = await profileNames([cr.proposed_by, user.id]);
       await notifyUser({
         userId: cr.proposed_by, type: 'project_stage',
         title: `${projectLabel}: change accepted`,
         body: `The ${actorRole} accepted your change to ${describeChanges(changes)}.`,
-        link: `/dashboard/projects/${projectId}`,
+        link: projectLink,
+        email: {
+          templateId: 'decision_outcome',
+          dedupeKey: `change_accepted:${request_id}`,
+          data: {
+            recipientName: nameOf(names, cr.proposed_by),
+            actorName: nameOf(names, user.id),
+            subjectName: project.title || 'the project',
+            decision: 'Change accepted',
+            note: null,
+            consequence: `The agreed terms now reflect the new ${describeChanges(changes)}.`,
+            ctaLabel: 'Open the project',
+            dashboardUrl: projectLink,
+          },
+        },
       });
     }
     await logActivity(supabase, {

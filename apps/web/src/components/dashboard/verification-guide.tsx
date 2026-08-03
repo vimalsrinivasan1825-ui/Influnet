@@ -23,6 +23,7 @@
  */
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { X, Copy, Check, ArrowRight, Smartphone, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -159,12 +160,12 @@ export function VerificationGuide({
               Once the link is in your bio, head to your <strong>Settings → Verification</strong> page
               and click &quot;Verify I own my handle.&quot; The badge shows up right after.
             </p>
-            <a
+            <Link
               href="/dashboard/settings#instagram-ownership"
               className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-brand transition-colors hover:text-brand-strong"
             >
               Go to verification <ArrowRight className="size-3.5" />
-            </a>
+            </Link>
           </div>
         </div>
       </div>

@@ -179,7 +179,7 @@ function MockupChat() {
           <div className="flex items-start gap-2">
             <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center font-black text-purple-600 text-[8px] flex-shrink-0">FL</div>
             <div className="max-w-[80%] bg-white border border-gray-100 p-3 rounded-2xl rounded-tl-none font-bold text-gray-700 shadow-sm leading-relaxed">
-              Hi Neha! Loved your profile. We'd love to work with you.
+              Hi Neha! Loved your profile. We&apos;d love to work with you.
             </div>
           </div>
           <div className="flex justify-end">
@@ -378,7 +378,7 @@ function MockupReviews() {
             <span className="text-[8px] text-gray-400 font-semibold">May 18</span>
           </div>
           <p className="text-[9.5px] text-gray-500 font-bold mt-1.5 leading-relaxed italic">
-            "Amazing work! Delivered high quality Reels before time. Highly recommended!"
+            &quot;Amazing work! Delivered high quality Reels before time. Highly recommended!&quot;
           </p>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
 import { notifyUser } from '@/lib/notify';
+import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
 import { logger, requestId } from '@/lib/logger';
 import { CANCELLATION_REASONS, cancellationReasonLabel } from '@influnet/core';
@@ -159,6 +160,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     const recipientRole = userRole === 'business' ? 'creator' : 'business';
     const projectLabel = project.title ? `“${project.title}”` : 'Your project';
     const projectLink = `/dashboard/projects/${id}`;
+    // Names for the email templates below. Fetched once for every branch —
+    // this handler has eight notify sites and each would otherwise repeat the
+    // same two-id lookup.
+    const names = await profileNames([counterpartyId, user.id]);
+    const actorName = nameOf(names, user.id);
+    const recipientName = nameOf(names, counterpartyId);
+    const projectName = project.title || 'your project';
 
     // 1) Advance to next stage
     if (action === 'advance') {
@@ -298,6 +306,33 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             ? "It's your turn to move this project forward."
             : `Now waiting on the ${nextActor === 'business' ? 'brand' : 'creator'}.`,
           link: projectLink,
+          // The handler already knows whose move it is, so say so: "your turn"
+          // is a different email from "FYI, it moved".
+          email: yourTurn
+            ? {
+                templateId: 'project_action_needed',
+                dedupeKey: `stage_turn:${id}:${nextStage}`,
+                data: {
+                  recipientName,
+                  projectName,
+                  stage: nextStage,
+                  action: `${actorName} moved this to ${STAGE_LABELS[nextStage] || nextStage}. It cannot move on until you act.`,
+                  waitingSince: null,
+                  dashboardUrl: projectLink,
+                },
+              }
+            : {
+                templateId: 'project_stage',
+                dedupeKey: `stage:${id}:${nextStage}`,
+                data: {
+                  recipientName,
+                  projectName,
+                  stage: nextStage,
+                  actorName,
+                  note: null,
+                  dashboardUrl: projectLink,
+                },
+              },
         });
       }
 
@@ -431,6 +466,33 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             ? 'Both sides confirmed — the project moved to the next stage.'
             : `The ${userRole === 'business' ? 'brand' : 'creator'} confirmed this stage. Confirm on your side to move forward.`,
           link: projectLink,
+          // No nextStage means only one side has signed off, so the mail is a
+          // request for the other signature rather than a progress report.
+          email: nextStage
+            ? {
+                templateId: 'project_stage',
+                dedupeKey: `signoff_moved:${id}:${nextStage}`,
+                data: {
+                  recipientName,
+                  projectName,
+                  stage: nextStage,
+                  actorName,
+                  note: null,
+                  dashboardUrl: projectLink,
+                },
+              }
+            : {
+                templateId: 'project_action_needed',
+                dedupeKey: `signoff_awaiting:${id}:${currentStage}`,
+                data: {
+                  recipientName,
+                  projectName,
+                  stage: currentStage,
+                  action: `${actorName} confirmed this stage. Confirm on your side to move the project forward.`,
+                  waitingSince: null,
+                  dashboardUrl: projectLink,
+                },
+              },
         });
       }
 
@@ -481,6 +543,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             title: `${projectLabel}: skip proposed`,
             body: `The ${userRole === 'business' ? 'brand' : 'creator'} suggested skipping the ${STAGE_LABELS[currentStage] || currentStage} stage. Confirm or reject it.`,
             link: projectLink,
+            email: {
+              templateId: 'project_action_needed',
+              dedupeKey: `skip_proposed:${id}:${currentStage}`,
+              data: {
+                recipientName,
+                projectName,
+                stage: currentStage,
+                action: `${actorName} proposed skipping the ${STAGE_LABELS[currentStage] || currentStage} stage. It stays where it is until you confirm or reject.`,
+                waitingSince: null,
+                dashboardUrl: projectLink,
+              },
+            },
           });
         }
         return NextResponse.json({ project: updated });
@@ -537,6 +611,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           title: `${projectLabel} skipped ${STAGE_LABELS[currentStage] || currentStage}`,
           body: `Both sides agreed to skip it — now on ${STAGE_LABELS[skipNext] || skipNext}.`,
           link: projectLink,
+          email: {
+            templateId: 'project_stage',
+            dedupeKey: `skip_confirmed:${id}:${currentStage}`,
+            data: {
+              recipientName,
+              projectName,
+              stage: skipNext,
+              actorName,
+              note: `Both sides agreed to skip the ${STAGE_LABELS[currentStage] || currentStage} stage.`,
+              dashboardUrl: projectLink,
+            },
+          },
         });
       }
       return NextResponse.json({ project: updated });
@@ -649,6 +735,29 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             ? 'Both parties confirmed — the project is complete and reviews are open.'
             : 'The other party confirmed completion. Confirm on your side to finish.',
           link: projectLink,
+          email: bothConfirmed
+            ? {
+                templateId: 'project_completed',
+                dedupeKey: `project_completed:${id}`,
+                data: {
+                  recipientName,
+                  partnerName: actorName,
+                  projectName,
+                  reviewUrl: projectLink,
+                },
+              }
+            : {
+                templateId: 'project_action_needed',
+                dedupeKey: `completion_awaiting:${id}`,
+                data: {
+                  recipientName,
+                  projectName,
+                  stage: 'completed',
+                  action: `${actorName} confirmed the project is finished. Confirm on your side to close it out and open reviews.`,
+                  waitingSince: null,
+                  dashboardUrl: projectLink,
+                },
+              },
         });
       }
 
@@ -811,6 +920,22 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           title: `${projectLabel}: cancellation requested`,
           body: `The ${userRole === 'business' ? 'brand' : 'creator'} asked to cancel this project — ${reasonLabel}. Open it to discuss or respond.`,
           link: projectLink,
+          email: {
+            // project_stage would wrongly read as forward progress.
+            templateId: 'decision_outcome',
+            dedupeKey: `cancel_requested:${id}:${user.id}`,
+            data: {
+              recipientName,
+              actorName,
+              subjectName: projectName,
+              decision: 'Cancellation requested',
+              note: reasonLabel,
+              consequence:
+                'Nothing is cancelled yet — the project stays open until you respond, and the record and any payments remain available either way.',
+              ctaLabel: 'Open the project',
+              dashboardUrl: projectLink,
+            },
+          },
         });
       }
       return NextResponse.json({ project: rpcData?.project ?? rpcData });
@@ -847,6 +972,22 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             ? 'The cancellation request was withdrawn. The project continues.'
             : 'Your request to cancel this project was declined. The project continues.',
           link: projectLink,
+          email: {
+            templateId: 'decision_outcome',
+            dedupeKey: `cancel_declined:${id}:${user.id}:${wasRequester ? 'withdrawn' : 'declined'}`,
+            data: {
+              recipientName,
+              actorName,
+              subjectName: projectName,
+              decision: wasRequester ? 'Cancellation withdrawn' : 'Cancellation declined',
+              note: null,
+              consequence: wasRequester
+                ? 'The project continues as normal — nothing changed.'
+                : 'The project continues. Open it to talk it through.',
+              ctaLabel: 'Open the project',
+              dashboardUrl: projectLink,
+            },
+          },
         });
       }
       return NextResponse.json({ project: rpcData?.project ?? rpcData });
@@ -886,6 +1027,21 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           title: `${projectLabel} was cancelled`,
           body: 'Your cancellation request was accepted. The project is closed — the record and any payments stay available.',
           link: projectLink,
+          email: {
+            templateId: 'decision_outcome',
+            dedupeKey: `cancel_accepted:${id}`,
+            data: {
+              recipientName: nameOf(names, requesterId),
+              actorName,
+              subjectName: projectName,
+              decision: 'Project cancelled',
+              note: null,
+              consequence:
+                'Your cancellation request was accepted and the project is now closed. Nothing was deleted — the record and any payments stay available on the project page.',
+              ctaLabel: 'View the project',
+              dashboardUrl: projectLink,
+            },
+          },
         });
       }
 

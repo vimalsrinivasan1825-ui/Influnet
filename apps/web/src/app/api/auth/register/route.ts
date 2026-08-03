@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { jsonError } from '@/lib/api';
 import { RegisterProfileSchema } from '@/lib/validators';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { phoneOtpEnabled, validatePhoneVerification } from '@/lib/phone-otp';
+import { deliverEmail } from '@/lib/email/policy';
 
 export async function POST(req: Request) {
   try {
@@ -134,6 +136,10 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error('Error calling register_profile:', error);
+      // Passed through on purpose: register_profile raises messages written
+      // for the person signing up ('Username already taken', 'Invalid Influnet
+      // username' — see migration 031). Replacing them with a generic string
+      // would turn a fixable form error into a dead end.
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -154,9 +160,35 @@ export async function POST(req: Request) {
       }
     }
 
+    // Welcome mail. Fired here rather than at signUp because this is the point
+    // a profile actually exists — signUp with email confirmation on produces an
+    // auth user and nothing else, and welcoming someone to a dashboard they
+    // have no profile for is worse than saying nothing.
+    //
+    // Awaited but never fatal: the account is created either way, and email is
+    // best-effort by design (see lib/email/policy.ts).
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (userId) {
+        await deliverEmail({
+          userId,
+          templateId: 'welcome',
+          data: { name: payload.name, role: payload.role, dashboardUrl: '/dashboard' },
+          // One welcome per account, ever — a re-registration attempt or a
+          // client retry must not produce a second one.
+          dedupeKey: `welcome:${userId}`,
+        });
+      }
+    } catch (emailErr) {
+      console.error('[register] welcome email failed:', emailErr);
+    }
+
     return NextResponse.json({ ok: true, data, reconstructed });
-  } catch (error: any) {
-    console.error('Unexpected error in register route:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    // Unlike the register_profile branch above, an exception here is an
+    // unexpected fault (network, JSON parse, a thrown library error) whose
+    // message is written for a developer, not a user.
+    return jsonError(500, 'Could not complete signup. Please try again.', error);
   }
 }

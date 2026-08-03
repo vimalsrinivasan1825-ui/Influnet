@@ -60,7 +60,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://dev.influnet.io",
+      "apiBaseUrl": "https://staging.influnet.io",
       "supabaseUrl": "https://jaajosocopoicmqcffuu.supabase.co",
       "supabaseAnonKey": "sb_publishable_zbfMv-IHhMwsLBj_wAXbng_b6byZL5x",
       "streamApiKey": "kw5uagr7nxs7",

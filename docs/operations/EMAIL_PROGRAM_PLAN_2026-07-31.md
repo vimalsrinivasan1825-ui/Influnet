@@ -1,5 +1,10 @@
 # Email program — current state & build plan (2026-07-31)
 
+> **Superseded (2026-08-02).** The program described here has been built. See
+> **[EMAIL_SYSTEM.md](EMAIL_SYSTEM.md)** for the canonical architecture, setup checklist and
+> runbook. This file is kept for the reasoning behind the design — the tier model, the anti-spam
+> rules and the DPDP considerations all carried over unchanged.
+
 Scope: what exists today for email, what is missing, the consent/anti-spam design, and the
 exact manual steps you (human) must do before any code can ship.
 

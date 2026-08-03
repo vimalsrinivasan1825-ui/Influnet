@@ -20,6 +20,14 @@ import {
   History,
   LayoutDashboard,
   UserRound,
+  Mail,
+  BarChart3,
+  Inbox,
+  MessageSquareHeart,
+  ShieldAlert,
+  LifeBuoy,
+  Activity,
+  HeartPulse,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -56,10 +64,20 @@ const BUSINESS_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { label: "Overview", href: "/dashboard/admin", icon: Shield },
+  { label: "Live activity", href: "/dashboard/admin/activity", icon: Activity },
+  { label: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
+  { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
   { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
+  { label: "Support", href: "/dashboard/admin/support", icon: Inbox },
+  // Reports had a working API since migration 056 and no screen at all — every
+  // harassment report filed by a user went into a table nobody could read.
+  { label: "Reports", href: "/dashboard/admin/reports", icon: ShieldAlert },
+  { label: "Feedback", href: "/dashboard/admin/feedback", icon: MessageSquareHeart },
   { label: "Users", href: "/dashboard/admin/users", icon: Users },
   { label: "Projects", href: "/dashboard/admin/projects", icon: FolderKanban },
   { label: "Requests", href: "/dashboard/admin/collabs", icon: Send },
+  { label: "Email", href: "/dashboard/admin/emails", icon: Mail },
+  { label: "Audit log", href: "/dashboard/admin/audit", icon: History },
 ];
 
 const ROLE_META: Record<
@@ -194,7 +212,6 @@ export default function DashboardSidebar({
   onCloseMobile,
 }: SidebarProps) {
   const meta = ROLE_META[role] ?? ROLE_META.influencer;
-  const showSettings = role !== "admin";
 
   return (
     <>
@@ -237,11 +254,9 @@ export default function DashboardSidebar({
           role={role}
         />
 
-        {showSettings && (
-          <div className={cn("border-t px-3 py-3", role === "influencer" ? "border-white/10" : "border-hairline")}>
-            <SettingsLink collapsed={collapsed} role={role} />
-          </div>
-        )}
+        <div className={cn("border-t px-3 py-3", role === "influencer" ? "border-white/10" : "border-hairline")}>
+          <SidebarFooter collapsed={collapsed} role={role} />
+        </div>
       </aside>
 
       {/* Mobile drawer */}
@@ -288,34 +303,42 @@ export default function DashboardSidebar({
             onNavigate={onCloseMobile}
             role={role}
           />
-          {showSettings && (
-            <div className={cn("border-t px-3 py-3", role === "influencer" ? "border-white/10" : "border-hairline")}>
-              <SettingsLink collapsed={false} onNavigate={onCloseMobile} role={role} />
-            </div>
-          )}
+          <div className={cn("border-t px-3 py-3", role === "influencer" ? "border-white/10" : "border-hairline")}>
+            <SidebarFooter collapsed={false} onNavigate={onCloseMobile} role={role} />
+          </div>
         </aside>
       </div>
     </>
   );
 }
 
-function SettingsLink({
+/**
+ * A link in the sidebar footer. Generalised from the old SettingsLink so
+ * Support can sit beside Settings without a second copy of the same styling.
+ */
+function FooterLink({
+  href,
+  label,
+  icon: Icon,
   collapsed,
   role,
   onNavigate,
 }: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
   collapsed: boolean;
   role: UserRole;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const active = pathname === "/dashboard/settings";
+  const active = pathname === href;
   const isCreator = role === "influencer";
   return (
     <Link
-      href="/dashboard/settings"
+      href={href}
       onClick={onNavigate}
-      title={collapsed ? "Settings" : undefined}
+      title={collapsed ? label : undefined}
       className={cn(
         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
         collapsed && "justify-center px-0",
@@ -324,8 +347,46 @@ function SettingsLink({
           : isCreator ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-content-soft hover:bg-surface-muted hover:text-content",
       )}
     >
-      <Settings className="size-[1.15rem] shrink-0" />
-      {!collapsed && "Settings"}
+      <Icon className="size-[1.15rem] shrink-0" />
+      {!collapsed && label}
     </Link>
+  );
+}
+
+/**
+ * Support + Settings. Support is shown to admins too — an admin is still a
+ * user of the product, and hiding it would mean the person answering tickets
+ * cannot see what the flow looks like from the other side.
+ */
+function SidebarFooter({
+  collapsed,
+  role,
+  onNavigate,
+}: {
+  collapsed: boolean;
+  role: UserRole;
+  onNavigate?: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <FooterLink
+        href="/dashboard/support"
+        label="Help & support"
+        icon={LifeBuoy}
+        collapsed={collapsed}
+        role={role}
+        onNavigate={onNavigate}
+      />
+      {role !== "admin" && (
+        <FooterLink
+          href="/dashboard/settings"
+          label="Settings"
+          icon={Settings}
+          collapsed={collapsed}
+          role={role}
+          onNavigate={onNavigate}
+        />
+      )}
+    </div>
   );
 }

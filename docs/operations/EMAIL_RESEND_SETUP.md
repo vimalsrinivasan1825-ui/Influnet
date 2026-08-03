@@ -1,5 +1,8 @@
 # Email delivery with Resend
 
+> **Superseded (2026-08-02).** Folded into **[EMAIL_SYSTEM.md](EMAIL_SYSTEM.md)**, which covers
+> the same Resend/DNS/Supabase-SMTP setup plus everything that was built since. Kept for provenance.
+
 Influnet sends two kinds of email. They are set up separately.
 
 | Kind | Examples | Who sends it today | How Resend plugs in |
