@@ -115,20 +115,76 @@ export function captureException(error: unknown, context: CaptureContext = {}): 
   }).catch(() => {});
 }
 
-// Best-effort parse of a V8 stack into Sentry frames (most-recent-call last).
+/**
+ * Best-effort parse of a V8 stack into Sentry frames (most-recent-call last).
+ *
+ * Deliberately string-scanning rather than a regex. The previous pattern was
+ *   /at (?:(.+?) \()?(.+?):(\d+):(\d+)\)?$/
+ * whose two lazy quantifiers either side of an optional group give the engine
+ * many ways to split the same line, so a frame like `at a a a a …` costs
+ * polynomial time to reject (CodeQL: "Polynomial regular expression used on
+ * uncontrolled data", high). A stack is not trusted input — an error message
+ * can carry a user-supplied string into it, and this runs on the error path,
+ * exactly where a request is already going badly.
+ *
+ * Both frame shapes are unambiguous read right-to-left, so scanning from the
+ * end is linear and needs no backtracking:
+ *   at fnName (/path/file.ts:12:34)
+ *   at /path/file.ts:12:34
+ */
 function framesFromStack(stack: string) {
-  const lines = stack.split('\n').slice(1);
-  const frames = lines
-    .map((line) => {
-      const m = line.match(/at (?:(.+?) \()?(.+?):(\d+):(\d+)\)?$/);
-      if (!m) return null;
-      return {
-        function: m[1] || '<anonymous>',
-        filename: m[2],
-        lineno: Number(m[3]),
-        colno: Number(m[4]),
-      };
-    })
-    .filter(Boolean);
+  const frames: {
+    function: string;
+    filename: string;
+    lineno: number;
+    colno: number;
+  }[] = [];
+
+  for (const line of stack.split('\n').slice(1)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('at ')) continue;
+
+    let rest = trimmed.slice(3);
+    let fn = '<anonymous>';
+
+    // A parenthesised location is always last, so the LAST " (" opens it —
+    // which is what keeps a path containing " (" from being cut in the wrong
+    // place. (A function name that itself contains " (" still splits wrong,
+    // as it did under the old regex; V8 does not emit those.)
+    if (rest.endsWith(')')) {
+      const open = rest.lastIndexOf(' (');
+      if (open !== -1) {
+        fn = rest.slice(0, open) || '<anonymous>';
+        rest = rest.slice(open + 2, -1);
+      }
+    }
+
+    // `rest` is now "<filename>:<line>:<col>" — and a filename may itself
+    // contain colons (a URL scheme, a Windows drive), so take the last two.
+    const colColon = rest.lastIndexOf(':');
+    if (colColon <= 0) continue;
+    const lineColon = rest.lastIndexOf(':', colColon - 1);
+    if (lineColon <= 0) continue;
+
+    const lineno = toPositiveInt(rest.slice(lineColon + 1, colColon));
+    const colno = toPositiveInt(rest.slice(colColon + 1));
+    if (lineno === null || colno === null) continue;
+
+    frames.push({
+      function: fn,
+      filename: rest.slice(0, lineColon),
+      lineno,
+      colno,
+    });
+  }
+
   return frames.reverse();
+}
+
+/** Digits only — `Number('')` is 0 and `Number(' 1 ')` is 1, neither of which
+ *  should pass for a line number. */
+function toPositiveInt(raw: string): number | null {
+  if (!raw || !/^\d+$/.test(raw)) return null;
+  const n = Number(raw);
+  return Number.isSafeInteger(n) ? n : null;
 }
