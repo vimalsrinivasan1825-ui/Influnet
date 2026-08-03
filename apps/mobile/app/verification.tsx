@@ -12,13 +12,14 @@
  * after and becomes something we can re-check later.
  */
 import { useCallback, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { BadgeCheck, Copy, ExternalLink, PlayCircle } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
+import { openInstagramProfile } from '@/lib/instagram';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import {
@@ -377,7 +378,7 @@ export default function VerificationScreen() {
                   label="Open Instagram"
                   variant="secondary"
                   icon={<ExternalLink size={16} color={t.color.content} />}
-                  onPress={() => void Linking.openURL('instagram://user?username=self').catch(() => Linking.openURL('https://instagram.com'))}
+                  onPress={() => void openInstagramProfile(igHandle)}
                 />
               </Card>
 

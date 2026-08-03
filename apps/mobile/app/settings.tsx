@@ -31,8 +31,12 @@ import {
   type SheetRef,
 } from '@/components/ui';
 
-// Updated automatically by AI agent on commit to track the active build
-const LAST_COMMIT_TIME = '2026-08-01T00:29:02Z';
+// Updated automatically by AI agent on commit to track the active build.
+// MUST be refreshed on every commit that ships — an OTA `eas update` or a
+// store build — otherwise Settings reports a build time that predates what
+// the user is actually running. The Update ID and OTA date just below come
+// from expo-updates at runtime and need no maintenance.
+const LAST_COMMIT_TIME = '2026-08-03T11:35:48Z';
 
 // Only accounts in this list will see internal diagnostic tools in Settings.
 const DEVELOPER_EMAILS = [
