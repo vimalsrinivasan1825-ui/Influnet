@@ -20,11 +20,30 @@ interface PlatformUser {
   phone: string | null;
   location: string | null;
   created_at: string;
+  /** From auth.users. null when the account has never signed in. */
+  last_sign_in_at: string | null;
   company_name?: string;
   business_industry?: string;
   approval_status?: string;
   username?: string;
   niche?: string[];
+}
+
+/**
+ * Same shape as the one in components/dashboard/blocked-accounts-panel.tsx.
+ * "3h ago" is what you want when scanning a tester round; an absolute date
+ * only helps once it's old enough to stop mattering.
+ */
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
 const roleMeta = (role: string) => {
@@ -109,6 +128,7 @@ export default function AdminUsersPage() {
                 <th>Contact</th>
                 <th className="hidden md:table-cell">Location</th>
                 <th className="hidden sm:table-cell">Joined</th>
+                <th>Last seen</th>
               </tr>
             </THead>
             <TBody>
@@ -153,6 +173,20 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="hidden text-sm text-content-soft sm:table-cell">
                       {new Date(u.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="text-sm">
+                      {u.last_sign_in_at ? (
+                        <span
+                          className="text-content-soft"
+                          title={new Date(u.last_sign_in_at).toLocaleString()}
+                        >
+                          {timeAgo(u.last_sign_in_at)}
+                        </span>
+                      ) : (
+                        // Signed up but never came back — the one row on this
+                        // page worth chasing during a tester round.
+                        <span className="text-content-muted">Never</span>
+                      )}
                     </td>
                   </TRow>
                 );
