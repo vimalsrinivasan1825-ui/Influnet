@@ -5,8 +5,10 @@
  * signup, so the same fields become one question per screen with a progress
  * rail, a sticky primary action, and no way to advance until the step is valid.
  */
-import { type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { useLayoutEffect, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { useNavigation } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Button, ScreenScroll, StickyFooter, Txt } from '@/components/ui';
 
@@ -39,6 +41,14 @@ export function WizardStep({
   onNext,
   nextLabel = 'Continue',
   nextDisabled,
+  /**
+   * True on the last step, where onNext creates the account rather than just
+   * advancing. That's a bigger commitment than "next question" and gets its
+   * own explicit, clearly-labeled tap — the header arrow is withheld there on
+   * purpose, so "Create account" can only be triggered from the full-width
+   * button a thumb has to deliberately land on.
+   */
+  isLastStep,
   busy,
   error,
   footer,
@@ -51,11 +61,36 @@ export function WizardStep({
   onNext: () => void;
   nextLabel?: string;
   nextDisabled?: boolean;
+  isLastStep?: boolean;
   busy?: boolean;
   error?: string | null;
   footer?: ReactNode;
 }) {
   const t = useTheme();
+  const navigation = useNavigation();
+
+  // Back lives only on the header's native chevron (intercepted by
+  // useWizardBack to stay inside the wizard) — this is its forward twin, so
+  // both directions read from the same place instead of back being "up top"
+  // and next being "down in a footer button" for no reason but habit.
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () =>
+        isLastStep ? null : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next"
+            accessibilityState={{ disabled: !!nextDisabled || !!busy }}
+            disabled={nextDisabled || busy}
+            onPress={onNext}
+            hitSlop={8}
+            style={{ padding: 10, opacity: nextDisabled || busy ? 0.3 : 1 }}
+          >
+            <ChevronRight size={24} color={t.color.brand} />
+          </Pressable>
+        ),
+    });
+  }, [navigation, onNext, nextDisabled, busy, isLastStep, t.color.brand]);
 
   return (
     <KeyboardAvoidingView

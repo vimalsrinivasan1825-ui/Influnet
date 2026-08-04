@@ -22,7 +22,8 @@
  */
 const config = require('./app.json');
 
-const isDevClientBuild = process.env.EAS_BUILD_PROFILE === 'development';
+const profile = process.env.EAS_BUILD_PROFILE;
+const isDevClientBuild = profile === 'development';
 
 config.expo.plugins = config.expo.plugins.map((plugin) => {
   if (Array.isArray(plugin) && plugin[0] === 'expo-notifications') {
@@ -30,5 +31,38 @@ config.expo.plugins = config.expo.plugins.map((plugin) => {
   }
   return plugin;
 });
+
+/**
+ * App identity per build profile, so development/staging/production installs
+ * sit side by side on one phone as separate apps instead of each install
+ * overwriting the last — iOS/Android tell apps apart by bundle ID alone, so
+ * the same ID is "the same app" regardless of which OTA channel it updates
+ * from. `production` (and local `expo start`, which never sets
+ * EAS_BUILD_PROFILE) fall through to app.json's own identity untouched.
+ */
+const IDENTITY_BY_PROFILE = {
+  development: {
+    name: 'Influnet Dev',
+    bundleIdentifier: 'com.influnet.app.dev',
+    package: 'com.influnet.app.dev',
+  },
+  preview: {
+    name: 'Influnet Staging',
+    bundleIdentifier: 'com.influnet.app.staging',
+    package: 'com.influnet.app.staging',
+  },
+  'preview-device': {
+    name: 'Influnet Staging',
+    bundleIdentifier: 'com.influnet.app.staging',
+    package: 'com.influnet.app.staging',
+  },
+};
+
+const identity = IDENTITY_BY_PROFILE[profile];
+if (identity) {
+  config.expo.name = identity.name;
+  config.expo.ios.bundleIdentifier = identity.bundleIdentifier;
+  config.expo.android.package = identity.package;
+}
 
 module.exports = config;

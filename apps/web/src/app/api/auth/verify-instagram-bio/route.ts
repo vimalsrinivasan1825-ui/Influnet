@@ -1,0 +1,103 @@
+import { NextResponse } from 'next/server';
+import { jsonError } from '@/lib/api';
+import { fetchInstagramProfile, InstagramProviderError } from '@/lib/instagram';
+import { enforceRateLimit } from '@/lib/rate-limit';
+
+// Same ceiling as scrape-instagram: the Apify actor routinely takes 20-50s on a
+// cold start, and a shorter cap turns a working check into a platform 504.
+export const maxDuration = 60;
+
+/**
+ * POST /api/auth/verify-instagram-bio  { handle, username }
+ *
+ * Signup-time proof that the person claiming an Instagram handle can edit that
+ * account's bio: they paste their own future profile link into it and we read
+ * it back server-side. Unauthenticated by design — this runs BEFORE the account
+ * exists, which is the whole point of gating signup on it.
+ *
+ * ── What this is and is not ────────────────────────────────────────────────
+ * The match is deliberately strict: the bio must contain the claimant's OWN
+ * username as the profile path, not merely the word "influnet". A loose match
+ * would let anyone claim a creator's handle the moment that creator's bio
+ * mentioned Influnet at all; requiring the claimant's own unique username
+ * means the string they need is one only they were shown.
+ *
+ * It is still WEAKER than the one-time bio code in migration 058, because a
+ * public profile link is not a secret and does not expire: anyone can read it
+ * off the bio, and if a username were ever recycled the new holder would
+ * inherit the old holder's proof. So this gates SIGNUP only. It deliberately
+ * does NOT write a verified row into social_account_claims — the Verified badge
+ * keeps depending on the single-use code flow, which is what migration 083
+ * locked down. Downgrading the badge's evidence to this would re-open exactly
+ * that hole.
+ */
+export async function POST(req: Request) {
+  try {
+    // Unauthenticated AND spends provider credit per call — keep it on the
+    // same tight budget as the signup scrape.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'auth:verify-instagram-bio',
+      limit: 6,
+      windowMs: 60_000,
+    });
+    if (limited) return limited;
+
+    const body = await req.json().catch(() => ({}));
+    const handle = typeof body.handle === 'string' ? body.handle.replace(/^@/, '').trim() : '';
+    const username = typeof body.username === 'string' ? body.username.trim() : '';
+
+    if (!handle || !username) {
+      return jsonError(400, 'Instagram handle and username are required');
+    }
+    // The username is interpolated into a RegExp below; keep it to the charset
+    // the username rules already allow so no pattern metacharacter reaches it.
+    if (!/^[a-z0-9_.]{3,30}$/i.test(username)) {
+      return jsonError(400, 'Invalid username');
+    }
+
+    const profile = await fetchInstagramProfile(handle);
+    if (!profile) {
+      return jsonError(404, 'Instagram profile not found');
+    }
+    if (profile.isPrivate) {
+      return NextResponse.json({
+        verified: false,
+        reason: 'private',
+        message: "That account is private, so we can't read its bio.",
+      });
+    }
+
+    // Normalise the way bios actually arrive: mixed case, zero-width joiners
+    // pasted in by mobile keyboards, and full-width slashes from some IMEs.
+    const bio = (profile.biography ?? '')
+      .replace(/[​-‍﻿]/g, '')
+      .replace(/／/g, '/')
+      .toLowerCase();
+
+    // Host-agnostic on purpose (the link shown differs across dev / staging /
+    // prod), but the trailing <username> path is mandatory — that is the part
+    // only this claimant was given. `/c/` is optional so the check keeps
+    // working if the canonical profile path ever regains that segment.
+    // The trailing guard stops "…/priya" matching a bio that reads "…/priyanka".
+    const pattern = new RegExp(
+      `influnet[a-z0-9.\\-]*\\/(?:c\\/)?${username.toLowerCase()}(?![a-z0-9_.])`,
+      'i'
+    );
+    const verified = pattern.test(bio);
+
+    return NextResponse.json({
+      verified,
+      ...(verified
+        ? {}
+        : {
+            reason: 'not_found',
+            message: "We couldn't find your link in that bio yet.",
+          }),
+    });
+  } catch (error: any) {
+    if (error instanceof InstagramProviderError) {
+      return jsonError(503, `Provider error: ${error.kind}`);
+    }
+    return jsonError(500, 'Internal server error', error);
+  }
+}
