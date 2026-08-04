@@ -1,24 +1,47 @@
 /**
  * The visible half of lib/use-app-update.ts.
  *
- * Two states of interruption, matching how the hook escalates:
- *  - available/downloading/ready: a small card floating above the bottom
- *    safe area, on top of whatever screen is showing. Never blocks input.
- *  - forceRestart: a full-screen overlay once a downloaded update has sat
- *    unapplied past the grace period. No skip — the point of escalating is
- *    that skipping is what got here.
+ * Three states of interruption, matching how the hook progresses:
+ *  - `available`, before the user has touched it: a big card near the top of
+ *    the screen — deliberately in the way, so a fix that is ready is not
+ *    easy to miss. The only state with a close (X) — dismissing it is what
+ *    demotes everything below to the quiet form.
+ *  - `available` (skipped) / `downloading` / `ready`: a slim bar attached to
+ *    the top edge of the bottom tab bar. Never blocks the content above it,
+ *    and deliberately has NO close — once the user has been told once, the
+ *    reminder stays until the update is actually applied rather than
+ *    disappearing and being forgotten.
+ *  - `ready`, left too long: escalates to the existing full-screen restart
+ *    prompt (unchanged, already correct).
  */
-import { ActivityIndicator, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Download, RefreshCw, X } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useAppUpdate } from '@/lib/use-app-update';
 import { Button, Txt } from './ui';
 
+/**
+ * React Navigation's default bottom-tab height (excludes the safe-area inset,
+ * which is added separately below) — this app does not override it in
+ * (tabs)/_layout.tsx. Approximate rather than measured: this banner is
+ * rendered at the root, above the tab navigator, so the actual rendered
+ * height is not available via context here. On the handful of screens with
+ * no tab bar at all there is nothing to attach to anyway, so the same offset
+ * just leaves a bit of harmless extra clearance above the bottom edge there.
+ */
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 : 56;
+
 export function AppUpdateBanner({ enabled }: { enabled: boolean }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { state, forceRestart, download, restart, dismiss } = useAppUpdate(enabled);
+  // Component-local, not part of the hook: whether the user has acted on the
+  // initial interrupting card at least once (skip or download). Once true,
+  // every remaining state renders as the quiet attached bar, permanently —
+  // there is no way back to the big card for this update.
+  const [interruptDismissed, setInterruptDismissed] = useState(false);
 
   if (state === 'idle' || state === 'error') return null;
 
@@ -62,34 +85,102 @@ export function AppUpdateBanner({ enabled }: { enabled: boolean }) {
     );
   }
 
+  const showBigCard = state === 'available' && !interruptDismissed;
+
+  if (showBigCard) {
+    return (
+      <View
+        style={{
+          position: 'absolute',
+          top: insets.top + t.spacing.md,
+          left: t.spacing.lg,
+          right: t.spacing.lg,
+          alignItems: 'center',
+        }}
+      >
+        <View
+          style={{
+            width: '100%',
+            maxWidth: 420,
+            backgroundColor: t.color.surfaceCard,
+            borderRadius: t.radii.lg,
+            padding: t.spacing.lg,
+            gap: t.spacing.sm,
+            ...t.shadows.card,
+          }}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: t.radii.md,
+                backgroundColor: t.color.brandSoft,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Download size={20} color={t.color.brand} />
+            </View>
+            <Pressable
+              onPress={() => setInterruptDismissed(true)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Not now"
+            >
+              <X size={20} color={t.color.contentSoft} />
+            </Pressable>
+          </View>
+
+          <Txt variant="title2">Update available</Txt>
+          <Txt variant="body" tone="soft">
+            A newer version is ready — download it to pick up the latest fixes.
+          </Txt>
+
+          <Button
+            label="Download now"
+            onPress={() => {
+              setInterruptDismissed(true);
+              void download();
+            }}
+            style={{ marginTop: t.spacing.sm }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  // Quiet, attached form: available-but-skipped / downloading / ready.
+  // Flush with the top edge of the tab bar, never overlapping it.
   return (
     <View
       style={{
         position: 'absolute',
         left: t.spacing.md,
         right: t.spacing.md,
-        bottom: insets.bottom + t.spacing.md,
+        bottom: insets.bottom + TAB_BAR_HEIGHT,
       }}
     >
-      <View
+      <Pressable
+        disabled={state !== 'available'}
+        onPress={() => void download()}
         style={{
           backgroundColor: t.color.surfaceCard,
-          borderRadius: t.radii.lg,
+          borderTopLeftRadius: t.radii.md,
+          borderTopRightRadius: t.radii.md,
           borderWidth: 1,
+          borderBottomWidth: 0,
           borderColor: t.color.hairlineStrong,
           padding: t.spacing.md,
           flexDirection: 'row',
           alignItems: 'center',
           gap: t.spacing.sm,
-          ...t.shadows.card,
         }}
       >
         {state === 'downloading' ? (
           <ActivityIndicator color={t.color.brand} />
-        ) : state === 'ready' ? (
-          <RefreshCw size={20} color={t.color.brand} />
         ) : (
-          <Download size={20} color={t.color.brand} />
+          <RefreshCw size={18} color={t.color.brand} />
         )}
 
         <View style={{ flex: 1 }}>
@@ -102,40 +193,17 @@ export function AppUpdateBanner({ enabled }: { enabled: boolean }) {
           </Txt>
           <Txt variant="footnote" tone="muted">
             {state === 'downloading'
-              ? 'Keep using the app — this runs in the background.'
+              ? 'Runs in the background — keep using the app.'
               : state === 'ready'
                 ? 'Restart to apply it.'
-                : 'A newer version is ready to download.'}
+                : 'Tap to download.'}
           </Txt>
         </View>
-
-        {state === 'available' ? (
-          <>
-            <Button
-              label="Update"
-              size="md"
-              inline
-              onPress={() => void download()}
-              haptic={false}
-            />
-            <Button
-              label=""
-              variant="ghost"
-              size="md"
-              inline
-              icon={<X size={18} color={t.color.contentSoft} />}
-              onPress={dismiss}
-              haptic={false}
-              accessibilityLabel="Not now"
-              style={{ paddingHorizontal: t.spacing.sm }}
-            />
-          </>
-        ) : null}
 
         {state === 'ready' ? (
           <Button label="Restart" size="md" inline onPress={restart} haptic={false} />
         ) : null}
-      </View>
+      </Pressable>
     </View>
   );
 }
