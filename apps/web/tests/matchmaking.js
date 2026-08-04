@@ -383,11 +383,15 @@ async function runTests() {
 
     await delay(1000);
 
-    const projectsRes = await fetch('http://localhost:3000/api/projects', {
-      headers: { 'Authorization': `Bearer ${creatorSession.access_token}` }
+    const projectsRes = await fetch(`http://localhost:3000/api/projects`, {
+      headers: { Authorization: `Bearer ${creatorSession.access_token}` }
     });
-    const projectsBody = await projectsRes.json();
     console.log(`- Creator Projects Response Status: ${projectsRes.status}`);
+    const projectsData = await projectsRes.json().catch(() => ({}));
+    if (projectsRes.status === 500) {
+      console.log(`- Projects 500 Response Body:`, JSON.stringify(projectsData, null, 2));
+    }
+    const projectsBody = projectsData;
     console.log(`- Projects Found: ${projectsBody.projects?.length || 0}`);
 
     const matchingProj = (projectsBody.projects || []).find(
