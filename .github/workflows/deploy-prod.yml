@@ -1,5 +1,17 @@
 name: Deploy to Production (Azure)
 
+# NOTE ON MIGRATIONS — there is deliberately no `supabase db push` here.
+#
+# As of 2026-08-04 this workflow's app tier and the staging tier point at the
+# SAME Supabase project (aokdansyqxracuwsosji), so deploy-staging.yml has
+# already applied every pending migration by the time anything reaches `main`.
+# Adding a second push here would be a no-op at best.
+#
+# When production is split onto its own database, this workflow needs its own
+# migrate job — and unlike dev/staging it should stay gated behind the
+# `environment: production` approval below, because at that point the target
+# really is customer data.
+
 on:
   push:
     branches:
