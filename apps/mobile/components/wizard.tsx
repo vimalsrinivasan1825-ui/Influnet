@@ -8,7 +8,7 @@
 import { useLayoutEffect, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { useNavigation } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Button, ScreenScroll, StickyFooter, Txt } from '@/components/ui';
 
@@ -39,6 +39,7 @@ export function WizardStep({
   subtitle,
   children,
   onNext,
+  onBack,
   nextLabel = 'Continue',
   nextDisabled,
   /**
@@ -59,6 +60,12 @@ export function WizardStep({
   subtitle?: string;
   children: ReactNode;
   onNext: () => void;
+  /**
+   * Steps back one question. Omitted on the first step, where the only way
+   * back is out of the wizard entirely, and the navigator's own default back
+   * button already does exactly that.
+   */
+  onBack?: () => void;
   nextLabel?: string;
   nextDisabled?: boolean;
   isLastStep?: boolean;
@@ -69,12 +76,32 @@ export function WizardStep({
   const t = useTheme();
   const navigation = useNavigation();
 
-  // Back lives only on the header's native chevron (intercepted by
-  // useWizardBack to stay inside the wizard) — this is its forward twin, so
-  // both directions read from the same place instead of back being "up top"
-  // and next being "down in a footer button" for no reason but habit.
+  // Both directions live in the header, driven by explicit custom buttons —
+  // not the navigator's default back chevron plus a `beforeRemove`
+  // interception (useWizardBack), which is what this used to be. That works
+  // on Android, but native-stack's iOS back button is presented and
+  // dismissed by UIKit itself; the JS-side `beforeRemove` listener can lose
+  // the race against the native pop, so a tap occasionally went straight
+  // through to the previous SCREEN (out of the wizard entirely) instead of
+  // being caught. A custom headerLeft that calls onBack directly has no race
+  // to lose — it's just a button, same mechanism as the Next arrow already
+  // used here. useWizardBack stays wired in the parent for the edge-swipe
+  // gesture, which a header button can't intercept.
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerLeft: onBack
+        ? () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              onPress={onBack}
+              hitSlop={8}
+              style={{ padding: 10 }}
+            >
+              <ChevronLeft size={24} color={t.color.content} />
+            </Pressable>
+          )
+        : undefined,
       headerRight: () =>
         isLastStep ? null : (
           <Pressable
@@ -90,7 +117,7 @@ export function WizardStep({
           </Pressable>
         ),
     });
-  }, [navigation, onNext, nextDisabled, busy, isLastStep, t.color.brand]);
+  }, [navigation, onBack, onNext, nextDisabled, busy, isLastStep, t.color.brand, t.color.content]);
 
   return (
     <KeyboardAvoidingView

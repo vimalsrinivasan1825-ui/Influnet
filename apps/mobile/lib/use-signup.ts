@@ -249,8 +249,42 @@ export async function hasSessionFor(email: string): Promise<boolean> {
 }
 
 /**
+ * Registers the profile against an already-live session and finishes up.
+ * Shared tail for both the first-time path and the two resume paths below —
+ * whichever got us a session, registration and everything after it is
+ * identical. /api/auth/register is idempotent when the profile already
+ * exists, so calling it again on a resume is safe, not just harmless.
+ */
+async function finishRegistration(payload: Record<string, unknown>, email: string): Promise<SignupResult> {
+  const res = await endpoints.register({ ...payload, email: email.trim() });
+  if (!res.ok) return { ok: false, error: res.error ?? 'Could not create your profile.' };
+
+  // Kick off social verification so the trust badge starts processing straight
+  // away, as web does. Fire-and-forget: never blocks signup, and it can be
+  // re-run from the verification screen if it fails.
+  void endpoints.startVerification({}).catch(() => {});
+
+  try {
+    await useSession.getState().loadProfile();
+  } catch {
+    // A local cache refresh failing here must never undo a signup that the
+    // server just confirmed — the profile is already written; app/index.tsx
+    // picks it up on the next load regardless of whether this one succeeded.
+  }
+  return { ok: true };
+}
+
+/**
  * Two steps, in order: create the auth user, then register the profile via the
  * API (which is the only thing allowed to write role and approval status).
+ *
+ * Resume-safe against a retried tap: if this device still holds a session
+ * for the email, or Supabase reports the email as already registered (this
+ * device's session was lost — an app restart, a cleared token — but the
+ * account from an earlier attempt is real), this finishes registration
+ * instead of either failing outright or leaving the caller to show a
+ * confusing "taken" error for an account that belongs to the same person
+ * retrying.
  */
 export async function completeSignup(
   email: string,
@@ -262,19 +296,8 @@ export async function completeSignup(
   // business living there. Same split the web wizards make.
   const { phoneVerificationToken, ...metadata } = payload;
 
-  // Resume path: signUp already succeeded on an earlier attempt (the network
-  // stalled after, the app was backgrounded, whatever — the account is real
-  // either way) and this device is still holding that session. Retrying
-  // signUp here would just fail on the duplicate email, so finish
-  // registration instead — /api/auth/register is idempotent when the
-  // profile already exists, so this is safe whether or not the first
-  // attempt got that far too.
   if (await hasSessionFor(email)) {
-    const res = await endpoints.register({ ...payload, email: email.trim() });
-    if (!res.ok) return { ok: false, error: res.error ?? 'Could not create your profile.' };
-    void endpoints.startVerification({}).catch(() => {});
-    await useSession.getState().loadProfile();
-    return { ok: true };
+    return finishRegistration(payload, email);
   }
 
   const { data, error } = await supabase.auth.signUp({
@@ -286,7 +309,25 @@ export async function completeSignup(
     options: { data: { ...metadata, email: email.trim() } },
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // "User already registered" (Supabase's wording varies slightly by
+    // version) means an earlier attempt already created this exact account —
+    // not a real failure. Sign in instead of giving up: the password just
+    // typed into this same form is the one that attempt set, so if it's
+    // truly the same person this succeeds and the retry finishes cleanly.
+    // If it doesn't match, the sign-in's own error is what actually surfaces.
+    const isDuplicateEmail = /already registered|already exists|user already/i.test(error.message);
+    if (!isDuplicateEmail) return { ok: false, error: error.message };
+
+    const signIn = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (signIn.error || !signIn.data.session) {
+      return {
+        ok: false,
+        error: 'An account with this email already exists. Try signing in instead.',
+      };
+    }
+    return finishRegistration(payload, email);
+  }
 
   // Email-confirmation projects return a user with no session. The profile
   // can't be registered without a bearer token, so stop and say so plainly.
@@ -302,14 +343,5 @@ export async function completeSignup(
     return { ok: true, needsConfirmation: true };
   }
 
-  const res = await endpoints.register({ ...payload, email: email.trim() });
-  if (!res.ok) return { ok: false, error: res.error ?? 'Could not create your profile.' };
-
-  // Kick off social verification so the trust badge starts processing straight
-  // away, as web does. Fire-and-forget: never blocks signup, and it can be
-  // re-run from the verification screen if it fails.
-  void endpoints.startVerification({}).catch(() => {});
-
-  await useSession.getState().loadProfile();
-  return { ok: true };
+  return finishRegistration(payload, email);
 }

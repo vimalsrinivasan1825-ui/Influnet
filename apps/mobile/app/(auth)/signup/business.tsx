@@ -67,43 +67,50 @@ export default function BusinessSignup() {
     setBusy(true);
     setError(null);
 
-    const result = await completeSignup(email, password, {
-      role: 'business_owner',
-      name: name.trim(),
-      // Phone is collected either way; the token only exists when the gate is on
-      // and register ignores it when off.
-      phone: otp.phone.trim() || undefined,
-      phoneVerificationToken: otp.token ?? undefined,
-      companyName: company.trim(),
-      username: username.trim().toLowerCase(),
-      industry,
-      businessType: businessType || undefined,
-      marketingBudget: budget || undefined,
-      collabPreferences,
-      // Normalised the same way web does, so the stored value has a scheme and
-      // passes the WebsiteSchema transform server-side.
-      website: website.trim() ? normalizeWebsite(website) : undefined,
-      registeredAddress: registeredAddress.trim() || undefined,
-      gstNumber: gstNumber.trim() ? gstNumber.trim().toUpperCase() : undefined,
-      city: city.trim() || undefined,
-      state: state || undefined,
-      location: [city.trim(), state].filter(Boolean).join(', ') || undefined,
-    });
+    try {
+      const result = await completeSignup(email, password, {
+        role: 'business_owner',
+        name: name.trim(),
+        // Phone is collected either way; the token only exists when the gate is on
+        // and register ignores it when off.
+        phone: otp.phone.trim() || undefined,
+        phoneVerificationToken: otp.token ?? undefined,
+        companyName: company.trim(),
+        username: username.trim().toLowerCase(),
+        industry,
+        businessType: businessType || undefined,
+        marketingBudget: budget || undefined,
+        collabPreferences,
+        // Normalised the same way web does, so the stored value has a scheme and
+        // passes the WebsiteSchema transform server-side.
+        website: website.trim() ? normalizeWebsite(website) : undefined,
+        registeredAddress: registeredAddress.trim() || undefined,
+        gstNumber: gstNumber.trim() ? gstNumber.trim().toUpperCase() : undefined,
+        city: city.trim() || undefined,
+        state: state || undefined,
+        location: [city.trim(), state].filter(Boolean).join(', ') || undefined,
+      });
 
-    setBusy(false);
-
-    if (!result.ok) {
-      setError(result.error ?? 'Could not create your account.');
-      return;
+      if (!result.ok) {
+        setError(result.error ?? 'Could not create your account.');
+        return;
+      }
+      if (result.needsConfirmation) {
+        setError(
+          'Check your email to confirm your address, then sign in — your details are saved.'
+        );
+        return;
+      }
+      // New businesses land on the review screen, not the tabs.
+      router.replace('/');
+    } catch {
+      // Something unexpected threw (a network layer error, not a handled
+      // { ok: false } result) — surface it rather than leaving the button
+      // stuck on "Creating…" forever with no way to tell what happened.
+      setError('Something went wrong creating your account. Please try again.');
+    } finally {
+      setBusy(false);
     }
-    if (result.needsConfirmation) {
-      setError(
-        'Check your email to confirm your address, then sign in — your details are saved.'
-      );
-      return;
-    }
-    // New businesses land on the review screen, not the tabs.
-    router.replace('/');
   }
 
   const next = () => (step === steps.length - 1 ? void submit() : setStep((s) => s + 1));
@@ -352,6 +359,7 @@ export default function BusinessSignup() {
       title={current.title}
       subtitle={current.subtitle}
       onNext={next}
+      onBack={step > 0 ? back : undefined}
       isLastStep={step === steps.length - 1}
       nextLabel={step === steps.length - 1 ? 'Create account' : 'Continue'}
       nextDisabled={!current.valid || busy}
