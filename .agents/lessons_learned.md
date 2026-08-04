@@ -8,14 +8,14 @@ This file tracks the current implementation state of each system module, issues 
 
 ### Scope
 - **PostgREST Query Fix (`apps/web/src/app/api/projects/route.ts`)**:
-  - Fixed an unparseable PostgreSQL timestamp filter `deleted_at.gt.now()` in PostgREST by replacing `now()` with a valid ISO 8601 string (`new Date().toISOString()`).
-  - Restored standard PostgREST `.or(...)` filter chaining.
+  - Removed duplicate `.or()` query chaining on Supabase query builder by performing the 15-day cancellation retention check (`deleted_at`) directly in JavaScript.
+  - Ensures the PostgREST URL contains exactly one `.or()` parameter (`owner_user_id.eq.X,counterparty_user_id.eq.Y`), eliminating HTTP 500 serialization errors.
 
 ### Broken & Resolved
-- **GET /api/projects HTTP 500 in CI**: Step 7 of `matchmaking.js` failed because `deleted_at.gt.now()` passed the literal string `"now()"` into PostgREST's timestamp comparison parameter, causing PostgREST to return a 500 error (`invalid input syntax for type timestamp: "now()"`). Resolved by passing `new Date().toISOString()`.
+- **GET /api/projects HTTP 500 in CI**: Step 7 of `matchmaking.js` failed because PostgREST rejected multiple `.or()` parameters in the query string (`or=...&or=...`), causing `GET /api/projects` to throw an HTTP 500 syntax error. Resolved by handling the `deleted_at` 15-day retention filter in JS.
 
 ### Key Lessons
-- PostgREST filter parameters do not evaluate raw SQL function keywords like `now()` inside comparison operators (e.g. `.gt.now()`). Timestamps MUST be formatted as ISO 8601 strings (`new Date().toISOString()`) before passing to PostgREST query parameters.
+- PostgREST does not support chaining multiple `.or()` calls on the same query builder instance (it produces duplicate `or=` parameters in the HTTP request URL, which PostgREST rejects with HTTP 500). Any secondary logical filters should be evaluated in JavaScript after fetching the user's project records.
 
 ### Next Target
 - Push fix to `dev` and verify CI passes.

@@ -27,8 +27,6 @@ export async function GET(req: Request) {
     // Retrieve projects where caller is owner or counterparty.
     // Excludes both pending_acceptance terms (migration 069) and stale
     // cancelled rows past their 15-day retention window (migration 092).
-    const nowIso = new Date().toISOString();
-
     let query = supabase
       .from('campaign_projects')
       .select(`
@@ -42,14 +40,22 @@ export async function GET(req: Request) {
     if (showDeleted) {
       query = query.not('manually_deleted_at', 'is', null);
     } else {
-      query = query
-        .is('manually_deleted_at', null)
-        .or(`deleted_at.is.null,deleted_at.gt.${nowIso}`);
+      query = query.is('manually_deleted_at', null);
     }
 
-    const { data: projects, error } = await query.order('updated_at', { ascending: false });
+    const { data: rawProjects, error } = await query.order('updated_at', { ascending: false });
 
     if (error) return jsonError(500, 'Database query error', error);
+
+    // Cancelled projects stay visible for 15 days (migration 092), then
+    // they are hidden — deleted_at is set to now() + 15 days by the
+    // cancel_project() RPC, so filter out rows past their expiry in JS to
+    // avoid multiple PostgREST .or() filter serialization errors.
+    const now = new Date();
+    const projects = (rawProjects || []).filter((p: any) => {
+      if (!p.deleted_at) return true;
+      return new Date(p.deleted_at) > now;
+    });
 
     return NextResponse.json({ projects });
   } catch (error: any) {
