@@ -207,6 +207,14 @@ export function createEndpoints(api: ApiClient) {
      */
     scrapeInstagram: <T = unknown>(handle: string) =>
       api.get<T>(`/api/auth/scrape-instagram?handle=${encodeURIComponent(handle)}`),
+    /**
+     * Signup-time bio-link ownership check. Unauthenticated (it runs before the
+     * account exists) and rate-limited to 6/min per IP — every call spends
+     * provider credit. Gates signup only; the Verified badge still requires the
+     * single-use code flow. See the route for the threat model.
+     */
+    verifyInstagramBio: <T = unknown>(body: { handle: string; username: string }) =>
+      api.post<T>('/api/auth/verify-instagram-bio', body),
 
     // ── Chat & uploads ─────────────────────────────────────────────
     streamToken: <T = unknown>() => api.post<T>('/api/stream/token'),

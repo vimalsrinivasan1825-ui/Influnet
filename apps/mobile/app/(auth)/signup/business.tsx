@@ -15,6 +15,7 @@ import {
 import { useTheme } from '@/lib/theme';
 import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
+import { useWizardBack } from '@/lib/use-wizard-back';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
 import { Chip, ChipWrap, Field, Txt } from '@/components/ui';
@@ -106,6 +107,10 @@ export default function BusinessSignup() {
   }
 
   const next = () => (step === steps.length - 1 ? void submit() : setStep((s) => s + 1));
+  const back = () => setStep((s) => Math.max(0, s - 1));
+
+  // See the creator wizard: keeps back inside the wizard so nothing is lost.
+  useWizardBack(step > 0, back);
 
   const steps = [
     {
@@ -347,6 +352,7 @@ export default function BusinessSignup() {
       title={current.title}
       subtitle={current.subtitle}
       onNext={next}
+      isLastStep={step === steps.length - 1}
       nextLabel={step === steps.length - 1 ? 'Create account' : 'Continue'}
       nextDisabled={!current.valid || busy}
       busy={busy}

@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Check, Sparkles, X } from 'lucide-react-native';
+import { Check, X } from 'lucide-react-native';
 import { COLLAB_TYPES, INDIAN_STATES, LANGUAGES, NICHES, PRICE_TIERS } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
+import { useWizardBack } from '@/lib/use-wizard-back';
+import { useInstagramPreview } from '@/lib/use-instagram-preview';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
+import { InstagramPreviewCard } from '@/components/instagram-preview-card';
+import { BioVerifyStep, useBioVerification } from '@/components/bio-verify-step';
+import { FacebookIcon, InstagramIcon, XIcon, YoutubeIcon } from '@/components/social-icons';
 import { Button, Chip, ChipWrap, Field, Txt } from '@/components/ui';
 import { CityField } from '@/components/city-field';
 
@@ -41,6 +46,7 @@ export default function CreatorSignup() {
   const [instagram, setInstagram] = useState('');
   const [youtube, setYoutube] = useState('');
   const [twitter, setTwitter] = useState('');
+  const [facebook, setFacebook] = useState('');
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState('');
   const [niche, setNiche] = useState<string[]>([]);
@@ -60,60 +66,7 @@ export default function CreatorSignup() {
   // Attached to the socials step rather than promoted to its own screen: the
   // handle is already collected there, and one more full-screen step before an
   // account exists is a real drop-off cost on a phone.
-  const [prefilling, setPrefilling] = useState(false);
-  const [prefillError, setPrefillError] = useState<string | null>(null);
-  const [prefilled, setPrefilled] = useState(false);
   const [instagramFollowers, setInstagramFollowers] = useState<number | null>(null);
-  // A private account can't be scraped or bio-verified — HikerAPI/Apify return
-  // almost nothing for one. Tracked separately from prefillError so the step
-  // gate can specifically refuse to advance on a private handle, rather than
-  // on any failed check (a flaky network must not block signup the same way).
-  const [instagramPrivate, setInstagramPrivate] = useState(false);
-
-  async function prefillFromInstagram() {
-    const handle = instagram.trim().replace(/^@/, '');
-    if (!handle) return;
-
-    setPrefilling(true);
-    setPrefillError(null);
-
-    const res = await endpoints.scrapeInstagram<{
-      profile: {
-        fullName: string | null;
-        biography: string | null;
-        followerCount: number | null;
-        isPrivate: boolean | null;
-      };
-    }>(handle);
-    setPrefilling(false);
-
-    if (!res.ok) {
-      setPrefillError(res.error ?? "We couldn't reach Instagram. You can fill this in yourself.");
-      return;
-    }
-
-    const p = res.data?.profile;
-    if (!p) {
-      setPrefillError('No public profile found for that handle.');
-      return;
-    }
-
-    if (p.isPrivate) {
-      setInstagramPrivate(true);
-      setPrefillError(
-        "This Instagram account is private. We can't fetch or verify a private account — switch it to public, or use a different handle, to continue."
-      );
-      return;
-    }
-
-    // Never overwrite what the user already typed — same rule as web. The scrape
-    // is a convenience, not an authority on their own details.
-    if (p.fullName && !name.trim()) setName(p.fullName);
-    if (p.biography && !bio.trim()) setBio(p.biography);
-    if (typeof p.followerCount === 'number') setInstagramFollowers(p.followerCount);
-    setPrefilled(true);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }
 
   const availability = useUsernameAvailability(username);
   const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(name, username.length === 0);
@@ -121,6 +74,33 @@ export default function CreatorSignup() {
   const instagramAvailability = useInstagramAvailability(instagram);
   const otp = usePhoneOtp();
   const otpRequired = useOtpRequirement();
+
+  // Fires by itself once typing stops — no "fetch my details" button to notice
+  // and press. Only runs when the handle is free (a taken/invalid one is a
+  // dead end anyway, and every call spends provider credit).
+  const igAvailabilityOk =
+    instagramAvailability.status !== 'taken' && instagramAvailability.status !== 'invalid';
+  const igPreview = useInstagramPreview(instagram, igAvailabilityOk);
+
+  // Same rule as web: fill only what the user left blank. The scrape is a
+  // convenience, never an authority on their own details.
+  useEffect(() => {
+    if (igPreview.status !== 'found' || !igPreview.profile) return;
+    const p = igPreview.profile;
+    if (p.fullName) setName((prev) => (prev.trim() ? prev : p.fullName!));
+    if (p.biography) setBio((prev) => (prev.trim() ? prev : p.biography!));
+    setInstagramFollowers(typeof p.followerCount === 'number' ? p.followerCount : null);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [igPreview.status, igPreview.profile]);
+
+  const bioVerify = useBioVerification(instagram, username);
+
+  // A pass belongs to the handle+username it was checked against; changing
+  // either one has to send them back through the check.
+  useEffect(() => {
+    bioVerify.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instagram, username]);
 
   // Fail open on a failed check, exactly as the web wizard does: register_profile
   // still enforces uniqueness, so a flaky network must not hard-block signup.
@@ -159,6 +139,7 @@ export default function CreatorSignup() {
       instagramFollowers: instagramFollowers ?? undefined,
       youtubeHandle: youtube.trim().replace(/^@/, '') || undefined,
       twitterHandle: twitter.trim().replace(/^@/, '') || undefined,
+      facebookHandle: facebook.trim().replace(/^@/, '') || undefined,
       bio: bio.trim() || undefined,
       gender: gender || undefined,
       niche,
@@ -186,6 +167,21 @@ export default function CreatorSignup() {
   }
 
   const next = () => (step === steps.length - 1 ? void submit() : setStep((s) => s + 1));
+  const back = () => setStep((s) => Math.max(0, s - 1));
+
+  // Turns the header chevron / swipe / Android back into "one step back" for
+  // every step past the first, so answers (and a verified OTP) survive.
+  useWizardBack(step > 0, back);
+
+  // A verified bio is the one step that moves the wizard forward on its own —
+  // everywhere else the user taps Continue. The delay lets VerifiedHero's
+  // animation actually be seen before the screen changes under it.
+  useEffect(() => {
+    if (bioVerify.status !== 'verified') return;
+    const timer = setTimeout(next, 1900);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bioVerify.status]);
 
   const steps = [
     {
@@ -308,85 +304,59 @@ export default function CreatorSignup() {
       title: 'Link your socials',
       subtitle: 'We pull your follower count and engagement so brands see real numbers.',
       // Web requires at least one handle rather than Instagram specifically.
-      // A typed-in Instagram handle must clear the private/taken/invalid
-      // checks before it counts — clearing the field is still a valid way
-      // past this step if the other two socials cover it.
+      // A typed-in Instagram handle must resolve to a real, public, unclaimed
+      // account before it counts — clearing the field is still a valid way past
+      // this step if another social covers it. `error` deliberately passes: a
+      // provider outage must not become a signup wall.
       valid:
         (!instagram.trim() ||
-          (!instagramPrivate &&
+          (igPreview.status !== 'private' &&
+            igPreview.status !== 'notfound' &&
+            igPreview.status !== 'checking' &&
             instagramAvailability.status !== 'taken' &&
             instagramAvailability.status !== 'invalid')) &&
-        (instagram.trim().length > 1 || youtube.trim().length > 1 || twitter.trim().length > 1),
+        (instagram.trim().length > 1 ||
+          youtube.trim().length > 1 ||
+          twitter.trim().length > 1 ||
+          facebook.trim().length > 1),
       body: (
         <View style={{ gap: t.spacing.lg }}>
           <View style={{ gap: t.spacing.sm }}>
-              <Field
-                label="Instagram handle"
-                value={instagram}
-                onChangeText={(v) => {
-                  setInstagram(v.replace(/^@/, ''));
-                  // A changed handle invalidates whatever the last one pulled in.
-                  if (prefilled) setPrefilled(false);
-                  if (prefillError) setPrefillError(null);
-                  if (instagramPrivate) setInstagramPrivate(false);
-                }}
-                onBlur={() => {
-                  // Check public/private as soon as the user leaves the field,
-                  // not only when they press "Fetch my details" — the same
-                  // network call decides both, so this is the "initial check"
-                  // rather than a second one.
-                  if (!prefilling && !prefilled && instagram.trim().length > 1) {
-                    void prefillFromInstagram();
-                  }
-                }}
-                placeholder="@yourhandle"
-                autoCapitalize="none"
-                autoCorrect={false}
-                error={instagramAvailability.status === 'taken' || instagramAvailability.status === 'invalid' ? instagramAvailability.message : prefillError}
-                hint={instagramAvailability.status === 'available' ? instagramAvailability.message : null}
-                right={
-                  instagramAvailability.status === 'checking' ? (
-                    <ActivityIndicator size="small" color={t.color.contentMuted} />
-                  ) : instagramAvailability.status === 'available' ? (
-                    <Check size={19} color={t.color.ok} />
-                  ) : instagramAvailability.status === 'taken' || instagramAvailability.status === 'error' ? (
-                    <X size={19} color={t.color.danger} />
-                  ) : null
-                }
-              />
-            <Button
-              label={
-                prefilling
-                  ? 'Fetching your profile…'
-                  : prefilled
-                    ? 'Details pulled in'
-                    : 'Fetch my details from Instagram'
+            <Field
+              label="Instagram handle"
+              value={instagram}
+              onChangeText={(v) => setInstagram(v.replace(/^@/, ''))}
+              placeholder="@yourhandle"
+              autoCapitalize="none"
+              autoCorrect={false}
+              left={<InstagramIcon size={18} color={t.color.contentMuted} />}
+              error={
+                instagramAvailability.status === 'taken' ||
+                instagramAvailability.status === 'invalid'
+                  ? instagramAvailability.message
+                  : null
               }
-              icon={
-                prefilled ? (
-                  <Check size={16} color={t.color.ok} />
-                ) : (
-                  <Sparkles size={16} color={t.color.content} />
-                )
+              hint={
+                instagramAvailability.status === 'available'
+                  ? instagramAvailability.message
+                  : null
               }
-              variant="secondary"
-              size="md"
-              onPress={prefillFromInstagram}
-              disabled={instagram.trim().length < 2 || prefilling || prefilled || instagramAvailability.status === 'checking' || instagramAvailability.status === 'taken' || instagramAvailability.status === 'invalid'}
-              loading={prefilling}
+              right={
+                instagramAvailability.status === 'checking' ? (
+                  <ActivityIndicator size="small" color={t.color.contentMuted} />
+                ) : instagramAvailability.status === 'available' ? (
+                  <Check size={19} color={t.color.ok} />
+                ) : instagramAvailability.status === 'taken' ||
+                  instagramAvailability.status === 'error' ? (
+                  <X size={19} color={t.color.danger} />
+                ) : null
+              }
             />
-            {prefilled ? (
-              <Txt variant="footnote" tone="ok">
-                {instagramFollowers != null
-                  ? `Found ${instagramFollowers.toLocaleString('en-IN')} followers. We filled in anything you'd left blank.`
-                  : "We filled in anything you'd left blank."}
-              </Txt>
-            ) : (
-              <Txt variant="footnote" tone="muted">
-                Optional — saves you typing, and lets brands see real follower
-                numbers straight away.
-              </Txt>
-            )}
+            <InstagramPreviewCard
+              status={igPreview.status}
+              profile={igPreview.profile}
+              handle={instagram}
+            />
           </View>
           <Field
             label="YouTube channel"
@@ -395,6 +365,7 @@ export default function CreatorSignup() {
             placeholder="@yourchannel"
             autoCapitalize="none"
             autoCorrect={false}
+            left={<YoutubeIcon size={18} color={t.color.contentMuted} />}
           />
           <Field
             label="X (Twitter) handle"
@@ -403,11 +374,43 @@ export default function CreatorSignup() {
             placeholder="@yourhandle"
             autoCapitalize="none"
             autoCorrect={false}
-            hint="At least one of the three, so brands can see your work."
+            left={<XIcon size={18} color={t.color.contentMuted} />}
+          />
+          <Field
+            label="Facebook page"
+            value={facebook}
+            onChangeText={setFacebook}
+            placeholder="yourpage"
+            autoCapitalize="none"
+            autoCorrect={false}
+            left={<FacebookIcon size={18} color={t.color.contentMuted} />}
+            hint="At least one of the four, so brands can see your work."
           />
         </View>
       ),
     },
+    // Ownership gate. Only stands between the user and an account when they
+    // actually claimed an Instagram handle — someone signing up on YouTube or
+    // X alone has nothing to prove here and skips it entirely.
+    ...(instagram.trim().length > 1
+      ? [
+          {
+            title: 'Prove the account is yours',
+            subtitle:
+              'Put your Influnet link in your Instagram bio so brands know the handle really belongs to you.',
+            valid: bioVerify.status === 'verified',
+            body: (
+              <BioVerifyStep
+                handle={instagram}
+                username={username}
+                status={bioVerify.status}
+                message={bioVerify.message}
+                onVerify={() => void bioVerify.verify()}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       title: 'What do you make?',
       subtitle: 'Pick the niches and formats you work in. Brands filter by these.',
@@ -523,7 +526,10 @@ export default function CreatorSignup() {
     },
   ];
 
-  const current = steps[step];
+  // Clamped because the step list is now dynamic: clearing the Instagram
+  // handle removes the ownership step, and an index left pointing past the end
+  // would render `undefined` and crash the wizard.
+  const current = steps[Math.min(step, steps.length - 1)];
 
   return (
     <WizardStep
@@ -532,6 +538,7 @@ export default function CreatorSignup() {
       title={current.title}
       subtitle={current.subtitle}
       onNext={next}
+      isLastStep={step === steps.length - 1}
       nextLabel={step === steps.length - 1 ? 'Create account' : 'Continue'}
       nextDisabled={!current.valid || busy}
       busy={busy}

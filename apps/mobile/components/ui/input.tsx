@@ -10,6 +10,8 @@ export interface FieldProps extends TextInputProps {
   /** Neutral helper line; hidden while an error is showing. */
   hint?: string | null;
   right?: ReactNode;
+  /** Leading adornment — platform marks on the social fields, mostly. */
+  left?: ReactNode;
   containerStyle?: ViewStyle;
 }
 
@@ -18,6 +20,7 @@ export function Field({
   error,
   hint,
   right,
+  left,
   containerStyle,
   style,
   multiline,
@@ -55,6 +58,7 @@ export function Field({
           ...(focused && !error ? { shadowColor: t.color.brand, shadowOpacity: 0.18, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } } : null),
         }}
       >
+        {left ? <View style={{ marginRight: t.spacing.sm }}>{left}</View> : null}
         <TextInput
           ref={inputRef}
           style={[
