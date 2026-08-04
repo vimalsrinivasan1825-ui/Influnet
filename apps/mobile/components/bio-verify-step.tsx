@@ -9,14 +9,15 @@
  * badge still needs the single-use code flow post-signup).
  */
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Linking, Pressable, View } from 'react-native';
+import { Animated, Linking, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, HelpCircle } from 'lucide-react-native';
+import { Check, Copy, ExternalLink } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { publicProfileUrl, publicProfileUrlDisplay } from '@/lib/site';
 import { Button, Txt } from '@/components/ui';
+import { BioVerifyGuideVideo, WatchGuideButton } from '@/components/bio-verify-guide-video';
 
 export type BioVerifyStatus = 'idle' | 'checking' | 'verified' | 'missing' | 'private' | 'error';
 
@@ -62,77 +63,6 @@ export function useBioVerification(handle: string, username: string) {
   return { status, message, verify, reset };
 }
 
-/**
- * Collapsed by default: the three numbered actions below are enough for most
- * people, and an always-open seven-line walkthrough would push the actual
- * buttons off a phone screen. Anyone who needs it can open it in one tap.
- */
-const GUIDE_STEPS = [
-  'Tap "Copy link" below — your Influnet link goes to the clipboard.',
-  'Tap "Open Instagram". Instagram opens on your profile.',
-  'Tap "Edit profile" on your Instagram profile.',
-  'Tap the "Bio" field.',
-  'Press and hold in the box, then choose "Paste".',
-  'Save the change (tap ✓ or "Done").',
-  'Come back here and tap "I\'ve added it — verify".',
-];
-
-function Guide() {
-  const t = useTheme();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <View
-      style={{
-        borderRadius: t.radii.md,
-        borderWidth: 1,
-        borderColor: t.color.hairlineStrong,
-        backgroundColor: t.color.surfaceMuted,
-        overflow: 'hidden',
-      }}
-    >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((v) => !v)}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: t.spacing.sm,
-          padding: t.spacing.md,
-        }}
-      >
-        <HelpCircle size={18} color={t.color.brand} />
-        <Txt variant="footnote" style={{ flex: 1, color: t.color.brandStrong, fontWeight: '600' }}>
-          Show me how, step by step
-        </Txt>
-        {open ? (
-          <ChevronDown size={18} color={t.color.contentMuted} />
-        ) : (
-          <ChevronRight size={18} color={t.color.contentMuted} />
-        )}
-      </Pressable>
-
-      {open ? (
-        <View style={{ paddingHorizontal: t.spacing.md, paddingBottom: t.spacing.md, gap: t.spacing.sm }}>
-          {GUIDE_STEPS.map((line, i) => (
-            <View key={i} style={{ flexDirection: 'row', gap: t.spacing.sm }}>
-              <Txt variant="footnote" tone="muted" style={{ width: 16 }}>
-                {i + 1}.
-              </Txt>
-              <Txt variant="footnote" tone="soft" style={{ flex: 1 }}>
-                {line}
-              </Txt>
-            </View>
-          ))}
-          <Txt variant="footnote" tone="muted" style={{ marginTop: 2 }}>
-            You can remove the link from your bio once you're verified.
-          </Txt>
-        </View>
-      ) : null}
-    </View>
-  );
-}
 
 /**
  * A pass here is the last gate before the wizard moves on by itself — see the
@@ -220,6 +150,7 @@ export function BioVerifyStep({
 }) {
   const t = useTheme();
   const [copied, setCopied] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const link = publicProfileUrl(username);
 
   async function copy() {
@@ -235,7 +166,13 @@ export function BioVerifyStep({
 
   return (
     <View style={{ gap: t.spacing.lg }}>
-      <Guide />
+      <WatchGuideButton onPress={() => setGuideOpen(true)} />
+      <BioVerifyGuideVideo
+        visible={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        link={publicProfileUrlDisplay(username)}
+        handle={handle}
+      />
 
       <View style={{ gap: t.spacing.sm }}>
         <Txt variant="footnote" tone="soft">

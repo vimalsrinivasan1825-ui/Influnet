@@ -92,10 +92,19 @@ export function AppUpdateBanner({ enabled }: { enabled: boolean }) {
       <View
         style={{
           position: 'absolute',
-          top: insets.top + t.spacing.md,
-          left: t.spacing.lg,
-          right: t.spacing.lg,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          // Dimmed scrim, not a true blur — expo-blur isn't a dependency yet,
+          // and adding one now would need a fresh native build before this
+          // could reach anyone over OTA (the exact trap the location-autofill
+          // feature hit earlier). This reads the same way: background pushed
+          // back, the card is the only thing in focus.
+          backgroundColor: 'rgba(0,0,0,0.5)',
           alignItems: 'center',
+          justifyContent: 'center',
+          padding: t.spacing.xl,
         }}
       >
         <View
@@ -106,7 +115,7 @@ export function AppUpdateBanner({ enabled }: { enabled: boolean }) {
             borderRadius: t.radii.lg,
             padding: t.spacing.lg,
             gap: t.spacing.sm,
-            ...t.shadows.card,
+            ...t.shadows.pop,
           }}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
