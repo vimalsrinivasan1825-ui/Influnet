@@ -8,19 +8,17 @@ This file tracks the current implementation state of each system module, issues 
 
 ### Scope
 - **PostgREST Query Fix (`apps/web/src/app/api/projects/route.ts`)**:
-  - Fixed a syntax bug where calling `.or()` twice on the Supabase query builder caused PostgREST to fail with a 500 status on `GET /api/projects`.
-  - Refactored the query to combine `.or(...)` logical groups under `.and()`, preventing PostgREST syntax errors when querying user participation and project retention filters.
-- **Matchmaking E2E Test Suite Update (`apps/web/tests/matchmaking.js`)**:
-  - Updated the default fallback Supabase URL and anon key to point to the active development Supabase instance (`jaajosocopoicmqcffuu.supabase.co`).
+  - Fixed an unparseable PostgreSQL timestamp filter `deleted_at.gt.now()` in PostgREST by replacing `now()` with a valid ISO 8601 string (`new Date().toISOString()`).
+  - Restored standard PostgREST `.or(...)` filter chaining.
 
 ### Broken & Resolved
-- **GET /api/projects HTTP 500 in CI**: The E2E matchmaking test failed on step 7 because `GET /api/projects` returned a 500 error due to duplicate `.or()` parameter serialization. Resolved by grouping conditions using `.and("or(...),or(...)")`.
+- **GET /api/projects HTTP 500 in CI**: Step 7 of `matchmaking.js` failed because `deleted_at.gt.now()` passed the literal string `"now()"` into PostgREST's timestamp comparison parameter, causing PostgREST to return a 500 error (`invalid input syntax for type timestamp: "now()"`). Resolved by passing `new Date().toISOString()`.
 
 ### Key Lessons
-- In Supabase JS / PostgREST, invoking `.or()` multiple times on the same query builder appends duplicate `or=` parameters to the HTTP request URL, which causes PostgREST to throw query parse errors (HTTP 400/500). Multiple `or` conditions must be explicitly grouped into a single `.and("or(...),or(...)")` string.
+- PostgREST filter parameters do not evaluate raw SQL function keywords like `now()` inside comparison operators (e.g. `.gt.now()`). Timestamps MUST be formatted as ISO 8601 strings (`new Date().toISOString()`) before passing to PostgREST query parameters.
 
 ### Next Target
-- Commit the dev branch fix, push to `dev`, and verify CI tests pass.
+- Push fix to `dev` and verify CI passes.
 
 ---
 

@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     // Retrieve projects where caller is owner or counterparty.
     // Excludes both pending_acceptance terms (migration 069) and stale
     // cancelled rows past their 15-day retention window (migration 092).
-    const userFilter = `or(owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id})`;
+    const nowIso = new Date().toISOString();
 
     let query = supabase
       .from('campaign_projects')
@@ -36,16 +36,15 @@ export async function GET(req: Request) {
         owner:profiles!campaign_projects_owner_user_id_fkey(id, name, role),
         counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name, role)
       `)
+      .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`)
       .neq('status', 'pending_acceptance');
 
     if (showDeleted) {
-      query = query
-        .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`)
-        .not('manually_deleted_at', 'is', null);
+      query = query.not('manually_deleted_at', 'is', null);
     } else {
       query = query
         .is('manually_deleted_at', null)
-        .and(`${userFilter},or(deleted_at.is.null,deleted_at.gt.now())`);
+        .or(`deleted_at.is.null,deleted_at.gt.${nowIso}`);
     }
 
     const { data: projects, error } = await query.order('updated_at', { ascending: false });
