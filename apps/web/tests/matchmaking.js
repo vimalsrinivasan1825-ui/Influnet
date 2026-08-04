@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hrpaqufvjcihnjrjnpej.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_ebIIalxnJ-fYMr6I2N-EpQ_6TV5kaBy';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jaajosocopoicmqcffuu.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_zbfMv-IHhMwsLBj_wAXbng_b6byZL5x';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const sb = createClient(supabaseUrl, supabaseKey);

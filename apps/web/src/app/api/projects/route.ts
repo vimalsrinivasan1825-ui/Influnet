@@ -27,6 +27,8 @@ export async function GET(req: Request) {
     // Retrieve projects where caller is owner or counterparty.
     // Excludes both pending_acceptance terms (migration 069) and stale
     // cancelled rows past their 15-day retention window (migration 092).
+    const userFilter = `or(owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id})`;
+
     let query = supabase
       .from('campaign_projects')
       .select(`
@@ -34,17 +36,17 @@ export async function GET(req: Request) {
         owner:profiles!campaign_projects_owner_user_id_fkey(id, name, role),
         counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name, role)
       `)
-      .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`)
       .neq('status', 'pending_acceptance');
 
-    query = showDeleted
-      ? query.not('manually_deleted_at', 'is', null)
-      : query
-          .is('manually_deleted_at', null)
-          // Cancelled projects stay visible for 15 days (migration 092), then
-          // they are hidden — deleted_at is set to now() + 15 days by the
-          // cancel_project() RPC, so the filter reads "not past its expiry."
-          .or('deleted_at.is.null,deleted_at.gt.now()');
+    if (showDeleted) {
+      query = query
+        .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`)
+        .not('manually_deleted_at', 'is', null);
+    } else {
+      query = query
+        .is('manually_deleted_at', null)
+        .and(`${userFilter},or(deleted_at.is.null,deleted_at.gt.now())`);
+    }
 
     const { data: projects, error } = await query.order('updated_at', { ascending: false });
 
