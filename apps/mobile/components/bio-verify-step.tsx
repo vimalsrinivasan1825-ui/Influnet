@@ -8,8 +8,8 @@
  * matters and for what this check deliberately does NOT grant (the Verified
  * badge still needs the single-use code flow post-signup).
  */
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Linking, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Check, Copy, ExternalLink } from 'lucide-react-native';
@@ -18,6 +18,7 @@ import { endpoints } from '@/lib/api';
 import { publicProfileUrl, publicProfileUrlDisplay } from '@/lib/site';
 import { Button, Txt } from '@/components/ui';
 import { BioVerifyGuideVideo, WatchGuideButton } from '@/components/bio-verify-guide-video';
+import { BioVerifyCelebration } from '@/components/bio-verify-celebration';
 
 export type BioVerifyStatus = 'idle' | 'checking' | 'verified' | 'missing' | 'private' | 'error';
 
@@ -63,77 +64,14 @@ export function useBioVerification(handle: string, username: string) {
   return { status, message, verify, reset };
 }
 
-
-/**
- * A pass here is the last gate before the wizard moves on by itself — see the
- * auto-advance timer in the creator/business screens, keyed off this same
- * `verified` status. The animation's own timing (spring in, then the text)
- * finishes well inside that window, so it never looks like it's racing the
- * step change.
- */
-function VerifiedHero({ handle }: { handle: string }) {
-  const t = useTheme();
-  const scale = useRef(new Animated.Value(0)).current;
-  const checkOpacity = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 5,
-      tension: 140,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(checkOpacity, {
-      toValue: 1,
-      duration: 180,
-      delay: 120,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(textOpacity, {
-      toValue: 1,
-      duration: 300,
-      delay: 220,
-      useNativeDriver: true,
-    }).start();
-  }, [checkOpacity, scale, textOpacity]);
-
-  return (
-    <View
-      style={{
-        gap: t.spacing.md,
-        padding: t.spacing.xl,
-        borderRadius: t.radii.md,
-        borderWidth: 1,
-        borderColor: t.color.ok,
-        backgroundColor: t.color.surfaceCard,
-        alignItems: 'center',
-      }}
-    >
-      <Animated.View
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: t.color.ok,
-          alignItems: 'center',
-          justifyContent: 'center',
-          transform: [{ scale }],
-        }}
-      >
-        <Animated.View style={{ opacity: checkOpacity }}>
-          <Check size={30} color={t.color.white} />
-        </Animated.View>
-      </Animated.View>
-      <Animated.View style={{ opacity: textOpacity, alignItems: 'center', gap: 4 }}>
-        <Txt variant="bodyStrong">@{handle.replace(/^@/, '')} is yours</Txt>
-        <Txt variant="footnote" tone="muted" style={{ textAlign: 'center' }}>
-          Verified from your bio. Taking you to the next step…
-        </Txt>
-      </Animated.View>
-    </View>
-  );
-}
+// A pass here is the last gate before the wizard moves on by itself — see
+// the auto-advance timer in the creator/business screens, keyed off this
+// same `verified` status. The celebration below is full-screen
+// (BioVerifyCelebration, a Modal) rather than an inline card: this is the
+// actual payoff of the whole bio-link flow, and a small box competing with a
+// scrollview around it undersold that. Its own timing finishes well inside
+// the auto-advance window, so it never looks like it's racing the step
+// change.
 
 export function BioVerifyStep({
   handle,
@@ -161,7 +99,7 @@ export function BioVerifyStep({
   }
 
   if (status === 'verified') {
-    return <VerifiedHero handle={handle} />;
+    return <BioVerifyCelebration visible handle={handle} />;
   }
 
   return (
