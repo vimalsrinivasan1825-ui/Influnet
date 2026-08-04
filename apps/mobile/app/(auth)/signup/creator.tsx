@@ -6,7 +6,7 @@ import { Check, X } from 'lucide-react-native';
 import { COLLAB_TYPES, INDIAN_STATES, LANGUAGES, NICHES, PRICE_TIERS } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
-import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from '@/lib/use-signup';
+import { completeSignup, hasSessionFor, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { useWizardBack } from '@/lib/use-wizard-back';
 import { useInstagramPreview } from '@/lib/use-instagram-preview';
@@ -111,17 +111,25 @@ export default function CreatorSignup() {
     setBusy(true);
     setError(null);
 
-    // Final guard before the auth user is created: the live check gates the
-    // handle step, but the name can be claimed while someone works through the
-    // later steps. Catching it here avoids an orphaned auth account with no
-    // profile — the same reason web re-checks at submit time.
-    const recheck = await endpoints.checkUsername(username.trim().toLowerCase());
-    const checked = recheck.data as { available?: boolean; valid?: boolean } | null;
-    if (recheck.ok && checked?.available === false) {
-      setBusy(false);
-      setError('That username was just taken by someone else — pick another.');
-      setStep(1);
-      return;
+    // Skip the recheck when this is actually a retry of an already-created
+    // account (network stalled after signUp succeeded, the app backgrounded
+    // before navigating away, etc.) — otherwise the handle this exact session
+    // already owns reads as "taken by someone else" and bounces the user
+    // backward into a confusing loop for an account that is, in fact, theirs.
+    // completeSignup's own resume path handles finishing it from here.
+    if (!(await hasSessionFor(email))) {
+      // Final guard before the auth user is created: the live check gates the
+      // handle step, but the name can be claimed while someone works through
+      // the later steps. Catching it here avoids an orphaned auth account
+      // with no profile — the same reason web re-checks at submit time.
+      const recheck = await endpoints.checkUsername(username.trim().toLowerCase());
+      const checked = recheck.data as { available?: boolean; valid?: boolean } | null;
+      if (recheck.ok && checked?.available === false) {
+        setBusy(false);
+        setError('That username was just taken by someone else — pick another.');
+        setStep(1);
+        return;
+      }
     }
 
     const result = await completeSignup(email, password, {
