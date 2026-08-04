@@ -329,7 +329,7 @@ export default function CreatorSignup() {
               placeholder="@yourhandle"
               autoCapitalize="none"
               autoCorrect={false}
-              left={<InstagramIcon size={18} color={t.color.contentMuted} />}
+              left={<InstagramIcon size={18} />}
               error={
                 instagramAvailability.status === 'taken' ||
                 instagramAvailability.status === 'invalid'
@@ -365,7 +365,7 @@ export default function CreatorSignup() {
             placeholder="@yourchannel"
             autoCapitalize="none"
             autoCorrect={false}
-            left={<YoutubeIcon size={18} color={t.color.contentMuted} />}
+            left={<YoutubeIcon size={18} />}
           />
           <Field
             label="X (Twitter) handle"
@@ -374,7 +374,7 @@ export default function CreatorSignup() {
             placeholder="@yourhandle"
             autoCapitalize="none"
             autoCorrect={false}
-            left={<XIcon size={18} color={t.color.contentMuted} />}
+            left={<XIcon size={18} />}
           />
           <Field
             label="Facebook page"
@@ -383,7 +383,7 @@ export default function CreatorSignup() {
             placeholder="yourpage"
             autoCapitalize="none"
             autoCorrect={false}
-            left={<FacebookIcon size={18} color={t.color.contentMuted} />}
+            left={<FacebookIcon size={18} />}
             hint="At least one of the four, so brands can see your work."
           />
         </View>
