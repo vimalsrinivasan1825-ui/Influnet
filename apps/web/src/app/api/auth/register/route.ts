@@ -37,17 +37,20 @@ export async function POST(req: Request) {
     // hasn't got one.
     //
     // With email confirmation on, signUp returns no session, so register_profile
-    // can't run at signup time. Web stashed the wizard answers in localStorage
-    // and replayed them on first login — which works only in the browser that
-    // filled the form. Confirm the email on your phone, or sign up on mobile at
-    // all (which stashed nothing), and the answers were gone: you ended up
-    // signed in with no profile row, dropped into the app with nothing behind
-    // you and no route back to the wizard.
-    //
-    // The answers were never actually lost. Both wizards pass them to signUp as
+    // can't run at signup time. The wizards pass the answers to signUp as
     // `options.data`, so they live on the auth user as user_metadata — server
     // side, device independent, and already there. Reading them here means
-    // recovery needs no client storage at all.
+    // recovery needs no client storage at all (no more localStorage payloads,
+    // which is what the CodeQL clear-text-storage findings flagged).
+    //
+    // The one thing metadata deliberately does NOT hold is the phone-OTP token
+    // (it is single-use and short-lived, and auth metadata is permanent). When
+    // email confirmation is required, the signup page stores it server-side in
+    // pending_registrations (migration 105) keyed by the user id; we spend that
+    // row here so first login — from any device — keeps the verified phone. A
+    // fresh token supplied in the body wins. The row is single-use and deleted
+    // whether or not its token is still valid: an expired one must force a
+    // fresh verification, not a silent retry.
     //
     // Deliberately NOT merged with the body: a caller who sends a payload gets
     // exactly that payload validated, and metadata is consulted only when there
@@ -59,6 +62,27 @@ export async function POST(req: Request) {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData?.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      // Consume the server-side pending registration (best-effort: a database
+      // where migration 105 hasn't been applied must not break registration).
+      let pendingToken: unknown = rawBody?.phoneVerificationToken;
+      try {
+        const { data: pendingRow, error: pendingErr } = await supabase
+          .from('pending_registrations')
+          .select('phone_verification_token')
+          .eq('user_id', userData.user.id)
+          .maybeSingle();
+        if (pendingErr) {
+          console.error('[register] pending_registrations lookup failed (is migration 105 applied?):', pendingErr.message);
+        } else {
+          await supabase.from('pending_registrations').delete().eq('user_id', userData.user.id);
+          if (!pendingToken && pendingRow?.phone_verification_token) {
+            pendingToken = pendingRow.phone_verification_token;
+          }
+        }
+      } catch (err) {
+        console.error('[register] pending_registrations consumption failed:', err);
       }
 
       // Idempotent: if the profile is already there this is a no-op, not an
@@ -84,11 +108,10 @@ export async function POST(req: Request) {
           { status: 422 },
         );
       }
-      // The OTP token is deliberately absent from metadata (it is single-use and
-      // short-lived, and auth metadata is permanent). A recovering caller must
-      // supply a FRESH one in the body — see the phone gate below. Reconstruction
-      // must never be a way to skip mobile verification.
-      rawPayload = { ...metadata, phoneVerificationToken: rawBody?.phoneVerificationToken };
+      // Reconstruction must never be a way to skip mobile verification: if no
+      // valid token is available (body or pending row) and the OTP gate is on,
+      // the phone gate below rejects with 403 phone_unverified.
+      rawPayload = { ...metadata, phoneVerificationToken: pendingToken };
     }
 
     // Validate the body — role is guaranteed to be business_owner | influencer after this.

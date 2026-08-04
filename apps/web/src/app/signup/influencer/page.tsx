@@ -76,6 +76,30 @@ function InstagramSignupVerifyStep({
     if (!clean) return;
     setSaving(true);
     setSaveError("");
+
+    // A private account can't be read by the scraper or the bio-link
+    // ownership check below — both need a public profile. Catch that here,
+    // before the handle is even saved, rather than after Instagram
+    // Ownership Panel's check silently fails against unreadable data.
+    // Fails open on a network/provider error: the scrape route's own
+    // 5-per-minute rate limit is the backstop, and an unreachable Instagram
+    // must not itself block signup.
+    try {
+      const check = await fetch(`/api/auth/scrape-instagram?handle=${encodeURIComponent(clean)}`);
+      if (check.ok) {
+        const checkData = await check.json();
+        if (checkData?.profile?.isPrivate) {
+          setSaving(false);
+          setSaveError(
+            "This Instagram account is private. We can't verify a private account — switch it to public, or use a different handle, then try again."
+          );
+          return;
+        }
+      }
+    } catch {
+      // Network hiccup — fall through and let the save proceed.
+    }
+
     const res = await apiFetch("/api/profile", {
       method: "PATCH",
       body: JSON.stringify({ instagram_handle: clean }),
@@ -211,9 +235,8 @@ function InfluencerSignupContent() {
         if (data.firstName) setFirstName(data.firstName);
         if (data.lastName) setLastName(data.lastName);
         if (data.username) setUsername(data.username);
-        if (data.email) setEmail(data.email);
-        if (data.phone) setPhone(data.phone);
-        if (data.gender) setGender(data.gender);
+        // email / phone / gender are deliberately NOT persisted (draft only
+        // keeps non-sensitive fields) — see the save effect below.
         if (data.city) setCity(data.city);
         if (data.state) setState(data.state);
         if (data.languages) setLanguages(data.languages);
@@ -228,18 +251,22 @@ function InfluencerSignupContent() {
     } catch {}
   }, []);
 
-  // Save state on change
+  // Save state on change. Deliberately excludes email / phone / gender: they
+  // are personal data, and persisting them in browser storage is what the
+  // CodeQL "clear text storage of sensitive information" rule flags. A refresh
+  // mid-wizard asks the user to re-enter those step-1 fields; everything else
+  // is preserved. (The password is never persisted either.)
   useEffect(() => {
     sessionStorage.setItem(
       "influencerSignupState",
       JSON.stringify({
-        step, firstName, lastName, username, email, phone, gender, city, state,
+        step, firstName, lastName, username, city, state,
         languages, primaryNiche, secondaryNiches, bio, youtubeHandle, twitterHandle,
         collabTypes, priceRange,
       })
     );
   }, [
-    step, firstName, lastName, username, email, phone, gender, city, state,
+    step, firstName, lastName, username, city, state,
     languages, primaryNiche, secondaryNiches, bio, youtubeHandle, twitterHandle,
     collabTypes, priceRange,
   ]);
@@ -367,7 +394,7 @@ function InfluencerSignupContent() {
             Authorization: `Bearer ${data.session.access_token}`,
           },
           // The OTP token is deliberately NOT part of `payload` — that object
-          // becomes permanent auth metadata and is stashed in localStorage.
+          // becomes permanent auth metadata and is stashed server-side.
           body: JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
         });
         if (!res.ok) {
@@ -380,17 +407,24 @@ function InfluencerSignupContent() {
       } else {
         // Email confirmation required: no session yet, so neither
         // register_profile nor the step-5 ownership handshake can run now.
-        // Stash the payload so login can replay it once confirmed — otherwise
-        // all of this wizard's data (and the chance to verify inline) is lost.
+        // The signup answers already live on the auth user as user_metadata;
+        // the only thing that can't live there is the single-use phone-OTP
+        // token, so it is stored SERVER-SIDE (pending_registrations, migration
+        // 105) — never in localStorage. On first login, /api/auth/register
+        // rebuilds the profile from the metadata and spends that token, on any
+        // device, within its 30-minute window.
         sessionStorage.removeItem("influencerSignupState");
-        // The OTP token rides along so login can replay it, but it only lives
-        // 30 minutes — hence the sharper message when the gate is on.
         try {
-          localStorage.setItem(
-            "influnet_pending_registration",
-            JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
-          );
-        } catch { /* ignore */ }
+          await fetch("/api/auth/pending-registration", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: data.user?.id,
+              phone,
+              phone_verification_token: phoneToken,
+            }),
+          });
+        } catch { /* best-effort — the account still exists; Settings can recover it */ }
         const message = phoneOtpEnabled
           ? "Check your email to confirm your account — please do it within 30 minutes so your mobile verification is still valid"
           : "Check your email to confirm your account";

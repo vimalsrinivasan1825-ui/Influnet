@@ -64,6 +64,11 @@ export default function CreatorSignup() {
   const [prefillError, setPrefillError] = useState<string | null>(null);
   const [prefilled, setPrefilled] = useState(false);
   const [instagramFollowers, setInstagramFollowers] = useState<number | null>(null);
+  // A private account can't be scraped or bio-verified — HikerAPI/Apify return
+  // almost nothing for one. Tracked separately from prefillError so the step
+  // gate can specifically refuse to advance on a private handle, rather than
+  // on any failed check (a flaky network must not block signup the same way).
+  const [instagramPrivate, setInstagramPrivate] = useState(false);
 
   async function prefillFromInstagram() {
     const handle = instagram.trim().replace(/^@/, '');
@@ -73,7 +78,12 @@ export default function CreatorSignup() {
     setPrefillError(null);
 
     const res = await endpoints.scrapeInstagram<{
-      profile: { fullName: string | null; biography: string | null; followerCount: number | null };
+      profile: {
+        fullName: string | null;
+        biography: string | null;
+        followerCount: number | null;
+        isPrivate: boolean | null;
+      };
     }>(handle);
     setPrefilling(false);
 
@@ -85,6 +95,14 @@ export default function CreatorSignup() {
     const p = res.data?.profile;
     if (!p) {
       setPrefillError('No public profile found for that handle.');
+      return;
+    }
+
+    if (p.isPrivate) {
+      setInstagramPrivate(true);
+      setPrefillError(
+        "This Instagram account is private. We can't fetch or verify a private account — switch it to public, or use a different handle, to continue."
+      );
       return;
     }
 
@@ -290,8 +308,15 @@ export default function CreatorSignup() {
       title: 'Link your socials',
       subtitle: 'We pull your follower count and engagement so brands see real numbers.',
       // Web requires at least one handle rather than Instagram specifically.
+      // A typed-in Instagram handle must clear the private/taken/invalid
+      // checks before it counts — clearing the field is still a valid way
+      // past this step if the other two socials cover it.
       valid:
-        (instagram.trim().length > 1 && instagramAvailability.status !== 'taken' && instagramAvailability.status !== 'invalid') || youtube.trim().length > 1 || twitter.trim().length > 1,
+        (!instagram.trim() ||
+          (!instagramPrivate &&
+            instagramAvailability.status !== 'taken' &&
+            instagramAvailability.status !== 'invalid')) &&
+        (instagram.trim().length > 1 || youtube.trim().length > 1 || twitter.trim().length > 1),
       body: (
         <View style={{ gap: t.spacing.lg }}>
           <View style={{ gap: t.spacing.sm }}>
@@ -303,6 +328,16 @@ export default function CreatorSignup() {
                   // A changed handle invalidates whatever the last one pulled in.
                   if (prefilled) setPrefilled(false);
                   if (prefillError) setPrefillError(null);
+                  if (instagramPrivate) setInstagramPrivate(false);
+                }}
+                onBlur={() => {
+                  // Check public/private as soon as the user leaves the field,
+                  // not only when they press "Fetch my details" — the same
+                  // network call decides both, so this is the "initial check"
+                  // rather than a second one.
+                  if (!prefilling && !prefilled && instagram.trim().length > 1) {
+                    void prefillFromInstagram();
+                  }
                 }}
                 placeholder="@yourhandle"
                 autoCapitalize="none"

@@ -46,8 +46,15 @@ function LoginContent() {
       if (data.session && data.user) {
         // Recover a registration that couldn't complete at signup time. When
         // email confirmation is enabled, signUp returns no session, so the
-        // signup page stashes the payload and we replay it on first login.
-        // register_profile is idempotent (ON CONFLICT), so this is safe.
+        // profile can't be created until first login. Modern signups store the
+        // phone-OTP token SERVER-SIDE (pending_registrations, migration 105)
+        // and store nothing here — the !profile recovery below then rebuilds
+        // from user_metadata + that row on any device.
+        //
+        // This legacy block replays payloads written to localStorage before
+        // that migration: such a value is a full registration JSON, and posting
+        // it straight back still works (register_profile is idempotent, ON
+        // CONFLICT). New signups never write it, so it quietly stops firing.
         try {
           const pending = localStorage.getItem("influnet_pending_registration");
           if (pending) {
