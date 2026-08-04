@@ -12,6 +12,7 @@ import { logger } from '@/lib/logger';
 import { syncPushToken, usePushNotificationRouting } from '@/lib/push';
 import { BrandSplash } from '@/components/brand/splash';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { AppUpdateBanner } from '@/components/app-update-banner';
 import { identify, installGlobalErrorHandler, resetIdentity } from '@/lib/analytics';
 
 // Hold the native splash so the OS screen hands straight over to the animated
@@ -184,6 +185,10 @@ export default function RootLayout() {
           {!introDone ? (
             <BrandSplash canExit={appReady} onDone={() => setIntroDone(true)} />
           ) : null}
+
+          {/* Only after the intro has played — a download nudge fighting the
+              splash animation for attention is the wrong first impression. */}
+          <AppUpdateBanner enabled={introDone} />
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
