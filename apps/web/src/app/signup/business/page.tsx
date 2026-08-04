@@ -10,6 +10,7 @@ import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from "@/lib/
 import { isValidGstin, isValidWebsite, normalizeWebsite } from "@influnet/core";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { CityInput } from "@/components/ui/city-input";
 import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
@@ -482,7 +483,7 @@ function BusinessSignupContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>City</Label>
-                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" />
+                  <CityInput value={city} onChange={setCity} placeholder="City" />
                 </div>
                 <div>
                   <Label>State</Label>

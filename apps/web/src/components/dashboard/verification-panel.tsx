@@ -1,17 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BadgeCheck, Loader2, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Check, ChevronDown, Loader2, ShieldCheck, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
 import { VerifiedBadge, type VerificationStatus } from "@/components/ui/verified-badge";
 
+interface BreakdownItem {
+  label: string;
+  met: boolean;
+  weight: number;
+}
+
 interface StatusResponse {
   status: VerificationStatus;
   verified_badge: boolean;
   verified_at: string | null;
-  latest_check: { status: string; ai_score: number | null; ai_reason: string | null; created_at: string } | null;
+  auto_approve_threshold: number;
+  latest_check: {
+    status: string;
+    ai_score: number | null;
+    ai_reason: string | null;
+    created_at: string;
+    breakdown: BreakdownItem[] | null;
+  } | null;
 }
 
 const BLURB: Record<VerificationStatus, string> = {
@@ -28,6 +41,7 @@ export function VerificationPanel() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const load = async () => {
     const res = await apiFetch<StatusResponse>("/api/verification");
@@ -81,10 +95,51 @@ export function VerificationPanel() {
           </div>
         </div>
 
-        {data?.latest_check?.ai_reason && status !== "verified" && (
-          <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-content-muted">
-            Latest check: {data.latest_check.ai_reason}
-          </p>
+        {data?.latest_check && status !== "verified" && (
+          <div className="rounded-lg bg-surface-muted">
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((o) => !o)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left"
+            >
+              <div className="min-w-0 flex-1">
+                {data.latest_check.ai_score != null && (
+                  <p className="text-xs font-bold text-content">
+                    Confidence score: {Math.round(data.latest_check.ai_score * 100)}%
+                    <span className="ml-1 font-normal text-content-muted">
+                      (needs {Math.round(data.auto_approve_threshold * 100)}% to auto-verify — below that, an admin reviews it)
+                    </span>
+                  </p>
+                )}
+                {data.latest_check.ai_reason && (
+                  <p className="mt-0.5 text-xs text-content-muted">{data.latest_check.ai_reason}</p>
+                )}
+              </div>
+              {data.latest_check.breakdown && (
+                <ChevronDown className={`size-4 shrink-0 text-content-muted transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
+              )}
+            </button>
+
+            {detailsOpen && data.latest_check.breakdown && (
+              <ul className="flex flex-col gap-1.5 border-t border-hairline px-3 py-2.5">
+                {data.latest_check.breakdown.map((item) => (
+                  <li key={item.label} className="flex items-center gap-2 text-xs">
+                    {item.met ? (
+                      <Check className="size-3.5 shrink-0 text-ok" />
+                    ) : (
+                      <X className="size-3.5 shrink-0 text-danger" />
+                    )}
+                    <span className={item.met ? "text-content-soft" : "text-content"}>
+                      {item.label}
+                      {item.weight === 0 && !item.met && (
+                        <span className="ml-1 font-semibold text-warn">— required</span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         <div className="flex items-center gap-2">

@@ -22,7 +22,9 @@ export type ActivityType =
   | 'project_completed'
   | 'cancellation_requested'
   | 'cancellation_declined'
-  | 'cancellation_accepted';
+  | 'cancellation_accepted'
+  | 'project_deleted'
+  | 'project_restored';
 
 interface LogActivityParams {
   projectId: number | string;

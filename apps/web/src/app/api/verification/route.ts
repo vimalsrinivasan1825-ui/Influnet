@@ -6,7 +6,7 @@ import { enrichWithLiveData } from '@/lib/verification-live';
 import { captureInstagramSnapshot } from '@/lib/social-snapshot';
 import { refreshYouTubeSnapshot } from '@/lib/youtube';
 import { normalizeHandle } from '@/lib/instagram';
-import { decide, VERIFICATION_NOTIFICATION, type Role } from '@/lib/verification';
+import { decide, scoreBreakdown, AUTO_APPROVE_THRESHOLD, VERIFICATION_NOTIFICATION, type Role, type VerificationSignals } from '@/lib/verification';
 
 // The live provider (Apify actor) can take ~15s to return. Allow headroom so the
 // serverless function doesn't time out mid-verification. The signup trigger is
@@ -23,24 +23,42 @@ export async function GET(req: Request) {
 
     const { data: prof, error: profErr } = await supabase
       .from('profiles')
-      .select('verification_status, verified_badge, verified_at')
+      .select('role, verification_status, verified_badge, verified_at')
       .eq('id', user.id)
       .single();
     if (profErr) return jsonError(500, 'Failed to load verification status', profErr);
 
     const { data: latest } = await supabase
       .from('verification_checks')
-      .select('status, ai_score, ai_reason, created_at, decided_at')
+      .select('status, ai_score, ai_reason, ai_signals, created_at, decided_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
+    // What's actually missing, not just the blended score — a creator or
+    // business sitting below the auto-approve threshold has no other way to
+    // tell "add more followers" from "we still need your ownership proof".
+    const breakdown =
+      latest?.ai_signals && Object.keys(latest.ai_signals as object).length > 0
+        ? scoreBreakdown(prof.role as Role, latest.ai_signals as VerificationSignals)
+        : null;
+
     return NextResponse.json({
       status: prof?.verification_status ?? 'unverified',
       verified_badge: prof?.verified_badge ?? false,
       verified_at: prof?.verified_at ?? null,
-      latest_check: latest ?? null,
+      auto_approve_threshold: AUTO_APPROVE_THRESHOLD,
+      latest_check: latest
+        ? {
+            status: latest.status,
+            ai_score: latest.ai_score,
+            ai_reason: latest.ai_reason,
+            created_at: latest.created_at,
+            decided_at: latest.decided_at,
+            breakdown,
+          }
+        : null,
     });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);

@@ -14,12 +14,24 @@ const QuerySchema = z.object({
   id: z.string().uuid().optional(),
 });
 
-// Creator lookup, open to any signed-in role (used by the topbar command palette).
-// Deliberately a lookup, not a discovery/browse tool — the client wants this
-// reachable only by someone who already knows the creator's username, not a way
-// to stumble onto creators via name/niche/bio. The RPC (migration 048) matches
-// broader fields for its other callers, so results are filtered down to
-// username-prefix/substring matches here before they ever reach the client.
+// Creator lookup, open to any signed-in role (used by the topbar command palette
+// and the mobile search screen). Deliberately a lookup, not a discovery/browse
+// tool — the client wants this reachable only by someone who already knows the
+// creator's username or Instagram handle, not a way to stumble onto creators
+// via name/niche/bio. The RPC (migration 048, extended by 102) matches broader
+// fields for its other callers, so results are filtered down to a
+// username-or-instagram-handle substring match here before they reach the client.
+
+/**
+ * A pasted `instagram.com/<handle>` / `www.instagram.com/<handle>/` URL, or a
+ * bare `@handle`, both reduce to the same handle the RPC can match on.
+ */
+function extractSearchHandle(q: string): string {
+  const trimmed = q.trim();
+  const urlMatch = trimmed.match(/instagram\.com\/([a-zA-Z0-9._]+)/i);
+  if (urlMatch) return urlMatch[1];
+  return trimmed.replace(/^@/, '');
+}
 
 export async function GET(req: Request) {
   try {
@@ -47,9 +59,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Invalid query parameters' }, { status: 400 });
     }
     const { q, niche, industry, location, cursor, id } = parsed.data;
+    const searchHandle = q ? extractSearchHandle(q) : undefined;
 
     const { data, error } = await supabase.rpc('search_influencers', {
-      p_q: q ?? null,
+      p_q: searchHandle ?? q ?? null,
       p_niche: niche ?? null,
       p_location: location ?? null,
       p_cursor: cursor ?? null,
@@ -59,10 +72,14 @@ export async function GET(req: Request) {
     if (error) return jsonError(500, 'Failed to fetch creators', error);
 
     let results = (data as any[]) || [];
-    // Username-only lookup: drop any row that only matched on name/headline/bio.
+    // Username-or-handle lookup: drop any row that only matched on name/headline/bio.
     if (q && !id) {
-      const needle = q.trim().toLowerCase();
-      results = results.filter((r) => (r.username ?? '').toLowerCase().includes(needle));
+      const needle = (searchHandle ?? q).trim().toLowerCase();
+      results = results.filter(
+        (r) =>
+          (r.username ?? '').toLowerCase().includes(needle) ||
+          (r.instagram_handle ?? '').toLowerCase().replace(/^@/, '').includes(needle),
+      );
     }
     return NextResponse.json({
       userRole: role,

@@ -28,7 +28,7 @@ import type { Message } from '@influnet/types';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
-import { getConversationChannel, isStreamConfigured } from '@/lib/stream';
+import { getConversationChannel, getLastStreamFailureReason, isStreamConfigured } from '@/lib/stream';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { formatCurrency, formatDayLabel, formatMessageTime, timeAgo } from '@/lib/format';
 
@@ -426,7 +426,15 @@ export default function ConversationScreen() {
 
       const channel = await getConversationChannel(id, otherUserId);
       if (!channel) {
-        setChatError("Couldn't connect to chat. Pull down to try again.");
+        // 'token_failed' means the server rejected or errored on the sign-in
+        // call before a WebSocket was ever attempted — that's not a device
+        // network issue, so don't tell the user to check their connection.
+        const reason = getLastStreamFailureReason();
+        setChatError(
+          reason === 'token_failed'
+            ? "Chat is unavailable right now. Pull down to try again."
+            : "Couldn't connect to chat. Check your connection and pull down to try again.",
+        );
         connectingRef.current = false;
         return;
       }

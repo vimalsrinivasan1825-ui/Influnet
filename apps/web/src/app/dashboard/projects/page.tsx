@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowRight, Ban, Check, Clock, Eye, Rocket } from "lucide-react";
+import { AlertTriangle, ArrowRight, Ban, Check, Clock, Eye, RotateCcw, Rocket, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
 import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SegmentedTabs } from "@/components/ui/tabs";
 import { Reveal } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
 import { dealStateOf } from "@/lib/project-status";
@@ -49,6 +50,7 @@ interface Project {
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const [view, setView] = useState<"active" | "deleted">("active");
   const [projects, setProjects] = useState<Project[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ export default function ProjectsPage() {
         } = await sb.auth.getUser();
         if (authErr) throw authErr;
         if (user) setUserId(user.id);
-        await fetchProjects();
+        await fetchProjects(view);
       } catch (e) {
         console.error(e);
         setErrorMsg(e instanceof Error ? e.message : "Failed to initialize projects");
@@ -73,13 +75,57 @@ export default function ProjectsPage() {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchProjects = async () => {
-    const res = await apiFetch<{ projects: Project[] }>("/api/projects");
+  useEffect(() => {
+    if (loading) return;
+    setLoading(true);
+    fetchProjects(view)
+      .catch((e) => setErrorMsg(e instanceof Error ? e.message : "Failed to load projects"))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  const fetchProjects = async (which: "active" | "deleted" = view) => {
+    const qs = which === "deleted" ? "?deleted=true" : "";
+    const res = await apiFetch<{ projects: Project[] }>(`/api/projects${qs}`);
     if (!res.ok || !res.data) throw new Error(res.error || "Failed to load projects");
     setProjects(res.data.projects || []);
   };
+
+  async function deleteProject(id: string) {
+    if (!confirm("Remove this project from your list? It moves to Deleted Projects — nothing is lost.")) return;
+    setUpdatingId(id);
+    try {
+      const res = await apiFetch(`/api/projects/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action: "delete_project" }),
+      });
+      if (!res.ok) throw new Error(res.error || "Could not delete this project");
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function restoreProject(id: string) {
+    setUpdatingId(id);
+    try {
+      const res = await apiFetch(`/api/projects/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action: "restore_project" }),
+      });
+      if (!res.ok) throw new Error(res.error || "Could not restore this project");
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   // Live updates: the other side advancing a stage, signing off, completing or
   // cancelling a project repaints this list without a reload. Two filters
@@ -172,12 +218,25 @@ export default function ProjectsPage() {
         subtitle="Track deliverables and pipeline progress, stage by stage."
       />
 
+      <SegmentedTabs
+        value={view}
+        onValueChange={setView}
+        tabs={[
+          { value: "active", label: "Active" },
+          { value: "deleted", label: "Deleted Projects" },
+        ]}
+      />
+
       {projects.length === 0 ? (
         <Card>
           <EmptyState
             icon={<Rocket />}
-            title="No active campaigns yet"
-            description="Accept a collaboration request to launch your first campaign workspace."
+            title={view === "deleted" ? "Nothing deleted" : "No active campaigns yet"}
+            description={
+              view === "deleted"
+                ? "Projects you or the other side remove show up here — nothing is ever lost."
+                : "Accept a collaboration request to launch your first campaign workspace."
+            }
           />
         </Card>
       ) : (
@@ -240,7 +299,34 @@ export default function ProjectsPage() {
                       )}
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-4">                      {p.budget != null && p.budget !== "" && (
+                    <div className="flex shrink-0 items-center gap-4">
+                      {view === "deleted" ? (
+                        <Button
+                          variant="surface"
+                          size="sm"
+                          disabled={updatingId === p.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            restoreProject(p.id);
+                          }}
+                        >
+                          <RotateCcw /> Restore
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Delete this project"
+                          disabled={updatingId === p.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteProject(p.id);
+                          }}
+                        >
+                          <Trash2 className="size-4 text-content-muted" />
+                        </Button>
+                      )}
+                      {p.budget != null && p.budget !== "" && (
                             <div className="text-right">
                               <div className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">
                                 Budget
@@ -250,7 +336,7 @@ export default function ProjectsPage() {
                               </div>
                             </div>
                           )}
-                          {isCancelled ? (
+                          {view === "deleted" ? null : isCancelled ? (
                             <Badge variant="danger" size="md">
                               <Ban size={13} /> Cancelled
                             </Badge>

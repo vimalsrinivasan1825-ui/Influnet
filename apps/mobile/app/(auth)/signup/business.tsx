@@ -18,6 +18,7 @@ import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
 import { Chip, ChipWrap, Field, Txt } from '@/components/ui';
+import { CityField } from '@/components/city-field';
 
 function toggle(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -299,7 +300,7 @@ export default function BusinessSignup() {
             keyboardType="url"
             error={websiteValid ? null : 'Enter a valid website (e.g. yourcompany.com)'}
           />
-          <Field label="City" value={city} onChangeText={setCity} placeholder="Chennai" />
+          <CityField label="City" value={city} onChangeText={setCity} placeholder="Chennai" />
 
           <Field
             label="Registered address"

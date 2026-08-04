@@ -19,9 +19,11 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   BadgeCheck,
   Camera,
+  ChevronRight,
   Eye,
   History,
   LogOut,
+  Pencil,
   Plus,
   RefreshCw,
   Settings,
@@ -62,6 +64,11 @@ import { PostGrid, VideoList } from '@/components/content-grid';
 import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
 import { ProfileVisibilityToggles } from '@/components/profile-visibility-toggles';
 import { isSectionVisible } from '@influnet/core';
+import {
+  toConversationRows,
+  type RawConversation,
+  type RawConversationProject,
+} from '@/lib/conversations';
 
 interface ProfilePayload {
   role: string;
@@ -121,6 +128,7 @@ export default function ProfileScreen() {
   const t = useTheme();
   const router = useRouter();
   const { profile, loadProfile } = useSession();
+  const myUserId = useSession((s) => s.session?.user.id);
   const { signOut, signingOut } = useSignOutAction();
   const [refreshingSocial, setRefreshingSocial] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -129,6 +137,25 @@ export default function ProfileScreen() {
     () => endpoints.home<ProfilePayload>(),
     { cacheKey: 'profile-public' },
   );
+
+  /**
+   * Same source the Connections screen reads (cacheKey 'connections' shares
+   * its cache), so the count here always matches what tapping through to
+   * /connections shows.
+   */
+  const { data: connectionsData } = useFetch(
+    () =>
+      endpoints.listConversations<{
+        conversations: RawConversation[];
+        projects: RawConversationProject[];
+      }>(),
+    { cacheKey: 'connections' },
+  );
+  const connectionsCount = toConversationRows(
+    connectionsData?.conversations,
+    connectionsData?.projects,
+    myUserId,
+  ).filter((row) => row.name).length;
 
   /**
    * Separate fetch rather than another field on /api/home: the portfolio is
@@ -145,7 +172,7 @@ export default function ProfileScreen() {
    * same GET /api/profile the settings-style toggles PATCH against, so reading
    * and writing agree on one source.
    */
-  const { data: fullProfile, refresh: refreshFullProfile } = useFetch<{
+  const { data: fullProfile, setData: setFullProfile } = useFetch<{
     profile: { profile_section_visibility?: Record<string, boolean> };
   }>(() => endpoints.getProfile(), { cacheKey: 'profile-full' });
   const [savingSection, setSavingSection] = useState<string | null>(null);
@@ -208,16 +235,25 @@ export default function ProfileScreen() {
    * loaded yet.
    */
   async function setSectionVisibility(key: string, next: boolean) {
+    const prevVisibility = sectionVisibility;
+    const nextVisibility = { ...prevVisibility, [key]: next };
+
+    // Optimistic, matching web's ProfileVisibilityEditor: the switch flips the
+    // instant you tap it, and only snaps back if the save actually fails.
+    // Waiting on a PATCH + a separate refetch (the old behaviour) is what made
+    // this feel broken rather than just slow.
+    setFullProfile((prev) =>
+      prev ? { ...prev, profile: { ...prev.profile, profile_section_visibility: nextVisibility } } : prev,
+    );
     setSavingSection(key);
-    const nextVisibility = { ...sectionVisibility, [key]: next };
     const res = await endpoints.updateProfile({ profile_section_visibility: nextVisibility });
     setSavingSection(null);
     if (!res.ok) {
+      setFullProfile((prev) =>
+        prev ? { ...prev, profile: { ...prev.profile, profile_section_visibility: prevVisibility } } : prev,
+      );
       Alert.alert('Could not save that', res.error ?? undefined);
-      return;
     }
-    invalidateFetchCache('profile-full');
-    await refreshFullProfile();
   }
 
   // Reach across the most recent posts. Views is the honest measure where
@@ -394,6 +430,29 @@ export default function ProfileScreen() {
             />
           ) : null}
         </Card>
+
+        {/* ── Connections, up top per user request — was buried in Manage ── */}
+        <Pressable onPress={() => router.push('/connections')} accessibilityRole="button">
+          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: t.color.brandSoft,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Users size={17} color={t.color.brand} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Txt variant="bodyStrong">{connectionsCount} {connectionsCount === 1 ? 'Connection' : 'Connections'}</Txt>
+              <Txt variant="footnote" tone="muted">Everyone you've worked with</Txt>
+            </View>
+            <ChevronRight size={18} color={t.color.contentMuted} />
+          </Card>
+        </Pressable>
 
         {loading && !data ? <SkeletonCard /> : null}
 
@@ -661,6 +720,12 @@ export default function ProfileScreen() {
 
         <SectionLabel>Manage</SectionLabel>
         <ListGroup>
+          <ListRow
+            title="Edit profile"
+            subtitle={isCreator ? 'Name, bio, handles and more' : 'Company details, logo and more'}
+            left={<Pencil size={19} color={t.color.contentSoft} />}
+            onPress={() => router.push('/edit-profile')}
+          />
           {/* Previewing your own profile opens the WEB page, not the in-app
               screen: the whole point here is "what a brand actually sees", and
               a brand most often arrives via a shared link. The web page is also
@@ -672,6 +737,7 @@ export default function ProfileScreen() {
               title="Preview public profile"
               subtitle="Opens the web page a brand sees when they find you"
               left={<Eye size={19} color={t.color.contentSoft} />}
+              style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
               onPress={() => WebBrowser.openBrowserAsync(publicUrl)}
             />
           ) : null}
@@ -679,7 +745,7 @@ export default function ProfileScreen() {
             <>
               <ListRow
                 title={refreshingSocial ? 'Refreshing…' : 'Refresh my numbers'}
-                style={username ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
+                style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
                 subtitle={
                   data?.social?.fetched_at
                     ? `Last updated ${new Date(data.social.fetched_at).toLocaleDateString()}`
@@ -697,13 +763,6 @@ export default function ProfileScreen() {
               />
             </>
           ) : null}
-          <ListRow
-            title="Connections"
-            subtitle="Everyone you've worked with"
-            left={<Users size={19} color={t.color.contentSoft} />}
-            style={isCreator ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
-            onPress={() => router.push('/connections')}
-          />
           <ListRow
             title="My activity"
             subtitle="Everything that's happened on your account"

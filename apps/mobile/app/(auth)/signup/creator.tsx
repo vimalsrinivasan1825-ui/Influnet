@@ -11,6 +11,7 @@ import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
 import { Button, Chip, ChipWrap, Field, Txt } from '@/components/ui';
+import { CityField } from '@/components/city-field';
 
 /** Toggle a value in a multi-select list. */
 function toggle(list: string[], value: string) {
@@ -470,7 +471,7 @@ export default function CreatorSignup() {
             </ChipWrap>
           </View>
 
-          <Field label="City" value={city} onChangeText={setCity} placeholder="Bengaluru" />
+          <CityField label="City" value={city} onChangeText={setCity} placeholder="Bengaluru" />
 
           <View style={{ gap: t.spacing.sm }}>
             <Txt variant="footnote" tone="soft">

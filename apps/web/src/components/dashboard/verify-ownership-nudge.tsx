@@ -39,14 +39,25 @@ function snoozedRecently(iso: string | null | undefined): boolean {
 }
 
 export function VerifyOwnershipNudge({ onVisibilityChange }: { onVisibilityChange?: (visible: boolean) => void }) {
-  const [state, setState] = useState<"loading" | "hidden" | "none" | "pending">("loading");
+  const [state, setState] = useState<"loading" | "hidden" | "none" | "pending" | "no_handle">("loading");
 
   useEffect(() => {
     (async () => {
       const profileRes = await apiFetch<{ profile: ProfileShape }>("/api/profile");
       const profile = profileRes.ok ? profileRes.data?.profile : undefined;
-      if (!profile || profile.role !== "influencer" || !profile.instagram_handle) {
+      if (!profile || profile.role !== "influencer") {
         setState("hidden");
+        return;
+      }
+      // Skipped the handle entirely at signup (or later deleted it) — still
+      // needs the same nudge, just pointed at adding a handle first rather
+      // than confirming one that already exists.
+      if (!profile.instagram_handle) {
+        const accountDismissedAt =
+          profile.ownership_nudge_dismissed_at !== undefined
+            ? profile.ownership_nudge_dismissed_at
+            : localStorage.getItem(DISMISS_KEY);
+        setState(snoozedRecently(accountDismissedAt) ? "hidden" : "no_handle");
         return;
       }
 
@@ -72,7 +83,7 @@ export function VerifyOwnershipNudge({ onVisibilityChange }: { onVisibilityChang
   }, []);
 
   useEffect(() => {
-    onVisibilityChange?.(state === "none" || state === "pending");
+    onVisibilityChange?.(state === "none" || state === "pending" || state === "no_handle");
   }, [state, onVisibilityChange]);
 
   if (state === "loading" || state === "hidden") return null;
@@ -97,18 +108,25 @@ export function VerifyOwnershipNudge({ onVisibilityChange }: { onVisibilityChang
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-extrabold text-content">
-          {state === "pending" ? "Finish verifying your Instagram" : "Verify your Instagram"}
+          {state === "pending"
+            ? "Finish verifying your Instagram"
+            : state === "no_handle"
+              ? "Add and verify your Instagram"
+              : "Verify your Instagram"}
         </p>
         <p className="mt-0.5 text-sm leading-relaxed text-content-soft">
           {state === "pending"
             ? "Your verification code is still active — confirm it to unlock the verified badge."
-            : "Verified creators get more requests. Takes about a minute."}
+            : state === "no_handle"
+              ? "You skipped this at signup. Until it's done, you can't accept requests or start projects."
+              : "Verified creators get more requests. Takes about a minute."}
         </p>
         <Link
           href="/dashboard/settings#instagram-ownership"
           className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-brand transition-colors hover:text-brand-strong"
         >
-          {state === "pending" ? "Finish verifying" : "Verify now"} <ArrowRight className="size-4" />
+          {state === "pending" ? "Finish verifying" : state === "no_handle" ? "Add your handle" : "Verify now"}{" "}
+          <ArrowRight className="size-4" />
         </Link>
       </div>
       <button

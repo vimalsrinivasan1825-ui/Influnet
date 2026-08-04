@@ -4,6 +4,7 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
+import { requireVerifiedOwnership } from '@/lib/ownership-gate';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -287,7 +288,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
-    const { supabase, user } = auth;
+    const { supabase, user, role } = auth;
 
     const { id } = await context.params;
     if (!UUID_RE.test(id)) return jsonError(400, 'Invalid conversation ID format');
@@ -297,6 +298,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
     const { proposal_id, action, note } = parsed.data;
+
+    // Accepting is what creates the project — a creator who hasn't proven
+    // ownership of their Instagram yet can't do that. See lib/ownership-gate.ts.
+    if (action === 'accept') {
+      const gateRes = await requireVerifiedOwnership(supabase, user, role);
+      if (gateRes) return gateRes;
+    }
 
     // NOTE: 069-era 'pending_acceptance' projects were answered here via
     // respond_to_project_proposal(). Migration 071 DROPPED that function and

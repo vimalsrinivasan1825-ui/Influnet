@@ -34,6 +34,19 @@ let client: StreamChat | null = null;
 let connecting: Promise<StreamChat | null> | null = null;
 let connectedUserId: string | null = null;
 
+/**
+ * Why a connect attempt failed, so the UI can say something more useful than
+ * a single generic "couldn't connect" — the screenshot that prompted this
+ * (2026-08-04) showed that message for what was actually a server-side token
+ * failure, indistinguishable from a dropped WebSocket or no network at all.
+ */
+export type StreamFailureReason = 'not_configured' | 'token_failed' | 'handshake_failed' | 'channel_failed';
+/** Set by the most recent failed connect/channel attempt; read right after a null return. */
+let lastFailureReason: StreamFailureReason | null = null;
+export function getLastStreamFailureReason(): StreamFailureReason | null {
+  return lastFailureReason;
+}
+
 export function isStreamConfigured() {
   return STREAM_API_KEY.length > 0;
 }
@@ -76,7 +89,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
  * screen indefinitely with no feedback.
  */
 export async function getStreamClient(): Promise<StreamChat | null> {
-  if (!isStreamConfigured()) return null;
+  if (!isStreamConfigured()) {
+    lastFailureReason = 'not_configured';
+    return null;
+  }
   if (client && connectedUserId) return client;
   if (connecting) return connecting;
 
@@ -84,10 +100,20 @@ export async function getStreamClient(): Promise<StreamChat | null> {
     let res;
     try {
       res = await withTimeout(endpoints.streamToken<{ token: string; userId: string; name?: string }>(), CONNECT_TIMEOUT_MS, 'stream token fetch');
-    } catch {
+    } catch (err) {
+      lastFailureReason = 'token_failed';
+      if (__DEV__) console.warn('[stream] token fetch failed:', err);
       return null;
     }
-    if (!res.ok || !res.data?.token) return null;
+    if (!res.ok || !res.data?.token) {
+      // A 401/403/500 from /api/stream/token — most commonly the server is
+      // missing or has a stale STREAM_API_SECRET, not a network problem on
+      // this device. Surfacing res.error in dev makes that distinguishable
+      // from a real handshake/network failure below.
+      lastFailureReason = 'token_failed';
+      if (__DEV__) console.warn('[stream] token response not ok:', res.status, res.error);
+      return null;
+    }
 
     const { token, userId, name } = res.data;
     const instance = StreamChat.getInstance(STREAM_API_KEY);
@@ -110,6 +136,7 @@ export async function getStreamClient(): Promise<StreamChat | null> {
         // the screen) starts from a clean slate instead of inheriting a
         // socket stuck between connected and not.
         await instance.disconnectUser().catch(() => {});
+        lastFailureReason = 'handshake_failed';
         if (__DEV__) console.warn('[stream] connect failed:', err);
         return null;
       }
@@ -117,6 +144,7 @@ export async function getStreamClient(): Promise<StreamChat | null> {
 
     client = instance;
     connectedUserId = userId;
+    lastFailureReason = null;
     return instance;
   })();
 
@@ -145,19 +173,28 @@ export async function getConversationChannel(conversationId: string, otherUserId
       CONNECT_TIMEOUT_MS,
       'stream channel ensure',
     );
-  } catch {
+  } catch (err) {
+    lastFailureReason = 'channel_failed';
+    if (__DEV__) console.warn('[stream] channel ensure failed:', err);
     return null;
   }
-  if (!ensured.ok) return null;
+  if (!ensured.ok) {
+    lastFailureReason = 'channel_failed';
+    if (__DEV__) console.warn('[stream] channel ensure not ok:', ensured.status, ensured.error);
+    return null;
+  }
 
   // Channel ids are `conv_<conversation uuid>` — see ensureStreamChannel in
   // apps/web/src/lib/stream.ts. This must stay in step with that.
   const channel = instance.channel('messaging', `conv_${conversationId}`);
   try {
     await withTimeout(channel.watch(), CONNECT_TIMEOUT_MS, 'stream channel watch');
-  } catch {
+  } catch (err) {
+    lastFailureReason = 'channel_failed';
+    if (__DEV__) console.warn('[stream] channel watch failed:', err);
     return null;
   }
+  lastFailureReason = null;
   return channel;
 }
 
