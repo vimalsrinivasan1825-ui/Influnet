@@ -19,6 +19,15 @@
  *       it out-of-band (a password manager share, not chat/email) and have them
  *       change it on first login.
  *
+ *   --password <value>
+ *       Sets an explicit password. For QA/staging accounts that a team shares
+ *       and re-uses — it skips the invite round-trip and the emailed link, so a
+ *       tester can sign in immediately on a fresh database.
+ *
+ *       NEVER use this against production. An explicit password lands in your
+ *       shell history and in whatever channel you agreed it on, which is the
+ *       exact exposure the other two modes exist to avoid.
+ *
  * ── Usage ────────────────────────────────────────────────────────────────
  *   node --env-file=apps/web/.env.local scripts/create-admin.mjs \
  *     --email admin@influnet.com --name "Platform Admin" --confirm
@@ -97,7 +106,15 @@ async function main() {
 
   const email = (val('email') || '').trim().toLowerCase();
   const name = val('name') || 'Platform Admin';
-  const withPassword = flag('with-password');
+  const explicitPassword = val('password');
+  const withPassword = flag('with-password') || Boolean(explicitPassword);
+
+  // Supabase rejects anything under 6 characters at the API boundary; failing
+  // here names the problem instead of surfacing it as a generic auth error.
+  if (explicitPassword && explicitPassword.length < 6) {
+    console.error('✗ --password must be at least 6 characters.');
+    process.exit(1);
+  }
 
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     console.error('✗ Pass a valid --email.');
@@ -108,7 +125,15 @@ async function main() {
     console.log('\nAbout to provision a PLATFORM ADMIN — full access to every account and project.\n');
     console.log(`  email : ${email}`);
     console.log(`  name  : ${name}`);
-    console.log(`  mode  : ${withPassword ? 'generated password (printed once)' : 'invite link (client sets their own password)'}`);
+    console.log(
+      `  mode  : ${
+        explicitPassword
+          ? 'explicit password supplied (QA/staging only)'
+          : withPassword
+            ? 'generated password (printed once)'
+            : 'invite link (client sets their own password)'
+      }`,
+    );
     console.log(`  target: ${URL_}\n`);
     console.log('Re-run with --confirm to proceed.\n');
     process.exit(0);
@@ -119,7 +144,7 @@ async function main() {
   const { data: list } = await sb.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const existing = list?.users?.find((u) => u.email?.toLowerCase() === email);
 
-  const password = withPassword ? strongPassword() : undefined;
+  const password = explicitPassword ?? (withPassword ? strongPassword() : undefined);
 
   if (existing) {
     userId = existing.id;
@@ -167,7 +192,10 @@ async function main() {
   console.log(`  Email       : ${email}`);
   console.log(`  User ID     : ${userId}`);
 
-  if (withPassword) {
+  if (explicitPassword) {
+    console.log('  Password    : (the one you supplied)');
+    console.log('\n  ⚠  QA/staging account. Do not reuse this password on production.');
+  } else if (withPassword) {
     console.log(`  Password    : ${password}`);
     console.log('\n  ⚠  Shown once and never stored. Put it straight into a password');
     console.log('     manager. Do not paste it into chat, email, or a ticket.');

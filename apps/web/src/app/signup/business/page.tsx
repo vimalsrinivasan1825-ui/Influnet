@@ -10,6 +10,7 @@ import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from "@/lib/
 import { isValidGstin, isValidWebsite, normalizeWebsite } from "@influnet/core";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { CityInput } from "@/components/ui/city-input";
 import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
@@ -84,8 +85,8 @@ function BusinessSignupContent() {
         if (data.fullName) setFullName(data.fullName);
         if (data.companyName) setCompanyName(data.companyName);
         if (data.username) setUsername(data.username);
-        if (data.email) setEmail(data.email);
-        if (data.phone) setPhone(data.phone);
+        // email / phone are deliberately NOT persisted (draft only keeps
+        // non-sensitive fields) — see the save effect below.
         if (data.businessType) setBusinessType(data.businessType);
         if (data.industry) setIndustry(data.industry);
         if (data.website) setWebsite(data.website);
@@ -98,17 +99,21 @@ function BusinessSignupContent() {
     } catch {}
   }, []);
 
-  // Save state on change
+  // Save state on change. Deliberately excludes email / phone: they are
+  // personal data, and persisting them in browser storage is what the CodeQL
+  // "clear text storage of sensitive information" rule flags. A refresh
+  // mid-wizard asks the user to re-enter those step-1 fields; everything else
+  // is preserved. (The password is never persisted either.)
   useEffect(() => {
     sessionStorage.setItem(
       "businessSignupState",
       JSON.stringify({
-        step, fullName, companyName, username, email, phone, businessType, industry,
+        step, fullName, companyName, username, businessType, industry,
         website, city, state, registeredAddress, gstNumber, marketingBudget
       })
     );
   }, [
-    step, fullName, companyName, username, email, phone, businessType, industry,
+    step, fullName, companyName, username, businessType, industry,
     website, city, state, registeredAddress, gstNumber, marketingBudget
   ]);
 
@@ -178,7 +183,7 @@ function BusinessSignupContent() {
             Authorization: `Bearer ${data.session.access_token}`,
           },
           // The OTP token is deliberately NOT part of `payload` — that object
-          // becomes permanent auth metadata and is stashed in localStorage.
+          // becomes permanent auth metadata and is stashed server-side.
           body: JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
         });
         if (!res.ok) {
@@ -200,17 +205,24 @@ function BusinessSignupContent() {
         router.push(nextParam);
       } else {
         // Email confirmation required: no session yet, so register_profile can't
-        // run now. Stash the payload so login can replay it once confirmed —
-        // otherwise all of this wizard's data would be lost.
+        // run now. The signup answers already live on the auth user as
+        // user_metadata; the only thing that can't live there is the single-use
+        // phone-OTP token, so it is stored SERVER-SIDE (pending_registrations,
+        // migration 105) — never in localStorage. On first login,
+        // /api/auth/register rebuilds the profile from the metadata and spends
+        // that token, on any device, within its 30-minute window.
         sessionStorage.removeItem("businessSignupState");
-        // The OTP token rides along so login can replay it, but it only lives
-        // 30 minutes — hence the sharper message when the gate is on.
         try {
-          localStorage.setItem(
-            "influnet_pending_registration",
-            JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
-          );
-        } catch { /* ignore */ }
+          await fetch("/api/auth/pending-registration", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: data.user?.id,
+              phone,
+              phone_verification_token: phoneToken,
+            }),
+          });
+        } catch { /* best-effort — the account still exists; Settings can recover it */ }
         const message = phoneOtpEnabled
           ? "Check your email to confirm your account — please do it within 30 minutes so your mobile verification is still valid"
           : "Check your email to confirm your account";
@@ -482,7 +494,7 @@ function BusinessSignupContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>City</Label>
-                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" />
+                  <CityInput value={city} onChange={setCity} placeholder="City" />
                 </div>
                 <div>
                   <Label>State</Label>

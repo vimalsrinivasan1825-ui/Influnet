@@ -12,13 +12,14 @@
  * after and becomes something we can re-check later.
  */
 import { useCallback, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { BadgeCheck, Copy, ExternalLink, PlayCircle } from 'lucide-react-native';
+import { BadgeCheck, Check, ChevronDown, Copy, ExternalLink, PlayCircle, X } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
+import { openInstagramProfile } from '@/lib/instagram';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import {
@@ -46,10 +47,23 @@ interface ClaimState {
  * back `needs_more_info` or `rejected` had no way to find that out — or to
  * re-run it — without opening the web app.
  */
+interface BreakdownItem {
+  label: string;
+  met: boolean;
+  weight: number;
+}
+
 interface PipelineState {
   status: 'unverified' | 'pending' | 'in_review' | 'verified' | 'needs_more_info' | 'rejected';
   verified_badge: boolean;
-  latest_check: { status: string; ai_reason: string | null; created_at: string } | null;
+  auto_approve_threshold: number;
+  latest_check: {
+    status: string;
+    ai_score: number | null;
+    ai_reason: string | null;
+    created_at: string;
+    breakdown: BreakdownItem[] | null;
+  } | null;
 }
 
 const PIPELINE_BLURB: Record<PipelineState['status'], string> = {
@@ -118,6 +132,7 @@ export default function VerificationScreen() {
     endpoints.getVerification<PipelineState>(), { cacheKey: 'verification-pipeline' }
   );
   const [pipelineBusy, setPipelineBusy] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const pipelineStatus = pipeline?.status ?? 'unverified';
   // Re-running mid-flight would just queue a duplicate check.
@@ -229,15 +244,58 @@ export default function VerificationScreen() {
           {PIPELINE_BLURB[pipelineStatus]}
         </Txt>
 
-        {pipeline?.latest_check?.ai_reason ? (
-          <Card style={{ backgroundColor: t.color.surfaceMuted, gap: 2 }}>
-            <Txt variant="caption" tone="muted">
-              Last check
-            </Txt>
-            <Txt variant="footnote" tone="soft">
-              {pipeline.latest_check.ai_reason}
-            </Txt>
-          </Card>
+        {pipeline?.latest_check && pipelineStatus !== 'verified' ? (
+          <Pressable
+            onPress={() => setDetailsOpen((o) => !o)}
+            disabled={!pipeline.latest_check.breakdown}
+          >
+            <Card style={{ backgroundColor: t.color.surfaceMuted, gap: t.spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.sm }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  {pipeline.latest_check.ai_score != null ? (
+                    <Txt variant="footnote" style={{ fontWeight: '700' }}>
+                      Confidence score: {Math.round(pipeline.latest_check.ai_score * 100)}%{'  '}
+                      <Txt variant="caption" tone="muted">
+                        (needs {Math.round(pipeline.auto_approve_threshold * 100)}% to auto-verify)
+                      </Txt>
+                    </Txt>
+                  ) : null}
+                  {pipeline.latest_check.ai_reason ? (
+                    <Txt variant="footnote" tone="soft">
+                      {pipeline.latest_check.ai_reason}
+                    </Txt>
+                  ) : null}
+                </View>
+                {pipeline.latest_check.breakdown ? (
+                  <ChevronDown
+                    size={16}
+                    color={t.color.contentMuted}
+                    style={{ transform: [{ rotate: detailsOpen ? '180deg' : '0deg' }] }}
+                  />
+                ) : null}
+              </View>
+
+              {detailsOpen && pipeline.latest_check.breakdown ? (
+                <View style={{ gap: t.spacing.xs, borderTopWidth: 1, borderTopColor: t.color.hairline, paddingTop: t.spacing.sm }}>
+                  {pipeline.latest_check.breakdown.map((item) => (
+                    <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
+                      {item.met ? (
+                        <Check size={14} color={t.color.ok} />
+                      ) : (
+                        <X size={14} color={t.color.danger} />
+                      )}
+                      <Txt variant="caption" tone={item.met ? 'muted' : undefined}>
+                        {item.label}
+                        {item.weight === 0 && !item.met ? (
+                          <Txt variant="caption" tone="warn"> — required</Txt>
+                        ) : null}
+                      </Txt>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </Card>
+          </Pressable>
         ) : null}
 
         {canRunPipeline ? (
@@ -377,7 +435,7 @@ export default function VerificationScreen() {
                   label="Open Instagram"
                   variant="secondary"
                   icon={<ExternalLink size={16} color={t.color.content} />}
-                  onPress={() => void Linking.openURL('instagram://user?username=self').catch(() => Linking.openURL('https://instagram.com'))}
+                  onPress={() => void openInstagramProfile(igHandle)}
                 />
               </Card>
 

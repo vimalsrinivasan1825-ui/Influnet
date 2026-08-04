@@ -51,6 +51,17 @@ const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
+  // Signup-completion gate (lib/ownership-gate.ts): blocks a creator from
+  // accepting collabs/projects until they've proven Instagram ownership.
+  // Server-only — the client never needs to branch on this, it just gets a
+  // 403 with an explanatory message. Defaults off for the same reason
+  // phone-otp does: flipping it on instantly restricts every existing
+  // unverified creator, so it needs to be a deliberate switch.
+  OWNERSHIP_GATE_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   // Email — optional; sends are gated by NOTIFY_EMAILS_ENABLED anyway.
   // Full setup: docs/operations/EMAIL_SYSTEM.md
   RESEND_API_KEY: z.string().optional(),

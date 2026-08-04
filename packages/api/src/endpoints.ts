@@ -105,7 +105,8 @@ export function createEndpoints(api: ApiClient) {
       api.patch<T>(`/api/conversations/${id}/deal`, body),
 
     // ── Projects ───────────────────────────────────────────────────
-    listProjects: <T = unknown>() => api.get<T>('/api/projects'),
+    listProjects: <T = unknown>(opts?: { deleted?: boolean }) =>
+      api.get<T>(opts?.deleted ? '/api/projects?deleted=true' : '/api/projects'),
     createProject: <T = unknown>(body: unknown) => api.post<T>('/api/projects', body),
     getProject: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}`),
     updateProject: <T = unknown>(id: string, body: unknown) => api.patch<T>(`/api/projects/${id}`, body),

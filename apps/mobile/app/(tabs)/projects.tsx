@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { FolderKanban } from 'lucide-react-native';
+import { FolderKanban, Trash2 } from 'lucide-react-native';
 import { dealStateOf, STAGES, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
@@ -158,6 +158,15 @@ export default function ProjectsScreen() {
                 <ListGroup>{groups.closed.map((p, i) => row(p, i, false))}</ListGroup>
               </>
             ) : null}
+
+            <ListGroup>
+              <ListRow
+                title="Deleted Projects"
+                subtitle="Removed projects — nothing is ever lost"
+                left={<Trash2 size={19} color={t.color.contentSoft} />}
+                onPress={() => router.push('/projects/deleted')}
+              />
+            </ListGroup>
           </>
         )}
       </ScreenScroll>

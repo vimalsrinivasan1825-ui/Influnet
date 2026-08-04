@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hrpaqufvjcihnjrjnpej.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_ebIIalxnJ-fYMr6I2N-EpQ_6TV5kaBy';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jaajosocopoicmqcffuu.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_zbfMv-IHhMwsLBj_wAXbng_b6byZL5x';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const sb = createClient(supabaseUrl, supabaseKey);
@@ -27,26 +27,75 @@ async function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Record a user id the moment the account exists, so [CLEANUP] can delete it.
+ *
+ * These used to be assigned only from signUpUser's RETURN value, so anything
+ * that threw after account creation but before the return — a failed profile
+ * registration, most commonly — left the auth user orphaned forever. A run on
+ * 2026-07-28 leaked exactly that way and the account was still sitting in the
+ * dev project a week later.
+ */
+function rememberForCleanup(role, userId) {
+  if (role === 'business_owner') brandUserId = userId;
+  else creatorUserId = userId;
+}
+
 async function signUpUser(email, name, role) {
   console.log(`- Signing up ${role} (${email})...`);
-  const { data, error } = await sb.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        name,
-        role
-      }
+
+  let session;
+
+  if (sbAdmin) {
+    // Create via the Admin API rather than auth.signUp(). signUp() asks
+    // Supabase to send a confirmation email, and the built-in SMTP allows
+    // only a handful per hour — this suite creates two accounts per run, so
+    // repeated CI runs exhausted the quota and every subsequent run died on
+    // "email rate limit exceeded" before reaching a single assertion. That is
+    // an infrastructure limit, not a product regression, so the test should
+    // not depend on it. `email_confirm: true` marks the address verified
+    // without sending anything, which is also what scripts/seed-test-accounts.mjs
+    // does for the same reason.
+    const { error: createErr } = await sbAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name, role },
+    });
+    // A leftover account from an interrupted run must not fail the suite —
+    // the sign-in below adopts it, and cleanup removes it either way.
+    if (createErr && !/already.*(registered|exists)/i.test(createErr.message)) {
+      throw createErr;
     }
-  });
-  if (error) throw error;
-  
-  let session = data.session;
-  if (!session) {
-    console.log(`- User exists or needs sign in, logging in...`);
+
     const { data: logData, error: logError } = await sb.auth.signInWithPassword({ email, password });
     if (logError) throw logError;
     session = logData.session;
+    rememberForCleanup(role, session.user.id);
+  } else {
+    // No service-role key (e.g. a local run without it). Falls back to the
+    // real signup path, which still sends mail and is still rate-limited.
+    console.log(`- No service role key; falling back to auth.signUp (sends email).`);
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role
+        }
+      }
+    });
+    if (error) throw error;
+
+    session = data.session;
+    if (!session) {
+      console.log(`- User exists or needs sign in, logging in...`);
+      const { data: logData, error: logError } = await sb.auth.signInWithPassword({ email, password });
+      if (logError) throw logError;
+      session = logData.session;
+    }
+    rememberForCleanup(role, session.user.id);
   }
 
   // Register profile role in profiles table via public.register_profile RPC
@@ -334,11 +383,15 @@ async function runTests() {
 
     await delay(1000);
 
-    const projectsRes = await fetch('http://localhost:3000/api/projects', {
-      headers: { 'Authorization': `Bearer ${creatorSession.access_token}` }
+    const projectsRes = await fetch(`http://localhost:3000/api/projects`, {
+      headers: { Authorization: `Bearer ${creatorSession.access_token}` }
     });
-    const projectsBody = await projectsRes.json();
     console.log(`- Creator Projects Response Status: ${projectsRes.status}`);
+    const projectsData = await projectsRes.json().catch(() => ({}));
+    if (projectsRes.status === 500) {
+      console.log(`- Projects 500 Response Body:`, JSON.stringify(projectsData, null, 2));
+    }
+    const projectsBody = projectsData;
     console.log(`- Projects Found: ${projectsBody.projects?.length || 0}`);
 
     const matchingProj = (projectsBody.projects || []).find(

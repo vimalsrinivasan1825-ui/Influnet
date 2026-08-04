@@ -4,7 +4,7 @@
  * from Settings. Presented as a modal (see app/_layout.tsx).
  */
 import { useCallback, useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,7 @@ import { Copy, Pause, Play, ShieldCheck } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { publicProfileUrl, publicProfileUrlDisplay } from '@/lib/site';
+import { openInstagramProfile } from '@/lib/instagram';
 import { GUIDE_STEPS, VerifyGuideAnimation } from '@/components/verification/verify-guide-animation';
 import { Button, ScreenScroll, Txt } from '@/components/ui';
 
@@ -101,11 +102,7 @@ export default function VerificationGuideScreen() {
         <Button
           label="Open Instagram"
           variant="secondary"
-          onPress={() =>
-            void Linking.openURL('instagram://user?username=self').catch(() =>
-              Linking.openURL('https://instagram.com'),
-            )
-          }
+          onPress={() => void openInstagramProfile(profile?.instagram_handle)}
         />
         <Button
           label="Verify now"

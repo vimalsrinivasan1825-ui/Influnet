@@ -36,7 +36,7 @@ Priorities: **P0** before any public traffic · **P1** before real/paying users 
 
 **P1 (before real users):** Sentry · Upstash rate limiting · **payments decision (§4)** · admin audit log · content/abuse safety (report/block) · storage policy review · email/SMTP deliverability.
 
-**P2 (quality/growth):** reputation→discovery ranking · completion showcase · dashboard progress+next-action · two-party confirmation on money/completion stages · RLS regression tests (un-skip the 6 integration tests) · observability/`/healthz` · legal (ToS/Privacy/data-deletion) · a11y + responsive pass.
+**P2 (quality/growth):** reputation→discovery ranking · completion showcase · dashboard progress+next-action · two-party confirmation on money/completion stages · RLS regression tests (un-skip the 6 integration tests) · observability/`/healthz` · legal (ToS/Privacy/data-deletion) · a11y + responsive pass · **tester feedback loop for staging (§3 G5) — deferred until after the current tester round settles.**
 
 ---
 
@@ -59,6 +59,22 @@ Conventions: `profiles.id` UUID; `campaign_projects.id` BIGINT; RLS uses the par
 ### G4 — Completion outcomes & dashboard progress
 - On `project_completed`: unlock review prompt; (ideally) require final payment settled; add to creator's opt-in **completed-work showcase** on `/c/[username]`; feed `rating + completed count` into discovery ordering.
 - Home dashboards: per-project **progress bar** (`stageProgressPercent`) + **"whose turn"** label from `STAGE_ACTOR`.
+
+### G5 — Tester feedback & issue tracking *(planned, deferred — see trigger below)*
+
+Raised 2026-08-04 during the staging DB-isolation work. **Not urgent** — build once the current tester round is stable and the product is being handed to real users; noted here so the idea isn't lost.
+
+**Reuse `support_tickets` + `ticket_messages` (098) — do not build a parallel bug tracker.** They already give: subject/category (`bug` exists), a `status` lifecycle (`open|pending|resolved|closed` — maps directly to report → fix → retest → close), and a full threaded conversation per ticket via `ticket_messages`. Web (`/dashboard/support`, `/dashboard/admin/support`) and mobile (`support/index.tsx`, `support/[id].tsx`) UIs already exist on both ends.
+
+**No tester-identity toggle needed.** Staging now has its own isolated Supabase project (2026-08-03) — every account on it *is* a tester, by construction. A login-time "I'm a tester" flag would solve a problem the DB split already solved. Revisit only if a future shared prod DB needs to distinguish real users from UAT accounts inside the same database.
+
+Four concrete additions, each independently useful and each reusing existing infra — ship in this order:
+1. **Notify on resolution** — call the existing push/email pipeline (`lib/notify.ts`) from the ticket status-update route when status flips to `resolved`. No new infra; the pipeline is proven elsewhere.
+2. **Screenshots on a report** — `attachments jsonb` on `ticket_messages`, upload via the Cloudinary path already used for media kits.
+3. **"+1 / me too"** — new `ticket_upvotes(ticket_id, user_id)` unique table, one toggle endpoint, count + button in the thread UI.
+4. **"please retest" state** — reuse `pending` with a clear label first; only add a new status value (`ALTER TYPE`) if that reads ambiguously in practice.
+
+**Acceptance:** a tester can file a bug with a screenshot from either app; the admin thread-replies same as support tickets today; flipping status to `resolved` notifies the reporter; a second tester hitting the same open ticket can +1 it instead of filing a duplicate.
 
 ---
 

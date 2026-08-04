@@ -2,6 +2,28 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-08-04: PostgREST Multiple Filter Fix & Matchmaking E2E Test Suite Alignment
+
+**Branch**: `dev`
+
+### Scope
+- **PostgREST Query Fix (`apps/web/src/app/api/projects/route.ts`)**:
+  - Removed duplicate `.or()` query chaining on Supabase query builder by performing the 15-day cancellation retention check (`deleted_at`) directly in JavaScript.
+  - Ensures the PostgREST URL contains exactly one `.or()` parameter (`owner_user_id.eq.X,counterparty_user_id.eq.Y`), eliminating HTTP 500 serialization errors.
+- **Matchmaking E2E Test Fix (`apps/web/tests/matchmaking.js`)**:
+  - Updated fallback Supabase URL and anon key to point to the active `dev` environment (`jaajosocopoicmqcffuu`) rather than the stale staging environment. This fixes E2E test failures when running locally without `NEXT_PUBLIC_SUPABASE_URL` injected.
+
+### Broken & Resolved
+- **GET /api/projects HTTP 500 in CI**: Step 7 of `matchmaking.js` failed because PostgREST rejected multiple `.or()` parameters in the query string (`or=...&or=...`), causing `GET /api/projects` to throw an HTTP 500 syntax error. Resolved by handling the `deleted_at` 15-day retention filter in JS.
+
+### Key Lessons
+- PostgREST does not support chaining multiple `.or()` calls on the same query builder instance (it produces duplicate `or=` parameters in the HTTP request URL, which PostgREST rejects with HTTP 500). Any secondary logical filters should be evaluated in JavaScript after fetching the user's project records.
+
+### Next Target
+- Push fix to `dev` and verify CI passes.
+
+---
+
 ### Session — 2026-07-31: Wizard State Persistence & Instagram Real-Time Checks
 
 **Branch**: `dev`

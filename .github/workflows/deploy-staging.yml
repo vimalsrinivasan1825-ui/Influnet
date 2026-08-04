@@ -7,6 +7,9 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/**'
+      # A migration-only change is still a deploy: without this the schema
+      # job below would never fire for a PR that only adds SQL.
+      - 'supabase/migrations/**'
       - '.github/workflows/deploy-staging.yml'
       - 'package.json'
       - 'package-lock.json'
@@ -21,8 +24,52 @@ env:
   IMAGE_NAME: "influnet-web"
   STAGING_URL: "https://influnet-staging.icysky-7414f4c6.southindia.azurecontainerapps.io"
 
+concurrency:
+  # Never let two staging deploys migrate the same database at once, and
+  # never cancel a run part-way through applying schema changes.
+  group: deploy-staging
+  cancel-in-progress: false
+
 jobs:
+  # Schema first, app second. Migrations here are additive (new tables,
+  # columns and functions), so the OLD app version keeps working against the
+  # NEW schema for the minute between this job and the deploy below — whereas
+  # the reverse order would briefly run new code against a schema that has
+  # not caught up yet. If a migration ever fails, `needs:` stops the deploy
+  # entirely rather than shipping code its schema cannot support.
+  migrate:
+    name: Apply pending migrations to the staging database
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
+      # Not a secret — shipped to the browser as NEXT_PUBLIC_SUPABASE_URL.
+      # NOTE: this is a DIFFERENT Supabase project from dev.
+      PROJECT_REF: aokdansyqxracuwsosji
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to the staging project
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Show migration state before applying
+        run: supabase migration list
+
+      - name: Apply pending migrations
+        # See migrate-dev.yml for why --include-all matters here.
+        run: supabase db push --include-all
+
+      - name: Confirm migration state after applying
+        run: supabase migration list
+
   build-and-deploy:
+    needs: migrate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code

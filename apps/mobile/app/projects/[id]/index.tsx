@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Ban, Check, CircleCheck, EllipsisVertical, Flag, RotateCcw } from 'lucide-react-native';
+import { Ban, Check, CircleCheck, EllipsisVertical, Flag, RotateCcw, Trash2 } from 'lucide-react-native';
 import {
   STAGES,
   CANCELLATION_REASONS,
@@ -126,8 +126,41 @@ export default function ProjectDetailScreen() {
   const pendingChangeCount = (crData?.change_requests ?? []).filter((cr) => cr.status === 'pending').length;
   const latestActivity = activityData?.activity?.[0];
 
-  // ── "More" menu — the entry point for cancel and report/block ──────────
+  // ── "More" menu — the entry point for cancel, delete and report/block ──
   const menuSheet = useRef<SheetRef>(null);
+
+  // ── Delete — unilateral, any status, no counterparty confirmation ──────
+  // Not a cancel: nothing here needs agreement. It just moves the project
+  // out of both participants' main list into Deleted Projects (migration
+  // 103) — the row, its payments and its activity all survive untouched.
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  function confirmDeleteProject() {
+    menuSheet.current?.close();
+    Alert.alert(
+      'Delete this project?',
+      'It moves to Deleted Projects — nothing is lost, and either of you can restore it later.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleteBusy(true);
+            const res = await endpoints.updateProject(id, { action: 'delete_project' });
+            setDeleteBusy(false);
+            if (!res.ok) {
+              Alert.alert('Could not delete this project', res.error ?? undefined);
+              return;
+            }
+            invalidateFetchCache('projects');
+            invalidateFetchCache(`project:${id}`);
+            router.back();
+          },
+        },
+      ],
+    );
+  }
 
   // ── Cancellation ──────────────────────────────────────────────────────
   const cancelSheet = useRef<SheetRef>(null);
@@ -441,6 +474,15 @@ export default function ProjectDetailScreen() {
             <Txt variant="callout" tone="danger">Report or block {partner}</Txt>
           </Pressable>
         ) : null}
+        <Pressable
+          accessibilityRole="button"
+          disabled={deleteBusy}
+          onPress={confirmDeleteProject}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, paddingVertical: t.spacing.sm }}
+        >
+          <Trash2 size={17} color={t.color.danger} />
+          <Txt variant="callout" tone="danger">Delete this project</Txt>
+        </Pressable>
       </Sheet>
 
       <Sheet ref={cancelSheet} title="Request to cancel this project">

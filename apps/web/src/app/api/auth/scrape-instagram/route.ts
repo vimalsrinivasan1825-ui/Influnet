@@ -38,6 +38,8 @@ export async function GET(req: Request) {
     // Data minimization: this route is UNAUTHENTICATED, so only return the few
     // fields signup actually prefills. The provider payload also carries e.g.
     // publicEmail / internal ids — never proxy those to anonymous callers.
+    // isPrivate is the exception: signup needs it to refuse private handles
+    // up front, since a private account can never be scraped or bio-verified.
     return NextResponse.json({
       profile: {
         fullName: profile.fullName ?? null,
@@ -45,6 +47,7 @@ export async function GET(req: Request) {
         followerCount: profile.followerCount ?? null,
         profilePicUrl: profile.profilePicUrl ?? null,
         isVerified: profile.isVerified ?? null,
+        isPrivate: profile.isPrivate ?? null,
       },
     });
   } catch (error: any) {

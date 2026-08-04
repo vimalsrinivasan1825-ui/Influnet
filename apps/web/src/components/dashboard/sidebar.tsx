@@ -28,6 +28,7 @@ import {
   LifeBuoy,
   Activity,
   HeartPulse,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -78,6 +79,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: "Requests", href: "/dashboard/admin/collabs", icon: Send },
   { label: "Email", href: "/dashboard/admin/emails", icon: Mail },
   { label: "Audit log", href: "/dashboard/admin/audit", icon: History },
+  { label: "Issues & fixes", href: "/dashboard/admin/issues", icon: ClipboardList },
 ];
 
 const ROLE_META: Record<

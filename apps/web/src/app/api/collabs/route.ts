@@ -4,6 +4,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { CollabRequestSchema } from '@/lib/validators';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
+import { requireVerifiedOwnership } from '@/lib/ownership-gate';
 import { z } from 'zod';
 
 // PATCH Collab Schema (since it only exists here for now)
@@ -248,7 +249,7 @@ export async function PATCH(req: Request) {
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
-    const { supabase, user } = auth;
+    const { supabase, user, role } = auth;
 
     let body;
     try {
@@ -321,6 +322,11 @@ export async function PATCH(req: Request) {
     let conversationId: string | null = null;
 
     if (status === 'accepted') {
+      // A creator who hasn't proven ownership of their Instagram yet can't
+      // accept — see lib/ownership-gate.ts. Businesses aren't subject to this.
+      const gateRes = await requireVerifiedOwnership(supabase, user, role);
+      if (gateRes) return gateRes;
+
       // Accepting opens the CONVERSATION only. No project is created here —
       // the two sides negotiate first and then either of them proposes a
       // project with the agreed terms (POST /api/projects).

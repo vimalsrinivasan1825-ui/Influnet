@@ -12,7 +12,7 @@ import { CANCELLATION_REASONS, cancellationReasonLabel } from '@influnet/core';
 const CANCELLATION_REASON_VALUES = CANCELLATION_REASONS.map((r) => r.value) as [string, ...string[]];
 
 const PatchProjectActionSchema = z.object({
-  action: z.enum(['advance', 'signoff', 'revoke_signoff', 'propose_skip', 'confirm_skip', 'cancel_skip', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation']),
+  action: z.enum(['advance', 'signoff', 'revoke_signoff', 'propose_skip', 'confirm_skip', 'cancel_skip', 'confirm_completion', 'update_stage', 'update_project', 'request_cancellation', 'decline_cancellation', 'accept_cancellation', 'delete_project', 'restore_project']),
   stage_key: z.string().optional(),
   updates: z.any().optional(),
   title: z.string().optional(),
@@ -1046,6 +1046,71 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       }
 
       return NextResponse.json({ ok: true, cancelled: true, project: cancelResult?.project ?? null });
+    }
+
+    if (action === 'delete_project') {
+      // Unilateral — either participant, no counterparty confirmation, any
+      // status. Nothing is actually removed (migration 103): this just moves
+      // the row out of both participants' main list into Deleted Projects.
+      const { data: rpcData, error: rpcErr } = await (supabase.rpc as any)('delete_project', {
+        p_project_id: Number(id),
+      });
+      if (rpcErr) {
+        const known: Record<string, [number, string]> = {
+          already_deleted: [409, 'This project is already deleted.'],
+          not_a_participant: [403, 'You are not part of this project.'],
+        };
+        const hit = Object.entries(known).find(([k]) => rpcErr.message?.includes(k));
+        if (hit) return jsonError(hit[1][0], hit[1][1]);
+        return jsonError(500, 'Failed to delete this project', rpcErr);
+      }
+
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'project_deleted',
+        summary: 'Removed this project from the active list',
+      });
+      if (counterpartyId) {
+        await notifyUser({
+          userId: counterpartyId,
+          type: 'project_cancel',
+          title: `${projectLabel} was deleted`,
+          body: 'The other side removed this project from their list. It still exists and you can find it under Deleted Projects.',
+          link: projectLink,
+        });
+      }
+
+      return NextResponse.json({ ok: true, project: rpcData?.project ?? null });
+    }
+
+    if (action === 'restore_project') {
+      const { data: rpcData, error: rpcErr } = await (supabase.rpc as any)('restore_project', {
+        p_project_id: Number(id),
+      });
+      if (rpcErr) {
+        const known: Record<string, [number, string]> = {
+          not_deleted: [409, 'This project is not deleted.'],
+          not_a_participant: [403, 'You are not part of this project.'],
+        };
+        const hit = Object.entries(known).find(([k]) => rpcErr.message?.includes(k));
+        if (hit) return jsonError(hit[1][0], hit[1][1]);
+        return jsonError(500, 'Failed to restore this project', rpcErr);
+      }
+
+      await logActivity(supabase, {
+        projectId: id, actorUserId: user.id, type: 'project_restored',
+        summary: 'Restored this project from Deleted Projects',
+      });
+      if (counterpartyId) {
+        await notifyUser({
+          userId: counterpartyId,
+          type: 'project_cancel',
+          title: `${projectLabel} was restored`,
+          body: 'The other side restored this project — it is back on your active list.',
+          link: projectLink,
+        });
+      }
+
+      return NextResponse.json({ ok: true, project: rpcData?.project ?? null });
     }
 
     return jsonError(400, 'Unknown action');

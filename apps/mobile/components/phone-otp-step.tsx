@@ -4,12 +4,105 @@
  * State lives in usePhoneOtp() so the wizard can read `token` for its own
  * step-valid check and pass it to register.
  */
-import { ActivityIndicator, View } from 'react-native';
+import { useRef } from 'react';
+import { ActivityIndicator, TextInput, View } from 'react-native';
 import { ShieldCheck } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { usePhoneAvailability } from '@/lib/use-signup';
 import { Button, Field, Txt } from '@/components/ui';
 import type { PhoneOtpState } from '@/lib/use-phone-otp';
+
+const OTP_LENGTH = 6;
+
+/**
+ * Six-box OTP entry. A single field asked people to read "123456" off an SMS
+ * banner and retype it correctly on a numeric keyboard — boxes are the
+ * pattern every bank/OTP app already trained users on, and they make partial
+ * entry state ("3 of 6 typed") visible at a glance.
+ *
+ * Still a single source of truth (the wizard's `otp.code` string) — each box
+ * is just a view over one character of it, so paste-the-whole-code and
+ * OS SMS autofill both keep working the same way a single field did.
+ */
+function OtpBoxes({
+  value,
+  onChangeText,
+  editable,
+}: {
+  value: string;
+  onChangeText: (next: string) => void;
+  editable: boolean;
+}) {
+  const t = useTheme();
+  const boxes = useRef<Array<TextInput | null>>([]);
+  const digits = Array.from({ length: OTP_LENGTH }, (_, i) => value[i] ?? '');
+
+  function setDigitAt(index: number, text: string) {
+    const clean = text.replace(/\D/g, '');
+
+    if (clean.length > 1) {
+      // A paste or SMS autofill landed multiple digits in one box — spread
+      // them across the boxes from here on, same as the old field did.
+      const next = (value.slice(0, index) + clean).slice(0, OTP_LENGTH);
+      onChangeText(next);
+      boxes.current[Math.min(next.length, OTP_LENGTH - 1)]?.focus();
+      return;
+    }
+
+    const chars = value.padEnd(OTP_LENGTH, ' ').split('');
+    chars[index] = clean;
+    onChangeText(chars.join('').trimEnd());
+
+    if (clean && index < OTP_LENGTH - 1) {
+      boxes.current[index + 1]?.focus();
+    }
+  }
+
+  function handleBackspace(index: number) {
+    if (digits[index] || index === 0) return;
+    // Empty box, backspace pressed: clear the previous box and land the
+    // caret there, so holding backspace walks left one box at a time.
+    const chars = value.padEnd(OTP_LENGTH, ' ').split('');
+    chars[index - 1] = '';
+    onChangeText(chars.join('').trimEnd());
+    boxes.current[index - 1]?.focus();
+  }
+
+  return (
+    <View style={{ flexDirection: 'row', gap: t.spacing.sm }}>
+      {digits.map((digit, i) => (
+        <TextInput
+          key={i}
+          ref={(el) => {
+            boxes.current[i] = el;
+          }}
+          value={digit}
+          onChangeText={(text) => setDigitAt(i, text)}
+          onKeyPress={({ nativeEvent }) => {
+            if (nativeEvent.key === 'Backspace') handleBackspace(i);
+          }}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete={i === 0 ? 'sms-otp' : 'off'}
+          editable={editable}
+          selectTextOnFocus
+          style={{
+            flex: 1,
+            height: 56,
+            borderWidth: 1,
+            borderColor: digit ? t.color.brand : t.color.hairlineStrong,
+            borderRadius: t.radii.md,
+            backgroundColor: t.color.surfaceCard,
+            textAlign: 'center',
+            fontSize: t.typography.body.fontSize + 6,
+            fontWeight: '700',
+            color: t.color.content,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
 
 export function PhoneOtpStep({
   otp,
@@ -92,29 +185,33 @@ export function PhoneOtpStep({
           />
 
           {otp.codeSent ? (
-            <Field
-              label="6-digit code"
-              value={otp.code}
-              onChangeText={(v) => {
-                const digits = v.replace(/\D/g, '').slice(0, 6);
-                otp.setCode(digits);
-                // Auto-submit on the sixth digit — one less tap, and the code is
-                // usually being pasted from the SMS anyway.
-                if (digits.length === 6) void otp.verifyOtp(digits);
-              }}
-              placeholder="123456"
-              keyboardType="number-pad"
-              autoComplete="sms-otp"
-              textContentType="oneTimeCode"
-              maxLength={6}
-              editable={!otp.verifying}
-              right={
-                otp.verifying ? (
+            <View style={{ gap: 6 }}>
+              <Txt variant="footnote" tone="soft">
+                6-digit code
+              </Txt>
+              <OtpBoxes
+                value={otp.code}
+                onChangeText={(digits) => {
+                  otp.setCode(digits);
+                  // Auto-submit on the sixth digit — one less tap, and the code is
+                  // usually being pasted from the SMS anyway.
+                  if (digits.length === 6) void otp.verifyOtp(digits);
+                }}
+                editable={!otp.verifying}
+              />
+              {otp.verifying ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <ActivityIndicator size="small" color={t.color.contentMuted} />
-                ) : null
-              }
-              hint="Enter the code we texted you."
-            />
+                  <Txt variant="footnote" tone="muted">
+                    Verifying…
+                  </Txt>
+                </View>
+              ) : (
+                <Txt variant="footnote" tone="muted">
+                  Enter the code we texted you.
+                </Txt>
+              )}
+            </View>
           ) : null}
         </>
       )}
