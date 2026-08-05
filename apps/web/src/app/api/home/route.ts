@@ -6,6 +6,14 @@ import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapsho
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 import { parseAudience } from '@/lib/public-profile/creator-profile';
+import { hasVerifiedInstagramClaim } from '@/lib/verification-ownership';
+import {
+  AUTO_APPROVE_THRESHOLD,
+  OWNERSHIP_KEY,
+  scoreBreakdown,
+  type Role,
+  type VerificationSignals,
+} from '@/lib/verification';
 
 /**
  * The Home screen: what needs you, and how the work is actually going.
@@ -41,6 +49,44 @@ export async function GET(req: Request) {
       .select('name, location, verification_status, verified_badge')
       .eq('id', user.id)
       .maybeSingle();
+
+    // ── Verification, in enough detail for Home to say something useful ──────
+    //
+    // Home used to know one bit: badge or no badge. So a creator who had proved
+    // ownership during signup and was sitting in review on follower count was
+    // greeted by "Verify your Instagram — takes about a minute", pointing at a
+    // job they had already done. The three states below are genuinely different
+    // and deserve different words: nothing proven yet (real action), proven and
+    // scoring (progress, no action), verified (a moment worth marking).
+    const { data: lastCheck } = await supabase
+      .from('verification_checks')
+      .select('status, ai_score, ai_signals, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const ownershipVerified = await hasVerifiedInstagramClaim(supabase, user.id, role as Role);
+    const signals = (lastCheck?.ai_signals ?? null) as VerificationSignals | null;
+    const checklist =
+      signals && Object.keys(signals).length > 0
+        ? scoreBreakdown(role as Role, signals).map((item) =>
+            // Same override as GET /api/verification, same reason: the claim is
+            // the fact, the stored signal is only a photograph of when the
+            // pipeline last ran.
+            item.key === OWNERSHIP_KEY && ownershipVerified ? { ...item, met: true } : item,
+          )
+        : null;
+
+    const verification = {
+      status: profile?.verification_status ?? 'unverified',
+      badge: !!profile?.verified_badge,
+      ownership_verified: ownershipVerified,
+      score: lastCheck?.ai_score ?? null,
+      threshold: AUTO_APPROVE_THRESHOLD,
+      checked_at: lastCheck?.created_at ?? null,
+      checklist,
+    };
 
     // Public identity differs by role: a creator's is their /c/ page and
     // audience numbers, a brand's is their /b/ page and company details.
@@ -282,6 +328,7 @@ export async function GET(req: Request) {
         location: profile?.location ?? null,
         verified: !!profile?.verified_badge,
         verification_status: profile?.verification_status ?? 'unverified',
+        verification,
       },
       public_profile: publicProfile,
       public_path: publicPath,

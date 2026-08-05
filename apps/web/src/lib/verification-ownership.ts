@@ -110,6 +110,47 @@ export function bioContainsMarker(bio: string, marker: string): boolean {
   });
 }
 
+/**
+ * The signup gate's matcher: does this bio link to THIS username, on any
+ * Influnet host?
+ *
+ * `bioContainsMarker` above is host-exact, which is right for the in-app flow —
+ * it issued a specific link and checks for that link. Signup cannot be: the
+ * host differs across dev / staging / prod, people paste the link they already
+ * had, and /api/auth/verify-instagram-bio has always accepted any influnet host
+ * with the right username path.
+ *
+ * That asymmetry had a consequence. Someone whose bio said `influnet.io/vimal`
+ * passed signup and then FAILED the reconciliation on staging, where the marker
+ * is `staging.influnet.io/vimal` — proof accepted at the door, refused one
+ * minute later inside. Whatever signup accepted, the app must accept, so both
+ * now call this.
+ *
+ * The strictness that carries the anti-impersonation weight is unchanged and
+ * lives in the path, not the host: the bio must contain the claimant's own
+ * unique username, with the same trailing boundary that stops `/priya` matching
+ * a bio reading `/priyanka`.
+ */
+export function bioLinksToUsername(bio: string, username: string): boolean {
+  // The username is interpolated into a RegExp; keep it to the charset the
+  // username rules allow so no pattern metacharacter can reach it.
+  if (!/^[a-z0-9_.]{3,30}$/i.test(username)) return false;
+
+  const normalised = bio
+    // Zero-width characters pasted in by mobile keyboards.
+    .replace(/[​-‍﻿]/g, '')
+    // Full-width slash from some IMEs.
+    .replace(/／/g, '/')
+    .toLowerCase();
+
+  // `/c/` is optional so this keeps working if the canonical profile path ever
+  // regains that segment (it had one, and bios written back then still do).
+  return new RegExp(
+    `influnet[a-z0-9.\\-]*\\/(?:c\\/|b\\/)?${username.toLowerCase()}(?![a-z0-9_.])`,
+    'i',
+  ).test(normalised);
+}
+
 /** The caller's own Influnet username — the tail of the marker we look for. */
 export async function ownUsername(db: Db, userId: string, role: Role): Promise<string | null> {
   const table = role === 'business_owner' ? 'business_profiles' : 'influencer_profiles';
@@ -152,7 +193,10 @@ export async function syncOwnershipFromBio(
     if (!username) return false;
 
     const marker = profileMarker(origin, username);
-    if (!bioContainsMarker(bio, marker)) return false;
+    // Host-exact first, then the looser rule signup itself accepted — see
+    // bioLinksToUsername. Passing either means this person edited that bio to
+    // carry their own username, which is the whole claim.
+    if (!bioContainsMarker(bio, marker) && !bioLinksToUsername(bio, username)) return false;
 
     // Open a claim and close it in one go. Two calls rather than a direct
     // insert because these RPCs own the invariants: initiate refuses a handle
@@ -181,6 +225,56 @@ export async function syncOwnershipFromBio(
       },
     });
     return !confirmErr;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Does this user hold a verified Instagram ownership claim, right now?
+ *
+ * Read from social_account_claims, not from the last check's stored signals.
+ * Those two answer different questions and drift apart constantly: the claim is
+ * a fact about the account, the signals are a photograph of what was true when
+ * the pipeline last ran. A creator who proved ownership during signup — or
+ * seconds ago on the ownership screen — has a verified claim and a stale
+ * `ownership_verified: false` sitting in their most recent check, which is
+ * exactly what made the app keep asking for proof it already had.
+ *
+ * Every surface that reports ownership to a human reads this.
+ */
+export async function hasVerifiedInstagramClaim(
+  db: Db,
+  userId: string,
+  role: Role,
+): Promise<boolean> {
+  try {
+    const table = role === 'business_owner' ? 'business_profiles' : 'influencer_profiles';
+    const { data: prof } = await db
+      .from(table)
+      .select('instagram_handle')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    // Claims are keyed on the handle, and so is this answer. Someone who
+    // verified @old and then changed their profile to @new has proven nothing
+    // about @new — reporting them as owner-verified would hand the badge gate a
+    // pass for an account they never touched.
+    const handle = (prof as { instagram_handle?: string | null } | null)?.instagram_handle
+      ?.trim()
+      .replace(/^@/, '')
+      .toLowerCase();
+    if (!handle) return false;
+
+    const { data } = await db
+      .from('social_account_claims')
+      .select('handle')
+      .eq('user_id', userId)
+      .eq('platform', 'instagram')
+      .eq('handle', handle)
+      .eq('status', 'verified')
+      .limit(1);
+    return Array.isArray(data) && data.length > 0;
   } catch {
     return false;
   }

@@ -4,6 +4,7 @@ import { jsonError } from '@/lib/api';
 import { RegisterProfileSchema } from '@/lib/validators';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { phoneOtpEnabled, validatePhoneVerification } from '@/lib/phone-otp';
+import { toE164India } from '@/lib/phone';
 import { deliverEmail } from '@/lib/email/policy';
 
 export async function POST(req: Request) {
@@ -153,6 +154,19 @@ export async function POST(req: Request) {
           { status: 403 },
         );
       }
+    }
+
+    // Store ONE shape of a phone number, whatever shape the client sent.
+    //
+    // The clients disagreed: mobile signup wrote '+91 8270942966', the web form
+    // wrote '8270942966', older rows hold '+918270942966'. Three spellings of
+    // one number in one column is what let the same person register twice — the
+    // availability check compared strings (fixed properly in migration 107, which
+    // normalises on read so the rows already written stay findable). This stops
+    // adding to the mess. Deliberately AFTER the OTP validation above, which
+    // matches against the session's own record of what was sent.
+    if (typeof payload.phone === 'string' && payload.phone.trim()) {
+      payload.phone = toE164India(payload.phone);
     }
 
     const { data, error } = await supabase.rpc('register_profile', { payload });

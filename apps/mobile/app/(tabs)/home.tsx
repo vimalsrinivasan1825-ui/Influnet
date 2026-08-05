@@ -43,9 +43,15 @@ import {
   humanizeStage,
   timeAgo,
 } from '@/lib/format';
+import { useVerificationNudge } from '@/lib/use-verification-nudge';
 import { AppHeader } from '@/components/app-header';
 import { ApprovalBanner } from '@/components/approval-banner';
 import { ActionCard } from '@/components/action-card';
+import { VerifiedCelebration } from '@/components/verified-celebration';
+import {
+  VerificationStatusCard,
+  type VerificationSummary,
+} from '@/components/verification-status-card';
 import {
   Card,
   DonutChart,
@@ -118,7 +124,18 @@ interface HomeAnalytics {
  */
 interface HomePayload {
   role: string;
-  profile: { name: string; location: string | null; verified: boolean; verification_status: string };
+  profile: {
+    name: string;
+    location: string | null;
+    verified: boolean;
+    verification_status: string;
+    /**
+     * The full verification picture, added so Home can tell "you have a task"
+     * apart from "we're still scoring you". Absent on an older backend — every
+     * reader below tolerates undefined and falls back to the `verified` bit.
+     */
+    verification?: VerificationSummary;
+  };
   ongoing: OngoingProject[];
   /** Absent on an older backend; every reader below tolerates undefined. */
   analytics?: HomeAnalytics;
@@ -164,6 +181,9 @@ export default function HomeScreen() {
   const t = useTheme();
   const router = useRouter();
   const profile = useSession((s) => s.profile);
+  // Both "seen it" flags are per account, not per install — a shared device
+  // must not swallow the second person's badge moment.
+  const userId = useSession((s) => s.session?.user.id);
   // Drives the dot on the header bell. Without this the bell was decorative —
   // AppHeader accepts `unread`, and nothing ever gave it a number.
   const unreadNotifications = useNotificationSummary(
@@ -202,6 +222,27 @@ export default function HomeScreen() {
   const counts = home?.counts;
   const isCreator = (home?.role ?? profile?.role) === 'influencer';
   const avatar = isCreator ? profile?.avatar_url : profile?.logo_url;
+
+  // ── Verification ────────────────────────────────────────────────
+  // An older backend sends only the badge bit. Reconstructing the summary from
+  // it keeps this screen working there, at the cost of falling back to the old
+  // "you have a task" reading — which is what that backend can actually tell us.
+  const verification: VerificationSummary | null = home
+    ? (home.profile.verification ?? {
+        status: (home.profile.verification_status ??
+          'unverified') as VerificationSummary['status'],
+        badge: home.profile.verified,
+        ownership_verified: false,
+        score: null,
+        threshold: 0.85,
+        checked_at: null,
+        checklist: null,
+      })
+    : null;
+  const { nudge, markCelebrated, dismiss } = useVerificationNudge(
+    userId,
+    isCreator ? verification : null,
+  );
 
   // ── Whose move ──────────────────────────────────────────────────
   // Older builds of the API don't send `turn`; those projects fall into the
@@ -242,7 +283,10 @@ export default function HomeScreen() {
           onPress: () => router.push('/messages'),
         }
       : null,
-    isCreator && home && !home.profile.verified
+    // Only when there is genuinely something to DO — i.e. the bio-link proof is
+    // still missing. Someone who already did it during signup gets the progress
+    // card below instead of being sent back to a finished task.
+    isCreator && nudge === 'action'
       ? {
           key: 'verify',
           icon: <BadgeCheck size={18} color={t.color.brand} />,
@@ -291,6 +335,19 @@ export default function HomeScreen() {
       {/* Unapproved businesses land here first, so this is where web's shell
           banner belongs. Renders nothing for everyone else. */}
       <ApprovalBanner />
+
+      {/* The badge is granted by a background pipeline, usually while the app
+          is shut. Home is the first place its owner comes back to, so it is
+          where the news gets delivered — once. */}
+      <VerifiedCelebration
+        visible={nudge === 'celebrate'}
+        name={(home?.profile.name ?? profile?.name ?? '').trim().split(/\s+/)[0] || null}
+        onDismiss={markCelebrated}
+        onSeeProfile={() => {
+          markCelebrated();
+          router.push('/profile');
+        }}
+      />
 
       <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
         {loading ? (
@@ -365,6 +422,21 @@ export default function HomeScreen() {
                     />
                   ))}
                 </View>
+              </>
+            ) : null}
+
+            {/* ── Verification, once the proof is in ────────────────── */}
+            {/* Below "Needs you" and outside it on purpose: nothing here is
+                waiting on the creator, so putting it in the action queue would
+                be crying wolf. It is status, and it says so. */}
+            {nudge === 'progress' && verification ? (
+              <>
+                <SectionLabel>Verification</SectionLabel>
+                <VerificationStatusCard
+                  summary={verification}
+                  onPress={() => router.push('/verification')}
+                  onDismiss={dismiss}
+                />
               </>
             ) : null}
 

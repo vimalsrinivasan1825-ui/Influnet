@@ -106,7 +106,20 @@ export function scoreSignals(role: Role, signals: VerificationSignals): number {
     : scoreCreatorSignals(signals);
 }
 
+/**
+ * The one checklist item whose truth lives outside the stored signals — see
+ * hasVerifiedInstagramClaim(). Exported so the override has something stable to
+ * match on.
+ */
+export const OWNERSHIP_KEY = 'ownership';
+
 export interface ScoreBreakdownItem {
+  /**
+   * Stable identifier, safe to branch on. Labels are user-facing copy and get
+   * rewritten; callers that need to find a specific item (the ownership
+   * override in GET /api/verification) must not match on prose.
+   */
+  key: string;
   label: string;
   met: boolean;
   /** How many of the 1.0 total this item is worth when met — for the UI's "why" list, not re-scored client-side. */
@@ -122,23 +135,23 @@ export interface ScoreBreakdownItem {
 export function scoreBreakdown(role: Role, s: VerificationSignals): ScoreBreakdownItem[] {
   if (role === 'business_owner') {
     return [
-      { label: 'Website is reachable', met: !!s.website_resolves, weight: 0.35 },
-      { label: 'Website mentions your company name', met: !!s.website_mentions_name, weight: 0.25 },
-      { label: 'GST number format is valid', met: !!s.gst_format_valid, weight: 0.2 },
-      { label: 'Website domain is at least 6 months old', met: (s.domain_age_days ?? 0) >= 180, weight: 0.1 },
-      { label: 'A contactable channel is on file', met: !!s.has_contactable_channel, weight: 0.1 },
-      { label: "Instagram's own verified badge", met: !!s.platform_verified, weight: 0.2 },
+      { key: 'website_live', label: 'Website is reachable', met: !!s.website_resolves, weight: 0.35 },
+      { key: 'website_name', label: 'Website mentions your company name', met: !!s.website_mentions_name, weight: 0.25 },
+      { key: 'gst', label: 'GST number format is valid', met: !!s.gst_format_valid, weight: 0.2 },
+      { key: 'domain_age', label: 'Website domain is at least 6 months old', met: (s.domain_age_days ?? 0) >= 180, weight: 0.1 },
+      { key: 'contactable', label: 'A contactable channel is on file', met: !!s.has_contactable_channel, weight: 0.1 },
+      { key: 'platform_badge', label: "Instagram's own verified badge", met: !!s.platform_verified, weight: 0.2 },
     ];
   }
   const live = s.social_handles_live ?? {};
   const liveCount = Object.values(live).filter(Boolean).length;
   return [
-    { label: 'Instagram handle confirmed live', met: liveCount >= 1, weight: 0.35 },
-    { label: 'Account ownership confirmed (bio link)', met: !!s.ownership_verified, weight: 0 },
-    { label: 'At least 1,000 followers', met: (s.follower_count ?? 0) >= 1000, weight: 0.15 },
-    { label: 'Posted within the last 30 days', met: (s.last_post_days_ago ?? Infinity) <= 30, weight: 0.2 },
-    { label: 'Bio matches your selected niche', met: !!s.bio_matches_niche, weight: 0.15 },
-    { label: "Instagram's own verified badge", met: !!s.platform_verified, weight: 0.35 },
+    { key: 'handle_live', label: 'Instagram handle confirmed live', met: liveCount >= 1, weight: 0.35 },
+    { key: OWNERSHIP_KEY, label: 'Account ownership confirmed (bio link)', met: !!s.ownership_verified, weight: 0 },
+    { key: 'followers', label: 'At least 1,000 followers', met: (s.follower_count ?? 0) >= 1000, weight: 0.15 },
+    { key: 'recent_post', label: 'Posted within the last 30 days', met: (s.last_post_days_ago ?? Infinity) <= 30, weight: 0.2 },
+    { key: 'niche_bio', label: 'Bio matches your selected niche', met: !!s.bio_matches_niche, weight: 0.15 },
+    { key: 'platform_badge', label: "Instagram's own verified badge", met: !!s.platform_verified, weight: 0.35 },
   ];
 }
 

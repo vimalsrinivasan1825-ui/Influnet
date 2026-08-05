@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
 import { fetchInstagramProfile, InstagramProviderError } from '@/lib/instagram';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { bioLinksToUsername } from '@/lib/verification-ownership';
 
 // Same ceiling as scrape-instagram: the Apify actor routinely takes 20-50s on a
 // cold start, and a shorter cap turns a working check into a platform 504.
@@ -78,23 +79,13 @@ export async function POST(req: Request) {
       });
     }
 
-    // Normalise the way bios actually arrive: mixed case, zero-width joiners
-    // pasted in by mobile keyboards, and full-width slashes from some IMEs.
-    const bio = (profile.biography ?? '')
-      .replace(/[​-‍﻿]/g, '')
-      .replace(/／/g, '/')
-      .toLowerCase();
-
-    // Host-agnostic on purpose (the link shown differs across dev / staging /
-    // prod), but the trailing <username> path is mandatory — that is the part
-    // only this claimant was given. `/c/` is optional so the check keeps
-    // working if the canonical profile path ever regains that segment.
-    // The trailing guard stops "…/priya" matching a bio that reads "…/priyanka".
-    const pattern = new RegExp(
-      `influnet[a-z0-9.\\-]*\\/(?:c\\/)?${username.toLowerCase()}(?![a-z0-9_.])`,
-      'i'
-    );
-    const verified = pattern.test(bio);
+    // The matcher moved to lib/verification-ownership.ts, which is where the
+    // authenticated pipeline reads it from too. It was duplicated here, and the
+    // two copies had already drifted: this one is host-agnostic (the link shown
+    // differs across dev / staging / prod), the other host-exact — so a bio
+    // that passed this gate could be refused by the reconciliation a minute
+    // later, and the creator was asked for proof they had just given.
+    const verified = bioLinksToUsername(profile.biography ?? '', username);
 
     return NextResponse.json({
       verified,

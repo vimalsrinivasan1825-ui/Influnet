@@ -10,4 +10,5 @@ export * from './project-stage-guide';
 export * from './project-turn';
 export * from './profile-visibility';
 export * from './project-cancellation';
+export * from './verification-nudge';
 export * from './validators';
