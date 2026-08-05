@@ -15,6 +15,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { logger } from './logger';
 import type { HikerInstagramUser } from './hikerapi';
+import type { SocialPlatform, SocialProfile } from './social/types';
 
 /** How many recent posts to keep in the snapshot / cache thumbnails for. */
 const MAX_POSTS = 12;
@@ -199,6 +200,139 @@ export async function captureInstagramSnapshot(
   } catch (err) {
     logger.warn('social-snapshot: capture failed (non-fatal)', {
       userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Generic capture — Facebook, X, and any platform added after them
+// ---------------------------------------------------------------------------
+
+/**
+ * Where each platform's audience count lands on influencer_profiles.
+ *
+ * Snapchat is absent on purpose: it has no readable public metric (see
+ * lib/social/snapchat.ts), and a column that is always 0 becomes a "0
+ * followers" badge on someone's public profile.
+ */
+const FOLLOWER_COLUMN: Partial<Record<SocialPlatform, string>> = {
+  instagram: 'instagram_followers',
+  youtube: 'youtube_subscribers',
+  facebook: 'facebook_followers',
+  twitter: 'twitter_followers',
+};
+
+/**
+ * Mean view count across posts that reported a real one.
+ *
+ * Posts without a view count are EXCLUDED rather than counted as zero —
+ * treating "the provider didn't tell us" as "nobody watched" is how an
+ * account's average collapses toward zero the moment one platform gets stingy
+ * with its numbers.
+ */
+function averageViews(profile: SocialProfile): number | null {
+  const counts = profile.recentPosts
+    .map((p) => p.views)
+    .filter((v): v is number => typeof v === 'number' && v > 0);
+  if (counts.length === 0) return null;
+  return Math.round(counts.reduce((a, b) => a + b, 0) / counts.length);
+}
+
+/** avg(likes+comments) per post over followers, as a percentage. */
+function engagementRate(profile: SocialProfile): number | null {
+  const followers = profile.followerCount ?? 0;
+  const engaged = profile.recentPosts
+    .map((p) => (p.likes ?? 0) + (p.comments ?? 0))
+    .filter((n) => n > 0);
+  if (followers <= 0 || engaged.length === 0) return null;
+  const avg = engaged.reduce((a, b) => a + b, 0) / engaged.length;
+  return Math.round((avg / followers) * 1000) / 10;
+}
+
+/**
+ * Persist a snapshot for any platform from an already-fetched profile.
+ *
+ * Same fire-and-forget contract as captureInstagramSnapshot: logs and returns
+ * false on failure, never throws, because a snapshot write is a side effect of
+ * a refresh and must never fail the refresh itself.
+ *
+ * Instagram keeps its own capture function above — that one also caches
+ * thumbnails into the social-cache bucket, which Instagram specifically needs
+ * because its CDN URLs are signed and expire within days. Facebook and X post
+ * thumbnails are comparatively stable, so this path stores the provider URL
+ * directly rather than paying for a download on every refresh.
+ */
+export async function captureSocialSnapshot(
+  userId: string,
+  profile: SocialProfile,
+): Promise<boolean> {
+  try {
+    const admin = serviceClient();
+    if (!admin) {
+      logger.warn('social-snapshot: skipped — service role key not configured');
+      return false;
+    }
+    if (!profile.handle) return false;
+    // A profile we couldn't actually read has nothing worth publishing, and
+    // writing it would overwrite a good earlier snapshot with empty numbers.
+    if (profile.isPrivate) return false;
+
+    const posts = profile.recentPosts.slice(0, MAX_POSTS);
+    const profilePicPath = profile.avatarUrl
+      ? await cacheImage(admin, profile.avatarUrl, `${profile.platform}/${userId}/profile.jpg`)
+      : null;
+
+    const { error: upsertErr } = await admin.from('social_snapshots').upsert(
+      {
+        user_id: userId,
+        platform: profile.platform,
+        handle: profile.handle,
+        follower_count: profile.followerCount,
+        posts_count: profile.postsCount,
+        avg_views: averageViews(profile),
+        engagement_rate: engagementRate(profile),
+        is_verified: profile.isVerified ?? false,
+        profile_pic_path: profilePicPath,
+        recent_posts: posts.map((p) => ({
+          url: p.url,
+          shortcode: p.id,
+          caption: p.caption,
+          likes: p.likes,
+          comments: p.comments,
+          views: p.views,
+          taken_at: p.takenAt,
+          // Provider-hosted, not a social-cache path — the readers check for
+          // thumb_path first and fall back to thumb_url.
+          thumb_url: p.thumbUrl,
+        })),
+        fetched_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,platform' },
+    );
+    if (upsertErr) {
+      logger.warn('social-snapshot: upsert failed (non-fatal)', {
+        userId,
+        platform: profile.platform,
+        error: upsertErr.message,
+      });
+      return false;
+    }
+
+    const column = FOLLOWER_COLUMN[profile.platform];
+    if (column && profile.followerCount != null) {
+      await admin
+        .from('influencer_profiles')
+        .update({ [column]: profile.followerCount })
+        .eq('user_id', userId);
+    }
+
+    return true;
+  } catch (err) {
+    logger.warn('social-snapshot: capture failed (non-fatal)', {
+      userId,
+      platform: profile.platform,
       error: err instanceof Error ? err.message : String(err),
     });
     return false;

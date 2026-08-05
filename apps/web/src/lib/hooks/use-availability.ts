@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isValidIndianPhone } from '@influnet/core';
 
 export type AvailabilityStatus =
@@ -207,87 +207,128 @@ export function useInstagramAvailability(handle: string, debounceMs = 600): Avai
   return { status, message };
 }
 
-export interface InstagramPreview {
-  fullName: string | null;
+export interface SocialPreview {
+  displayName: string | null;
   biography: string | null;
   followerCount: number | null;
-  profilePicUrl: string | null;
+  avatarUrl: string | null;
   isVerified: boolean | null;
   isPrivate: boolean | null;
 }
 
-export type InstagramPreviewStatus = 'idle' | 'checking' | 'found' | 'private' | 'notfound' | 'error';
+export type SocialConnectStatus =
+  | 'idle'
+  | 'checking'
+  | 'connected'
+  | 'private'
+  | 'notfound'
+  | 'invalid'
+  | 'unsupported'
+  | 'error';
+
+export interface SocialConnectResult {
+  status: SocialConnectStatus;
+  profile: SocialPreview | null;
+  message: string | null;
+  /** The handle the current status belongs to — null until one connects. */
+  connectedHandle: string | null;
+  /** Run the lookup for the handle currently in the field. */
+  connect: () => void;
+  /** Drop the result (used when the user edits the handle). */
+  reset: () => void;
+}
 
 /**
- * Looks a handle up on Instagram once the user stops typing — catches typos
- * (shows the photo/follower count so a wrong account is obvious) and refuses
- * private accounts up front, since neither the scraper nor the bio-code
- * ownership check can read one. Mirrors apps/mobile/lib/use-instagram-preview.ts,
- * which calls the same unauthenticated, rate-limited (5/min/IP) endpoint.
+ * Looks a handle up on a platform — ONLY when the user asks, by tapping Connect.
  *
- * Results are cached per handle for the life of the component so re-typing
- * the same handle, or stepping back and forward through the wizard, doesn't
- * spend another provider call. Errors are deliberately not cached — those
- * must stay retryable.
+ * The previous version fired the lookup 900ms after the user stopped typing.
+ * That reads fine in a demo and is expensive in production: every pause mid-
+ * handle spent a real, billed provider call on a half-typed username
+ * ("mycreat", "mycreato", "mycreator"), and none of those partial results were
+ * ever the answer. One deliberate tap costs one call.
+ *
+ * Editing the handle after connecting clears the result, so a creator can't
+ * connect one account and submit a different one.
+ *
+ * Results are cached per handle for the life of the component, so stepping back
+ * and forward through the wizard is free. Errors are deliberately NOT cached —
+ * a provider outage has to stay retryable.
  */
-export function useInstagramPreview(handle: string, debounceMs = 900) {
-  const [status, setStatus] = useState<InstagramPreviewStatus>('idle');
-  const [profile, setProfile] = useState<InstagramPreview | null>(null);
+export function useSocialConnect(platform: string, handle: string): SocialConnectResult {
+  const [state, setState] = useState<{
+    status: SocialConnectStatus;
+    profile: SocialPreview | null;
+    message: string | null;
+    handle: string | null;
+  }>({ status: 'idle', profile: null, message: null, handle: null });
+
   const requestId = useRef(0);
-  const cache = useRef(new Map<string, { status: InstagramPreviewStatus; profile: InstagramPreview | null }>());
+  const cache = useRef(new Map<string, { status: SocialConnectStatus; profile: SocialPreview | null; message: string | null }>());
 
+  const value = handle.replace(/^@/, '').trim().toLowerCase();
+
+  // The field no longer holds the handle we checked — the old verdict is about
+  // a different account, so it must not linger next to the new text.
   useEffect(() => {
-    const value = handle.replace(/^@/, '').trim().toLowerCase();
+    setState((prev) => (prev.handle && prev.handle !== value ? { status: 'idle', profile: null, message: null, handle: null } : prev));
+  }, [value]);
 
-    if (value.length < 3) {
-      setStatus('idle');
-      setProfile(null);
-      return;
-    }
+  const reset = useCallback(() => {
+    requestId.current++;
+    setState({ status: 'idle', profile: null, message: null, handle: null });
+  }, []);
 
-    const cached = cache.current.get(value);
+  const connect = useCallback(() => {
+    if (!value) return;
+
+    const cached = cache.current.get(`${platform}:${value}`);
     if (cached) {
-      setStatus(cached.status);
-      setProfile(cached.profile);
+      setState({ ...cached, handle: value });
       return;
     }
 
-    setStatus('checking');
-    setProfile(null);
     const id = ++requestId.current;
+    setState({ status: 'checking', profile: null, message: null, handle: value });
 
-    const timer = setTimeout(async () => {
+    (async () => {
       try {
-        const res = await fetch(`/api/auth/scrape-instagram?handle=${encodeURIComponent(value)}`);
+        const res = await fetch(
+          `/api/auth/social-preview?platform=${encodeURIComponent(platform)}&handle=${encodeURIComponent(value)}`,
+        );
         if (id !== requestId.current) return;
 
-        let settled: { status: InstagramPreviewStatus; profile: InstagramPreview | null };
-        if (!res.ok) {
-          settled = { status: 'error', profile: null };
-        } else {
-          const data = (await res.json()) as { profile: InstagramPreview | null };
-          const p = data?.profile ?? null;
-          settled = !p
-            ? { status: 'notfound', profile: null }
-            : p.isPrivate
-              ? { status: 'private', profile: p }
-              : { status: 'found', profile: p };
-        }
+        const data = (await res.json().catch(() => ({}))) as {
+          status?: SocialConnectStatus;
+          profile?: SocialPreview | null;
+          message?: string;
+        };
 
-        if (settled.status !== 'error') cache.current.set(value, settled);
-        setStatus(settled.status);
-        setProfile(settled.profile);
+        // The route reports its own verdict; a non-ok response without one is
+        // an infrastructure failure, which is never a verdict on the handle.
+        const status: SocialConnectStatus = data.status ?? (res.ok ? 'error' : 'error');
+        const settled = {
+          status,
+          profile: data.profile ?? null,
+          message: data.message ?? null,
+        };
+
+        if (status !== 'error') cache.current.set(`${platform}:${value}`, settled);
+        setState({ ...settled, handle: value });
       } catch {
         if (id !== requestId.current) return;
-        setStatus('error');
-        setProfile(null);
+        setState({ status: 'error', profile: null, message: null, handle: value });
       }
-    }, debounceMs);
+    })();
+  }, [platform, value]);
 
-    return () => clearTimeout(timer);
-  }, [handle, debounceMs]);
-
-  return { status, profile };
+  return {
+    status: state.status,
+    profile: state.profile,
+    message: state.message,
+    connectedHandle: state.status === 'connected' ? state.handle : null,
+    connect,
+    reset,
+  };
 }
 
 export function usePhoneAvailability(phone: string, debounceMs = 600): AvailabilityResult {

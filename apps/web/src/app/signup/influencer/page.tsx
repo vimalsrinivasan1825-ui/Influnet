@@ -29,8 +29,9 @@ import {
   useEmailAvailability,
   useUsernameSuggestions,
   useInstagramAvailability,
-  useInstagramPreview,
+  useSocialConnect,
 } from "@/lib/hooks/use-availability";
+import { SocialConnectField } from "@/components/signup/social-connect-field";
 import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { publicProfileUrl, publicProfileUrlDisplay } from "@/lib/site";
@@ -257,6 +258,8 @@ function InfluencerSignupContent() {
   const [instagramVerifiedHandle, setInstagramVerifiedHandle] = useState<string | null>(null);
   const [youtubeHandle, setYoutubeHandle] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
+  const [facebookHandle, setFacebookHandle] = useState("");
+  const [snapchatHandle, setSnapchatHandle] = useState("");
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -287,6 +290,8 @@ function InfluencerSignupContent() {
         if (data.instagramHandle) setInstagramHandle(data.instagramHandle);
         if (data.youtubeHandle) setYoutubeHandle(data.youtubeHandle);
         if (data.twitterHandle) setTwitterHandle(data.twitterHandle);
+        if (data.facebookHandle) setFacebookHandle(data.facebookHandle);
+        if (data.snapchatHandle) setSnapchatHandle(data.snapchatHandle);
         if (data.collabTypes) setCollabTypes(data.collabTypes);
         if (data.priceRange) setPriceRange(data.priceRange);
       }
@@ -304,20 +309,28 @@ function InfluencerSignupContent() {
       JSON.stringify({
         step, firstName, lastName, username, city, state,
         languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
-        collabTypes, priceRange,
+        facebookHandle, snapchatHandle, collabTypes, priceRange,
       })
     );
   }, [
     step, firstName, lastName, username, city, state,
     languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
-    collabTypes, priceRange,
+    facebookHandle, snapchatHandle, collabTypes, priceRange,
   ]);
 
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
   const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(`${firstName} ${lastName}`, username.length === 0);
   const { status: emailStatus, message: emailMessage } = useEmailAvailability(email);
   const { status: instagramAvailStatus, message: instagramAvailMessage } = useInstagramAvailability(instagramHandle);
-  const { status: instagramPreviewStatus, profile: instagramPreview } = useInstagramPreview(instagramHandle);
+  // Platform lookups now run only when the creator taps Connect. Availability
+  // (is this handle already claimed on Influnet?) stays live-as-you-type — it's
+  // our own database, it costs nothing, and it's the check that most needs to
+  // be answered before someone finishes typing.
+  const instagramConnect = useSocialConnect("instagram", instagramHandle);
+  const youtubeConnect = useSocialConnect("youtube", youtubeHandle);
+  const facebookConnect = useSocialConnect("facebook", facebookHandle);
+  const twitterConnect = useSocialConnect("twitter", twitterHandle);
+  const snapchatConnect = useSocialConnect("snapchat", snapchatHandle);
 
   // Fail open on network/server errors — the register RPC is the source of truth
   // and will still reject a taken name, so we never hard-block on a flaky check.
@@ -332,13 +345,28 @@ function InfluencerSignupContent() {
   const instagramOk =
     !!cleanInstagramHandle &&
     (instagramAvailStatus === "available" || instagramAvailStatus === "error") &&
-    instagramPreviewStatus === "found";
+    instagramConnect.status === "connected";
   const instagramVerified = !!cleanInstagramHandle && instagramVerifiedHandle === cleanInstagramHandle;
   // A typed-but-broken Instagram handle (private/taken/invalid) must be fixed
   // or cleared — it can't be silently bypassed just because YouTube/Twitter
   // is also filled in, matching how the mobile wizard gates the same step.
   const instagramFieldOk = !cleanInstagramHandle || instagramOk;
-  const hasAnyHandle = !!cleanInstagramHandle || !!youtubeHandle.trim() || !!twitterHandle.trim();
+
+  // A handle that was typed must be one we actually found. 'error' passes:
+  // that's our provider failing, not the creator's account, and holding a
+  // signup hostage to an Apify outage costs us the creator, not the scraper.
+  const platformFieldOk = (handle: string, status: string) =>
+    !handle.trim() || status === "connected" || status === "error";
+  const youtubeFieldOk = platformFieldOk(youtubeHandle, youtubeConnect.status);
+  const facebookFieldOk = platformFieldOk(facebookHandle, facebookConnect.status);
+  const twitterFieldOk = platformFieldOk(twitterHandle, twitterConnect.status);
+
+  // Snapchat is deliberately excluded — it's link-only, so it can't be
+  // verified, and the server's own "at least one handle" rule doesn't count it
+  // either (RegisterProfileSchema). Letting it satisfy this check here would
+  // just produce a server rejection one step later.
+  const hasAnyHandle =
+    !!cleanInstagramHandle || !!youtubeHandle.trim() || !!twitterHandle.trim() || !!facebookHandle.trim();
 
   // The moment step 4 verifies, move on automatically — the manual "Continue"
   // button (enabled by the same instagramVerified flag via canProceed) is
@@ -366,7 +394,11 @@ function InfluencerSignupContent() {
     // see RegisterProfileSchema): either Instagram, checked and passing, or
     // YouTube/Twitter as a fallback. A typed-but-broken Instagram handle
     // blocks regardless of the others; see instagramFieldOk above.
-    if (step === 3) return !!primaryNiche && !!bio && instagramFieldOk && hasAnyHandle;
+    if (step === 3)
+      return (
+        !!primaryNiche && !!bio && hasAnyHandle &&
+        instagramFieldOk && youtubeFieldOk && facebookFieldOk && twitterFieldOk
+      );
     // Instagram ownership must be proven before moving on — unless there's
     // no Instagram handle to prove (YouTube/Twitter carried step 3 instead).
     if (step === 4) return !cleanInstagramHandle || instagramVerified;
@@ -442,6 +474,15 @@ function InfluencerSignupContent() {
         instagramHandle: cleanInstagramHandle || undefined,
         youtubeHandle,
         twitterHandle,
+        facebookHandle: facebookHandle.trim().replace(/^@/, "") || undefined,
+        snapchatHandle: snapchatHandle.trim().replace(/^@/, "") || undefined,
+        // Audience numbers from the Connect lookups the creator already ran —
+        // otherwise a creator lands with NULL followers and ranks below
+        // everyone in discovery until their first in-app refresh hours later.
+        instagramFollowers: instagramConnect.profile?.followerCount ?? undefined,
+        facebookFollowers: facebookConnect.profile?.followerCount ?? undefined,
+        twitterFollowers: twitterConnect.profile?.followerCount ?? undefined,
+        youtubeSubscribers: youtubeConnect.profile?.followerCount ?? undefined,
         collabTypes,
         priceRange,
       };
@@ -793,67 +834,63 @@ function InfluencerSignupContent() {
                 <Label>Bio</Label>
                 <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell brands about yourself…" rows={3} />
               </div>
-              <div>
-                <Label>Instagram handle</Label>
-                <div className="relative">
-                  <Input
-                    value={instagramHandle}
-                    onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ""))}
-                    placeholder="username"
-                    className="pr-10"
-                    autoCapitalize="none"
-                    autoComplete="off"
-                    aria-invalid={!!cleanInstagramHandle && !instagramOk && instagramPreviewStatus !== "checking"}
-                  />
-                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
-                    {(instagramAvailStatus === "checking" || instagramPreviewStatus === "checking") && (
-                      <Loader2 className="size-4 animate-spin text-content-muted" />
-                    )}
-                    {instagramOk && <Check className="size-4 text-emerald-500" />}
-                    {!!cleanInstagramHandle &&
-                      instagramAvailStatus !== "checking" &&
-                      instagramPreviewStatus !== "checking" &&
-                      !instagramOk && <X className="size-4 text-danger" />}
-                  </span>
-                </div>
-                {!!cleanInstagramHandle && (
-                  <p
-                    className={cn(
-                      "mt-1.5 text-xs font-semibold",
-                      instagramOk && "text-emerald-600",
-                      (instagramAvailStatus === "taken" ||
-                        instagramAvailStatus === "invalid" ||
-                        instagramPreviewStatus === "private" ||
-                        instagramPreviewStatus === "notfound") && "text-danger",
-                      (instagramAvailStatus === "checking" || instagramPreviewStatus === "checking") &&
-                        "text-content-muted",
-                    )}
-                  >
-                    {instagramAvailStatus === "taken"
+              <div className="flex flex-col gap-4">
+                <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-content-soft">
+                  Add the accounts you want brands to see, then tap <strong>Connect</strong>{" "}
+                  on each one so we can check it&apos;s public and show you what we found. Nothing is
+                  posted to your accounts.
+                </p>
+
+                <SocialConnectField
+                  platform="instagram"
+                  value={instagramHandle}
+                  onChange={setInstagramHandle}
+                  connect={instagramConnect}
+                  blockingMessage={
+                    instagramAvailStatus === "taken"
                       ? "This handle is already claimed on Influnet"
                       : instagramAvailStatus === "invalid"
                         ? instagramAvailMessage
-                        : instagramPreviewStatus === "private"
-                          ? "This account is private — switch it to public so we can verify it"
-                          : instagramPreviewStatus === "notfound"
-                            ? "We couldn't find that Instagram account"
-                            : instagramOk
-                              ? `Found @${cleanInstagramHandle}${instagramPreview?.followerCount ? ` · ${instagramPreview.followerCount.toLocaleString()} followers` : ""}`
-                              : "Checking…"}
-                  </p>
-                )}
-                <p className="mt-1 text-xs text-content-muted">
-                  We'll verify you own this account next. No Instagram? Add YouTube or Twitter below instead.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>YouTube (optional)</Label>
-                  <Input value={youtubeHandle} onChange={(e) => setYoutubeHandle(e.target.value)} placeholder="@channel" />
-                </div>
-                <div>
-                  <Label>Twitter (optional)</Label>
-                  <Input value={twitterHandle} onChange={(e) => setTwitterHandle(e.target.value)} placeholder="@handle" />
+                        : null
+                  }
+                  helper="We'll verify you own this account next. No Instagram? Add another platform below instead."
+                />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <SocialConnectField
+                    platform="youtube"
+                    value={youtubeHandle}
+                    onChange={setYoutubeHandle}
+                    connect={youtubeConnect}
+                    placeholder="channel"
+                    optional
+                  />
+                  <SocialConnectField
+                    platform="twitter"
+                    value={twitterHandle}
+                    onChange={setTwitterHandle}
+                    connect={twitterConnect}
+                    placeholder="handle"
+                    optional
+                  />
+                  <SocialConnectField
+                    platform="facebook"
+                    value={facebookHandle}
+                    onChange={setFacebookHandle}
+                    connect={facebookConnect}
+                    placeholder="yourpage"
+                    optional
+                  />
+                  <SocialConnectField
+                    platform="snapchat"
+                    value={snapchatHandle}
+                    onChange={setSnapchatHandle}
+                    connect={snapchatConnect}
+                    placeholder="username"
+                    optional
+                    linkOnly
+                    helper="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
+                  />
                 </div>
               </div>
             </div>
