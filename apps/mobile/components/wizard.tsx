@@ -87,8 +87,21 @@ export function WizardStep({
   // to lose — it's just a button, same mechanism as the Next arrow already
   // used here. useWizardBack stays wired in the parent for the edge-swipe
   // gesture, which a header button can't intercept.
+  //
+  // `headerBackVisible: false` is not belt-and-braces, it is the half of this
+  // that makes it true on iOS. native-stack only passes `hideBackButton` to
+  // the native header when this option is explicitly false (see
+  // useHeaderConfigProps: `hideBackButton: headerBackVisible === false`);
+  // leaving it undefined means UIKit is still free to present its own back
+  // button — the one labelled with the PREVIOUS SCREEN's title ("Welcome"),
+  // which pops the whole wizard back to the role picker and throws away every
+  // answer. Saying it outright removes that button entirely, so the only
+  // chevron on the screen is the one that steps back a question.
   useLayoutEffect(() => {
     navigation.setOptions({
+      // Kept on the first step, where there is no onBack and leaving the
+      // wizard really is what "back" should do.
+      headerBackVisible: !onBack,
       headerLeft: onBack
         ? () => (
             <Pressable
