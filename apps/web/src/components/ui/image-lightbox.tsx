@@ -138,6 +138,11 @@ export function ImageLightbox({
  * worth far more here than filling the box: the admin needs to recognise
  * which screenshot this is, and the lightbox is one click away for detail.
  *
+ * The tile backing is dark for the same reason the crop was wrong: app screenshots
+ * are overwhelmingly white, and a white image letterboxed onto a white card
+ * has no visible edges — you cannot tell where the screenshot stops. A near
+ * black backing makes the content read as a distinct object at thumbnail size.
+ *
  * The failure state matters for the same reason: a bare <img> that doesn't
  * load leaves an empty bordered box, indistinguishable from the blank-crop
  * problem above, and says nothing about whether the upload failed, the row is
@@ -180,7 +185,7 @@ export function ImageThumb({
       type="button"
       onClick={onClick}
       aria-label="View screenshot"
-      className={`group block overflow-hidden rounded-lg border border-hairline bg-surface-muted ${className}`}
+      className={`group block overflow-hidden rounded-lg border border-hairline bg-[#12161f] ${className}`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

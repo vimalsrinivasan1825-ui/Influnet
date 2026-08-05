@@ -149,12 +149,24 @@ export async function PATCH(req: Request) {
       fix_notes?: unknown;
       status?: unknown;
       issue_date?: unknown;
+      images?: unknown;
     };
 
     const id = typeof body.id === 'string' ? body.id : '';
     if (!id) return jsonError(400, 'id is required');
 
     const update: Record<string, unknown> = { updated_by: user.id };
+
+    // Replaces the column wholesale rather than appending, so the caller
+    // decides the final set — that's what lets a screenshot be removed as
+    // well as added. Callers must therefore send existing + new, not just new.
+    let images: string[] | null;
+    try {
+      images = parseImages(body.images);
+    } catch (reason) {
+      return jsonError(400, String(reason));
+    }
+    if (images) update.images = images;
 
     if (typeof body.title === 'string') {
       const title = body.title.trim().slice(0, 200);
