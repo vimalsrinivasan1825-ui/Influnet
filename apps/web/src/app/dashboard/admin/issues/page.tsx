@@ -12,11 +12,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardList, Loader2, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { NewIssueDialog } from "@/components/dashboard/admin/new-issue-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedTabs } from "@/components/ui/tabs";
@@ -29,6 +29,7 @@ interface Issue {
   status: "pending" | "in_progress" | "fixed";
   issue_date: string;
   fixed_at: string | null;
+  images: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +98,27 @@ function IssueCard({
         </p>
       </div>
 
+      {issue.images && issue.images.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {issue.images.map((url) => (
+            // Opens the full-size original in a new tab rather than a
+            // lightbox: an admin comparing a screenshot against the live app
+            // wants it in its own window, side by side, not trapped in a
+            // modal over the list they're working through.
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block size-20 overflow-hidden rounded-lg border border-hairline bg-surface-muted transition-opacity hover:opacity-85"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="Screenshot attached to this issue" className="size-full object-cover" />
+            </a>
+          ))}
+        </div>
+      )}
+
       <div className="rounded-xl bg-surface-subtle p-3">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[0.6875rem] font-bold uppercase tracking-wide text-content-muted">
@@ -155,60 +177,12 @@ function IssueCard({
   );
 }
 
-function NewIssueForm({ onCreate }: { onCreate: (title: string, description: string) => Promise<boolean> }) {
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  if (!open) {
-    return (
-      <Button variant="surface" size="sm" onClick={() => setOpen(true)}>
-        <Plus className="mr-1 size-4" />
-        New issue
-      </Button>
-    );
-  }
-
-  async function submit() {
-    if (!title.trim() || !description.trim()) return;
-    setSaving(true);
-    const ok = await onCreate(title.trim(), description.trim());
-    setSaving(false);
-    if (ok) {
-      setTitle("");
-      setDescription("");
-      setOpen(false);
-    }
-  }
-
-  return (
-    <Card className="flex flex-col gap-2.5 p-4 sm:p-5">
-      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Issue title" autoFocus />
-      <textarea
-        className={textareaClass()}
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="What's wrong…"
-      />
-      <div className="flex gap-2">
-        <Button size="xs" onClick={submit} disabled={saving || !title.trim() || !description.trim()}>
-          {saving && <Loader2 className="mr-1 size-3.5 animate-spin" />}
-          Add issue
-        </Button>
-        <Button size="xs" variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
-          Cancel
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
 export default function AdminIssuesPage() {
   const [items, setItems] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "in_progress" | "fixed">("all");
+  const [composing, setComposing] = useState(false);
 
   const load = useCallback(async (which: string) => {
     setLoading(true);
@@ -246,10 +220,10 @@ export default function AdminIssuesPage() {
     return true;
   }
 
-  async function createIssue(title: string, description: string) {
+  async function createIssue(input: { title: string; description: string; images: string[] }) {
     const res = await apiFetch<{ issue: Issue }>("/api/admin/issues", {
       method: "POST",
-      body: JSON.stringify({ title, description }),
+      body: JSON.stringify(input),
     });
     if (!res.ok || !res.data) {
       setError(res.error || "Could not create issue");
@@ -282,8 +256,17 @@ export default function AdminIssuesPage() {
             { value: "fixed", label: "Fixed" },
           ]}
         />
-        <NewIssueForm onCreate={createIssue} />
+        <Button variant="surface" size="sm" onClick={() => setComposing(true)}>
+          <Plus className="mr-1 size-4" />
+          New issue
+        </Button>
       </div>
+
+      <NewIssueDialog
+        open={composing}
+        onClose={() => setComposing(false)}
+        onCreate={createIssue}
+      />
 
       {error && (
         <div className="flex items-center gap-3 rounded-2xl border border-danger/20 bg-danger-soft px-5 py-4 text-sm font-semibold text-danger">

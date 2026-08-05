@@ -42,4 +42,9 @@ export const UPLOAD_FOLDERS: Record<string, string> = {
   stage: 'influnet/project-updates',
   avatar: 'influnet/avatars',
   profile: 'influnet/profile-photos',
+  // Screenshots attached to admin issue reports. Admin-only at the API layer
+  // (/api/admin/issues), but the signing route itself only checks that the
+  // caller is signed in — the folder split is what keeps tester screenshots
+  // out of the folders real profile content lives in.
+  issue: 'influnet/issue-screenshots',
 };

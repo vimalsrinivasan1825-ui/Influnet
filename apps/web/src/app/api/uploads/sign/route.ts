@@ -8,7 +8,7 @@ import {
 } from '@/lib/storage/cloudinary';
 
 const BodySchema = z.object({
-  purpose: z.enum(['stage', 'avatar', 'profile']),
+  purpose: z.enum(['stage', 'avatar', 'profile', 'issue']),
   // Must be exactly the SHA-256 hex digest computeFileHash() produces — no
   // slashes, no arbitrary length. Anything else isn't a content hash, and
   // this value becomes half of the Cloudinary public_id below.
