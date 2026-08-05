@@ -111,6 +111,7 @@ export const RegisterSchema = z.object({
   youtubeHandle: z.string().optional(),
   twitterHandle: z.string().optional(),
   facebookHandle: z.string().optional(),
+  snapchatHandle: z.string().optional(),
   linkedinHandle: z.string().optional(),
   tiktokHandle: z.string().optional(),
   gender: z.string().optional(),
@@ -152,6 +153,10 @@ export const RegisterProfileSchema = z.object({
   collabPreferences: z.array(z.string()).optional(),
   instagramHandle: z.string().optional(),
   facebookHandle: z.string().optional(),
+  // Link-only platform (no public metrics to read — see lib/social/snapchat.ts).
+  // register_profile doesn't know this column, so /api/auth/register writes it
+  // in a follow-up update rather than through the RPC's fixed column list.
+  snapchatHandle: z.string().optional(),
   linkedinHandle: z.string().optional(),
   // influencer fields
   username: z.string().optional(),
@@ -166,6 +171,7 @@ export const RegisterProfileSchema = z.object({
   priceRange: z.string().optional(),
   instagramFollowers: z.number().optional(),
   facebookFollowers: z.number().optional(),
+  twitterFollowers: z.number().optional(),
   youtubeSubscribers: z.number().optional(),
   tiktokFollowers: z.number().optional(),
   extraSocialLinks: z.array(z.string()).optional(),

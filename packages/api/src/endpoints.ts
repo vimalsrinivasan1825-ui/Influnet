@@ -208,6 +208,21 @@ export function createEndpoints(api: ApiClient) {
     scrapeInstagram: <T = unknown>(handle: string) =>
       api.get<T>(`/api/auth/scrape-instagram?handle=${encodeURIComponent(handle)}`),
     /**
+     * Signup-time lookup for ANY platform (Instagram, YouTube, Facebook, X;
+     * Snapchat answers 'unsupported' without a network call). Same guarantees
+     * as scrapeInstagram — unauthenticated, 5/min per IP per platform — but
+     * the client now calls it on an explicit "Connect" tap instead of a typing
+     * debounce, so one lookup costs one provider call rather than one per
+     * pause mid-handle.
+     *
+     * scrapeInstagram stays for builds already on people's phones, which can't
+     * be updated retroactively.
+     */
+    socialPreview: <T = unknown>(platform: string, handle: string) =>
+      api.get<T>(
+        `/api/auth/social-preview?platform=${encodeURIComponent(platform)}&handle=${encodeURIComponent(handle)}`,
+      ),
+    /**
      * Signup-time bio-link ownership check. Unauthenticated (it runs before the
      * account exists) and rate-limited to 6/min per IP — every call spends
      * provider credit. Gates signup only; the Verified badge still requires the
