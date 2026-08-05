@@ -2,6 +2,7 @@
 import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeftRight, CalendarDays, FolderKanban, Search, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/avatar";
@@ -41,6 +42,7 @@ interface AdminProject {
 }
 
 export default function AdminProjectsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<AdminProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -126,7 +128,11 @@ export default function AdminProjectsPage() {
             const stageLabel = STAGE_LABELS[p.current_stage] || p.current_stage;
             const isActive = p.status === "active";
             return (
-              <Card key={p.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+              <Card
+                key={p.id}
+                className="flex cursor-pointer flex-col gap-3 p-4 transition-colors hover:bg-surface-muted lg:flex-row lg:items-center lg:justify-between"
+                onClick={() => router.push(`/dashboard/admin/projects/${p.id}`)}
+              >
                 <div className="flex min-w-0 gap-3">
                   <Avatar name={p.title} size="md" square />
                   <div className="min-w-0">
@@ -154,7 +160,10 @@ export default function AdminProjectsPage() {
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2 self-end lg:self-center">
+                <div
+                  className="flex shrink-0 items-center gap-2 self-end lg:self-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {confirmDelete === p.id ? (
                     <>
                       <Button size="sm" variant="destructive" disabled={deletingId === p.id} onClick={() => handleDeleteProject(p.id)}>
