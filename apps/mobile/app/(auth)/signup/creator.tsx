@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -157,6 +157,10 @@ export default function CreatorSignup() {
         );
         return;
       }
+      // The wizard's back interception cancels ANY removal of this screen —
+      // this one included, which is why a successful signup used to bounce
+      // back a step instead of entering the app. Stand it down first.
+      allowLeave();
       router.replace('/');
     } catch {
       // Something unexpected threw (a network layer error, not a handled
@@ -168,22 +172,44 @@ export default function CreatorSignup() {
     }
   }
 
-  const next = () => (step === steps.length - 1 ? void submit() : setStep((s) => s + 1));
+  const next = () => {
+    // On the celebration, every affordance funnels through the same guarded
+    // advance — otherwise a footer tap plus the auto-advance timer would move
+    // two steps and skip a question outright.
+    if (isBioVerifyStep) return advanceFromVerify();
+    return step === steps.length - 1 ? void submit() : setStep((s) => s + 1);
+  };
   const back = () => setStep((s) => Math.max(0, s - 1));
 
   // Turns the header chevron / swipe / Android back into "one step back" for
   // every step past the first, so answers (and a verified OTP) survive.
-  useWizardBack(step > 0, back);
+  // `allowLeave` is the exemption submit() uses — without it the same
+  // interception also cancelled the post-signup router.replace.
+  const allowLeave = useWizardBack(step > 0, back);
 
   // A verified bio is the one step that moves the wizard forward on its own —
-  // everywhere else the user taps Continue. The delay lets VerifiedHero's
+  // everywhere else the user taps Continue. The delay lets the celebration
   // animation actually be seen before the screen changes under it.
+  //
+  // Three things can now trigger this single advance: the timer, the button
+  // inside the celebration, and the wizard's own footer. `advancedFromVerify`
+  // makes them idempotent, so a tap that races the timer moves one step, not
+  // two — skipping a question the user never saw.
+  const advancedFromVerify = useRef(false);
+  const advanceFromVerify = useCallback(() => {
+    if (advancedFromVerify.current) return;
+    advancedFromVerify.current = true;
+    setStep((s) => s + 1);
+  }, []);
+
   useEffect(() => {
-    if (bioVerify.status !== 'verified') return;
-    const timer = setTimeout(next, 1900);
+    if (bioVerify.status !== 'verified') {
+      advancedFromVerify.current = false;
+      return;
+    }
+    const timer = setTimeout(advanceFromVerify, 1900);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bioVerify.status]);
+  }, [bioVerify.status, advanceFromVerify]);
 
   const steps = [
     {
@@ -397,6 +423,7 @@ export default function CreatorSignup() {
     ...(instagram.trim().length > 1
       ? [
           {
+            key: 'bio-verify' as const,
             title: 'Prove the account is yours',
             subtitle:
               'Put your Influnet link in your Instagram bio so brands know the handle really belongs to you.',
@@ -405,9 +432,11 @@ export default function CreatorSignup() {
               <BioVerifyStep
                 handle={instagram}
                 username={username}
+                name={name}
                 status={bioVerify.status}
                 message={bioVerify.message}
                 onVerify={() => void bioVerify.verify()}
+                onContinue={advanceFromVerify}
               />
             ),
           },
@@ -532,6 +561,10 @@ export default function CreatorSignup() {
   // handle removes the ownership step, and an index left pointing past the end
   // would render `undefined` and crash the wizard.
   const current = steps[Math.min(step, steps.length - 1)];
+
+  // True only while the ownership step is showing its verified celebration —
+  // the one place Continue means "finish the celebration", not "next question".
+  const isBioVerifyStep = 'key' in current && current.key === 'bio-verify' && bioVerify.status === 'verified';
 
   return (
     <WizardStep

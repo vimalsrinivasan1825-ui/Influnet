@@ -101,6 +101,10 @@ export default function BusinessSignup() {
         );
         return;
       }
+      // The wizard's back interception cancels ANY removal of this screen —
+      // this one included, which is why a successful signup used to bounce
+      // back a step instead of entering the app. Stand it down first.
+      allowLeave();
       // New businesses land on the review screen, not the tabs.
       router.replace('/');
     } catch {
@@ -116,8 +120,9 @@ export default function BusinessSignup() {
   const next = () => (step === steps.length - 1 ? void submit() : setStep((s) => s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
 
-  // See the creator wizard: keeps back inside the wizard so nothing is lost.
-  useWizardBack(step > 0, back);
+  // See the creator wizard: keeps back inside the wizard so nothing is lost,
+  // and hands back the exemption submit() needs to actually leave on success.
+  const allowLeave = useWizardBack(step > 0, back);
 
   const steps = [
     {

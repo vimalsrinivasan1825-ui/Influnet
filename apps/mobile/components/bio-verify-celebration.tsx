@@ -14,12 +14,18 @@
  * at all. This renders inline instead, sized tall via useWindowDimensions to
  * still dominate the screen, with the wizard's own nav staying reachable the
  * entire time as a fallback that costs nothing to keep.
+ *
+ * It also carries its OWN "Continue" button rather than trusting the parent's
+ * auto-advance timer. Same reasoning one level down: the timer is a nicety, and
+ * a screen whose only exit is a timer is a screen that is stuck the one time
+ * the timer doesn't fire. The button appears a beat after the animation lands
+ * so it never competes with the moment it is celebrating.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View, useWindowDimensions } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { ArrowRight, Check } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-import { Txt } from '@/components/ui';
+import { Button, Txt } from '@/components/ui';
 
 const RING_COUNT = 3;
 const RING_STAGGER_MS = 260;
@@ -59,16 +65,29 @@ function Ring({ delay, color }: { delay: number; color: string }) {
   );
 }
 
-export function BioVerifyCelebration({ visible, handle }: { visible: boolean; handle: string }) {
+export function BioVerifyCelebration({
+  visible,
+  handle,
+  onContinue,
+}: {
+  visible: boolean;
+  handle: string;
+  /** Moves the wizard on. Also driven by the parent's timer; whichever lands first wins. */
+  onContinue?: () => void;
+}) {
   const t = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   const discScale = useRef(new Animated.Value(0)).current;
   const checkOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
   const textY = useRef(new Animated.Value(10)).current;
+  const [showAction, setShowAction] = useState(false);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      setShowAction(false);
+      return;
+    }
     discScale.setValue(0);
     checkOpacity.setValue(0);
     textOpacity.setValue(0);
@@ -86,6 +105,9 @@ export function BioVerifyCelebration({ visible, handle }: { visible: boolean; ha
     void import('expo-haptics').then((Haptics) =>
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     );
+
+    const revealAction = setTimeout(() => setShowAction(true), 1200);
+    return () => clearTimeout(revealAction);
   }, [visible, discScale, checkOpacity, textOpacity, textY]);
 
   if (!visible) return null;
@@ -140,6 +162,16 @@ export function BioVerifyCelebration({ visible, handle }: { visible: boolean; ha
           Verified from your bio. Taking you to the next step…
         </Txt>
       </Animated.View>
+
+      {showAction && onContinue ? (
+        <View style={{ alignSelf: 'stretch', marginTop: t.spacing.xl, paddingHorizontal: t.spacing['3xl'] }}>
+          <Button
+            label="Continue"
+            onPress={onContinue}
+            icon={<ArrowRight size={16} color={t.color.white} />}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
