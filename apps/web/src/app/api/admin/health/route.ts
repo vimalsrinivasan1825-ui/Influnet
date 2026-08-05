@@ -20,6 +20,8 @@ import { isObservabilityEnabled } from '@/lib/observability';
 
 /** Migrations whose absence changes behaviour, newest first. */
 const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: 'rpc' | 'table' }[] = [
+  { migration: '109', label: 'Rate-limit visibility', probe: 'rate_limit_stats', kind: 'table' },
+  { migration: '108', label: 'Admin user activity', probe: 'admin_get_user_activity', kind: 'rpc' },
   { migration: '099', label: 'Live activity feed', probe: 'get_platform_activity', kind: 'rpc' },
   { migration: '098', label: 'Support & feedback', probe: 'support_tickets', kind: 'table' },
   { migration: '098', label: 'Admin analytics', probe: 'get_admin_funnel', kind: 'rpc' },
@@ -71,9 +73,15 @@ export async function GET(req: Request) {
             return { ...f, applied: !error };
           }
           // An RPC that exists but rejects us (e.g. 'forbidden') still proves
-          // it is installed — only "does not exist" means missing.
+          // it is installed. PGRST202 is PostgREST's "no function with this
+          // name/signature in the schema cache" — the actual "missing" signal.
+          // (A plain message-substring check on "does not exist" looked
+          // right but never matched PostgREST's real wording — "Could not
+          // find the function ... in the schema cache" — so every RPC probe
+          // silently reported applied:true no matter what. Every probed RPC
+          // here must stay callable with zero args for this check to work.)
           const { error } = await scoped.rpc(f.probe, {});
-          return { ...f, applied: !error?.message?.includes('does not exist') };
+          return { ...f, applied: error?.code !== 'PGRST202' };
         } catch {
           return { ...f, applied: false };
         }
