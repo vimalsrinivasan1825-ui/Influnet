@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardList, Loader2, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { NewIssueDialog } from "@/components/dashboard/admin/new-issue-dialog";
+import { ImageLightbox, ImageThumb } from "@/components/ui/image-lightbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -60,6 +61,9 @@ function IssueCard({
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState(issue.fix_notes ?? "");
   const [saving, setSaving] = useState(false);
+  const [viewing, setViewing] = useState<number | null>(null);
+
+  const images = issue.images ?? [];
 
   async function saveNotes() {
     setSaving(true);
@@ -75,7 +79,12 @@ function IssueCard({
   }
 
   return (
-    <Card className="flex flex-col gap-3 p-4 sm:p-5">
+    <Card className="p-4 sm:p-5">
+      {/* Two columns from sm up: the report reads down the left, screenshots
+          stack in the right-hand gutter that was previously empty. Below sm
+          they fall back to one column, thumbnails in a row. */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={STATUS_VARIANT[issue.status]} size="sm">
           {STATUS_LABEL[issue.status]}
@@ -97,27 +106,6 @@ function IssueCard({
           {issue.description}
         </p>
       </div>
-
-      {issue.images && issue.images.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {issue.images.map((url) => (
-            // Opens the full-size original in a new tab rather than a
-            // lightbox: an admin comparing a screenshot against the live app
-            // wants it in its own window, side by side, not trapped in a
-            // modal over the list they're working through.
-            <a
-              key={url}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block size-20 overflow-hidden rounded-lg border border-hairline bg-surface-muted transition-opacity hover:opacity-85"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="Screenshot attached to this issue" className="size-full object-cover" />
-            </a>
-          ))}
-        </div>
-      )}
 
       <div className="rounded-xl bg-surface-subtle p-3">
         <div className="mb-1.5 flex items-center justify-between">
@@ -173,6 +161,28 @@ function IssueCard({
           </Button>
         )}
       </div>
+      </div>
+
+        {images.length > 0 && (
+          <div className="flex shrink-0 flex-row flex-wrap gap-2 sm:w-40 sm:flex-col">
+            {images.map((url, i) => (
+              <ImageThumb
+                key={url}
+                url={url}
+                onClick={() => setViewing(i)}
+                className="size-24 sm:h-36 sm:w-full"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ImageLightbox
+        images={images}
+        index={viewing}
+        onClose={() => setViewing(null)}
+        onIndexChange={setViewing}
+      />
     </Card>
   );
 }

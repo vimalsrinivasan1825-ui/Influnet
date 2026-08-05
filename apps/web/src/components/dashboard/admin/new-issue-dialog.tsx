@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/storage/upload-client";
+import { cloudinaryThumb } from "@/lib/storage/cloudinary-url";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -204,7 +205,7 @@ export function NewIssueDialog({
                 {images.map((url) => (
                   <div key={url} className="group relative aspect-square overflow-hidden rounded-xl border border-hairline bg-surface-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="Attached screenshot" className="size-full object-cover" />
+                    <img src={cloudinaryThumb(url)} alt="Attached screenshot" className="size-full object-contain" />
                     <button
                       type="button"
                       onClick={() => setImages((prev) => prev.filter((u) => u !== url))}
