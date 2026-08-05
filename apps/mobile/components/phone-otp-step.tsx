@@ -7,6 +7,7 @@
 import { useRef } from 'react';
 import { ActivityIndicator, TextInput, View } from 'react-native';
 import { ShieldCheck } from 'lucide-react-native';
+import { isValidIndianPhone, sanitizePhoneInput } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { usePhoneAvailability } from '@/lib/use-signup';
 import { Button, Field, Txt } from '@/components/ui';
@@ -118,22 +119,36 @@ export function PhoneOtpStep({
 }) {
   const t = useTheme();
   const verified = !!otp.token;
-  const phoneUsable = otp.phone.replace(/\D/g, '').length >= 10;
-  
+  // Used to be `length >= 10` — a lower bound only, so a long paste satisfied
+  // it and reached Send OTP, spending a real 2Factor call on a number that
+  // could never verify.
+  const phoneUsable = isValidIndianPhone(otp.phone);
+  // `keyboardType="phone-pad"` keeps a physical/bluetooth keyboard's letters
+  // off the native numeric pad on most devices, but paste and autofill don't
+  // go through the keyboard at all — filter what actually lands in the field.
+  //
+  // The slice happens AFTER sanitizing, not via the Field's own `maxLength` —
+  // RN's maxLength truncates the raw pasted text before onChangeText ever
+  // runs, so a native cap of 20 on "88777899797abcXYZ989869869" keeps mostly
+  // letters and drops most of the real digits. Same fix as the web field.
+  const handlePhoneChange = (raw: string) => otp.setPhone(sanitizePhoneInput(raw).slice(0, 20));
+
   const { status: phoneStatus, message: phoneMessage } = usePhoneAvailability(otp.phone);
   const phoneOk = phoneStatus === 'available' || phoneStatus === 'error';
+  const invalidMessage = phoneStatus === 'invalid' ? phoneMessage : undefined;
 
   if (!required) {
     return (
       <Field
         label="Mobile number"
         value={otp.phone}
-        onChangeText={otp.setPhone}
+        onChangeText={handlePhoneChange}
         placeholder="+91 98765 43210"
         keyboardType="phone-pad"
         autoComplete="tel"
         autoFocus
-        error={phoneStatus === 'taken' ? phoneMessage : undefined}
+        maxLength={64}
+        error={invalidMessage || (phoneStatus === 'taken' ? phoneMessage : undefined)}
         hint={phoneStatus === 'available' ? phoneMessage : "Optional. Brands use this to reach you about collaborations."}
       />
     );
@@ -144,12 +159,13 @@ export function PhoneOtpStep({
       <Field
         label="Mobile number"
         value={otp.phone}
-        onChangeText={otp.setPhone}
+        onChangeText={handlePhoneChange}
         placeholder="+91 98765 43210"
         keyboardType="phone-pad"
         autoComplete="tel"
         editable={!verified}
-        error={otp.error || (phoneStatus === 'taken' ? phoneMessage : undefined)}
+        maxLength={64}
+        error={otp.error || invalidMessage || (phoneStatus === 'taken' ? phoneMessage : undefined)}
         hint={verified ? null : otp.notice || (phoneStatus === 'available' ? phoneMessage : "We'll text you a code to confirm this number.")}
         right={phoneStatus === 'checking' ? <ActivityIndicator size="small" color={t.color.contentMuted} /> : verified ? <ShieldCheck size={19} color={t.color.ok} /> : null}
       />

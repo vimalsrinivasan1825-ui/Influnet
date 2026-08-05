@@ -2,10 +2,22 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
+import { isValidIndianPhone, sanitizePhoneInput } from "@influnet/core";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { usePhoneAvailability } from "@/lib/hooks/use-availability";
+
+// Long enough for "+91 98765 43210" with room to spare.
+const PHONE_MAX_LENGTH = 20;
+// The HTML `maxLength` attribute truncates the RAW keystrokes before our
+// onChange ever runs — so a native maxLength of 20 cut a pasted
+// "88777899797abcXYZ989869869" down to its first 20 characters (most of them
+// letters) BEFORE sanitizePhoneInput got a chance to drop the letters,
+// leaving only a handful of real digits in the field. The native attribute is
+// now just a coarse backstop against a genuinely huge paste; the real cap is
+// applied in handlePhoneChange, after sanitizing.
+const RAW_MAX_LENGTH = 64;
 
 const OTP_LENGTH = 6;
 
@@ -44,8 +56,10 @@ export function PhoneOtpField({
   const boxRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const verified = !!verifiedToken;
-  const phoneDigits = phone.replace(/\D/g, "");
-  const phoneUsable = phoneDigits.length >= 10;
+  // Gates the Send OTP button — used to be `phoneDigits.length >= 10`, a lower
+  // bound only. A 26-digit paste satisfied that and reached the 2Factor
+  // provider call, which costs quota on a number nobody could ever verify.
+  const phoneUsable = isValidIndianPhone(phone);
 
   const { status: phoneStatus, message: phoneMessage } = usePhoneAvailability(phone);
   const phoneOk = phoneStatus === "available" || phoneStatus === "error";
@@ -58,8 +72,11 @@ export function PhoneOtpField({
   }, [resendIn]);
 
   /** Editing the number must void an existing verification — otherwise someone
-   *  could verify one number and submit another. */
-  const handlePhoneChange = (next: string) => {
+   *  could verify one number and submit another. Also where letters and other
+   *  junk get dropped — `type="tel"` is a keyboard hint, not a filter, so
+   *  without this the field took anything typed into it. */
+  const handlePhoneChange = (raw: string) => {
+    const next = sanitizePhoneInput(raw).slice(0, PHONE_MAX_LENGTH);
     onPhoneChange(next);
     if (verified) onVerifiedChange(null);
     setProviderSessionId(null);
@@ -174,10 +191,11 @@ export function PhoneOtpField({
         <Input
           type="tel"
           value={phone}
-          onChange={(e) => onPhoneChange(e.target.value)}
+          onChange={(e) => onPhoneChange(sanitizePhoneInput(e.target.value).slice(0, PHONE_MAX_LENGTH))}
           placeholder="+91 98765 43210"
           autoComplete="tel"
           disabled={disabled}
+          maxLength={RAW_MAX_LENGTH}
         />
       </div>
     );
@@ -199,6 +217,7 @@ export function PhoneOtpField({
             autoComplete="tel"
             disabled={disabled || verified}
             aria-invalid={!!error}
+            maxLength={RAW_MAX_LENGTH}
           />
         </div>
         {verified ? (

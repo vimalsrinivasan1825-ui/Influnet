@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isValidIndianPhone } from '@influnet/core';
 
 export type AvailabilityStatus =
   | 'idle'
@@ -213,9 +214,24 @@ export function usePhoneAvailability(phone: string, debounceMs = 600): Availabil
 
   useEffect(() => {
     const value = phone.replace(/\s+/g, '');
+
+    // Still short of a full number — idle, not an error. Someone mid-keystroke
+    // on digit 6 is not wrong yet.
     if (value.replace(/\D/g, '').length < 10) {
       setStatus('idle');
       setMessage(null);
+      return;
+    }
+
+    // Ten-plus digits but not a real Indian mobile number — a 26-digit paste,
+    // or a shape none of the accepted patterns match. This used to fall
+    // through to the network call, which itself only checked the same lower
+    // bound (`digitsOnly.length < 10`) and answered "available" for garbage —
+    // that combination is what let an obviously invalid number reach signup
+    // reading as valid. Caught here now, before spending a request.
+    if (!isValidIndianPhone(value)) {
+      setStatus('invalid');
+      setMessage('Enter a valid 10-digit mobile number');
       return;
     }
 

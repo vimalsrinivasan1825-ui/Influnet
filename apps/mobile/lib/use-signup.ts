@@ -3,6 +3,7 @@
  * and the create-auth-user → register-profile handoff.
  */
 import { useEffect, useState } from 'react';
+import { isValidIndianPhone } from '@influnet/core';
 import { supabase } from './supabase';
 import { endpoints } from './api';
 import { useSession } from './session';
@@ -112,6 +113,15 @@ export function usePhoneAvailability(phone: string) {
     if (value.replace(/\D/g, '').length < 10) {
       setStatus('idle');
       setMessage('');
+      return;
+    }
+    // Ten-plus digits but not a real Indian mobile shape — a long paste, or a
+    // count that doesn't match any accepted prefix. Same fix as the web hook:
+    // this used to fall straight through to the network call, and the API's
+    // own check was a lower bound only, so it read back as "available".
+    if (!isValidIndianPhone(value)) {
+      setStatus('invalid');
+      setMessage('Enter a valid 10-digit mobile number');
       return;
     }
 

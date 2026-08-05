@@ -11,4 +11,5 @@ export * from './project-turn';
 export * from './profile-visibility';
 export * from './project-cancellation';
 export * from './verification-nudge';
+export * from './phone';
 export * from './validators';

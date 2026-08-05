@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { phoneKey, toE164India } from '@/lib/phone';
+import { isValidIndianPhone, phoneKey, sanitizePhoneInput, toE164India } from '@/lib/phone';
 
 /**
  * The reported bug, exactly: an account created in the mobile app stored
@@ -58,5 +58,66 @@ describe('toE164India', () => {
     for (const raw of ['8270942966', '+91 8270942966', '918270942966']) {
       expect(phoneKey(toE164India(raw))).toBe(phoneKey(raw));
     }
+  });
+});
+
+/**
+ * A separate report, same signup screen: the mobile number field took a
+ * 26-digit paste and reported it as available. `phoneKey`/`toE164India` only
+ * ask "what number is this", never "IS this a number" — isValidIndianPhone is
+ * the check that was missing everywhere: the client's Send-OTP gate, the
+ * check-phone route, and RegisterProfileSchema (PhoneSchema in validators.ts).
+ */
+describe('isValidIndianPhone', () => {
+  it('accepts a real number in every shape the clients write', () => {
+    for (const phone of [
+      '8270942966',
+      '+91 8270942966',
+      '+918270942966',
+      '91 82709 42966',
+      '08270942966',
+      '+91-82709-42966',
+    ]) {
+      expect(isValidIndianPhone(phone), phone).toBe(true);
+    }
+  });
+
+  it('rejects the exact garbage from the report', () => {
+    expect(isValidIndianPhone('88777899798987979986869869')).toBe(false);
+  });
+
+  it('rejects wrong length', () => {
+    expect(isValidIndianPhone('123456789')).toBe(false); // 9
+    expect(isValidIndianPhone('12345678901')).toBe(false); // 11, not 0-prefixed
+    expect(isValidIndianPhone('1234567890123')).toBe(false); // 13
+  });
+
+  it('rejects a 10-digit string that is not a mobile prefix', () => {
+    // Indian mobile numbers start 6-9; landlines and other 10-digit strings
+    // starting 0-5 are not mobile numbers this product can OTP-verify.
+    expect(isValidIndianPhone('1234567890')).toBe(false);
+    expect(isValidIndianPhone('0234567890')).toBe(false);
+  });
+
+  it('rejects letters and empty input', () => {
+    expect(isValidIndianPhone('not a number')).toBe(false);
+    expect(isValidIndianPhone('')).toBe(false);
+    expect(isValidIndianPhone(null)).toBe(false);
+    expect(isValidIndianPhone(undefined)).toBe(false);
+  });
+});
+
+describe('sanitizePhoneInput', () => {
+  it('keeps digits and the punctuation a phone number is made of', () => {
+    expect(sanitizePhoneInput('+91 82709-42966')).toBe('+91 82709-42966');
+    expect(sanitizePhoneInput('(91) 8270942966')).toBe('(91) 8270942966');
+  });
+
+  it('drops letters as they are typed, not just at submit', () => {
+    expect(sanitizePhoneInput('88777899798987979986869869')).toBe(
+      '88777899798987979986869869',
+    );
+    expect(sanitizePhoneInput('call 8270942966 maybe')).toBe(' 8270942966 ');
+    expect(sanitizePhoneInput('abc')).toBe('');
   });
 });
