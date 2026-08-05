@@ -17,7 +17,7 @@ import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { publicProfileUrl, publicProfileUrlDisplay } from '@/lib/site';
 import { Button, Txt } from '@/components/ui';
-import { BioVerifyGuideVideo, WatchGuideButton } from '@/components/bio-verify-guide-video';
+import { BioVerifyGuideModal, WatchGuideButton } from '@/components/bio-verify-guide-modal';
 import { BioVerifyCelebration } from '@/components/bio-verify-celebration';
 
 export type BioVerifyStatus = 'idle' | 'checking' | 'verified' | 'missing' | 'private' | 'error';
@@ -76,15 +76,21 @@ export function useBioVerification(handle: string, username: string) {
 export function BioVerifyStep({
   handle,
   username,
+  name,
   status,
   message,
   onVerify,
+  onContinue,
 }: {
   handle: string;
   username: string;
+  /** Only used to personalise the guide's mock Instagram profile. */
+  name: string;
   status: BioVerifyStatus;
   message: string | null;
   onVerify: () => void;
+  /** Manual way past the celebration, alongside the parent's auto-advance. */
+  onContinue: () => void;
 }) {
   const t = useTheme();
   const [copied, setCopied] = useState(false);
@@ -99,17 +105,18 @@ export function BioVerifyStep({
   }
 
   if (status === 'verified') {
-    return <BioVerifyCelebration visible handle={handle} />;
+    return <BioVerifyCelebration visible handle={handle} onContinue={onContinue} />;
   }
 
   return (
     <View style={{ gap: t.spacing.lg }}>
       <WatchGuideButton onPress={() => setGuideOpen(true)} />
-      <BioVerifyGuideVideo
+      <BioVerifyGuideModal
         visible={guideOpen}
         onClose={() => setGuideOpen(false)}
-        link={publicProfileUrlDisplay(username)}
+        displayUrl={publicProfileUrlDisplay(username)}
         handle={handle}
+        name={name}
       />
 
       <View style={{ gap: t.spacing.sm }}>

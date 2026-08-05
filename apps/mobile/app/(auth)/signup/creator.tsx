@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Check, X } from 'lucide-react-native';
 import { COLLAB_TYPES, INDIAN_STATES, LANGUAGES, NICHES, PRICE_TIERS } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
-import { endpoints } from '@/lib/api';
-import { completeSignup, hasSessionFor, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from '@/lib/use-signup';
+import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { useWizardBack } from '@/lib/use-wizard-back';
 import { useInstagramPreview } from '@/lib/use-instagram-preview';
@@ -111,85 +110,106 @@ export default function CreatorSignup() {
     setBusy(true);
     setError(null);
 
-    // Skip the recheck when this is actually a retry of an already-created
-    // account (network stalled after signUp succeeded, the app backgrounded
-    // before navigating away, etc.) — otherwise the handle this exact session
-    // already owns reads as "taken by someone else" and bounces the user
-    // backward into a confusing loop for an account that is, in fact, theirs.
-    // completeSignup's own resume path handles finishing it from here.
-    if (!(await hasSessionFor(email))) {
-      // Final guard before the auth user is created: the live check gates the
-      // handle step, but the name can be claimed while someone works through
-      // the later steps. Catching it here avoids an orphaned auth account
-      // with no profile — the same reason web re-checks at submit time.
-      const recheck = await endpoints.checkUsername(username.trim().toLowerCase());
-      const checked = recheck.data as { available?: boolean; valid?: boolean } | null;
-      if (recheck.ok && checked?.available === false) {
-        setBusy(false);
-        setError('That username was just taken by someone else — pick another.');
-        setStep(1);
+    // No client-side "is this username still free" recheck here on purpose —
+    // it used to run right before this, but it could not tell "taken by a
+    // stranger" apart from "taken by me, because this exact retry already
+    // succeeded once." That false positive bounced a person with a genuinely
+    // just-created account back to step 1 with a "taken by someone else"
+    // error and no way forward. register_profile already enforces uniqueness
+    // server-side (see the error branch below), and completeSignup's own
+    // resume logic handles the retry case correctly — so the server is now
+    // the only source of truth here, not a racy client guess.
+    try {
+      const result = await completeSignup(email, password, {
+        role: 'influencer',
+        name: name.trim(),
+        // Phone is collected either way; the token only exists when the gate is on
+        // and register ignores it when off.
+        phone: otp.phone.trim() || undefined,
+        phoneVerificationToken: otp.token ?? undefined,
+        username: username.trim().toLowerCase(),
+        instagramHandle: instagram.trim().replace(/^@/, '') || undefined,
+        // Only sent when the scrape actually returned one, matching web. Without
+        // it a mobile signup landed with instagram_followers NULL and ranked
+        // below equivalent web signups in discovery until the first refresh.
+        instagramFollowers: instagramFollowers ?? undefined,
+        youtubeHandle: youtube.trim().replace(/^@/, '') || undefined,
+        twitterHandle: twitter.trim().replace(/^@/, '') || undefined,
+        facebookHandle: facebook.trim().replace(/^@/, '') || undefined,
+        bio: bio.trim() || undefined,
+        gender: gender || undefined,
+        niche,
+        languages,
+        collabTypes,
+        priceRange: priceRange || undefined,
+        city: city.trim() || undefined,
+        state: state || undefined,
+        location: [city.trim(), state].filter(Boolean).join(', ') || undefined,
+      });
+
+      if (!result.ok) {
+        setError(result.error ?? 'Could not create your account.');
         return;
       }
+      if (result.needsConfirmation) {
+        setError(
+          'Check your email to confirm your address, then sign in — your details are saved.'
+        );
+        return;
+      }
+      // The wizard's back interception cancels ANY removal of this screen —
+      // this one included, which is why a successful signup used to bounce
+      // back a step instead of entering the app. Stand it down first.
+      allowLeave();
+      router.replace('/');
+    } catch {
+      // Something unexpected threw (a network layer error, not a handled
+      // { ok: false } result) — surface it rather than leaving the button
+      // stuck on "Creating…" forever with no way to tell what happened.
+      setError('Something went wrong creating your account. Please try again.');
+    } finally {
+      setBusy(false);
     }
-
-    const result = await completeSignup(email, password, {
-      role: 'influencer',
-      name: name.trim(),
-      // Phone is collected either way; the token only exists when the gate is on
-      // and register ignores it when off.
-      phone: otp.phone.trim() || undefined,
-      phoneVerificationToken: otp.token ?? undefined,
-      username: username.trim().toLowerCase(),
-      instagramHandle: instagram.trim().replace(/^@/, '') || undefined,
-      // Only sent when the scrape actually returned one, matching web. Without
-      // it a mobile signup landed with instagram_followers NULL and ranked
-      // below equivalent web signups in discovery until the first refresh.
-      instagramFollowers: instagramFollowers ?? undefined,
-      youtubeHandle: youtube.trim().replace(/^@/, '') || undefined,
-      twitterHandle: twitter.trim().replace(/^@/, '') || undefined,
-      facebookHandle: facebook.trim().replace(/^@/, '') || undefined,
-      bio: bio.trim() || undefined,
-      gender: gender || undefined,
-      niche,
-      languages,
-      collabTypes,
-      priceRange: priceRange || undefined,
-      city: city.trim() || undefined,
-      state: state || undefined,
-      location: [city.trim(), state].filter(Boolean).join(', ') || undefined,
-    });
-
-    setBusy(false);
-
-    if (!result.ok) {
-      setError(result.error ?? 'Could not create your account.');
-      return;
-    }
-    if (result.needsConfirmation) {
-      setError(
-        'Check your email to confirm your address, then sign in — your details are saved.'
-      );
-      return;
-    }
-    router.replace('/');
   }
 
-  const next = () => (step === steps.length - 1 ? void submit() : setStep((s) => s + 1));
+  const next = () => {
+    // On the celebration, every affordance funnels through the same guarded
+    // advance — otherwise a footer tap plus the auto-advance timer would move
+    // two steps and skip a question outright.
+    if (isBioVerifyStep) return advanceFromVerify();
+    return step === steps.length - 1 ? void submit() : setStep((s) => s + 1);
+  };
   const back = () => setStep((s) => Math.max(0, s - 1));
 
   // Turns the header chevron / swipe / Android back into "one step back" for
   // every step past the first, so answers (and a verified OTP) survive.
-  useWizardBack(step > 0, back);
+  // `allowLeave` is the exemption submit() uses — without it the same
+  // interception also cancelled the post-signup router.replace.
+  const allowLeave = useWizardBack(step > 0, back);
 
   // A verified bio is the one step that moves the wizard forward on its own —
-  // everywhere else the user taps Continue. The delay lets VerifiedHero's
+  // everywhere else the user taps Continue. The delay lets the celebration
   // animation actually be seen before the screen changes under it.
+  //
+  // Three things can now trigger this single advance: the timer, the button
+  // inside the celebration, and the wizard's own footer. `advancedFromVerify`
+  // makes them idempotent, so a tap that races the timer moves one step, not
+  // two — skipping a question the user never saw.
+  const advancedFromVerify = useRef(false);
+  const advanceFromVerify = useCallback(() => {
+    if (advancedFromVerify.current) return;
+    advancedFromVerify.current = true;
+    setStep((s) => s + 1);
+  }, []);
+
   useEffect(() => {
-    if (bioVerify.status !== 'verified') return;
-    const timer = setTimeout(next, 1900);
+    if (bioVerify.status !== 'verified') {
+      advancedFromVerify.current = false;
+      return;
+    }
+    const timer = setTimeout(advanceFromVerify, 1900);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bioVerify.status]);
+  }, [bioVerify.status, advanceFromVerify]);
 
   const steps = [
     {
@@ -403,6 +423,7 @@ export default function CreatorSignup() {
     ...(instagram.trim().length > 1
       ? [
           {
+            key: 'bio-verify' as const,
             title: 'Prove the account is yours',
             subtitle:
               'Put your Influnet link in your Instagram bio so brands know the handle really belongs to you.',
@@ -411,9 +432,11 @@ export default function CreatorSignup() {
               <BioVerifyStep
                 handle={instagram}
                 username={username}
+                name={name}
                 status={bioVerify.status}
                 message={bioVerify.message}
                 onVerify={() => void bioVerify.verify()}
+                onContinue={advanceFromVerify}
               />
             ),
           },
@@ -539,6 +562,10 @@ export default function CreatorSignup() {
   // would render `undefined` and crash the wizard.
   const current = steps[Math.min(step, steps.length - 1)];
 
+  // True only while the ownership step is showing its verified celebration —
+  // the one place Continue means "finish the celebration", not "next question".
+  const isBioVerifyStep = 'key' in current && current.key === 'bio-verify' && bioVerify.status === 'verified';
+
   return (
     <WizardStep
       step={step}
@@ -546,6 +573,7 @@ export default function CreatorSignup() {
       title={current.title}
       subtitle={current.subtitle}
       onNext={next}
+      onBack={step > 0 ? back : undefined}
       isLastStep={step === steps.length - 1}
       nextLabel={step === steps.length - 1 ? 'Create account' : 'Continue'}
       nextDisabled={!current.valid || busy}

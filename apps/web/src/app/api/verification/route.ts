@@ -6,6 +6,8 @@ import { enrichWithLiveData } from '@/lib/verification-live';
 import { captureInstagramSnapshot } from '@/lib/social-snapshot';
 import { refreshYouTubeSnapshot } from '@/lib/youtube';
 import { normalizeHandle } from '@/lib/instagram';
+import { originFromHeaders } from '@/lib/site';
+import { syncOwnershipFromBio } from '@/lib/verification-ownership';
 import { decide, scoreBreakdown, AUTO_APPROVE_THRESHOLD, VERIFICATION_NOTIFICATION, type Role, type VerificationSignals } from '@/lib/verification';
 
 // The live provider (Apify actor) can take ~15s to return. Allow headroom so the
@@ -146,18 +148,25 @@ export async function POST(req: Request) {
     }
 
     // Ownership gate: has the user PROVEN control of this Instagram handle via the
-    // bio-code handshake? Without it, decide() will not auto-verify (anti-impersonation).
+    // bio-link handshake? Without it, decide() will not auto-verify (anti-impersonation).
+    //
+    // This does not merely READ the claim, it reconciles it against the bio we
+    // just scraped. Signup asks for the same proof (see
+    // /api/auth/verify-instagram-bio) but runs before an account exists, so it
+    // can only answer yes/no and persist nothing — which meant a creator who
+    // had just put the link in their bio during signup was asked to do the
+    // whole thing again on their first visit to the verification screen. This
+    // run happens automatically right after signup, the link is still in the
+    // bio, and the claim gets recorded from evidence the server read itself.
     const igHandle = normalizeHandle((input as any).instagram_handle)?.toLowerCase() ?? null;
     if (igHandle) {
-      const { data: owned } = await supabase
-        .from('social_account_claims')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('platform', 'instagram')
-        .eq('handle', igHandle)
-        .eq('status', 'verified')
-        .maybeSingle();
-      signals.ownership_verified = !!owned;
+      signals.ownership_verified = await syncOwnershipFromBio(supabase, {
+        userId: user.id,
+        role: role as Role,
+        handle: igHandle,
+        bio: (liveProfile as { biography?: string | null } | null)?.biography ?? null,
+        origin: originFromHeaders(req.headers),
+      });
     }
 
     const decision = decide(role as Role, signals);

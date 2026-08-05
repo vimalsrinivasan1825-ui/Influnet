@@ -10,6 +10,46 @@ import { jsonError, withAdmin } from '@/lib/api';
 
 const STATUSES = ['pending', 'in_progress', 'fixed'] as const;
 
+const ISSUE_FIELDS =
+  'id, title, description, fix_notes, status, issue_date, fixed_at, images, created_at, updated_at';
+
+const MAX_IMAGES = 6;
+
+/**
+ * Screenshots are stored as URLs, so the URL is the thing that has to be
+ * trusted. Only Cloudinary's own delivery host is accepted: the upload path
+ * (/api/uploads/sign → direct browser upload) can't produce anything else, so
+ * a URL from anywhere else did not come from our uploader. Without this the
+ * column is a free text field that renders as an <img> in an admin's browser
+ * — an easy way to have the dashboard fetch an arbitrary third-party asset.
+ *
+ * Returns null when the field was absent (leave it alone), an array when it
+ * was valid, and throws a string reason when it was present but wrong.
+ */
+function parseImages(value: unknown): string[] | null {
+  if (value === undefined) return null;
+  if (!Array.isArray(value)) throw 'images must be an array of URLs';
+  if (value.length > MAX_IMAGES) throw `images is limited to ${MAX_IMAGES} files`;
+
+  const urls: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string') throw 'images must be an array of URLs';
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      throw 'images must contain valid URLs';
+    }
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com') {
+      throw 'images must be uploaded through Influnet';
+    }
+    urls.push(parsed.toString());
+  }
+  return urls;
+}
+
 export async function GET(req: Request) {
   try {
     const auth = await withAdmin(req);
@@ -21,7 +61,7 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from('admin_issues')
-      .select('id, title, description, fix_notes, status, issue_date, fixed_at, created_at, updated_at')
+      .select(ISSUE_FIELDS)
       .order('status', { ascending: true })
       .order('issue_date', { ascending: false });
 
@@ -48,12 +88,22 @@ export async function POST(req: Request) {
       title?: unknown;
       description?: unknown;
       issue_date?: unknown;
+      images?: unknown;
     };
 
     const title = typeof body.title === 'string' ? body.title.trim().slice(0, 200) : '';
     const description = typeof body.description === 'string' ? body.description.trim().slice(0, 4000) : '';
     if (!title) return jsonError(400, 'title is required');
     if (!description) return jsonError(400, 'description is required');
+
+    // Caught here rather than by the outer handler, which would turn a bad
+    // client payload into a 500.
+    let images: string[] | null;
+    try {
+      images = parseImages(body.images);
+    } catch (reason) {
+      return jsonError(400, String(reason));
+    }
 
     const issueDate =
       typeof body.issue_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.issue_date)
@@ -66,10 +116,11 @@ export async function POST(req: Request) {
         title,
         description,
         issue_date: issueDate,
+        images: images ?? [],
         created_by: user.id,
         updated_by: user.id,
       })
-      .select('id, title, description, fix_notes, status, issue_date, fixed_at, created_at, updated_at')
+      .select(ISSUE_FIELDS)
       .single();
 
     if (error) {
@@ -98,12 +149,24 @@ export async function PATCH(req: Request) {
       fix_notes?: unknown;
       status?: unknown;
       issue_date?: unknown;
+      images?: unknown;
     };
 
     const id = typeof body.id === 'string' ? body.id : '';
     if (!id) return jsonError(400, 'id is required');
 
     const update: Record<string, unknown> = { updated_by: user.id };
+
+    // Replaces the column wholesale rather than appending, so the caller
+    // decides the final set — that's what lets a screenshot be removed as
+    // well as added. Callers must therefore send existing + new, not just new.
+    let images: string[] | null;
+    try {
+      images = parseImages(body.images);
+    } catch (reason) {
+      return jsonError(400, String(reason));
+    }
+    if (images) update.images = images;
 
     if (typeof body.title === 'string') {
       const title = body.title.trim().slice(0, 200);
@@ -138,7 +201,7 @@ export async function PATCH(req: Request) {
       .from('admin_issues')
       .update(update)
       .eq('id', id)
-      .select('id, title, description, fix_notes, status, issue_date, fixed_at, created_at, updated_at')
+      .select(ISSUE_FIELDS)
       .maybeSingle();
 
     if (error) return jsonError(500, 'Could not update this issue', error);

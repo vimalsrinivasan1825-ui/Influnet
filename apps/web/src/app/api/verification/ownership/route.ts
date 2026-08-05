@@ -5,6 +5,13 @@ import { fetchInstagramProfile, normalizeHandle, InstagramProviderError } from '
 import { originFromHeaders } from '@/lib/site';
 import { deliverEmail } from '@/lib/email/policy';
 import { profileNames, nameOf } from '@/lib/email/context';
+import {
+  OWNERSHIP_TTL_SECONDS,
+  bioContainsMarker,
+  profileMarker,
+  rescoreAfterOwnership,
+} from '@/lib/verification-ownership';
+import type { Role } from '@/lib/verification';
 
 // The confirm step scrapes the live bio (Apify actor ~15s).
 export const maxDuration = 60;
@@ -12,68 +19,17 @@ export const maxDuration = 60;
 // The marker is the creator's own public profile link, which they are expected
 // to keep in their bio — so the challenge is not a secret and does not need a
 // short fuse. The window only bounds one verification *session*.
-const TTL_SECONDS = 24 * 60 * 60;
+//
+// profileMarker/bioContainsMarker now live in lib/verification-ownership.ts:
+// the verification pipeline has to look for exactly the same string in the
+// same way, and two copies of a matcher this fiddly would drift.
+const TTL_SECONDS = OWNERSHIP_TTL_SECONDS;
 const MAX_ATTEMPTS = 12; // confirm attempts per challenge
 const MIN_ATTEMPT_GAP_MS = 8_000; // cooldown between confirm attempts
 
 // V1 supports Instagram (scrapable bio). linkedin/website are schema-ready but
 // not yet confirmable server-side (see docs §2.12).
 const CONFIRMABLE_PLATFORMS = new Set(['instagram']);
-
-/**
- * The bio marker is the user's PUBLIC PROFILE LINK, not a throwaway code.
- *
- * A creator has a reason to keep this link in their bio permanently — it is the
- * page they want brands to land on — so verification stops being a chore they
- * undo immediately, and the link staying put is a signal we can re-check later.
- *
- * Trade-off to know about: unlike a one-time code this marker is public and
- * guessable. It cannot be forged (only the account owner can edit that bio), but
- * it IS replayable if a username is ever freed and re-registered while the old
- * owner's bio still carries the link. Blocking username reuse is the guard for
- * that; see the note in the confirm branch.
- */
-function profileMarker(origin: string, username: string): string {
-  // Derived from the REQUEST origin, not the build-time one: this string is
-  // stored and later matched against the creator's live bio, so it has to be
-  // the same host the browser told them to paste. No /c or /b segment — see
-  // lib/site.ts.
-  return `${origin}/${username}`;
-}
-
-/**
- * Did the scraped bio contain the marker?
- *
- * People paste links in every shape — with or without https://, with or without
- * www., with a trailing slash, wrapped in a link sticker. Matching the exact
- * stored string would fail most real bios, so compare on a normalised form.
- * Legacy `vf_` codes (claims started before this change) still match exactly.
- */
-function bioContainsMarker(bio: string, marker: string): boolean {
-  if (marker.startsWith('vf_')) return bio.includes(marker);
-
-  const strip = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/^https?:\/\//, '')
-      .replace(/^www\./, '')
-      .replace(/\/+$/, '');
-
-  // Collapse whitespace so a bio that wraps mid-link still matches, and drop
-  // zero-width characters Instagram sometimes injects into bio text.
-  const haystack = strip(bio).replace(/[​-‏﻿]/g, '').replace(/\s+/g, '');
-
-  // Profile URLs dropped their /c and /b segment, but bios did not: every
-  // creator who verified before that change still has host/c/<username> sitting
-  // in their Instagram bio, and it is re-scraped on every re-verification.
-  // Accept the legacy shapes as well as the current one, or the switch would
-  // silently un-verify everyone who already did the handshake.
-  const current = strip(marker);
-  const legacy = current.replace(/^([^/]+)\/(.+)$/, (_m, host, rest) => `${host}/c/${rest}`);
-  const legacyBusiness = current.replace(/^([^/]+)\/(.+)$/, (_m, host, rest) => `${host}/b/${rest}`);
-
-  return [current, legacy, legacyBusiness].some((n) => haystack.includes(n.replace(/\s+/g, '')));
-}
 
 // GET: current ownership-claim status for the caller's handle (drives the UI).
 export async function GET(req: Request) {
@@ -259,7 +215,19 @@ export async function POST(req: Request) {
             "We couldn't find your profile link in the bio yet. Make sure it's saved and your account is public, then try again.",
         });
       }
-      return NextResponse.json({ verified: true, result, profile_url: marker });
+      // Ownership is a signal in the confidence score, and the checklist the
+      // user is staring at renders from the STORED signals of the last check.
+      // Without this the item they just satisfied keeps reading "not met"
+      // until some later pipeline run lands — and the clients refresh this
+      // panel immediately, so in practice it read as broken. Re-scoring here
+      // also releases anyone the anti-impersonation gate was holding in
+      // review for exactly the reason they have now fixed.
+      const rescored = await rescoreAfterOwnership(supabase, {
+        userId: user.id,
+        role: auth.role as Role,
+      });
+
+      return NextResponse.json({ verified: true, result, profile_url: marker, verification: rescored });
     }
 
     return jsonError(400, "Unknown action — use 'initiate' or 'confirm'");

@@ -22,14 +22,25 @@ export const maxDuration = 60;
  * mentioned Influnet at all; requiring the claimant's own unique username
  * means the string they need is one only they were shown.
  *
- * It is still WEAKER than the one-time bio code in migration 058, because a
- * public profile link is not a secret and does not expire: anyone can read it
- * off the bio, and if a username were ever recycled the new holder would
- * inherit the old holder's proof. So this gates SIGNUP only. It deliberately
- * does NOT write a verified row into social_account_claims — the Verified badge
- * keeps depending on the single-use code flow, which is what migration 083
- * locked down. Downgrading the badge's evidence to this would re-open exactly
- * that hole.
+ * This endpoint writes NOTHING, and cannot: it runs before the account exists,
+ * so there is no user to attach a claim to and no session to trust. It gates
+ * signup and nothing else.
+ *
+ * That used to mean the proof was thrown away — the same person was asked for
+ * the same bio link again on their first visit to the verification screen. It
+ * is no longer wasted: the verification pipeline (/api/verification, fired
+ * automatically right after signup) looks for the same marker in the bio it
+ * scrapes anyway and records the ownership claim itself, authenticated and
+ * server-side. See syncOwnershipFromBio in lib/verification-ownership.ts.
+ *
+ * Note what that does and does not concede. The marker is a public profile
+ * link, not the single-use code of migration 058: it is readable by anyone and
+ * does not expire, so a recycled username could let a new holder inherit an old
+ * holder's proof. But the IN-APP ownership flow already accepts exactly this
+ * marker, so persisting it grants nothing that flow would not have granted a
+ * minute later. The Verified badge itself is still decided by the pipeline
+ * under the rules migration 083 locked down — ownership is one input to that
+ * decision, never a substitute for it.
  */
 export async function POST(req: Request) {
   try {

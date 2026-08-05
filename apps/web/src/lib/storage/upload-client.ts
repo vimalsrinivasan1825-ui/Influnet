@@ -19,7 +19,7 @@ async function computeFileHash(file: File): Promise<string> {
 
 export async function uploadToCloudinary(
   file: File,
-  purpose: 'stage' | 'avatar' | 'profile',
+  purpose: 'stage' | 'avatar' | 'profile' | 'issue',
 ): Promise<UploadResult> {
   const hash = await computeFileHash(file);
 
