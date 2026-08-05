@@ -239,6 +239,34 @@ export interface SocialConnectResult {
 }
 
 /**
+ * The route answers about the LOOKUP ("found", "unavailable"); the UI asks
+ * about the CONNECTION ("connected"). Those two vocabularies have to meet
+ * somewhere, and it is here — not in each caller.
+ *
+ * Getting this wrong is silent and total: /api/auth/social-preview returns
+ * `found` for a readable public profile, every consumer gates on `connected`,
+ * so a creator connected a perfectly good account and the wizard still refused
+ * to let them past the step. Nothing errored; the button just never enabled.
+ *
+ * Anything unrecognised — including `unavailable`, which means OUR provider
+ * isn't configured — is an error rather than a verdict on the handle, so it
+ * stays retryable and is never cached.
+ */
+function toConnectStatus(routeStatus: string | undefined): SocialConnectStatus {
+  switch (routeStatus) {
+    case 'found':
+      return 'connected';
+    case 'private':
+    case 'notfound':
+    case 'invalid':
+    case 'unsupported':
+      return routeStatus;
+    default:
+      return 'error';
+  }
+}
+
+/**
  * Looks a handle up on a platform — ONLY when the user asks, by tapping Connect.
  *
  * The previous version fired the lookup 900ms after the user stopped typing.
@@ -298,14 +326,14 @@ export function useSocialConnect(platform: string, handle: string): SocialConnec
         if (id !== requestId.current) return;
 
         const data = (await res.json().catch(() => ({}))) as {
-          status?: SocialConnectStatus;
+          status?: string;
           profile?: SocialPreview | null;
           message?: string;
         };
 
         // The route reports its own verdict; a non-ok response without one is
         // an infrastructure failure, which is never a verdict on the handle.
-        const status: SocialConnectStatus = data.status ?? (res.ok ? 'error' : 'error');
+        const status = toConnectStatus(data.status);
         const settled = {
           status,
           profile: data.profile ?? null,
