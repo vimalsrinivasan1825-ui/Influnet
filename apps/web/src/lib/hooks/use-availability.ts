@@ -207,6 +207,89 @@ export function useInstagramAvailability(handle: string, debounceMs = 600): Avai
   return { status, message };
 }
 
+export interface InstagramPreview {
+  fullName: string | null;
+  biography: string | null;
+  followerCount: number | null;
+  profilePicUrl: string | null;
+  isVerified: boolean | null;
+  isPrivate: boolean | null;
+}
+
+export type InstagramPreviewStatus = 'idle' | 'checking' | 'found' | 'private' | 'notfound' | 'error';
+
+/**
+ * Looks a handle up on Instagram once the user stops typing — catches typos
+ * (shows the photo/follower count so a wrong account is obvious) and refuses
+ * private accounts up front, since neither the scraper nor the bio-code
+ * ownership check can read one. Mirrors apps/mobile/lib/use-instagram-preview.ts,
+ * which calls the same unauthenticated, rate-limited (5/min/IP) endpoint.
+ *
+ * Results are cached per handle for the life of the component so re-typing
+ * the same handle, or stepping back and forward through the wizard, doesn't
+ * spend another provider call. Errors are deliberately not cached — those
+ * must stay retryable.
+ */
+export function useInstagramPreview(handle: string, debounceMs = 900) {
+  const [status, setStatus] = useState<InstagramPreviewStatus>('idle');
+  const [profile, setProfile] = useState<InstagramPreview | null>(null);
+  const requestId = useRef(0);
+  const cache = useRef(new Map<string, { status: InstagramPreviewStatus; profile: InstagramPreview | null }>());
+
+  useEffect(() => {
+    const value = handle.replace(/^@/, '').trim().toLowerCase();
+
+    if (value.length < 3) {
+      setStatus('idle');
+      setProfile(null);
+      return;
+    }
+
+    const cached = cache.current.get(value);
+    if (cached) {
+      setStatus(cached.status);
+      setProfile(cached.profile);
+      return;
+    }
+
+    setStatus('checking');
+    setProfile(null);
+    const id = ++requestId.current;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/scrape-instagram?handle=${encodeURIComponent(value)}`);
+        if (id !== requestId.current) return;
+
+        let settled: { status: InstagramPreviewStatus; profile: InstagramPreview | null };
+        if (!res.ok) {
+          settled = { status: 'error', profile: null };
+        } else {
+          const data = (await res.json()) as { profile: InstagramPreview | null };
+          const p = data?.profile ?? null;
+          settled = !p
+            ? { status: 'notfound', profile: null }
+            : p.isPrivate
+              ? { status: 'private', profile: p }
+              : { status: 'found', profile: p };
+        }
+
+        if (settled.status !== 'error') cache.current.set(value, settled);
+        setStatus(settled.status);
+        setProfile(settled.profile);
+      } catch {
+        if (id !== requestId.current) return;
+        setStatus('error');
+        setProfile(null);
+      }
+    }, debounceMs);
+
+    return () => clearTimeout(timer);
+  }, [handle, debounceMs]);
+
+  return { status, profile };
+}
+
 export function usePhoneAvailability(phone: string, debounceMs = 600): AvailabilityResult {
   const [status, setStatus] = useState<AvailabilityStatus>('idle');
   const [message, setMessage] = useState<string | null>(null);

@@ -4,18 +4,36 @@ import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowRight, Check, Eye, EyeOff, Loader2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BadgeCheck,
+  Check,
+  Copy,
+  Eye,
+  EyeOff,
+  Loader2,
+  PlayCircle,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
 import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { CityInput } from "@/components/ui/city-input";
-import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
-import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
+import { VerifyGuideModal } from "@/components/verification/verify-guide-modal";
+import {
+  useUsernameAvailability,
+  useEmailAvailability,
+  useUsernameSuggestions,
+  useInstagramAvailability,
+  useInstagramPreview,
+} from "@/lib/hooks/use-availability";
 import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
-import { publicProfileUrlDisplay } from "@/lib/site";
+import { publicProfileUrl, publicProfileUrlDisplay } from "@/lib/site";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -37,7 +55,7 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
 }
 
 type Step = 1 | 2 | 3 | 4 | 5;
-const STEP_LABELS = ["Account", "Profile", "Creator", "Collab", "Verify"];
+const STEP_LABELS = ["Account", "Profile", "Creator", "Verify", "Collab"];
 
 export default function InfluencerSignupPage() {
   return (
@@ -48,112 +66,136 @@ export default function InfluencerSignupPage() {
 }
 
 /**
- * The last signup step: collect the Instagram handle (against the now-real
- * account), save it, then hand off to the same ownership-verification panel
- * Settings uses. Skip is always available — the account already exists
- * either way; only the ownership-gated actions (lib/ownership-gate.ts) care
- * whether this gets finished.
+ * Pre-account Instagram ownership proof — runs BEFORE the account exists,
+ * against the unauthenticated /api/auth/verify-instagram-bio endpoint (the
+ * same one the mobile app's signup wizard uses). The account is only ever
+ * created once this either passes or the user has another social handle to
+ * fall back on — see canProceed() step 3/4 below.
  */
-function InstagramSignupVerifyStep({
+function InstagramVerifyStep({
+  handle,
   username,
   name,
-  onSkip,
-  onDone,
+  verified,
+  onVerified,
 }: {
+  handle: string;
   username: string;
   name: string;
-  onSkip: () => void;
-  onDone: () => void;
+  verified: boolean;
+  onVerified: () => void;
 }) {
-  const [handle, setHandle] = useState("");
-  const [handleSaved, setHandleSaved] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
-  const [verified, setVerified] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "info" | "error"; text: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
-  const saveHandle = async () => {
-    const clean = handle.trim().replace(/^@/, "");
-    if (!clean) return;
-    setSaving(true);
-    setSaveError("");
+  const profileUrl = publicProfileUrl(username);
+  const displayUrl = publicProfileUrlDisplay(username);
 
-    // A private account can't be read by the scraper or the bio-link
-    // ownership check below — both need a public profile. Catch that here,
-    // before the handle is even saved, rather than after Instagram
-    // Ownership Panel's check silently fails against unreadable data.
-    // Fails open on a network/provider error: the scrape route's own
-    // 5-per-minute rate limit is the backstop, and an unreachable Instagram
-    // must not itself block signup.
+  const copy = async () => {
     try {
-      const check = await fetch(`/api/auth/scrape-instagram?handle=${encodeURIComponent(clean)}`);
-      if (check.ok) {
-        const checkData = await check.json();
-        if (checkData?.profile?.isPrivate) {
-          setSaving(false);
-          setSaveError(
-            "This Instagram account is private. We can't verify a private account — switch it to public, or use a different handle, then try again."
-          );
-          return;
-        }
-      }
+      await navigator.clipboard.writeText(profileUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Network hiccup — fall through and let the save proceed.
+      // clipboard blocked — the link is also shown as plain text to select.
     }
-
-    const res = await apiFetch("/api/profile", {
-      method: "PATCH",
-      body: JSON.stringify({ instagram_handle: clean }),
-    });
-    setSaving(false);
-    if (!res.ok) {
-      setSaveError(res.error || "Could not save your handle — try again.");
-      return;
-    }
-    setHandleSaved(clean);
   };
 
-  if (handleSaved) {
+  const verify = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/auth/verify-instagram-bio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle, username }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.verified) {
+        onVerified();
+      } else if (res.status === 429) {
+        setMsg({ kind: "error", text: "Too many attempts — wait a moment and try again." });
+      } else {
+        setMsg({ kind: "error", text: data.message || "We couldn't find your link in that bio yet." });
+      }
+    } catch {
+      setMsg({ kind: "error", text: "Something went wrong — try again." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (verified) {
     return (
-      <div className="flex flex-col gap-4">
-        <InstagramOwnershipPanel
-          handle={handleSaved}
-          username={username}
-          name={name}
-          onVerified={() => setVerified(true)}
-        />
-        <Button variant="brand" size="xl" onClick={onDone}>
-          {verified ? "Continue to dashboard" : "I'll finish this later — continue"}
-        </Button>
+      <div className="flex flex-col items-center gap-4 py-4 text-center">
+        <div className="relative flex size-20 items-center justify-center">
+          <span className="absolute inset-0 animate-ping rounded-full bg-ok/30" />
+          <span className="relative flex size-16 items-center justify-center rounded-full bg-ok-soft">
+            <BadgeCheck className="size-9 text-ok" />
+          </span>
+        </div>
+        <div>
+          <p className="text-base font-extrabold text-content">@{handle} is yours</p>
+          <p className="mt-1 text-sm text-content-soft">Verified from your bio. Taking you to the next step…</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Label>Instagram handle</Label>
-        <Input
-          value={handle}
-          onChange={(e) => setHandle(e.target.value.replace(/^@/, ""))}
-          placeholder="username"
-          autoCapitalize="none"
-        />
-        {saveError && <p className="mt-1.5 text-xs font-semibold text-danger">{saveError}</p>}
+      <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-content-soft">
+        Takes about a minute. Nothing is posted to your account — we only read your public bio.
+        Leave the link there afterwards: it's the page you want brands to land on.
+      </p>
+      <ol className="flex flex-col gap-1.5 text-xs text-content-soft">
+        <li>1. Copy your profile link below.</li>
+        <li>2. Paste it into your Instagram bio (keep your account public).</li>
+        <li>3. Come back and tap Verify.</li>
+      </ol>
+      <div className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2">
+        <code className="min-w-0 flex-1 truncate text-xs text-content">{displayUrl}</code>
+        <button
+          type="button"
+          onClick={copy}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand hover:bg-brand-soft"
+        >
+          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
       </div>
-      <Button variant="brand" size="xl" disabled={!handle.trim() || saving} onClick={saveHandle}>
-        {saving ? (
-          <>
-            <Loader2 className="animate-spin" /> Saving…
-          </>
-        ) : (
-          <>
-            Get my verification link <ArrowRight className="size-4" />
-          </>
-        )}
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={`https://instagram.com/${encodeURIComponent(handle)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-hairline-strong bg-surface-muted px-3 py-1.5 text-xs font-bold text-content-soft transition-colors hover:border-content-muted"
+        >
+          Open Instagram <ArrowRight className="size-3.5" />
+        </a>
+        <button
+          type="button"
+          onClick={() => setGuideOpen(true)}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-strong"
+        >
+          <PlayCircle className="size-3.5" /> Watch the guide
+        </button>
+      </div>
+      <Button variant="brand" size="xl" disabled={busy} onClick={verify}>
+        {busy ? <Loader2 className="animate-spin" /> : <ShieldCheck />} I&apos;ve added it — Verify
       </Button>
-      <Button variant="ghost" className="text-content-soft" onClick={onSkip}>
-        Skip for now
-      </Button>
+      {msg && <p className="text-xs font-semibold text-danger">{msg.text}</p>}
+
+      <VerifyGuideModal
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        profileUrl={profileUrl}
+        displayUrl={displayUrl}
+        handle={handle}
+        name={name}
+      />
     </div>
   );
 }
@@ -193,10 +235,6 @@ function InfluencerSignupContent() {
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  // Set once the account actually exists (step 4 → 5) — the Instagram
-  // ownership panel on step 5 needs a real session, and going Back from step
-  // 5 must never re-run account creation.
-  const [accountCreated, setAccountCreated] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -212,6 +250,11 @@ function InfluencerSignupContent() {
   const [primaryNiche, setPrimaryNiche] = useState("");
   const [secondaryNiches, setSecondaryNiches] = useState<string[]>([]);
   const [bio, setBio] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
+  // The handle Instagram verification last passed for. Compared against the
+  // live handle rather than a plain boolean so editing the handle after
+  // verifying automatically un-verifies it without extra plumbing.
+  const [instagramVerifiedHandle, setInstagramVerifiedHandle] = useState<string | null>(null);
   const [youtubeHandle, setYoutubeHandle] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
@@ -220,18 +263,16 @@ function InfluencerSignupContent() {
   const [usernameSuggestionsFallback, setUsernameSuggestionsFallback] = useState<string[]>([]);
   const usernameInputRef = useRef<HTMLInputElement>(null);
 
-  // Load saved state on mount. Deliberately NOT restoring `step` past 4 or
-  // `accountCreated` — a refresh mid-verification should not silently re-run
-  // account creation, and step 5 needs a live session it can't recover from
-  // sessionStorage anyway. Someone who refreshes on step 5 lands back on step
-  // 4 with their data intact and can move forward again; createAccountAndAdvance
-  // below no-ops if accountCreated is somehow already true.
+  // Load saved state on mount. Deliberately capped at step 3: step 4's
+  // in-progress verification state (and step 5's submit) shouldn't silently
+  // resume from a stale reload — landing back on step 3 with everything else
+  // intact means re-doing Verify + Collab, which is quick.
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem("influencerSignupState");
       if (saved) {
         const data = JSON.parse(saved);
-        if (data.step && data.step < 5) setStep(data.step);
+        if (data.step && data.step <= 3) setStep(data.step);
         if (data.firstName) setFirstName(data.firstName);
         if (data.lastName) setLastName(data.lastName);
         if (data.username) setUsername(data.username);
@@ -243,6 +284,7 @@ function InfluencerSignupContent() {
         if (data.primaryNiche) setPrimaryNiche(data.primaryNiche);
         if (data.secondaryNiches) setSecondaryNiches(data.secondaryNiches);
         if (data.bio) setBio(data.bio);
+        if (data.instagramHandle) setInstagramHandle(data.instagramHandle);
         if (data.youtubeHandle) setYoutubeHandle(data.youtubeHandle);
         if (data.twitterHandle) setTwitterHandle(data.twitterHandle);
         if (data.collabTypes) setCollabTypes(data.collabTypes);
@@ -261,19 +303,21 @@ function InfluencerSignupContent() {
       "influencerSignupState",
       JSON.stringify({
         step, firstName, lastName, username, city, state,
-        languages, primaryNiche, secondaryNiches, bio, youtubeHandle, twitterHandle,
+        languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
         collabTypes, priceRange,
       })
     );
   }, [
     step, firstName, lastName, username, city, state,
-    languages, primaryNiche, secondaryNiches, bio, youtubeHandle, twitterHandle,
+    languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
     collabTypes, priceRange,
   ]);
 
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
   const { suggestions, loading: suggestionsLoading } = useUsernameSuggestions(`${firstName} ${lastName}`, username.length === 0);
   const { status: emailStatus, message: emailMessage } = useEmailAvailability(email);
+  const { status: instagramAvailStatus, message: instagramAvailMessage } = useInstagramAvailability(instagramHandle);
+  const { status: instagramPreviewStatus, profile: instagramPreview } = useInstagramPreview(instagramHandle);
 
   // Fail open on network/server errors — the register RPC is the source of truth
   // and will still reject a taken name, so we never hard-block on a flaky check.
@@ -281,6 +325,30 @@ function InfluencerSignupContent() {
   const emailOk = emailStatus === "available" || emailStatus === "error";
   const emailValid = EMAIL_RE.test(email);
   const passwordOk = password.length >= 8;
+  const cleanInstagramHandle = instagramHandle.trim().replace(/^@/, "").toLowerCase();
+  // Fail open on the availability check same as username/email; the preview
+  // (public/private) check is NOT fail-open — a private or unfound account
+  // can never be verified, so it must block rather than silently pass through.
+  const instagramOk =
+    !!cleanInstagramHandle &&
+    (instagramAvailStatus === "available" || instagramAvailStatus === "error") &&
+    instagramPreviewStatus === "found";
+  const instagramVerified = !!cleanInstagramHandle && instagramVerifiedHandle === cleanInstagramHandle;
+  // A typed-but-broken Instagram handle (private/taken/invalid) must be fixed
+  // or cleared — it can't be silently bypassed just because YouTube/Twitter
+  // is also filled in, matching how the mobile wizard gates the same step.
+  const instagramFieldOk = !cleanInstagramHandle || instagramOk;
+  const hasAnyHandle = !!cleanInstagramHandle || !!youtubeHandle.trim() || !!twitterHandle.trim();
+
+  // The moment step 4 verifies, move on automatically — the manual "Continue"
+  // button (enabled by the same instagramVerified flag via canProceed) is
+  // still there as a fallback if this fires oddly. Cleared on unmount/dep
+  // change so clicking Continue manually can't double-advance.
+  useEffect(() => {
+    if (step !== 4 || !instagramVerified) return;
+    const timer = setTimeout(() => setStep(5), 1600);
+    return () => clearTimeout(timer);
+  }, [step, instagramVerified]);
 
   const toggleArrayItem = <T,>(arr: T[], item: T): T[] =>
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
@@ -294,9 +362,15 @@ function InfluencerSignupContent() {
         (!phoneOtpEnabled || !!phoneToken)
       );
     if (step === 2) return !!gender && !!city && !!state && languages.length > 0;
-    if (step === 3) return !!primaryNiche && !!bio;
-    if (step === 4) return collabTypes.length > 0 && !!priceRange;
-    // Step 5 (verify) has no field gate — it's finish-or-skip, both always available.
+    // At least one social handle is required (the server enforces this too —
+    // see RegisterProfileSchema): either Instagram, checked and passing, or
+    // YouTube/Twitter as a fallback. A typed-but-broken Instagram handle
+    // blocks regardless of the others; see instagramFieldOk above.
+    if (step === 3) return !!primaryNiche && !!bio && instagramFieldOk && hasAnyHandle;
+    // Instagram ownership must be proven before moving on — unless there's
+    // no Instagram handle to prove (YouTube/Twitter carried step 3 instead).
+    if (step === 4) return !cleanInstagramHandle || instagramVerified;
+    if (step === 5) return collabTypes.length > 0 && !!priceRange;
     return true;
   };
 
@@ -324,18 +398,13 @@ function InfluencerSignupContent() {
   };
 
   /**
-   * Creates the account when moving from step 4 (Collab) to step 5 (Verify).
-   * Instagram is deliberately NOT part of this payload — it's collected on
-   * step 5 itself, against a real session, so the ownership handshake there
-   * (InstagramOwnershipPanel) can issue a claim tied to an account that
-   * actually exists yet.
+   * Creates the account from the final step (Collab). Instagram ownership
+   * (if a handle was entered) was already proven back on step 4, against the
+   * unauthenticated /api/auth/verify-instagram-bio endpoint — so unlike the
+   * old flow, the handle rides along in this payload from the start instead
+   * of being collected after the account exists.
    */
-  const createAccountAndAdvance = async () => {
-    if (accountCreated) {
-      setStep(5);
-      return;
-    }
-
+  const createAccount = async () => {
     setError("");
     setIsLoading(true);
     try {
@@ -370,6 +439,7 @@ function InfluencerSignupContent() {
         languages,
         niche: [primaryNiche, ...secondaryNiches],
         bio,
+        instagramHandle: cleanInstagramHandle || undefined,
         youtubeHandle,
         twitterHandle,
         collabTypes,
@@ -402,8 +472,16 @@ function InfluencerSignupContent() {
           setError(resData.error || "Failed to create profile record");
           return;
         }
-        setAccountCreated(true);
-        setStep(5);
+        // Turns the bio evidence already proven on step 4 into the durable
+        // migration-058 ownership claim (syncOwnershipFromBio), which is what
+        // the Verified-badge pipeline reads. Fire-and-forget, same as mobile's
+        // finishRegistration — a failure here must not block onto the
+        // dashboard; Settings can always re-run verification later.
+        if (instagramVerified) {
+          apiFetch("/api/verification", { method: "POST" }).catch(() => {});
+        }
+        sessionStorage.removeItem("influencerSignupState");
+        router.push(nextParam);
       } else {
         // Email confirmation required: no session yet, so neither
         // register_profile nor the step-5 ownership handshake can run now.
@@ -437,12 +515,6 @@ function InfluencerSignupContent() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  /** Step 5's "Skip for now" and "Continue to dashboard" both land here. */
-  const finishSignup = () => {
-    sessionStorage.removeItem("influencerSignupState");
-    router.push(nextParam);
   };
 
   return (
@@ -721,6 +793,59 @@ function InfluencerSignupContent() {
                 <Label>Bio</Label>
                 <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell brands about yourself…" rows={3} />
               </div>
+              <div>
+                <Label>Instagram handle</Label>
+                <div className="relative">
+                  <Input
+                    value={instagramHandle}
+                    onChange={(e) => setInstagramHandle(e.target.value.replace(/^@/, ""))}
+                    placeholder="username"
+                    className="pr-10"
+                    autoCapitalize="none"
+                    autoComplete="off"
+                    aria-invalid={!!cleanInstagramHandle && !instagramOk && instagramPreviewStatus !== "checking"}
+                  />
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {(instagramAvailStatus === "checking" || instagramPreviewStatus === "checking") && (
+                      <Loader2 className="size-4 animate-spin text-content-muted" />
+                    )}
+                    {instagramOk && <Check className="size-4 text-emerald-500" />}
+                    {!!cleanInstagramHandle &&
+                      instagramAvailStatus !== "checking" &&
+                      instagramPreviewStatus !== "checking" &&
+                      !instagramOk && <X className="size-4 text-danger" />}
+                  </span>
+                </div>
+                {!!cleanInstagramHandle && (
+                  <p
+                    className={cn(
+                      "mt-1.5 text-xs font-semibold",
+                      instagramOk && "text-emerald-600",
+                      (instagramAvailStatus === "taken" ||
+                        instagramAvailStatus === "invalid" ||
+                        instagramPreviewStatus === "private" ||
+                        instagramPreviewStatus === "notfound") && "text-danger",
+                      (instagramAvailStatus === "checking" || instagramPreviewStatus === "checking") &&
+                        "text-content-muted",
+                    )}
+                  >
+                    {instagramAvailStatus === "taken"
+                      ? "This handle is already claimed on Influnet"
+                      : instagramAvailStatus === "invalid"
+                        ? instagramAvailMessage
+                        : instagramPreviewStatus === "private"
+                          ? "This account is private — switch it to public so we can verify it"
+                          : instagramPreviewStatus === "notfound"
+                            ? "We couldn't find that Instagram account"
+                            : instagramOk
+                              ? `Found @${cleanInstagramHandle}${instagramPreview?.followerCount ? ` · ${instagramPreview.followerCount.toLocaleString()} followers` : ""}`
+                              : "Checking…"}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-content-muted">
+                  We'll verify you own this account next. No Instagram? Add YouTube or Twitter below instead.
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>YouTube (optional)</Label>
@@ -731,13 +856,35 @@ function InfluencerSignupContent() {
                   <Input value={twitterHandle} onChange={(e) => setTwitterHandle(e.target.value)} placeholder="@handle" />
                 </div>
               </div>
-              <p className="text-xs text-content-muted">
-                Instagram is verified as its own step at the end — that's where you'll add your handle.
-              </p>
             </div>
           )}
 
           {step === 4 && (
+            <div className="flex flex-col gap-4">
+              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Verify your Instagram</h2>
+              {cleanInstagramHandle ? (
+                <>
+                  <p className="text-sm text-content-soft">
+                    Prove @{cleanInstagramHandle} is really you before we create your account.
+                  </p>
+                  <InstagramVerifyStep
+                    handle={cleanInstagramHandle}
+                    username={username}
+                    name={`${firstName} ${lastName}`}
+                    verified={instagramVerified}
+                    onVerified={() => setInstagramVerifiedHandle(cleanInstagramHandle)}
+                  />
+                </>
+              ) : (
+                <p className="rounded-xl border border-hairline bg-surface-muted px-4 py-3 text-sm text-content-soft">
+                  No Instagram handle to verify — you added another social handle on the last step, so
+                  you're all set. Continue when ready.
+                </p>
+              )}
+            </div>
+          )}
+
+          {step === 5 && (
             <div className="flex flex-col gap-4">
               <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Collaboration preferences</h2>
               <div>
@@ -776,39 +923,18 @@ function InfluencerSignupContent() {
             </div>
           )}
 
-          {step === 5 && (
-            <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Verify your Instagram</h2>
-              <p className="text-sm text-content-soft">
-                Your account is created — this last step proves it's really you. Put your Influnet
-                link in your Instagram bio and we'll confirm it, live. You can skip it for now, but
-                until it's done you won't be able to accept requests or start projects.
-              </p>
-              <InstagramSignupVerifyStep
-                username={username}
-                name={`${firstName} ${lastName}`}
-                onSkip={finishSignup}
-                onDone={finishSignup}
-              />
-            </div>
-          )}
-
-          {/* Step 5 owns its own actions (finish-or-skip, handled inside
-              InstagramSignupVerifyStep), so the shared nav row is hidden
-              there. Step 1 still uses it for Continue — it just has no
-              Back, which the step > 1 guard below already handles. */}
-          <div className={cn("mt-6 gap-3", step === 5 ? "hidden" : "flex")}>
+          <div className="mt-6 flex gap-3">
             {step > 1 && (
               <Button variant="surface" size="xl" className="flex-1" onClick={() => setStep((step - 1) as Step)}>
                 Back
               </Button>
             )}
-            {step < 4 ? (
+            {step < 5 ? (
               <Button variant="brand" size="xl" className="flex-1" disabled={!canProceed()} onClick={() => setStep((step + 1) as Step)}>
                 Continue
               </Button>
             ) : (
-              <Button variant="brand" size="xl" className="flex-1" disabled={isLoading || !canProceed()} onClick={createAccountAndAdvance}>
+              <Button variant="brand" size="xl" className="flex-1" disabled={isLoading || !canProceed()} onClick={createAccount}>
                 {isLoading ? (
                   <>
                     <Loader2 className="animate-spin" /> Creating account…
