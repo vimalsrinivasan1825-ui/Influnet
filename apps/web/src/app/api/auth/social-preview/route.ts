@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getSocialHandler, PLATFORM_LABEL, SocialProviderError } from '@/lib/social';
+import { inlineAvatar } from '@/lib/social/avatar';
 import { logger } from '@/lib/logger';
 
 // One preview endpoint for every platform. The older /api/auth/scrape-instagram
@@ -78,7 +79,10 @@ export async function GET(req: Request) {
         displayName: profile.displayName,
         biography: profile.biography,
         followerCount: profile.followerCount,
-        avatarUrl: profile.avatarUrl,
+        // Inlined rather than linked: Instagram's CDN serves our server but
+        // refuses browsers, so the raw URL renders as a broken image in the
+        // "is this you?" card. See lib/social/avatar.ts.
+        avatarUrl: await inlineAvatar(profile.avatarUrl),
         isVerified: profile.isVerified,
         isPrivate: profile.isPrivate,
       },

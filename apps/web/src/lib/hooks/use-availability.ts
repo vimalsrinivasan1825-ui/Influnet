@@ -292,6 +292,10 @@ export function useSocialConnect(platform: string, handle: string): SocialConnec
 
   const requestId = useRef(0);
   const cache = useRef(new Map<string, { status: SocialConnectStatus; profile: SocialPreview | null; message: string | null }>());
+  // Read inside connect() without making the callback depend on state — a new
+  // connect identity on every status change would churn every field's props.
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const value = handle.replace(/^@/, '').trim().toLowerCase();
 
@@ -309,7 +313,14 @@ export function useSocialConnect(platform: string, handle: string): SocialConnec
   const connect = useCallback(() => {
     if (!value) return;
 
-    const cached = cache.current.get(`${platform}:${value}`);
+    // Pressing the button again on a handle that already has an answer means
+    // "check it again" — the button even says Recheck. Serving the cache there
+    // made it a no-op: the account had gone public, or the previous lookup was
+    // wrong, and the UI kept insisting on the stale verdict forever. The cache
+    // still does its real job, which is making a return trip through the wizard
+    // (or retyping an earlier handle) free.
+    const isRecheck = stateRef.current.handle === value && stateRef.current.status !== 'idle';
+    const cached = isRecheck ? undefined : cache.current.get(`${platform}:${value}`);
     if (cached) {
       setState({ ...cached, handle: value });
       return;

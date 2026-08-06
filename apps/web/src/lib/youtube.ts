@@ -44,6 +44,15 @@ export interface YouTubeChannel {
   handle: string;
   /** Read off the channel page; null when the markup didn't yield it. */
   subscriberCount: number | null;
+  /**
+   * Channel name and avatar, for the signup "is this you?" card. Without them
+   * a connected YouTube account rendered as a bare handle and a number, which
+   * is exactly the check the card exists to make impossible to skip. Both come
+   * free with the channel-page fetch we already do; the name falls back to the
+   * feed's author, which is always present.
+   */
+  title: string | null;
+  avatarUrl: string | null;
   videos: YouTubeVideo[];
 }
 
@@ -220,10 +229,16 @@ export function extractOwnerSubscriberCount(html: string, handle: string): numbe
  */
 export async function resolveChannel(
   handle: string,
-): Promise<{ channelId: string; subscriberCount: number | null } | null> {
+): Promise<{
+  channelId: string;
+  subscriberCount: number | null;
+  title: string | null;
+  avatarUrl: string | null;
+} | null> {
   if (isChannelId(handle)) {
-    // Already an id; the feed works directly, and subscribers stay unknown.
-    return { channelId: handle, subscriberCount: null };
+    // Already an id; the feed works directly, and everything the channel page
+    // would have told us stays unknown.
+    return { channelId: handle, subscriberCount: null, title: null, avatarUrl: null };
   }
 
   // hl/gl pin the response to English: the parsers below match the word
@@ -256,7 +271,18 @@ export async function resolveChannel(
     logger.warn('[youtube] channel page yielded no owner subscriber count', { handle });
   }
 
-  return { channelId: idMatch[1], subscriberCount };
+  // og:* is the channel page's own description of itself, so it survives the
+  // layout churn the id parsers above have to chase. yt3.ggpht.com avatar URLs
+  // are unsigned and stable, same as the video thumbnails.
+  const title = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i)?.[1];
+  const avatar = html.match(/<meta\s+property="og:image"\s+content="(https:\/\/[^"]+)"/i)?.[1];
+
+  return {
+    channelId: idMatch[1],
+    subscriberCount,
+    title: title ? decode(title) : null,
+    avatarUrl: avatar ?? null,
+  };
 }
 
 const attr = (xml: string, name: string): string | null => {
@@ -332,10 +358,17 @@ export async function getYouTubeChannel(rawHandle: string | null | undefined): P
     );
     if (!xml) return null;
 
+    // The feed's <author><name> is the channel's own title and is always
+    // present — it covers the case where the handle came in as a raw UC… id
+    // and no channel page was ever fetched.
+    const feedAuthor = tag(tag(xml, 'author') ?? '', 'name');
+
     return {
       channelId: resolved.channelId,
       handle,
       subscriberCount: resolved.subscriberCount,
+      title: resolved.title ?? (feedAuthor ? decode(feedAuthor) : null),
+      avatarUrl: resolved.avatarUrl,
       videos: parseVideoFeed(xml),
     };
   } catch (err) {

@@ -57,6 +57,35 @@ interface Settled {
   message: string | null;
 }
 
+/**
+ * The route answers about the LOOKUP ("found"); this UI asks about the
+ * CONNECTION ("connected"). Those two vocabularies have to meet somewhere.
+ *
+ * They didn't, and the failure was silent and total: /api/auth/social-preview
+ * returns `found` for a readable public account, every consumer here gates on
+ * `connected`, so tapping Connect on a perfectly good handle produced no card,
+ * no error, and a Continue button that stayed dead. The result was even cached,
+ * so tapping again did nothing at all. Web already mapped it
+ * (apps/web/src/lib/hooks/use-availability.ts); mobile did not.
+ *
+ * Anything unrecognised — including `unavailable`, which means OUR provider
+ * isn't configured — is an error rather than a verdict on the handle, so it
+ * stays retryable and is never cached.
+ */
+function toConnectStatus(routeStatus: unknown): SocialConnectStatus {
+  switch (routeStatus) {
+    case 'found':
+      return 'connected';
+    case 'private':
+    case 'notfound':
+    case 'invalid':
+    case 'unsupported':
+      return routeStatus;
+    default:
+      return 'error';
+  }
+}
+
 export function useSocialConnect(platform: string, handle: string): SocialConnectResult {
   const [state, setState] = useState<Settled & { handle: string | null }>({
     status: 'idle',
@@ -66,6 +95,10 @@ export function useSocialConnect(platform: string, handle: string): SocialConnec
   });
   const cache = useRef(new Map<string, Settled>());
   const requestId = useRef(0);
+  // Read inside connect() without making the callback depend on state — a new
+  // connect identity on every status change would churn every field's props.
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const value = handle.replace(/^@/, '').trim().toLowerCase();
 
@@ -86,7 +119,13 @@ export function useSocialConnect(platform: string, handle: string): SocialConnec
     if (!value) return;
 
     const key = `${platform}:${value}`;
-    const cached = cache.current.get(key);
+    // Tapping again on a handle that already has an answer means "check it
+    // again" — the button even says Recheck. Serving the cache there made it a
+    // no-op: the account had gone public, or the earlier lookup was wrong, and
+    // the UI kept insisting on the stale verdict. The cache still does its real
+    // job, which is making a return trip through the wizard free.
+    const isRecheck = stateRef.current.handle === value && stateRef.current.status !== 'idle';
+    const cached = isRecheck ? undefined : cache.current.get(key);
     if (cached) {
       setState({ ...cached, handle: value });
       return;
@@ -96,20 +135,24 @@ export function useSocialConnect(platform: string, handle: string): SocialConnec
     setState({ status: 'checking', profile: null, message: null, handle: value });
 
     void (async () => {
-      const res = await endpoints.socialPreview<{
-        status?: SocialConnectStatus;
-        profile?: SocialPreview | null;
-        message?: string;
-      }>(platform, value);
+      const res = await endpoints.socialPreview(platform, value);
       if (id !== requestId.current) return;
 
       // The route reports its own verdict even on 4xx (a 404 carries
-      // status:'notfound'). A response with no verdict at all is transport or
-      // infrastructure failing, which is never a verdict on the handle.
+      // status:'notfound'), so read `payload` — the client nulls `data` on a
+      // non-2xx, and going through it turned every "no such account" into a
+      // generic "couldn't reach Instagram". A response with no verdict at all
+      // is transport or infrastructure failing, which is never a verdict on
+      // the handle.
+      const body = (res.payload ?? {}) as {
+        status?: string;
+        profile?: SocialPreview | null;
+        message?: string;
+      };
       const settled: Settled = {
-        status: res.data?.status ?? 'error',
-        profile: res.data?.profile ?? null,
-        message: res.data?.message ?? null,
+        status: toConnectStatus(body.status),
+        profile: body.profile ?? null,
+        message: body.message ?? null,
       };
 
       if (settled.status !== 'error') cache.current.set(key, settled);

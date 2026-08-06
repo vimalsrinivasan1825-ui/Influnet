@@ -61,42 +61,44 @@ export function SocialConnectField({
 
   return (
     <View style={{ gap: t.spacing.sm }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: t.spacing.sm }}>
-        <View style={{ flex: 1 }}>
-          <Field
-            label={label ?? PLATFORM_LABEL[platform]}
-            value={value}
-            onChangeText={(v) => onChangeText(v.replace(/^@/, ''))}
-            placeholder={placeholder ?? '@yourhandle'}
-            autoCapitalize="none"
-            autoCorrect={false}
-            left={<Icon size={18} />}
-            error={error ?? (failed ? statusLine(status, platform) : null)}
-            hint={error ? null : hint}
-            // Enter finishes the field AND runs the lookup — the button is a
-            // shortcut, not the only way through.
-            returnKeyType={linkOnly ? 'done' : 'search'}
-            onSubmitEditing={() => {
-              if (!linkOnly && clean && !busy) connect.connect();
-            }}
-          />
-        </View>
-        {!linkOnly && (
-          <Button
-            label={connected ? 'Recheck' : 'Connect'}
-            variant={connected ? 'secondary' : 'primary'}
-            size="md"
-            inline
-            loading={busy}
-            disabled={!clean || busy}
-            icon={connected ? <RefreshCw size={15} color={t.color.content} /> : <Search size={15} color={t.color.white} />}
-            onPress={connect.connect}
-            // Nudges the button off the label row so it lines up with the input
-            // itself rather than floating above it.
-            style={{ marginBottom: hint || error ? 22 : 2 }}
-          />
-        )}
-      </View>
+      <Field
+        label={label ?? PLATFORM_LABEL[platform]}
+        value={value}
+        onChangeText={(v) => onChangeText(v.replace(/^@/, ''))}
+        placeholder={placeholder ?? '@yourhandle'}
+        autoCapitalize="none"
+        autoCorrect={false}
+        left={<Icon size={18} />}
+        error={error ?? (failed ? statusLine(status, platform) : null)}
+        hint={error ? null : hint}
+        // Enter finishes the field AND runs the lookup — the button is a
+        // shortcut, not the only way through.
+        returnKeyType={linkOnly ? 'done' : 'search'}
+        onSubmitEditing={() => {
+          if (!linkOnly && clean && !busy) connect.connect();
+        }}
+      />
+      {/* Connect sits BELOW the input, full width. Beside it, the button and
+          the field split a phone's width between them: the handle scrolled
+          out of sight while typing, and the button's own label had to compete
+          with the hint and error lines the field pushes down. */}
+      {!linkOnly && (
+        <Button
+          label={connected ? 'Recheck' : 'Connect'}
+          variant={connected ? 'secondary' : 'primary'}
+          size="md"
+          loading={busy}
+          disabled={!clean || busy}
+          icon={
+            connected ? (
+              <RefreshCw size={15} color={t.color.content} />
+            ) : (
+              <Search size={15} color={t.color.white} />
+            )
+          }
+          onPress={connect.connect}
+        />
+      )}
 
       {/* Result card. Rendered only when there is something real to say —
           'idle' and 'error' stay silent, because a provider hiccup is not the

@@ -12,6 +12,7 @@ import { useSocialConnect } from '@/lib/use-social-connect';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
 import { SocialConnectField } from '@/components/social-connect-field';
+import { SocialDisclosure } from '@/components/social-disclosure';
 import { BioVerifyStep, useBioVerification } from '@/components/bio-verify-step';
 import { Button, Chip, ChipWrap, Field, Txt } from '@/components/ui';
 import { CityField } from '@/components/city-field';
@@ -362,21 +363,20 @@ export default function CreatorSignup() {
       // count it either, so accepting it here would just move the rejection one
       // step later.
       valid:
+        // Instagram is the one required account: it carries the ownership
+        // check on the next step, and it's what brands look for first.
+        instagram.trim().length > 1 &&
         connectedOrEmpty(instagram, igConnect.status) &&
         connectedOrEmpty(youtube, ytConnect.status) &&
         connectedOrEmpty(twitter, xConnect.status) &&
         connectedOrEmpty(facebook, fbConnect.status) &&
         instagramAvailability.status !== 'taken' &&
-        instagramAvailability.status !== 'invalid' &&
-        (instagram.trim().length > 1 ||
-          youtube.trim().length > 1 ||
-          twitter.trim().length > 1 ||
-          facebook.trim().length > 1),
+        instagramAvailability.status !== 'invalid',
       body: (
         <View style={{ gap: t.spacing.lg }}>
           <Txt variant="footnote" tone="muted">
-            Add the accounts you want brands to see, then tap Connect on each one so we can check
-            it&apos;s public and show you what we found. Nothing is posted to your accounts.
+            Add your Instagram, then tap Connect so we can check it&apos;s public and show you what
+            we found. Nothing is posted to your accounts.
           </Txt>
           <SocialConnectField
             platform="instagram"
@@ -393,39 +393,71 @@ export default function CreatorSignup() {
               instagramAvailability.status === 'available' ? instagramAvailability.message : null
             }
           />
-          <SocialConnectField
-            platform="youtube"
-            label="YouTube channel"
-            value={youtube}
-            onChangeText={setYoutube}
-            connect={ytConnect}
-            placeholder="@yourchannel"
-          />
-          <SocialConnectField
-            platform="twitter"
-            label="X (Twitter) handle"
-            value={twitter}
-            onChangeText={setTwitter}
-            connect={xConnect}
-          />
-          <SocialConnectField
-            platform="facebook"
-            label="Facebook page or profile"
-            value={facebook}
-            onChangeText={setFacebook}
-            connect={fbConnect}
-            placeholder="yourpage"
-            hint="At least one social, so brands can see your work."
-          />
-          <SocialConnectField
-            platform="snapchat"
-            label="Snapchat"
-            value={snapchat}
-            onChangeText={setSnapchat}
-            connect={snapConnect}
-            placeholder="yourusername"
-            linkOnly
-            hint="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
+          <SocialDisclosure
+            subtitle="Optional — tap a logo to add that account. Brands see every one you connect."
+            items={[
+              {
+                platform: 'youtube',
+                label: 'YouTube',
+                filled: youtube.trim().length > 0,
+                body: (
+                  <SocialConnectField
+                    platform="youtube"
+                    label="YouTube channel"
+                    value={youtube}
+                    onChangeText={setYoutube}
+                    connect={ytConnect}
+                    placeholder="@yourchannel"
+                  />
+                ),
+              },
+              {
+                platform: 'facebook',
+                label: 'Facebook',
+                filled: facebook.trim().length > 0,
+                body: (
+                  <SocialConnectField
+                    platform="facebook"
+                    label="Facebook page or profile"
+                    value={facebook}
+                    onChangeText={setFacebook}
+                    connect={fbConnect}
+                    placeholder="yourpage"
+                  />
+                ),
+              },
+              {
+                platform: 'twitter',
+                label: 'X',
+                filled: twitter.trim().length > 0,
+                body: (
+                  <SocialConnectField
+                    platform="twitter"
+                    label="X (Twitter) handle"
+                    value={twitter}
+                    onChangeText={setTwitter}
+                    connect={xConnect}
+                  />
+                ),
+              },
+              {
+                platform: 'snapchat',
+                label: 'Snapchat',
+                filled: snapchat.trim().length > 0,
+                body: (
+                  <SocialConnectField
+                    platform="snapchat"
+                    label="Snapchat"
+                    value={snapchat}
+                    onChangeText={setSnapchat}
+                    connect={snapConnect}
+                    placeholder="yourusername"
+                    linkOnly
+                    hint="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
+                  />
+                ),
+              },
+            ]}
           />
         </View>
       ),
