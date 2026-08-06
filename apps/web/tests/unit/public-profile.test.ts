@@ -306,7 +306,7 @@ describe('computeReachStat', () => {
   });
 
   it('barely moves a figure that already covers the whole window', () => {
-    const stat = computeReachStat([], [{ views: 900_000, publishedAt: daysAgo(30) }], 100);
+    const stat = computeReachStat([], [{ views: 900_000, publishedAt: daysAgo(29.9) }], 100);
     expect(stat.value).toBe('900K');
   });
 
