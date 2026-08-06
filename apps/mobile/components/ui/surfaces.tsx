@@ -1,18 +1,26 @@
 /**
  * Screen / Card / SectionCard / Divider — the containers everything sits in.
  */
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import {
   RefreshControl,
+  ScrollView,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type ScrollViewProps,
   type ViewStyle,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/theme';
+import { useKeyboard } from '@/lib/use-keyboard';
 import { Txt } from './text';
 import { GradientBackground } from './gradient';
+import {
+  KeyboardAvoider,
+  RevealFocusedInputProvider,
+  useScrollFocusedInputIntoView,
+} from './keyboard-avoider';
 
 /** Page wrapper: app background + safe-area aware bottom padding. */
 export function Screen({
@@ -20,6 +28,7 @@ export function Screen({
   style,
   padded = true,
   gradient = true,
+  avoidKeyboard = true,
 }: {
   children: ReactNode;
   style?: ViewStyle;
@@ -29,6 +38,17 @@ export function Screen({
    * carries the theme onto screens that are otherwise white cards on grey.
    */
   gradient?: boolean;
+  /**
+   * Squeeze the page into the space above the keyboard. On by default, which is
+   * what makes this correct app-wide instead of on whichever screens someone
+   * remembered to handle: every screen is a `Screen`, so every screen avoids
+   * the keyboard without opting in.
+   *
+   * Turn it off only where the screen pins itself to the keyboard by other
+   * means — the chat thread, whose composer is meant to ride the keyboard while
+   * the message list stays put.
+   */
+  avoidKeyboard?: boolean;
 }) {
   const t = useTheme();
   return (
@@ -42,8 +62,10 @@ export function Screen({
         style,
       ]}
     >
+      {/* Outside the avoider: the wash is decoration painted across the whole
+          page, and should not be clipped upward with the content. */}
       {gradient ? <GradientBackground /> : null}
-      {children}
+      {avoidKeyboard ? <KeyboardAvoider>{children}</KeyboardAvoider> : children}
     </View>
   );
 }
@@ -85,9 +107,41 @@ export function ScreenScroll({
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const kb = useKeyboard();
+
+  const scrollRef = useRef<ScrollView>(null);
+  const viewportRef = useRef<View>(null);
+  // Live scroll position. Kept in a ref rather than state because the reveal
+  // maths reads it from inside a measure callback, where a re-render would be
+  // both useless and a dropped frame.
+  const offsetRef = useRef(0);
+  const reveal = useScrollFocusedInputIntoView(scrollRef, viewportRef, offsetRef);
+
+  // The keyboard coming up is the one case where the viewport changes size
+  // under a field that is already focused. Wait out the avoider's padding
+  // animation first, or we measure the viewport mid-flight and scroll to where
+  // it used to be.
+  useEffect(() => {
+    if (kb.shown) reveal(kb.duration + 60);
+  }, [kb.shown, kb.top, kb.duration, reveal]);
+
+  const { onScroll: onScrollProp, ...scrollProps } = rest;
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      offsetRef.current = e.nativeEvent.contentOffset.y;
+      onScrollProp?.(e);
+    },
+    [onScrollProp],
+  );
 
   return (
-    <KeyboardAwareScrollView
+    <RevealFocusedInputProvider value={reveal}>
+      {/* The measured viewport. `collapsable={false}` keeps Android from
+          flattening it away, which would leave the reveal maths with no frame
+          to measure against. */}
+      <View ref={viewportRef} collapsable={false} style={{ flex: 1 }}>
+    <ScrollView
+      ref={scrollRef}
       // Transparent so the Screen's brand wash shows through. The opaque
       // background lives on Screen (and on the Stack's contentStyle for pushed
       // routes), never on the scroller itself.
@@ -113,8 +167,6 @@ export function ScreenScroll({
       ]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
-      enableOnAndroid={true}
-      extraScrollHeight={20}
       refreshControl={
         onRefresh ? (
           <RefreshControl
@@ -124,7 +176,12 @@ export function ScreenScroll({
           />
         ) : undefined
       }
-      {...rest}
+      {...scrollProps}
+      // After the spread: the scroll offset this tracks is what the reveal
+      // maths scrolls relative to, so a caller's own `onScroll` composes with
+      // it rather than replacing it.
+      onScroll={onScroll}
+      scrollEventThrottle={16}
     >
       {/* The header carries its own screen gutter, so cancel the container's
           padding for it and let it run full-bleed. */}
@@ -132,7 +189,9 @@ export function ScreenScroll({
         <View style={{ marginHorizontal: padded ? -t.spacing.screen : 0 }}>{header}</View>
       ) : null}
       {children}
-    </KeyboardAwareScrollView>
+        </ScrollView>
+      </View>
+    </RevealFocusedInputProvider>
   );
 }
 
