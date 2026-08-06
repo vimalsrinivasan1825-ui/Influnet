@@ -2,6 +2,7 @@ import { useState, useRef, type ReactNode } from 'react';
 import { TextInput, View, Pressable, type TextInputProps, type ViewStyle } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { Txt } from './text';
+import { useRevealFocusedInput } from './keyboard-avoider';
 
 export interface FieldProps extends TextInputProps {
   label?: string;
@@ -29,6 +30,7 @@ export function Field({
   const t = useTheme();
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const revealFocusedInput = useRevealFocusedInput();
 
   const borderColor = error
     ? t.color.danger
@@ -90,6 +92,11 @@ export function Field({
           selectionHandleColor="transparent"
           onFocus={(e) => {
             setFocused(true);
+            // Moving between two fields with the keyboard already up fires no
+            // keyboard event, so the scroller would otherwise never learn that
+            // the thing it needs to keep visible has changed. The delay lets
+            // focus settle and any layout the field does on focus land first.
+            revealFocusedInput(120);
             rest.onFocus?.(e);
           }}
           onBlur={(e) => {

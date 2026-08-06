@@ -2,10 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
-  KeyboardAvoidingView,
   Linking,
   Modal,
-  Platform,
   Pressable,
   View,
 } from 'react-native';
@@ -34,7 +32,17 @@ import { formatCurrency, formatDayLabel, formatMessageTime, timeAgo } from '@/li
 
 /** Stream hands back slightly different message types by call site. */
 type StreamMessage = MessageResponse | LocalMessage;
-import { Badge, Button, Card, Field, Sheet, Txt, VerifiedBadge, type SheetRef } from '@/components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Field,
+  KeyboardAvoider,
+  Sheet,
+  Txt,
+  VerifiedBadge,
+  type SheetRef,
+} from '@/components/ui';
 
 /**
  * Same six types (and same emoji) as the web dashboard's default reaction bar
@@ -757,11 +765,7 @@ export default function ConversationScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: t.color.surface }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 0}
-    >
+    <KeyboardAvoider style={{ backgroundColor: t.color.surface }}>
       {/* Deal bar — the web's side panel, compressed to a single line you can
           always see while you're negotiating. */}
       {deal ? (
@@ -1321,6 +1325,6 @@ export default function ConversationScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }

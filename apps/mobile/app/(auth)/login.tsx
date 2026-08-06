@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { Pressable } from 'react-native';
@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/session';
 import { AuthHeader } from '@/components/brand/auth-header';
-import { Button, Field, ScreenScroll, Txt } from '@/components/ui';
+import { Button, Field, KeyboardAvoider, ScreenScroll, Txt } from '@/components/ui';
 
 export default function Login() {
   const t = useTheme();
@@ -49,10 +49,7 @@ export default function Login() {
   const canSubmit = email.trim().length > 0 && password.length > 0 && !busy;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoider>
       <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing['2xl'], gap: t.spacing.lg }}>
         <AuthHeader
           title="Welcome back"
@@ -133,6 +130,6 @@ export default function Login() {
           onPress={() => router.replace('/signup')}
         />
       </ScreenScroll>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }

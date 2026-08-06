@@ -19,3 +19,4 @@ export {
 } from './charts';
 export { GradientCard, GradientBackground } from './gradient';
 export { Sheet, StickyFooter, type SheetRef } from './sheet';
+export { KeyboardAvoider, useRevealFocusedInput } from './keyboard-avoider';

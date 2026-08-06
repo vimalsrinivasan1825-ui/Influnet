@@ -19,6 +19,7 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/theme';
+import { useKeyboard } from '@/lib/use-keyboard';
 import { Txt } from './text';
 
 /**
@@ -123,6 +124,7 @@ export const Sheet = forwardRef<
 export function StickyFooter({ children }: { children: ReactNode }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const kb = useKeyboard();
 
   return (
     <View
@@ -132,7 +134,11 @@ export function StickyFooter({ children }: { children: ReactNode }) {
         backgroundColor: t.color.surfaceCard,
         paddingHorizontal: t.spacing.screen,
         paddingTop: t.spacing.md,
-        paddingBottom: insets.bottom + t.spacing.md,
+        // The bottom inset clears the home indicator. With the keyboard up the
+        // keyboard is what sits there, and `KeyboardAvoider` has already lifted
+        // this footer clear of it — keeping the inset would just wedge a strip
+        // of dead space between the button and the keys.
+        paddingBottom: (kb.shown ? 0 : insets.bottom) + t.spacing.md,
         gap: t.spacing.sm,
       }}
     >

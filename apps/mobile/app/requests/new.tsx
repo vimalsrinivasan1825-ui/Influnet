@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
-import { Button, Card, Field, ScreenScroll, StickyFooter, Txt } from '@/components/ui';
+import { Button, Card, Field, KeyboardAvoider, ScreenScroll, StickyFooter, Txt } from '@/components/ui';
 
 export default function NewRequest() {
   const t = useTheme();
@@ -40,11 +40,7 @@ export default function NewRequest() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: t.color.surface }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <KeyboardAvoider style={{ backgroundColor: t.color.surface }}>
       <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing.lg, gap: t.spacing.lg }}>
         {name ? (
           <Txt variant="callout" tone="muted">
@@ -90,6 +86,6 @@ export default function NewRequest() {
       <StickyFooter>
         <Button label="Send request" onPress={send} disabled={!canSend} loading={busy} />
       </StickyFooter>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }

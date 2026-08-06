@@ -6,11 +6,11 @@
  * rail, a sticky primary action, and no way to advance until the step is valid.
  */
 import { useLayoutEffect, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-import { Button, ScreenScroll, StickyFooter, Txt } from '@/components/ui';
+import { Button, KeyboardAvoider, ScreenScroll, StickyFooter, Txt } from '@/components/ui';
 
 /** Segmented progress rail — filled segments, not a percentage. */
 export function WizardProgress({ step, total }: { step: number; total: number }) {
@@ -133,11 +133,7 @@ export function WizardStep({
   }, [navigation, onBack, onNext, nextDisabled, busy, isLastStep, t.color.brand, t.color.content]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-    >
+    <KeyboardAvoider>
       <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing.lg, gap: t.spacing.lg }}>
         <WizardProgress step={step} total={total} />
 
@@ -171,6 +167,6 @@ export function WizardStep({
         <Button label={nextLabel} onPress={onNext} disabled={nextDisabled} loading={busy} />
         {footer}
       </StickyFooter>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }

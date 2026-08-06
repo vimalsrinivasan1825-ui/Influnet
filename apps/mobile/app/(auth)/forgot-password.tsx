@@ -14,13 +14,13 @@
  * hits once. Sending them to a working page beats a half-built one.
  */
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MailCheck } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { supabase, API_BASE_URL } from '@/lib/supabase';
 import { AuthHeader } from '@/components/brand/auth-header';
-import { Button, Card, Field, ScreenScroll, Txt } from '@/components/ui';
+import { Button, Card, Field, KeyboardAvoider, ScreenScroll, Txt } from '@/components/ui';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -55,10 +55,7 @@ export default function ForgotPassword() {
   const canSubmit = EMAIL_RE.test(email.trim()) && !busy;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoider>
       <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing['2xl'], gap: t.spacing.lg }}>
         <AuthHeader
           title="Reset your password"
@@ -111,6 +108,6 @@ export default function ForgotPassword() {
           </>
         )}
       </ScreenScroll>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
