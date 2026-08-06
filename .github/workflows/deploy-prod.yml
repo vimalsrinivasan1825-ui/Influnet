@@ -33,15 +33,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js (for smoke tests)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install dependencies (needed for smoke test execution)
-        run: npm ci
-
       - name: Log in to Azure
         uses: azure/login@v2
         with:

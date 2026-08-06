@@ -13,9 +13,9 @@ each step, and everything you must provision once by hand.
 ## 1. Philosophy (why it's shaped this way)
 
 - **GitHub Actions, not Jenkins** — no server to babysit; the pipeline lives in `.github/workflows/`.
-- **Dev/prod parity where it matters.** Production runs on **Azure App Service via Docker**, so `staging` runs on the *same* platform and the *same* container image. `dev` runs on **Vercel** purely for fast iteration and free per-PR previews — it is not a parity gate.
+- **Dev/prod parity where it matters.** `staging` runs on **Azure Container Apps** from a Docker image, and production is intended to run the same image. `dev` runs on **Railway** (`railway.json` at the repo root, same `apps/web/Dockerfile`) purely for fast iteration — it is not a parity gate. Railway also holds dev's runtime secrets, which is why GitHub Actions secrets carry staging values (see §6).
 - **The container built for `staging` is the exact artifact promoted to `main`.** We don't rebuild for prod; we re-tag and redeploy the tested image.
-- **Every environment has its own Supabase project.** Local/dev/staging never touch the production database.
+- **Every environment has its own Supabase project.** ⚠️ (Currently staging and production share one, to be split before production launch). Local/dev/staging never touch the production database.
 - **Skipped on purpose** (they'd add ops burden with no benefit here): SonarQube (→ ESLint + `npm audit` + CodeQL), Trivy/Docker Hub/Kubernetes.
 
 ---
@@ -24,9 +24,9 @@ each step, and everything you must provision once by hand.
 
 | Branch | Deploys to | Host | `APP_ENV` | Supabase project | Purpose |
 |---|---|---|---|---|---|
-| `feature/*` | Preview (ephemeral, per-PR) | Vercel | `dev` | dev | Build & review in isolation |
-| `dev` | Dev | Vercel | `dev` | dev | Integration; always-deployable |
-| `staging` | Staging | **Azure App Service (Docker)** | `staging` | **staging (separate)** | Prod replica; client UAT |
+| `feature/*` | — (no preview deploy today) | — | `dev` | dev | Build & review in isolation |
+| `dev` | Dev | Railway | `dev` | dev | Integration; always-deployable |
+| `staging` | Staging | **Azure Container Apps** | `staging` | **staging (separate)** | Prod replica; client UAT |
 | `main` | Production | **Azure App Service (Docker)** | `production` | production | Live |
 
 **Flow:** `feature/*` → PR → `dev` → PR → `staging` → PR → `main`.
@@ -34,20 +34,22 @@ One fix = one commit. Migrations are append-only. Never commit `.env*`.
 
 ```
 feature/*  ──PR──▶  dev  ──PR──▶  staging  ──PR──▶  main
-  (CI)             (CI+CD          (CI+CD           (CI+CD
-                    Vercel)         Azure)           Azure, gated)
+  (CI)             (CI+CD          (CD only,        (CD only, gated)
+                    Railway)        Azure)           ⚠️ no `main` on origin yet
 ```
 
 ---
 
 ## 3. What runs at each stage
 
-### 3.1 CI — every push & PR to `dev`/`staging`/`main`  ✅ (exists: `.github/workflows/ci.yml`)
+### 3.1 CI — every push & PR to `dev`  ✅ (exists: `.github/workflows/ci.yml`)
+
+*(Trigger narrowed to `dev` only to prevent dev database issues from blocking staging deployments)*
 
 | Job | Command | Gate |
 |---|---|---|
 | Type check | `npm run typecheck` | blocks merge |
-| Lint | `npm run lint` | advisory today → make blocking |
+| Lint | `npm run lint` | blocks merge |
 | Unit tests | `npm run test:unit --workspace=web` | blocks merge |
 | Integration tests | `npm run test:integration` (against a Supabase test project) | blocks merge |
 | E2E | `node apps/web/tests/matchmaking.js` | blocks merge |
@@ -59,8 +61,8 @@ feature/*  ──PR──▶  dev  ──PR──▶  staging  ──PR──▶
 
 | Trigger | Workflow (🛠️ planned) | Steps |
 |---|---|---|
-| push to `dev` | `deploy-dev.yml` | CI green → deploy to Vercel (dev) |
-| push to `staging` | `deploy-staging.yml` | CI green → **build Docker image** → push to Azure Container Registry → deploy to App Service (staging) → **smoke test** |
+| push to `dev` | — (no workflow) | Railway deploys from its own GitHub integration. Only `migrate-dev.yml` runs here, applying migrations to the dev DB. |
+| push to `staging` | `deploy-staging.yml` ✅ | **apply migrations to staging DB** → build Docker image → push to Azure Container Registry → deploy to **Container Apps** (staging) → inject backend env vars → wait for health → **smoke test** |
 | push to `main` | `deploy-prod.yml` | **manual approval** (GitHub Environment protection) → promote the staging image to App Service (prod) → smoke test → tag Sentry release |
 
 ---
@@ -93,7 +95,7 @@ feature/*  ──PR──▶  dev  ──PR──▶  staging  ──PR──▶
 process runs against. It is deliberately separate from `NODE_ENV` (Next.js only allows
 `development | production | test` and cannot express "staging").
 
-- **Deployed envs:** set `APP_ENV` in the host's config (Vercel env vars / Azure app settings).
+- **Deployed envs:** set `APP_ENV` in the host's config (Railway variables for dev / Azure Container Apps env vars for staging).
 - **Local:** the npm scripts set it via the loaded `.env.*` file (see [.env.example](../../apps/web/.env.example)):
 
   | Command | `APP_ENV` | Loads | Runs against |
@@ -111,7 +113,8 @@ the env file, and which secrets are present — your "what am I running against?
 ## 6. Required secrets / config per environment  👤
 
 Store these in **GitHub Actions secrets** (for the pipeline) and the **host's app settings**
-(Vercel env vars / Azure App Service application settings) — never in git.
+(Railway variables for dev / Azure Container Apps env vars for staging, which
+`deploy-staging.yml` sets automatically via `az containerapp update`) — never in git.
 
 **App runtime (all envs — values differ per environment):**
 
@@ -130,9 +133,31 @@ Store these in **GitHub Actions secrets** (for the pipeline) and the **host's ap
 
 | Secret | Used by | Purpose |
 |---|---|---|
-| `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` | `deploy-dev.yml` | deploy to Vercel |
+| `DEV_SUPABASE_URL` / `DEV_SUPABASE_ANON_KEY` / `DEV_SUPABASE_SERVICE_ROLE_KEY` | `ci.yml` | **dev** project — the E2E step writes, so a staging value here means dev CI mutating staging |
+| `NEXT_PUBLIC_SUPABASE_*` / `SUPABASE_SERVICE_ROLE_KEY` | `deploy-staging.yml` | **staging** project (unprefixed = staging; dev's runtime secrets live in Railway, not here) |
 | `AZURE_CREDENTIALS` (or OIDC) | `deploy-staging/prod.yml` | auth to Azure |
-| `ACR_LOGIN_SERVER` / `ACR_USERNAME` / `ACR_PASSWORD` | staging/prod | push/pull container images |
+| `REGISTRY_LOGIN_SERVER` / `REGISTRY_USERNAME` / `REGISTRY_PASSWORD` | `deploy-staging.yml` | push container images. ⚠️ `deploy-prod.yml` reads `ACR_*` instead — unify before production, see CICD_INSTRUCTIONS_2026-08-06.md T5 |
+| `SMOKE_CREATOR_USERNAME` (repo **variable**, not secret) | `deploy-staging.yml` | public creator handle on **staging** for the smoke test — set to `qacreator`, see below. `SMOKE_BUSINESS_USERNAME` is deliberately unset — business profiles are private, so the check would false-pass on `/login` |
+
+> ### ⚠️ Do not delete: `qacreator` (staging only)
+>
+> The staging database holds one purpose-built profile that the deploy pipeline
+> depends on. Deleting it makes every staging deploy fail at the smoke step.
+>
+> | | |
+> |---|---|
+> | Username | `qacreator` (public at `/c/qacreator` → `/qacreator`) |
+> | Email | `test.creator@influnet.io` |
+> | Created | 2026-08-06, for `deploy-staging.yml` |
+>
+> It is a fixture, not a real creator — it has no password anyone holds (reset via
+> the Supabase dashboard if a login is ever needed) and it is labelled in-page so
+> nobody contacts it during UAT. **Exclude it from any test-data cleanup.** It is
+> visible in staging's creator search like any other profile.
+>
+> Removing it cleanly: delete the auth user in the **staging** Supabase project —
+> `profiles` and `influencer_profiles` cascade. Update this doc and the repo
+> variable at the same time.
 
 ---
 
@@ -176,19 +201,19 @@ Free replacements for the SonarQube/Trivy chain:
 
 ## 10. Build checklist (what's left)
 
-**Repo work (I can do):**
-- [ ] `apps/web/Dockerfile` + `.dockerignore` + `output: 'standalone'`
-- [ ] `apps/web/src/app/api/health/route.ts`
-- [ ] `scripts/smoke.mjs`
-- [ ] `.github/workflows/deploy-dev.yml` (Vercel)
-- [ ] `.github/workflows/deploy-staging.yml` (Docker → ACR → App Service → smoke)
-- [ ] `.github/workflows/deploy-prod.yml` (promote image, manual approval, smoke)
-- [ ] `.github/dependabot.yml` + CodeQL workflow
-- [ ] Make `ci.yml` a required merge gate; flip lint to blocking
+**Repo work:**
+- [x] `apps/web/Dockerfile` + `.dockerignore` + `output: 'standalone'`
+- [x] `apps/web/src/app/api/health/route.ts`
+- [x] `scripts/smoke.mjs`
+- [x] ~~`deploy-dev.yml`~~ — not needed; Railway deploys `dev` from its own GitHub integration
+- [x] `.github/workflows/deploy-staging.yml` (migrate → Docker → ACR → Container Apps → health wait → smoke)
+- [x] `.github/workflows/deploy-prod.yml` (promote image, manual approval, smoke) — ⚠️ written but **never run**; `main` does not exist on `origin`
+- [x] `.github/workflows/codeql.yml`; `.github/dependabot.yml` still outstanding
+- [x] Lint is blocking as of 2026-08-06. Branch protection on `dev` deliberately **not** enabled — direct pushes to `dev` are wanted, and required status checks block those too
 
 **Human-only (you provision):** 👤
-- [ ] Second Supabase project for **staging** (prod already covered in [DEPLOYMENT.md](DEPLOYMENT.md))
-- [ ] Vercel project (dev)
+- [x] Second Supabase project for **staging**
+- [x] Railway project (dev)
 - [ ] Azure Container Registry + two App Services (staging, prod) + GitHub↔Azure credential
 - [ ] All §6 secrets in GitHub + each host
 - [ ] Sentry project + uptime monitor + enable App Insights

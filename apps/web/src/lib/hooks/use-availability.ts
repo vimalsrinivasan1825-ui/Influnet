@@ -295,7 +295,9 @@ export function useSocialConnect(platform: string, handle: string): SocialConnec
   // Read inside connect() without making the callback depend on state — a new
   // connect identity on every status change would churn every field's props.
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const value = handle.replace(/^@/, '').trim().toLowerCase();
 

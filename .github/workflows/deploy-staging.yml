@@ -75,15 +75,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js (for smoke tests)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install dependencies (needed for smoke test execution)
-        run: npm ci
-
       - name: Log in to Azure Container Registry
         uses: azure/docker-login@v1
         with:
@@ -146,5 +137,37 @@ jobs:
                 "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
                 "APP_ENV=staging"
 
+      - name: Wait for the new revision to serve traffic
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 10 "${{ env.STAGING_URL }}/api/health" > /dev/null; then
+              echo "Healthy after ${i} attempt(s)."
+              exit 0
+            fi
+            echo "Not ready yet (attempt ${i}/30); retrying in 10s..."
+            sleep 10
+          done
+          echo "Revision did not become healthy within 5 minutes."
+          exit 1
+
+      # The profile args are built conditionally on purpose. smoke.mjs treats an
+      # empty positional argument as the target URL, so passing `--creator ""`
+      # (what an unset repository variable expands to) silently blanks the URL
+      # and every check then fails against "". Omitting the flag entirely makes
+      # the script skip that check instead, which is the intended degradation.
+      #
+      # SMOKE_BUSINESS_USERNAME is expected to be UNSET: business profiles are
+      # private, and /b/<user> permanent-redirects to /<user>, which bounces an
+      # anonymous visitor to /login. fetch() follows that redirect and gets a
+      # 200 from the login page — so the check would pass without ever loading a
+      # business profile. A false green is worse than no check. The variable is
+      # still read here so the step needs no edit if that access model changes.
       - name: Run Smoke Tests
-        run: node scripts/smoke.mjs "${{ env.STAGING_URL }}"
+        env:
+          SMOKE_CREATOR: ${{ vars.SMOKE_CREATOR_USERNAME }}
+          SMOKE_BUSINESS: ${{ vars.SMOKE_BUSINESS_USERNAME }}
+        run: |
+          ARGS=""
+          [ -n "$SMOKE_CREATOR" ] && ARGS="$ARGS --creator $SMOKE_CREATOR"
+          [ -n "$SMOKE_BUSINESS" ] && ARGS="$ARGS --business $SMOKE_BUSINESS"
+          node scripts/smoke.mjs "${{ env.STAGING_URL }}" $ARGS
