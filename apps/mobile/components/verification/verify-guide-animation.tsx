@@ -7,7 +7,7 @@
  * comments together if either file changes; they are meant to stay in sync.
  *
  * Screens: Influnet (your link) → phone home screen → Instagram profile →
- * Edit profile → Bio → back to the home screen → Influnet → Verify → Verified.
+ * Edit profile → Links → back to the home screen → Influnet → Verify → Verified.
  *
  * Reanimated model: one shared value `t` (ms into the loop) drives everything.
  * `useFrameCallback` advances it, like a rAF loop. Every position/opacity/scale
@@ -39,13 +39,12 @@ export const GUIDE_STEPS: { t: number; label: string }[] = [
   { t: 13_100, label: 'Verified — leave the link there' },
 ];
 
-// NOTE: the captions above now teach the LINKS field, because a link in the
-// bio text is not tappable on Instagram and so does the creator no good. The
-// simulated screen below still animates its camera to the `bioRow` element —
-// deliberately, for now: retargeting the choreography to the links row is
-// storyboard work that was scoped out of the copy change. The verification
-// itself reads the links field (see profileLinksToUsername on the server), so
-// this is a cosmetic mismatch to close later, not a behavioural bug.
+// The camera lands on the LINKS row, not the bio. A URL typed into the bio
+// renders as plain text that nobody can tap, so it earns the creator nothing —
+// the links field is the one Instagram makes tappable, and it is what
+// verification actually reads (see profileLinksToUsername on the server). The
+// simulated bio carries the call to action instead, which is what we ask
+// creators to write there.
 
 interface Rect { x: number; y: number; w: number; h: number }
 const ZERO_RECT: Rect = { x: 0, y: 0, w: 1, h: 1 };
@@ -159,7 +158,7 @@ export function VerifyGuideAnimation({
   const [igIconRect, onIgIconLayout, igIconRef] = useMeasuredRect();
   const [infIconRect, onInfIconLayout, infIconRef] = useMeasuredRect();
   const [igEditRect, onIgEditLayout, igEditRef] = useMeasuredRect();
-  const [bioRowRect, onBioRowLayout, bioRowRef] = useMeasuredRect();
+  const [linksRowRect, onLinksRowLayout, linksRowRef] = useMeasuredRect();
   const [igDoneRect, onIgDoneLayout, igDoneRef] = useMeasuredRect();
 
   // Absolute-window coordinates are meaningless once the camera starts moving,
@@ -185,7 +184,7 @@ export function VerifyGuideAnimation({
   const rIgIcon = useSharedValue(ZERO_RECT);
   const rInfIcon = useSharedValue(ZERO_RECT);
   const rIgEdit = useSharedValue(ZERO_RECT);
-  const rBioRow = useSharedValue(ZERO_RECT);
+  const rLinksRow = useSharedValue(ZERO_RECT);
   const rIgDone = useSharedValue(ZERO_RECT);
   const rPhone = useSharedValue(ZERO_RECT);
   const vw = useSharedValue(320);
@@ -199,7 +198,7 @@ export function VerifyGuideAnimation({
     rIgIcon.value = rel(igIconRect);
     rInfIcon.value = rel(infIconRect);
     rIgEdit.value = rel(igEditRect);
-    rBioRow.value = rel(bioRowRect);
+    rLinksRow.value = rel(linksRowRect);
     rIgDone.value = rel(igDoneRect);
     rPhone.value = rel(phoneRect);
     vw.value = viewSize.w;
@@ -221,15 +220,15 @@ export function VerifyGuideAnimation({
     // scale 1, so every rect is true.
     if (
       [copyRect, verifyRect, linkCardRect, igIconRect, infIconRect,
-       igEditRect, bioRowRect, igDoneRect, phoneRect].every((r) => r.w > 1 && r.h > 1)
+       igEditRect, linksRowRect, igDoneRect, phoneRect].every((r) => r.w > 1 && r.h > 1)
     ) {
       ready.value = 1;
     }
-  }, [copyRect, verifyRect, linkCardRect, igIconRect, infIconRect, igEditRect, bioRowRect, igDoneRect, phoneRect, viewSize]);
+  }, [copyRect, verifyRect, linkCardRect, igIconRect, infIconRect, igEditRect, linksRowRect, igDoneRect, phoneRect, viewSize]);
 
   // Fail-safe for the gate above. Requiring ALL nine rects means one that never
   // reports freezes the entire guide at frame 0 — which is exactly what shipped
-  // when bioRowRef was left unattached: that rect could never be measured, the
+  // when linksRowRef was left unattached: that rect could never be measured, the
   // `every` check could never pass, and the animation was completely static.
   // Never let measurement be load-bearing for playback: if anything is still
   // missing by now, run regardless. Worst case is the old behaviour where one
@@ -279,8 +278,8 @@ export function VerifyGuideAnimation({
       [4600, wide],
       [5100, camFor(rIgEdit.value, 26, 2.4, P, W, H)],
       [5900, camFor(rIgEdit.value, 26, 2.4, P, W, H)],
-      [6300, camFor(rBioRow.value, 20, 2.4, P, W, H)],
-      [8500, camFor(rBioRow.value, 20, 2.4, P, W, H)],
+      [6300, camFor(rLinksRow.value, 20, 2.4, P, W, H)],
+      [8500, camFor(rLinksRow.value, 20, 2.4, P, W, H)],
       [8800, camFor(rIgDone.value, 36, 2.2, P, W, H)],
       [9300, wide],
       [9900, camFor(rInfIcon.value, 30, 2.6, P, W, H)],
@@ -324,7 +323,7 @@ export function VerifyGuideAnimation({
     const off = { x: W * 0.9, y: H + 60 };
     const ctr = (r: Rect) => (r.w > 1 ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : off);
     const copy = ctr(rCopy.value), igIcon = ctr(rIgIcon.value), igEdit = ctr(rIgEdit.value);
-    const bio = ctr(rBioRow.value), done = ctr(rIgDone.value), infIcon = ctr(rInfIcon.value), verify = ctr(rVerify.value);
+    const bio = ctr(rLinksRow.value), done = ctr(rIgDone.value), infIcon = ctr(rInfIcon.value), verify = ctr(rVerify.value);
     const seg = (t0_: number, t1_: number, f: { x: number; y: number }, to: { x: number; y: number }) => ({
       x: lerpW(T, t0_, t1_, f.x, to.x), y: lerpW(T, t0_, t1_, f.y, to.y),
     });
@@ -403,7 +402,7 @@ export function VerifyGuideAnimation({
     const focused = t.value >= 7040 && t.value < 9140;
     return { opacity: focused && t.value < 8900 && Math.floor(t.value / 460) % 2 === 0 ? 1 : 0 };
   });
-  const bioRowStyle = useAnimatedStyle(() => ({
+  const linksRowStyle = useAnimatedStyle(() => ({
     backgroundColor: t.value >= 7040 && t.value < 9140 ? 'rgba(0,149,246,0.09)' : 'transparent',
   }));
   const pasteStyle = useAnimatedStyle(() => {
@@ -584,15 +583,22 @@ export function VerifyGuideAnimation({
             </View>
             <View style={[styles.igeRow, { borderColor: c.hairline }]}><Txt style={rowK}>Name</Txt><Txt c={c.content} size={10.5} style={{ paddingTop: 2 }}>{name}</Txt></View>
             <View style={[styles.igeRow, { borderColor: c.hairline }]}><Txt style={rowK}>Username</Txt><Txt c={c.content} size={10.5} style={{ paddingTop: 2 }}>{handle}</Txt></View>
-            <Animated.View ref={bioRowRef} onLayout={onBioRowLayout} style={[styles.igeRow, bioRowStyle, { borderColor: c.hairline }]}>
+            {/* The bio keeps a call to action and NOT the link: typed into the
+                bio, a URL renders as plain text nobody can tap. */}
+            <View style={[styles.igeRow, { borderColor: c.hairline }]}>
               <Txt style={rowK}>Bio</Txt>
               <Txt c={c.content} size={10.5} style={{ paddingTop: 2, lineHeight: 15 }}>
                 Food &amp; travel creator, Chennai
               </Txt>
+              <Txt c={c.contentSoft} size={9.5}>Collabs → tap the link below</Txt>
+            </View>
+            {/* The link goes HERE — the field Instagram makes tappable, and
+                what verification actually reads. */}
+            <Animated.View ref={linksRowRef} onLayout={onLinksRowLayout} style={[styles.igeRow, linksRowStyle, { borderColor: c.hairline }]}>
+              <Txt style={rowK}>Links</Txt>
               <Animated.Text style={[{ fontSize: 9.5, color: '#0095f6' }, pasteStyle]}>{displayUrl}</Animated.Text>
               <Animated.View style={[styles.caret, caretStyle, { backgroundColor: '#0095f6' }]} />
             </Animated.View>
-            <View style={[styles.igeRow, { borderColor: c.hairline }]}><Txt style={rowK}>Links</Txt><Txt c="#0095f6" size={10.5} style={{ paddingTop: 2 }}>Add link</Txt></View>
           </Animated.View>
         </View>
 

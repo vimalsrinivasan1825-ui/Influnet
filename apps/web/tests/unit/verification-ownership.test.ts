@@ -94,9 +94,9 @@ describe('bioContainsMarker', () => {
 describe('syncOwnershipFromBio', () => {
   const base = { userId: 'u1', role: 'influencer' as const, handle: 'priya', origin: ORIGIN };
 
-  it('records a claim when the signup link is still in the bio', async () => {
+  it('records a claim when the signup link is in the links field', async () => {
     const { db, calls } = fakeDb({ claimStatus: null });
-    const ok = await syncOwnershipFromBio(db, { ...base, bio: `hi ${MARKER}` });
+    const ok = await syncOwnershipFromBio(db, { ...base, bio: 'collabs → tap the link below', links: [MARKER] });
 
     expect(ok).toBe(true);
     expect(calls.map((c) => c.fn)).toEqual(['initiate_social_claim', 'confirm_social_claim']);
@@ -126,7 +126,7 @@ describe('syncOwnershipFromBio', () => {
       claimStatus: null,
       initiateError: { message: 'This instagram account is already verified by another Influnet account' },
     });
-    const ok = await syncOwnershipFromBio(db, { ...base, bio: `hi ${MARKER}` });
+    const ok = await syncOwnershipFromBio(db, { ...base, bio: 'collabs → tap the link below', links: [MARKER] });
 
     expect(ok).toBe(false);
     expect(calls.map((c) => c.fn)).toEqual(['initiate_social_claim']);
@@ -134,7 +134,7 @@ describe('syncOwnershipFromBio', () => {
 
   it('reports unproven rather than throwing when there is no username yet', async () => {
     const { db } = fakeDb({ claimStatus: null, username: null });
-    await expect(syncOwnershipFromBio(db, { ...base, bio: `hi ${MARKER}` })).resolves.toBe(false);
+    await expect(syncOwnershipFromBio(db, { ...base, bio: null, links: [MARKER] })).resolves.toBe(false);
   });
 });
 
@@ -253,28 +253,30 @@ describe('bioLinksToUsername', () => {
 
 describe('syncOwnershipFromBio · cross-host signup proof', () => {
   it('accepts the link the signup gate accepted, on a different host', async () => {
-    // Bio written against production, account created on staging.
+    // Link saved against production, account created on staging.
     const { db, calls } = fakeDb({ claimStatus: null });
     const ok = await syncOwnershipFromBio(db, {
       userId: 'u1',
       role: 'influencer',
       handle: 'priya',
       origin: 'https://staging.influnet.io',
-      bio: 'Food creator · influnet.in/priya',
+      bio: 'Food creator',
+      links: ['https://influnet.in/priya'],
     });
 
     expect(ok).toBe(true);
     expect(calls.map((c) => c.fn)).toEqual(['initiate_social_claim', 'confirm_social_claim']);
   });
 
-  it('still refuses a bio carrying somebody else’s username', async () => {
+  it('still refuses a link carrying somebody else’s username', async () => {
     const { db, calls } = fakeDb({ claimStatus: null });
     const ok = await syncOwnershipFromBio(db, {
       userId: 'u1',
       role: 'influencer',
       handle: 'priya',
       origin: 'https://staging.influnet.io',
-      bio: 'Food creator · influnet.in/priyanka',
+      bio: 'Food creator',
+      links: ['https://influnet.in/priyanka'],
     });
 
     expect(ok).toBe(false);
@@ -354,10 +356,11 @@ describe('syncOwnershipFromBio · proof from the links field', () => {
   });
 
   /**
-   * Everyone verified before the switch proved it in bio text. Dropping that
-   * would un-verify them the next time the pipeline ran.
+   * The point of the whole change. A link in the bio TEXT is not tappable on
+   * Instagram, so accepting it would keep handing out the badge for a link
+   * that sends nobody anywhere — which is exactly what was happening.
    */
-  it('still accepts a bio-only proof, and records it as such', async () => {
+  it('REFUSES a link that is only in the bio text', async () => {
     const { db, calls } = fakeDb({ claimStatus: null });
     const ok = await syncOwnershipFromBio(db, {
       userId: 'u1',
@@ -368,9 +371,27 @@ describe('syncOwnershipFromBio · proof from the links field', () => {
       links: [],
     });
 
+    expect(ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
+  /**
+   * Nobody who verified under the old bio rule gets demoted: the early return
+   * on an already-'verified' claim means it is never re-examined.
+   */
+  it('leaves an existing verified claim alone even with nothing in the links', async () => {
+    const { db, calls } = fakeDb({ claimStatus: 'verified' });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: 'Food creator · influnet.in/priya',
+      links: [],
+    });
+
     expect(ok).toBe(true);
-    const confirm = calls.find((c) => c.fn === 'confirm_social_claim');
-    expect((confirm?.args.p_proof as { proof_source?: string })?.proof_source).toBe('bio');
+    expect(calls).toEqual([]);
   });
 
   it('refuses when neither the links nor the bio carry the username', async () => {

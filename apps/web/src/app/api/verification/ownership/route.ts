@@ -7,7 +7,6 @@ import { deliverEmail } from '@/lib/email/policy';
 import { profileNames, nameOf } from '@/lib/email/context';
 import {
   OWNERSHIP_TTL_SECONDS,
-  bioContainsMarker,
   profileLinksToUsername,
   profileMarker,
   rescoreAfterOwnership,
@@ -174,25 +173,19 @@ export async function POST(req: Request) {
       // Match against the marker we would issue RIGHT NOW, not the one stored on
       // the claim — a creator who renamed themselves mid-flow should verify with
       // their current link, and a stale stored link must never keep working.
-      let bio = '';
       let links: string[] = [];
-      let viaLink = false;
       let found = false;
       try {
         const profile = await fetchInstagramProfile(normHandle);
         if (!profile) {
           return jsonError(404, "We couldn't find that public Instagram account. Make sure the handle is correct and the account is public.");
         }
-        bio = profile.biography ?? '';
         links = profile.externalUrls ?? [];
-        // The clickable link field is what we now ask for. Bio text (and the
-        // legacy vf_ code) stay accepted so nobody who followed the older
-        // instructions is turned away.
-        viaLink = profileLinksToUsername(links, username);
-        found = viaLink ||
-          bioContainsMarker(bio, marker) ||
-          // Legacy: claims opened before the switch still carry a vf_ code.
-          (claim.code?.startsWith('vf_') ? bio.includes(claim.code) : false);
+        // ONLY the clickable links field counts. Instagram renders a URL in the
+        // bio TEXT as plain text — nobody can tap it — so accepting one would
+        // keep granting the badge for a link that sends nobody anywhere, which
+        // is the whole reason this moved off the bio.
+        found = profileLinksToUsername(links, username);
       } catch (err) {
         const providerKind = err instanceof InstagramProviderError ? err.kind : 'unknown';
         // Provider hiccup — do not consume an attempt on our side beyond the RPC bump.
@@ -205,8 +198,8 @@ export async function POST(req: Request) {
       const proof = found
         ? {
             scraped_at: new Date().toISOString(),
-            proof_source: viaLink ? 'external_url' : 'bio',
-            snippet: (viaLink ? links.join(' ') : bio).slice(0, 280),
+            proof_source: 'external_url',
+            snippet: links.join(' ').slice(0, 280),
             marker,
             username,
           }
@@ -227,7 +220,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
           verified: false,
           message:
-            "We couldn't find your profile link in the bio yet. Make sure it's saved and your account is public, then try again.",
+            "We couldn't find your profile link. It has to be in your Instagram LINKS (Edit profile → Links), not in the bio text — a link typed into the bio isn't clickable, so it doesn't count. Make sure it's saved and your account is public, then try again.",
         });
       }
       // Ownership is a signal in the confidence score, and the checklist the

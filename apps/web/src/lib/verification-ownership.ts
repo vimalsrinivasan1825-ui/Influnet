@@ -238,13 +238,19 @@ export async function syncOwnershipFromBio(
     userId: string;
     role: Role;
     handle: string;
-    bio: string | null;
-    /** The profile's clickable links — the preferred proof. See profileLinksToUsername. */
+    /**
+     * Kept on the signature although the proof no longer comes from it: every
+     * caller already has the scraped bio to hand, and re-adding the parameter
+     * later would mean touching all of them again. See profileLinksToUsername
+     * for why only the links field can prove ownership.
+     */
+    bio?: string | null;
+    /** The profile's clickable links — the only accepted proof. */
     links?: string[] | null;
     origin: string;
   },
 ): Promise<boolean> {
-  const { userId, role, handle, bio, links, origin } = opts;
+  const { userId, role, handle, links, origin } = opts;
   try {
     const { data: claim } = await db
       .from('social_account_claims')
@@ -263,15 +269,16 @@ export async function syncOwnershipFromBio(
     if (!username) return false;
 
     const marker = profileMarker(origin, username);
-    // The clickable link field is what we now ask for, so it is checked first.
-    // Bio matching stays behind it — host-exact, then the looser rule signup
-    // itself accepted (bioLinksToUsername) — because every creator verified
-    // before this change proved it in bio text, and dropping that would
-    // un-verify them the next time this ran. Passing ANY of the three means
-    // this person put their own username on that profile, which is the claim.
-    const viaLink = profileLinksToUsername(links, username);
-    const viaBio = !!bio && (bioContainsMarker(bio, marker) || bioLinksToUsername(bio, username));
-    if (!viaLink && !viaBio) return false;
+    // ONLY the clickable links field counts. A URL sitting in the bio TEXT is
+    // rendered as plain text by Instagram — no one can tap it — so accepting it
+    // would keep waving through the exact thing this change exists to stop:
+    // creators "verifying" with a link that sends nobody anywhere.
+    //
+    // Nobody already verified is demoted by this. The early return above bails
+    // out while a claim reads 'verified', so an existing bio-proved claim is
+    // never re-examined; the stricter rule only applies to claims being made
+    // from here on.
+    if (!profileLinksToUsername(links, username)) return false;
 
     // Open a claim and close it in one go. Two calls rather than a direct
     // insert because these RPCs own the invariants: initiate refuses a handle
@@ -293,11 +300,8 @@ export async function syncOwnershipFromBio(
       p_matched: true,
       p_proof: {
         scraped_at: new Date().toISOString(),
-        // Whichever one actually carried the proof — the link field now, bio
-        // text for the legacy path. Worth recording: it is the only way to
-        // tell later how many creators are still relying on the fallback.
-        proof_source: viaLink ? 'external_url' : 'bio',
-        snippet: viaLink ? (links ?? []).join(' ').slice(0, 280) : (bio ?? '').slice(0, 280),
+        proof_source: 'external_url',
+        snippet: (links ?? []).join(' ').slice(0, 280),
         marker,
         username,
         source: 'verification_pipeline',
