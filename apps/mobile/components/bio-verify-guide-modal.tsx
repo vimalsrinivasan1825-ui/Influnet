@@ -152,7 +152,7 @@ export function BioVerifyGuideModal({
             }}
           >
             <Txt variant="footnote" tone="soft">
-              Your profile link is what proves the account is yours. Leave it in your bio —
+              Your profile link is what proves the account is yours. Leave it in your links —
               it&apos;s the page you want brands to land on, and we can re-check it later.
             </Txt>
           </View>
@@ -223,7 +223,7 @@ export function WatchGuideButton({ onPress }: { onPress: () => void }) {
           Watch how it works — 30 seconds
         </Txt>
         <Txt variant="footnote" tone="muted" style={{ fontSize: 12 }}>
-          Copy · paste into your bio · verify
+          Copy · paste into your links · verify
         </Txt>
       </View>
     </Pressable>

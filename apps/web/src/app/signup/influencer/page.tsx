@@ -139,7 +139,7 @@ function InstagramVerifyStep({
         </div>
         <div>
           <p className="text-base font-extrabold text-content">@{handle} is yours</p>
-          <p className="mt-1 text-sm text-content-soft">Verified from your bio. Taking you to the next step…</p>
+          <p className="mt-1 text-sm text-content-soft">Verified from your profile link. Taking you to the next step…</p>
         </div>
       </div>
     );
@@ -148,14 +148,25 @@ function InstagramVerifyStep({
   return (
     <div className="flex flex-col gap-4">
       <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-content-soft">
-        Takes about a minute. Nothing is posted to your account — we only read your public bio.
+        Takes about a minute. Nothing is posted to your account — we only read your public profile.
         Leave the link there afterwards: it's the page you want brands to land on.
       </p>
       <ol className="flex flex-col gap-1.5 text-xs text-content-soft">
         <li>1. Copy your profile link below.</li>
-        <li>2. Paste it into your Instagram bio (keep your account public).</li>
+        <li>
+          2. Add it to your Instagram <strong>links</strong> — Edit profile → Links → Add external
+          link (keep your account public).
+        </li>
         <li>3. Come back and tap Verify.</li>
       </ol>
+      {/* A link in the bio TEXT is not tappable on Instagram, so it earns the
+          creator nothing. The links field is the clickable one — hence the
+          suggestion to spend the bio on a call to action instead. */}
+      <p className="rounded-lg border border-hairline bg-surface-muted/60 px-3 py-2 text-xs text-content-soft">
+        Tip: in your bio itself, write something like{" "}
+        <span className="font-semibold text-content">“Collabs → tap the link below”</span>. A link
+        pasted into the bio text isn’t clickable on Instagram — the links field is.
+      </p>
       <div className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2">
         <code className="min-w-0 flex-1 truncate text-xs text-content">{displayUrl}</code>
         <button

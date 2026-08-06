@@ -159,7 +159,7 @@ export function BioVerifyCelebration({
           @{handle.replace(/^@/, '')} is yours
         </Txt>
         <Txt variant="body" tone="muted" center>
-          Verified from your bio. Taking you to the next step…
+          Verified from your profile link. Taking you to the next step…
         </Txt>
       </Animated.View>
 

@@ -131,16 +131,18 @@ export function VerificationGuide({
           </div>
         </div>
 
-        {/* Step 2: Paste in Instagram bio */}
+        {/* Step 2: Add to the Instagram links field (the clickable one) */}
         <div className="flex items-start gap-3 px-5 py-3.5">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-[0.6875rem] font-extrabold text-white">
             2
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-content">Paste it in your Instagram bio</p>
+            <p className="text-sm font-bold text-content">Add it to your Instagram links</p>
             <p className="text-xs text-content-soft">
-              Go to your Instagram profile, tap &quot;Edit Profile&quot;, and paste the link into the
-              &quot;Website&quot; or &quot;Bio&quot; field. Keep your account public so we can find it.
+              Go to your Instagram profile, tap &quot;Edit profile&quot;, then <strong>Links → Add
+              external link</strong> and paste it there. Keep your account public so we can find it.
+              In your bio, add something like &quot;Collabs → tap the link below&quot; — a link typed
+              into the bio text isn&apos;t clickable, but the links field is.
             </p>
             <div className="mt-2 flex items-center gap-2 text-xs text-content-muted">
               <Smartphone className="size-3.5" />
@@ -157,7 +159,7 @@ export function VerificationGuide({
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-content">Come back and verify</p>
             <p className="text-xs text-content-soft">
-              Once the link is in your bio, head to your <strong>Settings → Verification</strong> page
+              Once the link is saved, head to your <strong>Settings → Verification</strong> page
               and click &quot;Verify I own my handle.&quot; The badge shows up right after.
             </p>
             <Link

@@ -142,7 +142,7 @@ export default function SettingsScreen() {
             <ListGroup>
               <ListRow
                 title="How to verify"
-                subtitle="Watch a quick guide — copy your link, paste it in your bio"
+                subtitle="Watch a quick guide — copy your link, paste it in your Instagram links"
                 left={<PlayCircle size={19} color={t.color.brand} />}
                 onPress={() => router.push('/verification-guide')}
               />

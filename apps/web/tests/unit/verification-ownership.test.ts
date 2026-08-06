@@ -3,6 +3,7 @@ import {
   bioContainsMarker,
   bioLinksToUsername,
   hasVerifiedInstagramClaim,
+  profileLinksToUsername,
   profileMarker,
   rescoreAfterOwnership,
   syncOwnershipFromBio,
@@ -278,6 +279,127 @@ describe('syncOwnershipFromBio · cross-host signup proof', () => {
 
     expect(ok).toBe(false);
     expect(calls).toEqual([]);
+  });
+});
+
+describe('profileLinksToUsername', () => {
+  it('matches the profile link in the clickable links field, however it was saved', () => {
+    for (const link of [
+      'https://influnet.in/priya',
+      'http://influnet.in/priya',
+      'https://www.influnet.io/priya',
+      'influnet.com/priya',
+      'https://influnet.in/priya/',
+      'https://influnet.in/priya?utm_source=ig',
+      // Legacy paths, still sitting in real profiles.
+      'https://influnet.in/c/priya',
+      'https://influnet.io/b/priya',
+      // Cross-host, exactly as the bio matcher already tolerates.
+      'https://staging.influnet.io/priya',
+    ]) {
+      expect(profileLinksToUsername([link], 'priya'), link).toBe(true);
+    }
+  });
+
+  it('checks every link, not just the first', () => {
+    expect(
+      profileLinksToUsername(
+        ['https://youtube.com/@priya', 'https://linktr.ee/priya', 'https://influnet.in/priya'],
+        'priya',
+      ),
+    ).toBe(true);
+  });
+
+  it('unwraps Instagram’s l.instagram.com click tracker', () => {
+    const shimmed =
+      'https://l.instagram.com/?u=https%3A%2F%2Finflunet.in%2Fpriya&e=AT1234';
+    expect(profileLinksToUsername([shimmed], 'priya')).toBe(true);
+  });
+
+  /**
+   * The boundary that carries the anti-impersonation weight. A containment
+   * test would let someone who registered `priya` verify against the account
+   * of `priyanka` — the exact hole documented in bioContainsMarker. Comparing
+   * a parsed path SEGMENT for equality is what closes it here.
+   */
+  it('refuses a longer username that merely starts with ours', () => {
+    expect(profileLinksToUsername(['https://influnet.in/priyanka'], 'priya')).toBe(false);
+    expect(profileLinksToUsername(['https://influnet.in/c/priyanka'], 'priya')).toBe(false);
+  });
+
+  it('refuses links that are not ours, and empty input', () => {
+    expect(profileLinksToUsername(['https://notinflunet.com/priya'], 'priya')).toBe(false);
+    expect(profileLinksToUsername(['https://linktr.ee/priya'], 'priya')).toBe(false);
+    expect(profileLinksToUsername(['not a url at all'], 'priya')).toBe(false);
+    expect(profileLinksToUsername([], 'priya')).toBe(false);
+    expect(profileLinksToUsername(null, 'priya')).toBe(false);
+  });
+});
+
+describe('syncOwnershipFromBio · proof from the links field', () => {
+  it('verifies from the links field even when the bio says nothing', async () => {
+    const { db, calls } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: 'Food creator · collabs → tap the link below',
+      links: ['https://influnet.in/priya'],
+    });
+
+    expect(ok).toBe(true);
+    const confirm = calls.find((c) => c.fn === 'confirm_social_claim');
+    expect((confirm?.args.p_proof as { proof_source?: string })?.proof_source).toBe('external_url');
+  });
+
+  /**
+   * Everyone verified before the switch proved it in bio text. Dropping that
+   * would un-verify them the next time the pipeline ran.
+   */
+  it('still accepts a bio-only proof, and records it as such', async () => {
+    const { db, calls } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: 'Food creator · influnet.in/priya',
+      links: [],
+    });
+
+    expect(ok).toBe(true);
+    const confirm = calls.find((c) => c.fn === 'confirm_social_claim');
+    expect((confirm?.args.p_proof as { proof_source?: string })?.proof_source).toBe('bio');
+  });
+
+  it('refuses when neither the links nor the bio carry the username', async () => {
+    const { db, calls } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: 'Food creator',
+      links: ['https://influnet.in/priyanka'],
+    });
+
+    expect(ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
+  it('survives a null bio when the links carry the proof', async () => {
+    const { db } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: null,
+      links: ['https://influnet.in/priya'],
+    });
+
+    expect(ok).toBe(true);
   });
 });
 

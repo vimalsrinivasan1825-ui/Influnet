@@ -34,10 +34,18 @@ export const GUIDE_STEPS: { t: number; label: string }[] = [
   { t: 0, label: 'Copy your profile link' },
   { t: 2700, label: 'Open Instagram' },
   { t: 4600, label: 'Go to your profile, then Edit profile' },
-  { t: 6100, label: 'Paste the link into your Bio, then Done' },
+  { t: 6100, label: 'Paste the link into Links, then Done' },
   { t: 9500, label: 'Return to Influnet and tap Verify' },
-  { t: 13_100, label: 'Verified — you can leave the link in your bio' },
+  { t: 13_100, label: 'Verified — leave the link there' },
 ];
+
+// NOTE: the captions above now teach the LINKS field, because a link in the
+// bio text is not tappable on Instagram and so does the creator no good. The
+// simulated screen below still animates its camera to the `bioRow` element —
+// deliberately, for now: retargeting the choreography to the links row is
+// storyboard work that was scoped out of the copy change. The verification
+// itself reads the links field (see profileLinksToUsername on the server), so
+// this is a cosmetic mismatch to close later, not a behavioural bug.
 
 interface Rect { x: number; y: number; w: number; h: number }
 const ZERO_RECT: Rect = { x: 0, y: 0, w: 1, h: 1 };
@@ -499,7 +507,7 @@ export function VerifyGuideAnimation({
               </View>
               <Txt c={c.content} weight="800" size={15} style={{ marginTop: 14 }}>Verified</Txt>
               <Txt c={c.contentSoft} size={10} center style={{ marginTop: 5, lineHeight: 15 }}>
-                @{handle} is confirmed as yours.{'\n'}Keep the link in your bio.
+                @{handle} is confirmed as yours.{'\n'}Keep the link in your links.
               </Txt>
             </Animated.View>
           </Animated.View>

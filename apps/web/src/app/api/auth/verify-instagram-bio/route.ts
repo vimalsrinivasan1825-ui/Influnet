@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { jsonError } from '@/lib/api';
 import { fetchInstagramProfile, InstagramProviderError } from '@/lib/instagram';
 import { enforceRateLimit } from '@/lib/rate-limit';
-import { bioLinksToUsername } from '@/lib/verification-ownership';
+import { bioLinksToUsername, profileLinksToUsername } from '@/lib/verification-ownership';
 
 // Same ceiling as scrape-instagram: the Apify actor routinely takes 20-50s on a
 // cold start, and a shorter cap turns a working check into a platform 504.
@@ -85,7 +85,10 @@ export async function POST(req: Request) {
     // differs across dev / staging / prod), the other host-exact — so a bio
     // that passed this gate could be refused by the reconciliation a minute
     // later, and the creator was asked for proof they had just given.
-    const verified = bioLinksToUsername(profile.biography ?? '', username);
+    // The clickable link field is what we now ask for; bio text stays accepted
+    // so anyone who followed the older instructions still gets through.
+    const viaLink = profileLinksToUsername(profile.externalUrls, username);
+    const verified = viaLink || bioLinksToUsername(profile.biography ?? '', username);
 
     return NextResponse.json({
       verified,
@@ -93,7 +96,7 @@ export async function POST(req: Request) {
         ? {}
         : {
             reason: 'not_found',
-            message: "We couldn't find your link in that bio yet.",
+            message: "We couldn't find your link yet — check it's saved in your profile's website/link field.",
           }),
     });
   } catch (error: any) {

@@ -29,6 +29,7 @@ import {
   type Role,
   type VerificationSignals,
 } from '@/lib/verification';
+import { isTrustedHost } from '@/lib/site';
 
 /**
  * The request-scoped Supabase client from withAuth(). Typed loosely on purpose,
@@ -151,6 +152,68 @@ export function bioLinksToUsername(bio: string, username: string): boolean {
   ).test(normalised);
 }
 
+/**
+ * Does one of the profile's CLICKABLE links point at this username?
+ *
+ * This is the check that should carry the weight going forward. A link in an
+ * Instagram bio is rendered as plain text — nobody can tap it, so the proof
+ * did the creator no good. The Website/links field is the one Instagram makes
+ * clickable, and it is what we now ask for. Bio matching stays as a fallback
+ * so nobody who followed the old instructions is demoted.
+ *
+ * Comparing real URLs instead of scanning prose removes most of the work
+ * `bioContainsMarker` has to do — no zero-width stripping, no whitespace
+ * collapsing, no line-break tolerance. What it must NOT lose is the boundary
+ * that stops `/priya` matching `/priyanka`; here that falls out for free,
+ * because a parsed path segment is compared for EQUALITY rather than
+ * containment. `/priyanka` is simply a different segment.
+ *
+ * Host handling matches bioLinksToUsername on purpose: permissive, because the
+ * host differs across dev / staging / prod and creators paste whichever link
+ * they were given. The strictness lives in the path, as it always has.
+ */
+export function profileLinksToUsername(links: string[] | null | undefined, username: string): boolean {
+  if (!links?.length) return false;
+  if (!/^[a-z0-9_.]{3,30}$/i.test(username)) return false;
+  const wanted = username.toLowerCase();
+
+  return links.some((link) => {
+    let url: URL;
+    try {
+      const raw = unwrapInstagramShim(String(link).trim());
+      url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    } catch {
+      return false;
+    }
+
+    const host = url.hostname.toLowerCase();
+    const ours = host === 'localhost' || host.split('.').some((label) => label === 'influnet') || isTrustedHost(url.host);
+    if (!ours) return false;
+
+    // Legacy /c/ and /b/ prefixes are still in circulation — see bioContainsMarker.
+    const [first, second] = url.pathname.split('/').filter(Boolean);
+    const segment = (first === 'c' || first === 'b' ? second : first)?.toLowerCase();
+    return segment === wanted;
+  });
+}
+
+/**
+ * Instagram sometimes hands back its own click-tracker rather than the link the
+ * creator typed: `l.instagram.com/?u=<url-encoded target>&e=...`. The actor we
+ * use returns the clean form too, so this is belt-and-braces — but it costs
+ * nothing and means a change in which form Instagram reports cannot silently
+ * break every verification.
+ */
+function unwrapInstagramShim(link: string): string {
+  if (!/l\.instagram\.com/i.test(link)) return link;
+  try {
+    const target = new URL(link).searchParams.get('u');
+    return target ? decodeURIComponent(target) : link;
+  } catch {
+    return link;
+  }
+}
+
 /** The caller's own Influnet username — the tail of the marker we look for. */
 export async function ownUsername(db: Db, userId: string, role: Role): Promise<string | null> {
   const table = role === 'business_owner' ? 'business_profiles' : 'influencer_profiles';
@@ -171,9 +234,17 @@ export async function ownUsername(db: Db, userId: string, role: Role): Promise<s
  */
 export async function syncOwnershipFromBio(
   db: Db,
-  opts: { userId: string; role: Role; handle: string; bio: string | null; origin: string },
+  opts: {
+    userId: string;
+    role: Role;
+    handle: string;
+    bio: string | null;
+    /** The profile's clickable links — the preferred proof. See profileLinksToUsername. */
+    links?: string[] | null;
+    origin: string;
+  },
 ): Promise<boolean> {
-  const { userId, role, handle, bio, origin } = opts;
+  const { userId, role, handle, bio, links, origin } = opts;
   try {
     const { data: claim } = await db
       .from('social_account_claims')
@@ -188,15 +259,19 @@ export async function syncOwnershipFromBio(
     // here would un-verify someone every time their verification re-ran.
     if ((claim as { status?: string } | null)?.status === 'verified') return true;
 
-    if (!bio) return false;
     const username = await ownUsername(db, userId, role);
     if (!username) return false;
 
     const marker = profileMarker(origin, username);
-    // Host-exact first, then the looser rule signup itself accepted — see
-    // bioLinksToUsername. Passing either means this person edited that bio to
-    // carry their own username, which is the whole claim.
-    if (!bioContainsMarker(bio, marker) && !bioLinksToUsername(bio, username)) return false;
+    // The clickable link field is what we now ask for, so it is checked first.
+    // Bio matching stays behind it — host-exact, then the looser rule signup
+    // itself accepted (bioLinksToUsername) — because every creator verified
+    // before this change proved it in bio text, and dropping that would
+    // un-verify them the next time this ran. Passing ANY of the three means
+    // this person put their own username on that profile, which is the claim.
+    const viaLink = profileLinksToUsername(links, username);
+    const viaBio = !!bio && (bioContainsMarker(bio, marker) || bioLinksToUsername(bio, username));
+    if (!viaLink && !viaBio) return false;
 
     // Open a claim and close it in one go. Two calls rather than a direct
     // insert because these RPCs own the invariants: initiate refuses a handle
@@ -218,7 +293,11 @@ export async function syncOwnershipFromBio(
       p_matched: true,
       p_proof: {
         scraped_at: new Date().toISOString(),
-        snippet: bio.slice(0, 280),
+        // Whichever one actually carried the proof — the link field now, bio
+        // text for the legacy path. Worth recording: it is the only way to
+        // tell later how many creators are still relying on the fallback.
+        proof_source: viaLink ? 'external_url' : 'bio',
+        snippet: viaLink ? (links ?? []).join(' ').slice(0, 280) : (bio ?? '').slice(0, 280),
         marker,
         username,
         source: 'verification_pipeline',

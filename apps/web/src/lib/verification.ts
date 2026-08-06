@@ -147,7 +147,7 @@ export function scoreBreakdown(role: Role, s: VerificationSignals): ScoreBreakdo
   const liveCount = Object.values(live).filter(Boolean).length;
   return [
     { key: 'handle_live', label: 'Instagram handle confirmed live', met: liveCount >= 1, weight: 0.35 },
-    { key: OWNERSHIP_KEY, label: 'Account ownership confirmed (bio link)', met: !!s.ownership_verified, weight: 0 },
+    { key: OWNERSHIP_KEY, label: 'Account ownership confirmed (profile link)', met: !!s.ownership_verified, weight: 0 },
     { key: 'followers', label: 'At least 1,000 followers', met: (s.follower_count ?? 0) >= 1000, weight: 0.15 },
     { key: 'recent_post', label: 'Posted within the last 30 days', met: (s.last_post_days_ago ?? Infinity) <= 30, weight: 0.2 },
     { key: 'niche_bio', label: 'Bio matches your selected niche', met: !!s.bio_matches_niche, weight: 0.15 },

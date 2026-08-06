@@ -37,10 +37,18 @@ export const GUIDE_STEPS: { t: number; label: string }[] = [
   { t: 0, label: "Copy your profile link" },
   { t: 2700, label: "Open Instagram" },
   { t: 4600, label: "Go to your profile, then Edit profile" },
-  { t: 6100, label: "Paste the link into your Bio, then Done" },
+  { t: 6100, label: "Paste the link into Links, then Done" },
   { t: 9500, label: "Return to Influnet and tap Verify" },
-  { t: 13_100, label: "Verified — you can leave the link in your bio" },
+  { t: 13_100, label: "Verified — leave the link there" },
 ];
+
+// NOTE: the captions above now teach the LINKS field, because a link in the
+// bio text is not tappable on Instagram and so does the creator no good. The
+// simulated screen below still animates its camera to the `bioRow` element —
+// deliberately, for now: retargeting the choreography to the links row is
+// storyboard work that was scoped out of the copy change. The verification
+// itself reads the links field (see profileLinksToUsername), so this is a
+// cosmetic mismatch to close later, not a behavioural bug.
 
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
 const easeInOut = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
@@ -307,7 +315,7 @@ export function VerifyGuideAnimation({
     // verify → ~1s spinner → verified
     const checking = t >= 12_250 && t < 13_100;
     const vLabel = q("verifyLabel");
-    if (vLabel) vLabel.textContent = checking ? "Checking your bio…" : "I've added the link";
+    if (vLabel) vLabel.textContent = checking ? "Checking your profile…" : "I've added the link";
     set("verifyBtn", "opacity", checking ? "0.85" : "1");
     set("verifyBtn", "transform", `scale(${1 - (t >= 12_000 && t <= 12_250 ? 0.05 : 0)})`);
 
@@ -422,7 +430,7 @@ export function VerifyGuideAnimation({
                 </div>
                 <div className="mt-3.5 text-[15px] font-extrabold text-content">Verified</div>
                 <div className="mt-1 text-center text-[10px] leading-relaxed text-content-soft">
-                  @{handle} is confirmed as yours.<br />Keep the link in your bio.
+                  @{handle} is confirmed as yours.<br />Keep the link in your links.
                 </div>
               </div>
             </div>

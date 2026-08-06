@@ -363,7 +363,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                         >
                           {data.ownershipVerified
                             ? `${data.name} has proven this Instagram account is theirs. We're still confirming their reach and activity — this can take a little time, and doesn't limit anything they can do meanwhile.`
-                            : `${data.name} hasn't added their Influnet verification link to their Instagram bio yet, so we can't confirm they own this account. This updates automatically once they do.`}
+                            : `${data.name} hasn't added their Influnet verification link to their Instagram yet, so we can't confirm they own this account. This updates automatically once they do.`}
                         </span>
                       </span>
                     )}

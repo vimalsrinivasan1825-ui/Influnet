@@ -40,7 +40,7 @@ export async function requireVerifiedOwnership(
   if (!verified) {
     return jsonError(
       403,
-      'Verify that you own your Instagram account before doing this — add your Influnet link to your bio and confirm it in Verification.',
+      'Verify that you own your Instagram account before doing this — add your Influnet link to your Instagram links and confirm it in Verification.',
     );
   }
   return null;

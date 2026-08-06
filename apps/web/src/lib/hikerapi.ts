@@ -68,7 +68,15 @@ export interface HikerInstagramUser {
   isPrivate: boolean;
   isBusiness: boolean;
   biography: string | null;
+  /** The single legacy "Website" field. */
   externalUrl: string | null;
+  /**
+   * Every clickable link on the profile, `externalUrl` included — Instagram
+   * has allowed several since 2023 and a creator may put ours in any of them.
+   * Always the CLEAN destination, never Instagram's `l.instagram.com` tracking
+   * wrapper. Empty when the profile has no links.
+   */
+  externalUrls: string[];
   publicEmail: string | null;
   categoryName: string | null;
   // Some providers (e.g. Apify) return recency inline with the profile; when set
@@ -175,6 +183,9 @@ export async function getInstagramUser(username: string): Promise<HikerInstagram
     isBusiness: Boolean(u.is_business),
     biography: u.biography ?? null,
     externalUrl: u.external_url ?? null,
+    // This provider exposes only the single Website field; present it in the
+    // same shape as Apify's multi-link array so callers need one code path.
+    externalUrls: u.external_url ? [String(u.external_url)] : [],
     publicEmail: u.public_email ?? null,
     categoryName: u.category_name ?? u.business_category_name ?? null,
   };

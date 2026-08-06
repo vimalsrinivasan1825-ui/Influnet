@@ -215,7 +215,7 @@ export default function VerificationScreen() {
     if (res.data?.verified) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setMessage(
-        'Ownership confirmed. Leave the link in your bio — it points brands at your profile. Running your verification…'
+        'Ownership confirmed. Leave the link where it is — it points brands at your profile. Running your verification…'
       );
       // Ownership is only a PREREQUISITE for the badge: /api/verification is
       // what actually grants it, and it will not auto-verify until the
@@ -353,7 +353,7 @@ export default function VerificationScreen() {
           <Txt variant="callout" tone="muted" center>
             {badged
               ? 'Your account is confirmed as yours and the badge shows on your public profile — everywhere brands see you.'
-              : `@${igHandle} is confirmed as yours. That part is done. The Verified badge is decided separately, from the checks above — leave the link in your bio, it's the page you want brands to land on anyway.`}
+              : `@${igHandle} is confirmed as yours. That part is done. The Verified badge is decided separately, from the checks above — leave the link where it is, it's the page you want brands to land on anyway.`}
           </Txt>
           <Button
             label={busy ? "Refreshing..." : "Re-verify & Refresh Data"}
@@ -449,7 +449,7 @@ export default function VerificationScreen() {
 
               <Card style={{ gap: t.spacing.md }}>
                 <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  Step 2 — paste it in your bio
+                  Step 2 — add it to your Instagram links
                 </Txt>
                 <Txt variant="callout" tone="soft">
                   Open Instagram, edit your profile, paste the link anywhere in

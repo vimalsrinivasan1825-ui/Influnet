@@ -31,6 +31,7 @@ function user(overrides: Partial<HikerInstagramUser>): HikerInstagramUser {
     isBusiness: false,
     biography: null,
     externalUrl: null,
+    externalUrls: [],
     publicEmail: null,
     categoryName: null,
     ...overrides,

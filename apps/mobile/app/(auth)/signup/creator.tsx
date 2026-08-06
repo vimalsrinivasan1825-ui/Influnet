@@ -439,7 +439,7 @@ export default function CreatorSignup() {
             key: 'bio-verify' as const,
             title: 'Prove the account is yours',
             subtitle:
-              'Put your Influnet link in your Instagram bio so brands know the handle really belongs to you.',
+              'Put your Influnet link in your Instagram links so brands know the handle really belongs to you.',
             valid: bioVerify.status === 'verified',
             body: (
               <BioVerifyStep

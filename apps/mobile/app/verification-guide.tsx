@@ -86,7 +86,7 @@ export default function VerificationGuideScreen() {
 
       <View style={{ backgroundColor: t.color.surfaceMuted, borderRadius: t.radii.md, padding: t.spacing.md }}>
         <Txt variant="footnote" tone="soft">
-          Your profile link is what proves the account is yours. Leave it in your bio — it&apos;s
+          Your profile link is what proves the account is yours. Leave it in your links — it&apos;s
           the page you want brands to land on, and we can re-check it later.
         </Txt>
       </View>

@@ -177,6 +177,7 @@ export async function POST(req: Request) {
         role: role as Role,
         handle: igHandle,
         bio: (liveProfile as { biography?: string | null } | null)?.biography ?? null,
+        links: (liveProfile as { externalUrls?: string[] | null } | null)?.externalUrls ?? null,
         origin: originFromHeaders(req.headers),
       });
     }

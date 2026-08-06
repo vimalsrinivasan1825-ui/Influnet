@@ -8,6 +8,7 @@ import { profileNames, nameOf } from '@/lib/email/context';
 import {
   OWNERSHIP_TTL_SECONDS,
   bioContainsMarker,
+  profileLinksToUsername,
   profileMarker,
   rescoreAfterOwnership,
 } from '@/lib/verification-ownership';
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
     if (!username) {
       return jsonError(
         400,
-        'Set your Influnet username first — your public profile link is what we look for in your bio.',
+        'Set your Influnet username first — your public profile link is what we look for on your Instagram.',
       );
     }
     const origin = originFromHeaders(req.headers);
@@ -144,7 +145,7 @@ export async function POST(req: Request) {
         display_url: marker.replace(/^https?:\/\//, ''),
         expires_in: TTL_SECONDS,
         instructions:
-          `Add your Influnet profile link to your Instagram bio, keep your account public, then tap Verify. Nothing is posted to your account — and you can leave the link there, it is the page you want brands to land on anyway.`,
+          `Add your Influnet profile link to your Instagram links (Edit profile → Links), keep your account public, then tap Verify. Nothing is posted to your account — and you can leave the link there, it is the page you want brands to land on anyway.`,
       });
     }
 
@@ -174,6 +175,8 @@ export async function POST(req: Request) {
       // the claim — a creator who renamed themselves mid-flow should verify with
       // their current link, and a stale stored link must never keep working.
       let bio = '';
+      let links: string[] = [];
+      let viaLink = false;
       let found = false;
       try {
         const profile = await fetchInstagramProfile(normHandle);
@@ -181,20 +184,32 @@ export async function POST(req: Request) {
           return jsonError(404, "We couldn't find that public Instagram account. Make sure the handle is correct and the account is public.");
         }
         bio = profile.biography ?? '';
-        found = bioContainsMarker(bio, marker) ||
+        links = profile.externalUrls ?? [];
+        // The clickable link field is what we now ask for. Bio text (and the
+        // legacy vf_ code) stay accepted so nobody who followed the older
+        // instructions is turned away.
+        viaLink = profileLinksToUsername(links, username);
+        found = viaLink ||
+          bioContainsMarker(bio, marker) ||
           // Legacy: claims opened before the switch still carry a vf_ code.
           (claim.code?.startsWith('vf_') ? bio.includes(claim.code) : false);
       } catch (err) {
         const providerKind = err instanceof InstagramProviderError ? err.kind : 'unknown';
         // Provider hiccup — do not consume an attempt on our side beyond the RPC bump.
-        return jsonError(503, `We couldn't check your bio right now (${providerKind}). Please try again in a moment.`);
+        return jsonError(503, `We couldn't check your profile right now (${providerKind}). Please try again in a moment.`);
       }
 
       // Record WHICH username's link matched. If a username is ever freed and
       // re-registered, this is what lets an admin tell a genuine claim from a
       // replay against the previous owner's untouched bio.
       const proof = found
-        ? { scraped_at: new Date().toISOString(), snippet: bio.slice(0, 280), marker, username }
+        ? {
+            scraped_at: new Date().toISOString(),
+            proof_source: viaLink ? 'external_url' : 'bio',
+            snippet: (viaLink ? links.join(' ') : bio).slice(0, 280),
+            marker,
+            username,
+          }
         : null;
 
       const { data: result, error: confErr } = await supabase.rpc('confirm_social_claim', {
