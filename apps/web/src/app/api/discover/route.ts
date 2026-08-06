@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { extractSearchHandle } from '@/lib/search-query';
 import { z } from 'zod';
 
 const PAGE_SIZE = 24;
@@ -22,16 +23,9 @@ const QuerySchema = z.object({
 // fields for its other callers, so results are filtered down to a
 // username-or-instagram-handle substring match here before they reach the client.
 
-/**
- * A pasted `instagram.com/<handle>` / `www.instagram.com/<handle>/` URL, or a
- * bare `@handle`, both reduce to the same handle the RPC can match on.
- */
-function extractSearchHandle(q: string): string {
-  const trimmed = q.trim();
-  const urlMatch = trimmed.match(/instagram\.com\/([a-zA-Z0-9._]+)/i);
-  if (urlMatch) return urlMatch[1];
-  return trimmed.replace(/^@/, '');
-}
+// Pasted-URL handling (Instagram links and our own profile links) lives in
+// lib/search-query.ts so it can be unit tested — route files can only export
+// route handlers.
 
 export async function GET(req: Request) {
   try {
