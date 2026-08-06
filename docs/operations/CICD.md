@@ -15,7 +15,7 @@ each step, and everything you must provision once by hand.
 - **GitHub Actions, not Jenkins** — no server to babysit; the pipeline lives in `.github/workflows/`.
 - **Dev/prod parity where it matters.** Production runs on **Azure App Service via Docker**, so `staging` runs on the *same* platform and the *same* container image. `dev` runs on **Vercel** purely for fast iteration and free per-PR previews — it is not a parity gate.
 - **The container built for `staging` is the exact artifact promoted to `main`.** We don't rebuild for prod; we re-tag and redeploy the tested image.
-- **Every environment has its own Supabase project.** Local/dev/staging never touch the production database.
+- **Every environment has its own Supabase project.** ⚠️ (Currently staging and production share one, to be split before production launch). Local/dev/staging never touch the production database.
 - **Skipped on purpose** (they'd add ops burden with no benefit here): SonarQube (→ ESLint + `npm audit` + CodeQL), Trivy/Docker Hub/Kubernetes.
 
 ---
@@ -24,9 +24,9 @@ each step, and everything you must provision once by hand.
 
 | Branch | Deploys to | Host | `APP_ENV` | Supabase project | Purpose |
 |---|---|---|---|---|---|
-| `feature/*` | Preview (ephemeral, per-PR) | Vercel | `dev` | dev | Build & review in isolation |
-| `dev` | Dev | Vercel | `dev` | dev | Integration; always-deployable |
-| `staging` | Staging | **Azure App Service (Docker)** | `staging` | **staging (separate)** | Prod replica; client UAT |
+| `feature/*` | Preview (ephemeral, per-PR) | Railway | `dev` | dev | Build & review in isolation |
+| `dev` | Dev | Railway | `dev` | dev | Integration; always-deployable |
+| `staging` | Staging | **Azure Container Apps** | `staging` | **staging (separate)** | Prod replica; client UAT |
 | `main` | Production | **Azure App Service (Docker)** | `production` | production | Live |
 
 **Flow:** `feature/*` → PR → `dev` → PR → `staging` → PR → `main`.
@@ -42,12 +42,14 @@ feature/*  ──PR──▶  dev  ──PR──▶  staging  ──PR──▶
 
 ## 3. What runs at each stage
 
-### 3.1 CI — every push & PR to `dev`/`staging`/`main`  ✅ (exists: `.github/workflows/ci.yml`)
+### 3.1 CI — every push & PR to `dev`  ✅ (exists: `.github/workflows/ci.yml`)
+
+*(Trigger narrowed to `dev` only to prevent dev database issues from blocking staging deployments)*
 
 | Job | Command | Gate |
 |---|---|---|
 | Type check | `npm run typecheck` | blocks merge |
-| Lint | `npm run lint` | advisory today → make blocking |
+| Lint | `npm run lint` | blocks merge |
 | Unit tests | `npm run test:unit --workspace=web` | blocks merge |
 | Integration tests | `npm run test:integration` (against a Supabase test project) | blocks merge |
 | E2E | `node apps/web/tests/matchmaking.js` | blocks merge |

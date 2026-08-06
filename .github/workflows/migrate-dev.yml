@@ -1,6 +1,6 @@
 name: Apply Migrations (Dev)
 
-# Dev's app code is deployed by Vercel's own GitHub integration, not by a
+# Dev's app code is deployed by Railway, not by a
 # workflow in this repo — so database migrations need their own job here.
 #
 # Historically the failure mode was always the same: a migration was written
