@@ -86,6 +86,8 @@ export function BioVerifyGuideModal({
 
         <ScrollView
           contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
             paddingHorizontal: t.spacing.lg,
             paddingBottom: t.spacing['3xl'],
             gap: t.spacing.lg,

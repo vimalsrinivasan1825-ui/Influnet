@@ -171,18 +171,11 @@ export function PhoneOtpStep({
       />
 
       {verified ? (
-        <>
-          <Txt variant="footnote" style={{ color: t.color.ok }}>
-            Mobile number verified.
+        <View style={{ paddingVertical: t.spacing.sm }}>
+          <Txt variant="bodyStrong" style={{ color: t.color.ok }}>
+            Your number has been verified.
           </Txt>
-          {/* Verifying locks the field, so without this a mistyped-but-verified
-              number would be a dead end. Re-setting the phone clears the token. */}
-          <Button
-            variant="ghost"
-            label="Use a different number"
-            onPress={() => otp.setPhone(otp.phone)}
-          />
-        </>
+        </View>
       ) : (
         <>
           <Button
