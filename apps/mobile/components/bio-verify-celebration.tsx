@@ -159,19 +159,9 @@ export function BioVerifyCelebration({
           @{handle.replace(/^@/, '')} is yours
         </Txt>
         <Txt variant="body" tone="muted" center>
-          Verified from your profile link. Taking you to the next step…
+          Verified from your profile link. Tap continue to proceed.
         </Txt>
       </Animated.View>
-
-      {showAction && onContinue ? (
-        <View style={{ alignSelf: 'stretch', marginTop: t.spacing.xl, paddingHorizontal: t.spacing['3xl'] }}>
-          <Button
-            label="Continue"
-            onPress={onContinue}
-            icon={<ArrowRight size={16} color={t.color.white} />}
-          />
-        </View>
-      ) : null}
     </View>
   );
 }

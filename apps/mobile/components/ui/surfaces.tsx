@@ -4,11 +4,11 @@
 import type { ReactNode } from 'react';
 import {
   RefreshControl,
-  ScrollView,
   View,
   type ScrollViewProps,
   type ViewStyle,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/theme';
 import { Txt } from './text';
@@ -87,7 +87,7 @@ export function ScreenScroll({
   const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       // Transparent so the Screen's brand wash shows through. The opaque
       // background lives on Screen (and on the Stack's contentStyle for pushed
       // routes), never on the scroller itself.
@@ -112,6 +112,9 @@ export function ScreenScroll({
         contentContainerStyle,
       ]}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      enableOnAndroid={true}
+      extraScrollHeight={20}
       refreshControl={
         onRefresh ? (
           <RefreshControl
@@ -129,7 +132,7 @@ export function ScreenScroll({
         <View style={{ marginHorizontal: padded ? -t.spacing.screen : 0 }}>{header}</View>
       ) : null}
       {children}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

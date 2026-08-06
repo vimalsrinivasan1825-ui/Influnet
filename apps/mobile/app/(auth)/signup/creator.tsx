@@ -209,28 +209,11 @@ export default function CreatorSignup() {
   const allowLeave = useWizardBack(step > 0, back);
 
   // A verified bio is the one step that moves the wizard forward on its own —
-  // everywhere else the user taps Continue. The delay lets the celebration
-  // animation actually be seen before the screen changes under it.
-  //
-  // Three things can now trigger this single advance: the timer, the button
-  // inside the celebration, and the wizard's own footer. `advancedFromVerify`
-  // makes them idempotent, so a tap that races the timer moves one step, not
-  // two — skipping a question the user never saw.
-  const advancedFromVerify = useRef(false);
+  // everywhere else the user taps Continue. Wait, per user request, this no
+  // longer auto-advances. The user must manually click Continue on the sticky footer.
   const advanceFromVerify = useCallback(() => {
-    if (advancedFromVerify.current) return;
-    advancedFromVerify.current = true;
     setStep((s) => s + 1);
   }, []);
-
-  useEffect(() => {
-    if (bioVerify.status !== 'verified') {
-      advancedFromVerify.current = false;
-      return;
-    }
-    const timer = setTimeout(advanceFromVerify, 1900);
-    return () => clearTimeout(timer);
-  }, [bioVerify.status, advanceFromVerify]);
 
   const steps = [
     {
