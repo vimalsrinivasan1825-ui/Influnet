@@ -52,7 +52,7 @@ export function useBioVerification(handle: string, username: string) {
       return;
     }
     setStatus(res.data?.reason === 'private' ? 'private' : 'missing');
-    setMessage(res.data?.message ?? "We couldn't find your link in that bio yet.");
+    setMessage(res.data?.message ?? "We couldn't find your link yet — check it's saved in your profile's links.");
   }
 
   /** A changed handle or username invalidates a pass against the old one. */
@@ -154,7 +154,7 @@ export function BioVerifyStep({
 
       <View style={{ gap: t.spacing.sm }}>
         <Txt variant="footnote" tone="soft">
-          2. Paste it into your Instagram bio
+          2. Add it to your Instagram links (Edit profile → Links)
         </Txt>
         <Button
           label="Open Instagram"
@@ -174,7 +174,7 @@ export function BioVerifyStep({
           3. Check it
         </Txt>
         <Button
-          label={status === 'checking' ? 'Checking your bio…' : "I've added it — verify"}
+          label={status === 'checking' ? 'Checking your profile…' : "I've added it — verify"}
           onPress={onVerify}
           loading={status === 'checking'}
           disabled={status === 'checking'}
@@ -185,7 +185,7 @@ export function BioVerifyStep({
           </Txt>
         ) : (
           <Txt variant="footnote" tone="muted">
-            Instagram can take a few seconds to save a bio change. If it doesn't
+            Instagram can take a few seconds to save a link change. If it doesn't
             work first time, wait a moment and try again.
           </Txt>
         )}

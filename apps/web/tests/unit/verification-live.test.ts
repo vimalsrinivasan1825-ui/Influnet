@@ -37,6 +37,7 @@ function fakeUser(over: Partial<InstagramProfile> = {}): InstagramProfile {
     isBusiness: false,
     biography: 'fitness coach',
     externalUrl: null,
+    externalUrls: [],
     publicEmail: null,
     categoryName: null,
     lastPostDaysAgo: 4,

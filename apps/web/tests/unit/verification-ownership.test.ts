@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   bioContainsMarker,
+  bioLinksToUsername,
+  hasVerifiedInstagramClaim,
+  profileLinksToUsername,
   profileMarker,
   rescoreAfterOwnership,
   syncOwnershipFromBio,
@@ -91,9 +94,9 @@ describe('bioContainsMarker', () => {
 describe('syncOwnershipFromBio', () => {
   const base = { userId: 'u1', role: 'influencer' as const, handle: 'priya', origin: ORIGIN };
 
-  it('records a claim when the signup link is still in the bio', async () => {
+  it('records a claim when the signup link is in the links field', async () => {
     const { db, calls } = fakeDb({ claimStatus: null });
-    const ok = await syncOwnershipFromBio(db, { ...base, bio: `hi ${MARKER}` });
+    const ok = await syncOwnershipFromBio(db, { ...base, bio: 'collabs → tap the link below', links: [MARKER] });
 
     expect(ok).toBe(true);
     expect(calls.map((c) => c.fn)).toEqual(['initiate_social_claim', 'confirm_social_claim']);
@@ -123,7 +126,7 @@ describe('syncOwnershipFromBio', () => {
       claimStatus: null,
       initiateError: { message: 'This instagram account is already verified by another Influnet account' },
     });
-    const ok = await syncOwnershipFromBio(db, { ...base, bio: `hi ${MARKER}` });
+    const ok = await syncOwnershipFromBio(db, { ...base, bio: 'collabs → tap the link below', links: [MARKER] });
 
     expect(ok).toBe(false);
     expect(calls.map((c) => c.fn)).toEqual(['initiate_social_claim']);
@@ -131,7 +134,7 @@ describe('syncOwnershipFromBio', () => {
 
   it('reports unproven rather than throwing when there is no username yet', async () => {
     const { db } = fakeDb({ claimStatus: null, username: null });
-    await expect(syncOwnershipFromBio(db, { ...base, bio: `hi ${MARKER}` })).resolves.toBe(false);
+    await expect(syncOwnershipFromBio(db, { ...base, bio: null, links: [MARKER] })).resolves.toBe(false);
   });
 });
 
@@ -202,5 +205,289 @@ describe('bioContainsMarker · username prefix collision', () => {
     ]) {
       expect(bioContainsMarker(bio, marker), bio).toBe(true);
     }
+  });
+});
+
+describe('bioLinksToUsername', () => {
+  /**
+   * The signup gate and the in-app reconciliation used to run different
+   * matchers: signup accepted any Influnet host, the pipeline demanded the
+   * request's own origin. So a creator whose bio read `influnet.io/vimal` was
+   * let through signup on staging and then refused by the reconciliation, which
+   * was looking for `staging.influnet.io/vimal` — proof accepted at the door and
+   * rejected one minute later, which is exactly what "I already verified this"
+   * looked like from the outside.
+   */
+  it('accepts the username on any Influnet host', () => {
+    for (const bio of [
+      'influnet.in/priya',
+      'https://staging.influnet.io/priya',
+      'www.influnet.io/priya',
+      'dev.influnet.io/c/priya',
+      'influnet.io/b/priya',
+    ]) {
+      expect(bioLinksToUsername(bio, 'priya'), bio).toBe(true);
+    }
+  });
+
+  it('keeps the prefix guard that stops /priya claiming /priyanka', () => {
+    expect(bioLinksToUsername('influnet.in/priyanka', 'priya')).toBe(false);
+    expect(bioLinksToUsername('influnet.in/priya_official', 'priya')).toBe(false);
+  });
+
+  it('needs the username, not just the brand', () => {
+    expect(bioLinksToUsername('I use influnet.in', 'priya')).toBe(false);
+    expect(bioLinksToUsername('influnet.in/someoneelse', 'priya')).toBe(false);
+  });
+
+  it('survives what mobile keyboards paste', () => {
+    expect(bioLinksToUsername('influnet.in​/priya', 'priya')).toBe(true);
+    expect(bioLinksToUsername('influnet.in／priya', 'priya')).toBe(true);
+    expect(bioLinksToUsername('INFLUNET.IN/PRIYA', 'priya')).toBe(true);
+  });
+
+  it('refuses a username that could carry regex metacharacters', () => {
+    expect(bioLinksToUsername('influnet.in/anything', '.*')).toBe(false);
+  });
+});
+
+describe('syncOwnershipFromBio · cross-host signup proof', () => {
+  it('accepts the link the signup gate accepted, on a different host', async () => {
+    // Link saved against production, account created on staging.
+    const { db, calls } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: 'https://staging.influnet.io',
+      bio: 'Food creator',
+      links: ['https://influnet.in/priya'],
+    });
+
+    expect(ok).toBe(true);
+    expect(calls.map((c) => c.fn)).toEqual(['initiate_social_claim', 'confirm_social_claim']);
+  });
+
+  it('still refuses a link carrying somebody else’s username', async () => {
+    const { db, calls } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: 'https://staging.influnet.io',
+      bio: 'Food creator',
+      links: ['https://influnet.in/priyanka'],
+    });
+
+    expect(ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+});
+
+describe('profileLinksToUsername', () => {
+  it('matches the profile link in the clickable links field, however it was saved', () => {
+    for (const link of [
+      'https://influnet.in/priya',
+      'http://influnet.in/priya',
+      'https://www.influnet.io/priya',
+      'influnet.com/priya',
+      'https://influnet.in/priya/',
+      'https://influnet.in/priya?utm_source=ig',
+      // Legacy paths, still sitting in real profiles.
+      'https://influnet.in/c/priya',
+      'https://influnet.io/b/priya',
+      // Cross-host, exactly as the bio matcher already tolerates.
+      'https://staging.influnet.io/priya',
+    ]) {
+      expect(profileLinksToUsername([link], 'priya'), link).toBe(true);
+    }
+  });
+
+  it('checks every link, not just the first', () => {
+    expect(
+      profileLinksToUsername(
+        ['https://youtube.com/@priya', 'https://linktr.ee/priya', 'https://influnet.in/priya'],
+        'priya',
+      ),
+    ).toBe(true);
+  });
+
+  it('unwraps Instagram’s l.instagram.com click tracker', () => {
+    const shimmed =
+      'https://l.instagram.com/?u=https%3A%2F%2Finflunet.in%2Fpriya&e=AT1234';
+    expect(profileLinksToUsername([shimmed], 'priya')).toBe(true);
+  });
+
+  /**
+   * The boundary that carries the anti-impersonation weight. A containment
+   * test would let someone who registered `priya` verify against the account
+   * of `priyanka` — the exact hole documented in bioContainsMarker. Comparing
+   * a parsed path SEGMENT for equality is what closes it here.
+   */
+  it('refuses a longer username that merely starts with ours', () => {
+    expect(profileLinksToUsername(['https://influnet.in/priyanka'], 'priya')).toBe(false);
+    expect(profileLinksToUsername(['https://influnet.in/c/priyanka'], 'priya')).toBe(false);
+  });
+
+  it('refuses links that are not ours, and empty input', () => {
+    expect(profileLinksToUsername(['https://notinflunet.com/priya'], 'priya')).toBe(false);
+    expect(profileLinksToUsername(['https://linktr.ee/priya'], 'priya')).toBe(false);
+    expect(profileLinksToUsername(['not a url at all'], 'priya')).toBe(false);
+    expect(profileLinksToUsername([], 'priya')).toBe(false);
+    expect(profileLinksToUsername(null, 'priya')).toBe(false);
+  });
+});
+
+describe('syncOwnershipFromBio · proof from the links field', () => {
+  it('verifies from the links field even when the bio says nothing', async () => {
+    const { db, calls } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: 'Food creator · collabs → tap the link below',
+      links: ['https://influnet.in/priya'],
+    });
+
+    expect(ok).toBe(true);
+    const confirm = calls.find((c) => c.fn === 'confirm_social_claim');
+    expect((confirm?.args.p_proof as { proof_source?: string })?.proof_source).toBe('external_url');
+  });
+
+  /**
+   * The point of the whole change. A link in the bio TEXT is not tappable on
+   * Instagram, so accepting it would keep handing out the badge for a link
+   * that sends nobody anywhere — which is exactly what was happening.
+   */
+  it('REFUSES a link that is only in the bio text', async () => {
+    const { db, calls } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: 'Food creator · influnet.in/priya',
+      links: [],
+    });
+
+    expect(ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
+  /**
+   * Nobody who verified under the old bio rule gets demoted: the early return
+   * on an already-'verified' claim means it is never re-examined.
+   */
+  it('leaves an existing verified claim alone even with nothing in the links', async () => {
+    const { db, calls } = fakeDb({ claimStatus: 'verified' });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: 'Food creator · influnet.in/priya',
+      links: [],
+    });
+
+    expect(ok).toBe(true);
+    expect(calls).toEqual([]);
+  });
+
+  it('refuses when neither the links nor the bio carry the username', async () => {
+    const { db, calls } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: 'Food creator',
+      links: ['https://influnet.in/priyanka'],
+    });
+
+    expect(ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
+  it('survives a null bio when the links carry the proof', async () => {
+    const { db } = fakeDb({ claimStatus: null });
+    const ok = await syncOwnershipFromBio(db, {
+      userId: 'u1',
+      role: 'influencer',
+      handle: 'priya',
+      origin: ORIGIN,
+      bio: null,
+      links: ['https://influnet.in/priya'],
+    });
+
+    expect(ok).toBe(true);
+  });
+});
+
+describe('hasVerifiedInstagramClaim', () => {
+  /**
+   * The claim, not the last check's stored signals. Those two answer different
+   * questions and drift apart the instant someone proves ownership — which is
+   * the exact moment the answer is being asked for.
+   */
+  function claimDb(opts: { handle?: string | null; verifiedHandles?: string[] }) {
+    const queries: Record<string, unknown>[] = [];
+    const db = {
+      from(table: string) {
+        const filters: Record<string, unknown> = {};
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = (col: string, val: unknown) => {
+          filters[col] = val;
+          return chain;
+        };
+        chain.maybeSingle = async () => ({
+          data:
+            opts.handle === undefined
+              ? { instagram_handle: 'priya_ig' }
+              : opts.handle === null
+                ? null
+                : { instagram_handle: opts.handle },
+          error: null,
+        });
+        chain.limit = async () => {
+          queries.push({ table, ...filters });
+          const match = (opts.verifiedHandles ?? []).includes(String(filters.handle));
+          return { data: match ? [{ handle: filters.handle }] : [], error: null };
+        };
+        return chain;
+      },
+      rpc: async () => ({ data: null, error: null }),
+    };
+    return { db, queries };
+  }
+
+  it('is true when the claim matches the handle on the profile', async () => {
+    const { db } = claimDb({ verifiedHandles: ['priya_ig'] });
+    await expect(hasVerifiedInstagramClaim(db, 'u1', 'influencer')).resolves.toBe(true);
+  });
+
+  it('is false when the profile has moved to a handle that was never proven', async () => {
+    // Verifying @old and then editing the profile to @new proves nothing about
+    // @new; reporting ownership here would hand the badge gate a free pass.
+    const { db } = claimDb({ handle: 'new_handle', verifiedHandles: ['old_handle'] });
+    await expect(hasVerifiedInstagramClaim(db, 'u1', 'influencer')).resolves.toBe(false);
+  });
+
+  it('normalises the profile handle before matching', async () => {
+    const { db, queries } = claimDb({ handle: ' @Priya_IG ', verifiedHandles: ['priya_ig'] });
+    await expect(hasVerifiedInstagramClaim(db, 'u1', 'influencer')).resolves.toBe(true);
+    expect(queries[0].handle).toBe('priya_ig');
+  });
+
+  it('is false when there is no handle on the profile at all', async () => {
+    const { db } = claimDb({ handle: null, verifiedHandles: ['priya_ig'] });
+    await expect(hasVerifiedInstagramClaim(db, 'u1', 'influencer')).resolves.toBe(false);
+  });
+
+  it('reads the business profile for a business account', async () => {
+    const { db, queries } = claimDb({ verifiedHandles: ['priya_ig'] });
+    await hasVerifiedInstagramClaim(db, 'u1', 'business_owner');
+    expect(queries[0].table).toBe('social_account_claims');
   });
 });

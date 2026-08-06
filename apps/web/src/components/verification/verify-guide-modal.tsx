@@ -117,7 +117,7 @@ export function VerifyGuideModal({
           </div>
 
           <p className="mt-3 rounded-lg bg-surface-muted px-3 py-2 text-xs leading-relaxed text-content-soft">
-            Your profile link is what proves the account is yours. Leave it in your bio — it is
+            Your profile link is what proves the account is yours. Leave it in your links — it is
             the page you want brands to land on anyway, and we can re-check it later.
           </p>
 

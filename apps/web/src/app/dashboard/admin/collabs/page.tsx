@@ -2,6 +2,7 @@
 import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, ArrowRight, CalendarDays, Search, Send, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/avatar";
@@ -19,8 +20,8 @@ interface AdminCollab {
   message?: string | null;
   budget?: number | string | null;
   created_at: string;
-  sender?: { name?: string | null; role?: string } | null;
-  receiver?: { name?: string | null; role?: string } | null;
+  sender?: { id: string; name?: string | null; role?: string } | null;
+  receiver?: { id: string; name?: string | null; role?: string } | null;
 }
 
 export default function AdminCollabsPage() {
@@ -129,9 +130,27 @@ export default function AdminCollabsPage() {
                   <Avatar name={c.sender?.name} size="md" square />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-bold text-content">{c.sender?.name || "Unknown"}</span>
+                      {c.sender ? (
+                        <Link
+                          href={`/dashboard/admin/users/${c.sender.id}`}
+                          className="text-sm font-bold text-content hover:underline"
+                        >
+                          {c.sender.name || "Unknown"}
+                        </Link>
+                      ) : (
+                        <span className="text-sm font-bold text-content">Unknown</span>
+                      )}
                       <ArrowRight className="size-3.5 text-content-muted" />
-                      <span className="text-sm font-semibold text-content-soft">{c.receiver?.name || "Unknown"}</span>
+                      {c.receiver ? (
+                        <Link
+                          href={`/dashboard/admin/users/${c.receiver.id}`}
+                          className="text-sm font-semibold text-content-soft hover:underline"
+                        >
+                          {c.receiver.name || "Unknown"}
+                        </Link>
+                      ) : (
+                        <span className="text-sm font-semibold text-content-soft">Unknown</span>
+                      )}
                       <Badge variant={statusVariant(c.status)} size="sm" dot>
                         {c.status}
                       </Badge>

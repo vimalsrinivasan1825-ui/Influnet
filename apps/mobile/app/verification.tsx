@@ -56,6 +56,12 @@ interface BreakdownItem {
 interface PipelineState {
   status: 'unverified' | 'pending' | 'in_review' | 'verified' | 'needs_more_info' | 'rejected';
   verified_badge: boolean;
+  /**
+   * Read from the ownership CLAIM server-side, not from the last check's stored
+   * signals — those go stale the moment someone proves ownership, which is
+   * precisely when this screen is being looked at. Absent on an older backend.
+   */
+  ownership_verified?: boolean;
   auto_approve_threshold: number;
   latest_check: {
     status: string;
@@ -150,7 +156,25 @@ export default function VerificationScreen() {
     }
   }
 
-  const verified = profile?.verified_badge || data?.status === 'verified';
+  /**
+   * Two different things, kept apart.
+   *
+   * `owned` — this Instagram handle is proven to be theirs (bio link). It is
+   * what this screen's flow below actually achieves, and it is often already
+   * true on arrival because signup asks for the same proof.
+   *
+   * `badged` — the Verified badge is granted. That is the pipeline's decision,
+   * ownership is only one input to it, and a creator can be fully owner-proven
+   * while still short on followers.
+   *
+   * Collapsing them into one `verified` flag is what produced the two
+   * complaints: someone owner-proven at signup was shown the whole bio-link
+   * flow again as if nothing had happened, and anyone who did complete it was
+   * congratulated with "the badge shows on your public profile" when it did not.
+   */
+  const owned =
+    data?.status === 'verified' || pipeline?.ownership_verified === true;
+  const badged = profile?.verified_badge || pipeline?.verified_badge === true;
 
   const initiate = useCallback(async () => {
     setBusy(true);
@@ -191,7 +215,7 @@ export default function VerificationScreen() {
     if (res.data?.verified) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setMessage(
-        'Ownership confirmed. Leave the link in your bio — it points brands at your profile. Running your verification…'
+        'Ownership confirmed. Leave the link where it is — it points brands at your profile. Running your verification…'
       );
       // Ownership is only a PREREQUISITE for the badge: /api/verification is
       // what actually grants it, and it will not auto-verify until the
@@ -309,7 +333,7 @@ export default function VerificationScreen() {
         ) : null}
       </Card>
 
-      {verified ? (
+      {owned ? (
         <Card style={{ alignItems: 'center', gap: t.spacing.md, paddingVertical: t.spacing['2xl'] }}>
           <View
             style={{
@@ -318,17 +342,18 @@ export default function VerificationScreen() {
               borderRadius: 28,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: t.color.okSoft,
+              backgroundColor: badged ? t.color.verifiedSoft : t.color.okSoft,
             }}
           >
-            <BadgeCheck size={28} color={t.color.ok} />
+            <BadgeCheck size={28} color={badged ? t.color.verified : t.color.ok} />
           </View>
           <Txt variant="title2" center>
-            You're verified
+            {badged ? "You're verified" : 'Instagram ownership confirmed'}
           </Txt>
           <Txt variant="callout" tone="muted" center>
-            Your Instagram account is confirmed as yours. The badge shows on your
-            public profile and everywhere brands see you.
+            {badged
+              ? 'Your account is confirmed as yours and the badge shows on your public profile — everywhere brands see you.'
+              : `@${igHandle} is confirmed as yours. That part is done. The Verified badge is decided separately, from the checks above — leave the link where it is, it's the page you want brands to land on anyway.`}
           </Txt>
           <Button
             label={busy ? "Refreshing..." : "Re-verify & Refresh Data"}
@@ -424,7 +449,7 @@ export default function VerificationScreen() {
 
               <Card style={{ gap: t.spacing.md }}>
                 <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  Step 2 — paste it in your bio
+                  Step 2 — add it to your Instagram links
                 </Txt>
                 <Txt variant="callout" tone="soft">
                   Open Instagram, edit your profile, paste the link anywhere in

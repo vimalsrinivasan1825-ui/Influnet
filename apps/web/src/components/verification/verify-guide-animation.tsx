@@ -4,7 +4,7 @@
  * Silent, looping walkthrough of Instagram ownership verification.
  *
  * Copy your profile link → home screen → open Instagram → Edit profile → paste
- * into the bio → back to Influnet → Verify → verified. No captions inside the
+ * into Links → back to Influnet → Verify → verified. No captions inside the
  * frame; the interface does the explaining, and one line underneath names the
  * current step.
  *
@@ -37,10 +37,16 @@ export const GUIDE_STEPS: { t: number; label: string }[] = [
   { t: 0, label: "Copy your profile link" },
   { t: 2700, label: "Open Instagram" },
   { t: 4600, label: "Go to your profile, then Edit profile" },
-  { t: 6100, label: "Paste the link into your Bio, then Done" },
+  { t: 6100, label: "Paste the link into Links, then Done" },
   { t: 9500, label: "Return to Influnet and tap Verify" },
-  { t: 13_100, label: "Verified — you can leave the link in your bio" },
+  { t: 13_100, label: "Verified — leave the link there" },
 ];
+
+// The camera lands on the LINKS row, not the bio. A URL typed into the bio
+// renders as plain text that nobody can tap, so it earns the creator nothing —
+// the links field is the one Instagram makes tappable, and it is what
+// verification actually reads (see profileLinksToUsername). The simulated bio
+// carries the call to action instead, which is what we ask creators to do.
 
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
 const easeInOut = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
@@ -130,7 +136,7 @@ export function VerifyGuideAnimation({
     R.current = {
       copy: rect("copyBtn"), verify: rect("verifyBtn"), linkCard: rect("linkCard"),
       igIcon: rect("igIcon"), infIcon: rect("infIcon"), igEdit: rect("igEdit"),
-      bioRow: rect("bioRow"), igDone: rect("igDone"), phone: rect("phone"),
+      linksRow: rect("linksRow"), igDone: rect("igDone"), phone: rect("phone"),
     };
 
     saved.forEach(([id, o]) => { const n = q(id); if (n) n.style.opacity = o; });
@@ -162,8 +168,8 @@ export function VerifyGuideAnimation({
       [4600, WIDE],
       [5100, camFor(R.current.igEdit, 26, 2.4, P)],
       [5900, camFor(R.current.igEdit, 26, 2.4, P)],
-      [6300, camFor(R.current.bioRow, 20, 2.4, P)],
-      [8500, camFor(R.current.bioRow, 20, 2.4, P)],
+      [6300, camFor(R.current.linksRow, 20, 2.4, P)],
+      [8500, camFor(R.current.linksRow, 20, 2.4, P)],
       [8800, camFor(R.current.igDone, 36, 2.2, P)],
       [9300, WIDE],
       [9900, camFor(R.current.infIcon, 30, 2.6, P)],
@@ -218,7 +224,7 @@ export function VerifyGuideAnimation({
     const ctr = (r: Rect | null) => (r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : off);
     const T = {
       copy: ctr(R.current.copy), igIcon: ctr(R.current.igIcon), igEdit: ctr(R.current.igEdit),
-      bio: ctr(R.current.bioRow), done: ctr(R.current.igDone),
+      bio: ctr(R.current.linksRow), done: ctr(R.current.igDone),
       infIcon: ctr(R.current.infIcon), verify: ctr(R.current.verify),
     };
     const seg = (t0: number, t1: number, f: { x: number; y: number }, to: { x: number; y: number }) => ({
@@ -286,9 +292,9 @@ export function VerifyGuideAnimation({
         `translate(${R.current.copy.x + R.current.copy.w / 2}px, ${lerp(t, 1720, 2420, from, to)}px) scale(${inv * 0.9})`);
     }
 
-    // bio focus → caret → paste
+    // links-field focus → caret → paste
     const focused = t >= 7040 && t < 9140;
-    set("bioRow", "background", focused ? "color-mix(in srgb, var(--ig-blue, #0095f6) 9%, transparent)" : "");
+    set("linksRow", "background", focused ? "color-mix(in srgb, var(--ig-blue, #0095f6) 9%, transparent)" : "");
     set("caret", "opacity", focused && t < 8900 && Math.floor(t / 460) % 2 === 0 ? "1" : "0");
     const paste = q("paste");
     if (paste) {
@@ -307,7 +313,7 @@ export function VerifyGuideAnimation({
     // verify → ~1s spinner → verified
     const checking = t >= 12_250 && t < 13_100;
     const vLabel = q("verifyLabel");
-    if (vLabel) vLabel.textContent = checking ? "Checking your bio…" : "I've added the link";
+    if (vLabel) vLabel.textContent = checking ? "Checking your profile…" : "I've added the link";
     set("verifyBtn", "opacity", checking ? "0.85" : "1");
     set("verifyBtn", "transform", `scale(${1 - (t >= 12_000 && t <= 12_250 ? 0.05 : 0)})`);
 
@@ -422,7 +428,7 @@ export function VerifyGuideAnimation({
                 </div>
                 <div className="mt-3.5 text-[15px] font-extrabold text-content">Verified</div>
                 <div className="mt-1 text-center text-[10px] leading-relaxed text-content-soft">
-                  @{handle} is confirmed as yours.<br />Keep the link in your bio.
+                  @{handle} is confirmed as yours.<br />Keep the link in your links.
                 </div>
               </div>
             </div>
@@ -510,15 +516,25 @@ export function VerifyGuideAnimation({
               </div>
               <div className="border-b border-hairline px-3 py-2"><div className={rowK}>Name</div><div className="pt-0.5 text-[10.5px] text-content">{name}</div></div>
               <div className="border-b border-hairline px-3 py-2"><div className={rowK}>Username</div><div className="pt-0.5 text-[10.5px] text-content">{handle}</div></div>
-              <div data-el="bioRow" className="border-b border-hairline px-3 py-2">
+              {/* The bio keeps a call to action and NOT the link: typed into
+                  the bio, a URL renders as plain text nobody can tap. */}
+              <div className="border-b border-hairline px-3 py-2">
                 <div className={rowK}>Bio</div>
                 <div className="break-all pt-0.5 text-[10.5px] leading-relaxed text-content">
                   Food &amp; travel creator, Chennai
-                  <span data-el="paste" className="block font-mono text-[9.5px]" style={{ color: "#0095f6", display: "none" }}>{displayUrl}</span>
+                  <span className="block text-[9.5px] text-content-soft">Collabs → tap the link below</span>
+                </div>
+              </div>
+              {/* The link goes HERE — this is the field Instagram makes
+                  tappable, and it is what verification reads. */}
+              <div data-el="linksRow" className="border-b border-hairline px-3 py-2">
+                <div className={rowK}>Links</div>
+                <div className="break-all pt-0.5 text-[10.5px] leading-relaxed" style={{ color: "#0095f6" }}>
+                  <span data-el="addLink">Add link</span>
+                  <span data-el="paste" className="block font-mono text-[9.5px]" style={{ display: "none" }}>{displayUrl}</span>
                   <span data-el="caret" className="ml-px inline-block h-[11px] w-px align-[-2px] opacity-0" style={{ background: "#0095f6" }} />
                 </div>
               </div>
-              <div className="border-b border-hairline px-3 py-2"><div className={rowK}>Links</div><div className="pt-0.5 text-[10.5px]" style={{ color: "#0095f6" }}>Add link</div></div>
             </div>
           </div>
 

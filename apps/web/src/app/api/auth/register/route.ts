@@ -155,6 +155,11 @@ export async function POST(req: Request) {
       }
     }
 
+    // payload.phone is already E.164 here — PhoneSchema (packages/core) both
+    // validates and normalises it, so registration can no longer write one of
+    // the three shapes ('+91 8270942966' / '8270942966' / '+918270942966')
+    // that let the same person register the same number twice under different
+    // strings. Migration 107 normalises the rows written before this existed.
     const { data, error } = await supabase.rpc('register_profile', { payload });
 
     if (error) {
@@ -164,6 +169,32 @@ export async function POST(req: Request) {
       // username' — see migration 031). Replacing them with a generic string
       // would turn a fixable form error into a dead end.
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Columns register_profile doesn't know about. That RPC writes a fixed
+    // column list (migrations 031/032/049); snapchat_handle and
+    // twitter_followers postdate it, and re-issuing a function three migrations
+    // have already rewritten — to carry one link and one integer — is a much
+    // larger blast radius than this follow-up write. Non-fatal by design: the
+    // account exists either way, and both fields are editable in Settings.
+    const extraColumns: Record<string, unknown> = {};
+    if (payload.snapchatHandle) {
+      extraColumns.snapchat_handle = String(payload.snapchatHandle).replace(/^@/, '').toLowerCase();
+    }
+    if (payload.role === 'influencer' && typeof payload.twitterFollowers === 'number') {
+      extraColumns.twitter_followers = payload.twitterFollowers;
+    }
+    if (Object.keys(extraColumns).length > 0) {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData?.user?.id;
+      if (uid) {
+        const table = payload.role === 'influencer' ? 'influencer_profiles' : 'business_profiles';
+        // business_profiles has no twitter_followers column — only the handle
+        // field is shared between the two tables.
+        if (table === 'business_profiles') delete extraColumns.twitter_followers;
+        const { error: extraErr } = await supabase.from(table).update(extraColumns).eq('user_id', uid);
+        if (extraErr) console.error('[register] extra profile columns write failed:', extraErr.message);
+      }
     }
 
     // Stamp phone_verified / phone_verified_at on the fresh profile. Done after

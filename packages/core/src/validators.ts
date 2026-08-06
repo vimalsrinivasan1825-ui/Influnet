@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidIndianPhone, toE164India } from './phone';
 
 // Usernames become public URLs at the ROOT (/<username>) — block anything that
 // collides with app routes or impersonates the platform. This list matters more
@@ -20,6 +21,27 @@ export const UsernameSchema = z
   .max(30, 'Username must be at most 30 characters')
   .regex(/^[a-z0-9_]+$/, 'Only lowercase letters, numbers and underscores are allowed')
   .refine((u) => !RESERVED_USERNAMES.has(u), 'This username is reserved');
+
+/**
+ * Optional phone — blank/undefined allowed, since not every flow that carries
+ * this field requires one. Anything that IS typed must be a real 10-digit
+ * Indian mobile number.
+ *
+ * This is the fix for a real gap: every schema below used to have
+ * `phone: z.string().optional()`, which is not a phone validator at all — it
+ * accepts a 26-digit paste, a string of letters, anything. That schema is what
+ * actually runs server-side on submit (RegisterProfileSchema, specifically),
+ * so no amount of client-side keyboard restriction mattered; the one place
+ * enforced took whatever arrived. Normalises to E.164 on success so every
+ * write lands in the one shape migration 107's availability check expects —
+ * see phone.ts for why that consistency matters.
+ */
+export const PhoneSchema = z
+  .string()
+  .trim()
+  .optional()
+  .refine((v) => !v || isValidIndianPhone(v), 'Enter a valid 10-digit mobile number')
+  .transform((v) => (v ? toE164India(v) : v));
 
 // GSTIN: 2-digit state code, 5-letter PAN prefix, 4 digits, 1 letter, 1
 // entity digit/letter, literal 'Z', 1 alphanumeric checksum. Case-insensitive
@@ -74,7 +96,7 @@ export const RegisterSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   name: z.string().min(1, 'Name is required'),
-  phone: z.string().optional(),
+  phone: PhoneSchema,
   role: z.enum(['business_owner', 'influencer']),
   companyName: z.string().optional(),
   industry: z.string().optional(),
@@ -89,6 +111,7 @@ export const RegisterSchema = z.object({
   youtubeHandle: z.string().optional(),
   twitterHandle: z.string().optional(),
   facebookHandle: z.string().optional(),
+  snapchatHandle: z.string().optional(),
   linkedinHandle: z.string().optional(),
   tiktokHandle: z.string().optional(),
   gender: z.string().optional(),
@@ -109,7 +132,7 @@ export const RegisterSchema = z.object({
 export const RegisterProfileSchema = z.object({
   role: z.enum(['business_owner', 'influencer']),  // 'admin' is deliberately excluded
   name: z.string().min(1),
-  phone: z.string().optional(),
+  phone: PhoneSchema,
   // Proof of mobile OTP verification, minted by the phone-otp Edge Function.
   // Carries no trust on its own — /api/auth/register re-validates it against
   // phone_otp_sessions before the profile is created.
@@ -130,6 +153,10 @@ export const RegisterProfileSchema = z.object({
   collabPreferences: z.array(z.string()).optional(),
   instagramHandle: z.string().optional(),
   facebookHandle: z.string().optional(),
+  // Link-only platform (no public metrics to read — see lib/social/snapchat.ts).
+  // register_profile doesn't know this column, so /api/auth/register writes it
+  // in a follow-up update rather than through the RPC's fixed column list.
+  snapchatHandle: z.string().optional(),
   linkedinHandle: z.string().optional(),
   // influencer fields
   username: z.string().optional(),
@@ -144,6 +171,7 @@ export const RegisterProfileSchema = z.object({
   priceRange: z.string().optional(),
   instagramFollowers: z.number().optional(),
   facebookFollowers: z.number().optional(),
+  twitterFollowers: z.number().optional(),
   youtubeSubscribers: z.number().optional(),
   tiktokFollowers: z.number().optional(),
   extraSocialLinks: z.array(z.string()).optional(),
@@ -200,7 +228,7 @@ export const ProposeTermsSchema = z.object({
 
 export const ProfileUpdateSchema = z.object({
   name: z.string().min(1).optional(),
-  phone: z.string().optional(),
+  phone: PhoneSchema,
   location: z.string().optional(),
   bio: z.string().max(2000).optional(),
   niche: z.array(z.string()).optional(),
@@ -251,7 +279,7 @@ export const ProfileUpdateSchema = z.object({
 
 export const BusinessProfileUpdateSchema = z.object({
   name: z.string().min(1).optional(),
-  phone: z.string().optional(),
+  phone: PhoneSchema,
   location: z.string().optional(),
   username: UsernameSchema.optional(),
   company_name: z.string().min(1).optional(),

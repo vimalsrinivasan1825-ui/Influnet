@@ -2,8 +2,51 @@ import { NextResponse } from 'next/server';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { withAuth, jsonError } from '@/lib/api';
 import { getInstagramUser } from '@/lib/apify-instagram';
-import { captureInstagramSnapshot } from '@/lib/social-snapshot';
+import { captureInstagramSnapshot, captureSocialSnapshot } from '@/lib/social-snapshot';
 import { refreshYouTubeSnapshot } from '@/lib/youtube';
+import { getSocialHandler, SocialProviderError, type SocialPlatform } from '@/lib/social';
+import { logger } from '@/lib/logger';
+
+/**
+ * Apify actors run synchronously and can take ~15–50s each. With Facebook and X
+ * now refreshing alongside Instagram, the default serverless cap is not enough
+ * for a creator who has connected all three.
+ */
+export const maxDuration = 120;
+
+/**
+ * Refresh one Apify-billed platform. Never throws: a provider outage on X must
+ * not cost the creator the Instagram refresh they actually came for (and which
+ * their rate-limit window has already been spent on).
+ */
+async function refreshPlatform(
+  userId: string,
+  platform: SocialPlatform,
+  handle: string,
+): Promise<boolean> {
+  const handler = getSocialHandler(platform);
+  if (!handler?.supported || !handler.isConfigured()) return false;
+  try {
+    const profile = await handler.fetchProfile(handle);
+    if (!profile) return false;
+
+    // Content, when the platform needs a second call for it (Facebook). Only
+    // in-app refreshes pay for this — the signup preview deliberately doesn't,
+    // since all it owes the creator is "we can see this account".
+    if (handler.fetchPosts && profile.recentPosts.length === 0 && !profile.isPrivate) {
+      profile.recentPosts = await handler.fetchPosts(handle);
+    }
+
+    return await captureSocialSnapshot(userId, profile);
+  } catch (err) {
+    logger.warn('profile refresh: platform leg failed (non-fatal)', {
+      userId,
+      platform,
+      error: err instanceof SocialProviderError ? `${err.kind}: ${err.message}` : String(err),
+    });
+    return false;
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -23,7 +66,7 @@ export async function POST(req: Request) {
     //    limiter so a creator with no handle doesn't burn their refresh window.
     const { data: profile, error: profileError } = (await supabase
       .from('influencer_profiles')
-      .select('instagram_handle, youtube_handle')
+      .select('instagram_handle, youtube_handle, facebook_handle, twitter_handle')
       .eq('user_id', user.id)
       .maybeSingle()) as any;
 
@@ -47,8 +90,11 @@ export async function POST(req: Request) {
       ytHandle = (captured as { handle: string | null } | null)?.handle || null;
     }
 
-    if (!igHandle && !ytHandle) {
-      return NextResponse.json({ error: 'No Instagram or YouTube handle connected' }, { status: 400 });
+    const fbHandle: string | null = profile.facebook_handle || null;
+    const xHandle: string | null = profile.twitter_handle || null;
+
+    if (!igHandle && !ytHandle && !fbHandle && !xHandle) {
+      return NextResponse.json({ error: 'No social handles connected' }, { status: 400 });
     }
 
     // 3. Enforce Rate Limit, placed right before the expensive work so cheap
@@ -56,13 +102,17 @@ export async function POST(req: Request) {
     //    the two refreshes cost very different things: the Instagram scrape is
     //    billed per call (1 per 5 hours), while YouTube is a public feed fetch
     //    and can be refreshed as often as a creator reasonably would.
-    const limited = igHandle
+    //    Facebook and X are billed the same way as Instagram, so any of the
+    //    three puts the request in the paid bucket; the cheap YouTube-only
+    //    bucket applies exactly when no paid platform is connected.
+    const paidRefresh = !!(igHandle || fbHandle || xHandle);
+    const limited = paidRefresh
       ? await enforceRateLimit(req, { bucket: 'profile:refresh', limit: 1, windowMs: 5 * 60 * 60 * 1000 })
       : await enforceRateLimit(req, { bucket: 'profile:refresh:youtube', limit: 4, windowMs: 60 * 60 * 1000 });
     if (limited) {
       return NextResponse.json(
         {
-          error: igHandle
+          error: paidRefresh
             ? 'You can only refresh your data once every 5 hours.'
             : 'You can refresh your YouTube data a few times an hour. Try again shortly.',
         },
@@ -88,14 +138,22 @@ export async function POST(req: Request) {
       youtube = !!(await refreshYouTubeSnapshot(user.id, ytHandle));
     }
 
-    if (!instagram && !youtube) {
+    // 6. Facebook and X, in parallel with each other — two independent actor
+    //    runs, and running them in series would double the wall clock a
+    //    creator with both connected waits on.
+    const [facebook, twitter] = await Promise.all([
+      fbHandle ? refreshPlatform(user.id, 'facebook', fbHandle) : Promise.resolve(false),
+      xHandle ? refreshPlatform(user.id, 'twitter', xHandle) : Promise.resolve(false),
+    ]);
+
+    if (!instagram && !youtube && !facebook && !twitter) {
       return NextResponse.json(
         { error: 'Could not refresh your social data. Check your connected handles and try again.' },
         { status: 502 }
       );
     }
 
-    return NextResponse.json({ success: true, instagram, youtube });
+    return NextResponse.json({ success: true, instagram, youtube, facebook, twitter });
   } catch (err: any) {
     console.error('Refresh API Error:', err);
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });

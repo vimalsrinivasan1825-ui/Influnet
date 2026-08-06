@@ -150,6 +150,88 @@ describe('RegisterProfileSchema', () => {
       expect((result.data as any).someUnknownRpcField).toBe('value');
     }
   });
+
+  // The reported bug: a signup form typed into with garbage — a 26-digit
+  // paste, letters mixed in — reached THIS schema, the one thing actually
+  // enforced server-side on registration, and it accepted anything at all
+  // (`phone: z.string().optional()`, no format check). No client-side keyboard
+  // restriction mattered because the enforcement point took whatever arrived.
+  it('rejects a phone number that is obviously not one', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Creator',
+      role: 'influencer',
+      instagramHandle: '@creator',
+      phone: '88777899798987979986869869', // the exact string from the report
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects letters in the phone field', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Creator',
+      role: 'influencer',
+      instagramHandle: '@creator',
+      phone: 'not a phone number',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a real number and normalises it to E.164', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Creator',
+      role: 'influencer',
+      instagramHandle: '@creator',
+      phone: '8270942966',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.phone).toBe('+918270942966');
+    }
+  });
+
+  it('leaves phone out entirely — not every signup collects one', () => {
+    const result = RegisterProfileSchema.safeParse({
+      name: 'Creator',
+      role: 'influencer',
+      instagramHandle: '@creator',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('PhoneSchema · via RegisterProfileSchema', () => {
+  const base = { name: 'Creator', role: 'influencer' as const, instagramHandle: '@creator' };
+  const phoneResult = (phone: string) => RegisterProfileSchema.safeParse({ ...base, phone }).success;
+
+  it('accepts every shape the two clients actually write', () => {
+    for (const phone of [
+      '8270942966', // web signup form
+      '+91 8270942966', // mobile signup
+      '+918270942966', // older rows
+      '91 82709 42966',
+      '08270942966', // STD-dialled
+      '+91-82709-42966',
+    ]) {
+      expect(phoneResult(phone), phone).toBe(true);
+    }
+  });
+
+  it('rejects what the screenshot typed', () => {
+    // 26 digits — well past any real phone number, and the field's only
+    // client-side gate before this fix was "at least 10 digits".
+    expect(phoneResult('88777899798987979986869869')).toBe(false);
+  });
+
+  it('rejects wrong-length and wrong-prefix numbers', () => {
+    expect(phoneResult('123456789')).toBe(false); // 9 digits
+    expect(phoneResult('12345678901')).toBe(false); // 11 digits, not 0-prefixed
+    expect(phoneResult('1234567890')).toBe(false); // 10 digits, doesn't start 6-9
+  });
+
+  it('rejects text', () => {
+    expect(phoneResult('not a number')).toBe(false);
+    expect(phoneResult('call me maybe')).toBe(false);
+  });
 });
 
 // Schema uses snake_case: to_user_id, project_title, project_description, message, budget

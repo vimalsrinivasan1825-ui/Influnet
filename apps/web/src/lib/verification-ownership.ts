@@ -29,6 +29,7 @@ import {
   type Role,
   type VerificationSignals,
 } from '@/lib/verification';
+import { isTrustedHost } from '@/lib/site';
 
 /**
  * The request-scoped Supabase client from withAuth(). Typed loosely on purpose,
@@ -110,6 +111,109 @@ export function bioContainsMarker(bio: string, marker: string): boolean {
   });
 }
 
+/**
+ * The signup gate's matcher: does this bio link to THIS username, on any
+ * Influnet host?
+ *
+ * `bioContainsMarker` above is host-exact, which is right for the in-app flow —
+ * it issued a specific link and checks for that link. Signup cannot be: the
+ * host differs across dev / staging / prod, people paste the link they already
+ * had, and /api/auth/verify-instagram-bio has always accepted any influnet host
+ * with the right username path.
+ *
+ * That asymmetry had a consequence. Someone whose bio said `influnet.io/vimal`
+ * passed signup and then FAILED the reconciliation on staging, where the marker
+ * is `staging.influnet.io/vimal` — proof accepted at the door, refused one
+ * minute later inside. Whatever signup accepted, the app must accept, so both
+ * now call this.
+ *
+ * The strictness that carries the anti-impersonation weight is unchanged and
+ * lives in the path, not the host: the bio must contain the claimant's own
+ * unique username, with the same trailing boundary that stops `/priya` matching
+ * a bio reading `/priyanka`.
+ */
+export function bioLinksToUsername(bio: string, username: string): boolean {
+  // The username is interpolated into a RegExp; keep it to the charset the
+  // username rules allow so no pattern metacharacter can reach it.
+  if (!/^[a-z0-9_.]{3,30}$/i.test(username)) return false;
+
+  const normalised = bio
+    // Zero-width characters pasted in by mobile keyboards.
+    .replace(/[​-‍﻿]/g, '')
+    // Full-width slash from some IMEs.
+    .replace(/／/g, '/')
+    .toLowerCase();
+
+  // `/c/` is optional so this keeps working if the canonical profile path ever
+  // regains that segment (it had one, and bios written back then still do).
+  return new RegExp(
+    `influnet[a-z0-9.\\-]*\\/(?:c\\/|b\\/)?${username.toLowerCase()}(?![a-z0-9_.])`,
+    'i',
+  ).test(normalised);
+}
+
+/**
+ * Does one of the profile's CLICKABLE links point at this username?
+ *
+ * This is the check that should carry the weight going forward. A link in an
+ * Instagram bio is rendered as plain text — nobody can tap it, so the proof
+ * did the creator no good. The Website/links field is the one Instagram makes
+ * clickable, and it is what we now ask for. Bio matching stays as a fallback
+ * so nobody who followed the old instructions is demoted.
+ *
+ * Comparing real URLs instead of scanning prose removes most of the work
+ * `bioContainsMarker` has to do — no zero-width stripping, no whitespace
+ * collapsing, no line-break tolerance. What it must NOT lose is the boundary
+ * that stops `/priya` matching `/priyanka`; here that falls out for free,
+ * because a parsed path segment is compared for EQUALITY rather than
+ * containment. `/priyanka` is simply a different segment.
+ *
+ * Host handling matches bioLinksToUsername on purpose: permissive, because the
+ * host differs across dev / staging / prod and creators paste whichever link
+ * they were given. The strictness lives in the path, as it always has.
+ */
+export function profileLinksToUsername(links: string[] | null | undefined, username: string): boolean {
+  if (!links?.length) return false;
+  if (!/^[a-z0-9_.]{3,30}$/i.test(username)) return false;
+  const wanted = username.toLowerCase();
+
+  return links.some((link) => {
+    let url: URL;
+    try {
+      const raw = unwrapInstagramShim(String(link).trim());
+      url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    } catch {
+      return false;
+    }
+
+    const host = url.hostname.toLowerCase();
+    const ours = host === 'localhost' || host.split('.').some((label) => label === 'influnet') || isTrustedHost(url.host);
+    if (!ours) return false;
+
+    // Legacy /c/ and /b/ prefixes are still in circulation — see bioContainsMarker.
+    const [first, second] = url.pathname.split('/').filter(Boolean);
+    const segment = (first === 'c' || first === 'b' ? second : first)?.toLowerCase();
+    return segment === wanted;
+  });
+}
+
+/**
+ * Instagram sometimes hands back its own click-tracker rather than the link the
+ * creator typed: `l.instagram.com/?u=<url-encoded target>&e=...`. The actor we
+ * use returns the clean form too, so this is belt-and-braces — but it costs
+ * nothing and means a change in which form Instagram reports cannot silently
+ * break every verification.
+ */
+function unwrapInstagramShim(link: string): string {
+  if (!/l\.instagram\.com/i.test(link)) return link;
+  try {
+    const target = new URL(link).searchParams.get('u');
+    return target ? decodeURIComponent(target) : link;
+  } catch {
+    return link;
+  }
+}
+
 /** The caller's own Influnet username — the tail of the marker we look for. */
 export async function ownUsername(db: Db, userId: string, role: Role): Promise<string | null> {
   const table = role === 'business_owner' ? 'business_profiles' : 'influencer_profiles';
@@ -130,9 +234,23 @@ export async function ownUsername(db: Db, userId: string, role: Role): Promise<s
  */
 export async function syncOwnershipFromBio(
   db: Db,
-  opts: { userId: string; role: Role; handle: string; bio: string | null; origin: string },
+  opts: {
+    userId: string;
+    role: Role;
+    handle: string;
+    /**
+     * Kept on the signature although the proof no longer comes from it: every
+     * caller already has the scraped bio to hand, and re-adding the parameter
+     * later would mean touching all of them again. See profileLinksToUsername
+     * for why only the links field can prove ownership.
+     */
+    bio?: string | null;
+    /** The profile's clickable links — the only accepted proof. */
+    links?: string[] | null;
+    origin: string;
+  },
 ): Promise<boolean> {
-  const { userId, role, handle, bio, origin } = opts;
+  const { userId, role, handle, links, origin } = opts;
   try {
     const { data: claim } = await db
       .from('social_account_claims')
@@ -147,12 +265,20 @@ export async function syncOwnershipFromBio(
     // here would un-verify someone every time their verification re-ran.
     if ((claim as { status?: string } | null)?.status === 'verified') return true;
 
-    if (!bio) return false;
     const username = await ownUsername(db, userId, role);
     if (!username) return false;
 
     const marker = profileMarker(origin, username);
-    if (!bioContainsMarker(bio, marker)) return false;
+    // ONLY the clickable links field counts. A URL sitting in the bio TEXT is
+    // rendered as plain text by Instagram — no one can tap it — so accepting it
+    // would keep waving through the exact thing this change exists to stop:
+    // creators "verifying" with a link that sends nobody anywhere.
+    //
+    // Nobody already verified is demoted by this. The early return above bails
+    // out while a claim reads 'verified', so an existing bio-proved claim is
+    // never re-examined; the stricter rule only applies to claims being made
+    // from here on.
+    if (!profileLinksToUsername(links, username)) return false;
 
     // Open a claim and close it in one go. Two calls rather than a direct
     // insert because these RPCs own the invariants: initiate refuses a handle
@@ -174,13 +300,64 @@ export async function syncOwnershipFromBio(
       p_matched: true,
       p_proof: {
         scraped_at: new Date().toISOString(),
-        snippet: bio.slice(0, 280),
+        proof_source: 'external_url',
+        snippet: (links ?? []).join(' ').slice(0, 280),
         marker,
         username,
         source: 'verification_pipeline',
       },
     });
     return !confirmErr;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Does this user hold a verified Instagram ownership claim, right now?
+ *
+ * Read from social_account_claims, not from the last check's stored signals.
+ * Those two answer different questions and drift apart constantly: the claim is
+ * a fact about the account, the signals are a photograph of what was true when
+ * the pipeline last ran. A creator who proved ownership during signup — or
+ * seconds ago on the ownership screen — has a verified claim and a stale
+ * `ownership_verified: false` sitting in their most recent check, which is
+ * exactly what made the app keep asking for proof it already had.
+ *
+ * Every surface that reports ownership to a human reads this.
+ */
+export async function hasVerifiedInstagramClaim(
+  db: Db,
+  userId: string,
+  role: Role,
+): Promise<boolean> {
+  try {
+    const table = role === 'business_owner' ? 'business_profiles' : 'influencer_profiles';
+    const { data: prof } = await db
+      .from(table)
+      .select('instagram_handle')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    // Claims are keyed on the handle, and so is this answer. Someone who
+    // verified @old and then changed their profile to @new has proven nothing
+    // about @new — reporting them as owner-verified would hand the badge gate a
+    // pass for an account they never touched.
+    const handle = (prof as { instagram_handle?: string | null } | null)?.instagram_handle
+      ?.trim()
+      .replace(/^@/, '')
+      .toLowerCase();
+    if (!handle) return false;
+
+    const { data } = await db
+      .from('social_account_claims')
+      .select('handle')
+      .eq('user_id', userId)
+      .eq('platform', 'instagram')
+      .eq('handle', handle)
+      .eq('status', 'verified')
+      .limit(1);
+    return Array.isArray(data) && data.length > 0;
   } catch {
     return false;
   }

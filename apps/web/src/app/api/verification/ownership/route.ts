@@ -7,7 +7,7 @@ import { deliverEmail } from '@/lib/email/policy';
 import { profileNames, nameOf } from '@/lib/email/context';
 import {
   OWNERSHIP_TTL_SECONDS,
-  bioContainsMarker,
+  profileLinksToUsername,
   profileMarker,
   rescoreAfterOwnership,
 } from '@/lib/verification-ownership';
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
     if (!username) {
       return jsonError(
         400,
-        'Set your Influnet username first — your public profile link is what we look for in your bio.',
+        'Set your Influnet username first — your public profile link is what we look for on your Instagram.',
       );
     }
     const origin = originFromHeaders(req.headers);
@@ -144,7 +144,7 @@ export async function POST(req: Request) {
         display_url: marker.replace(/^https?:\/\//, ''),
         expires_in: TTL_SECONDS,
         instructions:
-          `Add your Influnet profile link to your Instagram bio, keep your account public, then tap Verify. Nothing is posted to your account — and you can leave the link there, it is the page you want brands to land on anyway.`,
+          `Add your Influnet profile link to your Instagram links (Edit profile → Links), keep your account public, then tap Verify. Nothing is posted to your account — and you can leave the link there, it is the page you want brands to land on anyway.`,
       });
     }
 
@@ -173,28 +173,36 @@ export async function POST(req: Request) {
       // Match against the marker we would issue RIGHT NOW, not the one stored on
       // the claim — a creator who renamed themselves mid-flow should verify with
       // their current link, and a stale stored link must never keep working.
-      let bio = '';
+      let links: string[] = [];
       let found = false;
       try {
         const profile = await fetchInstagramProfile(normHandle);
         if (!profile) {
           return jsonError(404, "We couldn't find that public Instagram account. Make sure the handle is correct and the account is public.");
         }
-        bio = profile.biography ?? '';
-        found = bioContainsMarker(bio, marker) ||
-          // Legacy: claims opened before the switch still carry a vf_ code.
-          (claim.code?.startsWith('vf_') ? bio.includes(claim.code) : false);
+        links = profile.externalUrls ?? [];
+        // ONLY the clickable links field counts. Instagram renders a URL in the
+        // bio TEXT as plain text — nobody can tap it — so accepting one would
+        // keep granting the badge for a link that sends nobody anywhere, which
+        // is the whole reason this moved off the bio.
+        found = profileLinksToUsername(links, username);
       } catch (err) {
         const providerKind = err instanceof InstagramProviderError ? err.kind : 'unknown';
         // Provider hiccup — do not consume an attempt on our side beyond the RPC bump.
-        return jsonError(503, `We couldn't check your bio right now (${providerKind}). Please try again in a moment.`);
+        return jsonError(503, `We couldn't check your profile right now (${providerKind}). Please try again in a moment.`);
       }
 
       // Record WHICH username's link matched. If a username is ever freed and
       // re-registered, this is what lets an admin tell a genuine claim from a
       // replay against the previous owner's untouched bio.
       const proof = found
-        ? { scraped_at: new Date().toISOString(), snippet: bio.slice(0, 280), marker, username }
+        ? {
+            scraped_at: new Date().toISOString(),
+            proof_source: 'external_url',
+            snippet: links.join(' ').slice(0, 280),
+            marker,
+            username,
+          }
         : null;
 
       const { data: result, error: confErr } = await supabase.rpc('confirm_social_claim', {
@@ -212,7 +220,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
           verified: false,
           message:
-            "We couldn't find your profile link in the bio yet. Make sure it's saved and your account is public, then try again.",
+            "We couldn't find your profile link. It has to be in your Instagram LINKS (Edit profile → Links), not in the bio text — a link typed into the bio isn't clickable, so it doesn't count. Make sure it's saved and your account is public, then try again.",
         });
       }
       // Ownership is a signal in the confidence score, and the checklist the

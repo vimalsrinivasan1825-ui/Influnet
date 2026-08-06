@@ -10,6 +10,7 @@ import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
+import { sanitizePhoneInput } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -209,7 +210,14 @@ export default function EditProfileScreen() {
 
         <View style={{ width: '100%', gap: t.spacing.md }}>
           <Field label="Full name" value={name} onChangeText={setName} placeholder="Your name" />
-          <Field label="Phone" value={phone} onChangeText={setPhone} placeholder="+91 98765 43210" keyboardType="phone-pad" />
+          <Field
+            label="Phone"
+            value={phone}
+            onChangeText={(v) => setPhone(sanitizePhoneInput(v).slice(0, 20))}
+            placeholder="+91 98765 43210"
+            keyboardType="phone-pad"
+            maxLength={64}
+          />
           <Field label="Location" value={location} onChangeText={setLocation} placeholder="City, Country" />
         </View>
       </Card>

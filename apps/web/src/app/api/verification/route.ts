@@ -7,8 +7,8 @@ import { captureInstagramSnapshot } from '@/lib/social-snapshot';
 import { refreshYouTubeSnapshot } from '@/lib/youtube';
 import { normalizeHandle } from '@/lib/instagram';
 import { originFromHeaders } from '@/lib/site';
-import { syncOwnershipFromBio } from '@/lib/verification-ownership';
-import { decide, scoreBreakdown, AUTO_APPROVE_THRESHOLD, VERIFICATION_NOTIFICATION, type Role, type VerificationSignals } from '@/lib/verification';
+import { hasVerifiedInstagramClaim, syncOwnershipFromBio } from '@/lib/verification-ownership';
+import { decide, scoreBreakdown, AUTO_APPROVE_THRESHOLD, OWNERSHIP_KEY, VERIFICATION_NOTIFICATION, type Role, type VerificationSignals } from '@/lib/verification';
 
 // The live provider (Apify actor) can take ~15s to return. Allow headroom so the
 // serverless function doesn't time out mid-verification. The signup trigger is
@@ -41,15 +41,27 @@ export async function GET(req: Request) {
     // What's actually missing, not just the blended score — a creator or
     // business sitting below the auto-approve threshold has no other way to
     // tell "add more followers" from "we still need your ownership proof".
-    const breakdown =
+    const rawBreakdown =
       latest?.ai_signals && Object.keys(latest.ai_signals as object).length > 0
         ? scoreBreakdown(prof.role as Role, latest.ai_signals as VerificationSignals)
         : null;
+
+    // Ownership is the one checklist item with a source of truth OUTSIDE the
+    // stored signals, and it is the item most likely to be stale: someone who
+    // proved ownership at signup, or thirty seconds ago on the ownership
+    // screen, has a verified claim and a check that predates it. Rendering the
+    // photograph rather than the fact is what made the app keep demanding proof
+    // it already held. Read the claim and let it win.
+    const ownershipVerified = await hasVerifiedInstagramClaim(supabase, user.id, prof.role as Role);
+    const breakdown = rawBreakdown?.map((item) =>
+      item.key === OWNERSHIP_KEY && ownershipVerified ? { ...item, met: true } : item,
+    ) ?? null;
 
     return NextResponse.json({
       status: prof?.verification_status ?? 'unverified',
       verified_badge: prof?.verified_badge ?? false,
       verified_at: prof?.verified_at ?? null,
+      ownership_verified: ownershipVerified,
       auto_approve_threshold: AUTO_APPROVE_THRESHOLD,
       latest_check: latest
         ? {
@@ -165,6 +177,7 @@ export async function POST(req: Request) {
         role: role as Role,
         handle: igHandle,
         bio: (liveProfile as { biography?: string | null } | null)?.biography ?? null,
+        links: (liveProfile as { externalUrls?: string[] | null } | null)?.externalUrls ?? null,
         origin: originFromHeaders(req.headers),
       });
     }

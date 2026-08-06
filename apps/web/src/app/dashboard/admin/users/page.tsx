@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Search, Users } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/avatar";
@@ -53,6 +54,7 @@ const roleMeta = (role: string) => {
 };
 
 export default function AdminUsersPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -137,7 +139,11 @@ export default function AdminUsersPage() {
                 const pending =
                   u.role === "business_owner" && u.approval_status === "pending_review";
                 return (
-                  <TRow key={u.id}>
+                  <TRow
+                    key={u.id}
+                    interactive
+                    onClick={() => router.push(`/dashboard/admin/users/${u.id}`)}
+                  >
                     <td>
                       <div className="flex items-center gap-3">
                         <Avatar name={u.name} size="sm" square />

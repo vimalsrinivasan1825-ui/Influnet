@@ -17,6 +17,7 @@
  */
 import { NextResponse } from 'next/server';
 import { jsonError } from './api';
+import { recordRateLimitHit } from './rate-limit-log';
 
 export interface RateLimitResult {
   ok: boolean;
@@ -102,16 +103,24 @@ export async function checkRateLimit(opts: {
   windowMs: number;
 }): Promise<RateLimitResult> {
   const fullKey = `${opts.bucket}:${opts.key}`;
-  if (isDistributedRateLimit()) {
-    try {
-      return await upstashHit(fullKey, opts.limit, opts.windowMs);
-    } catch {
-      // Distributed store unreachable — fall back to the local floor rather
-      // than fail open entirely.
-      return memHit(fullKey, opts.limit, opts.windowMs);
+  const result = await (async () => {
+    if (isDistributedRateLimit()) {
+      try {
+        return await upstashHit(fullKey, opts.limit, opts.windowMs);
+      } catch {
+        // Distributed store unreachable — fall back to the local floor rather
+        // than fail open entirely.
+        return memHit(fullKey, opts.limit, opts.windowMs);
+      }
     }
-  }
-  return memHit(fullKey, opts.limit, opts.windowMs);
+    return memHit(fullKey, opts.limit, opts.windowMs);
+  })();
+
+  // Fire-and-forget: admin visibility only, must never add latency or a new
+  // failure mode to the request this limiter is guarding.
+  void recordRateLimitHit({ bucket: opts.bucket, identity: opts.key, ok: result.ok, limit: opts.limit });
+
+  return result;
 }
 
 /**

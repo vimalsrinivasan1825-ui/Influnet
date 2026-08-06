@@ -71,7 +71,7 @@ function isLocalHost(host: string): boolean {
  * verified claim on a handle that is not theirs — the exact impersonation the
  * ownership handshake exists to prevent.
  */
-function isTrustedHost(host: string): boolean {
+export function isTrustedHost(host: string): boolean {
   if (isLocalHost(host)) return true;
   const h = host.toLowerCase().split(':')[0];
 

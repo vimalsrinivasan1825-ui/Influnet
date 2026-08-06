@@ -8,18 +8,26 @@ import { useTheme } from '@/lib/theme';
 import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { useWizardBack } from '@/lib/use-wizard-back';
-import { useInstagramPreview } from '@/lib/use-instagram-preview';
+import { useSocialConnect } from '@/lib/use-social-connect';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
-import { InstagramPreviewCard } from '@/components/instagram-preview-card';
+import { SocialConnectField } from '@/components/social-connect-field';
 import { BioVerifyStep, useBioVerification } from '@/components/bio-verify-step';
-import { FacebookIcon, InstagramIcon, XIcon, YoutubeIcon } from '@/components/social-icons';
 import { Button, Chip, ChipWrap, Field, Txt } from '@/components/ui';
 import { CityField } from '@/components/city-field';
 
 /** Toggle a value in a multi-select list. */
 function toggle(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+/**
+ * A social field passes when it's empty or successfully connected. 'error'
+ * passes too — that's our provider failing, not the creator's account, and an
+ * Apify outage must never become a signup wall.
+ */
+function connectedOrEmpty(handle: string, status: string) {
+  return !handle.trim() || status === 'connected' || status === 'error';
 }
 
 /** Same four options the web wizard offers, same stored values. */
@@ -46,6 +54,7 @@ export default function CreatorSignup() {
   const [youtube, setYoutube] = useState('');
   const [twitter, setTwitter] = useState('');
   const [facebook, setFacebook] = useState('');
+  const [snapchat, setSnapchat] = useState('');
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState('');
   const [niche, setNiche] = useState<string[]>([]);
@@ -74,23 +83,26 @@ export default function CreatorSignup() {
   const otp = usePhoneOtp();
   const otpRequired = useOtpRequirement();
 
-  // Fires by itself once typing stops — no "fetch my details" button to notice
-  // and press. Only runs when the handle is free (a taken/invalid one is a
-  // dead end anyway, and every call spends provider credit).
-  const igAvailabilityOk =
-    instagramAvailability.status !== 'taken' && instagramAvailability.status !== 'invalid';
-  const igPreview = useInstagramPreview(instagram, igAvailabilityOk);
+  // Lookups now run on an explicit Connect tap instead of a typing debounce.
+  // The debounce spent a billed provider call on every pause mid-handle —
+  // "priya", "priya.sh", "priya.sharm" — and on a phone keyboard those pauses
+  // are frequent and long. One tap, one call. See lib/use-social-connect.ts.
+  const igConnect = useSocialConnect('instagram', instagram);
+  const ytConnect = useSocialConnect('youtube', youtube);
+  const xConnect = useSocialConnect('twitter', twitter);
+  const fbConnect = useSocialConnect('facebook', facebook);
+  const snapConnect = useSocialConnect('snapchat', snapchat);
 
-  // Same rule as web: fill only what the user left blank. The scrape is a
+  // Same rule as web: fill only what the user left blank. The lookup is a
   // convenience, never an authority on their own details.
   useEffect(() => {
-    if (igPreview.status !== 'found' || !igPreview.profile) return;
-    const p = igPreview.profile;
-    if (p.fullName) setName((prev) => (prev.trim() ? prev : p.fullName!));
+    if (igConnect.status !== 'connected' || !igConnect.profile) return;
+    const p = igConnect.profile;
+    if (p.displayName) setName((prev) => (prev.trim() ? prev : p.displayName!));
     if (p.biography) setBio((prev) => (prev.trim() ? prev : p.biography!));
     setInstagramFollowers(typeof p.followerCount === 'number' ? p.followerCount : null);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [igPreview.status, igPreview.profile]);
+  }, [igConnect.status, igConnect.profile]);
 
   const bioVerify = useBioVerification(instagram, username);
 
@@ -136,6 +148,14 @@ export default function CreatorSignup() {
         youtubeHandle: youtube.trim().replace(/^@/, '') || undefined,
         twitterHandle: twitter.trim().replace(/^@/, '') || undefined,
         facebookHandle: facebook.trim().replace(/^@/, '') || undefined,
+        snapchatHandle: snapchat.trim().replace(/^@/, '') || undefined,
+        // Audience numbers from the Connect lookups the creator already ran,
+        // for the same reason instagramFollowers is sent: a profile that lands
+        // with NULL followers ranks below everyone in discovery until its first
+        // in-app refresh.
+        youtubeSubscribers: ytConnect.profile?.followerCount ?? undefined,
+        twitterFollowers: xConnect.profile?.followerCount ?? undefined,
+        facebookFollowers: fbConnect.profile?.followerCount ?? undefined,
         bio: bio.trim() || undefined,
         gender: gender || undefined,
         niche,
@@ -332,87 +352,80 @@ export default function CreatorSignup() {
       title: 'Link your socials',
       subtitle: 'We pull your follower count and engagement so brands see real numbers.',
       // Web requires at least one handle rather than Instagram specifically.
-      // A typed-in Instagram handle must resolve to a real, public, unclaimed
-      // account before it counts — clearing the field is still a valid way past
-      // this step if another social covers it. `error` deliberately passes: a
-      // provider outage must not become a signup wall.
+      // Any handle that was TYPED must be one we actually found — connecting it
+      // is what turns a string into a checked account; clearing the field is
+      // still a valid way past this step if another social covers it. `error`
+      // deliberately passes: a provider outage must not become a signup wall.
+      //
+      // Snapchat is excluded from the "at least one" test on purpose: it's
+      // link-only (no public stats to read), and the server's own rule doesn't
+      // count it either, so accepting it here would just move the rejection one
+      // step later.
       valid:
-        (!instagram.trim() ||
-          (igPreview.status !== 'private' &&
-            igPreview.status !== 'notfound' &&
-            igPreview.status !== 'checking' &&
-            instagramAvailability.status !== 'taken' &&
-            instagramAvailability.status !== 'invalid')) &&
+        connectedOrEmpty(instagram, igConnect.status) &&
+        connectedOrEmpty(youtube, ytConnect.status) &&
+        connectedOrEmpty(twitter, xConnect.status) &&
+        connectedOrEmpty(facebook, fbConnect.status) &&
+        instagramAvailability.status !== 'taken' &&
+        instagramAvailability.status !== 'invalid' &&
         (instagram.trim().length > 1 ||
           youtube.trim().length > 1 ||
           twitter.trim().length > 1 ||
           facebook.trim().length > 1),
       body: (
         <View style={{ gap: t.spacing.lg }}>
-          <View style={{ gap: t.spacing.sm }}>
-            <Field
-              label="Instagram handle"
-              value={instagram}
-              onChangeText={(v) => setInstagram(v.replace(/^@/, ''))}
-              placeholder="@yourhandle"
-              autoCapitalize="none"
-              autoCorrect={false}
-              left={<InstagramIcon size={18} />}
-              error={
-                instagramAvailability.status === 'taken' ||
-                instagramAvailability.status === 'invalid'
-                  ? instagramAvailability.message
-                  : null
-              }
-              hint={
-                instagramAvailability.status === 'available'
-                  ? instagramAvailability.message
-                  : null
-              }
-              right={
-                instagramAvailability.status === 'checking' ? (
-                  <ActivityIndicator size="small" color={t.color.contentMuted} />
-                ) : instagramAvailability.status === 'available' ? (
-                  <Check size={19} color={t.color.ok} />
-                ) : instagramAvailability.status === 'taken' ||
-                  instagramAvailability.status === 'error' ? (
-                  <X size={19} color={t.color.danger} />
-                ) : null
-              }
-            />
-            <InstagramPreviewCard
-              status={igPreview.status}
-              profile={igPreview.profile}
-              handle={instagram}
-            />
-          </View>
-          <Field
+          <Txt variant="footnote" tone="muted">
+            Add the accounts you want brands to see, then tap Connect on each one so we can check
+            it&apos;s public and show you what we found. Nothing is posted to your accounts.
+          </Txt>
+          <SocialConnectField
+            platform="instagram"
+            label="Instagram handle"
+            value={instagram}
+            onChangeText={setInstagram}
+            connect={igConnect}
+            error={
+              instagramAvailability.status === 'taken' || instagramAvailability.status === 'invalid'
+                ? instagramAvailability.message
+                : null
+            }
+            hint={
+              instagramAvailability.status === 'available' ? instagramAvailability.message : null
+            }
+          />
+          <SocialConnectField
+            platform="youtube"
             label="YouTube channel"
             value={youtube}
             onChangeText={setYoutube}
+            connect={ytConnect}
             placeholder="@yourchannel"
-            autoCapitalize="none"
-            autoCorrect={false}
-            left={<YoutubeIcon size={18} />}
           />
-          <Field
+          <SocialConnectField
+            platform="twitter"
             label="X (Twitter) handle"
             value={twitter}
             onChangeText={setTwitter}
-            placeholder="@yourhandle"
-            autoCapitalize="none"
-            autoCorrect={false}
-            left={<XIcon size={18} />}
+            connect={xConnect}
           />
-          <Field
-            label="Facebook page"
+          <SocialConnectField
+            platform="facebook"
+            label="Facebook page or profile"
             value={facebook}
             onChangeText={setFacebook}
+            connect={fbConnect}
             placeholder="yourpage"
-            autoCapitalize="none"
-            autoCorrect={false}
-            left={<FacebookIcon size={18} />}
-            hint="At least one of the four, so brands can see your work."
+            hint="At least one social, so brands can see your work."
+          />
+          <SocialConnectField
+            platform="snapchat"
+            label="Snapchat"
+            value={snapchat}
+            onChangeText={setSnapchat}
+            connect={snapConnect}
+            placeholder="yourusername"
+            linkOnly
+            hint="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
           />
         </View>
       ),
@@ -426,7 +439,7 @@ export default function CreatorSignup() {
             key: 'bio-verify' as const,
             title: 'Prove the account is yours',
             subtitle:
-              'Put your Influnet link in your Instagram bio so brands know the handle really belongs to you.',
+              'Put your Influnet link in your Instagram links so brands know the handle really belongs to you.',
             valid: bioVerify.status === 'verified',
             body: (
               <BioVerifyStep

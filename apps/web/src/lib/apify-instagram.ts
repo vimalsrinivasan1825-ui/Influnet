@@ -31,6 +31,24 @@ function toNum(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Every clickable link on the profile, de-duplicated.
+ *
+ * The actor returns the primary Website field as `externalUrl` and the full
+ * set (Instagram has allowed several links since 2023) as `externalUrls`,
+ * each entry carrying a clean `url` plus a `lynx_url` — the latter being
+ * Instagram's `l.instagram.com/?u=<encoded>` click-tracking wrapper. We keep
+ * the clean form only; unwrapping the shim is the matcher's job for the cases
+ * where a wrapped URL is all we get.
+ */
+function collectExternalUrls(u: any): string[] {
+  const fromArray = Array.isArray(u.externalUrls)
+    ? u.externalUrls.map((l: any) => l?.url).filter((s: unknown): s is string => typeof s === 'string' && s.length > 0)
+    : [];
+  const primary = typeof u.externalUrl === 'string' && u.externalUrl ? [u.externalUrl] : [];
+  return Array.from(new Set([...primary, ...fromArray]));
+}
+
 function daysSince(iso: string | null | undefined): number | null {
   if (!iso) return null;
   const t = Date.parse(iso);
@@ -106,6 +124,7 @@ export async function getInstagramUser(username: string): Promise<HikerInstagram
     isBusiness: Boolean(u.isBusinessAccount),
     biography: u.biography ?? null,
     externalUrl: u.externalUrl ?? null,
+    externalUrls: collectExternalUrls(u),
     publicEmail: u.public_email ?? null, // not provided by this actor; kept for shape parity
     categoryName: u.businessCategoryName ?? null,
     lastPostDaysAgo: daysSince(latest?.timestamp),

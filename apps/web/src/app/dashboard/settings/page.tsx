@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Check, ExternalLink, Loader2, Plus, Save, X } from "lucide-react";
+import { sanitizePhoneInput } from "@influnet/core";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
@@ -396,7 +397,22 @@ export default function SettingsPage() {
             <Input value={profile?.email || ""} disabled />
           </Field>
           <Field label="Phone">
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" />
+            {/* Same keystroke filter as signup's phone field — this one had
+                none at all, so it took letters and any length. The real gate
+                is server-side (ProfileUpdateSchema's PhoneSchema), this just
+                stops someone finding out at submit time. maxLength stays
+                generous (raw keystrokes, before sanitizing) and the real 20
+                cap is applied AFTER stripping non-phone characters — a native
+                maxLength of 20 truncates before the filter runs, which cuts a
+                pasted "digits + letters" string down to mostly letters. See
+                the identical fix and comment in phone-otp-field.tsx. */}
+            <Input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(sanitizePhoneInput(e.target.value).slice(0, 20))}
+              placeholder="+91 98765 43210"
+              maxLength={64}
+            />
           </Field>
           <Field label="Location">
             <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, Country" />

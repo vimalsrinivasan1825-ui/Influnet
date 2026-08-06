@@ -96,7 +96,7 @@ export function InstagramOwnershipPanel({
       });
       if (res.ok && res.data?.verified) {
         setStatus("verified");
-        setMsg({ kind: "ok", text: "Ownership confirmed. Leave the link in your bio — it points brands at your profile. Running your verification…" });
+        setMsg({ kind: "ok", text: "Ownership confirmed. Leave the link where it is — it points brands at your profile. Running your verification…" });
         // Ownership proven → kick the metrics verification so the badge can be granted.
         apiFetch("/api/verification", { method: "POST" }).catch(() => {});
         onVerified?.();
@@ -137,7 +137,7 @@ export function InstagramOwnershipPanel({
       <div className="flex flex-col gap-4">
         <p className="-mt-1 text-xs text-content-muted">
           Prove the account is yours so we can grant your verified badge. No password needed — you
-          just put your Influnet profile link in your bio.
+          just add your Influnet profile link to your Instagram links.
         </p>
 
         {status === "loading" && <span className="text-sm text-content-muted">Loading…</span>}
@@ -162,17 +162,28 @@ export function InstagramOwnershipPanel({
 
         {status === "pending" && (
           <div className="flex flex-col gap-3">
-            {/* Lead with the thing people worry about before touching their bio —
-                that nothing gets posted — before asking them to do it. */}
+            {/* Lead with the thing people worry about before touching their
+                profile — that nothing gets posted — before asking them to do it. */}
             <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-content-soft">
               Takes about a minute. Nothing is posted to your account — we only read your public
-              bio. Leave the link there afterwards: it is the page you want brands to land on.
+              profile. Leave the link there afterwards: it is the page you want brands to land on.
             </p>
             <ol className="flex flex-col gap-1.5 text-xs text-content-soft">
               <li>1. Copy your profile link below.</li>
-              <li>2. Paste it into your Instagram bio (keep your account public).</li>
+              <li>
+                2. Add it to your Instagram <strong>links</strong> — Edit profile → Links → Add
+                external link (keep your account public).
+              </li>
               <li>3. Come back and tap Verify.</li>
             </ol>
+            {/* The bio TEXT renders a link as plain text on Instagram — not
+                tappable, so it does the creator no good. The links field is the
+                clickable one; the bio is better spent pointing at it. */}
+            <p className="rounded-lg border border-hairline bg-surface-muted/60 px-3 py-2 text-xs text-content-soft">
+              Tip: in your bio itself, write something like{" "}
+              <span className="font-semibold text-content">“Collabs → tap the link below”</span>. A
+              link pasted into the bio text isn’t clickable on Instagram — the links field is.
+            </p>
             <div className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-muted px-3 py-2">
               <code className="min-w-0 flex-1 truncate text-xs text-content">{shownUrl}</code>
               <button
