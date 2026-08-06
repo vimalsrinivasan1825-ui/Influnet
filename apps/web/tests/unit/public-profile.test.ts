@@ -306,7 +306,10 @@ describe('computeReachStat', () => {
   });
 
   it('barely moves a figure that already covers the whole window', () => {
-    const stat = computeReachStat([], [{ views: 900_000, publishedAt: daysAgo(29.9) }], 100);
+    // A 1-second margin ensures it passes the strict 30-day cutoff without causing the 
+    // extrapolation math to scale the views up to 901K+ due to fractional days.
+    const publishedAt = new Date(Date.now() - 30 * 86_400_000 + 1000).toISOString();
+    const stat = computeReachStat([], [{ views: 900_000, publishedAt }], 100);
     expect(stat.value).toBe('900K');
   });
 
