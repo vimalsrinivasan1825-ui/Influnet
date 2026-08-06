@@ -32,6 +32,7 @@ import {
   useSocialConnect,
 } from "@/lib/hooks/use-availability";
 import { SocialConnectField } from "@/components/signup/social-connect-field";
+import { SocialDisclosure } from "@/components/signup/social-disclosure";
 import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { publicProfileUrl, publicProfileUrlDisplay } from "@/lib/site";
@@ -350,18 +351,16 @@ function InfluencerSignupContent() {
   const emailValid = EMAIL_RE.test(email);
   const passwordOk = password.length >= 8;
   const cleanInstagramHandle = instagramHandle.trim().replace(/^@/, "").toLowerCase();
-  // Fail open on the availability check same as username/email; the preview
-  // (public/private) check is NOT fail-open — a private or unfound account
-  // can never be verified, so it must block rather than silently pass through.
+  // Fail open on the availability check same as username/email, and on a
+  // provider outage ('error') now that Instagram is mandatory — an Apify
+  // hiccup would otherwise close signup completely. A verdict about the
+  // ACCOUNT is not fail-open: private or not-found still blocks, because
+  // neither can ever pass the ownership check on the next step.
   const instagramOk =
     !!cleanInstagramHandle &&
     (instagramAvailStatus === "available" || instagramAvailStatus === "error") &&
-    instagramConnect.status === "connected";
+    (instagramConnect.status === "connected" || instagramConnect.status === "error");
   const instagramVerified = !!cleanInstagramHandle && instagramVerifiedHandle === cleanInstagramHandle;
-  // A typed-but-broken Instagram handle (private/taken/invalid) must be fixed
-  // or cleared — it can't be silently bypassed just because YouTube/Twitter
-  // is also filled in, matching how the mobile wizard gates the same step.
-  const instagramFieldOk = !cleanInstagramHandle || instagramOk;
 
   // A handle that was typed must be one we actually found. 'error' passes:
   // that's our provider failing, not the creator's account, and holding a
@@ -372,12 +371,10 @@ function InfluencerSignupContent() {
   const facebookFieldOk = platformFieldOk(facebookHandle, facebookConnect.status);
   const twitterFieldOk = platformFieldOk(twitterHandle, twitterConnect.status);
 
-  // Snapchat is deliberately excluded — it's link-only, so it can't be
-  // verified, and the server's own "at least one handle" rule doesn't count it
-  // either (RegisterProfileSchema). Letting it satisfy this check here would
-  // just produce a server rejection one step later.
-  const hasAnyHandle =
-    !!cleanInstagramHandle || !!youtubeHandle.trim() || !!twitterHandle.trim() || !!facebookHandle.trim();
+  // Instagram is the one REQUIRED account, not merely one of several that
+  // could satisfy "at least one handle". It's what the ownership step on the
+  // next screen proves, and it's the account brands look for first. The other
+  // four are optional and live behind "Add other handles".
 
   // The moment step 4 verifies, move on automatically — the manual "Continue"
   // button (enabled by the same instagramVerified flag via canProceed) is
@@ -401,14 +398,13 @@ function InfluencerSignupContent() {
         (!phoneOtpEnabled || !!phoneToken)
       );
     if (step === 2) return !!gender && !!city && !!state && languages.length > 0;
-    // At least one social handle is required (the server enforces this too —
-    // see RegisterProfileSchema): either Instagram, checked and passing, or
-    // YouTube/Twitter as a fallback. A typed-but-broken Instagram handle
-    // blocks regardless of the others; see instagramFieldOk above.
+    // Instagram is required and must be one we actually found (the server's
+    // own "at least one handle" rule — RegisterProfileSchema — is satisfied by
+    // it too). Optional platforms only have to be valid if they were typed.
     if (step === 3)
       return (
-        !!primaryNiche && !!bio && hasAnyHandle &&
-        instagramFieldOk && youtubeFieldOk && facebookFieldOk && twitterFieldOk
+        !!primaryNiche && !!bio && instagramOk &&
+        youtubeFieldOk && facebookFieldOk && twitterFieldOk
       );
     // Instagram ownership must be proven before moving on — unless there's
     // no Instagram handle to prove (YouTube/Twitter carried step 3 instead).
@@ -847,9 +843,8 @@ function InfluencerSignupContent() {
               </div>
               <div className="flex flex-col gap-4">
                 <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-content-soft">
-                  Add the accounts you want brands to see, then tap <strong>Connect</strong>{" "}
-                  on each one so we can check it&apos;s public and show you what we found. Nothing is
-                  posted to your accounts.
+                  Add your Instagram, then hit <strong>Connect</strong> so we can check it&apos;s
+                  public and show you what we found. Nothing is posted to your accounts.
                 </p>
 
                 <SocialConnectField
@@ -864,45 +859,76 @@ function InfluencerSignupContent() {
                         ? instagramAvailMessage
                         : null
                   }
-                  helper="We'll verify you own this account next. No Instagram? Add another platform below instead."
+                  helper="We'll verify you own this account next."
                 />
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <SocialConnectField
-                    platform="youtube"
-                    value={youtubeHandle}
-                    onChange={setYoutubeHandle}
-                    connect={youtubeConnect}
-                    placeholder="channel"
-                    optional
-                  />
-                  <SocialConnectField
-                    platform="twitter"
-                    value={twitterHandle}
-                    onChange={setTwitterHandle}
-                    connect={twitterConnect}
-                    placeholder="handle"
-                    optional
-                  />
-                  <SocialConnectField
-                    platform="facebook"
-                    value={facebookHandle}
-                    onChange={setFacebookHandle}
-                    connect={facebookConnect}
-                    placeholder="yourpage"
-                    optional
-                  />
-                  <SocialConnectField
-                    platform="snapchat"
-                    value={snapchatHandle}
-                    onChange={setSnapchatHandle}
-                    connect={snapchatConnect}
-                    placeholder="username"
-                    optional
-                    linkOnly
-                    helper="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
-                  />
-                </div>
+                <SocialDisclosure
+                  subtitle="Optional — click a logo to add that account. Brands see every one you connect."
+                  items={[
+                    {
+                      platform: "youtube",
+                      label: "YouTube",
+                      filled: youtubeHandle.trim().length > 0,
+                      body: (
+                        <SocialConnectField
+                          platform="youtube"
+                          value={youtubeHandle}
+                          onChange={setYoutubeHandle}
+                          connect={youtubeConnect}
+                          placeholder="channel"
+                          optional
+                        />
+                      ),
+                    },
+                    {
+                      platform: "facebook",
+                      label: "Facebook",
+                      filled: facebookHandle.trim().length > 0,
+                      body: (
+                        <SocialConnectField
+                          platform="facebook"
+                          value={facebookHandle}
+                          onChange={setFacebookHandle}
+                          connect={facebookConnect}
+                          placeholder="yourpage"
+                          optional
+                        />
+                      ),
+                    },
+                    {
+                      platform: "twitter",
+                      label: "X",
+                      filled: twitterHandle.trim().length > 0,
+                      body: (
+                        <SocialConnectField
+                          platform="twitter"
+                          value={twitterHandle}
+                          onChange={setTwitterHandle}
+                          connect={twitterConnect}
+                          placeholder="handle"
+                          optional
+                        />
+                      ),
+                    },
+                    {
+                      platform: "snapchat",
+                      label: "Snapchat",
+                      filled: snapchatHandle.trim().length > 0,
+                      body: (
+                        <SocialConnectField
+                          platform="snapchat"
+                          value={snapchatHandle}
+                          onChange={setSnapchatHandle}
+                          connect={snapchatConnect}
+                          placeholder="username"
+                          optional
+                          linkOnly
+                          helper="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
+                        />
+                      ),
+                    },
+                  ]}
+                />
               </div>
             </div>
           )}

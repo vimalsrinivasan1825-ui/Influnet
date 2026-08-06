@@ -18,6 +18,21 @@ export interface ApiResult<T> {
   status: number;
   data: T | null;
   error: string | null;
+  /**
+   * The parsed body, present whether or not the request succeeded — `data` is
+   * deliberately nulled on a non-2xx so no caller mistakes an error page for a
+   * result, and that is the right default for almost everything here.
+   *
+   * It is wrong for the handful of routes whose 4xx *is* the answer:
+   * /api/auth/social-preview replies 404 with `{status:'notfound'}`, which is a
+   * verdict on the handle, not a failure. Those callers read `payload`; nulling
+   * it turned "no such account" into "couldn't reach Instagram".
+   *
+   * Optional because screens compose ApiResult-shaped literals of their own
+   * (merged fetches, cached replies) and none of them owe us a raw body;
+   * requests that go through this client always carry it.
+   */
+  payload?: unknown;
 }
 
 export interface ApiClientOptions {
@@ -77,7 +92,13 @@ export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiC
       // Offline, DNS failure, server unreachable. On mobile this is common
       // enough that it needs to be a normal result, not a thrown exception
       // every caller has to wrap.
-      return { ok: false, status: 0, data: null, error: 'No connection. Check your network.' };
+      return {
+        ok: false,
+        status: 0,
+        data: null,
+        error: 'No connection. Check your network.',
+        payload: null,
+      };
     }
 
     let data: unknown = null;
@@ -102,6 +123,7 @@ export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiC
       status: res.status,
       data: res.ok ? (data as T) : null,
       error: res.ok ? null : errorMessage,
+      payload: data,
     };
   }
 

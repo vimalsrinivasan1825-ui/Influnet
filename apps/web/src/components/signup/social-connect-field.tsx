@@ -78,7 +78,11 @@ export function SocialConnectField({
         {optional && <span className="font-normal normal-case text-content-muted">(optional)</span>}
       </Label>
 
-      <div className="flex gap-2">
+      {/* Connect sits BELOW the input rather than beside it. Side by side, the
+          two split the column between them — on a phone-width viewport the
+          handle scrolled out of view as it was typed, and the button was the
+          narrowest thing on a step whose whole job is getting it pressed. */}
+      <div className="flex flex-col gap-2">
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/^@/, ""))}
@@ -102,7 +106,7 @@ export function SocialConnectField({
             onClick={connect.connect}
             disabled={!clean || busy}
             className={cn(
-              "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition-colors",
+              "inline-flex h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition-colors",
               connected
                 ? "border-hairline-strong bg-surface-muted text-content-soft hover:border-content-muted"
                 : "border-brand bg-brand-soft text-brand-strong hover:bg-brand-soft/80",

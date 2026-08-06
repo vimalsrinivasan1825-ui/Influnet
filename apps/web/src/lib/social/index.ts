@@ -81,10 +81,10 @@ const youtubeHandler: SocialHandler = {
       platform: 'youtube',
       handle: channel.handle,
       url: `https://www.youtube.com/channel/${channel.channelId}`,
-      displayName: null,
+      displayName: channel.title,
       biography: null,
       followerCount: channel.subscriberCount,
-      avatarUrl: null,
+      avatarUrl: channel.avatarUrl,
       isVerified: null,
       // A channel that resolves is public by definition — YouTube has no
       // private-channel equivalent that still serves a feed.
