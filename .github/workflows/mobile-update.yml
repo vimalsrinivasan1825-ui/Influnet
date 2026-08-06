@@ -16,7 +16,7 @@ on:
 jobs:
   update-preview:
     name: Publish OTA Update (Preview Channel)
-    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -47,7 +47,7 @@ jobs:
 
   update-production:
     name: Publish OTA Update (Production Channel)
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
