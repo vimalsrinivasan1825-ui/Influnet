@@ -136,6 +136,20 @@ export function ScreenScroll({
 
   return (
     <RevealFocusedInputProvider value={reveal}>
+      {/*
+        The avoider belongs to the scroller, not to `Screen`.
+
+        Roughly two thirds of this app's screens render a bare `ScreenScroll`
+        with no `Screen` around it — `edit-profile`, `search`, `feedback`,
+        `settings`, the whole `projects/` tree. Mounting keyboard avoidance on
+        `Screen` alone silently leaves every one of them with none, which is how
+        a fix shipped as app-wide reached about a third of the app.
+
+        Nesting is handled: where a `Screen` does wrap this, its avoider is the
+        outer one and this becomes a passthrough, so a sticky footer that is a
+        sibling of the scroll body still lifts with it.
+      */}
+      <KeyboardAvoider>
       {/* The measured viewport. `collapsable={false}` keeps Android from
           flattening it away, which would leave the reveal maths with no frame
           to measure against. */}
@@ -191,6 +205,7 @@ export function ScreenScroll({
       {children}
         </ScrollView>
       </View>
+      </KeyboardAvoider>
     </RevealFocusedInputProvider>
   );
 }
