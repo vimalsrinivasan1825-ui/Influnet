@@ -46,10 +46,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Pinned for the same reason as deploy-staging.yml: CLI v2.112.0 broke
+      # `supabase link` on 2026-08-07. Keep the two workflows on the same
+      # version so dev and staging never migrate with different tooling.
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.111.0
 
       - name: Link to the dev project
         run: supabase link --project-ref "$PROJECT_REF"
