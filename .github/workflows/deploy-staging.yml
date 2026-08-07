@@ -123,11 +123,19 @@ jobs:
       # Azure portal survives only until the next push. Change it here.
       #
       # The email settings read from repository secrets rather than literals so
-      # they can be flipped without a deploy. EMAIL_ALLOWLIST carries a hardcoded
-      # fallback because it is the one variable that fails OPEN: an unset secret
-      # expands to an empty string, and empty means "mail anyone" — the exact
-      # accident the allowlist exists to prevent. The other two fail safe
-      # (no key / disabled), so they need no fallback.
+      # they can be flipped without a deploy.
+      #
+      # EMAIL_ALLOWLIST is deliberately set EMPTY, which means "deliver to any
+      # address" — staging must be able to mail arbitrary testers, not only
+      # @influnet.io mailboxes. Set explicitly rather than omitted so the deploy
+      # also CLEARS a value left behind on the container app by an earlier run or
+      # a manual portal edit; omitting the name would leave the old one in place.
+      #
+      # This is safe here because staging has its own database, so there is no
+      # pool of real users' addresses to mail by accident. Do NOT copy this line
+      # into a workflow whose environment points at the production database — to
+      # re-tighten, put a comma-separated list here (`@influnet.io,someone@x.com`)
+      # or wire it back to secrets.EMAIL_ALLOWLIST.
       - name: Set Backend Environment Variables on Container App
         uses: azure/cli@v2
         with:
@@ -149,7 +157,7 @@ jobs:
                 "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" \
                 "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
                 "NOTIFY_EMAILS_ENABLED=${{ secrets.NOTIFY_EMAILS_ENABLED }}" \
-                "EMAIL_ALLOWLIST=${{ secrets.EMAIL_ALLOWLIST || '@influnet.io' }}" \
+                "EMAIL_ALLOWLIST=" \
                 "EMAIL_TEST_SECRET=${{ secrets.EMAIL_TEST_SECRET }}" \
                 "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
                 "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
