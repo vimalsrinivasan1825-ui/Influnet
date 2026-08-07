@@ -55,10 +55,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # PINNED, deliberately. `version: latest` made every deploy depend on
+      # whatever supabase/cli shipped that morning, and on 2026-08-07 v2.112.0
+      # broke `supabase link` with
+      #   failed to get api keys: SchemaError(... at [2]["inserted_at"])
+      # — its Management API client rejects the timestamp format the API
+      # returns. Nothing in this repo changed; the deploy just stopped working.
+      # Bump this on purpose, after checking a run passes.
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.111.0
 
       - name: Link to the staging project
         run: supabase link --project-ref "$PROJECT_REF"
