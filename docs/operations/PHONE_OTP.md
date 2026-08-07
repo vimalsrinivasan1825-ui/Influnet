@@ -5,15 +5,18 @@ Production mobile verification for influencers and business owners uses the **2F
 ## Prerequisites
 
 1. Active **2Factor** account with SMS OTP enabled.
-2. A **DLT-approved SMS** template. Default in code: `Login_Verification_OTP`
+2. A **DLT-approved SMS** template. Default in code: `Authentication_OTP`
    (AUTOGEN flow); override with the `TWOFACTOR_TEMPLATE` secret.
 
    > **A template name that is not DLT-approved does not fail — it silently
    > downgrades to a voice call.** The API still returns `Status: Success`, still
    > returns a session id, and still bills an SMS credit; the user just gets a
-   > phone call reading out the digits. Verified live 2026-07-30:
-   > `Login_Verification_OTP` delivers SMS (sender "Tecstellar Solutions LLP"),
-   > `Authentication_OTP` and the account default both delivered voice calls.
+   > phone call reading out the digits.
+   >
+   > History: `Login_Verification_OTP` was the approved template until
+   > 2026-08-07, when it was replaced by a newly registered `Authentication_OTP`.
+   > (An *earlier*, unregistered `Authentication_OTP` was what delivered voice
+   > calls in the 2026-07-30 test — same name, different registration state.)
    > If users report calls instead of texts, check the template name FIRST —
    > it is not a DLT registration problem.
 3. Supabase project with migration **022** applied.
@@ -160,7 +163,7 @@ LIMIT 50;
 |---------|--------|
 | "Mobile verification is temporarily unavailable" | Function not deployed, or `TWOFACTOR_API_KEY` secret missing — real cause is in the server logs (`phone-otp function error:`) |
 | "Mobile verification is not enabled." (503) | `NEXT_PUBLIC_PHONE_OTP_ENABLED` is not `true` in that environment |
-| Users get a VOICE CALL instead of an SMS | `TWOFACTOR_TEMPLATE` is not DLT-approved. Set it to an approved one (`Login_Verification_OTP`) and redeploy — the template is read into a top-level const, so a running instance keeps the old value until it cold-starts |
+| Users get a VOICE CALL instead of an SMS | `TWOFACTOR_TEMPLATE` is not DLT-approved. Set it to an approved one (`Authentication_OTP`) and redeploy — the template is read into a top-level const, so a running instance keeps the old value until it cold-starts |
 | "Too many OTP requests" | Wait 1 hour or check audit log for `rate_limited` |
 | "Mobile verification expired" | Re-send OTP; token valid 30 min after verify |
 | OTP not received | 2Factor dashboard, DND, correct `91` prefix number |
