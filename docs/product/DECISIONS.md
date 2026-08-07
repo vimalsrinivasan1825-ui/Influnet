@@ -64,7 +64,7 @@ Do not rebuild it and do not buy a new OTP service.
 AUTOGEN session is the source of truth; we store only the provider session id + status.
 
 **To activate it (in order):**
-1. Have an active [2Factor.in](https://2factor.in) account with the `Login_Verification_OTP`
+1. Have an active [2Factor.in](https://2factor.in) account with the `Authentication_OTP`
    AUTOGEN template.
 2. Verify migrations 022 + 026 are applied to the **current** Supabase project
    (`jaajosocopoicmqcffuu` — note: `docs/operations/PHONE_OTP.md` still says the old ref
