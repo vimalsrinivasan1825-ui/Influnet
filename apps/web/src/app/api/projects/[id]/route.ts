@@ -362,21 +362,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(400, `The ${STAGE_LABELS[currentStage] || currentStage} stage does not use sign-off.`);
       }
 
-      const stageProgress = (project.stage_progress || {}) as Record<string, any>;
-      const entry = { ...(stageProgress[currentStage] || { status: 'current', started_at: new Date().toISOString() }) };
-      const myKey = userRole === 'business' ? 'owner_signoff_at' : 'creator_signoff_at';
-      const myByKey = userRole === 'business' ? 'owner_signoff_by' : 'creator_signoff_by';
-      const otherKey = userRole === 'business' ? 'creator_signoff_at' : 'owner_signoff_at';
-
       if (action === 'revoke_signoff') {
-        entry[myKey] = null;
-        entry[myByKey] = null;
-        stageProgress[currentStage] = entry;
-        const { data: updated, error: updErr } = await supabase
-          .from('campaign_projects')
-          .update({ stage_progress: stageProgress, updated_at: new Date().toISOString() })
-          .eq('id', id).select().single();
-        if (updErr) return jsonError(500, 'Failed to revoke sign-off', updErr);
+        const { error: revErr } = await supabase.rpc('revoke_stage_signoff', {
+          p_project_id: Number(id),
+          p_stage: currentStage,
+        });
+        if (revErr) return jsonError(500, 'Failed to revoke sign-off', revErr);
+        const { data: updated } = await supabase
+          .from('campaign_projects').select('*').eq('id', id).single();
         return NextResponse.json({ project: updated });
       }
 
@@ -403,57 +396,61 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         );
       }
 
-      const now = new Date().toISOString();
-      entry[myKey] = entry[myKey] || now;
-      entry[myByKey] = user.id;
-      const bothSigned = !!entry[myKey] && !!entry[otherKey];
+      // Where this stage goes if BOTH sides have now signed. Computed here, not
+      // in SQL, because ALLOWED_TRANSITIONS (packages/core) is the single source
+      // of truth for the transition map — including the revisions →
+      // sent_for_review back-edge that an index-based guess gets wrong. The RPC
+      // only advances when both signatures are actually present, so passing a
+      // target cannot move a stage nobody agreed to.
+      //
+      // A sign-off stage has exactly one exit by definition; anything with a
+      // fork (sent_for_review) is in NON_SIGNOFF_STAGES and never reaches here.
+      // Bail rather than guess if that ever stops being true.
+      const allowedNext: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
+      if (currentIdx < STAGES.length - 1 && allowedNext.length !== 1) {
+        return jsonError(
+          500,
+          `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't advance by sign-off.`,
+        );
+      }
+      const candidateNext = currentIdx < STAGES.length - 1 ? allowedNext[0] : null;
 
-      let nextStage: string | null = null;
-      if (bothSigned && currentIdx < STAGES.length - 1) {
-        // Both confirmed → complete this stage and move on.
-        //
-        // The target comes from ALLOWED_TRANSITIONS, not STAGES[idx + 1]. For
-        // every stage but one those are the same answer, and the exception is
-        // the one that mattered: `revisions` is followed in the array by
-        // `final_approval`, but its only legal transition is BACK to
-        // `sent_for_review`. Advancing by index silently skipped the re-review,
-        // so a brand approved final content having never seen the resubmitted
-        // draft — and the `advance` path and this one disagreed about what the
-        // revision loop even does.
-        //
-        // A sign-off stage has exactly one exit by definition; anything with a
-        // fork (sent_for_review) is in NON_SIGNOFF_STAGES and never reaches
-        // here. Bail rather than guess if that ever stops being true.
-        const allowedNext: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
-        if (allowedNext.length !== 1) {
-          return jsonError(
-            500,
-            `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't advance by sign-off.`,
-          );
+      // Atomic: the RPC takes a row lock, re-reads stage_progress, writes ONLY
+      // this side's keys and advances only if both are present (migration 114).
+      //
+      // This used to be a read-modify-write in JS over the whole jsonb column.
+      // Two people confirming at the same instant both read a state with neither
+      // signature, and the second write — built from a stale snapshot — blanked
+      // the first. enforce_project_consent caught it and raised
+      // consent_violation, which surfaced as a 500 while the losing side's
+      // confirmation vanished and the stage stuck. See the migration for the
+      // reproduction.
+      const { data: signoffResult, error: updErr } = await supabase.rpc('record_stage_signoff', {
+        p_project_id: Number(id),
+        p_stage: currentStage,
+        p_next_stage: candidateNext,
+      });
+      if (updErr) return jsonError(500, 'Failed to record sign-off', updErr);
+
+      // The stage moved while this request was in flight — the other side got
+      // there first, or this is a double-click. Not an error: the user's intent
+      // (this stage is confirmed) is already satisfied.
+      if (signoffResult?.ok === false) {
+        if (signoffResult.reason === 'stage_moved') {
+          const { data: fresh } = await supabase
+            .from('campaign_projects').select('*').eq('id', id).single();
+          return NextResponse.json({ project: fresh, alreadyMoved: true });
         }
-        entry.status = 'completed';
-        entry.completed_at = now;
-        const ns = allowedNext[0];
-        nextStage = ns;
-        stageProgress[currentStage] = entry;
-        stageProgress[ns] = {
-          ...(stageProgress[ns] || {}),
-          status: 'current',
-          started_at: now,
-        };
-      } else {
-        stageProgress[currentStage] = entry;
+        if (signoffResult.reason === 'cancelled') {
+          return jsonError(409, 'This project has been cancelled, so it can no longer be confirmed.');
+        }
       }
 
-      const { data: updated, error: updErr } = await supabase
-        .from('campaign_projects')
-        .update({
-          stage_progress: stageProgress,
-          ...(nextStage ? { current_stage: nextStage, status: nextStage === 'project_completed' ? 'completed' : 'active' } : {}),
-          updated_at: now,
-        })
-        .eq('id', id).select().single();
-      if (updErr) return jsonError(500, 'Failed to record sign-off', updErr);
+      const bothSigned = Boolean(signoffResult?.both_signed);
+      const nextStage: string | null = signoffResult?.advanced ? candidateNext : null;
+
+      const { data: updated } = await supabase
+        .from('campaign_projects').select('*').eq('id', id).single();
 
       log.info('project stage sign-off', { stage: currentStage, actor: userRole, bothSigned, advancedTo: nextStage });
 
