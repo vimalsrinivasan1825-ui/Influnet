@@ -417,6 +417,39 @@ async function runTests() {
     // TEST 7: Project Stage Advancement
     // ----------------------------------------------------
     console.log("\n[TEST 7] Testing stage advancement timeline...");
+
+    // The checklist gate for collaboration_started has one required item
+    // ("Scope & goals aligned", owner_role 'both'). This test used to advance
+    // straight past it, which only ever passed because the gate was seeded
+    // lazily by GET /stage-items and this test never called that route — so on
+    // a project nobody had opened, the gate had no rows to block on. That was
+    // exactly the bug fixed on 2026-08-08 (an unpaid project could walk through
+    // the advance_payment gate the same way). The gate now materialises the
+    // checklist itself and fails CLOSED, so completing the required item first
+    // is the only way to advance — same as a real user would have to.
+    const stageItemsRes = await fetch(`http://localhost:3000/api/projects/${createdProjectId}/stage-items`, {
+      headers: { Authorization: `Bearer ${brandSession.access_token}` }
+    });
+    const stageItemsBody = await stageItemsRes.json().catch(() => ({}));
+    const requiredItem = (stageItemsBody.items || []).find(
+      it => it.stage_key === 'collaboration_started' && it.is_required && !it.done_at
+    );
+    if (requiredItem) {
+      const tickRes = await fetch(`http://localhost:3000/api/projects/${createdProjectId}/stage-items`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${brandSession.access_token}`
+        },
+        body: JSON.stringify({ item_id: requiredItem.id, done: true })
+      });
+      if (tickRes.status !== 200) {
+        const tickBody = await tickRes.json().catch(() => ({}));
+        throw new Error(`Could not complete the required checklist item before advancing: ${tickBody.error}`);
+      }
+      console.log(`✓ Completed required checklist item: "${requiredItem.label}"`);
+    }
+
     const advanceRes = await fetch(`http://localhost:3000/api/projects/${createdProjectId}`, {
       method: 'PATCH',
       headers: {
