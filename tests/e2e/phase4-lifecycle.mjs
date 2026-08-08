@@ -100,11 +100,11 @@ async function main() {
       { severity: 'MEDIUM', observed: huge.status, expected: 400 });
 
     // Message flood — is there any rate limit at all?
-    const flood = await raceAll(Array.from({ length: 30 }, (_, i) => () =>
+    const flood = await raceAll(Array.from({ length: 80 }, (_, i) => () =>
       A.mamaearth.post(`/api/conversations/${convId}/messages`, { content: `flood ${i}` })));
     const floodOk = flood.filter((r) => r.ok).length;
     const flood429 = flood.filter((r) => r.status === 429).length;
-    s.check('a 30-message burst is rate-limited',
+    s.check('an 80-message burst is rate-limited (limit is 60/min)',
       flood429 > 0,
       { severity: 'MEDIUM', observed: `${floodOk} accepted, ${flood429} rate-limited`,
         expected: 'some 429s',

@@ -163,7 +163,7 @@ async function main() {
     to_user_id: uid('boat'), project_title: 'self request', budget: 1000,
   });
   s.check('business cannot send a collab request to itself',
-    selfReq.status >= 400,
+    selfReq.status === 400,
     { severity: 'MEDIUM', observed: `${selfReq.status} ${JSON.stringify(selfReq.body).slice(0, 150)}`,
       expected: '4xx' });
 
@@ -172,9 +172,9 @@ async function main() {
     to_user_id: uid('mamaearth'), project_title: 'business to business', budget: 1000,
   });
   s.check('business cannot send a collab request to another business',
-    b2b.status >= 400,
+    b2b.status === 400,
     { severity: 'MEDIUM', observed: `${b2b.status} ${JSON.stringify(b2b.body).slice(0, 150)}`,
-      expected: '4xx' });
+      expected: '400 — recipient role is checked since the 2026-08-08 fix' });
 
   // Negative / absurd budget.
   const negBudget = await actors.wakefit.post('/api/collabs', {
@@ -193,8 +193,8 @@ async function main() {
     to_user_id: '00000000-0000-0000-0000-000000000000', project_title: 'ghost', budget: 1000,
   });
   s.check('request to a non-existent user is refused',
-    ghost.status >= 400,
-    { severity: 'MEDIUM', observed: ghost.status, expected: '4xx' });
+    ghost.status === 404,
+    { severity: 'MEDIUM', observed: ghost.status, expected: '404 — was a 500 before the fix' });
 
   // ══════════════════════════════════════════════════════════════════════
   s.section('Unapproved business (pending_review) — the approval gate');

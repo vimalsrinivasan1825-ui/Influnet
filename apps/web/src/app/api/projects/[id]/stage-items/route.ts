@@ -10,10 +10,26 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
     const { id } = await context.params;
     const projectId = parseInt(id, 10);
     if (Number.isNaN(projectId)) return jsonError(400, 'Invalid project id');
+
+    // Explicit participation check. RLS already stops a stranger SEEING any
+    // rows, so this was never a data leak — but with only RLS the route
+    // answered a non-participant `200 {items: []}`, which reads as "this
+    // project has no checklist" rather than "this isn't your project". Say the
+    // true thing, and keep the rule uniform across /api/projects/[id]/*.
+    const { data: project } = await supabase
+      .from('campaign_projects')
+      .select('owner_user_id, counterparty_user_id')
+      .eq('id', projectId)
+      .maybeSingle();
+
+    if (!project) return jsonError(404, 'Project not found');
+    if (project.owner_user_id !== user.id && project.counterparty_user_id !== user.id) {
+      return jsonError(403, 'Forbidden');
+    }
 
     // Shared with the advance/sign-off gate in the project PATCH route. One
     // seeding path means the gate can never disagree with what this endpoint

@@ -5,6 +5,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { requireVerifiedOwnership } from '@/lib/ownership-gate';
+import { ensureStageItems } from '@/lib/stage-items-gate';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -338,6 +339,23 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     });
     if (error) {
       return mapRpcError(error.message, RESPOND_ERRORS) ?? jsonError(500, 'Could not respond to the terms', error);
+    }
+
+    // Materialise the new project's stage checklist right away, so a project is
+    // never observable without one. The advance/sign-off gate materialises it
+    // too (lib/stage-items-gate.ts) and THAT is the security boundary — this is
+    // about consistency: anything reading the checklist for display, for a
+    // notification, or in the admin views should not see an empty list on a
+    // project that definitely has requirements.
+    //
+    // Non-fatal by design: the project exists either way, and the gate will
+    // seed it on first use if this fails.
+    if (accepting && result?.project_id) {
+      try {
+        await ensureStageItems(supabase, result.project_id as number);
+      } catch (seedErr) {
+        console.error('[deal] stage checklist seeding failed (gate will retry):', seedErr);
+      }
     }
 
     const proposerId = result?.notify_user_id as string | undefined;

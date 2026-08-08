@@ -181,36 +181,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(403, `Only the ${currentStageActor} can advance the stage from ${project.current_stage}`);
       }
 
-      // Gate: every REQUIRED checklist item of the current stage must be done
-      // before the project can move on. Enforced here (not just in the UI) so a
-      // direct PATCH can't skip payment/approval gates.
+      // Validate the requested TRANSITION before the checklist gate.
       //
-      // evaluateStageGate MATERIALISES the checklist before reading it. It used
-      // to read whatever rows existed, and rows were only ever created by
-      // GET /stage-items — so a project nobody had opened had no rows, nothing
-      // to block on, and every gate stood open, including the two money gates.
-      // See lib/stage-items-gate.ts.
-      const gate = await evaluateStageGate(supabase, id, project.current_stage);
-      if (gate.reason === 'unavailable') {
-        log.warn('stage checklist unavailable, skipping gate', { stage: project.current_stage });
-      }
-      if (!gate.open) {
-        if (gate.reason === 'not_seeded') {
-          log.error('stage checklist missing for a stage that requires items', {
-            stage: project.current_stage,
-          });
-        }
-        return NextResponse.json(
-          {
-            error: gate.reason === 'not_seeded'
-              ? 'We could not verify this stage’s checklist, so the project has not been moved. Open the project and try again.'
-              : 'Complete the required checklist items before advancing.',
-            blocking: gate.blocking,
-          },
-          { status: 409 },
-        );
-      }
-
+      // Order matters for the message the caller gets. With the gate first, an
+      // illegal jump (collaboration_started → project_completed) was answered
+      // with "Complete the required checklist items" — which is true but
+      // describes the wrong problem entirely, and would send someone off to tick
+      // boxes that were never going to help. Answer the question they actually
+      // got wrong. Both checks still run; only the order changed.
       const { stage_key } = result.data;
       let nextStage: string;
 
@@ -255,6 +233,36 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(
           400,
           'Completion needs both sides. Use “Confirm completion” — the project closes once you and the other party have both confirmed.',
+        );
+      }
+
+      // Gate: every REQUIRED checklist item of the current stage must be done
+      // before the project can move on. Enforced here (not just in the UI) so a
+      // direct PATCH can't skip payment/approval gates.
+      //
+      // evaluateStageGate MATERIALISES the checklist before reading it. It used
+      // to read whatever rows existed, and rows were only ever created by
+      // GET /stage-items — so a project nobody had opened had no rows, nothing
+      // to block on, and every gate stood open, including the two money gates.
+      // See lib/stage-items-gate.ts.
+      const gate = await evaluateStageGate(supabase, id, project.current_stage);
+      if (gate.reason === 'unavailable') {
+        log.warn('stage checklist unavailable, skipping gate', { stage: project.current_stage });
+      }
+      if (!gate.open) {
+        if (gate.reason === 'not_seeded') {
+          log.error('stage checklist missing for a stage that requires items', {
+            stage: project.current_stage,
+          });
+        }
+        return NextResponse.json(
+          {
+            error: gate.reason === 'not_seeded'
+              ? 'We could not verify this stage’s checklist, so the project has not been moved. Open the project and try again.'
+              : 'Complete the required checklist items before advancing.',
+            blocking: gate.blocking,
+          },
+          { status: 409 },
         );
       }
 

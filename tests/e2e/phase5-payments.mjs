@@ -98,9 +98,8 @@ async function main() {
     s.check('a new project has its checklist materialised at creation',
       seeded[0].n > 0,
       { severity: 'HIGH', observed: `${seeded[0].n} rows`, expected: '> 0',
-        note: 'Seeded lazily by GET /stage-items instead. Until something fetches the ' +
-              'checklist there are no required items, so the advance/sign-off gate has ' +
-              'nothing to block on.' });
+        note: 'Seeded when the deal is accepted (and again by the gate on first use), ' +
+              'so a project is never observable without its checklist.' });
 
     // Drive it straight at the money gate without ever fetching the checklist.
     await sql(`update campaign_projects set current_stage='advance_payment',
