@@ -189,6 +189,28 @@ export async function POST(req: Request) {
       return jsonError(403, 'You can no longer send requests to this account.');
     }
 
+    // The RECIPIENT must be a creator. Only the sender's role was ever checked
+    // (withAuth above), so a business could send a collab request to another
+    // business: the row was created, appeared in the recipient's inbox, and —
+    // since the deal flow keys off the request rather than the roles — could be
+    // carried into a conversation and a project between two brands, in a data
+    // model that assumes owner = business and counterparty = creator throughout.
+    const { data: recipient, error: recipientErr } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', to_user_id)
+      .maybeSingle();
+
+    if (recipientErr) {
+      return jsonError(500, 'Could not check who this request is for', recipientErr);
+    }
+    if (!recipient) {
+      return jsonError(404, 'That account no longer exists.');
+    }
+    if (recipient.role !== 'influencer') {
+      return jsonError(400, 'Collaboration requests can only be sent to creators.');
+    }
+
     // Combine project_title + message into the `message` field for storage
     const messageText = [project_title, project_description].filter(Boolean).join('\n\n');
 
@@ -205,8 +227,24 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
+      // These are USER-INPUT errors, not server faults, and they were all
+      // falling through to a 500 — which is both the wrong answer for the
+      // caller and noise in error monitoring.
       if (error.code === '23505') {
         return jsonError(409, 'You already have a pending request to this user');
+      }
+      if (error.code === '23514') {
+        // CHECK violation — collab_requests_no_self is the only one here.
+        return jsonError(400, 'You can’t send a collaboration request to yourself.');
+      }
+      if (error.code === '23503') {
+        // FK violation — to_user_id doesn't exist.
+        return jsonError(404, 'That account no longer exists.');
+      }
+      if (error.code === '22P05') {
+        // Postgres rejects   in text. Reaching here means an unprintable
+        // character survived validation; tell the caller rather than 500.
+        return jsonError(400, 'That message contains characters we can’t store. Please remove any unusual symbols and try again.');
       }
       return jsonError(500, 'Failed to insert collab request', error);
     }

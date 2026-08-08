@@ -1,24 +1,14 @@
-import { jsonError } from '@/lib/api';
+import { jsonError, withAuth } from '@/lib/api';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Same hand-rolled auth as /api/business/dashboard, with the same missing
+    // role check — a business calling this got a 200 with an empty creator
+    // profile. See that route for the full reasoning.
+    const auth = await withAuth(req, { role: 'influencer' });
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
 
     // 1. Fetch profiles
     const [profileRes, inflProfileRes] = await Promise.all([
@@ -46,9 +36,9 @@ export async function GET(req: Request) {
       .select('id, status, budget, created_at')
       .eq('to_user_id', user.id);
 
-    const pending = collabs?.filter(c => c.status === 'pending').length || 0;
-    const acceptedCollabs = collabs?.filter(c => c.status === 'accepted') || [];
-    const declinedCollabs = collabs?.filter(c => c.status === 'declined') || [];
+    const pending = collabs?.filter((c: any) => c.status === 'pending').length || 0;
+    const acceptedCollabs = collabs?.filter((c: any) => c.status === 'accepted') || [];
+    const declinedCollabs = collabs?.filter((c: any) => c.status === 'declined') || [];
     const active_discussions = acceptedCollabs.length;
 
     // 3. Fetch projects
@@ -57,13 +47,13 @@ export async function GET(req: Request) {
       .select('id, title, status, budget, created_by_user_id, owner_user_id, created_at, updated_at')
       .eq('counterparty_user_id', user.id);
 
-    const active_projects = projects?.filter(p => p.status === 'active').length || 0;
-    const completed_projects = projects?.filter(p => p.status === 'completed').length || 0;
+    const active_projects = projects?.filter((p: any) => p.status === 'active').length || 0;
+    const completed_projects = projects?.filter((p: any) => p.status === 'completed').length || 0;
 
     // Terms proposed by the brand and awaiting THIS creator's response — the
     // one thing genuinely blocked on the creator, previously invisible here.
     const proposals_awaiting_you = (projects || []).filter(
-      p => p.status === 'pending_acceptance' && p.created_by_user_id !== user.id,
+      (p: any) => p.status === 'pending_acceptance' && p.created_by_user_id !== user.id,
     ).length;
 
     // Pipeline value: budget of projects BOTH sides have actually agreed to
@@ -72,15 +62,15 @@ export async function GET(req: Request) {
     // conversation — see migration 069 — so it may represent nothing more
     // than a polite reply).
     const pipeline_value = (projects || [])
-      .filter(p => p.status === 'active')
-      .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+      .filter((p: any) => p.status === 'active')
+      .reduce((sum: any, p: any) => sum + (Number(p.budget) || 0), 0);
 
     const completed_value = (projects || [])
-      .filter(p => p.status === 'completed')
-      .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+      .filter((p: any) => p.status === 'completed')
+      .reduce((sum: any, p: any) => sum + (Number(p.budget) || 0), 0);
 
     // Earnings: money that has actually been paid, not requests exchanged.
-    const projectIds = (projects || []).map(p => p.id);
+    const projectIds = (projects || []).map((p: any) => p.id);
     let paidPayments: { amount: number; paid_at: string | null }[] = [];
     if (projectIds.length > 0) {
       const { data: payments } = await supabase
@@ -127,20 +117,20 @@ export async function GET(req: Request) {
       let weekAmount = 0;
       if (useProjectBudgets) {
         weekAmount = (projects || [])
-          .filter(p => {
+          .filter((p: any) => {
             if (p.status !== 'active' && p.status !== 'completed') return false;
             const d = new Date(p.updated_at || p.created_at || now);
             return d >= weekStart && d < weekEnd;
           })
-          .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+          .reduce((sum: any, p: any) => sum + (Number(p.budget) || 0), 0);
       } else {
         weekAmount = paidPayments
-          .filter(p => {
+          .filter((p: any) => {
             if (!p.paid_at) return false;
             const d = new Date(p.paid_at);
             return d >= weekStart && d < weekEnd;
           })
-          .reduce((sum, p) => sum + Math.round((p.amount || 0) / 100), 0);
+          .reduce((sum: any, p: any) => sum + Math.round((p.amount || 0) / 100), 0);
       }
 
       earningsTrend.push({ week: weekLabel, amount: weekAmount });
@@ -167,7 +157,7 @@ export async function GET(req: Request) {
       .limit(5);
 
     const recent_collabs = (recentCollabData || []).map((c: any) => {
-      const matchingProj = (projects || []).find(p => p.owner_user_id === c.sender?.id);
+      const matchingProj = (projects || []).find((p: any) => p.owner_user_id === c.sender?.id);
       let displayStatus = c.status === 'pending' ? 'Negotiation'
                         : c.status === 'accepted' ? 'In Progress'
                         : c.status === 'declined' ? 'Declined'

@@ -1,24 +1,19 @@
-import { jsonError } from '@/lib/api';
+import { jsonError, withAuth } from '@/lib/api';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Missing Authorization header' }, { status: 401 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Was hand-rolled auth: it read the Authorization header, built its own
+    // Supabase client and checked only that a user existed — never the ROLE.
+    // A creator calling this got a 200 full of placeholder values
+    // ("Your Company", industry "Unknown") instead of a 403. Nothing leaked
+    // (every query below is scoped to the caller's own id), but this was one of
+    // only two routes in the API sitting outside withAuth, which is where every
+    // other route's guarantees live — so a future change to withAuth would
+    // silently have failed to protect it.
+    const auth = await withAuth(req, { role: 'business_owner' });
+    if (!auth.ok) return auth.res;
+    const { supabase, user } = auth;
 
     // 1. Fetch business profile & user profile
     const [profileRes, businessProfileRes] = await Promise.all([
@@ -35,12 +30,12 @@ export async function GET(req: Request) {
       .select('id, status, budget, created_at')
       .eq('from_user_id', user.id);
 
-    const pending = collabs?.filter(c => c.status === 'pending').length || 0;
-    const acceptedCollabs = collabs?.filter(c => c.status === 'accepted') || [];
+    const pending = collabs?.filter((c: any) => c.status === 'pending').length || 0;
+    const acceptedCollabs = collabs?.filter((c: any) => c.status === 'accepted') || [];
     const accepted = acceptedCollabs.length;
 
     // Budget from accepted collab requests only (source of truth)
-    const pipeline_value = acceptedCollabs.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+    const pipeline_value = acceptedCollabs.reduce((sum: any, c: any) => sum + (Number(c.budget) || 0), 0);
 
     // 3. Fetch campaign projects for completion tracking
     const { data: projects } = await supabase
@@ -48,12 +43,12 @@ export async function GET(req: Request) {
       .select('status, budget, counterparty_user_id')
       .eq('owner_user_id', user.id);
 
-    const active_projects = projects?.filter(p => p.status === 'active').length || 0;
-    const completed_projects = projects?.filter(p => p.status === 'completed').length || 0;
+    const active_projects = projects?.filter((p: any) => p.status === 'active').length || 0;
+    const completed_projects = projects?.filter((p: any) => p.status === 'completed').length || 0;
 
     const completed_value = (projects || [])
-      .filter(p => p.status === 'completed')
-      .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+      .filter((p: any) => p.status === 'completed')
+      .reduce((sum: any, p: any) => sum + (Number(p.budget) || 0), 0);
 
     // active_collabs_count = unique active engagements
     const active_collabs_count = Math.max(active_projects, accepted);
@@ -72,11 +67,11 @@ export async function GET(req: Request) {
       const weekLabel = weekStart.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
 
       const weekSpend = acceptedCollabs
-        .filter(c => {
+        .filter((c: any) => {
           const d = new Date(c.created_at);
           return d >= weekStart && d < weekEnd;
         })
-        .reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+        .reduce((sum: any, c: any) => sum + (Number(c.budget) || 0), 0);
 
       weeklySpend.push({ week: weekLabel, spend: weekSpend });
     }
@@ -113,7 +108,7 @@ export async function GET(req: Request) {
           ? Math.max(inflProf.instagram_followers || 0, inflProf.youtube_subscribers || 0)
           : 0;
 
-        const matchingProj = (projects || []).find(p => p.counterparty_user_id === collab.influencer?.id);
+        const matchingProj = (projects || []).find((p: any) => p.counterparty_user_id === collab.influencer?.id);
         let displayStatus = collab.status === 'pending' ? 'Awaiting reply'
                           : collab.status === 'accepted' ? 'In discussion'
                           : 'Closed';

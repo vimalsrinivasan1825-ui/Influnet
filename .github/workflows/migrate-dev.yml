@@ -47,9 +47,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Supabase CLI
+        # Pinned deliberately. 2.112.0 broke `supabase link`, which fails this
+        # job before a single migration runs. Never `version: latest` here — a
+        # CLI release should not be able to break a deploy nobody touched.
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.111.0
 
       - name: Link to the dev project
         run: supabase link --project-ref "$PROJECT_REF"

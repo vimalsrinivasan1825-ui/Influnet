@@ -3,6 +3,7 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
+import { evaluateStageGate } from '@/lib/stage-items-gate';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
@@ -180,29 +181,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(403, `Only the ${currentStageActor} can advance the stage from ${project.current_stage}`);
       }
 
-      // Gate: every REQUIRED checklist item of the current stage must be done
-      // before the project can move on. Enforced here (not just in the UI) so a
-      // direct PATCH can't skip payment/approval gates.
-      const { data: stageItems, error: itemsErr } = await supabase
-        .from('project_stage_items')
-        .select('*')
-        .eq('project_id', id)
-        .eq('stage_key', project.current_stage);
-      // Fail OPEN if the checklist table isn't there yet (migration 054 not
-      // applied): the gate is an enhancement, not a reason to block advancing.
-      // Log so it's visible, but don't 500 the user.
-      if (itemsErr) log.warn('stage checklist unavailable, skipping gate', { err: itemsErr.message });
-      const pending = itemsErr ? [] : blockingItems(project.current_stage, (stageItems || []) as StageItem[]);
-      if (pending.length > 0) {
-        return NextResponse.json(
-          {
-            error: 'Complete the required checklist items before advancing.',
-            blocking: pending.map((it) => it.label),
-          },
-          { status: 409 },
-        );
-      }
-
+      // Validate the requested TRANSITION before the checklist gate.
+      //
+      // Order matters for the message the caller gets. With the gate first, an
+      // illegal jump (collaboration_started → project_completed) was answered
+      // with "Complete the required checklist items" — which is true but
+      // describes the wrong problem entirely, and would send someone off to tick
+      // boxes that were never going to help. Answer the question they actually
+      // got wrong. Both checks still run; only the order changed.
       const { stage_key } = result.data;
       let nextStage: string;
 
@@ -247,6 +233,36 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(
           400,
           'Completion needs both sides. Use “Confirm completion” — the project closes once you and the other party have both confirmed.',
+        );
+      }
+
+      // Gate: every REQUIRED checklist item of the current stage must be done
+      // before the project can move on. Enforced here (not just in the UI) so a
+      // direct PATCH can't skip payment/approval gates.
+      //
+      // evaluateStageGate MATERIALISES the checklist before reading it. It used
+      // to read whatever rows existed, and rows were only ever created by
+      // GET /stage-items — so a project nobody had opened had no rows, nothing
+      // to block on, and every gate stood open, including the two money gates.
+      // See lib/stage-items-gate.ts.
+      const gate = await evaluateStageGate(supabase, id, project.current_stage);
+      if (gate.reason === 'unavailable') {
+        log.warn('stage checklist unavailable, skipping gate', { stage: project.current_stage });
+      }
+      if (!gate.open) {
+        if (gate.reason === 'not_seeded') {
+          log.error('stage checklist missing for a stage that requires items', {
+            stage: project.current_stage,
+          });
+        }
+        return NextResponse.json(
+          {
+            error: gate.reason === 'not_seeded'
+              ? 'We could not verify this stage’s checklist, so the project has not been moved. Open the project and try again.'
+              : 'Complete the required checklist items before advancing.',
+            blocking: gate.blocking,
+          },
+          { status: 409 },
         );
       }
 
@@ -354,90 +370,95 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(400, `The ${STAGE_LABELS[currentStage] || currentStage} stage does not use sign-off.`);
       }
 
-      const stageProgress = (project.stage_progress || {}) as Record<string, any>;
-      const entry = { ...(stageProgress[currentStage] || { status: 'current', started_at: new Date().toISOString() }) };
-      const myKey = userRole === 'business' ? 'owner_signoff_at' : 'creator_signoff_at';
-      const myByKey = userRole === 'business' ? 'owner_signoff_by' : 'creator_signoff_by';
-      const otherKey = userRole === 'business' ? 'creator_signoff_at' : 'owner_signoff_at';
-
       if (action === 'revoke_signoff') {
-        entry[myKey] = null;
-        entry[myByKey] = null;
-        stageProgress[currentStage] = entry;
-        const { data: updated, error: updErr } = await supabase
-          .from('campaign_projects')
-          .update({ stage_progress: stageProgress, updated_at: new Date().toISOString() })
-          .eq('id', id).select().single();
-        if (updErr) return jsonError(500, 'Failed to revoke sign-off', updErr);
+        const { error: revErr } = await supabase.rpc('revoke_stage_signoff', {
+          p_project_id: Number(id),
+          p_stage: currentStage,
+        });
+        if (revErr) return jsonError(500, 'Failed to revoke sign-off', revErr);
+        const { data: updated } = await supabase
+          .from('campaign_projects').select('*').eq('id', id).single();
         return NextResponse.json({ project: updated });
       }
 
-      // Gate: required checklist items must be done before this side can sign off.
-      const { data: stageItems, error: itemsErr } = await supabase
-        .from('project_stage_items')
-        .select('*')
-        .eq('project_id', id)
-        .eq('stage_key', currentStage);
-      if (itemsErr) log.warn('stage checklist unavailable, skipping gate', { err: itemsErr.message });
-      const pending = itemsErr ? [] : blockingItems(currentStage, (stageItems || []) as StageItem[]);
-      if (pending.length > 0) {
+      // Gate: required checklist items must be done before this side can sign
+      // off. Same materialise-then-evaluate as the advance path — sign-off is
+      // how 8 of the 12 stages are left, so leaving it on the old read-only
+      // check would have kept the bypass alive for most of the pipeline.
+      const gate = await evaluateStageGate(supabase, id, currentStage);
+      if (gate.reason === 'unavailable') {
+        log.warn('stage checklist unavailable, skipping gate', { stage: currentStage });
+      }
+      if (!gate.open) {
+        if (gate.reason === 'not_seeded') {
+          log.error('stage checklist missing for a stage that requires items', { stage: currentStage });
+        }
         return NextResponse.json(
-          { error: 'Complete the required steps before confirming this stage.', blocking: pending.map((it) => it.label) },
+          {
+            error: gate.reason === 'not_seeded'
+              ? 'We could not verify this stage’s checklist, so your confirmation was not recorded. Open the project and try again.'
+              : 'Complete the required steps before confirming this stage.',
+            blocking: gate.blocking,
+          },
           { status: 409 },
         );
       }
 
-      const now = new Date().toISOString();
-      entry[myKey] = entry[myKey] || now;
-      entry[myByKey] = user.id;
-      const bothSigned = !!entry[myKey] && !!entry[otherKey];
+      // Where this stage goes if BOTH sides have now signed. Computed here, not
+      // in SQL, because ALLOWED_TRANSITIONS (packages/core) is the single source
+      // of truth for the transition map — including the revisions →
+      // sent_for_review back-edge that an index-based guess gets wrong. The RPC
+      // only advances when both signatures are actually present, so passing a
+      // target cannot move a stage nobody agreed to.
+      //
+      // A sign-off stage has exactly one exit by definition; anything with a
+      // fork (sent_for_review) is in NON_SIGNOFF_STAGES and never reaches here.
+      // Bail rather than guess if that ever stops being true.
+      const allowedNext: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
+      if (currentIdx < STAGES.length - 1 && allowedNext.length !== 1) {
+        return jsonError(
+          500,
+          `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't advance by sign-off.`,
+        );
+      }
+      const candidateNext = currentIdx < STAGES.length - 1 ? allowedNext[0] : null;
 
-      let nextStage: string | null = null;
-      if (bothSigned && currentIdx < STAGES.length - 1) {
-        // Both confirmed → complete this stage and move on.
-        //
-        // The target comes from ALLOWED_TRANSITIONS, not STAGES[idx + 1]. For
-        // every stage but one those are the same answer, and the exception is
-        // the one that mattered: `revisions` is followed in the array by
-        // `final_approval`, but its only legal transition is BACK to
-        // `sent_for_review`. Advancing by index silently skipped the re-review,
-        // so a brand approved final content having never seen the resubmitted
-        // draft — and the `advance` path and this one disagreed about what the
-        // revision loop even does.
-        //
-        // A sign-off stage has exactly one exit by definition; anything with a
-        // fork (sent_for_review) is in NON_SIGNOFF_STAGES and never reaches
-        // here. Bail rather than guess if that ever stops being true.
-        const allowedNext: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
-        if (allowedNext.length !== 1) {
-          return jsonError(
-            500,
-            `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't advance by sign-off.`,
-          );
+      // Atomic: the RPC takes a row lock, re-reads stage_progress, writes ONLY
+      // this side's keys and advances only if both are present (migration 114).
+      //
+      // This used to be a read-modify-write in JS over the whole jsonb column.
+      // Two people confirming at the same instant both read a state with neither
+      // signature, and the second write — built from a stale snapshot — blanked
+      // the first. enforce_project_consent caught it and raised
+      // consent_violation, which surfaced as a 500 while the losing side's
+      // confirmation vanished and the stage stuck. See the migration for the
+      // reproduction.
+      const { data: signoffResult, error: updErr } = await supabase.rpc('record_stage_signoff', {
+        p_project_id: Number(id),
+        p_stage: currentStage,
+        p_next_stage: candidateNext,
+      });
+      if (updErr) return jsonError(500, 'Failed to record sign-off', updErr);
+
+      // The stage moved while this request was in flight — the other side got
+      // there first, or this is a double-click. Not an error: the user's intent
+      // (this stage is confirmed) is already satisfied.
+      if (signoffResult?.ok === false) {
+        if (signoffResult.reason === 'stage_moved') {
+          const { data: fresh } = await supabase
+            .from('campaign_projects').select('*').eq('id', id).single();
+          return NextResponse.json({ project: fresh, alreadyMoved: true });
         }
-        entry.status = 'completed';
-        entry.completed_at = now;
-        const ns = allowedNext[0];
-        nextStage = ns;
-        stageProgress[currentStage] = entry;
-        stageProgress[ns] = {
-          ...(stageProgress[ns] || {}),
-          status: 'current',
-          started_at: now,
-        };
-      } else {
-        stageProgress[currentStage] = entry;
+        if (signoffResult.reason === 'cancelled') {
+          return jsonError(409, 'This project has been cancelled, so it can no longer be confirmed.');
+        }
       }
 
-      const { data: updated, error: updErr } = await supabase
-        .from('campaign_projects')
-        .update({
-          stage_progress: stageProgress,
-          ...(nextStage ? { current_stage: nextStage, status: nextStage === 'project_completed' ? 'completed' : 'active' } : {}),
-          updated_at: now,
-        })
-        .eq('id', id).select().single();
-      if (updErr) return jsonError(500, 'Failed to record sign-off', updErr);
+      const bothSigned = Boolean(signoffResult?.both_signed);
+      const nextStage: string | null = signoffResult?.advanced ? candidateNext : null;
+
+      const { data: updated } = await supabase
+        .from('campaign_projects').select('*').eq('id', id).single();
 
       log.info('project stage sign-off', { stage: currentStage, actor: userRole, bothSigned, advancedTo: nextStage });
 
@@ -651,27 +672,26 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       // creator is the one who needs protecting here, and they still hold the
       // other half of the dual-confirm either way.
       if (userRole === 'creator') {
-        const { data: finalItems, error: finalItemsErr } = await supabase
-          .from('project_stage_items')
-          .select('*')
-          .eq('project_id', id)
-          .eq('stage_key', 'final_payment');
-        // Same fail-open as the other checklist gates: a missing table (054 not
-        // applied) must not block completion outright.
-        if (finalItemsErr) {
-          log.warn('final payment checklist unavailable, skipping gate', { err: finalItemsErr.message });
-        } else {
-          const pendingFinal = blockingItems('final_payment', (finalItems || []) as StageItem[]);
-          if (pendingFinal.length > 0) {
-            return NextResponse.json(
-              {
-                error:
-                  'The final payment hasn’t been recorded yet. Once it is, you can confirm the project is complete.',
-                blocking: pendingFinal.map((it) => it.label),
-              },
-              { status: 409 },
-            );
+        // Materialise-then-evaluate, like the other two gates. This is the last
+        // money check in the pipeline: without it a creator can be talked into
+        // marking a project complete — which publishes it and closes the
+        // change-request window — before the final payment has landed.
+        const finalGate = await evaluateStageGate(supabase, id, 'final_payment');
+        if (finalGate.reason === 'unavailable') {
+          log.warn('final payment checklist unavailable, skipping gate');
+        }
+        if (!finalGate.open) {
+          if (finalGate.reason === 'not_seeded') {
+            log.error('final_payment checklist missing');
           }
+          return NextResponse.json(
+            {
+              error:
+                'The final payment hasn’t been recorded yet. Once it is, you can confirm the project is complete.',
+              blocking: finalGate.blocking,
+            },
+            { status: 409 },
+          );
         }
       }
 
