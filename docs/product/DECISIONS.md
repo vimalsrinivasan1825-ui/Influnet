@@ -5,6 +5,43 @@
 
 ---
 
+## D-004 · Admin-controlled runtime settings: agreed in principle, DEFERRED (2026-08-08)
+
+**Decision:** We *will* move operational switches (email kill switches, per-template
+toggles, daily cap, OTP gate, ownership gate) out of environment variables and behind an
+admin page, so they can be flipped without a redeploy. **Not building it now** — the
+application is going into testing first. Full design:
+[architecture/RUNTIME_FEATURE_FLAGS_PROPOSAL.md](../architecture/RUNTIME_FEATURE_FLAGS_PROPOSAL.md).
+
+**The rule that governs it, decided now so it isn't re-litigated later:**
+
+> A flag may change **what the product does**. It may never change **what the product
+> guarantees**.
+
+Email sending, OTP, scraper choice and rate limits are behaviour — flaggable. Payment
+gates, bilateral consent (dual sign-off, dual completion), webhook signature verification
+and RLS are guarantees — they stay in code, where changing them needs a pull request
+someone can see.
+
+This is not theoretical. The 2026-08-08 audit found an unpaid project walking through the
+advance-payment gate ([operations/FULL_FLOW_AUDIT_2026-08-08.md](../operations/FULL_FLOW_AUDIT_2026-08-08.md)).
+A `PAYMENTS_REQUIRED` flag would have turned that bug into a supported feature.
+
+**Three tiers, in ascending difficulty:**
+
+| Tier | What | Verdict |
+|---|---|---|
+| 1 | 8 server-only flags, already read per-request | Easy — just change the source from `process.env` to a settings table |
+| 2 | `NEXT_PUBLIC_PHONE_OTP_ENABLED` | Inlined into the bundle at **build time**; a DB value alone does nothing. Web must read `/api/auth/config` at runtime — which mobile **already does**, for exactly this reason |
+| 3 | Supabase "Confirm email" (`mailer_autoconfirm`) | Reachable via the Management API, but that needs an `sbp_` token in the public app — full project control (all data, schema, key rotation, deletion) for a switch flipped twice ever. **Show it read-only instead; keep flipping it in the dashboard.** |
+
+**Protection model when we build it:** classify flags by risk; MFA (`aal2`, machinery
+already in `lib/api.ts`) for security-relevant ones; a mandatory written reason; full audit
+trail; and **auto-expiry on "off"** so a protection disabled during a 2am incident turns
+itself back on rather than being forgotten for months.
+
+---
+
 ## D-003 · Deploy as one unified app; scale horizontally; split out a *worker*, not a frontend/backend (2026-07-12)
 
 **Decision:** Keep Influnet as a **single unified Next.js app** (`apps/web`, pages + `/api/*`

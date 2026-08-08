@@ -1,0 +1,173 @@
+// Regression tests for the MEDIUM findings from the 2026-08-08 audit.
+//
+// Usage: node --env-file=apps/web/.env.local tests/e2e/verify-medium-fixes.mjs
+
+import { Actor, raceAll } from './lib/actor.mjs';
+import { Scenario, loadPersonaState } from './lib/scenario.mjs';
+import { sql, lit } from './lib/sql.mjs';
+import { personaByKey } from './lib/personas.mjs';
+
+const s = new Scenario('verify-medium-fixes', 'Medium findings — regression');
+
+async function main() {
+  const state = loadPersonaState();
+  const A = {};
+  for (const key of Object.keys(state.actors)) {
+    A[key] = new Actor(personaByKey(key));
+    await A[key].signIn();
+  }
+  const uid = (k) => A[k].userId;
+
+  s.section('Dashboard role boundaries');
+
+  const bizAsCreator = await A.sourav.get('/api/business/dashboard');
+  s.check('creator is refused GET /api/business/dashboard',
+    bizAsCreator.status === 403,
+    { severity: 'MEDIUM', observed: `${bizAsCreator.status} ${JSON.stringify(bizAsCreator.body).slice(0, 150)}`,
+      expected: 403 });
+
+  const creAsBiz = await A.mamaearth.get('/api/influencer/dashboard');
+  s.check('business is refused GET /api/influencer/dashboard',
+    creAsBiz.status === 403,
+    { severity: 'MEDIUM', observed: `${creAsBiz.status} ${JSON.stringify(creAsBiz.body).slice(0, 150)}`,
+      expected: 403 });
+
+  // The fix must not break the legitimate case.
+  const bizOwn = await A.mamaearth.get('/api/business/dashboard');
+  s.check('a business still gets its OWN dashboard',
+    bizOwn.status === 200 && bizOwn.body?.stats != null,
+    { severity: 'CRITICAL', observed: `${bizOwn.status} ${JSON.stringify(bizOwn.body).slice(0, 200)}`,
+      expected: '200 with stats' });
+
+  const creOwn = await A.sourav.get('/api/influencer/dashboard');
+  s.check('a creator still gets their OWN dashboard',
+    creOwn.status === 200 && creOwn.body?.stats != null,
+    { severity: 'CRITICAL', observed: `${creOwn.status} ${JSON.stringify(creOwn.body).slice(0, 200)}`,
+      expected: '200 with stats' });
+
+  s.section('Collab request recipient must be a creator');
+
+  await sql(`delete from collab_requests
+             where from_user_id=${lit(uid('boat'))} and to_user_id=${lit(uid('mamaearth'))}`);
+  const b2b = await A.boat.post('/api/collabs', {
+    to_user_id: uid('mamaearth'), project_title: 'business to business', budget: 1000,
+  });
+  s.check('a business cannot send a collab request to another business',
+    b2b.status === 400,
+    { severity: 'MEDIUM', observed: `${b2b.status} ${JSON.stringify(b2b.body).slice(0, 180)}`, expected: 400 });
+
+  const b2bRows = await sql(
+    `select count(*)::int as n from collab_requests
+     where from_user_id=${lit(uid('boat'))} and to_user_id=${lit(uid('mamaearth'))}`);
+  s.check('no business-to-business request row was written',
+    b2bRows[0].n === 0,
+    { severity: 'MEDIUM', observed: `${b2bRows[0].n} rows`, expected: '0' });
+
+  const ghost = await A.boat.post('/api/collabs', {
+    to_user_id: '00000000-0000-0000-0000-000000000000', project_title: 'ghost', budget: 1000,
+  });
+  s.check('a request to a non-existent account returns 404, not 500',
+    ghost.status === 404,
+    { severity: 'MEDIUM', observed: `${ghost.status} ${JSON.stringify(ghost.body).slice(0, 150)}`, expected: 404 });
+
+  const self = await A.boat.post('/api/collabs', {
+    to_user_id: uid('boat'), project_title: 'self', budget: 1000,
+  });
+  s.check('a self-request returns 400, not 500',
+    self.status === 400,
+    { severity: 'MEDIUM', observed: `${self.status} ${JSON.stringify(self.body).slice(0, 150)}`, expected: 400 });
+
+  // The legitimate case must still work.
+  await sql(`delete from collab_requests
+             where from_user_id=${lit(uid('boat'))} and to_user_id=${lit(uid('nisha'))}`);
+  const good = await A.boat.post('/api/collabs', {
+    to_user_id: uid('nisha'), project_title: 'boAt × Nisha — legitimate', budget: 30000,
+  });
+  s.check('a business can still send a request to a creator',
+    good.status === 200,
+    { severity: 'CRITICAL', observed: `${good.status} ${JSON.stringify(good.body).slice(0, 150)}`, expected: 200 });
+
+  s.section('Message length and rate limits');
+
+  const conv = await A.mamaearth.post('/api/conversations', { other_user_id: uid('sourav') });
+  const convId = conv.body?.conversation?.id;
+
+  const huge = await A.mamaearth.post(`/api/conversations/${convId}/messages`, { content: 'x'.repeat(100_000) });
+  s.check('a 100k-character message is rejected',
+    huge.status === 400,
+    { severity: 'MEDIUM', observed: `${huge.status} ${JSON.stringify(huge.body).slice(0, 150)}`, expected: 400 });
+
+  const ok4000 = await A.mamaearth.post(`/api/conversations/${convId}/messages`, { content: 'y'.repeat(4000) });
+  s.check('a 4000-character message is still accepted',
+    ok4000.status === 200,
+    { severity: 'MEDIUM', observed: ok4000.status, expected: 200 });
+
+  const nullByte = await A.mamaearth.post(`/api/conversations/${convId}/messages`, { content: 'hello\0world' });
+  s.check('a message containing a null byte is handled, not 500',
+    nullByte.status < 500,
+    { severity: 'MEDIUM', observed: `${nullByte.status} ${JSON.stringify(nullByte.body).slice(0, 150)}`,
+      expected: '2xx/4xx' });
+
+  const stored = await sql(
+    `select body from messages where conversation_id=${lit(convId)} order by created_at desc limit 1`);
+  s.check('no null byte reached the database',
+    !String(stored[0]?.body ?? '').includes('\0'),
+    { severity: 'MEDIUM', observed: JSON.stringify(String(stored[0]?.body ?? '').slice(0, 60)),
+      expected: 'stripped' });
+
+  const empty = await A.mamaearth.post(`/api/conversations/${convId}/messages`, { content: '     ' });
+  s.check('a message that is only whitespace is rejected',
+    empty.status === 400,
+    { severity: 'LOW', observed: `${empty.status} ${JSON.stringify(empty.body).slice(0, 120)}`,
+      expected: 400,
+      note: 'An accidental blank send is noise in the recipient inbox and a wasted push notification.' });
+
+  // Rate limit: 60/min. Fire 80 and require some to be refused.
+  const flood = await raceAll(Array.from({ length: 80 }, (_, i) => () =>
+    A.mamaearth.post(`/api/conversations/${convId}/messages`, { content: `flood ${i}` })));
+  const accepted = flood.filter((r) => r.ok).length;
+  const limited = flood.filter((r) => r.status === 429).length;
+  s.check('a burst beyond the limit is rate-limited',
+    limited > 0,
+    { severity: 'MEDIUM', observed: `${accepted} accepted, ${limited} rate-limited`,
+      expected: 'some 429s' });
+
+  s.section('Project payments GET checks participation');
+
+  const [proj] = await sql(
+    `select id from campaign_projects
+     where owner_user_id=${lit(uid('mamaearth'))} and counterparty_user_id=${lit(uid('sourav'))}
+     order by created_at desc limit 1`);
+  if (proj) {
+    const stranger = await A.nagma.get(`/api/projects/${proj.id}/payments`);
+    s.check('a non-participant is refused GET /api/projects/[id]/payments',
+      stranger.status === 403 || stranger.status === 404,
+      { severity: 'LOW', observed: `${stranger.status} ${JSON.stringify(stranger.body).slice(0, 150)}`,
+        expected: '403/404' });
+
+    const participant = await A.mamaearth.get(`/api/projects/${proj.id}/payments`);
+    s.check('a participant still gets the payment config',
+      participant.status === 200 && participant.body?.configured != null,
+      { severity: 'CRITICAL', observed: `${participant.status} ${JSON.stringify(participant.body).slice(0, 150)}`,
+        expected: '200 with configured flag' });
+  }
+
+  s.section('Upstream HTML errors surface as 503, not 500');
+
+  // '../../etc/passwd' trips Supabase's Cloudflare WAF, which returns an HTML
+  // block page where the client expects JSON. That used to become a 500 with a
+  // whole web page in the logs. Any provider incident fails the same way.
+  await sql(`delete from collab_requests
+             where from_user_id=${lit(uid('boat'))} and to_user_id=${lit(uid('kiran'))}`);
+  const waf = await A.boat.post('/api/collabs', {
+    to_user_id: uid('kiran'), project_title: '../../etc/passwd', budget: 1000,
+  });
+  s.check('a WAF-blocked request is reported as 503, not 500',
+    waf.status !== 500,
+    { severity: 'MEDIUM', observed: `${waf.status} ${JSON.stringify(waf.body).slice(0, 200)}`,
+      expected: '503 (or 2xx if the WAF let it through)' });
+
+  s.finish();
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });

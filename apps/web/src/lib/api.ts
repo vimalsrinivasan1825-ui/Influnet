@@ -5,7 +5,41 @@ import type { Database, UserRole } from '@/types';
 import { logger } from './logger';
 import { captureException } from './observability';
 
+/**
+ * Is this "error" actually an HTML page from something in front of the database?
+ *
+ * Supabase sits behind Cloudflare. When its WAF blocks a request — which the
+ * 2026-08-08 audit triggered simply by putting `../../etc/passwd` in a project
+ * title — the client receives an HTML block page where it expects JSON, and the
+ * whole document ended up in `error.message`. That produced a 500 plus a log
+ * entry containing a full web page.
+ *
+ * The input case is a curiosity; the reason this matters is that ANY upstream
+ * incident (a Cloudflare error page, a Supabase status page, a proxy timeout
+ * page) fails the same way. An upstream being unavailable is not a bug in this
+ * application, and reporting it as one buries real faults in Sentry.
+ */
+function looksLikeUpstreamHtml(error: any): boolean {
+  const msg = typeof error?.message === 'string' ? error.message : '';
+  return /^\s*<(!doctype|html)\b/i.test(msg);
+}
+
 export function jsonError(status: number, publicMessage: string, error?: any) {
+  // An HTML body from upstream is an availability problem, not a server fault
+  // in this code. Re-label it so the caller gets an honest status and the log
+  // gets one line instead of an entire page.
+  if (status >= 500 && looksLikeUpstreamHtml(error)) {
+    const title = String(error.message).match(/<title>([^<]{0,120})<\/title>/i)?.[1]?.trim();
+    logger.error('upstream returned an HTML error page (WAF block or provider incident)', {
+      status: 503,
+      upstreamTitle: title ?? 'unknown',
+    });
+    return NextResponse.json(
+      { error: 'That request was blocked or the service is temporarily unavailable. Please try again.' },
+      { status: 503 },
+    );
+  }
+
   // 5xx are server faults (error); 4xx are expected client errors (warn).
   const level = status >= 500 ? 'error' : 'warn';
   logger[level](publicMessage, { status, ...(error != null ? { err: error } : {}) });

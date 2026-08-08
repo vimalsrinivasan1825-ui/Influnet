@@ -133,14 +133,28 @@ function Rail({
   );
 }
 
+/**
+ * Counts from get_collaboration_stats (migration 113). Optional: a database
+ * that hasn't applied 113 sends null, and the section simply doesn't render.
+ */
+export interface CollaborationStats {
+  partners: number;
+  projectsTotal: number;
+  projectsActive: number;
+  projectsCompleted: number;
+  firstCollabAt: string | null;
+  lastCollabAt: string | null;
+}
+
 export interface CreatorProfileViewProps {
   data: CreatorProfileView;
   isOwner: boolean;
   ctaHref: string;
   ctaLabel: string;
+  collaborationStats?: CollaborationStats | null;
 }
 
-export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ctaLabel }: CreatorProfileViewProps) {
+export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ctaLabel, collaborationStats }: CreatorProfileViewProps) {
   const [accent, setAccent] = useState(PRESETS[0].a);
   const [accent2, setAccent2] = useState(PRESETS[0].b);
   const [dark, setDark] = useState(false);
@@ -656,6 +670,45 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                   </a>
                 ))}
               </Rail>
+            </section>
+          )}
+
+          {/* TRACK RECORD — who has actually hired this creator.
+              Sits directly above Brand ratings on purpose: ratings say how well
+              the work went, this says how much work there has been. Follower
+              count answers neither, and until now the profile showed only
+              follower count. Hidden entirely at zero — "0 projects" on a new
+              creator's profile is a reason for a brand to leave, and a brand-new
+              account has no track record to state either way. */}
+          {collaborationStats && collaborationStats.projectsTotal > 0 && (
+            <section className={`${styles.card} ${styles.pad}`} id="track-record">
+              <div className={styles.chead}>
+                <div className={styles.ctitle}>
+                  <span className={styles.ci}>
+                    <Ic d="M20 6 9 17l-5-5" />
+                  </span>
+                  Track record
+                </div>
+                <span className={styles.viewall}>Verified on Influnet</span>
+              </div>
+              <div className={styles.ratehead}>
+                <span className={styles.ratebig}>{collaborationStats.projectsCompleted}</span>
+                <span className={styles.ratecount}>
+                  {collaborationStats.projectsCompleted === 1
+                    ? 'completed project'
+                    : 'completed projects'}
+                  {collaborationStats.partners > 0 && (
+                    <>
+                      {' · '}
+                      {collaborationStats.partners}{' '}
+                      {collaborationStats.partners === 1 ? 'brand' : 'brands'}
+                    </>
+                  )}
+                  {collaborationStats.projectsActive > 0 && (
+                    <>{` · ${collaborationStats.projectsActive} in progress`}</>
+                  )}
+                </span>
+              </div>
             </section>
           )}
 

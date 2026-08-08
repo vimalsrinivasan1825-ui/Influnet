@@ -63,6 +63,9 @@ jobs:
       # returns. Nothing in this repo changed; the deploy just stopped working.
       # Bump this on purpose, after checking a run passes.
       - name: Setup Supabase CLI
+        # Pinned deliberately. 2.112.0 broke `supabase link`, which fails this
+        # job before a single migration runs. Never `version: latest` here — a
+        # CLI release should not be able to break a deploy nobody touched.
         uses: supabase/setup-cli@v1
         with:
           version: 2.111.0

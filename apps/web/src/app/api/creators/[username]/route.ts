@@ -96,12 +96,17 @@ export async function GET(
   });
   const autoCollaborations = Array.isArray(autoCollabs) ? (autoCollabs as string[]) : [];
 
-  const [instagram, youtube, reviews, portfolio, visibility] = await Promise.all([
+  const [instagram, youtube, reviews, portfolio, visibility, collabStats] = await Promise.all([
     getInstagramSnapshot(profile.userId),
     getYouTubeSnapshot(profile.userId),
     getPublicReviews(profile.userId),
     getCreatorPortfolio(supabase, profile.userId),
     getProfileVisibility(supabase, profile.userId),
+    // Migration 113. Counts only — how many brands this creator has actually
+    // worked with, and how many of those finished. Follower count says how many
+    // people watch; this says whether anyone has hired them, which is the thing
+    // a brand is really trying to judge.
+    (supabase.rpc as any)('get_collaboration_stats', { p_user_id: profile.userId }),
   ]);
 
   const hdrs = await headers();
@@ -126,6 +131,10 @@ export async function GET(
   if (!isSectionVisible(visibility, 'youtube_videos')) data.videos = [];
   if (!isSectionVisible(visibility, 'portfolio')) data.portfolio = [];
 
+  // RETURNS TABLE gives one row; `null` on a database that hasn't applied 113
+  // yet, so the clients treat these counters as optional rather than breaking.
+  const statsRow = Array.isArray(collabStats?.data) ? collabStats.data[0] : null;
+
   return NextResponse.json({
     data,
     isOwner,
@@ -135,5 +144,13 @@ export async function GET(
     ctaProjectId,
     userId: profile.userId,
     availabilityStatus: (profile as { availabilityStatus?: string | null }).availabilityStatus ?? null,
+    collaborationStats: collabStats?.error || !statsRow ? null : {
+      partners: statsRow.partners_total ?? 0,
+      projectsTotal: statsRow.projects_total ?? 0,
+      projectsActive: statsRow.projects_active ?? 0,
+      projectsCompleted: statsRow.projects_completed ?? 0,
+      firstCollabAt: statsRow.first_collab_at ?? null,
+      lastCollabAt: statsRow.last_collab_at ?? null,
+    },
   });
 }

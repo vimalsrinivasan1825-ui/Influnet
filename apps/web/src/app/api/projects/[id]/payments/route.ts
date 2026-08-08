@@ -22,9 +22,34 @@ const CreateOrderSchema = z.object({
 });
 
 // GET: report whether in-app payments are available (drives the UI mode).
-export async function GET(req: Request) {
+//
+// This handler never used to read the project id at all, so it answered any
+// authenticated caller — the one project sub-route with no participation check.
+// Nothing is disclosed by it (the key is the PUBLISHABLE one, already public to
+// every signed-in user), so it was never an IDOR. It is checked anyway: a
+// reader auditing this directory should not have to work out which routes are
+// deliberately open, and "every /api/projects/[id]/* route verifies membership"
+// is a much easier rule to keep true than a list of exceptions.
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await withAuth(req);
   if (!auth.ok) return auth.res;
+  const { supabase, user } = auth;
+
+  const { id } = await context.params;
+  const projectId = parseInt(id, 10);
+  if (Number.isNaN(projectId)) return jsonError(400, 'Invalid project id');
+
+  const { data: project } = await supabase
+    .from('campaign_projects')
+    .select('owner_user_id, counterparty_user_id')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (!project) return jsonError(404, 'Project not found');
+  if (project.owner_user_id !== user.id && project.counterparty_user_id !== user.id) {
+    return jsonError(403, 'Forbidden');
+  }
+
   return NextResponse.json({
     configured: isRazorpayConfigured(),
     key_id: isRazorpayConfigured() ? razorpayPublicKeyId() : null,
