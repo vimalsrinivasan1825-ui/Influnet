@@ -29,10 +29,17 @@ export async function GET(req: Request) {
     // Caller-scoped so is_admin() inside the RPCs sees a real auth.uid().
     const scoped = callerClient(req);
 
-    const [growth, funnel, support] = await Promise.all([
+    const [growth, funnel, support, engagement] = await Promise.all([
       scoped.rpc('get_admin_growth_series', { p_days: days }),
       scoped.rpc('get_admin_funnel'),
       scoped.rpc('get_admin_support_stats'),
+      // Migration 113. Answers the two-sided questions the single `signups`
+      // number in the growth series cannot: how many of those were BUSINESSES,
+      // and how many of them got as far as looking at a creator. Requested
+      // separately (rather than folded into the growth series) so a database
+      // that hasn't applied 113 yet degrades to `engagement: null` instead of
+      // failing the whole analytics page.
+      scoped.rpc('get_admin_engagement_stats', { p_days: days }),
     ]);
 
     // A missing RPC means migration 098 has not been applied yet. That is an
@@ -56,6 +63,8 @@ export async function GET(req: Request) {
       growth: growth.data ?? [],
       funnel: funnel.data ?? null,
       support: support.data ?? null,
+      // null (not an error) when 113 hasn't been applied — see the call site.
+      engagement: engagement.error ? null : (engagement.data ?? null),
       generated_at: new Date().toISOString(),
       generated_for: user.id,
     });

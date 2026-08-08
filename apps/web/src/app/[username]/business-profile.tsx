@@ -84,6 +84,17 @@ export async function BusinessProfile({
 
   const profile = data as Eligibility;
   const isOwner = user.id === profile.userId;
+
+  // Fire-and-forget view recording, mirroring what creator-profile.tsx does for
+  // creators (migration 113). Businesses had no view tracking at all, so a brand
+  // could not tell whether creators were looking at it — which is the difference
+  // between a positioning problem and a supply problem. Never counts the owner's
+  // own visits; the RPC pins the viewer to auth.uid() so it can't be spoofed.
+  if (!isOwner) {
+    (rsc.rpc as any)('record_business_profile_view', {
+      p_business_user_id: profile.userId,
+    }).then(() => {}, () => {});
+  }
   const displayName = profile.companyName || profile.name || 'Business';
   const location =
     profile.location || [profile.city, profile.state].filter(Boolean).join(', ') || null;

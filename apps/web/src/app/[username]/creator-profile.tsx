@@ -149,13 +149,25 @@ export async function CreatorProfile({
 
   // Instagram, YouTube and ratings are independent reads — one being empty (or
   // its migration unapplied) must never hold up or break the others.
-  const [instagram, youtube, reviews, portfolio, visibility] = await Promise.all([
+  const [instagram, youtube, reviews, portfolio, visibility, collabStats] = await Promise.all([
     getInstagramSnapshot(profile.userId),
     getYouTubeSnapshot(profile.userId),
     getPublicReviews(profile.userId),
     getCreatorPortfolio(supabaseAnon, profile.userId),
     getProfileVisibility(supabaseAnon, profile.userId),
+    // Migration 113 — counts only, no partner identities. Same independent-read
+    // rule as the others above: an unapplied migration must not break the page.
+    (supabaseAnon.rpc as any)('get_collaboration_stats', { p_user_id: profile.userId }),
   ]);
+  const statsRow = Array.isArray(collabStats?.data) ? collabStats.data[0] : null;
+  const collaborationStats = collabStats?.error || !statsRow ? null : {
+    partners: statsRow.partners_total ?? 0,
+    projectsTotal: statsRow.projects_total ?? 0,
+    projectsActive: statsRow.projects_active ?? 0,
+    projectsCompleted: statsRow.projects_completed ?? 0,
+    firstCollabAt: statsRow.first_collab_at ?? null,
+    lastCollabAt: statsRow.last_collab_at ?? null,
+  };
 
   const view = buildCreatorProfileView(profile, {
     useMock: resolveMockMode(sp.mock),
@@ -179,5 +191,13 @@ export async function CreatorProfile({
   if (!isSectionVisible(visibility, 'youtube_videos')) view.videos = [];
   if (!isSectionVisible(visibility, 'portfolio')) view.portfolio = [];
 
-  return <CreatorProfileViewComponent data={view} isOwner={isOwner} ctaHref={ctaHref} ctaLabel={ctaLabel} />;
+  return (
+    <CreatorProfileViewComponent
+      data={view}
+      isOwner={isOwner}
+      ctaHref={ctaHref}
+      ctaLabel={ctaLabel}
+      collaborationStats={collaborationStats}
+    />
+  );
 }
