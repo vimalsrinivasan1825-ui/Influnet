@@ -13,6 +13,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { PlanNudge } from "@/components/dashboard/plan-nudge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/ui/motion";
 import { InboundBoostPanel } from "@/components/dashboard/inbound-boost-panel";
@@ -274,6 +275,8 @@ export default function RequestsPage() {
         title="Collaboration requests"
         subtitle="Requests waiting on a decision, and everything you have collaborated on before."
       />
+
+      <PlanNudge />
 
       {requests.length === 0 ? (
         <Card>

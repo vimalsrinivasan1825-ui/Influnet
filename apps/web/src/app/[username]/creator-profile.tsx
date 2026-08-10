@@ -16,7 +16,7 @@ import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
 import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
 import { isSectionVisible } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
-import { canSee } from '@/lib/entitlements';
+import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
 import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
 
 // Anon client for public profile reads.
@@ -217,10 +217,26 @@ export async function CreatorProfile({
     isOwner || (!!user && (await canSee({ supabase: rsc as any, user }, 'profile.audience')).allowed);
   const viewForViewer = projectProfileForTier(view, canSeeAudience);
 
+  /**
+   * Is the CREATOR (not the viewer) a Pro subscriber? Gilds their verified seal.
+   *
+   * Read with the anon client on purpose: the gold seal is public, the same way
+   * the verified tick is. A badge only logged-in people could see would be worth
+   * a lot less to the person paying for it.
+   *
+   * `is_pro_public` returns one boolean and nothing else — no status, no renewal
+   * date. `current_tier` itself is not callable by `authenticated`, so this
+   * cannot be turned into a way to enumerate who is paying.
+   */
+  const { data: ownerIsPro } = subscriptionsEnabled()
+    ? await (supabaseAnon.rpc as any)('is_pro_public', { p_user: profile.userId })
+    : { data: false };
+
   return (
     <CreatorProfileViewComponent
       data={viewForViewer}
       isOwner={isOwner}
+      isPro={Boolean(ownerIsPro)}
       ctaHref={ctaHref}
       ctaLabel={ctaLabel}
       collaborationStats={collaborationStats}
