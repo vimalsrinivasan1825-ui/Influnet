@@ -13,6 +13,8 @@ import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
 import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
 import { isSectionVisible } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
+import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
+import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
 
 // Same view model as /c/[username] (see that page for the canonical, full-page
 // version), reshaped as JSON so the topbar search can render a creator's public
@@ -131,18 +133,46 @@ export async function GET(
   if (!isSectionVisible(visibility, 'youtube_videos')) data.videos = [];
   if (!isSectionVisible(visibility, 'portfolio')) data.portfolio = [];
 
+  // Plan gate, applied AFTER the creator's own visibility choices and applied
+  // by projection rather than deletion — see lib/public-profile/tier-projection.ts
+  // for why the Free view is built from an allow-list.
+  //
+  // The creator always sees their own profile in full: gating a creator's view
+  // of their own audience data would be charging the supply side for looking at
+  // itself, which is the one thing a two-sided marketplace must not do.
+  const { allowed: canSeeAudience } = isOwner
+    ? { allowed: true }
+    : await canSee({ supabase, user }, 'profile.audience');
+  const payload = projectProfileForTier(data, canSeeAudience);
+
+  // Whether the PROFILE OWNER is a Pro subscriber, for the gold badge. This is
+  // the only fact about someone else's plan that is exposed anywhere, and it is
+  // a deliberate one — a badge nobody else can see is not worth paying for.
+  // `is_pro_public` (migration 115) returns exactly this boolean and nothing
+  // else; `current_tier` itself is not callable by `authenticated` precisely so
+  // that plan status cannot be enumerated user by user.
+  //
+  // Returns false rather than null on error: a missing badge is a cosmetic
+  // disappointment, a badge shown in error is a false trust signal.
+  const { data: ownerIsPro } = subscriptionsEnabled()
+    ? await (supabase.rpc as any)('is_pro_public', { p_user: profile.userId })
+    : { data: false };
+
   // RETURNS TABLE gives one row; `null` on a database that hasn't applied 113
   // yet, so the clients treat these counters as optional rather than breaking.
   const statsRow = Array.isArray(collabStats?.data) ? collabStats.data[0] : null;
 
   return NextResponse.json({
-    data,
+    data: payload,
     isOwner,
     ctaHref,
     ctaLabel,
     ctaAction,
     ctaProjectId,
     userId: profile.userId,
+    isPro: Boolean(ownerIsPro),
+    /** False when the viewer got the Free projection — drives the locked panels. */
+    canSeeAudience,
     availabilityStatus: (profile as { availabilityStatus?: string | null }).availabilityStatus ?? null,
     collaborationStats: collabStats?.error || !statsRow ? null : {
       partners: statsRow.partners_total ?? 0,

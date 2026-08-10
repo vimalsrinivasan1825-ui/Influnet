@@ -7,8 +7,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import styles from './creator-profile.module.css';
-import type { CreatorProfileView } from '@/lib/public-profile/creator-profile';
 import { formatCount } from '@/lib/public-profile/creator-profile';
+import type { RenderableProfileView } from '@/lib/public-profile/tier-projection';
 import { apiFetch } from '@/lib/api-client';
 import { VerifiedMark } from '@/components/icons/verified-mark';
 import { Link2 } from 'lucide-react';
@@ -147,7 +147,12 @@ export interface CollaborationStats {
 }
 
 export interface CreatorProfileViewProps {
-  data: CreatorProfileView;
+  /**
+   * Either the full view or the Free projection — the premium fields are
+   * optional here because a Free viewer is not sent them at all. See
+   * lib/public-profile/tier-projection.ts.
+   */
+  data: RenderableProfileView;
   isOwner: boolean;
   ctaHref: string;
   ctaLabel: string;

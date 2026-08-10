@@ -16,6 +16,8 @@ import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
 import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
 import { isSectionVisible } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
+import { canSee } from '@/lib/entitlements';
+import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
 
 // Anon client for public profile reads.
 const supabaseAnon = createClient(
@@ -191,9 +193,33 @@ export async function CreatorProfile({
   if (!isSectionVisible(visibility, 'youtube_videos')) view.videos = [];
   if (!isSectionVisible(visibility, 'portfolio')) view.portfolio = [];
 
+  /**
+   * Plan gate. This page is PUBLIC and anonymous, which makes it the one that
+   * matters most: gating only /api/creators/[username] would have left signing
+   * out as a one-click bypass of the entire paywall.
+   *
+   * So the rule is by capability, not by whether someone is signed in:
+   *   • anonymous          → Free view (and it must stay that way — this page
+   *                          is indexed, and serving richer HTML to a crawler
+   *                          than to a human is cloaking)
+   *   • signed-in Free     → Free view
+   *   • signed-in Pro      → full view
+   *   • the creator        → full view, always. Charging the supply side to
+   *                          look at its own audience data is the one thing a
+   *                          two-sided marketplace must not do.
+   *
+   * The projection REMOVES the fields rather than blanking them. `data` is a
+   * prop on a client component, so Next serialises it into the RSC payload in
+   * the HTML — a value left on the object is readable in view-source no matter
+   * what the component chooses to render.
+   */
+  const canSeeAudience =
+    isOwner || (!!user && (await canSee({ supabase: rsc as any, user }, 'profile.audience')).allowed);
+  const viewForViewer = projectProfileForTier(view, canSeeAudience);
+
   return (
     <CreatorProfileViewComponent
-      data={view}
+      data={viewForViewer}
       isOwner={isOwner}
       ctaHref={ctaHref}
       ctaLabel={ctaLabel}

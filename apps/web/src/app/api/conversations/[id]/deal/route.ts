@@ -338,6 +338,25 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       p_note: note ?? null,
     });
     if (error) {
+      // The plan cap on active projects is enforced by a BEFORE INSERT trigger
+      // on campaign_projects (migration 115), because that is the one place a
+      // project row is ever written and a trigger is atomic with the insert.
+      //
+      // It has to be translated separately from RESPOND_ERRORS because the
+      // quota belongs to the BRAND while either party may be the one accepting.
+      // Telling a creator "you have reached your project limit" would be both
+      // wrong and unactionable — they have no limit and no way to clear it.
+      if (error.message?.includes('project_quota_exceeded')) {
+        return role === 'business_owner'
+          ? jsonError(
+              402,
+              'You are at your limit for active projects. Finish or archive one to start another, or upgrade to Pro for unlimited projects.',
+            )
+          : jsonError(
+              409,
+              'This brand has reached their limit for active projects right now. They will need to free up a slot before this project can start.',
+            );
+      }
       return mapRpcError(error.message, RESPOND_ERRORS) ?? jsonError(500, 'Could not respond to the terms', error);
     }
 
