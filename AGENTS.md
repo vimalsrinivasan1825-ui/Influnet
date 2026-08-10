@@ -110,6 +110,35 @@ applies them automatically on deploy (`supabase db push --include-all`).
 Pin the Supabase CLI to **2.111.0** — 2.112.0 broke `supabase link`. Never
 `version: latest` in a workflow.
 
+## Branches: work flows one way
+
+`dev` is where everything is written. `staging` only ever *receives* — via a
+pull request, never a direct push. A ruleset on the remote enforces this.
+
+Two rules keep the two branches from drifting:
+
+1. **Never commit to `staging` directly**, including "just a CI tweak". Three
+   such commits (the OTP template rename, the staging email env, a CLI-pin
+   comment) sat only on staging from 2026-08-07 to 2026-08-10. The template
+   rename mattered: `dev`'s edge function kept the retired
+   `Login_Verification_OTP`, which 2Factor silently downgrades to a **voice
+   call** while still returning `Success` and billing an SMS credit.
+2. **If something did land on staging, back-merge it** (`git merge
+   origin/staging` from `dev`) rather than cherry-picking, so the next
+   `dev → staging` PR doesn't propose reverting staging's own config.
+
+`git log origin/staging..origin/dev` should be empty before you open that PR.
+
+Staging-only *config* is fine and expected — `deploy-staging.yml` is scoped to
+`push: branches: [staging]` and cannot fire from `dev`. It is staging-only
+*code* that is the bug.
+
+**No required status checks on `staging`, deliberately.** `ci.yml` runs on `dev`
+only because its integration tests depend on live dev-DB state, and a
+paths-filtered workflow as a required check leaves a PR stuck on "Expected —
+waiting for status" forever. See `docs/operations/CICD_INSTRUCTIONS_2026-08-06.md`
+§2 and §7.2.
+
 ## Environments
 
 `dev`, `staging` and prod each have **their own Supabase project**. Staging is
