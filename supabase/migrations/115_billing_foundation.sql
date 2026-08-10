@@ -307,12 +307,26 @@ BEGIN
     'currentPeriodEnd',   v_sub.current_period_end,
     'graceUntil',         v_sub.grace_until,
     'cancelAtPeriodEnd',  COALESCE(v_sub.cancel_at_period_end, FALSE),
-    'limits', jsonb_build_object(
-      'activeProjects',   v_settings.free_active_projects,
-      'requestsPerMonth', v_settings.free_requests_per_month,
-      'shortlistSize',    v_settings.free_shortlist_size,
-      'analyticsDays',    v_settings.free_analytics_days
-    ),
+    -- NULL means "no ceiling", and that is how Pro is expressed everywhere —
+    -- isOverLimit() and the UI both read it that way. Returning the free
+    -- ceilings to a Pro caller would make the dashboard tell a paying customer
+    -- "1 of 2 projects used". Enforcement never depended on this (requireQuota
+    -- returns early for Pro), but what the user is TOLD did.
+    'limits', CASE WHEN v_tier = 'pro' THEN
+      jsonb_build_object(
+        'activeProjects',   NULL,
+        'requestsPerMonth', NULL,
+        'shortlistSize',    NULL,
+        'analyticsDays',    NULL
+      )
+    ELSE
+      jsonb_build_object(
+        'activeProjects',   v_settings.free_active_projects,
+        'requestsPerMonth', v_settings.free_requests_per_month,
+        'shortlistSize',    v_settings.free_shortlist_size,
+        'analyticsDays',    v_settings.free_analytics_days
+      )
+    END,
     'usage', jsonb_build_object(
       'activeProjects',   COALESCE(v_projects, 0),
       'requestsThisMonth', COALESCE(v_requests, 0)

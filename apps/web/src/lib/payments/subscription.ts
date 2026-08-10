@@ -206,12 +206,22 @@ export async function handleSubscriptionEvent(
 
   const periodEnd = new Date(Date.now() + PRO_PERIOD_DAYS * 86_400_000).toISOString();
 
-  await callApply(admin, {
+  const applied = await callApply(admin, {
     eventId, userId, kind: type, payload: event, eventAt,
     status: 'active', tier: 'pro', periodEnd,
     subscriptionId: payment?.subscription_id ?? null,
     customerId: payment?.customer_id ?? null,
   });
+
+  // Report what the DATABASE decided, not what we asked it to do. The guards
+  // that matter (duplicate event, stale event) live in apply_billing_event, so
+  // returning `applied` unconditionally does not grant anything twice — but it
+  // does make the webhook response and the logs claim a grant happened when it
+  // did not, which is exactly the signal you need when reconciling a payment
+  // someone says they made.
+  if (!applied.ok) {
+    return { handled: false, reason: applied.reason, userId };
+  }
 
   logger.info('pro subscription activated', { userId, until: periodEnd });
   return { handled: true, userId };
@@ -237,8 +247,8 @@ async function callApply(
     subscriptionId?: string | null;
     customerId?: string | null;
   },
-): Promise<void> {
-  const { error } = await (admin.rpc as any)('apply_billing_event', {
+): Promise<{ ok: boolean; reason?: string }> {
+  const { data, error } = await (admin.rpc as any)('apply_billing_event', {
     p_event_id: a.eventId,
     p_user_id: a.userId,
     p_kind: a.kind,
@@ -257,5 +267,16 @@ async function callApply(
     // Razorpay stops retrying an event we have already signature-verified and
     // can reconcile from billing_events by hand.
     logger.error('apply_billing_event failed', { eventId: a.eventId, userId: a.userId, err: error });
+    return { ok: false, reason: 'apply_failed' };
   }
+
+  // `applied: false` is a normal, expected outcome — a redelivered event or one
+  // that arrived out of order. Not an error, but not a grant either.
+  const ok = data?.applied === true;
+  if (!ok) {
+    logger.info('billing event not applied', {
+      eventId: a.eventId, userId: a.userId, reason: data?.reason ?? 'unknown',
+    });
+  }
+  return { ok, reason: data?.reason ?? 'not_applied' };
 }
