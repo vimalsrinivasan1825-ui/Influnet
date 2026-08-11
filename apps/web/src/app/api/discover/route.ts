@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { extractSearchHandle } from '@/lib/search-query';
+import { requireFeature } from '@/lib/entitlements';
 import { z } from 'zod';
 
 const PAGE_SIZE = 24;
@@ -54,6 +55,26 @@ export async function GET(req: Request) {
     }
     const { q, niche, industry, location, cursor, id } = parsed.data;
     const searchHandle = q ? extractSearchHandle(q) : undefined;
+
+    // ── Plan gate ────────────────────────────────────────────────────────
+    // Handle/username lookup is free and always has been — that is the
+    // behaviour the block comment above describes, and it stays exactly as it
+    // was. What Pro adds is BROWSE: filtering by niche, industry or location
+    // WITHOUT already knowing who you are looking for.
+    //
+    // The distinction is the whole product: a lookup answers "show me this
+    // creator", a browse answers "find me creators like this", and only the
+    // second one is worth paying for. Note this also means a Free user loses
+    // nothing they could do before the gate existed except query-less browse.
+    const wantsBrowse = !q && !id && Boolean(niche || industry || location);
+    if (wantsBrowse) {
+      const blocked = await requireFeature(
+        { supabase, user },
+        'search.browse',
+        'Browsing creators by niche, industry or location is a Pro feature. You can still look up any creator by their username or Instagram handle.',
+      );
+      if (blocked) return blocked;
+    }
 
     const { data, error } = await supabase.rpc('search_influencers', {
       p_q: searchHandle ?? q ?? null,

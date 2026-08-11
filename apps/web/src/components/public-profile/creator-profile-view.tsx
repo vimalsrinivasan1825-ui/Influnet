@@ -7,8 +7,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import styles from './creator-profile.module.css';
-import type { CreatorProfileView } from '@/lib/public-profile/creator-profile';
 import { formatCount } from '@/lib/public-profile/creator-profile';
+import type { RenderableProfileView } from '@/lib/public-profile/tier-projection';
 import { apiFetch } from '@/lib/api-client';
 import { VerifiedMark } from '@/components/icons/verified-mark';
 import { Link2 } from 'lucide-react';
@@ -147,14 +147,28 @@ export interface CollaborationStats {
 }
 
 export interface CreatorProfileViewProps {
-  data: CreatorProfileView;
+  /**
+   * Either the full view or the Free projection — the premium fields are
+   * optional here because a Free viewer is not sent them at all. See
+   * lib/public-profile/tier-projection.ts.
+   */
+  data: RenderableProfileView;
   isOwner: boolean;
   ctaHref: string;
   ctaLabel: string;
   collaborationStats?: CollaborationStats | null;
+  /**
+   * Is the PROFILE OWNER a Pro subscriber? Gilds the verified seal.
+   *
+   * Comes from `is_pro_public` on the server — never from the viewer's own
+   * plan, and never from anything the browser can set. It only affects a seal
+   * that is already being rendered for a verified account, so it cannot make an
+   * unverified profile look verified.
+   */
+  isPro?: boolean;
 }
 
-export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ctaLabel, collaborationStats }: CreatorProfileViewProps) {
+export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ctaLabel, collaborationStats, isPro = false }: CreatorProfileViewProps) {
   const [accent, setAccent] = useState(PRESETS[0].a);
   const [accent2, setAccent2] = useState(PRESETS[0].b);
   const [dark, setDark] = useState(false);
@@ -355,7 +369,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                   */}
                   <span className={data.isVerified ? styles.eyebrow : styles.eyebrowNeutral}>
                     {data.isVerified ? (
-                      <VerifiedMark className={styles.eyebrowMark} />
+                      <VerifiedMark className={styles.eyebrowMark} pro={isPro} />
                     ) : (
                       <Ic d="M12 2l2.4 6.9L21 9.2l-5.2 4.2 1.9 6.6L12 16.6 6.3 20l1.9-6.6L3 9.2l6.6-.3z" fill />
                     )}
@@ -387,7 +401,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                     {data.name}
                     {data.isVerified && (
                       <span className={styles.vtick} title="Verified by Influnet" aria-label="Verified by Influnet">
-                        <VerifiedMark className={styles.vtickMark} />
+                        <VerifiedMark className={styles.vtickMark} pro={isPro} />
                       </span>
                     )}
                   </h1>

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { PlanNudge } from "@/components/dashboard/plan-nudge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedTabs } from "@/components/ui/tabs";
 import { Reveal } from "@/components/ui/motion";
@@ -217,6 +218,10 @@ export default function ProjectsPage() {
         title="Campaign projects"
         subtitle="Track deliverables and pipeline progress, stage by stage."
       />
+
+      {/* Only renders when a free account is near or at its project cap, and
+          stays quiet for days once dismissed. See plan-nudge.tsx. */}
+      <PlanNudge />
 
       <SegmentedTabs
         value={view}

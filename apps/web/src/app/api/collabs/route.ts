@@ -5,6 +5,7 @@ import { CollabRequestSchema } from '@/lib/validators';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { requireVerifiedOwnership } from '@/lib/ownership-gate';
+import { requireQuota } from '@/lib/entitlements';
 import { z } from 'zod';
 
 // PATCH Collab Schema (since it only exists here for now)
@@ -214,6 +215,23 @@ export async function POST(req: Request) {
     // Combine project_title + message into the `message` field for storage
     const messageText = [project_title, project_description].filter(Boolean).join('\n\n');
 
+    // Plan quota. Deliberately the LAST check before the write: everything that
+    // could reject this request on its own merits (blocks, recipient role,
+    // validation) has already run, so a unit is only ever spent on a request
+    // that is genuinely about to be created.
+    //
+    // It still has to come BEFORE the insert rather than after, because
+    // consume_quota() increments and tests in one statement — that is what stops
+    // two requests sent at the same instant both passing on the last free slot.
+    // The cost of that ordering is handled by the release in the error path below.
+    const overQuota = await requireQuota(
+      { supabase, user },
+      'requests.send',
+      'requests_month',
+      'You have used all your collaboration requests for this month. Upgrade to Pro for more.',
+    );
+    if (overQuota) return overQuota;
+
     const { data, error } = await supabase
       .from('collab_requests')
       .insert({
@@ -227,6 +245,16 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
+      // The request was not created, so give the quota unit back. Without this
+      // a user who taps "send" twice on the same creator — which lands on the
+      // 23505 branch below — pays two units for the one request they got.
+      // Fire-and-forget: failing to refund must never turn a handled 4xx into
+      // a 500, and the counter resets monthly regardless.
+      void (supabase.rpc as any)('release_quota', { p_meter: 'requests_month' }).then(
+        () => {},
+        () => {},
+      );
+
       // These are USER-INPUT errors, not server faults, and they were all
       // falling through to a 500 — which is both the wrong answer for the
       // caller and noise in error monitoring.

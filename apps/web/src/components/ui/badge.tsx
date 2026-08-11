@@ -21,6 +21,23 @@ const badgeVariants = cva(
         // (which recolors per role/theme). A verified badge should read as
         // "Influnet confirmed this," not blend into ordinary UI chrome.
         verified: "bg-[#FFE4F3] text-[#FF0B8D]",
+        // Pro subscriber's verified mark. A warm gold gradient with a soft
+        // outer glow, deliberately the only place in the UI that glows — the
+        // whole value of a paid badge is that it is instantly distinguishable
+        // from the free one, and a colour change alone is not, especially
+        // beside the pink `verified` mark at small sizes.
+        //
+        // The glow is a box-shadow rather than a filter: `filter: drop-shadow`
+        // on a badge creates a containing block that breaks `position: sticky`
+        // ancestors, which is a genuinely horrible bug to track down later.
+        pro: [
+          "bg-gradient-to-r from-[#F7E7BE] via-[#F3D890] to-[#E8BE5C]",
+          "text-[#6B4A05]",
+          "shadow-[0_0_0_1px_rgba(200,150,40,0.35),0_0_10px_-1px_rgba(232,190,92,0.85)]",
+          "dark:from-[#5A4410] dark:via-[#6E5417] dark:to-[#8A6A1D]",
+          "dark:text-[#FBEBC4]",
+          "dark:shadow-[0_0_0_1px_rgba(232,190,92,0.45),0_0_12px_-2px_rgba(232,190,92,0.55)]",
+        ].join(" "),
       },
       size: {
         sm: "px-2 py-0.5 text-[0.625rem]",

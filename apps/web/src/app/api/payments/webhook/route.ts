@@ -6,6 +6,8 @@ import { captureException } from '@/lib/observability';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
+import { isSubscriptionEvent, handleSubscriptionEvent } from '@/lib/payments/subscription';
+import { invalidateEntitlements } from '@/lib/entitlements';
 
 // Razorpay posts server-to-server. We verify the HMAC signature over the RAW
 // body — so we must read req.text(), never req.json(), before parsing.
@@ -55,6 +57,27 @@ export async function POST(req: Request) {
   const admin = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // ── Pro subscription purchases ────────────────────────────────────────────
+  // Both kinds of payment arrive HERE, on the one endpoint configured in the
+  // Razorpay dashboard. Splitting them across two URLs would mean a deployment
+  // that pointed at only one silently dropped the other — project payments
+  // stranded mid-stage, or people paying ₹999 and never becoming Pro.
+  //
+  // They are told apart by `notes.purpose`, which we set ourselves when the
+  // order is created, so this cannot be spoofed by a payer: the notes on a
+  // signature-verified event are the ones Razorpay stored at order creation.
+  if (isSubscriptionEvent(event)) {
+    const result = await handleSubscriptionEvent(admin, event);
+    if (result.userId) {
+      // The tier is cached for 60s per instance; drop it so an upgrade is
+      // visible on the next request rather than up to a minute later. This is
+      // best-effort by nature — other instances keep their own copy and expire
+      // on their own — which is exactly why the TTL is short.
+      invalidateEntitlements(result.userId);
+    }
+    return NextResponse.json({ received: true, subscription: result.handled ? 'applied' : result.reason });
+  }
 
   try {
     // Look up the ledger row created at checkout time.

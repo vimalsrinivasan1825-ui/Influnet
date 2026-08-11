@@ -30,10 +30,13 @@ import {
   HeartPulse,
   ClipboardList,
   Gauge,
+  CreditCard,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
+import { useEntitlements } from "@/lib/hooks/use-entitlements";
 
 type NavItem = {
   label: string;
@@ -327,6 +330,7 @@ function FooterLink({
   collapsed,
   role,
   onNavigate,
+  accent = false,
 }: {
   href: string;
   label: string;
@@ -334,6 +338,8 @@ function FooterLink({
   collapsed: boolean;
   role: UserRole;
   onNavigate?: () => void;
+  /** Gold treatment — used for the Pro plan entry. */
+  accent?: boolean;
 }) {
   const pathname = usePathname();
   const active = pathname === href;
@@ -349,6 +355,10 @@ function FooterLink({
         active
           ? isCreator ? "bg-white/20 text-white" : "bg-brand-soft text-brand-strong"
           : isCreator ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-content-soft hover:bg-surface-muted hover:text-content",
+        // Gold sits on top of the resting state only. An accented link that is
+        // also the ACTIVE one keeps the active background, so "where am I" never
+        // loses to "what tier am I".
+        accent && !active && (isCreator ? "text-[#F3D890] hover:text-[#F7E7BE]" : "text-[#8A5A08] hover:bg-[#FBF3E4]"),
       )}
     >
       <Icon className="size-[1.15rem] shrink-0" />
@@ -371,8 +381,25 @@ function SidebarFooter({
   role: UserRole;
   onNavigate?: () => void;
 }) {
+  // Plans are a runtime flag, not a build-time one, so the entry has to be
+  // decided here rather than baked in. `enabled` is false while loading, which
+  // is the right way round: a link that appears a beat late is unremarkable,
+  // one that appears and then vanishes looks broken.
+  const { enabled: billingEnabled, isPro } = useEntitlements();
+
   return (
     <div className="flex flex-col gap-1">
+      {billingEnabled && role !== "admin" && (
+        <FooterLink
+          href="/dashboard/billing"
+          label={isPro ? "Plan · Pro" : "Plan & billing"}
+          icon={isPro ? Sparkles : CreditCard}
+          collapsed={collapsed}
+          role={role}
+          onNavigate={onNavigate}
+          accent={isPro}
+        />
+      )}
       <FooterLink
         href="/dashboard/support"
         label="Help & support"

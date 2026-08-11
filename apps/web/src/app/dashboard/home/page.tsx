@@ -29,6 +29,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedBadge, type VerificationStatus } from "@/components/ui/verified-badge";
+import { useEntitlements } from "@/lib/hooks/use-entitlements";
 import { VerificationGuide } from "@/components/dashboard/verification-guide";
 import { Reveal } from "@/components/ui/motion";
 import { dealStateOf, DEAL_STATE_STYLE } from "@/lib/project-status";
@@ -128,6 +129,11 @@ export default function HomePage() {
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Purely cosmetic — it decides whether this user's own verified badge is
+  // gold. `isPro` is false while loading and false when paid plans are switched
+  // off, so the badge never flashes gold and then downgrades.
+  const { isPro } = useEntitlements();
+
   useEffect(() => {
     (async () => {
       try {
@@ -220,7 +226,16 @@ export default function HomePage() {
                 <h1 className="truncate text-2xl font-extrabold tracking-tight text-content">
                   {isCreator ? data.profile.name : pp.company_name || data.profile.name}
                 </h1>
-                {data.profile.verified && <VerifiedBadge status={data.profile.verification_status} size="sm" />}
+                {/* Gold on a Pro subscriber's mark. `pro` only ever gilds a
+                    badge that is ALREADY verified (VerifiedBadge enforces
+                    that) — paying must never look like being verified. */}
+                {data.profile.verified && (
+                  <VerifiedBadge
+                    status={data.profile.verification_status}
+                    size="sm"
+                    pro={isPro}
+                  />
+                )}
               </div>
               <p className="mt-0.5 text-sm text-content-soft">
                 {handle ?? "Set a username in Settings to get a public link"}

@@ -6,6 +6,7 @@ import type { Metadata } from 'next';
 import CreatorProfileViewComponent from '@/components/public-profile/creator-profile-view';
 import {
   buildCreatorProfileView,
+  extractContact,
   resolveMockMode,
   type RawPublicProfile,
 } from '@/lib/public-profile/creator-profile';
@@ -16,6 +17,8 @@ import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
 import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
 import { isSectionVisible } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
+import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
+import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
 
 // Anon client for public profile reads.
 const supabaseAnon = createClient(
@@ -39,8 +42,27 @@ export async function creatorMetadata({
   if (!profile) return { title: 'Profile Not Found | Influnet' };
 
   const title = `${profile.name} (@${profile.username}) | Influnet`;
+
+  /**
+   * The description must NOT be the raw bio.
+   *
+   * Creators routinely put a booking email and phone number in their bio
+   * ("For sponsorships: name@agency.com / 90253…"). Passing it straight through
+   * printed those details into <meta name="description"> and og:description —
+   * readable in view-source by anyone, gated or not, and served to every search
+   * engine that crawls the page.
+   *
+   * That defeated the `contact` gate entirely, and it was the more serious half
+   * of the problem: a paywall leak costs a subscription, publishing a creator's
+   * personal phone number to Google costs them a lot more. `extractContact`
+   * already knows how to find those details — `rest` is the same bio with them
+   * removed, which is exactly what belongs in a public summary.
+   */
+  const bioWithoutContact = extractContact(profile.bio ?? '').rest;
   const description =
-    profile.headline || profile.bio || `Check out ${profile.name}'s creator profile on Influnet.`;
+    (profile.headline || bioWithoutContact || '').replace(/\s+/g, ' ').trim() ||
+    `Check out ${profile.name}'s creator profile on Influnet.`;
+
   return {
     title,
     description,
@@ -191,10 +213,50 @@ export async function CreatorProfile({
   if (!isSectionVisible(visibility, 'youtube_videos')) view.videos = [];
   if (!isSectionVisible(visibility, 'portfolio')) view.portfolio = [];
 
+  /**
+   * Plan gate. This page is PUBLIC and anonymous, which makes it the one that
+   * matters most: gating only /api/creators/[username] would have left signing
+   * out as a one-click bypass of the entire paywall.
+   *
+   * So the rule is by capability, not by whether someone is signed in:
+   *   • anonymous          → Free view (and it must stay that way — this page
+   *                          is indexed, and serving richer HTML to a crawler
+   *                          than to a human is cloaking)
+   *   • signed-in Free     → Free view
+   *   • signed-in Pro      → full view
+   *   • the creator        → full view, always. Charging the supply side to
+   *                          look at its own audience data is the one thing a
+   *                          two-sided marketplace must not do.
+   *
+   * The projection REMOVES the fields rather than blanking them. `data` is a
+   * prop on a client component, so Next serialises it into the RSC payload in
+   * the HTML — a value left on the object is readable in view-source no matter
+   * what the component chooses to render.
+   */
+  const canSeeAudience =
+    isOwner || (!!user && (await canSee({ supabase: rsc as any, user }, 'profile.audience')).allowed);
+  const viewForViewer = projectProfileForTier(view, canSeeAudience);
+
+  /**
+   * Is the CREATOR (not the viewer) a Pro subscriber? Gilds their verified seal.
+   *
+   * Read with the anon client on purpose: the gold seal is public, the same way
+   * the verified tick is. A badge only logged-in people could see would be worth
+   * a lot less to the person paying for it.
+   *
+   * `is_pro_public` returns one boolean and nothing else — no status, no renewal
+   * date. `current_tier` itself is not callable by `authenticated`, so this
+   * cannot be turned into a way to enumerate who is paying.
+   */
+  const { data: ownerIsPro } = subscriptionsEnabled()
+    ? await (supabaseAnon.rpc as any)('is_pro_public', { p_user: profile.userId })
+    : { data: false };
+
   return (
     <CreatorProfileViewComponent
-      data={view}
+      data={viewForViewer}
       isOwner={isOwner}
+      isPro={Boolean(ownerIsPro)}
       ctaHref={ctaHref}
       ctaLabel={ctaLabel}
       collaborationStats={collaborationStats}

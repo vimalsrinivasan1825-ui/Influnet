@@ -62,6 +62,22 @@ const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
+  // Paid plans (migration 115). The master switch for the whole Free/Pro
+  // split: false means the product has no paid tier at all — every gate is
+  // open, and the UI shows no pricing, no upgrade prompt and no Pro badge.
+  //
+  // Server-only, with NO NEXT_PUBLIC_ prefix, on purpose. A NEXT_PUBLIC_ value
+  // is inlined into the bundle at build time — the server's copy too — so it
+  // could not be flipped without a rebuild. The browser reads this at runtime
+  // from GET /api/billing/entitlements instead.
+  //
+  // Defaults off for the same reason the OTP and ownership gates do: switching
+  // it on instantly restricts every existing user, so it must be deliberate.
+  SUBSCRIPTIONS_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   // Email — optional; sends are gated by NOTIFY_EMAILS_ENABLED anyway.
   // Full setup: docs/operations/EMAIL_SYSTEM.md
   RESEND_API_KEY: z.string().optional(),
@@ -215,6 +231,20 @@ export function describeEnv(): {
           ? 'ENABLED (2Factor, signup gated)'
           : 'disabled (NEXT_PUBLIC_PHONE_OTP_ENABLED=false)',
       ok: true,
+    },
+    {
+      label: 'Paid plans',
+      value:
+        process.env.SUBSCRIPTIONS_ENABLED === 'true'
+          ? present('RAZORPAY_KEY_ID')
+            ? 'ENABLED (Free/Pro gates active)'
+            : 'ENABLED but Razorpay is NOT configured — nobody can upgrade'
+          : 'disabled (SUBSCRIPTIONS_ENABLED=false — everyone gets everything)',
+      // Gates on with no way to pay is the one combination that strands users
+      // at a paywall they cannot clear, so flag it rather than let it look fine.
+      ok:
+        process.env.SUBSCRIPTIONS_ENABLED !== 'true' ||
+        present('RAZORPAY_KEY_ID'),
     },
     {
       label: 'Email sends',
