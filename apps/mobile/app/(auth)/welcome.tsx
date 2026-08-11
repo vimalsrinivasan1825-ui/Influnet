@@ -9,6 +9,7 @@
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Building2, Sparkles } from 'lucide-react-native';
 import { accents } from '@influnet/tokens';
@@ -162,11 +163,40 @@ function BuildStrip() {
   // is almost always answered by the channel, not by the update.
   const channel = Updates.channel ?? 'none (local build)';
 
+  /**
+   * The bundle identifier of the INSTALLED binary.
+   *
+   * This is the line that settles "which app is this really?". Before
+   * 2026-08-04 the preview profile produced `com.influnet.app` — the same
+   * identifier the production profile uses — so a preview APK installed back
+   * then is indistinguishable from a production build by name or icon, and
+   * follows the preview channel forever. Showing the id next to the channel
+   * makes that visible instead of inferable.
+   *
+   * CAVEAT: this reads `expoConfig`, which an OTA carries its own copy of — so
+   * strictly it reports what the running BUNDLE believes the id is, not what
+   * the installed binary's id actually is. In practice the two agree, because
+   * app.config.js derives the id from EAS_BUILD_PROFILE and an update built
+   * from the same profile resolves it identically.
+   *
+   * The authoritative reading is `Application.applicationId` from
+   * expo-application, which asks the OS. That package is not a dependency here
+   * and adding a native module to settle a diagnostic is a poor trade — the
+   * channel line above already answers the question this one corroborates.
+   */
+  const bundleId =
+    (Constants.expoConfig as { ios?: { bundleIdentifier?: string }; android?: { package?: string } } | null)
+      ?.ios?.bundleIdentifier ??
+    (Constants.expoConfig as { android?: { package?: string } } | null)?.android?.package ??
+    'unknown';
+
   return (
     <Txt variant="caption" tone="muted" style={{ textAlign: 'center', marginTop: t.spacing.md }}>
       {`build ${LAST_COMMIT_TIME} · update ${update}`}
       {'\n'}
-      {`channel ${channel} · api ${apiHost} · db ${sbRef}`}
+      {`channel ${channel} · ${bundleId}`}
+      {'\n'}
+      {`api ${apiHost} · db ${sbRef}`}
     </Txt>
   );
 }
