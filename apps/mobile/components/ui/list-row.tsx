@@ -44,22 +44,8 @@ export function ListRow({
   const t = useTheme();
   const interactive = !!onPress;
 
-  const row = (
-    <Pressable
-      accessibilityRole={interactive ? 'button' : undefined}
-      disabled={!interactive}
-      onPress={onPress}
-      style={({ pressed }) => [
-        {
-          paddingVertical: t.spacing.md,
-          paddingHorizontal: t.spacing.lg,
-          backgroundColor: pressed && interactive ? t.color.surfaceMuted : t.color.surfaceCard,
-          minHeight: 64,
-          justifyContent: 'center',
-        },
-        style,
-      ]}
-    >
+  const content = (
+    <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
         {left}
 
@@ -81,19 +67,41 @@ export function ListRow({
       </View>
 
       {below}
-    </Pressable>
+    </>
   );
 
-  if (index === undefined) return row;
-
+  // The entering animation must land on an inner wrapper, not the Pressable
+  // itself — animating the touchable's own native view desyncs its hit
+  // target from its visual position on iOS, so taps land but don't register
+  // (Android tolerates it; iOS doesn't).
   return (
-    <Animated.View
-      entering={FadeInDown.delay(Math.min(index, MAX_STAGGER_ROWS) * STAGGER_MS)
-        .duration(260)
-        .withInitialValues({ transform: [{ translateY: 12 }] })}
+    <Pressable
+      accessibilityRole={interactive ? 'button' : undefined}
+      disabled={!interactive}
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          paddingVertical: t.spacing.md,
+          paddingHorizontal: t.spacing.lg,
+          backgroundColor: pressed && interactive ? t.color.surfaceMuted : t.color.surfaceCard,
+          minHeight: 64,
+          justifyContent: 'center',
+        },
+        style,
+      ]}
     >
-      {row}
-    </Animated.View>
+      {index === undefined ? (
+        content
+      ) : (
+        <Animated.View
+          entering={FadeInDown.delay(Math.min(index, MAX_STAGGER_ROWS) * STAGGER_MS)
+            .duration(260)
+            .withInitialValues({ transform: [{ translateY: 12 }] })}
+        >
+          {content}
+        </Animated.View>
+      )}
+    </Pressable>
   );
 }
 
