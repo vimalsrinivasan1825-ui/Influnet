@@ -13,6 +13,7 @@ export default function Login() {
   const t = useTheme();
   const router = useRouter();
   const loadProfile = useSession((s) => s.loadProfile);
+  const setSession = useSession((s) => s.setSession);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,7 +25,7 @@ export default function Login() {
     setBusy(true);
     setError(null);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
@@ -41,6 +42,35 @@ export default function Login() {
       return;
     }
 
+    /**
+     * Seed the store from the session we were just handed, rather than waiting
+     * for onAuthStateChange to deliver it.
+     *
+     * This used to read only `error` and navigate straight away, which is a
+     * race the user loses more often than not:
+     *
+     *   1. signInWithPassword resolves; the auth listener has NOT fired yet, so
+     *      the store's `session` is still null.
+     *   2. loadProfile() early-returns on `!get().session` — so no profile is
+     *      fetched either, and it silently looks like it worked.
+     *   3. router.replace('/') renders the gate, which sees `ready === true`
+     *      (set at startup) and `session === null`, and redirects to /welcome.
+     *
+     * The symptom is the confusing one: a CORRECT password shows no error at
+     * all and dumps you back on the Creator/Business chooser, because nothing
+     * failed — the app simply asked "is there a session?" a few milliseconds
+     * too early. Setting it explicitly makes the hand-off deterministic; the
+     * listener firing afterwards with the same session is a harmless no-op.
+     */
+    if (!data.session) {
+      // Only reachable if the project starts requiring email confirmation.
+      // Better a plain sentence than a silent bounce back to the chooser.
+      setError('Your email address has not been confirmed yet. Check your inbox and try again.');
+      setBusy(false);
+      return;
+    }
+
+    setSession(data.session);
     await loadProfile();
     setBusy(false);
     router.replace('/');
