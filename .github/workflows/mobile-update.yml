@@ -37,13 +37,28 @@ jobs:
         run: npx eas-cli update --channel preview --message "CI/CD automated update (${{ github.sha }})" --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # DEV_* — NOT the unprefixed NEXT_PUBLIC_SUPABASE_* secrets, which hold
+          # STAGING values (ci.yml says so in its header: "Do not use them here").
+          #
+          # This job used the unprefixed ones, so every dev OTA shipped a bundle
+          # whose API was dev.influnet.io but whose DATABASE was the staging
+          # project. Sign-in then succeeded against staging and issued a
+          # staging-signed JWT, which dev's API rejected as 401 — and the app's
+          # global 401 handler signs you out and returns you to the welcome
+          # screen. The symptom was a correct password producing NO error at
+          # all and a bounce back to the Creator/Business chooser, because
+          # nothing failed: two halves of the app were simply talking to two
+          # different databases.
+          #
+          # The two must always be chosen together. If you change one, change
+          # the other in the same edit.
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.DEV_SUPABASE_ANON_KEY }}
           # Must match the branch being published, or the app talks to a backend
           # that does not have the code you just pushed. A dev-branch update was
           # pointing testers at the Azure staging container — which also has no
           # STREAM_API_SECRET configured, so chat tokens fail there outright.
-          EXPO_PUBLIC_API_BASE_URL: ${{ github.ref == 'refs/heads/dev' && 'https://dev.influnet.io' || 'https://influnet-staging.icysky-7414f4c6.southindia.azurecontainerapps.io' }}
+          EXPO_PUBLIC_API_BASE_URL: https://dev.influnet.io
 
   update-production:
     name: Publish OTA Update (Production Channel)
@@ -68,6 +83,16 @@ jobs:
         run: npx eas-cli update --channel production --message "Production automated update (${{ github.sha }})" --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # The unprefixed secrets hold STAGING values, which is correct for the
+          # `staging` branch and the only branch that reaches this job today
+          # (`main` is not on origin — see docs/operations/CICD_INSTRUCTIONS).
+          #
+          # WHEN A REAL PROD TIER EXISTS, this becomes wrong in the same way the
+          # preview job was: pushing `main` would ship a production app pointed
+          # at the staging database. Make these branch-aware at the same time
+          # you add PRODUCTION_APP_URL's database counterpart, and keep the URL
+          # and the anon key on the same branch condition — a mismatched pair is
+          # what caused the silent sign-out loop on preview.
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_API_BASE_URL: ${{ secrets.PRODUCTION_APP_URL }}
