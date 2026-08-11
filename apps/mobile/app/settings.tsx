@@ -36,7 +36,7 @@ import {
 // store build — otherwise Settings reports a build time that predates what
 // the user is actually running. The Update ID and OTA date just below come
 // from expo-updates at runtime and need no maintenance.
-const LAST_COMMIT_TIME = '2026-08-10T08:07:41Z';
+const LAST_COMMIT_TIME = '2026-08-11T10:58:19Z';
 
 // Only accounts in this list will see internal diagnostic tools in Settings.
 const DEVELOPER_EMAILS = [
