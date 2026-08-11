@@ -156,11 +156,17 @@ function BuildStrip() {
     ? 'embedded (no OTA applied)'
     : (Updates.updateId ?? 'unknown').slice(0, 8);
 
+  // The channel is baked into the binary at build time and never changes for
+  // that install — it is what decides which OTA updates this app can ever
+  // receive. Worth showing beside the build id: "why did my fix not arrive?"
+  // is almost always answered by the channel, not by the update.
+  const channel = Updates.channel ?? 'none (local build)';
+
   return (
     <Txt variant="caption" tone="muted" style={{ textAlign: 'center', marginTop: t.spacing.md }}>
       {`build ${LAST_COMMIT_TIME} · update ${update}`}
       {'\n'}
-      {`api ${apiHost} · db ${sbRef}`}
+      {`channel ${channel} · api ${apiHost} · db ${sbRef}`}
     </Txt>
   );
 }

@@ -46,13 +46,25 @@ const IDENTITY_BY_PROFILE = {
     bundleIdentifier: 'com.influnet.app.dev',
     package: 'com.influnet.app.dev',
   },
+  // Named "Preview", NOT "Staging". This profile publishes to the `preview`
+  // channel and points at the DEV backend and the DEV database (see eas.json) —
+  // calling it Staging made the home-screen icon claim the opposite of what the
+  // app actually talks to, and cost real time diagnosing a login failure where
+  // "the staging app is using the dev database" sounded like the bug rather
+  // than the correct behaviour.
+  //
+  // The bundle IDs deliberately still say `.staging`. iOS and Android identify
+  // an app by bundle ID alone, so changing it would install a SECOND app beside
+  // the one already on people's phones and strand their session and push token
+  // in the old one. The display name is cosmetic and safe to correct; the
+  // identifier is not. Rename it only alongside a deliberate reinstall.
   preview: {
-    name: 'Influnet Staging',
+    name: 'Influnet Preview',
     bundleIdentifier: 'com.influnet.app.staging',
     package: 'com.influnet.app.staging',
   },
   'preview-device': {
-    name: 'Influnet Staging',
+    name: 'Influnet Preview',
     bundleIdentifier: 'com.influnet.app.staging',
     package: 'com.influnet.app.staging',
   },
