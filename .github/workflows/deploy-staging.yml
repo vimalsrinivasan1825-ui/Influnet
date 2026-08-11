@@ -143,6 +143,14 @@ jobs:
       # into a workflow whose environment points at the production database — to
       # re-tighten, put a comma-separated list here (`@influnet.io,someone@x.com`)
       # or wire it back to secrets.EMAIL_ALLOWLIST.
+      #
+      # SUBSCRIPTIONS_ENABLED is set to a literal `false` rather than left out.
+      # Absent and false behave identically in code, but "absent" is a guess
+      # about a default and "false" is a decision — and per the note above, a
+      # value omitted here is also a value this deploy cannot CLEAR if somebody
+      # sets it by hand in the portal. Flip it to `true` when staging is meant
+      # to exercise the paid tiers; migration 115 ships the schema either way,
+      # and with the flag off every gate is open exactly as it is today.
       - name: Set Backend Environment Variables on Container App
         uses: azure/cli@v2
         with:
@@ -168,6 +176,7 @@ jobs:
                 "EMAIL_TEST_SECRET=${{ secrets.EMAIL_TEST_SECRET }}" \
                 "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
                 "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
+                "SUBSCRIPTIONS_ENABLED=false" \
                 "APP_ENV=staging"
 
       - name: Wait for the new revision to serve traffic
