@@ -6,6 +6,7 @@ import type { Metadata } from 'next';
 import CreatorProfileViewComponent from '@/components/public-profile/creator-profile-view';
 import {
   buildCreatorProfileView,
+  extractContact,
   resolveMockMode,
   type RawPublicProfile,
 } from '@/lib/public-profile/creator-profile';
@@ -41,8 +42,27 @@ export async function creatorMetadata({
   if (!profile) return { title: 'Profile Not Found | Influnet' };
 
   const title = `${profile.name} (@${profile.username}) | Influnet`;
+
+  /**
+   * The description must NOT be the raw bio.
+   *
+   * Creators routinely put a booking email and phone number in their bio
+   * ("For sponsorships: name@agency.com / 90253…"). Passing it straight through
+   * printed those details into <meta name="description"> and og:description —
+   * readable in view-source by anyone, gated or not, and served to every search
+   * engine that crawls the page.
+   *
+   * That defeated the `contact` gate entirely, and it was the more serious half
+   * of the problem: a paywall leak costs a subscription, publishing a creator's
+   * personal phone number to Google costs them a lot more. `extractContact`
+   * already knows how to find those details — `rest` is the same bio with them
+   * removed, which is exactly what belongs in a public summary.
+   */
+  const bioWithoutContact = extractContact(profile.bio ?? '').rest;
   const description =
-    profile.headline || profile.bio || `Check out ${profile.name}'s creator profile on Influnet.`;
+    (profile.headline || bioWithoutContact || '').replace(/\s+/g, ' ').trim() ||
+    `Check out ${profile.name}'s creator profile on Influnet.`;
+
   return {
     title,
     description,

@@ -40,7 +40,12 @@ export function useEntitlements(): UseEntitlements {
 
     (async () => {
       setLoading(true);
-      const res = await apiFetch<Entitlements>('/api/billing/entitlements');
+      // `no-store` belt to the route's braces. `refresh()` is called the moment
+      // a payment succeeds, and it has to reach the server — a cached response
+      // at that instant shows the user the Free plan they just paid to leave.
+      const res = await apiFetch<Entitlements>('/api/billing/entitlements', {
+        cache: 'no-store',
+      });
       if (cancelled) return;
       // On failure we leave entitlements null, which reads as "not Pro" and
       // "cannot do the gated thing" everywhere below. Rendering the free view

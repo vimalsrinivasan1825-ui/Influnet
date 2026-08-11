@@ -75,6 +75,12 @@ function unlimitedEntitlements(): Entitlements {
       shortlistSize: null,
       analyticsDays: null,
     },
+    freeLimits: {
+      activeProjects: null,
+      requestsPerMonth: null,
+      shortlistSize: null,
+      analyticsDays: null,
+    },
     usage: { activeProjects: 0, requestsThisMonth: 0 },
     price: { paise: 0, currency: 'INR' },
     subscriptionsEnabled: false,
@@ -93,6 +99,12 @@ function freeFallback(): Entitlements {
     // in the UI, which is a lie. Null means "we could not read the ceiling",
     // and the tier alone is enough to close every non-metered gate.
     limits: {
+      activeProjects: null,
+      requestsPerMonth: null,
+      shortlistSize: null,
+      analyticsDays: null,
+    },
+    freeLimits: {
       activeProjects: null,
       requestsPerMonth: null,
       shortlistSize: null,

@@ -209,7 +209,7 @@ export function UpgradeCard({
             )}
           </div>
         </div>
-        <PlanComparison highlight="pro" limits={limits} />
+        <PlanComparison highlight="pro" limits={entitlements.freeLimits} />
       </div>
     );
   }
@@ -295,7 +295,7 @@ export function UpgradeCard({
         </div>
       </div>
 
-      <PlanComparison highlight="free" limits={limits} />
+      <PlanComparison highlight="free" limits={entitlements.freeLimits} />
     </div>
   );
 }

@@ -24,10 +24,17 @@ export async function GET(req: Request) {
   const ent = await resolveEntitlements(auth.supabase, auth.user.id);
 
   return NextResponse.json(ent, {
-    // Never shared: this is per-user. `private` keeps it out of any CDN or
-    // proxy cache that would otherwise hand one user's plan to another.
-    // The short max-age matches the server-side cache in lib/entitlements.ts,
-    // so a cancellation takes effect within about a minute either way.
-    headers: { 'Cache-Control': 'private, max-age=30, must-revalidate' },
+    // `no-store`, not a short max-age.
+    //
+    // A 30-second browser cache here meant that immediately after paying, the
+    // UI kept serving the cached FREE answer — the user completed checkout and
+    // watched nothing change, which is the single worst moment to look broken.
+    // Even an explicit refresh hit the HTTP cache rather than the server.
+    //
+    // Nothing is lost by removing it: resolveEntitlements() already memoises
+    // per user for 60s in-process, so this costs a cheap round trip, not a
+    // database read. `private` stays regardless — a shared cache handing one
+    // user's plan to another would be far worse than either.
+    headers: { 'Cache-Control': 'private, no-store' },
   });
 }

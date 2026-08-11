@@ -57,6 +57,20 @@ export interface Entitlements {
     shortlistSize: number | null;
     analyticsDays: number | null;
   };
+  /**
+   * The FREE tier's ceilings, regardless of who is asking.
+   *
+   * `limits` is the CALLER's, so for a Pro subscriber every value there is
+   * null. Anything that describes what the free plan offers — a comparison
+   * table, marketing copy — must read this instead, or it will tell paying
+   * users that Free is unlimited.
+   */
+  freeLimits: {
+    activeProjects: number | null;
+    requestsPerMonth: number | null;
+    shortlistSize: number | null;
+    analyticsDays: number | null;
+  };
   usage: {
     activeProjects: number;
     requestsThisMonth: number;

@@ -327,6 +327,18 @@ BEGIN
         'analyticsDays',    v_settings.free_analytics_days
       )
     END,
+    -- The FREE tier's ceilings, always, whoever is asking.
+    --
+    -- `limits` above is the CALLER's — null everywhere for a Pro subscriber.
+    -- A plan-comparison table built from it therefore told Pro users that the
+    -- free plan was unlimited, which is both wrong and the opposite of
+    -- persuasive. This is the column the comparison reads.
+    'freeLimits', jsonb_build_object(
+      'activeProjects',   v_settings.free_active_projects,
+      'requestsPerMonth', v_settings.free_requests_per_month,
+      'shortlistSize',    v_settings.free_shortlist_size,
+      'analyticsDays',    v_settings.free_analytics_days
+    ),
     'usage', jsonb_build_object(
       'activeProjects',   COALESCE(v_projects, 0),
       'requestsThisMonth', COALESCE(v_requests, 0)
