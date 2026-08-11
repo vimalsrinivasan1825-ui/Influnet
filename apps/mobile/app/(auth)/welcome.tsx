@@ -8,10 +8,13 @@
  */
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Updates from 'expo-updates';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Building2, Sparkles } from 'lucide-react-native';
 import { accents } from '@influnet/tokens';
 import { useTheme } from '@/lib/theme';
+import { API_BASE_URL, SUPABASE_URL } from '@/lib/supabase';
+import { LAST_COMMIT_TIME } from '@/lib/build-info';
 import { AuthHeader } from '@/components/brand/auth-header';
 import { Button, Card, Screen, Txt } from '@/components/ui';
 
@@ -117,7 +120,47 @@ export default function Welcome() {
           variant="secondary"
           onPress={() => router.push('/login')}
         />
+
+        <BuildStrip />
       </View>
     </Screen>
+  );
+}
+
+/**
+ * Which bundle is this, and which backend is it talking to?
+ *
+ * Deliberately on the SIGNED-OUT screen. The same information exists in
+ * Settings, but Settings is behind sign-in — so it is unreachable in exactly
+ * the situation where you most need it ("I cannot log in, and I do not know
+ * whether the fix I was sent is even on this phone").
+ *
+ * An OTA update downloads in the background and applies on the NEXT launch, so
+ * a single reopen after a publish still runs the old code. `Updates.updateId`
+ * is the only reliable way to tell which one is actually running.
+ *
+ * Nothing here is a secret: the API host is in every request the app makes and
+ * the Supabase ref is the first half of the publicly-shipped anon key.
+ */
+function BuildStrip() {
+  const t = useTheme();
+  const apiHost = API_BASE_URL.replace(/^https?:\/\//, '');
+  const sbRef = (() => {
+    try {
+      return new URL(SUPABASE_URL).hostname.split('.')[0];
+    } catch {
+      return 'unknown';
+    }
+  })();
+  const update = Updates.isEmbeddedLaunch
+    ? 'embedded (no OTA applied)'
+    : (Updates.updateId ?? 'unknown').slice(0, 8);
+
+  return (
+    <Txt variant="caption" tone="muted" style={{ textAlign: 'center', marginTop: t.spacing.md }}>
+      {`build ${LAST_COMMIT_TIME} · update ${update}`}
+      {'\n'}
+      {`api ${apiHost} · db ${sbRef}`}
+    </Txt>
   );
 }
