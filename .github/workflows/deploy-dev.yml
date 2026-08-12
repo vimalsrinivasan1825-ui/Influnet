@@ -45,6 +45,7 @@ jobs:
   migrate:
     name: Apply pending migrations to the dev database
     runs-on: ubuntu-latest
+    environment: dev
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DEV_DB_PASSWORD }}
@@ -82,6 +83,7 @@ jobs:
   build-and-deploy:
     needs: migrate
     runs-on: ubuntu-latest
+    environment: dev
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
