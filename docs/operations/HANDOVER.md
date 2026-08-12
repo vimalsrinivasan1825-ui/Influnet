@@ -121,6 +121,7 @@ environment means shared networking and a shared blast radius.
 | Ingress | External, port 3000, HTTPS only | — |
 | Health probe | `/api/health` | The endpoint already exists — the staging deploy polls it. Wire it as a real readiness probe so a bad revision never takes traffic. |
 | Secrets | Container App *secrets*, referenced by env vars | Not plain env values, which any portal reader can see. |
+| `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | Set as **runtime env vars**, not only build args | Miss these and the container never boots — the boot check reads them dynamically, so build-time inlining doesn't cover it, and Azure reports it as a bare 500 that looks like a bad port. This broke the dev cutover on 2026-08-12; see AGENTS.md. |
 | Custom domain | `influnet.io` + managed certificate | DNS propagation is not a launch-day discovery. |
 | Diagnostics | Log Analytics workspace + retention | Container App logs die with the revision otherwise — exactly when you want them. |
 | Resource group | Its own (`influnet-prod-rg`) | Makes "delete everything non-prod" safe, and prod costs legible. |

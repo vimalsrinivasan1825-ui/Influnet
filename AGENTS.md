@@ -41,6 +41,29 @@ If a value must be changeable at runtime, serve it from an endpoint.
 there explains why. Mobile reads it correctly; web still reads the inlined
 constant.
 
+**Inlining is static, so a container still needs the real env var.** Next
+replaces the literal text `process.env.NEXT_PUBLIC_FOO`. It cannot replace a
+computed lookup — and `describeEnv()` in `apps/web/src/lib/env.ts` checks
+required vars with `process.env[k]`, which is exactly that. So the boot check
+reads the *real* process environment.
+
+The Dockerfile's `ENV NEXT_PUBLIC_*` lines are in the **builder** stage; the
+`runner` stage starts `FROM base` again and does not inherit them. A deploy
+that passes these as build args only therefore boots a container with them
+genuinely absent, `instrumentation.ts` throws in `register()` before the
+server accepts a request, and Azure's ingress answers every path — including
+nonexistent ones — with a bare 500 carrying only a `date` header. It reads
+like a wrong port or a bad image; it is a missing variable.
+
+**Every container deploy must set `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` as runtime env vars *as well as* build args.**
+The duplication is not redundant: the build arg is what the browser bundle
+gets, the runtime var is what the server reads. `deploy-dev.yml` does this and
+explains it. Staging only works because `az containerapp update
+--set-env-vars` is additive, so values set by hand there long ago have
+outlived every deploy since — nothing in its workflow guarantees them.
+Cost a full afternoon on 2026-08-12.
+
 ## Fail-open defaults: know which case you are in
 
 Several places degrade gracefully when "the migration might not be applied".
