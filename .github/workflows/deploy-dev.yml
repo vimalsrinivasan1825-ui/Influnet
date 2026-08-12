@@ -10,7 +10,7 @@ on:
       # A migration-only change is still a deploy: without this the schema
       # job below would never fire for a PR that only adds SQL.
       - 'supabase/migrations/**'
-      - '.github/workflows/deploy-staging.yml'
+      - '.github/workflows/deploy-dev.yml'
       - 'package.json'
       - 'package-lock.json'
       - 'turbo.json'
