@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Influnet — Sign-off &amp; Handover Checklist</title>
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#fff; --ink:#1a1a18; --muted:#6b6b63; --line:#e3e3dd;
+    --accent:#3b5bdb; --accent-soft:#eef2ff;
+    --p0:#c92a2a; --p0-bg:#fff5f5; --ops:#0b7285; --ops-bg:#e7f5f8;
+    --hand:#5f3dc4; --hand-bg:#f3f0ff; --risk:#8a6d1f; --risk-bg:#fdf6e3;
+    --ok:#2b8a3e; --ok-bg:#ebfbee;
+    --radius:10px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#16161a; --panel:#1e1e23; --ink:#ececea; --muted:#9a9a94; --line:#2f2f37;
+      --accent:#748ffc; --accent-soft:#232a44;
+      --p0:#ff8787; --p0-bg:#2c1d1d; --ops:#66d9e8; --ops-bg:#16292e;
+      --hand:#b197fc; --hand-bg:#241f33; --risk:#e6c66a; --risk-bg:#2b2617;
+      --ok:#69db7c; --ok-bg:#172a1c;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.6; font-size:15px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:0 20px 100px}
+  header{padding:48px 0 24px}
+  h1{font-size:clamp(26px,4vw,36px); margin:0 0 6px; letter-spacing:-.02em}
+  .sub{color:var(--muted); margin:0 0 4px}
+  .stamp{color:var(--muted); font-size:13px; font-family:var(--mono)}
+
+  /* progress */
+  .progress-bar{
+    position:sticky; top:0; z-index:20; background:var(--bg);
+    border-bottom:1px solid var(--line); padding:12px 0; margin-bottom:28px;
+  }
+  .progress-inner{max-width:960px; margin:0 auto; padding:0 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .track{flex:1; min-width:160px; height:8px; background:var(--line); border-radius:99px; overflow:hidden}
+  .fill{height:100%; width:0; background:var(--ok); border-radius:99px; transition:width .3s ease}
+  .count{font-family:var(--mono); font-size:13px; color:var(--muted); white-space:nowrap}
+  .btn{
+    font:inherit; font-size:12px; padding:4px 10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--muted); border-radius:99px; cursor:pointer;
+  }
+  .btn:hover{color:var(--ink); border-color:var(--muted)}
+
+  h2{
+    font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted);
+    margin:44px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  }
+  .lede{color:var(--muted); margin:-4px 0 18px; font-size:14px}
+
+  /* items */
+  details.item{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    margin-bottom:10px; overflow:hidden;
+  }
+  details.item[open]{border-color:var(--accent)}
+  summary{
+    list-style:none; cursor:pointer; padding:14px 16px; display:flex;
+    align-items:flex-start; gap:12px; user-select:none;
+  }
+  summary::-webkit-details-marker{display:none}
+  summary:hover{background:var(--accent-soft)}
+  .cb{
+    appearance:none; flex:none; width:19px; height:19px; margin-top:2px; cursor:pointer;
+    border:1.5px solid var(--muted); border-radius:5px; background:transparent; position:relative;
+  }
+  .cb:checked{background:var(--ok); border-color:var(--ok)}
+  .cb:checked::after{
+    content:"✓"; position:absolute; inset:0; color:#fff; font-size:13px;
+    display:flex; align-items:center; justify-content:center; font-weight:700;
+  }
+  .title{flex:1; font-weight:600; letter-spacing:-.01em}
+  .item.done .title{opacity:.45; text-decoration:line-through}
+  .chev{flex:none; color:var(--muted); font-size:12px; transition:transform .2s; margin-top:4px}
+  details[open] .chev{transform:rotate(90deg)}
+  .tags{display:flex; gap:5px; flex-wrap:wrap; margin-top:5px}
+  .tag{
+    font-size:11px; font-family:var(--mono); padding:1px 7px; border-radius:99px;
+    border:1px solid var(--line); color:var(--muted); white-space:nowrap;
+  }
+  .tag.you{color:var(--p0); border-color:currentColor; background:var(--p0-bg)}
+  .tag.code{color:var(--accent); border-color:currentColor; background:var(--accent-soft)}
+  .body{padding:2px 16px 18px 47px; border-top:1px solid var(--line); margin-top:-1px}
+  .body > *:first-child{margin-top:14px}
+  .body h4{
+    margin:16px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+  }
+  .body p, .body li{font-size:14.5px}
+  .body ul,.body ol{padding-left:20px; margin:6px 0}
+  .body li{margin-bottom:5px}
+  code{
+    font-family:var(--mono); font-size:.87em; background:var(--accent-soft);
+    padding:1px 5px; border-radius:4px; word-break:break-word;
+  }
+  pre{
+    background:var(--accent-soft); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; overflow-x:auto; font-family:var(--mono); font-size:12.5px; line-height:1.55;
+  }
+  pre code{background:none; padding:0}
+  .verify{
+    background:var(--ok-bg); border-left:3px solid var(--ok); padding:10px 14px;
+    border-radius:0 8px 8px 0; margin:12px 0 0; font-size:14px;
+  }
+  .verify strong{color:var(--ok)}
+  .warn{
+    background:var(--p0-bg); border-left:3px solid var(--p0); padding:10px 14px;
+    border-radius:0 8px 8px 0; margin:12px 0; font-size:14px;
+  }
+  .warn strong{color:var(--p0)}
+  table{width:100%; border-collapse:collapse; margin:10px 0; font-size:14px}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted)}
+  .status-grid{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:6px 18px 14px; margin-bottom:8px;
+  }
+  .status-grid td:first-child{width:44%}
+  .pill{font-family:var(--mono); font-size:11.5px; padding:1px 7px; border-radius:99px; white-space:nowrap}
+  .pill.good{color:var(--ok); background:var(--ok-bg)}
+  .pill.bad{color:var(--p0); background:var(--p0-bg)}
+  .pill.warnp{color:var(--risk); background:var(--risk-bg)}
+  section.ops h2{color:var(--ops)} section.hand h2{color:var(--hand)} section.risk h2{color:var(--risk)}
+  a{color:var(--accent)}
+  footer{margin-top:56px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  @media print{
+    .progress-bar,.chev,.btn{display:none}
+    details.item{break-inside:avoid; border-color:#ccc}
+    details.item .body{display:block !important}
+  }
+  @media (max-width:600px){
+    .body{padding-left:16px}
+    .wrap{padding:0 14px 60px}
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar">
+  <div class="progress-inner">
+    <span class="count" id="count">0 / 0</span>
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <button class="btn" id="expand">Expand all</button>
+    <button class="btn" id="reset">Reset ticks</button>
+  </div>
+</div>
+
+<div class="wrap">
+<header>
+  <h1>Sign-off &amp; Handover Checklist</h1>
+  <p class="sub">Everything that must be true before real users, and before someone else owns this codebase.</p>
+  <p class="stamp">Verified against <code>dev</code> @ 13d6fc0f · 2026-08-12 · ticks are saved in this browser only</p>
+</header>
+
+<h2>Where things actually stand</h2>
+<p class="lede">Checked in the repo, not recalled. Nothing here needs ticking — it's the baseline the rest of the list assumes.</p>
+<div class="status-grid">
+<table>
+  <tr><td>Typecheck (7 workspaces)</td><td><span class="pill good">clean</span></td></tr>
+  <tr><td>Test suite</td><td><span class="pill good">431 passed</span> 6 skipped — the integration file, which needs a live env</td></tr>
+  <tr><td><code>dev</code> vs <code>staging</code> trees</td><td><span class="pill good">identical</span> staging is +2 commits, both merge commits from PRs #42/#43</td></tr>
+  <tr><td>dev &amp; staging databases</td><td><span class="pill good">isolated</span> separate Supabase projects (<code>jaajosocopoicmqcffuu</code> / <code>aokdansyqxracuwsosji</code>) in one account</td></tr>
+  <tr><td>Production database</td><td><span class="pill bad">does not exist</span> will be its own Supabase account</td></tr>
+  <tr><td>Production branch</td><td><span class="pill bad">no <code>main</code> on origin</span> <code>deploy-prod.yml</code> has never fired</td></tr>
+  <tr><td><code>deploy-prod.yml</code></td><td><span class="pill bad">would fail</span> four defects — see the first item below</td></tr>
+  <tr><td>Migrations in repo</td><td>111 files, through <code>115_billing_foundation.sql</code></td></tr>
+  <tr><td>Admin health probes</td><td><span class="pill warnp">stop at 109</span> 113/114/115 are invisible; green does not mean applied</td></tr>
+  <tr><td>Legal pages</td><td><span class="pill bad">none</span> no /privacy, /terms, /refund; footer links to none</td></tr>
+  <tr><td>Paid plans</td><td><span class="pill good">off</span> <code>SUBSCRIPTIONS_ENABLED=false</code>, set explicitly on staging</td></tr>
+</table>
+</div>
+<p class="lede" style="margin-top:14px">The application code is in good shape. <strong>Every open item below is infrastructure, configuration or paperwork — none of it is a product bug.</strong> That matters mostly because it decides who does the work: most of this is yours, not a developer's.</p>
+
+<!-- ============ PART 1 ============ -->
+<section>
+<h2>Part 1 — Before a single real user signs up</h2>
+<p class="lede">Ordered. The first four are the production tier; nothing else can be verified on production until they're done.</p>
+
+<details class="item" id="p1-prodfix">
+  <summary><input type="checkbox" class="cb"><span class="title">Fix <code>deploy-prod.yml</code> — it would fail today, four ways
+    <div class="tags"><span class="tag code">needs code</span><span class="tag">~1 hour</span><span class="tag">do this first</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>The workflow was written but never run, so nothing has ever exercised it. Reading it against <code>deploy-staging.yml</code>, four things are wrong:</p>
+    <table>
+      <tr><th>Defect</th><th>Effect</th></tr>
+      <tr><td>Pulls <code>influnet-web:staging-latest</code>, but the staging build only ever pushes <code>:&lt;sha&gt;</code></td><td>Fails at the first step — <code>manifest unknown</code>. That tag has never existed.</td></tr>
+      <tr><td>Deploys with <code>azure/webapps-deploy</code> (App Service), while staging uses Container Apps</td><td>Two different hosting models; the staging deploy proves nothing about prod. Also conflicts with the container plan.</td></tr>
+      <tr><td>Sets <strong>no runtime environment variables at all</strong></td><td>Even on a successful deploy the app boots with no service-role key, no Stream secret, no Razorpay. Staging does this in a dedicated <code>az containerapp update</code> step; prod has no equivalent.</td></tr>
+      <tr><td>No migrate job</td><td>Correct while prod shared staging's DB. Once prod has its own database it is required — the file's own header says so.</td></tr>
+    </table>
+    <h4>Do</h4>
+    <ol>
+      <li>Add <code>docker tag … :staging-latest</code> + push to <code>deploy-staging.yml</code>, so a promotable tag exists.</li>
+      <li>Rewrite the deploy step to Container Apps, mirroring staging.</li>
+      <li>Copy staging's env-var step, with production values — and <strong>set <code>EMAIL_ALLOWLIST</code> explicitly</strong> rather than omitting it (see the comment in the staging workflow; an omitted name can't clear a value left behind by an earlier run).</li>
+      <li>Add a migrate job <em>ahead</em> of the deploy, inside the <code>environment: production</code> approval gate.</li>
+    </ol>
+    <div class="warn"><strong>Cross-account snag.</strong> If production lives in a different Azure account from staging, the promote step can't just <code>docker pull</code> from staging's registry — the credentials won't span tenants. Either give the prod workflow an ACR token scoped to pull, or replicate the image into a production registry. Decide this before writing the step, not while debugging it.</div>
+    <div class="verify"><strong>Verify.</strong> A no-op commit promoted to <code>main</code> deploys, the smoke test passes, and <code>/api/health</code> on production reports every required integration configured.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-supabase">
+  <summary><input type="checkbox" class="cb"><span class="title">Provision the production Supabase project in its own account
+    <div class="tags"><span class="tag you">you only</span><span class="tag">~1 hour</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>dev and staging are already separate projects — that part is done. What's left is a production project in the <em>separate account</em>, on the <strong>Pro</strong> tier. Free pauses after 7 days idle and has no point-in-time recovery, neither of which is survivable for real users.</p>
+    <h4>Do</h4>
+    <ol>
+      <li>Create the project. Pick the region closest to your users — for an India-first product that's <code>ap-south-1</code>; it's set once and cannot be changed later.</li>
+      <li>Apply migrations <code>001</code> → <code>115</code> from a clean state.</li>
+      <li>Fill the GitHub <code>production</code> environment secrets from the new project.</li>
+      <li>Configure Auth: redirect URLs for the production domain, and the SMTP sender.</li>
+    </ol>
+    <div class="warn"><strong>The key mix-up that has bitten this repo.</strong> <code>SUPABASE_SERVICE_ROLE_KEY</code> must be the service-role <em>JWT</em> (starts <code>eyJ…</code>). A management token (<code>sbp_…</code>) looks like a credential, is accepted by the form, and fails at runtime.</div>
+    <div class="verify"><strong>Verify.</strong> The <code>staging</code> and <code>production</code> GitHub environments show different project refs, and production's <code>/dashboard/admin/health</code> reports its own migration state with 0 pending.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-container">
+  <summary><input type="checkbox" class="cb"><span class="title">Create the production Container App, configured for production
+    <div class="tags"><span class="tag you">you only</span><span class="tag code">needs code</span><span class="tag">~2 hours</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>dev and staging can share one Container App environment — separate apps, separate images, shared resources. <strong>Production should not join them.</strong> A shared environment means shared networking and a shared blast radius, and it's the difference between a staging mistake being annoying and being an outage.</p>
+    <h4>Settings that differ from staging, and why</h4>
+    <table>
+      <tr><th>Setting</th><th>Production</th><th>Why not staging's value</th></tr>
+      <tr><td>Min replicas</td><td><strong>1</strong></td><td>0 is right for staging. In production it means the first visitor after a quiet spell waits for a cold container — on a Next.js image that's seconds, and it hits exactly when traffic is thinnest and impressions matter most.</td></tr>
+      <tr><td>Max replicas</td><td><strong>10</strong></td><td>Your cost ceiling. This is the number that makes "we can't get a surprise bill" mathematically true rather than hopeful.</td></tr>
+      <tr><td>Scale rule</td><td>HTTP, ~50–80 concurrent requests</td><td>Tune after you've seen real traffic. Too low and you pay for idle replicas; too high and requests queue before a scale-out.</td></tr>
+      <tr><td>Resources</td><td>1.0 vCPU / 2 GiB</td><td>Next.js SSR is memory-hungry; 0.5/1 GiB OOMs under concurrency.</td></tr>
+      <tr><td>Ingress</td><td>External, target port 3000, HTTPS only, HTTP→HTTPS redirect</td><td>—</td></tr>
+      <tr><td>Health probe</td><td><code>/api/health</code></td><td>The endpoint already exists — the staging deploy polls it. Wire it as a real readiness probe so a bad revision never takes traffic.</td></tr>
+      <tr><td>Revision mode</td><td>Single, with the health gate</td><td>Multiple-revision blue/green is better, but only once you have a reason; single + a working health probe is the safe default.</td></tr>
+      <tr><td>Secrets</td><td>Container App <em>secrets</em>, referenced by env vars</td><td>Not plain env values — those are readable by anyone with portal reader access.</td></tr>
+      <tr><td>Custom domain</td><td><code>influnet.io</code> + managed certificate</td><td>Set up before launch; DNS propagation is not something to discover on the day.</td></tr>
+      <tr><td>Diagnostics</td><td>Log Analytics workspace + retention</td><td>Container App logs vanish with the revision otherwise, which is precisely when you want them.</td></tr>
+      <tr><td>Resource group</td><td>Its own (<code>influnet-prod-rg</code>)</td><td>Makes "delete everything non-prod" a safe operation, and prod costs legible on the bill.</td></tr>
+    </table>
+    <h4>Do</h4>
+    <p>Write it as a script or a Bicep template committed to this repo, not as portal clicks. The next person needs to know how prod was built, and you'll want it again for a rebuild or a second region.</p>
+    <div class="verify"><strong>Verify.</strong> Kill the running revision and watch it come back on its own. Then load-test past the scale threshold and confirm it scales out — and stops at 10.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-main">
+  <summary><input type="checkbox" class="cb"><span class="title">Create <code>main</code>, protect it, and promote once end to end
+    <div class="tags"><span class="tag you">you only</span><span class="tag">~30 min</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>Branch <code>main</code> from <code>staging</code>, then protect it exactly as <code>staging</code> is: PRs only, no direct pushes. The one-way flow (<code>dev</code> → <code>staging</code> → <code>main</code>) is enforced by a remote ruleset, and the failure mode when it's bypassed has already happened here — three commits sat only on staging for three days, and one of them silently downgraded SMS OTPs to voice calls.</p>
+    <div class="warn"><strong>Do not add required status checks.</strong> Deliberate, and documented in <code>CICD_INSTRUCTIONS_2026-08-06.md</code> §2 and §7.2: a paths-filtered workflow as a required check leaves PRs stuck on "Expected — waiting for status" forever.</div>
+    <div class="verify"><strong>Verify.</strong> A trivial change travels dev → staging → main and reaches the production URL, and the image deployed is the one staging already tested.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-railway">
+  <summary><input type="checkbox" class="cb"><span class="title">Finish the Railway → Azure move for dev
+    <div class="tags"><span class="tag you">you only</span><span class="tag code">needs code</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>Your in-flight work: dev moves off Railway onto the same Container App environment as staging, as a separate app and image.</p>
+    <h4>Don't leave these behind</h4>
+    <ul>
+      <li><code>migrate-dev.yml</code>'s header says dev is deployed by Railway. Update it once that stops being true — a stale comment about who deploys what is exactly the kind of thing that misleads a new developer at 2am.</li>
+      <li>Dev needs its own deploy workflow, or an extension of the staging one. Right now nothing in this repo deploys dev's app code.</li>
+      <li>Delete <code>railway.json</code> when it's genuinely unused, so nobody wires it back up.</li>
+      <li>Keep dev's min-replicas at 0. It's the tier where cold starts cost nothing.</li>
+    </ul>
+    <div class="verify"><strong>Verify.</strong> A push to <code>dev</code> lands on the dev URL through Azure, and Railway can be switched off without anything breaking.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-email">
+  <summary><input type="checkbox" class="cb"><span class="title">Turn on email confirmation, and real SMTP
+    <div class="tags"><span class="tag you">you only</span><span class="tag">~30 min</span><span class="tag">long-standing</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>Signup does not currently verify that the address belongs to the person. Two consequences: password reset can be aimed at a typo'd address, and project details get mailed to whoever really owns it.</p>
+    <h4>Do</h4>
+    <ol>
+      <li>Supabase → Authentication → Providers → Email → <strong>Confirm email: on</strong>, on the production project.</li>
+      <li>Point Auth at Resend via custom SMTP. Supabase's shared sender is rate-limited to a handful per hour — hand the link to ten people at once and most never get their mail, which looks exactly like a broken signup. Walkthrough in <code>EMAIL_RESEND_SETUP.md</code>.</li>
+    </ol>
+    <div class="warn"><strong>Do not build a custom OTP to work around this.</strong> It's a toggle. That instinct has come up more than once.</div>
+    <div class="verify"><strong>Verify.</strong> A fresh address gets the mail from your domain, not spam, and cannot sign in until it's clicked. Repeat three times in a minute — the default limiter would have dropped the third.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-legal">
+  <summary><input type="checkbox" class="cb"><span class="title">Publish the legal pages
+    <div class="tags"><span class="tag you">you only</span><span class="tag code">needs code</span><span class="tag">longest lead time</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>There are none, and three separate parties require them:</p>
+    <ul>
+      <li><strong>Razorpay</strong> won't keep a live merchant account without published Terms, Privacy, Refund/Cancellation and Contact pages.</li>
+      <li><strong>App Store and Play Store</strong> both need a reachable privacy-policy URL for the mobile app.</li>
+      <li><strong>India's DPDP Act</strong> — you process creator PII with no stated basis or retention period.</li>
+    </ul>
+    <h4>Do</h4>
+    <p>Publish <code>/privacy</code>, <code>/terms</code>, <code>/refund-policy</code>, <code>/contact</code>; link them from the landing footer (<code>apps/landing/src/components/landing/footer.tsx</code>) and the app footer. <strong>Start this early</strong> — the text is a lawyer's job and that's the slow part; wiring it up is an hour.</p>
+    <div class="verify"><strong>Verify.</strong> All four live on the production domain, linked from the footer, and the URLs entered in the Razorpay dashboard and both store listings.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-razorpay">
+  <summary><input type="checkbox" class="cb"><span class="title">Live Razorpay keys — and move one real rupee
+    <div class="tags"><span class="tag you">you only</span><span class="tag">~1 hour</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p><code>RAZORPAY_WEBHOOK_SECRET</code> is what makes the money gates trustworthy: the <code>advance_payment</code> and <code>final_payment</code> checklist items open <em>only</em> when a signed capture webhook arrives. A placeholder secret means forgeable signatures — anyone could mark a payment captured. The code already refuses placeholders on staging and production, so check it isn't refusing simply because the value is missing.</p>
+    <h4>Do</h4>
+    <p>Live <code>rzp_live_*</code> keys and a freshly generated webhook secret in the production environment; point the Razorpay webhook at the production URL.</p>
+    <div class="verify"><strong>Verify.</strong> Run one real low-value payment through a real project on production and watch the gate open <em>by itself</em>. Then confirm the capture in the Razorpay dashboard.</div>
+    <div class="warn"><strong>Never add a bypass "for testing."</strong> The audit suite drives real test-mode orders and signs its own webhooks — it does not need one, and a bypass in this particular code path is a way to get paid nothing for real work.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-plans">
+  <summary><input type="checkbox" class="cb"><span class="title">Decide the paid-plan switch <em>before</em> launch
+    <div class="tags"><span class="tag you">you only</span><span class="tag">~10 min, but decide deliberately</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p><code>SUBSCRIPTIONS_ENABLED=false</code> means the paid tier is <em>absent</em>, not merely unpurchased: no pricing, no upgrade prompt, and <code>/api/billing/checkout</code> returns 404. Flipping it later, on a live user base, retroactively puts existing users over limits they never agreed to.</p>
+    <p>Pick one now: launch free (leave <code>false</code>), or launch with plans (<code>true</code>, <strong>and</strong> Razorpay configured — turning it on without payments strands users at a paywall they can't clear; the boot banner flags that combination).</p>
+    <p>The numbers live in the <code>billing_settings</code> table, not in code — two copies of a revenue-guarding number is one copy that silently drifts.</p>
+    <div class="verify"><strong>Verify.</strong> The production boot banner shows the intended combination, and <code>GET /api/billing/entitlements</code> returns what you expect for a fresh account.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-mobile">
+  <summary><input type="checkbox" class="cb"><span class="title">Point the mobile app at production
+    <div class="tags"><span class="tag you">you only</span><span class="tag code">needs code</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p><code>apps/mobile/eas.json</code>'s <code>production</code> profile currently ships the <strong>staging</strong> API and staging Supabase project. A store build made today would put real users on the QA database — including the <code>qacreator</code> fixture.</p>
+    <h4>Do</h4>
+    <p>Update the <code>production</code> profile's <code>EXPO_PUBLIC_API_BASE_URL</code>, <code>EXPO_PUBLIC_SUPABASE_URL</code> and anon key, then cut a <strong>fresh build — not an OTA</strong>. Env is baked at build time, and Metro caches <code>EXPO_PUBLIC_*</code>. Bump <code>LAST_COMMIT_TIME</code> in <code>settings.tsx</code> in the shipping commit, as with every mobile update.</p>
+    <div class="verify"><strong>Verify.</strong> The welcome screen's build strip shows the production backend and bundle id — check this before submitting to either store, not after.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-silent">
+  <summary><input type="checkbox" class="cb"><span class="title">Switch on the things that fail silently
+    <div class="tags"><span class="tag you">you only</span><span class="tag">~1 hour</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>Each of these is inert-when-unset by design. Nothing errors — you simply never find out.</p>
+    <table>
+      <tr><th>Switch</th><th>Cost of leaving it unset</th></tr>
+      <tr><td><code>SENTRY_DSN</code> + <code>NEXT_PUBLIC_SENTRY_DSN</code></td><td>No crash reports. You learn about breakage from users.</td></tr>
+      <tr><td><code>UPSTASH_REDIS_REST_URL</code> / <code>_TOKEN</code></td><td>Rate limits become per-instance, so real limits are looser than configured — multiply by replica count. With max-replicas 10, a 10/min limit is really 100/min.</td></tr>
+      <tr><td><code>RESEND_WEBHOOK_SECRET</code></td><td>Bounces and spam complaints are never suppressed. This is what gets a sending domain blacklisted.</td></tr>
+      <tr><td><code>NOTIFY_EMAILS_ENABLED=true</code></td><td>No product email at all. Keep it <code>false</code> everywhere except production.</td></tr>
+      <tr><td><code>EMAIL_ALLOWLIST</code></td><td>Leave <strong>unset in production only</strong>. It's the net that stops a non-prod environment mailing real users.</td></tr>
+      <tr><td><code>APIFY_TOKEN</code></td><td>Verification silently degrades to structural signals and escalates everything to manual review — i.e. to you.</td></tr>
+    </table>
+    <div class="verify"><strong>Verify.</strong> <code>/dashboard/admin/health</code> — it probes live config, so it reports what is true of the running deployment rather than what someone remembers setting.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-probes">
+  <summary><input type="checkbox" class="cb"><span class="title">Extend the health probes to migrations 113 / 114 / 115
+    <div class="tags"><span class="tag code">needs code</span><span class="tag">~30 min</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>The probe list in <code>apps/web/src/app/api/admin/health/route.ts</code> stops at migration 109. The three newest — collaboration stats, atomic stage sign-off, and billing — are exactly the ones whose absence is hardest to spot by eye, and the page currently reports green without them. A health check you trust that doesn't check the newest thing is worse than no health check.</p>
+    <h4>Do</h4>
+    <p>Add probes for <code>get_collaboration_stats</code> (113), <code>record_stage_signoff</code> (114) and <code>billing_settings</code> (115), following the existing <code>FEATURE_PROBES</code> shape. Make it a habit: a migration that adds an RPC or table adds a probe in the same PR.</p>
+    <div class="verify"><strong>Verify.</strong> The health page lists all three, and goes red against a database deliberately held behind.</div>
+  </div>
+</details>
+
+<details class="item" id="p1-restore">
+  <summary><input type="checkbox" class="cb"><span class="title">Restore a backup, once, before you need to
+    <div class="tags"><span class="tag you">you only</span><span class="tag">~1 hour</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>An untested backup is a belief, not a backup. Supabase Pro gives daily backups and point-in-time recovery; nobody here has ever restored one, so nobody knows how long it takes or whether the app comes up against it.</p>
+    <h4>Do</h4>
+    <p>Once, before launch: restore production to a scratch project from a backup, point a local <code>dev:prod</code> run at it, and load a few pages.</p>
+    <div class="verify"><strong>Verify.</strong> You have a written note of how long it took. That number is your real recovery time, and it's the honest answer when someone asks "what happens if…".</div>
+  </div>
+</details>
+</section>
+
+<!-- ============ PART 2 ============ -->
+<section class="ops">
+<h2>Part 2 — Running it yourself for the first month or two</h2>
+<p class="lede">The goal of this phase isn't features. It's to learn what actually breaks, so the next owner inherits knowledge instead of guesses.</p>
+
+<details class="item" id="p2-weekly">
+  <summary><input type="checkbox" class="cb"><span class="title">Set up the weekly 30-minute review
+    <div class="tags"><span class="tag">recurring</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <ol>
+      <li><strong><code>/dashboard/admin/health</code></strong> — every required integration configured, 0 migrations pending.</li>
+      <li><strong>Sentry</strong> — triage new issue groups. An issue seen 200 times by 1 user is a loop; once by 200 users is a release regression. Different urgency, different fix.</li>
+      <li><strong>Resend</strong> — bounce and complaint rate. Above ~2% complaints, stop sending and find out why before the domain is burned.</li>
+      <li><strong>Supabase → Reports</strong> — watch <strong>egress and realtime connections</strong>, not database size. Size is the least binding limit on this product; egress and connection count bind first.</li>
+      <li><strong>Razorpay</strong> — every capture has a matching opened gate. A mismatch is a webhook problem, not an accounting one.</li>
+      <li><strong>Azure</strong> — replica count over the week. If you're regularly at max, the ceiling is now a availability limit rather than a cost guard.</li>
+      <li><strong>Dependabot</strong> — merge patch-level PRs weekly. A quarterly batch is a scary batch.</li>
+    </ol>
+  </div>
+</details>
+
+<details class="item" id="p2-log">
+  <summary><input type="checkbox" class="cb"><span class="title">Start an incident log on day one
+    <div class="tags"><span class="tag">recurring</span><span class="tag">highest handover value</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>One file. One line per incident: <em>what the user saw · what it actually was · what fixed it</em>.</p>
+    <p>This repo's most valuable documents are exactly that shape — <code>.agents/lessons_learned.md</code> and the audit reports. A month of real-user incidents is the single most useful thing you can hand a new developer, and it's the one thing that cannot be reconstructed afterwards. Write the line the day it happens; you will not remember it in March.</p>
+  </div>
+</details>
+
+<details class="item" id="p2-breakglass">
+  <summary><input type="checkbox" class="cb"><span class="title">Learn the break-glass switches before you need them
+    <div class="tags"><span class="tag">reference</span><span class="tag">tell the next dev</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <table>
+      <tr><th>Situation</th><th>Switch</th></tr>
+      <tr><td>One email template looping or wrong</td><td><code>EMAIL_DISABLED_TEMPLATES=&lt;id&gt;</code> — silences that one template everywhere in seconds, no deploy, without taking the rest of the mail system down. Deliberately overrides even account-tier mail.</td></tr>
+      <tr><td>Email generally misbehaving</td><td><code>NOTIFY_EMAILS_ENABLED=false</code></td></tr>
+      <tr><td>Paid plans misbehaving</td><td><code>SUBSCRIPTIONS_ENABLED=false</code> — restores pre-plan behaviour for everyone</td></tr>
+      <tr><td>Payments misbehaving</td><td>Unset the Razorpay keys — stages drop back to "record manual (off-platform)" instead of breaking the pipeline</td></tr>
+      <tr><td>Bad deploy</td><td>Promote the previous image. Don't revert commits under pressure.</td></tr>
+    </table>
+    <p>This set is unusually complete and was built deliberately — and it is <em>invisible from the code</em>. Say it out loud at handover, or it will be rediscovered during an incident.</p>
+  </div>
+</details>
+
+<details class="item" id="p2-watch">
+  <summary><input type="checkbox" class="cb"><span class="title">Two things that will generate most of your support load
+    <div class="tags"><span class="tag">reference</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p><strong>"My project is stuck."</strong> The stage machine has three exits, not one — mutual sign-off (8 of 12 stages), <code>advance</code> (only <code>sent_for_review</code> and <code>revisions</code>), and <code>confirm_completion</code> (<code>final_payment</code> only). <code>ALLOWED_TRANSITIONS</code> in <code>packages/core</code> is the only truth, and it is <em>not</em> the array order. Never unstick a project by editing <code>stage_progress</code> by hand — use <code>record_stage_signoff()</code> / <code>revoke_stage_signoff()</code>.</p>
+    <p><strong>"X/Twitter won't verify."</strong> Apify's free plan returns <code>{demo:true}</code> stubs for the third-party X actor. That's the cause, not a bug — it needs a plan upgrade or a different actor. Instagram and Facebook are unaffected.</p>
+  </div>
+</details>
+</section>
+
+<!-- ============ PART 3 ============ -->
+<section class="hand">
+<h2>Part 3 — Handing it to another developer</h2>
+<p class="lede">"Handover complete" means a competent stranger ships a fix on day two without calling you.</p>
+
+<details class="item" id="p3-access">
+  <summary><input type="checkbox" class="cb"><span class="title">Write the access inventory — the part that only exists in your head
+    <div class="tags"><span class="tag you">you only</span><span class="tag">~2 hours</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>In a password manager — not this repo, not a doc. For each of: Supabase (×3, two accounts) · GitHub · Azure (×2 accounts) · Railway · Cloudflare/DNS · Razorpay · Resend · Stream Chat · Apify · Sentry · Upstash · Expo/EAS · Apple Developer · Google Play · 2Factor · Cloudinary —</p>
+    <ul>
+      <li>who owns it, and <strong>whose personal email it's tied to</strong>;</li>
+      <li>what it costs and when it renews;</li>
+      <li>whether the new developer gets their own login or inherits yours.</li>
+    </ul>
+    <div class="warn"><strong>Two traps already paid for once.</strong> A Resend key from a <em>different account</em> silently broke staging email — keys must belong to the account that owns the verified domain. And the active <code>gh</code> CLI account lacks repo admin, so admin API calls 404 and read as "this doesn't exist" — don't let a new developer conclude branch protection is missing because of it.</div>
+  </div>
+</details>
+
+<details class="item" id="p3-rotate">
+  <summary><input type="checkbox" class="cb"><span class="title">Rotate credentials <em>at</em> handover
+    <div class="tags"><span class="tag you">you only</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <p>Anything the outgoing party has seen gets rotated when they leave; anything the incoming party will see is now shared. At minimum: service-role keys, <code>RAZORPAY_KEY_SECRET</code>, <code>RAZORPAY_WEBHOOK_SECRET</code>, <code>STREAM_API_SECRET</code>, <code>RESEND_API_KEY</code>, <code>SUPABASE_ACCESS_TOKEN</code>.</p>
+    <p><code>EMAIL_UNSUBSCRIBE_SECRET</code> is the exception — rotating it invalidates every unsubscribe link already sitting in someone's inbox. Rotate that one only if it actually leaked.</p>
+    <div class="warn"><strong>Housekeeping first.</strong> <code>ADMIN_CREDENTIALS.local.txt</code> sits in the repo root, alongside several <code>*-backup-*.json</code> data dumps. Confirm they're gitignored and delete the stale ones <em>before</em> granting anyone repo access.</div>
+  </div>
+</details>
+
+<details class="item" id="p3-day1">
+  <summary><input type="checkbox" class="cb"><span class="title">Give them the day-one reading path — in this order
+    <div class="tags"><span class="tag">~half a day for them</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <ol>
+      <li><strong><code>AGENTS.md</code></strong> (repo root) — the traps that have actually cost time here. Short, and every line was paid for.</li>
+      <li><code>docs/README.md</code> → <code>architecture/ARCHITECTURE.md</code> → <code>operations/SECURITY.md</code>.</li>
+      <li><code>docs/operations/HANDOVER.md</code> — the prose version of this checklist.</li>
+      <li><code>CICD_INSTRUCTIONS_2026-08-06.md</code> — before touching a workflow.</li>
+      <li><code>FULL_FLOW_AUDIT_2026-08-08.md</code> — before touching the stage machine or the payment gates.</li>
+    </ol>
+    <p>Resist handing over all forty documents. The reading path is the deliverable; the archive is a reference.</p>
+  </div>
+</details>
+
+<details class="item" id="p3-done">
+  <summary><input type="checkbox" class="cb"><span class="title">The definition of done — all eight, or it isn't handed over
+    <div class="tags"><span class="tag">the actual bar</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <ul>
+      <li>Access inventory written, in a password manager, owners named</li>
+      <li>Secrets rotated, old ones revoked</li>
+      <li>They have done one full <code>dev → staging → main</code> promotion themselves</li>
+      <li>They have applied a migration and watched <code>/dashboard/admin/health</code> change</li>
+      <li>They have run the E2E harness once — <code>tests/e2e/</code>, seed personas first, <strong><code>NOTIFY_EMAILS_ENABLED=false</code> during and restored after</strong> (the personas' <code>@influnet-audit.test</code> addresses hard-bounce and damage the Resend domain reputation)</li>
+      <li>They have cut a mobile build and submitted it</li>
+      <li>Your incident log handed over, and read</li>
+      <li>A written answer to: <em>who gets paged, and how, when the site is down at 2am</em></li>
+    </ul>
+  </div>
+</details>
+</section>
+
+<!-- ============ PART 4 ============ -->
+<section class="risk">
+<h2>Part 4 — Things a new developer must not "fix"</h2>
+<p class="lede">Each of these looks like a bug and isn't. Every one has already cost someone time here.</p>
+
+<details class="item" id="p4-risks">
+  <summary><input type="checkbox" class="cb"><span class="title">Read this with them, don't just link it
+    <div class="tags"><span class="tag">reference</span></div></span><span class="chev">▶</span></summary>
+  <div class="body">
+    <table>
+      <tr><th>Looks wrong</th><th>Why it's deliberate</th></tr>
+      <tr><td>Every API route has a different response envelope</td><td>There is no shared envelope. Read the route. Guessing <code>body.data ?? body.results</code> yields an empty array — and empty arrays make tests pass and dashboards render blank.</td></tr>
+      <tr><td><code>public.connections</code> is unused</td><td>Dead since migration 029. Use <code>get_collaboration_stats()</code> (113). Don't revive it.</td></tr>
+      <tr><td>No required status checks on <code>staging</code>/<code>main</code></td><td>Deliberate — a paths-filtered workflow as a required check leaves PRs stuck forever.</td></tr>
+      <tr><td>Runtime flags aren't <code>NEXT_PUBLIC_*</code></td><td>Never. It's inlined at build time, including the copy the <em>server</em> reads. Runtime flags come from an endpoint (<code>/api/auth/config</code>, <code>/api/billing/entitlements</code>).</td></tr>
+      <tr><td>Fail-open defaults around "the migration might not be applied"</td><td>Correct for a <em>missing table</em>, wrong for <em>zero rows</em>. That exact conflation held both payment gates open once. <code>lib/stage-items-gate.ts</code> shows the distinction.</td></tr>
+      <tr><td>Read-modify-write on <code>stage_progress</code></td><td>Never from app code — two simultaneous confirmations clobber each other, and the trigger then 500s with the user's click lost. Use the migration-114 RPCs.</td></tr>
+      <tr><td>Supabase CLI isn't on <code>latest</code></td><td>Pinned to 2.111.0; 2.112.0 broke <code>supabase link</code>.</td></tr>
+      <tr><td>Mobile public profile isn't a WebView of <code>/c/[username]</code></td><td>Native on purpose. New native modules break already-installed builds.</td></tr>
+      <tr><td>The <code>qacreator</code> fixture on staging</td><td>Load-bearing for deploy smoke tests. Never purge it.</td></tr>
+    </table>
+  </div>
+</details>
+</section>
+
+<footer>
+  Lives at <code>docs/operations/handover-checklist.html</code> — open it straight from the repo, no server needed.
+  Ticks are stored in this browser's local storage, so they follow the machine, not the file.
+  The prose version, with the same content, is <a href="HANDOVER.md">HANDOVER.md</a>. Keep both updated in place rather than dating a copy.
+</footer>
+</div>
+
+<script>
+(function(){
+  var KEY='influnet-handover-v1';
+  var state={};
+  try{ state=JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){ state={}; }
+
+  var items=[].slice.call(document.querySelectorAll('details.item'));
+
+  function render(){
+    var done=0;
+    items.forEach(function(it){
+      var cb=it.querySelector('.cb');
+      var on=!!state[it.id];
+      cb.checked=on;
+      it.classList.toggle('done',on);
+      if(on) done++;
+    });
+    var total=items.length;
+    document.getElementById('count').textContent=done+' / '+total+' done';
+    document.getElementById('fill').style.width=(total?(done/total*100):0)+'%';
+  }
+
+  items.forEach(function(it){
+    var cb=it.querySelector('.cb');
+    // Clicking the checkbox must tick, not expand.
+    cb.addEventListener('click',function(ev){ ev.stopPropagation(); });
+    cb.addEventListener('change',function(){
+      if(cb.checked) state[it.id]=true; else delete state[it.id];
+      try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){}
+      render();
+    });
+  });
+
+  var expandBtn=document.getElementById('expand');
+  expandBtn.addEventListener('click',function(){
+    var anyClosed=items.some(function(it){ return !it.open; });
+    items.forEach(function(it){ it.open=anyClosed; });
+    expandBtn.textContent=anyClosed?'Collapse all':'Expand all';
+  });
+
+  document.getElementById('reset').addEventListener('click',function(){
+    if(!confirm('Clear every tick on this machine?')) return;
+    state={};
+    try{ localStorage.removeItem(KEY); }catch(e){}
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

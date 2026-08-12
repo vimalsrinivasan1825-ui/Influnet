@@ -1,0 +1,214 @@
+name: Deploy Dev to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      # A migration-only change is still a deploy: without this the schema
+      # job below would never fire for a PR that only adds SQL.
+      - 'supabase/migrations/**'
+      - '.github/workflows/deploy-staging.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
+
+env:
+  ACR_LOGIN_SERVER: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+  ACR_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+  ACR_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+  CONTAINER_APP_NAME: "influnet-dev"
+  RESOURCE_GROUP: "influnet-rg"
+  IMAGE_NAME: "influnet-web-dev"
+  # Two URLs on purpose. APP_CONTAINER_URL is the origin CI probes — it resolves even
+  # if DNS or the custom-domain certificate is broken, so a health check failure
+  # means the app is down rather than the domain being misconfigured.
+  # NEXT_PUBLIC_APP_URL is what users (and email links) see.
+  APP_CONTAINER_URL: "https://influnet-dev.icysky-7414f4c6.southindia.azurecontainerapps.io"
+  NEXT_PUBLIC_APP_URL: "https://dev.influnet.io"
+
+concurrency:
+  # Never let two dev deploys migrate the same database at once, and
+  # never cancel a run part-way through applying schema changes.
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  # Schema first, app second. Migrations here are additive (new tables,
+  # columns and functions), so the OLD app version keeps working against the
+  # NEW schema for the minute between this job and the deploy below — whereas
+  # the reverse order would briefly run new code against a schema that has
+  # not caught up yet. If a migration ever fails, `needs:` stops the deploy
+  # entirely rather than shipping code its schema cannot support.
+  migrate:
+    name: Apply pending migrations to the dev database
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DEV_DB_PASSWORD }}
+      # Not a secret — shipped to the browser as NEXT_PUBLIC_SUPABASE_URL.
+      PROJECT_REF: jaajosocopoicmqcffuu
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # PINNED, deliberately. `version: latest` made every deploy depend on
+      # whatever supabase/cli shipped that morning, and on 2026-08-07 v2.112.0
+      # broke `supabase link` with
+      #   failed to get api keys: SchemaError(... at [2]["inserted_at"])
+      # — its Management API client rejects the timestamp format the API
+      # returns. Nothing in this repo changed; the deploy just stopped working.
+      # Bump this on purpose, after checking a run passes.
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      - name: Link to the dev project
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Show migration state before applying
+        run: supabase migration list
+
+      - name: Apply pending migrations
+        # See migrate-dev.yml for why --include-all matters here.
+        run: supabase db push --include-all
+
+      - name: Confirm migration state after applying
+        run: supabase migration list
+
+  build-and-deploy:
+    needs: migrate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
+
+      # Build-time: NEXT_PUBLIC_* vars are baked into the frontend JS
+      - name: Build and Push Docker Image
+        run: |
+          docker build -f apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ env.NEXT_PUBLIC_APP_URL }}" \
+            --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ secrets.NEXT_PUBLIC_PHONE_OTP_ENABLED }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
+            --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
+            -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          containerAppName: ${{ env.CONTAINER_APP_NAME }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          imageToDeploy: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          registryUrl: ${{ env.ACR_LOGIN_SERVER }}
+          registryUsername: ${{ env.ACR_USERNAME }}
+          registryPassword: ${{ env.ACR_PASSWORD }}
+
+      # Run-time: Backend secrets injected via az CLI (no Azure Portal access needed)
+      #
+      # These values are authoritative: every deploy overwrites whatever is
+      # currently set on the container app, so a fix applied by hand in the
+      # Azure portal survives only until the next push. Change it here.
+      #
+      # The email settings read from repository secrets rather than literals so
+      # they can be flipped without a deploy.
+      #
+      # EMAIL_ALLOWLIST is deliberately set EMPTY, which means "deliver to any
+      # address" — dev must be able to mail arbitrary testers, not only
+      # @influnet.io mailboxes. Set explicitly rather than omitted so the deploy
+      # also CLEARS a value left behind on the container app by an earlier run or
+      # a manual portal edit; omitting the name would leave the old one in place.
+      #
+      # This is safe here because dev has its own database, so there is no
+      # pool of real users' addresses to mail by accident. Do NOT copy this line
+      # into a workflow whose environment points at the production database — to
+      # re-tighten, put a comma-separated list here (`@influnet.io,someone@x.com`)
+      # or wire it back to secrets.EMAIL_ALLOWLIST.
+      #
+      # SUBSCRIPTIONS_ENABLED is set to a literal `false` rather than left out.
+      # Absent and false behave identically in code, but "absent" is a guess
+      # about a default and "false" is a decision — and per the note above, a
+      # value omitted here is also a value this deploy cannot CLEAR if somebody
+      # sets it by hand in the portal. Flip it to `true` when dev is meant
+      # to exercise the paid tiers; migration 115 ships the schema either way,
+      # and with the flag off every gate is open exactly as it is today.
+      - name: Set Backend Environment Variables on Container App
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --set-env-vars \
+                "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_DEV_SERVICE_ROLE_KEY }}" \
+                "STREAM_API_KEY=${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
+                "STREAM_API_SECRET=${{ secrets.STREAM_DEV_API_SECRET }}" \
+                "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" \
+                "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" \
+                "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" \
+                "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" \
+                "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" \
+                "RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}" \
+                "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" \
+                "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
+                "NOTIFY_EMAILS_ENABLED=${{ secrets.NOTIFY_EMAILS_ENABLED }}" \
+                "EMAIL_ALLOWLIST=" \
+                "EMAIL_TEST_SECRET=${{ secrets.EMAIL_TEST_SECRET }}" \
+                "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
+                "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
+                "SUBSCRIPTIONS_ENABLED=false" \
+                "APP_ENV=dev"
+
+      - name: Wait for the new revision to serve traffic
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 10 "${{ env.APP_CONTAINER_URL }}/api/health" > /dev/null; then
+              echo "Healthy after ${i} attempt(s)."
+              exit 0
+            fi
+            echo "Not ready yet (attempt ${i}/30); retrying in 10s..."
+            sleep 10
+          done
+          echo "Revision did not become healthy within 5 minutes."
+          exit 1
+
+      # The profile args are built conditionally on purpose. smoke.mjs treats an
+      # empty positional argument as the target URL, so passing `--creator ""`
+      # (what an unset repository variable expands to) silently blanks the URL
+      # and every check then fails against "". Omitting the flag entirely makes
+      # the script skip that check instead, which is the intended degradation.
+      #
+      # SMOKE_BUSINESS_USERNAME is expected to be UNSET: business profiles are
+      # private, and /b/<user> permanent-redirects to /<user>, which bounces an
+      # anonymous visitor to /login. fetch() follows that redirect and gets a
+      # 200 from the login page — so the check would pass without ever loading a
+      # business profile. A false green is worse than no check. The variable is
+      # still read here so the step needs no edit if that access model changes.
+      - name: Run Smoke Tests
+        env:
+          SMOKE_CREATOR: ${{ vars.SMOKE_CREATOR_USERNAME }}
+          SMOKE_BUSINESS: ${{ vars.SMOKE_BUSINESS_USERNAME }}
+        run: |
+          ARGS=""
+          [ -n "$SMOKE_CREATOR" ] && ARGS="$ARGS --creator $SMOKE_CREATOR"
+          [ -n "$SMOKE_BUSINESS" ] && ARGS="$ARGS --business $SMOKE_BUSINESS"
+          node scripts/smoke.mjs "${{ env.APP_CONTAINER_URL }}" $ARGS

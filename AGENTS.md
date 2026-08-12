@@ -3,6 +3,11 @@
 Traps that have cost real time here. Read before changing API routes, migrations
 or the stage machine.
 
+Going live, or handing this to someone else?
+**[docs/operations/HANDOVER.md](docs/operations/HANDOVER.md)** is the sign-off doc:
+what still blocks real users, how to run it month-to-month, and what a new owner
+needs before they can ship without you.
+
 ## Response envelopes differ per route
 
 There is no shared envelope. `/api/discover` returns `{results}`,
@@ -141,9 +146,17 @@ waiting for status" forever. See `docs/operations/CICD_INSTRUCTIONS_2026-08-06.m
 
 ## Environments
 
-`dev`, `staging` and prod each have **their own Supabase project**. Staging is
-not dev's database; a row missing in one proves nothing about the other. Check
-which project you're pointed at before concluding anything.
+`dev` and `staging` have **their own Supabase project** each. Staging is not
+dev's database; a row missing in one proves nothing about the other. Check which
+project you're pointed at before concluding anything.
+
+**There is no production tier yet, and this surprises people.** `main` does not
+exist on `origin`, so `deploy-prod.yml` has never fired — and its `production`
+environment points at the *staging* Supabase project
+(`aokdansyqxracuwsosji`), which is why that workflow has no migrate job. The
+mobile `production` EAS profile points at staging too. Treat "production" in
+config as a name, not a place, until
+[docs/operations/HANDOVER.md](docs/operations/HANDOVER.md) P0.1/P0.2 are done.
 
 On staging, the `qacreator` fixture is load-bearing for deploy smoke tests —
 never purge it.
