@@ -227,7 +227,7 @@ jobs:
                 "EMAIL_TEST_SECRET=${{ secrets.EMAIL_TEST_SECRET }}" \
                 "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
                 "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
-                "SUBSCRIPTIONS_ENABLED=false" \
+                "SUBSCRIPTIONS_ENABLED=true" \
                 "APP_ENV=staging"
 
       - name: Wait for the new revision to serve traffic
