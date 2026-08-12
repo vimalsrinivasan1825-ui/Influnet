@@ -20,6 +20,8 @@ When you're about to deploy: **[operations/DEPLOYMENT.md](operations/DEPLOYMENT.
 
 Before handing the app to testers or users: **[operations/PRE_LAUNCH_CHECKLIST.md](operations/PRE_LAUNCH_CHECKLIST.md)** — the ordered, verifiable list of what must be switched on first.
 
+Before signing the project off to real users, or handing the codebase to another developer: **[operations/HANDOVER.md](operations/HANDOVER.md)** — the go-live blockers that remain, how to run it for the first month, and what "handover complete" means.
+
 ---
 
 ## 📁 Doc map
@@ -46,6 +48,8 @@ Before handing the app to testers or users: **[operations/PRE_LAUNCH_CHECKLIST.m
 ### operations/ — *running, securing, deploying, testing*
 | Doc | What's in it |
 |---|---|
+| [handover-checklist.html](operations/handover-checklist.html) | **The interactive version of HANDOVER.md.** Tickable, collapsible checklist — click an item to see the detail. Open it straight from the repo; nothing is published or hosted. Ticks persist per browser. |
+| [HANDOVER.md](operations/HANDOVER.md) | **Canonical sign-off doc.** Verified current state, the remaining go-live blockers (all infrastructure/paperwork, no code), the weekly operating routine and break-glass switches for the first months, the access/rotation inventory a new developer needs, and the accepted risks they must not "fix" naively. |
 | [SECURITY.md](operations/SECURITY.md) | **Canonical.** Auth/data-access model, PII column lockdown, RLS conventions, and the full security-audit history (every finding + status). |
 | [DEPLOYMENT.md](operations/DEPLOYMENT.md) | Cloud deployment runbook: prod Supabase, env vars, host setup, edge functions, Stream webhook, post-deploy smoke test, infra to-dos (Sentry/Upstash/backups). |
 | [QA_AND_GO_LIVE.md](operations/QA_AND_GO_LIVE.md) | Manual QA / test script (step-by-step, expected results) + "path to a solid product" checklist. |

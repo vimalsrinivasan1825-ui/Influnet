@@ -3,6 +3,11 @@
 Traps that have cost real time here. Read before changing API routes, migrations
 or the stage machine.
 
+Going live, or handing this to someone else?
+**[docs/operations/HANDOVER.md](docs/operations/HANDOVER.md)** is the sign-off doc:
+what still blocks real users, how to run it month-to-month, and what a new owner
+needs before they can ship without you.
+
 ## Response envelopes differ per route
 
 There is no shared envelope. `/api/discover` returns `{results}`,
@@ -35,6 +40,43 @@ If a value must be changeable at runtime, serve it from an endpoint.
 `/api/auth/config` already does this for the phone-OTP flag, and the comment
 there explains why. Mobile reads it correctly; web still reads the inlined
 constant.
+
+**Inlining is static, so a container still needs the real env var.** Next
+replaces the literal text `process.env.NEXT_PUBLIC_FOO`. It cannot replace a
+computed lookup — and `describeEnv()` in `apps/web/src/lib/env.ts` checks
+required vars with `process.env[k]`, which is exactly that. So the boot check
+reads the *real* process environment.
+
+The Dockerfile's `ENV NEXT_PUBLIC_*` lines are in the **builder** stage; the
+`runner` stage starts `FROM base` again and does not inherit them. A deploy
+that passes these as build args only therefore boots a container with them
+genuinely absent, `instrumentation.ts` throws in `register()` before the
+server accepts a request, and Azure's ingress answers every path — including
+nonexistent ones — with a bare 500 carrying only a `date` header. It reads
+like a wrong port or a bad image; it is a missing variable.
+
+**Every container deploy must set `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` as runtime env vars *as well as* build args.**
+The duplication is not redundant: the build arg is what the browser bundle
+gets, the runtime var is what the server reads. `deploy-dev.yml` does this and
+explains it. Staging only works because `az containerapp update
+--set-env-vars` is additive, so values set by hand there long ago have
+outlived every deploy since — nothing in its workflow guarantees them.
+Cost a full afternoon on 2026-08-12.
+
+**Secrets are scoped by GitHub Environment, not by name prefix.** `dev`,
+`staging` and `production` are real GitHub Environments (Settings →
+Environments), each restricted so only its own branch can deploy into it. All
+three hold identically-named values — `SUPABASE_URL` / `SUPABASE_ANON_KEY` /
+`STREAM_API_KEY` as environment *variables*, `SUPABASE_SERVICE_ROLE_KEY` /
+`STREAM_API_SECRET` as environment *secrets* — and a job picks the right ones
+by declaring `environment: dev|staging|production`, which is what shadows a
+repo-level secret of the same name. There is no `DEV_` or `STAGING_` prefix to
+get wrong. The one deliberate exception is `SUPABASE_DB_PASSWORD`, still read
+from the old `SUPABASE_DEV_DB_PASSWORD` / `SUPABASE_STAGING_DB_PASSWORD` repo
+secrets — GitHub secrets are write-only forever, so migrating a value nobody
+can read back out requires re-entering it, and that one wasn't worth the ask.
+Populate a new environment with `scripts/setup-environment-secrets.sh`.
 
 ## Fail-open defaults: know which case you are in
 
@@ -141,9 +183,17 @@ waiting for status" forever. See `docs/operations/CICD_INSTRUCTIONS_2026-08-06.m
 
 ## Environments
 
-`dev`, `staging` and prod each have **their own Supabase project**. Staging is
-not dev's database; a row missing in one proves nothing about the other. Check
-which project you're pointed at before concluding anything.
+`dev` and `staging` have **their own Supabase project** each. Staging is not
+dev's database; a row missing in one proves nothing about the other. Check which
+project you're pointed at before concluding anything.
+
+**There is no production tier yet, and this surprises people.** `main` does not
+exist on `origin`, so `deploy-prod.yml` has never fired — and its `production`
+environment points at the *staging* Supabase project
+(`aokdansyqxracuwsosji`), which is why that workflow has no migrate job. The
+mobile `production` EAS profile points at staging too. Treat "production" in
+config as a name, not a place, until
+[docs/operations/HANDOVER.md](docs/operations/HANDOVER.md) P0.1/P0.2 are done.
 
 On staging, the `qacreator` fixture is load-bearing for deploy smoke tests —
 never purge it.
