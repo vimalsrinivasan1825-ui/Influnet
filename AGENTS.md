@@ -64,6 +64,20 @@ explains it. Staging only works because `az containerapp update
 outlived every deploy since — nothing in its workflow guarantees them.
 Cost a full afternoon on 2026-08-12.
 
+**Secrets are scoped by GitHub Environment, not by name prefix.** `dev`,
+`staging` and `production` are real GitHub Environments (Settings →
+Environments), each restricted so only its own branch can deploy into it. All
+three hold identically-named values — `SUPABASE_URL` / `SUPABASE_ANON_KEY` /
+`STREAM_API_KEY` as environment *variables*, `SUPABASE_SERVICE_ROLE_KEY` /
+`STREAM_API_SECRET` as environment *secrets* — and a job picks the right ones
+by declaring `environment: dev|staging|production`, which is what shadows a
+repo-level secret of the same name. There is no `DEV_` or `STAGING_` prefix to
+get wrong. The one deliberate exception is `SUPABASE_DB_PASSWORD`, still read
+from the old `SUPABASE_DEV_DB_PASSWORD` / `SUPABASE_STAGING_DB_PASSWORD` repo
+secrets — GitHub secrets are write-only forever, so migrating a value nobody
+can read back out requires re-entering it, and that one wasn't worth the ask.
+Populate a new environment with `scripts/setup-environment-secrets.sh`.
+
 ## Fail-open defaults: know which case you are in
 
 Several places degrade gracefully when "the migration might not be applied".

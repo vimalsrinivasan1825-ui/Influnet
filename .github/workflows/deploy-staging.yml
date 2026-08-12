@@ -45,6 +45,7 @@ jobs:
   migrate:
     name: Apply pending migrations to the staging database
     runs-on: ubuntu-latest
+    environment: staging
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
@@ -83,6 +84,7 @@ jobs:
   build-and-deploy:
     needs: migrate
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -94,13 +96,45 @@ jobs:
           username: ${{ env.ACR_USERNAME }}
           password: ${{ env.ACR_PASSWORD }}
 
+      # Fail fast, and say why. See deploy-dev.yml — same pattern, same
+      # failure mode (a container that never boots reads like a bad port).
+      # These come from the `staging` GitHub Environment, populated by
+      # scripts/setup-environment-secrets.sh. DO NOT MERGE this workflow
+      # change into `staging` until that script's staging section has been
+      # run — this guard will fail loudly if it hasn't, rather than silently
+      # deploying a container that can't start.
+      - name: Check the staging Supabase credentials are present
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          fail=0
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "::error::vars.SUPABASE_URL is empty in the 'staging' environment. Run scripts/setup-environment-secrets.sh."
+            fail=1
+          fi
+          if [ -z "$ANON_KEY" ]; then
+            echo "::error::vars.SUPABASE_ANON_KEY is empty in the 'staging' environment. Run scripts/setup-environment-secrets.sh."
+            fail=1
+          fi
+          if [ -z "$SERVICE_KEY" ]; then
+            echo "::error::secrets.SUPABASE_SERVICE_ROLE_KEY is empty in the 'staging' environment. Run scripts/setup-environment-secrets.sh."
+            fail=1
+          fi
+          case "$SERVICE_KEY" in
+            sbp_*) echo "::error::SUPABASE_SERVICE_ROLE_KEY (staging environment) is a management token (sbp_...), not a service-role JWT (eyJ...)."; fail=1 ;;
+          esac
+          [ "$fail" = "0" ] && echo "Staging Supabase credentials present."
+          exit $fail
+
       # Build-time: NEXT_PUBLIC_* vars are baked into the frontend JS
       - name: Build and Push Docker Image
         run: |
           docker build -f apps/web/Dockerfile \
-            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" \
-            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
-            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ vars.SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ vars.SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ vars.STREAM_API_KEY }}" \
             --build-arg NEXT_PUBLIC_APP_URL="${{ env.STAGING_PUBLIC_URL }}" \
             --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ secrets.NEXT_PUBLIC_PHONE_OTP_ENABLED }}" \
             --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
@@ -124,6 +158,18 @@ jobs:
           registryPassword: ${{ env.ACR_PASSWORD }}
 
       # Run-time: Backend secrets injected via az CLI (no Azure Portal access needed)
+      #
+      # NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY were NOT set
+      # here before 2026-08-12 — this workflow only ever passed them as build
+      # args. Staging's container has been booting only because someone set
+      # them by hand in the Azure portal at some point, which is exactly the
+      # trap that broke dev's first cutover deploy: `describeEnv()` checks
+      # them with a dynamic `process.env[k]` lookup that build-time inlining
+      # cannot satisfy, so a container missing them throws at boot and Azure's
+      # ingress answers every path with a bare 500. See AGENTS.md and
+      # docs/operations/HANDOVER.md. Setting them here, authoritatively,
+      # closes that latent gap rather than continuing to rely on a manual
+      # portal edit surviving every future deploy.
       #
       # These values are authoritative: every deploy overwrites whatever is
       # currently set on the container app, so a fix applied by hand in the
@@ -160,8 +206,13 @@ jobs:
               --name ${{ env.CONTAINER_APP_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --set-env-vars \
+                "NEXT_PUBLIC_SUPABASE_URL=${{ vars.SUPABASE_URL }}" \
+                "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}" \
+                "SUPABASE_URL=${{ vars.SUPABASE_URL }}" \
+                "NEXT_PUBLIC_APP_URL=${{ env.STAGING_PUBLIC_URL }}" \
+                "NEXT_PUBLIC_APP_ENV=staging" \
                 "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-                "STREAM_API_KEY=${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
+                "STREAM_API_KEY=${{ vars.STREAM_API_KEY }}" \
                 "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}" \
                 "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" \
                 "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" \

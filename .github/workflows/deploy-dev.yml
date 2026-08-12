@@ -28,13 +28,6 @@ env:
   # NEXT_PUBLIC_APP_URL is what users (and email links) see.
   APP_CONTAINER_URL: "https://influnet-dev.icysky-7414f4c6.southindia.azurecontainerapps.io"
   NEXT_PUBLIC_APP_URL: "https://dev.influnet.io"
-  # The dev project's URL, as a literal. Not a secret — it is shipped to every
-  # browser as NEXT_PUBLIC_SUPABASE_URL, and the ref is already hardcoded as
-  # PROJECT_REF below. Written out here so that pointing dev at staging's
-  # database becomes a visible edit rather than an invisible secret mix-up:
-  # the unprefixed NEXT_PUBLIC_SUPABASE_URL repository secret holds STAGING's
-  # value (see docs/operations/CICD_INSTRUCTIONS_2026-08-06.md §T0).
-  DEV_SUPABASE_URL: "https://jaajosocopoicmqcffuu.supabase.co"
 
 concurrency:
   # Never let two dev deploys migrate the same database at once, and
@@ -106,22 +99,35 @@ jobs:
       # surface until `instrumentation.ts` throws at container boot — which
       # Azure reports as a bare 500 from the ingress, five minutes later, with
       # nothing in the workflow log pointing at the cause.
+      #
+      # These read from the `dev` GitHub Environment (job declares
+      # `environment: dev` above), which is what makes the names below plain
+      # SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY rather than DEV_-prefixed:
+      # an environment secret/variable shadows a repo-level one of the same
+      # name only for jobs in that environment, so the environment itself is
+      # what says "this is dev's", not the name. Populate these with
+      # scripts/setup-environment-secrets.sh. See docs/operations/HANDOVER.md.
       - name: Check the dev Supabase credentials are present
         env:
-          ANON_KEY: ${{ secrets.DEV_SUPABASE_ANON_KEY }}
-          SERVICE_KEY: ${{ secrets.SUPABASE_DEV_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           fail=0
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "::error::vars.SUPABASE_URL is empty in the 'dev' environment. Run scripts/setup-environment-secrets.sh."
+            fail=1
+          fi
           if [ -z "$ANON_KEY" ]; then
-            echo "::error::DEV_SUPABASE_ANON_KEY is empty. Create it (dev project jaajosocopoicmqcffuu → Settings → API → anon key). Do NOT reuse NEXT_PUBLIC_SUPABASE_ANON_KEY: that one holds STAGING's value."
+            echo "::error::vars.SUPABASE_ANON_KEY is empty in the 'dev' environment. Run scripts/setup-environment-secrets.sh."
             fail=1
           fi
           if [ -z "$SERVICE_KEY" ]; then
-            echo "::error::SUPABASE_DEV_SERVICE_ROLE_KEY is empty."
+            echo "::error::secrets.SUPABASE_SERVICE_ROLE_KEY is empty in the 'dev' environment. Run scripts/setup-environment-secrets.sh."
             fail=1
           fi
           case "$SERVICE_KEY" in
-            sbp_*) echo "::error::SUPABASE_DEV_SERVICE_ROLE_KEY is a management token (sbp_...), not a service-role JWT (eyJ...)."; fail=1 ;;
+            sbp_*) echo "::error::SUPABASE_SERVICE_ROLE_KEY (dev environment) is a management token (sbp_...), not a service-role JWT (eyJ...)."; fail=1 ;;
           esac
           [ "$fail" = "0" ] && echo "Dev Supabase credentials present."
           exit $fail
@@ -130,9 +136,9 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           docker build -f apps/web/Dockerfile \
-            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ env.DEV_SUPABASE_URL }}" \
-            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.DEV_SUPABASE_ANON_KEY }}" \
-            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ vars.SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ vars.SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ vars.STREAM_API_KEY }}" \
             --build-arg NEXT_PUBLIC_APP_URL="${{ env.NEXT_PUBLIC_APP_URL }}" \
             --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ secrets.NEXT_PUBLIC_PHONE_OTP_ENABLED }}" \
             --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
@@ -156,6 +162,10 @@ jobs:
           registryPassword: ${{ env.ACR_PASSWORD }}
 
       # Run-time: Backend secrets injected via az CLI (no Azure Portal access needed)
+      #
+      # Every Supabase/Stream value below comes from the `dev` GitHub
+      # Environment (vars.* / secrets.*), not a DEV_-prefixed repo secret.
+      # See scripts/setup-environment-secrets.sh and the guard step above.
       #
       # NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set here
       # as well as passed as build args, and BOTH are required. This looks
@@ -212,14 +222,14 @@ jobs:
               --name ${{ env.CONTAINER_APP_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --set-env-vars \
-                "NEXT_PUBLIC_SUPABASE_URL=${{ env.DEV_SUPABASE_URL }}" \
-                "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.DEV_SUPABASE_ANON_KEY }}" \
-                "SUPABASE_URL=${{ env.DEV_SUPABASE_URL }}" \
+                "NEXT_PUBLIC_SUPABASE_URL=${{ vars.SUPABASE_URL }}" \
+                "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}" \
+                "SUPABASE_URL=${{ vars.SUPABASE_URL }}" \
                 "NEXT_PUBLIC_APP_URL=${{ env.NEXT_PUBLIC_APP_URL }}" \
                 "NEXT_PUBLIC_APP_ENV=dev" \
-                "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_DEV_SERVICE_ROLE_KEY }}" \
-                "STREAM_API_KEY=${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
-                "STREAM_API_SECRET=${{ secrets.STREAM_DEV_API_SECRET }}" \
+                "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+                "STREAM_API_KEY=${{ vars.STREAM_API_KEY }}" \
+                "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}" \
                 "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" \
                 "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" \
                 "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" \
