@@ -160,10 +160,9 @@ export default function ProfileScreen() {
    * Separate fetch rather than another field on /api/home: the portfolio is
    * Profile-only, and Home — which shares that endpoint — has no use for it.
    */
-  const { data: portfolio, refresh: refreshPortfolio } = useFetch<{ items: PortfolioItem[] }>(
-    () => endpoints.listPortfolio<{ items: PortfolioItem[] }>(),
-    { cacheKey: 'portfolio' },
-  );
+  const { data: portfolio, setData: setPortfolio, refresh: refreshPortfolio } = useFetch<{
+    items: PortfolioItem[];
+  }>(() => endpoints.listPortfolio<{ items: PortfolioItem[] }>(), { cacheKey: 'portfolio' });
 
   /**
    * The section-visibility switches. Also a separate fetch: /api/home only
@@ -219,12 +218,45 @@ export default function ProfileScreen() {
     await refreshPortfolio();
   }
 
-  /** Shows/hides a manual entry without deleting it. Optimistic, reverts on failure. */
+  /**
+   * Shows/hides a manual entry without deleting it.
+   *
+   * The comment here used to claim "optimistic, reverts on failure" while the
+   * code did neither: it invalidated the cache, waited out the full PATCH
+   * round trip, and only THEN refetched. The Switch's `value` prop never
+   * changed until that refetch landed, so a tap did nothing for the ~1s the
+   * request took — RN's Switch still shows its own instantaneous native
+   * animation on tap, so what a creator saw was the switch flip, silently
+   * snap back once React re-rendered with the still-old `is_visible`, then
+   * jump to correct a second later. That's the "glitch, then it turns off
+   * after a second" bug. This now flips the local state immediately (same
+   * pattern as setSectionVisibility above) and reverts only if the PATCH
+   * actually fails.
+   */
   async function togglePortfolioItemVisible(item: PortfolioItem, next: boolean) {
-    invalidateFetchCache('portfolio');
+    setPortfolio((prev) =>
+      prev
+        ? { items: prev.items.map((i) => (i.id === item.id ? { ...i, is_visible: next } : i)) }
+        : prev,
+    );
     const res = await endpoints.setPortfolioItemVisible(item.id, next);
-    if (!res.ok) Alert.alert('Could not update that item', res.error ?? undefined);
-    await refreshPortfolio();
+    if (!res.ok) {
+      setPortfolio((prev) =>
+        prev
+          ? {
+              items: prev.items.map((i) =>
+                i.id === item.id ? { ...i, is_visible: item.is_visible } : i,
+              ),
+            }
+          : prev,
+      );
+      Alert.alert('Could not update that item', res.error ?? undefined);
+      return;
+    }
+    // Success is already reflected optimistically — invalidate so the next
+    // fresh load (a different screen, a relaunch) doesn't read the stale
+    // pre-toggle value out of the module cache.
+    invalidateFetchCache('portfolio');
   }
 
   /**

@@ -12,7 +12,7 @@
  * projects with nothing to tell them apart.
  */
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BadgeCheck, Info } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
@@ -27,7 +27,19 @@ import {
   Txt,
 } from '@/components/ui';
 
-/** Mirrors the hosts lib/portfolio-link.ts accepts, for the pre-flight hint. */
+/**
+ * Mirrors the hosts lib/portfolio-link.ts accepts, for the pre-flight hint.
+ *
+ * The Instagram copy used to say "recent posts bring their own picture" — true,
+ * but it didn't say WHOSE "recent" or WHY: Instagram has required a Facebook
+ * app token for its oEmbed thumbnail since 2020, so nobody can fetch a picture
+ * for an arbitrary pasted link, ours included (see lib/portfolio-thumbnail.ts
+ * on the server for the full story and what was tried). The only picture this
+ * can ever produce is one already sitting in OUR OWN cache of this creator's
+ * most recent Instagram posts — the same snapshot "Refresh my numbers" on this
+ * tab writes. Spelling that out here is what turns "it's not fetching the
+ * thumbnail" into an expected, explained outcome instead of a silent failure.
+ */
 function platformHint(url: string): string | null {
   const u = url.trim().toLowerCase();
   if (!u) return null;
@@ -35,7 +47,7 @@ function platformHint(url: string): string | null {
     return 'YouTube — we’ll pull the title and thumbnail automatically.';
   }
   if (u.includes('instagram.com')) {
-    return 'Instagram — give it a title below. Recent posts bring their own picture.';
+    return 'Instagram — give it a title below. We can only get a picture for one of your dozen most recent posts (from your last "Refresh my numbers"); anything older shows a plain tile instead.';
   }
   return null;
 }
@@ -58,7 +70,10 @@ export default function AddPortfolioItemScreen() {
     setSaving(true);
     setError(null);
 
-    const res = await endpoints.addPortfolioItem<{ item?: unknown; error?: string }>({
+    const res = await endpoints.addPortfolioItem<{
+      item?: { platform?: string; thumbnail_url?: string | null };
+      error?: string;
+    }>({
       url: url.trim(),
       title: title.trim() || undefined,
       brand_name: brand.trim() || undefined,
@@ -77,6 +92,20 @@ export default function AddPortfolioItemScreen() {
     // Profile reads its portfolio through the same cache key.
     invalidateFetchCache('portfolio');
     invalidateFetchCache('profile-public');
+
+    // Saved fine, but Instagram gave no picture — the item WILL show a plain
+    // branded tile on the grid, and that reads as broken unless it's said out
+    // loud here, once, right when it happens. See the note on platformHint
+    // above for why this can't be fetched after the fact from this screen.
+    if (res.data?.item?.platform === 'instagram' && !res.data.item.thumbnail_url) {
+      Alert.alert(
+        'Added — without a picture',
+        "This post isn't among your dozen most recent on Instagram, so we don't have a cached picture for it. It'll show as a plain tile on your profile. Refreshing your numbers after posting keeps this from happening for new work.",
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
+      return;
+    }
+
     router.back();
   }
 
