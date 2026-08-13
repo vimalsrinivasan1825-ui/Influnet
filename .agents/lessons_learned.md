@@ -2,6 +2,32 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-08-13: Mobile UI Redesign (Home, Requests, Messages, Projects)
+
+**Branch**: `dev`
+
+### Scope
+- **Home Screen**: Refactored to 2-column mid section (Reach + Review queue side-by-side) matching AI reference. Project pipeline now shows colored per-step underlines with "View all projects" link. StatCards get distinct per-metric accent colors.
+- **Requests Screen**: Added `ChipRail` filter tabs (All / Pending / In Progress / Completed). Pending requests rendered as full offer cards with budget highlight and "Review offer" CTA. Completed/cancelled collapsed under tappable toggle row.
+- **Messages Screen**: Unread conversations (`lastFromThem === true`) sorted to the top of the list with a larger brand-colored dot. Active projects and read chats in separate sections below.
+- **Projects Screen**: Replaced flat `ListRow` list with `Card`-based layout including `ProgressBar` stage progress, budget badge, and partner name. Added `ChipRail` filter tabs (Ongoing | Completed | Cancelled). Within Ongoing, preserves "Your move" / "Waiting on them" sub-labels.
+
+### Broken & Resolved
+- **`SectionLabel` doesn't accept `style` prop**: Tried passing `style={{ marginTop: 0 }}` to `SectionLabel` for the pipeline header row. Component doesn't support it. Fixed by replacing with `<Txt variant="caption" tone="muted" style={{...}}>` directly.
+- **`ProgressBar` prop name**: `ProgressBar` takes `progress` (0-1 float), not `value`. Fixed by checking the component signature before using it.
+- **`ScrollView` missing from imports**: Added `ScrollView` to the RN import list in `home.tsx` for the horizontal pipeline strip.
+
+### Key Lessons
+- Always check component signatures before using them — several UI kit components (`ProgressBar`, `SectionLabel`) have non-obvious prop names that differ from HTML conventions.
+- The `ChipRail` component handles its own horizontal padding (`paddingHorizontal: t.spacing.screen`) so do not wrap it in a padded container.
+- Two-column layouts in RN use `flexDirection: 'row'` + `flex: 1` on each child card. `alignItems: 'flex-start'` is essential on the row, otherwise cards stretch to match the tallest sibling.
+- `toConversationRows()` already returns rows sorted newest-first. To get unread-first, split into two arrays by `lastFromThem` and render unread group first — no need to re-sort.
+
+### Next Target
+- Push to `dev` and verify on physical device / Expo Go that the 2-column home section renders correctly on smaller screen sizes (iPhone SE).
+- Consider adding swipe-to-dismiss on the collapsed "completed" row in Requests.
+
+
 ### Session — 2026-08-12: Railway to Azure Dev Migration & Environment Variables
 
 **Branch**: `dev`
