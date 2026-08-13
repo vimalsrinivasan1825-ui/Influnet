@@ -14,7 +14,6 @@
 import { ActivityIndicator, Alert, Pressable, Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import {
   BadgeCheck,
@@ -726,19 +725,38 @@ export default function ProfileScreen() {
             left={<Pencil size={19} color={t.color.contentSoft} />}
             onPress={() => router.push('/edit-profile')}
           />
-          {/* Previewing your own profile opens the WEB page, not the in-app
-              screen: the whole point here is "what a brand actually sees", and
-              a brand most often arrives via a shared link. The web page is also
-              the fuller one — pricing packages and the media kit live only
-              there. The in-app screen is still what other users get when they
-              tap you in search. */}
-          {isCreator && publicUrl ? (
+          {/*
+            Previewing your own profile stays INSIDE the app, for both roles.
+
+            This used to hand the URL to expo-web-browser, which drops the
+            owner into a Safari/Chrome sheet with our web login state, an
+            address bar and no way back into the tab they came from. It reads
+            as leaving the product, and it was the one complaint that made this
+            screen feel unfinished.
+
+            A creator gets /creator/[username]; a business gets
+            /business/[username]. Both render the same view a real visitor
+            gets, natively, from the same endpoints the respective web pages
+            are built from, so the numbers cannot drift — see the header
+            comments on those two files. Each detects `isOwner` and shows
+            "This is what others see" instead of a CTA. The creator screen
+            keeps one row down to the fuller web page for the few things only
+            it carries (packages, media kit); the business one does not, since
+            business profiles have no such extra web-only content.
+          */}
+          {username ? (
             <ListRow
               title="Preview public profile"
-              subtitle="Opens the web page a brand sees when they find you"
+              subtitle={isCreator ? 'See yourself the way a brand does' : 'See yourself the way a creator does'}
               left={<Eye size={19} color={t.color.contentSoft} />}
               style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
-              onPress={() => WebBrowser.openBrowserAsync(publicUrl)}
+              onPress={() =>
+                router.push(
+                  isCreator
+                    ? { pathname: '/creator/[username]', params: { username } }
+                    : { pathname: '/business/[username]', params: { username } },
+                )
+              }
             />
           ) : null}
           {isCreator ? (

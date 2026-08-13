@@ -9,6 +9,7 @@ export function StatCard({
   label,
   value,
   icon,
+  tint,
   hint,
   delta,
   onPress,
@@ -16,6 +17,15 @@ export function StatCard({
   label: string;
   value: string | number;
   icon?: ReactNode;
+  /**
+   * The icon's own hue. Supplying it seats the icon in a soft roundel of the
+   * same colour, which is what the web dashboard's counter tiles do (`bg-*-soft
+   * text-*` on a rounded square) and what stops a grid of tiles reading as one
+   * undifferentiated block of grey labels — the actual complaint on both apps.
+   *
+   * Optional: a tile that genuinely wants a bare glyph just omits it.
+   */
+  tint?: string;
   hint?: string;
   /**
    * Percentage change against the previous equivalent period.
@@ -48,11 +58,26 @@ export function StatCard({
         opacity: pressed ? 0.85 : 1,
       })}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Txt variant="footnote" tone="muted" numberOfLines={1}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: t.spacing.sm }}>
+        <Txt variant="footnote" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
           {label}
         </Txt>
-        {icon}
+        {icon && tint ? (
+          <View
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: t.radii.sm,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: `${tint}1a`,
+            }}
+          >
+            {icon}
+          </View>
+        ) : (
+          icon
+        )}
       </View>
       <Numeral>{value}</Numeral>
 

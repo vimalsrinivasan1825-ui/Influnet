@@ -127,6 +127,17 @@ export interface BarListItem {
   value: number;
   /** Drawn to the left of the label — a platform mark, usually. */
   icon?: ReactNode;
+  /**
+   * Per-row tint. Defaults to the role accent, which is rule 1 at the top of
+   * this file and stays the default for everything.
+   *
+   * The one case that legitimately overrides it: rows whose categories are
+   * EXTERNALLY colored — Instagram's magenta, YouTube's red — where the colour
+   * is a property of the thing named, not a palette we chose to encode a value
+   * in. That is identity, not data, and it does not break the greyscale rule,
+   * because every row still states its own label and its own number.
+   */
+  color?: string;
 }
 
 /**
@@ -158,7 +169,7 @@ export function BarList({
           accessibilityLabel={`${row.label}: ${formatValue(row.value)}`}
           style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}
         >
-          {row.icon ? <View style={{ width: 18, alignItems: 'center' }}>{row.icon}</View> : null}
+          {row.icon ? <View style={{ width: 24, alignItems: 'center' }}>{row.icon}</View> : null}
 
           {/* Fixed label column so every bar starts at the same x — bars that
               begin at ragged offsets cannot be compared by eye, which is the
@@ -181,7 +192,7 @@ export function BarList({
                 width: `${Math.max((row.value / max) * 100, row.value > 0 ? 4 : 0)}%`,
                 height: '100%',
                 borderRadius: 4,
-                backgroundColor: t.color.brand,
+                backgroundColor: row.color ?? t.color.brand,
               }}
             />
           </View>

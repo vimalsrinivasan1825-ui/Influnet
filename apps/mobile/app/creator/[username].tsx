@@ -10,9 +10,12 @@
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-// Lucide dropped brand marks, so channels are labelled rather than logo'd.
-import { AtSign, Globe, Link2 } from 'lucide-react-native';
+import { Globe } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+// Lucide ships no brand marks, so channels used to be a grey @ and a grey
+// chain link — Instagram and YouTube as the same row with different words.
+// PlatformMark draws the real coloured marks, same table as the web app.
+import { PlatformMark } from '@/components/platform-mark';
 import { endpoints } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/supabase';
 import { useFetch } from '@/lib/use-fetch';
@@ -304,21 +307,27 @@ export default function CreatorDetail() {
                 <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
                   Channels
                 </Txt>
-                <View style={{ gap: t.spacing.sm }}>
+                <View style={{ gap: t.spacing.md }}>
                   {creator.instagramHandle ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
-                      <AtSign size={17} color={t.color.contentSoft} />
-                      <Txt variant="callout" tone="soft">
-                        Instagram · @{creator.instagramHandle}
-                      </Txt>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+                      <PlatformMark platform="instagram" size={28} />
+                      <View style={{ flex: 1 }}>
+                        <Txt variant="callout">@{creator.instagramHandle}</Txt>
+                        <Txt variant="caption" tone="muted">
+                          Instagram
+                        </Txt>
+                      </View>
                     </View>
                   ) : null}
                   {creator.youtubeHandle ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
-                      <Link2 size={17} color={t.color.contentSoft} />
-                      <Txt variant="callout" tone="soft">
-                        YouTube · {creator.youtubeHandle}
-                      </Txt>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+                      <PlatformMark platform="youtube" size={28} />
+                      <View style={{ flex: 1 }}>
+                        <Txt variant="callout">{creator.youtubeHandle}</Txt>
+                        <Txt variant="caption" tone="muted">
+                          YouTube
+                        </Txt>
+                      </View>
                     </View>
                   ) : null}
                 </View>

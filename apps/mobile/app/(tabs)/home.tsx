@@ -27,31 +27,38 @@
  *     control used to be three separate sections saying overlapping things.
  *  4. Stalled projects are a WARNING ON a row in the "with others" list, not a
  *     second list of the same projects above it.
+ *  5. NOTHING IS SAID TWICE. A later pass added a "two-column mid section" that
+ *     re-rendered the same `reviewItems` <ReviewQueue> already draws at the top
+ *     — same counts, same rows, a second "Review now" aimed at the same place.
+ *     Two cards a scroll apart both claiming "you have 3 things to review" make
+ *     a creator wonder whether there are six. It also put two flex:1 cards side
+ *     by side on a 375pt screen, which is a browser layout, not a phone one.
+ *     Reach is full width now and uses BarList like everything else.
+ *
+ * Colour is systematic, not decorative: PipelineStrip and STAT_TINT below draw
+ * from ONE six-hue table, keyed by meaning, matching the web dashboard's — so
+ * amber means the same thing in every card here and in a browser.
  *
  * "Whose move is it" comes from the API (`turn` / `next_action` per project),
  * which derives it from STAGE_ACTOR plus each side's sign-off in stage_progress
  * — see projectTurn() in @influnet/core.
  */
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AlertCircle,
   ArrowUpRight,
   BadgeCheck,
-  Camera,
   ChevronRight,
   Clock,
+  CreditCard,
   Eye,
   FolderKanban,
-  Globe,
   Handshake,
   Inbox,
-  Link2,
   MessageCircle,
-  Send,
   TrendingUp,
-  Video,
   Users,
 } from 'lucide-react-native';
 import { STAGES, type Stage } from '@influnet/core';
@@ -70,6 +77,7 @@ import {
 import { useVerificationNudge } from '@/lib/use-verification-nudge';
 import { AppHeader } from '@/components/app-header';
 import { ApprovalBanner } from '@/components/approval-banner';
+import { PlatformMark, platformColor, platformLabel } from '@/components/platform-mark';
 import { PipelineStrip, type PipelineStep } from '@/components/pipeline-strip';
 import { ReviewQueue, type ReviewItem } from '@/components/review-queue';
 import { VerifiedCelebration } from '@/components/verified-celebration';
@@ -241,18 +249,32 @@ function stageProgress(stage: string): { index: number; ratio: number } {
   return { index, ratio: (index + 1) / STAGES.length };
 }
 
-/** Presentation for each place a visitor can be sent. */
-const CHANNEL_LABEL: Record<string, string> = {
-  instagram: 'Instagram',
-  youtube: 'YouTube',
-  facebook: 'Facebook',
-  twitter: 'X',
-  snapchat: 'Snapchat',
-  linkedin: 'LinkedIn',
-  website: 'Website',
-  profile: 'Profile',
-  other: 'Other',
-};
+/**
+ * Presentation for each place a visitor can be sent — label, mark and bar
+ * colour all come from components/platform-mark, which is the RN twin of the
+ * web dashboard's. Home used to keep its own label table here and draw grey
+ * lucide outlines beside grey bars, so Instagram and "somebody's website" were
+ * the same row with different words. That is the "everything looks the same"
+ * complaint, and it is fixed by using the platform's own identity.
+ */
+
+/**
+ * One hue per counter tile.
+ *
+ * Deliberately the SAME six values PipelineStrip uses, rather than a second
+ * palette invented for this grid: a screen where amber means Review in one card
+ * and "acceptance rate" in the next is a screen where colour means nothing.
+ * These stay off the role accent too — `brand` recolours per role, and a tile
+ * that changes hue depending on who signed in cannot be a stable identity.
+ */
+const STAT_TINT = {
+  views: '#9E77ED',
+  brands: '#12B76A',
+  requests: '#0BA5EC',
+  projects: '#6172F3',
+  completed: '#16A34A',
+  moves: '#F79009',
+} as const;
 
 export default function HomeScreen() {
   const t = useTheme();
@@ -422,18 +444,10 @@ export default function HomeScreen() {
   const windowValue = money ? money.windows[moneyWindow] : 0;
 
   const reachChannels: BarListItem[] = (reach?.channels ?? []).map((c) => ({
-    label: CHANNEL_LABEL[c.link_type] ?? 'Other',
+    label: platformLabel(c.link_type),
     value: c.clicks,
-    icon:
-      c.link_type === 'instagram' ? (
-        <Camera size={14} color={t.color.contentMuted} />
-      ) : c.link_type === 'youtube' ? (
-        <Video size={14} color={t.color.contentMuted} />
-      ) : c.link_type === 'website' ? (
-        <Globe size={14} color={t.color.contentMuted} />
-      ) : (
-        <Link2 size={14} color={t.color.contentMuted} />
-      ),
+    color: platformColor(c.link_type),
+    icon: <PlatformMark platform={c.link_type} size={22} />,
   }));
 
   const nothingPending = reviewItems.length === 0 && yourMove.length === 0;
@@ -486,9 +500,16 @@ export default function HomeScreen() {
                   <Txt variant="footnote" style={{ color: 'rgba(255,255,255,0.82)' }}>
                     {isCreator ? 'Pipeline value' : 'Committed spend'}
                   </Txt>
+                  {/* A seven-figure pipeline is ₹12,50,000 — eleven glyphs at
+                      32pt, which wrapped mid-number against the trend chip.
+                      Shrink to fit rather than wrap: a headline figure broken
+                      across two lines stops reading as one number. */}
                   <Txt
                     variant="display"
                     tone="inverse"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
                     style={{ fontVariant: ['tabular-nums'], letterSpacing: -1 }}
                   >
                     {formatCurrency(pipelineValue)}
@@ -671,57 +692,31 @@ export default function HomeScreen() {
               </>
             ) : null}
 
-            {/* ── Project pipeline — with "View all" link and colored step indicators ─ */}
+            {/* ── Project pipeline ──────────────────────────────────── */}
+            {/* PipelineStrip owns the icons and colours, keyed off each step's
+                `key` — see the note there on why keying off array position was
+                wrong and why these have to match the web dashboard's table. */}
             {pipelineHasWork ? (
               <>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Project pipeline</Txt>
-                  <Pressable onPress={() => router.push('/projects')}>
-                    <Txt variant="caption" style={{ color: t.color.brand, fontWeight: '600' }}>View all projects</Txt>
+                  <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                    Project pipeline
+                  </Txt>
+                  <Pressable onPress={() => router.push('/projects')} accessibilityRole="button">
+                    <Txt variant="caption" style={{ color: t.color.brand, fontWeight: '600' }}>
+                      View all projects
+                    </Txt>
                   </Pressable>
                 </View>
-                <Card padded={false} style={{ overflow: 'hidden' }}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingVertical: t.spacing.lg, gap: 4 }}
-                  >
-                    {pipelineSteps.map((step, idx) => {
-                      // Each step gets a distinct accent colour so the pipeline
-                      // reads as a progression, not a monochrome badge row.
-                      const stepColors = ['#ee3e96', '#d97706', '#7c3aed', '#2563eb', '#059669', '#16a34a'];
-                      const color = stepColors[idx % stepColors.length];
-                      const active = step.count > 0;
-                      return (
-                        <Pressable
-                          key={step.key}
-                          onPress={() => router.push(step.key === 'requests' ? '/requests' : '/projects')}
-                          style={({ pressed }) => ({
-                            alignItems: 'center',
-                            minWidth: 72,
-                            paddingVertical: t.spacing.md,
-                            paddingHorizontal: t.spacing.sm,
-                            borderRadius: t.radii.md,
-                            backgroundColor: active ? `${color}12` : t.color.surfaceMuted,
-                            borderBottomWidth: 3,
-                            borderBottomColor: active ? color : t.color.hairline,
-                            opacity: pressed ? 0.8 : 1,
-                            marginRight: idx < pipelineSteps.length - 1 ? t.spacing.sm : 0,
-                          })}
-                        >
-                          <Txt
-                            variant="title3"
-                            style={{ color: active ? color : t.color.contentMuted, fontVariant: ['tabular-nums'] }}
-                          >
-                            {step.count}
-                          </Txt>
-                          <Txt variant="caption" tone={active ? 'soft' : 'muted'} numberOfLines={1}>
-                            {step.label}
-                          </Txt>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
+                <Card padded={false}>
+                  <View style={{ padding: t.spacing.lg }}>
+                    <PipelineStrip
+                      steps={pipelineSteps}
+                      onPressStep={(key) =>
+                        router.push(key === 'requests' ? '/requests' : '/projects')
+                      }
+                    />
+                  </View>
                 </Card>
               </>
             ) : null}
@@ -741,36 +736,63 @@ export default function HomeScreen() {
                     onChange={setMoneyWindow}
                   />
 
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <View style={{ gap: 2 }}>
-                      <Txt
-                        variant="title1"
-                        style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}
-                      >
-                        {formatCurrency(windowValue)}
-                      </Txt>
-                      <Txt variant="caption" tone="muted">
-                        {isCreator ? 'Settled to you' : 'Paid out'}
-                      </Txt>
-                    </View>
+                  <View style={{ gap: 2 }}>
+                    <Txt
+                      variant="display"
+                      style={{ fontVariant: ['tabular-nums'], letterSpacing: -1 }}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {formatCurrency(windowValue)}
+                    </Txt>
+                    <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                      {isCreator ? 'Settled to you' : 'Paid out'}
+                    </Txt>
+                  </View>
 
-                    {/* Outstanding sits beside settled, never added into it. A
-                        card that shows one number for "money" and quietly means
-                        both is the fastest way to lose a creator's trust. */}
-                    {money.pending > 0 ? (
-                      <View style={{ gap: 2, alignItems: 'flex-end' }}>
+                  {/* Outstanding sits BESIDE settled, never added into it. A
+                      card that shows one number for "money" and quietly means
+                      both is the fastest way to lose a creator's trust.
+                      Its own amber-tinted row with its own icon, matching the
+                      web card — pinned to the right of the settled figure it
+                      read as a second, smaller version of the same number. */}
+                  {money.pending > 0 ? (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: t.spacing.md,
+                        backgroundColor: t.color.warnSoft,
+                        borderRadius: t.radii.md,
+                        paddingHorizontal: t.spacing.md,
+                        paddingVertical: t.spacing.md,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: t.radii.sm,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: t.color.white,
+                        }}
+                      >
+                        <CreditCard size={16} color={t.color.warn} />
+                      </View>
+                      <View style={{ gap: 1 }}>
                         <Txt
                           variant="title3"
                           style={{ fontVariant: ['tabular-nums'], color: t.color.warn }}
                         >
                           {formatCurrency(money.pending)}
                         </Txt>
-                        <Txt variant="caption" tone="muted">
+                        <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
                           {isCreator ? 'Awaiting payment' : 'Due to pay'}
                         </Txt>
                       </View>
-                    ) : null}
-                  </View>
+                    </View>
+                  ) : null}
                 </>
               ) : (
                 <View style={{ gap: 4 }}>
@@ -805,145 +827,113 @@ export default function HomeScreen() {
               ) : null}
             </Card>
 
-            {/* ── Two-column mid section: Reach (left) + Review queue (right) ── */}
-            {/* Matches the AI reference: the two cards sit side by side so the
-                first viewport shows the most critical information without scrolling. */}
-            {(isCreator && reach && reach.clicks > 0) || reviewItems.length > 0 ? (
-              <View style={{ flexDirection: 'row', gap: t.spacing.md, alignItems: 'flex-start' }}>
-                {/* Left: Your reach */}
-                {isCreator && reach && reach.clicks > 0 ? (
-                  <Card style={{ flex: 1, gap: t.spacing.md }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Txt variant="footnote" style={{ fontWeight: '600' }}>Your reach</Txt>
-                      <View style={{ backgroundColor: t.color.brandSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: t.radii.pill }}>
-                        <Txt variant="caption" style={{ color: t.color.brand, fontWeight: '600' }}>30d</Txt>
-                      </View>
-                    </View>
+            {/* ── Where your visitors go ─────────────────────────────── */}
+            {/*
+              This was a two-column row — reach on the left, a compact copy of
+              the review queue on the right — and both halves were wrong.
 
-                    <View>
-                      <Txt variant="title2" style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>
-                        {formatCount(reach.clicks)}
-                      </Txt>
-                      {reach.delta_pct != null ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                          <ArrowUpRight size={11} color={reach.delta_pct >= 0 ? t.color.ok : t.color.danger} />
-                          <Txt variant="caption" style={{ color: reach.delta_pct >= 0 ? t.color.ok : t.color.danger, fontWeight: '600' }}>
-                            {Math.abs(reach.delta_pct)}%
-                          </Txt>
-                        </View>
-                      ) : null}
-                      <Txt variant="caption" tone="muted" style={{ marginTop: 2 }}>Clicked your link</Txt>
-                    </View>
+              The right half rendered the SAME `reviewItems` already rendered in
+              full by <ReviewQueue> at the top of this screen: the same counts,
+              the same rows, and a second "Review now" button aimed at the same
+              destination. Two cards claiming "you have 3 things to review" one
+              scroll apart is not emphasis, it's a bug that makes a creator
+              wonder whether there are six.
 
-                    {/* Compact bar list */}
-                    <View style={{ gap: 8 }}>
-                      {reachChannels.slice(0, 4).map((ch) => (
-                        <View key={ch.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          {ch.icon}
-                          <Txt variant="caption" tone="muted" style={{ width: 36 }} numberOfLines={1}>{ch.label}</Txt>
-                          <View style={{ flex: 1, height: 5, backgroundColor: t.color.hairline, borderRadius: 3, overflow: 'hidden' }}>
-                            <View
-                              style={{
-                                height: '100%',
-                                borderRadius: 3,
-                                backgroundColor: t.color.brand,
-                                width: `${Math.round((ch.value / (reachChannels[0]?.value || 1)) * 100)}%`,
-                              }}
-                            />
-                          </View>
-                          <Txt variant="caption" style={{ fontWeight: '600', width: 30, textAlign: 'right' }}>
-                            {formatCount(ch.value)}
-                          </Txt>
-                        </View>
-                      ))}
-                    </View>
-
-                    {/* Business viewers row */}
-                    {isCreator && attention?.business_viewers != null ? (
-                      <Pressable
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 8,
-                          paddingTop: t.spacing.sm,
-                          borderTopWidth: 1,
-                          borderTopColor: t.color.hairline,
-                        }}
-                        onPress={() => router.push('/profile')}
-                      >
-                        <Eye size={14} color={t.color.brand} />
-                        <Txt variant="caption" tone="soft" style={{ flex: 1 }}>
-                          {formatCount(attention.business_viewers)} business owners viewed
+              The left half was a web layout on a phone. Two flex:1 columns on a
+              375pt screen leaves ~165pt per card, and the reach breakdown had
+              to fit a mark, a 36pt label column, a bar and a value inside that
+              — which is why it carried its own hand-rolled shrunken bar list
+              instead of using BarList. Full width, it is just BarList, with the
+              platform's own colour on each bar.
+            */}
+            {isCreator && reach && reach.clicks > 0 ? (
+              <>
+                <SectionLabel>Where your visitors go</SectionLabel>
+                <Card style={{ gap: t.spacing.lg }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <View style={{ gap: 2 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                        <Txt variant="title1" style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>
+                          {formatCount(reach.clicks)}
                         </Txt>
-                        <ChevronRight size={13} color={t.color.contentMuted} />
-                      </Pressable>
-                    ) : null}
-                  </Card>
-                ) : null}
-
-                {/* Right: ReviewQueue inline (compact) */}
-                {reviewItems.length > 0 ? (
-                  <Card style={{ flex: 1, gap: t.spacing.sm }}>
-                    <Txt variant="footnote" style={{ fontWeight: '600' }}>
-                      You have {reviewItems.reduce((s, i) => s + i.count, 0)} things to review
-                    </Txt>
-
-                    <View style={{ gap: t.spacing.xs }}>
-                      {reviewItems.slice(0, 3).map((item) => {
-                        const tones = {
-                          brand: { fg: t.color.brand, bg: t.color.brandSoft },
-                          warn: { fg: t.color.warn, bg: t.color.warnSoft },
-                          ok: { fg: t.color.ok, bg: t.color.okSoft },
-                        } as const;
-                        const c = tones[item.tone];
-                        return (
-                          <Pressable
-                            key={item.key}
-                            onPress={item.onPress}
-                            style={({ pressed }) => ({
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 8,
-                              paddingVertical: t.spacing.sm,
-                              borderRadius: t.radii.sm,
-                              backgroundColor: pressed ? t.color.surfaceMuted : 'transparent',
-                            })}
-                          >
-                            <View style={{ width: 30, height: 30, borderRadius: t.radii.sm, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
-                              {item.icon}
-                            </View>
-                            <Txt variant="caption" style={{ flex: 1, fontWeight: '500' }} numberOfLines={2}>{item.title}</Txt>
-                            <ChevronRight size={13} color={t.color.contentMuted} />
-                          </Pressable>
-                        );
-                      })}
+                        {reach.delta_pct != null ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                            <ArrowUpRight
+                              size={13}
+                              color={reach.delta_pct >= 0 ? t.color.ok : t.color.danger}
+                            />
+                            <Txt
+                              variant="caption"
+                              style={{
+                                fontWeight: '700',
+                                color: reach.delta_pct >= 0 ? t.color.ok : t.color.danger,
+                              }}
+                            >
+                              {Math.abs(reach.delta_pct)}%
+                            </Txt>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Txt variant="caption" tone="muted">
+                        Taps on your links · {formatCount(reach.people)} people
+                      </Txt>
                     </View>
 
+                    <View
+                      style={{
+                        backgroundColor: t.color.brandSoft,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: t.radii.pill,
+                      }}
+                    >
+                      <Txt variant="caption" style={{ color: t.color.brand, fontWeight: '700' }}>
+                        {reach.window_days}d
+                      </Txt>
+                    </View>
+                  </View>
+
+                  <BarList data={reachChannels} formatValue={formatCount} />
+
+                  {attention?.business_viewers != null ? (
                     <Pressable
-                      onPress={reviewItems[0].onPress}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${attention.business_viewers} business owners viewed your profile`}
+                      onPress={() => router.push('/profile')}
                       style={({ pressed }) => ({
-                        backgroundColor: t.color.brand,
-                        borderRadius: t.radii.md,
-                        paddingVertical: t.spacing.sm,
+                        flexDirection: 'row',
                         alignItems: 'center',
-                        opacity: pressed ? 0.9 : 1,
+                        gap: t.spacing.sm,
+                        paddingTop: t.spacing.md,
+                        borderTopWidth: 1,
+                        borderTopColor: t.color.hairline,
+                        opacity: pressed ? 0.7 : 1,
                       })}
                     >
-                      <Txt variant="caption" tone="inverse" style={{ fontWeight: '700' }}>Review now →</Txt>
+                      <Eye size={15} color={t.color.brand} />
+                      <Txt variant="footnote" tone="soft" style={{ flex: 1 }}>
+                        {formatCount(attention.business_viewers)} business owners viewed you
+                      </Txt>
+                      <ChevronRight size={15} color={t.color.contentMuted} />
                     </Pressable>
-                  </Card>
-                ) : null}
-              </View>
+                  ) : null}
+                </Card>
+              </>
             ) : null}
 
-            {/* ── At a glance — multi-color stat grid ──────────────── */}
+            {/* ── At a glance ───────────────────────────────────────── */}
+            {/* Every tile carries its icon in a roundel of its own hue, the
+                way the web dashboard's counter row does. The hues are STAT_TINT
+                — the same six the pipeline strip uses — so a colour means the
+                same thing everywhere on this screen. */}
             <SectionLabel>At a glance</SectionLabel>
             <StatGrid>
               {attention ? (
                 <StatCard
                   label="Profile views"
                   value={formatCount(attention.profile_views)}
-                  icon={<Eye size={15} color="#7c3aed" />}
+                  icon={<Eye size={15} color={STAT_TINT.views} />}
+                  tint={STAT_TINT.views}
                   delta={attention.profile_views_delta_pct}
                   hint={attention.profile_views_delta_pct == null ? `last ${attention.window_days}d` : undefined}
                 />
@@ -953,7 +943,8 @@ export default function HomeScreen() {
                 <StatCard
                   label="Brands who looked"
                   value={formatCount(attention.business_viewers)}
-                  icon={<Users size={15} color="#059669" />}
+                  icon={<Users size={15} color={STAT_TINT.brands} />}
+                  tint={STAT_TINT.brands}
                   hint="all time"
                 />
               ) : null}
@@ -961,7 +952,8 @@ export default function HomeScreen() {
               <StatCard
                 label="Collab requests"
                 value={(isCreator ? counts?.pending_requests : counts?.awaiting_them) ?? 0}
-                icon={<Inbox size={15} color="#ee3e96" />}
+                icon={<Inbox size={15} color={STAT_TINT.requests} />}
+                tint={STAT_TINT.requests}
                 hint={((isCreator ? counts?.pending_requests : counts?.awaiting_them) ?? 0) > 0 ? 'pending' : undefined}
                 onPress={() => router.push('/requests')}
               />
@@ -969,7 +961,8 @@ export default function HomeScreen() {
               <StatCard
                 label="Projects"
                 value={counts?.ongoing ?? 0}
-                icon={<FolderKanban size={15} color="#2563eb" />}
+                icon={<FolderKanban size={15} color={STAT_TINT.projects} />}
+                tint={STAT_TINT.projects}
                 hint={counts?.ongoing ? 'active' : undefined}
                 onPress={() => router.push('/projects')}
               />
@@ -977,21 +970,24 @@ export default function HomeScreen() {
               <StatCard
                 label="Completed"
                 value={counts?.completed ?? 0}
-                icon={<BadgeCheck size={15} color="#16a34a" />}
+                icon={<BadgeCheck size={15} color={STAT_TINT.completed} />}
+                tint={STAT_TINT.completed}
               />
 
               {funnel?.accept_rate != null ? (
                 <StatCard
                   label={isCreator ? 'Accepted' : 'Acceptance'}
                   value={`${funnel.accept_rate}%`}
-                  icon={<Handshake size={15} color="#d97706" />}
+                  icon={<Handshake size={15} color={STAT_TINT.moves} />}
+                  tint={STAT_TINT.moves}
                   hint={`of ${funnel.received} received`}
                 />
               ) : (
                 <StatCard
                   label="Needs your move"
                   value={counts?.your_turn ?? yourMove.length}
-                  icon={<Handshake size={15} color="#d97706" />}
+                  icon={<Handshake size={15} color={STAT_TINT.moves} />}
+                  tint={STAT_TINT.moves}
                   onPress={() => router.push('/projects')}
                 />
               )}

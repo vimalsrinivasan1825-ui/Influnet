@@ -87,6 +87,14 @@ export function createEndpoints(api: ApiClient) {
       api.post<T>(`/api/creators/${encodeURIComponent(username)}/link-click`, {
         link_type: linkType,
       }),
+    /**
+     * A business's private profile, by username — the JSON twin of the
+     * business branch of web's /<username>. Unlike a creator's, this 404s for
+     * anyone without an established relationship (a request or a project) —
+     * see apps/web's /api/businesses/[username] for the access rule.
+     */
+    getBusinessProfile: <T = unknown>(username: string) =>
+      api.get<T>(`/api/businesses/${encodeURIComponent(username)}`),
 
     // ── Collaboration requests ─────────────────────────────────────
     listCollabs: <T = unknown>() => api.get<T>('/api/collabs'),
