@@ -19,7 +19,14 @@ import type { SocialPlatform, SocialProfile } from './social/types';
 
 /** How many recent posts to keep in the snapshot / cache thumbnails for. */
 const MAX_POSTS = 12;
-const MAX_THUMBS = 6;
+/**
+ * Every post we keep, not the first six. The download is parallel, size-capped
+ * and best-effort, so the six we were skipping cost little — and they are the
+ * difference between a portfolio entry finding its picture and drawing a grey
+ * tile, since a creator adding "past work" often reaches back further than
+ * their last six posts. See lib/portfolio-thumbnail.ts.
+ */
+const MAX_THUMBS = MAX_POSTS;
 const IMAGE_TIMEOUT_MS = 8_000;
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // matches the bucket's file_size_limit
 
@@ -196,6 +203,8 @@ export async function captureInstagramSnapshot(
       await admin.from('influencer_profiles').update(updates).eq('user_id', userId);
     }
 
+    await backfillPortfolioThumbnails(admin, userId, recentPosts);
+
     return true;
   } catch (err) {
     logger.warn('social-snapshot: capture failed (non-fatal)', {
@@ -203,6 +212,60 @@ export async function captureInstagramSnapshot(
       error: err instanceof Error ? err.message : String(err),
     });
     return false;
+  }
+}
+
+/**
+ * Give already-saved portfolio entries the picture this capture just fetched.
+ *
+ * A creator who added Instagram work BEFORE their account was scraped has rows
+ * with a null thumbnail, and nothing would ever revisit them — the resolver in
+ * lib/portfolio-thumbnail.ts only runs on insert. So each capture sweeps the
+ * shortcodes it just cached across the portfolio and fills the blanks.
+ *
+ * Only ever fills nulls. A row that already has a thumbnail is left alone,
+ * including one the creator's own embed-page lookup found, because overwriting
+ * a working image with another working image is churn with a failure mode.
+ */
+async function backfillPortfolioThumbnails(
+  admin: SupabaseClient,
+  userId: string,
+  posts: { shortcode?: string | null; thumb_path?: string | null }[],
+): Promise<void> {
+  const withThumbs = posts.filter((p) => p.shortcode && p.thumb_path);
+  if (withThumbs.length === 0) return;
+
+  try {
+    const { data: rows } = await admin
+      .from('creator_portfolio_items')
+      .select('id, content_url')
+      .eq('user_id', userId)
+      .eq('platform', 'instagram')
+      .is('thumbnail_url', null);
+
+    if (!rows?.length) return;
+
+    await Promise.all(
+      withThumbs.map((post) => {
+        // The stored URL is the canonical one this shortcode produces (see
+        // resolvePortfolioLink), so an exact match is enough and avoids a LIKE
+        // whose wildcards would have to be escaped out of a user-supplied code.
+        const canonical = `https://www.instagram.com/p/${post.shortcode}/`;
+        const match = rows.find((r: { content_url: string | null }) => r.content_url === canonical);
+        if (!match) return Promise.resolve();
+
+        return admin
+          .from('creator_portfolio_items')
+          .update({ thumbnail_url: socialCachePublicUrl(post.thumb_path!) })
+          .eq('id', match.id)
+          .then(() => undefined);
+      }),
+    );
+  } catch (err) {
+    logger.warn('social-snapshot: portfolio thumbnail backfill failed (non-fatal)', {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

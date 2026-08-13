@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Numeral, Txt } from './text';
 
@@ -9,12 +10,22 @@ export function StatCard({
   value,
   icon,
   hint,
+  delta,
   onPress,
 }: {
   label: string;
   value: string | number;
   icon?: ReactNode;
   hint?: string;
+  /**
+   * Percentage change against the previous equivalent period.
+   *
+   * Null and undefined both mean "no delta", and both are correct in different
+   * situations — null when there was no baseline to compare against, undefined
+   * when this metric has no period at all. Neither renders as 0%, because a
+   * figure with nothing behind it presented as flat is a claim we can't make.
+   */
+  delta?: number | null;
   onPress?: () => void;
 }) {
   const t = useTheme();
@@ -44,7 +55,27 @@ export function StatCard({
         {icon}
       </View>
       <Numeral>{value}</Numeral>
-      {hint ? (
+
+      {delta != null ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          {delta >= 0 ? (
+            <ArrowUpRight size={12} color={t.color.ok} />
+          ) : (
+            <ArrowDownRight size={12} color={t.color.danger} />
+          )}
+          <Txt
+            variant="caption"
+            style={{ fontWeight: '600', color: delta >= 0 ? t.color.ok : t.color.danger }}
+          >
+            {Math.abs(delta)}%
+          </Txt>
+          {hint ? (
+            <Txt variant="caption" tone="muted" numberOfLines={1}>
+              {hint}
+            </Txt>
+          ) : null}
+        </View>
+      ) : hint ? (
         <Txt variant="caption" tone="muted" numberOfLines={1}>
           {hint}
         </Txt>

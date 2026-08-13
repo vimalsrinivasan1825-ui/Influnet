@@ -196,12 +196,15 @@ export function PortfolioGrid({
   items,
   onDelete,
   onToggleVisible,
+  onOpen,
 }: {
   items: PortfolioItem[];
   /** Owner view only — a brand looking at a public profile passes nothing. */
   onDelete?: (item: PortfolioItem) => void;
   /** Owner view only. Platform entries have no row to toggle — see is_visible above. */
   onToggleVisible?: (item: PortfolioItem, next: boolean) => void;
+  /** Public view only — counts the tap toward the creator's reach. */
+  onOpen?: (platform: PortfolioItem['platform']) => void;
 }) {
   const t = useTheme();
   if (items.length === 0) return null;
@@ -223,7 +226,10 @@ export function PortfolioGrid({
               item.verified ? 'Verified on Influnet' : 'Self-reported'
             }${visible ? '' : '. Hidden from your profile'}`}
             disabled={!item.content_url}
-            onPress={() => open(item.content_url)}
+            onPress={() => {
+              onOpen?.(item.platform);
+              open(item.content_url);
+            }}
             style={({ pressed }) => ({
               // Two columns inside a card, accounting for the single gap.
               width: `${(100 - 3) / 2}%`,

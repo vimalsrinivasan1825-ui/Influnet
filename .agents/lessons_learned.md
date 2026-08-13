@@ -2,6 +2,29 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-08-12: Railway to Azure Dev Migration & Environment Variables
+
+**Branch**: `dev`
+
+### Scope
+- **Azure Container Apps Migration**: Migrated the `dev` environment from Railway to Azure Container Apps to match the existing `staging` infrastructure, ensuring deployment parity.
+- **GitHub Environments Implementation**: Restructured `.github/workflows/deploy-dev.yml` to utilize GitHub Environments (`environment: dev`), cleanly separating `dev` and `staging` secrets (like `NEXT_PUBLIC_SUPABASE_URL`) without naming conflicts.
+- **DNS Migration**: Migrated the `dev.influnet.io` custom domain from Railway to Azure via CNAME and TXT validation records.
+
+### Broken & Resolved
+- **Next.js Port Mismatch (404 Error)**: Azure's Quickstart container template defaults to Ingress Port 80, but Next.js runs on Port 3000. This caused Azure to route traffic incorrectly, resulting in a 404 error during the GitHub Action health check. Resolved by manually updating the Target Port to 3000 in the Azure Portal Ingress settings.
+- **Missing Environment Context (Empty Secrets)**: The initial `deploy-dev.yml` workflow was missing the `environment: dev` block in its jobs. As a result, GitHub Actions bypassed Environment Secrets entirely, passing empty strings to the Docker build for critical keys like `NEXT_PUBLIC_SUPABASE_URL`. This caused the deployed app to crash on startup (HTTP 500). Resolved by adding `environment: dev` to both `migrate` and `build-and-deploy` jobs.
+- **Supabase Service Role Key Mismatch (HTTP 500)**: The health check threw an internal server error because the `SUPABASE_DEV_SERVICE_ROLE_KEY` provided manually was for an entirely different Supabase project (`...mec...` vs `...mqc...`). The mismatch resulted in a 401 Unauthorized from Supabase, failing the Next.js API route. Resolved by copying the correct Service Role JWT from the correct dev Supabase project settings.
+
+### Key Lessons
+- When copying GitHub Actions workflows, always ensure the `paths` trigger is updated to watch the new file itself, otherwise subsequent pushes modifying only the new workflow will be silently ignored.
+- When configuring Azure Container Apps via GitHub Actions, the deployment action (`azure/container-apps-deploy-action`) updates the container image but does **not** alter the Ingress Target Port if it was misconfigured during manual creation. Always verify the Ingress port matches the `EXPOSE` port in your Dockerfile.
+- GitHub Actions jobs will **only** read from Environment Secrets if the job explicitly declares `environment: <name>`. If omitted, it falls back to Repository Secrets, resulting in silent empty strings for variables stored strictly inside the environment.
+- When a Next.js container deployed to Azure throws a 500 Internal Server Error immediately upon routing, it is almost always caused by an empty or mismatched Supabase URL/Key crashing the `createServerClient()` initialization.
+
+### Next Target
+- Confirm full functionality of the `dev` environment at `dev.influnet.io` once DNS propagates.
+
 ### Session — 2026-08-04: PostgREST Multiple Filter Fix & Matchmaking E2E Test Suite Alignment
 
 **Branch**: `dev`

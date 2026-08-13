@@ -10,6 +10,7 @@ import styles from './creator-profile.module.css';
 import { formatCount } from '@/lib/public-profile/creator-profile';
 import type { RenderableProfileView } from '@/lib/public-profile/tier-projection';
 import { apiFetch } from '@/lib/api-client';
+import { useLinkClick } from '@/lib/hooks/use-link-click';
 import { VerifiedMark } from '@/components/icons/verified-mark';
 import { Link2 } from 'lucide-react';
 
@@ -182,6 +183,14 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
   const router = useRouter();
 
   const storeKey = `influnet:profile-appearance:${data.username}`;
+
+  /**
+   * Every link that leaves this page for the creator's own work is counted, so
+   * they can see on Home whether the page sends anyone anywhere. The owner's
+   * own clicks are not reach and are never sent — passing null switches the
+   * tracker off entirely rather than relying on the server to discard them.
+   */
+  const trackLink = useLinkClick(isOwner ? null : data.username);
 
   /**
    * Curated work outranks the scraped feed. When a creator has chosen what to
@@ -617,6 +626,13 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                       href={item.contentUrl}
                       target="_blank"
                       rel="noopener noreferrer nofollow"
+                      onClick={() =>
+                        trackLink(
+                          item.platform === 'instagram' || item.platform === 'youtube'
+                            ? item.platform
+                            : 'other',
+                        )
+                      }
                     >
                       {inner}
                     </a>
@@ -653,7 +669,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                 }
               >
                 {data.featured.map((p, i) => (
-                  <a key={p.href || i} className={styles.th} style={{ backgroundImage: `url(${p.imageUrl})` }} href={p.href || '#'} target="_blank" rel="noopener noreferrer">
+                  <a key={p.href || i} className={styles.th} style={{ backgroundImage: `url(${p.imageUrl})` }} href={p.href || '#'} target="_blank" rel="noopener noreferrer" onClick={() => trackLink('instagram')}>
                     {p.isVideo && <span className={styles.play}><Play /></span>}
                     <span className={styles.ov}>
                       {p.isVideo ? <Play /> : <Heart />}
@@ -675,7 +691,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                 meta={<span className={styles.viewall}>From YouTube</span>}
               >
                 {data.videos.map((v) => (
-                  <a key={v.url} className={styles.vid} href={v.url} target="_blank" rel="noopener noreferrer">
+                  <a key={v.url} className={styles.vid} href={v.url} target="_blank" rel="noopener noreferrer" onClick={() => trackLink('youtube')}>
                     <span className={styles.vthumb} style={{ backgroundImage: v.thumbUrl ? `url(${v.thumbUrl})` : undefined }}>
                       <span className={styles.vplay}><YtPlay s={13} /></span>
                       {v.views && <span className={styles.vviews}><Play />{v.views}</span>}

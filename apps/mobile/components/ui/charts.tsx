@@ -19,6 +19,7 @@
  * rendering and flex layout for free. SVG is reserved for arc geometry, which
  * views genuinely cannot express.
  */
+import type { ReactNode } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '@/lib/theme';
@@ -117,6 +118,82 @@ export function TrendBars({
           </Txt>
         ))}
       </View>
+    </View>
+  );
+}
+
+export interface BarListItem {
+  label: string;
+  value: number;
+  /** Drawn to the left of the label — a platform mark, usually. */
+  icon?: ReactNode;
+}
+
+/**
+ * Ranked parts of a whole, as horizontal bars.
+ *
+ * The layout TrendBars cannot do: category names of real length. Vertical bars
+ * force labels into a few characters or a rotation, and "Instagram" under a
+ * column on a 375pt screen is neither. Rows give the name a whole line.
+ *
+ * Same rules as the rest of this file — one hue, length carries the value, and
+ * every row states its own number, so it reads with the colour stripped out.
+ */
+export function BarList({
+  data,
+  formatValue = (v) => String(v),
+}: {
+  data: BarListItem[];
+  formatValue?: (value: number) => string;
+}) {
+  const t = useTheme();
+  const max = Math.max(...data.map((d) => d.value), 0);
+  if (data.length === 0 || max <= 0) return null;
+
+  return (
+    <View style={{ gap: t.spacing.sm }}>
+      {data.map((row) => (
+        <View
+          key={row.label}
+          accessibilityLabel={`${row.label}: ${formatValue(row.value)}`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}
+        >
+          {row.icon ? <View style={{ width: 18, alignItems: 'center' }}>{row.icon}</View> : null}
+
+          {/* Fixed label column so every bar starts at the same x — bars that
+              begin at ragged offsets cannot be compared by eye, which is the
+              only thing a bar chart is for. */}
+          <Txt variant="footnote" tone="soft" numberOfLines={1} style={{ width: 74 }}>
+            {row.label}
+          </Txt>
+
+          <View
+            style={{
+              flex: 1,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: t.color.surfaceMuted,
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                width: `${Math.max((row.value / max) * 100, row.value > 0 ? 4 : 0)}%`,
+                height: '100%',
+                borderRadius: 4,
+                backgroundColor: t.color.brand,
+              }}
+            />
+          </View>
+
+          <Txt
+            variant="footnote"
+            style={{ fontWeight: '600', fontVariant: ['tabular-nums'], minWidth: 46, textAlign: 'right' }}
+          >
+            {formatValue(row.value)}
+          </Txt>
+        </View>
+      ))}
     </View>
   );
 }

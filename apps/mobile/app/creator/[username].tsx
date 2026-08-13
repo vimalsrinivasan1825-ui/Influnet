@@ -113,6 +113,18 @@ export default function CreatorDetail() {
 
   const creator = res?.data;
 
+  /**
+   * A tap on any of this creator's outbound links counts toward the reach
+   * figure on their Home — the app's visitors are as real as the website's.
+   *
+   * Fire-and-forget by design: the link opens on the same tap and must not wait
+   * for, or be affected by, this request. The owner's own taps are never sent.
+   */
+  const trackOpen = (linkType: string) => {
+    if (!res || res.isOwner || !username) return;
+    void endpoints.recordLinkClick(username, linkType).catch(() => {});
+  };
+
   // The web view model formats counts server-side and keys posts by permalink;
   // the shared grid takes raw rows, so map rather than re-format.
   const posts = (creator?.featured ?? [])
@@ -262,7 +274,7 @@ export default function CreatorDetail() {
               <>
                 <SectionLabel>Selected work</SectionLabel>
                 <Card>
-                  <PortfolioGrid items={portfolio} />
+                  <PortfolioGrid items={portfolio} onOpen={trackOpen} />
                 </Card>
               </>
             ) : null}
@@ -273,7 +285,7 @@ export default function CreatorDetail() {
               <>
                 <SectionLabel>Recent posts</SectionLabel>
                 <Card>
-                  <PostGrid posts={posts} />
+                  <PostGrid posts={posts} onOpen={trackOpen} />
                 </Card>
               </>
             ) : null}
@@ -282,7 +294,7 @@ export default function CreatorDetail() {
               <>
                 <SectionLabel>Latest videos</SectionLabel>
                 <Card>
-                  <VideoList videos={videos} />
+                  <VideoList videos={videos} onOpen={trackOpen} />
                 </Card>
               </>
             ) : null}

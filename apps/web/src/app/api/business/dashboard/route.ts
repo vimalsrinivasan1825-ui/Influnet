@@ -1,5 +1,6 @@
 import { jsonError, withAuth } from '@/lib/api';
 import { NextResponse } from 'next/server';
+import { bucketByCounterparty, bucketWindows, parseEarningsRange } from '@/lib/earnings-buckets';
 
 export async function GET(req: Request) {
   try {
@@ -38,9 +39,13 @@ export async function GET(req: Request) {
     const pipeline_value = acceptedCollabs.reduce((sum: any, c: any) => sum + (Number(c.budget) || 0), 0);
 
     // 3. Fetch campaign projects for completion tracking
+    // counterparty:name joined in here so the per-creator spend chart below
+    // has a display name for every project without a second round trip.
     const { data: projects } = await supabase
       .from('campaign_projects')
-      .select('status, budget, counterparty_user_id')
+      .select(
+        'id, status, budget, counterparty_user_id, created_at, updated_at, counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name)',
+      )
       .eq('owner_user_id', user.id);
 
     const active_projects = projects?.filter((p: any) => p.status === 'active').length || 0;
@@ -75,6 +80,46 @@ export async function GET(req: Request) {
 
       weeklySpend.push({ week: weekLabel, spend: weekSpend });
     }
+
+    // 4a. The same spend, broken down per creator, for the chart's range
+    // toggle. Prefers real settled payments the same way the influencer side
+    // does; falls back to agreed project budgets when nothing has been paid
+    // through the platform yet, attributed to whichever creator the project is
+    // with — that fallback is the honest reading of "spend" before real money
+    // has moved, not a second definition of the word.
+    const projectIds = (projects || []).map((p: any) => p.id);
+    let paidPayments: { project_id: number; amount: number; paid_at: string | null }[] = [];
+    if (projectIds.length > 0) {
+      const { data: payments } = await supabase
+        .from('project_payments')
+        .select('project_id, amount, paid_at')
+        .in('project_id', projectIds)
+        .eq('status', 'paid');
+      paidPayments = payments || [];
+    }
+    const useProjectBudgets = paidPayments.length === 0 && (projects || []).length > 0;
+
+    const range = parseEarningsRange(new URL(req.url).searchParams.get('range'));
+    const windows = bucketWindows(range, now);
+    const creatorNameByProject = new Map(
+      (projects || []).map((p: any) => [p.id, p.counterparty?.name || 'Creator']),
+    );
+    const creatorRows = useProjectBudgets
+      ? (projects || [])
+          .filter((p: any) => p.status === 'active' || p.status === 'completed')
+          .map((p: any) => ({
+            date: new Date(p.updated_at || p.created_at || now),
+            amount: Number(p.budget) || 0,
+            counterparty: p.counterparty?.name || 'Creator',
+          }))
+      : paidPayments
+          .filter((p: any) => p.paid_at)
+          .map((p: any) => ({
+            date: new Date(p.paid_at!),
+            amount: Math.round((p.amount || 0) / 100),
+            counterparty: creatorNameByProject.get(p.project_id) || 'Creator',
+          }));
+    const { data: spendByCreator, series: spendSeries } = bucketByCounterparty(windows, creatorRows);
 
     // 5. Pipeline breakdown for bar chart
     const pipelineData = [
@@ -144,6 +189,12 @@ export async function GET(req: Request) {
         completed_value,
       },
       weekly_spend: weeklySpend,
+      // Per-creator series for the toggleable chart. Mirrors the influencer
+      // route's earnings_by_brand/earnings_series/earnings_range field-for-field
+      // so the two dashboard views can share one chart-shaping component.
+      earnings_by_brand: spendByCreator,
+      earnings_series: spendSeries,
+      earnings_range: range,
       pipeline_data: pipelineData,
       recent_collabs: recent_collabs.length > 0 ? recent_collabs : null,
     });

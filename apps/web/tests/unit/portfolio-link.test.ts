@@ -94,16 +94,19 @@ describe('Instagram links', () => {
     }
   });
 
-  it('returns no thumbnail, and makes no attempt to fetch one', async () => {
+  it('derives no thumbnail here, and makes no request of its own', async () => {
     /**
-     * Instagram's oEmbed needs a Facebook app token and scraping the post page
-     * from a datacenter IP returns a login wall. Shipping a fetch that works on
-     * a laptop and fails in production is worse than not having one: the UI
-     * draws a branded tile instead.
+     * Instagram's oEmbed needs a Facebook app token, so there is nothing this
+     * parser can derive the way it derives YouTube's. It also makes no outbound
+     * request at all, which is what keeps the SSRF argument simple — the
+     * thumbnail lookup that DOES make one lives in lib/portfolio-thumbnail.ts,
+     * behind an already-validated shortcode.
      */
     const r = await resolvePortfolioLink('https://www.instagram.com/p/CxYzAbCdEfG/');
     expect(r.thumbnailUrl).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+    // …but it hands the caller the validated shortcode to look one up with.
+    expect(r.postId).toBe('CxYzAbCdEfG');
   });
 
   it('rejects a bare profile link', async () => {

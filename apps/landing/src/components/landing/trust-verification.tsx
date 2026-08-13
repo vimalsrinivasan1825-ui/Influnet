@@ -47,21 +47,11 @@ function CountUp({ end, suffix = '', duration = 1200 }: { end: number; suffix?: 
   return <span ref={elementRef}>{displayValue}{suffix}</span>;
 }
 
+// Discovery is deliberately absent from the landing page — the story starts at
+// the point a brand reaches out, not at browsing a directory.
 const BUSINESS_CARDS = [
   {
     id: '01',
-    title: 'Find the Right Creators, Fast',
-    description: 'Advanced search and smart filters help you discover creators who truly match your brand and goals.',
-    bullets: [
-      'Search by niche, location, audience, engagement & more',
-      'Real-time insights & verified data',
-      'Save time, not spreadsheets'
-    ],
-    accent: 'from-pink-500 to-rose-500',
-    mockupType: 'discover'
-  },
-  {
-    id: '02',
     title: 'No Fake Numbers. Only Real Impact.',
     description: 'We verify creators so you can collaborate with confidence, ensuring zero wasted campaign spend.',
     bullets: [
@@ -74,7 +64,7 @@ const BUSINESS_CARDS = [
     mockupType: 'verify'
   },
   {
-    id: '03',
+    id: '02',
     title: 'Track Every Campaign. Prove Every Result.',
     description: 'Monitor performance in real time and measure the exact return on investment (ROI) that actually matters.',
     bullets: [
@@ -87,7 +77,7 @@ const BUSINESS_CARDS = [
     mockupType: 'performance'
   },
   {
-    id: '04',
+    id: '03',
     title: 'Manage Payments & Budgets Seamlessly',
     description: 'Automated payments, clear budgets, and zero manual payment follow-ups or administrative hassle.',
     bullets: [
@@ -103,57 +93,13 @@ const BUSINESS_CARDS = [
 
 const SARAH_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80";
 
-function MockupDiscover() {
-  return (
-    <div className="w-full bg-slate-50 rounded-2xl border border-gray-100 p-5 font-sans text-xs flex flex-col justify-between h-full min-h-[250px] shadow-inner">
-      <div>
-        <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
-          <span className="font-extrabold text-gray-800">Discover Creators</span>
-          <div className="w-4.5 h-4.5 rounded-full bg-gray-100 flex items-center justify-center">
-            <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </div>
-        </div>
-        <div className="flex gap-1.5 mb-3.5">
-          <span className="px-2.5 py-0.5 rounded-md bg-pink-100 text-pink-700 font-extrabold scale-[0.95]">Fitness</span>
-          <span className="px-2.5 py-0.5 rounded-md bg-gray-200/60 text-gray-700 font-bold scale-[0.95]">India</span>
-          <span className="px-2.5 py-0.5 rounded-md bg-gray-200/60 text-gray-700 font-bold scale-[0.95]">50K+</span>
-        </div>
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center gap-2.5">
-              <img src={SARAH_AVATAR} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-gray-100" />
-              <div>
-                <div className="font-extrabold text-gray-800 flex items-center gap-0.5">Sarah F. <span className="text-[8px] text-blue-500">✓</span></div>
-                <div className="text-[10px] text-gray-450">58K Followers • 8.6% Eng.</div>
-              </div>
-            </div>
-            <button className="px-2.5 py-1 bg-pink-500 text-white font-black rounded-lg text-[10px] active:scale-[0.95]">View</button>
-          </div>
-          <div className="flex items-center justify-between bg-white/70 p-3 rounded-xl border border-gray-100">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center font-black text-purple-600 text-xs">RV</div>
-              <div>
-                <div className="font-extrabold text-gray-800">Rohit V.</div>
-                <div className="text-[10px] text-gray-450">120K Followers • 7.2% Eng.</div>
-              </div>
-            </div>
-            <button className="px-2.5 py-1 bg-gray-100 text-gray-600 font-black rounded-lg text-[10px]">View</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function MockupVerify() {
   return (
     <div className="w-full bg-slate-50 rounded-2xl border border-gray-100 p-5 font-sans text-xs flex flex-col justify-between h-full min-h-[250px] shadow-inner">
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-4">
           <span className="font-extrabold text-gray-800">Verification Engine</span>
-          <span className="text-[9px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Verified</span>
+          <span className="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Verified</span>
         </div>
         <div className="space-y-2.5 font-semibold">
           {[
@@ -168,7 +114,7 @@ function MockupVerify() {
               transition={{ delay: item.delay, duration: 0.3 }}
               className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.01)]"
             >
-              <span className="text-gray-650">{item.label}</span>
+              <span className="text-gray-600">{item.label}</span>
               <span className="text-green-600 font-extrabold">Passed</span>
             </motion.div>
           ))}
@@ -177,7 +123,7 @@ function MockupVerify() {
       <div className="mt-3">
         <div className="flex justify-between text-[9px] text-gray-500 font-bold mb-1">
           <span>Overall Score</span>
-          <span className="text-green-600 font-black">86/100</span>
+          <span className="text-green-600 font-bold">86/100</span>
         </div>
         <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
           <motion.div 
@@ -209,7 +155,7 @@ function MockupPerformance() {
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
           <span className="font-extrabold text-gray-800">Campaign Stats</span>
-          <span className="text-[10px] font-black text-blue-600 flex items-center gap-1.5">
+          <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
             Live Tracker
           </span>
@@ -219,13 +165,13 @@ function MockupPerformance() {
         <div className="grid grid-cols-2 gap-2.5 mb-4">
           <div className="bg-white p-2.5 rounded-xl border border-gray-100 text-center shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
             <div className="text-[9px] text-gray-400 font-bold uppercase">Reach</div>
-            <div className="text-sm font-black text-gray-850 mt-0.5">
+            <div className="text-sm font-bold text-gray-800 mt-0.5">
               <CountUp end={2.4} suffix="M" />
             </div>
           </div>
           <div className="bg-white p-2.5 rounded-xl border border-gray-100 text-center shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
             <div className="text-[9px] text-gray-400 font-bold uppercase">ROI</div>
-            <div className="text-sm font-black text-green-600 mt-0.5">
+            <div className="text-sm font-bold text-green-600 mt-0.5">
               <CountUp end={4.2} suffix="X" />
             </div>
           </div>
@@ -283,7 +229,7 @@ function MockupPerformance() {
 
         {/* Floating Interactive Tooltip */}
         {activePoint !== null && (
-          <div className="absolute top-2 left-2 bg-gray-900/90 text-[9px] font-black text-white px-2 py-1 rounded shadow pointer-events-none transition-all">
+          <div className="absolute top-2 left-2 bg-gray-900/90 text-[9px] font-bold text-white px-2 py-1 rounded shadow pointer-events-none transition-all">
             Reach: {points[activePoint].val}
           </div>
         )}
@@ -320,11 +266,11 @@ function MockupPayments() {
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
               />
             </svg>
-            <span className="absolute text-[8px] font-black text-gray-800">85%</span>
+            <span className="absolute text-[8px] font-bold text-gray-800">85%</span>
           </div>
           <div>
-            <div className="text-[10px] text-gray-450 font-bold">Total Budget Escrow</div>
-            <div className="text-xs font-black text-gray-850 mt-0.5">₹4,25,000 / ₹5,00,000</div>
+            <div className="text-[10px] text-gray-400 font-bold">Total Budget Escrow</div>
+            <div className="text-xs font-bold text-gray-800 mt-0.5">₹4,25,000 / ₹5,00,000</div>
           </div>
         </div>
 
@@ -346,8 +292,8 @@ function MockupPayments() {
                 <span className="font-bold text-gray-700">{tx.name}</span>
               </div>
               <div className="text-right">
-                <span className="font-black text-gray-850 block">{tx.amount}</span>
-                <span className={`text-[7px] font-black px-1 py-0.5 rounded ${tx.statusClass}`}>{tx.status}</span>
+                <span className="font-bold text-gray-800 block">{tx.amount}</span>
+                <span className={`text-[7px] font-bold px-1 py-0.5 rounded ${tx.statusClass}`}>{tx.status}</span>
               </div>
             </motion.div>
           ))}
@@ -417,11 +363,11 @@ export default function TrustVerification() {
         {/* Header Grid */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-2.5xl">
-            <span className="inline-block px-4 py-1.5 rounded-full text-[11px] font-bold tracking-widest uppercase text-pink-600 bg-pink-50 border border-pink-100 mb-4">
+            <span className="eyebrow block mb-4">
               For Businesses
             </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-[3.2rem] font-black text-gray-900 leading-none tracking-tight mb-5">
-              Why <span className="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Businesses</span> Love Influnet
+            <h2 className="text-3xl sm:text-4xl lg:text-[3.2rem] font-bold text-gray-900 leading-none tracking-tight mb-5">
+              Why <span className="text-[var(--magenta-deep)]">Businesses</span> Love Influnet
             </h2>
             <p className="text-base sm:text-lg text-gray-500 font-semibold leading-relaxed max-w-2xl">
               Everything you need to run high-performing influencer campaigns, all in one place.
@@ -435,7 +381,7 @@ export default function TrustVerification() {
               disabled={!canScrollLeft}
               className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${
                 canScrollLeft 
-                  ? 'border-gray-250 bg-white text-gray-800 hover:bg-gray-50 shadow-sm active:scale-95' 
+                  ? 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 shadow-sm active:scale-95' 
                   : 'border-gray-100 bg-white text-gray-300 cursor-not-allowed opacity-50'
               }`}
               aria-label="Scroll left"
@@ -449,7 +395,7 @@ export default function TrustVerification() {
               disabled={!canScrollRight}
               className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${
                 canScrollRight 
-                  ? 'border-gray-250 bg-white text-gray-800 hover:bg-gray-50 shadow-sm active:scale-95' 
+                  ? 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 shadow-sm active:scale-95' 
                   : 'border-gray-100 bg-white text-gray-300 cursor-not-allowed opacity-50'
               }`}
               aria-label="Scroll right"
@@ -482,7 +428,7 @@ export default function TrustVerification() {
               whileInView={{ opacity: 1, y: 0, scale: 1 }}
               viewport={{ once: false, margin: "-80px" }}
               transition={{ type: 'spring', stiffness: 90, damping: 18 }}
-              className="w-[88vw] sm:w-[560px] md:w-[760px] flex-shrink-0 bg-white border border-gray-150 rounded-[2.5rem] p-8 md:p-12 flex flex-col md:flex-row gap-8 md:gap-10 justify-between shadow-[0_8px_30px_rgba(0,0,0,0.02)] snap-start hover:shadow-[0_25px_60px_rgba(0,0,0,0.06)] transition-all duration-500 hover:border-gray-200 min-h-[460px] md:min-h-[500px]"
+              className="w-[88vw] sm:w-[560px] md:w-[760px] flex-shrink-0 bg-white border border-gray-100 rounded-[2.5rem] p-8 md:p-12 flex flex-col md:flex-row gap-8 md:gap-10 justify-between shadow-[0_8px_30px_rgba(0,0,0,0.02)] snap-start hover:shadow-[0_25px_60px_rgba(0,0,0,0.06)] transition-all duration-500 hover:border-gray-200 min-h-[460px] md:min-h-[500px]"
               style={{
                 scrollMarginLeft: leftOffset
               }}
@@ -490,10 +436,10 @@ export default function TrustVerification() {
               {/* Left Details */}
               <div className="flex-1 flex flex-col justify-between min-w-0">
                 <div>
-                  <span className={`inline-block text-6xl md:text-7xl font-black bg-gradient-to-r ${card.accent} bg-clip-text text-transparent opacity-85 mb-5`}>
+                  <span className="mb-5 inline-block font-mono text-5xl font-medium tabular-nums tracking-tight text-[var(--line-strong)] md:text-6xl">
                     {card.id}
                   </span>
-                  <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-4 tracking-tight">
+                  <h3 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight mb-4 tracking-tight">
                     {card.title}
                   </h3>
                   <p className="text-sm md:text-base text-gray-500 font-semibold leading-relaxed mb-8">
@@ -504,7 +450,7 @@ export default function TrustVerification() {
                 {/* Bullet Points */}
                 <ul className="space-y-3.5 border-t border-gray-100 pt-6">
                   {card.bullets.map((bullet, idx) => (
-                    <li key={idx} className="flex items-start gap-3 text-sm text-gray-650 font-bold leading-normal">
+                    <li key={idx} className="flex items-start gap-3 text-sm text-gray-600 font-bold leading-normal">
                       <div className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" />
@@ -518,7 +464,6 @@ export default function TrustVerification() {
 
               {/* Right Mockup Display (Padded & Centered) */}
               <div className="w-full md:w-[280px] flex items-center justify-center flex-shrink-0 rounded-2xl self-center">
-                {card.mockupType === 'discover' && <MockupDiscover />}
                 {card.mockupType === 'verify' && <MockupVerify />}
                 {card.mockupType === 'performance' && <MockupPerformance />}
                 {card.mockupType === 'payments' && <MockupPayments />}
@@ -545,7 +490,7 @@ export default function TrustVerification() {
               </svg>
             </div>
             <div>
-              <h3 className="text-base md:text-lg font-black text-gray-900 leading-tight">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight">
                 Everything you need to run successful influencer campaigns.
               </h3>
               <p className="text-xs md:text-sm text-gray-500 font-semibold mt-1">
@@ -555,7 +500,7 @@ export default function TrustVerification() {
           </div>
           <Link
             href={`${process.env.NEXT_PUBLIC_APP_URL}/signup/business`}
-            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white font-black text-xs md:text-sm shadow-md shadow-pink-500/25 transition-all hover:-translate-y-0.5 active:scale-95 flex-shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs md:text-sm shadow-md shadow-pink-500/25 transition-all hover:-translate-y-0.5 active:scale-95 flex-shrink-0 cursor-pointer"
           >
             Start Your Campaign Today
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

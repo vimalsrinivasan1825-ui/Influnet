@@ -111,6 +111,31 @@ button {
   animation-delay: var(--d, 0s);
 }
 
+/* The step walkthrough pins itself for one screen per step. Its scroll runway
+   is set from the step count in JS (--steps-height) so removing a step shortens
+   the section instead of leaving dead scroll at the end. Desktop only —
+   on mobile the steps stack at natural height. */
+@media (min-width: 1024px) {
+  .steps-scroll {
+    height: var(--steps-height, 550vh);
+  }
+}
+
+/* Left-to-right reveal for the hero chart's plotted lines */
+@keyframes chart-wipe {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.chart-wipe {
+  transform-origin: left center;
+  animation: chart-wipe 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .anim-write {
   animation: write-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--d, 0s);

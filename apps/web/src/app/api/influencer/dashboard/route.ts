@@ -1,5 +1,6 @@
 import { jsonError, withAuth } from '@/lib/api';
 import { NextResponse } from 'next/server';
+import { bucketByCounterparty, bucketWindows, parseEarningsRange } from '@/lib/earnings-buckets';
 
 export async function GET(req: Request) {
   try {
@@ -42,9 +43,14 @@ export async function GET(req: Request) {
     const active_discussions = acceptedCollabs.length;
 
     // 3. Fetch projects
+    // owner:name joined in here (not fetched separately) so every project row
+    // already carries the brand's display name — the per-brand earnings chart
+    // below needs it, and a payment row only has a project_id to look it up by.
     const { data: projects } = await supabase
       .from('campaign_projects')
-      .select('id, title, status, budget, created_by_user_id, owner_user_id, created_at, updated_at')
+      .select(
+        'id, title, status, budget, created_by_user_id, owner_user_id, created_at, updated_at, owner:profiles!campaign_projects_owner_user_id_fkey(id, name)',
+      )
       .eq('counterparty_user_id', user.id);
 
     const active_projects = projects?.filter((p: any) => p.status === 'active').length || 0;
@@ -71,11 +77,13 @@ export async function GET(req: Request) {
 
     // Earnings: money that has actually been paid, not requests exchanged.
     const projectIds = (projects || []).map((p: any) => p.id);
-    let paidPayments: { amount: number; paid_at: string | null }[] = [];
+    // project_id carried through so the per-brand chart below can look up
+    // which brand a payment belongs to without a second round trip.
+    let paidPayments: { project_id: number; amount: number; paid_at: string | null }[] = [];
     if (projectIds.length > 0) {
       const { data: payments } = await supabase
         .from('project_payments')
-        .select('amount, paid_at')
+        .select('project_id, amount, paid_at')
         .in('project_id', projectIds)
         .eq('status', 'paid');
       paidPayments = payments || [];
@@ -135,6 +143,33 @@ export async function GET(req: Request) {
 
       earningsTrend.push({ week: weekLabel, amount: weekAmount });
     }
+
+    // 4a. The same money, broken down per brand, for the chart's range toggle.
+    // Same "paid payments, or agreed budgets if none have ever settled" choice
+    // as the single-series trend above — this is a reshape of that decision,
+    // not a second one, so the two charts can never disagree about which mode
+    // they're in.
+    const range = parseEarningsRange(new URL(req.url).searchParams.get('range'));
+    const windows = bucketWindows(range, now);
+    const brandNameByProject = new Map(
+      (projects || []).map((p: any) => [p.id, p.owner?.name || 'Brand']),
+    );
+    const brandRows = useProjectBudgets
+      ? (projects || [])
+          .filter((p: any) => p.status === 'active' || p.status === 'completed')
+          .map((p: any) => ({
+            date: new Date(p.updated_at || p.created_at || now),
+            amount: Number(p.budget) || 0,
+            counterparty: p.owner?.name || 'Brand',
+          }))
+      : paidPayments
+          .filter((p: any) => p.paid_at)
+          .map((p: any) => ({
+            date: new Date(p.paid_at!),
+            amount: Math.round((p.amount || 0) / 100),
+            counterparty: brandNameByProject.get(p.project_id) || 'Brand',
+          }));
+    const { data: earningsByBrand, series: earningsSeries } = bucketByCounterparty(windows, brandRows);
 
     // 5. Request breakdown for bar chart
     const requestBreakdown = [
@@ -207,6 +242,13 @@ export async function GET(req: Request) {
         proposals_awaiting_you,
       },
       earnings_trend: earningsTrend,
+      // Per-brand series for the toggleable chart. `earnings_range` echoes back
+      // what was actually computed, since an old cached client request without
+      // ?range= silently resolves to 'week' — this lets the UI know which
+      // toggle position it's looking at without trusting its own local state.
+      earnings_by_brand: earningsByBrand,
+      earnings_series: earningsSeries,
+      earnings_range: range,
       request_breakdown: requestBreakdown,
       recent_collabs: recent_collabs.length > 0 ? recent_collabs : null,
       active_roster: active_roster.length > 0 ? active_roster : null,

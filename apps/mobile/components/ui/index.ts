@@ -11,10 +11,12 @@ export { SegmentedControl, type Segment } from './segmented';
 export { StatCard, StatGrid } from './stat-card';
 export {
   TrendBars,
+  BarList,
   DonutChart,
   ProgressRing,
   ProgressBar,
   type TrendPoint,
+  type BarListItem,
   type BreakdownItem,
 } from './charts';
 export { GradientCard, GradientBackground } from './gradient';

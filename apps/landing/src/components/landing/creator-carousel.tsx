@@ -129,12 +129,12 @@ function MockupProfile() {
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
           <span className="font-extrabold text-gray-800">Creator Profile</span>
-          <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">Verified</span>
+          <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">Verified</span>
         </div>
         <div className="flex items-center gap-3 mt-2">
           <img src={NEHA_AVATAR} alt="avatar" className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow" />
           <div>
-            <div className="font-black text-gray-900 text-sm flex items-center gap-1">
+            <div className="font-bold text-gray-900 text-sm flex items-center gap-1">
               Neha Kapoor
               <span className="text-[8px] text-blue-500">✓</span>
             </div>
@@ -143,19 +143,19 @@ function MockupProfile() {
         </div>
         <div className="flex gap-1.5 mt-3">
           <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 font-extrabold scale-[0.95]">Fashion</span>
-          <span className="px-2 py-0.5 rounded bg-gray-200/60 text-gray-650 font-bold scale-[0.95]">Beauty</span>
+          <span className="px-2 py-0.5 rounded bg-gray-200/60 text-gray-600 font-bold scale-[0.95]">Beauty</span>
         </div>
         <div className="grid grid-cols-3 gap-2 bg-white p-3 rounded-xl border border-gray-100 mt-4 shadow-sm text-center">
           <div>
-            <div className="font-black text-gray-800 text-xs">75K</div>
+            <div className="font-bold text-gray-800 text-xs">75K</div>
             <div className="text-[8px] text-gray-400 font-bold uppercase">Followers</div>
           </div>
           <div>
-            <div className="font-black text-purple-600 text-xs">8.6%</div>
+            <div className="font-bold text-purple-600 text-xs">8.6%</div>
             <div className="text-[8px] text-gray-400 font-bold uppercase">Eng. Rate</div>
           </div>
           <div>
-            <div className="font-black text-gray-800 text-xs">320+</div>
+            <div className="font-bold text-gray-800 text-xs">320+</div>
             <div className="text-[8px] text-gray-400 font-bold uppercase">Campaigns</div>
           </div>
         </div>
@@ -170,20 +170,20 @@ function MockupChat() {
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
           <span className="font-extrabold text-gray-800">Campaign Messages</span>
-          <span className="text-[10px] font-black text-purple-600 flex items-center gap-1">
+          <span className="text-[10px] font-bold text-purple-600 flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
             FitLife Brands
           </span>
         </div>
         <div className="space-y-3 mt-3">
           <div className="flex items-start gap-2">
-            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center font-black text-purple-600 text-[8px] flex-shrink-0">FL</div>
+            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center font-bold text-purple-600 text-[8px] flex-shrink-0">FL</div>
             <div className="max-w-[80%] bg-white border border-gray-100 p-3 rounded-2xl rounded-tl-none font-bold text-gray-700 shadow-sm leading-relaxed">
               Hi Neha! Loved your profile. We&apos;d love to work with you.
             </div>
           </div>
           <div className="flex justify-end">
-            <div className="max-w-[80%] bg-purple-600 text-white p-3 rounded-2xl rounded-tr-none font-black shadow-sm leading-relaxed">
+            <div className="max-w-[80%] bg-purple-600 text-white p-3 rounded-2xl rounded-tr-none font-bold shadow-sm leading-relaxed">
               Hi! Thanks so much. Excited about this! 🌟
             </div>
           </div>
@@ -199,7 +199,7 @@ function MockupContract() {
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
           <span className="font-extrabold text-gray-800">Campaign Agreement</span>
-          <span className="text-[9px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Signed</span>
+          <span className="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Signed</span>
         </div>
         <div className="space-y-2 font-semibold">
           {[
@@ -231,9 +231,9 @@ function MockupPayments() {
           <span className="font-extrabold text-gray-800">Payments Ledger</span>
           <span className="text-[8px] font-bold text-gray-400">Escrow Protected</span>
         </div>
-        <div className="bg-purple-600 bg-gradient-to-br from-purple-600 to-indigo-700 text-white p-3 rounded-xl border border-purple-500/10 shadow mb-3 text-center">
+        <div className="bg-purple-600 bg-[var(--ink)] text-white p-3 rounded-xl border border-purple-500/10 shadow mb-3 text-center">
           <div className="text-[8px] text-purple-200 font-bold uppercase">Balance Withdrawn</div>
-          <div className="text-sm font-black mt-0.5">₹3,45,000</div>
+          <div className="text-sm font-bold mt-0.5">₹3,45,000</div>
         </div>
         <div className="space-y-2">
           {[
@@ -244,9 +244,9 @@ function MockupPayments() {
             <div key={idx} className="bg-white p-2 rounded-lg border border-gray-100 flex justify-between items-center shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
               <div>
                 <span className="font-extrabold text-gray-800 block text-[9px]">{tx.label}</span>
-                <span className={`text-[7px] font-black px-1 rounded ${tx.labelClass}`}>{tx.type}</span>
+                <span className={`text-[7px] font-bold px-1 rounded ${tx.labelClass}`}>{tx.type}</span>
               </div>
-              <span className="font-black text-gray-800">{tx.amt}</span>
+              <span className="font-bold text-gray-800">{tx.amt}</span>
             </div>
           ))}
         </div>
@@ -272,7 +272,7 @@ function MockupAnalytics() {
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
           <span className="font-extrabold text-gray-800">Growth Tracking</span>
-          <span className="text-[10px] font-black text-purple-600 flex items-center gap-1">
+          <span className="text-[10px] font-bold text-purple-600 flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
             Live Analytics
           </span>
@@ -282,13 +282,13 @@ function MockupAnalytics() {
         <div className="grid grid-cols-2 gap-2.5 mb-4">
           <div className="bg-white p-2.5 rounded-xl border border-gray-100 text-center shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
             <div className="text-[9px] text-gray-400 font-bold uppercase">Reach</div>
-            <div className="text-sm font-black text-gray-850 mt-0.5">
+            <div className="text-sm font-bold text-gray-800 mt-0.5">
               <CountUp end={1.2} suffix="M" />
             </div>
           </div>
           <div className="bg-white p-2.5 rounded-xl border border-gray-100 text-center shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
             <div className="text-[9px] text-gray-400 font-bold uppercase">Profile Visits</div>
-            <div className="text-sm font-black text-purple-600 mt-0.5">
+            <div className="text-sm font-bold text-purple-600 mt-0.5">
               <CountUp end={24} suffix="K" />
             </div>
           </div>
@@ -346,7 +346,7 @@ function MockupAnalytics() {
 
         {/* Floating Interactive Tooltip */}
         {activePoint !== null && (
-          <div className="absolute top-2 left-2 bg-gray-900/90 text-[9px] font-black text-white px-2 py-1 rounded shadow pointer-events-none transition-all">
+          <div className="absolute top-2 left-2 bg-gray-900/90 text-[9px] font-bold text-white px-2 py-1 rounded shadow pointer-events-none transition-all">
             Reach: {points[activePoint].val}
           </div>
         )}
@@ -361,12 +361,12 @@ function MockupReviews() {
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
           <span className="font-extrabold text-gray-800">Reviews & Portfolio</span>
-          <span className="text-[8px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">Feedback</span>
+          <span className="text-[8px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">Feedback</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-xl border border-gray-150 shadow-sm mb-3">
+        <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-black text-gray-900">4.9</span>
+            <span className="text-lg font-bold text-gray-900">4.9</span>
             <div className="text-yellow-500 font-extrabold text-[11px] tracking-wide">★★★★★</div>
           </div>
           <div className="text-[9px] text-gray-400 font-bold mt-0.5">Based on 24 Verified Collaborations</div>
@@ -446,11 +446,11 @@ export default function CreatorCarousel() {
         {/* Header Grid */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-2.5xl">
-            <span className="inline-block px-4 py-1.5 rounded-full text-[11px] font-bold tracking-widest uppercase text-purple-600 bg-purple-50 border border-purple-100 mb-4">
+            <span className="eyebrow block mb-4">
               For Creators
             </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-[3.2rem] font-black text-gray-900 leading-none tracking-tight mb-5">
-              Why <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">Creators</span> Love Influnet
+            <h2 className="text-3xl sm:text-4xl lg:text-[3.2rem] font-bold text-gray-900 leading-none tracking-tight mb-5">
+              Why <span className="text-[var(--magenta-deep)]">Creators</span> Love Influnet
             </h2>
             <p className="text-base sm:text-lg text-gray-500 font-semibold leading-relaxed max-w-2xl">
               Everything you need to grow, collaborate and get paid — all in one professional platform.
@@ -464,7 +464,7 @@ export default function CreatorCarousel() {
               disabled={!canScrollLeft}
               className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${
                 canScrollLeft 
-                  ? 'border-gray-250 bg-white text-gray-800 hover:bg-gray-50 shadow-sm active:scale-95' 
+                  ? 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 shadow-sm active:scale-95' 
                   : 'border-gray-100 bg-white text-gray-300 cursor-not-allowed opacity-50'
               }`}
               aria-label="Scroll left"
@@ -478,7 +478,7 @@ export default function CreatorCarousel() {
               disabled={!canScrollRight}
               className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${
                 canScrollRight 
-                  ? 'border-gray-250 bg-white text-gray-800 hover:bg-gray-50 shadow-sm active:scale-95' 
+                  ? 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 shadow-sm active:scale-95' 
                   : 'border-gray-100 bg-white text-gray-300 cursor-not-allowed opacity-50'
               }`}
               aria-label="Scroll right"
@@ -511,7 +511,7 @@ export default function CreatorCarousel() {
               whileInView={{ opacity: 1, y: 0, scale: 1 }}
               viewport={{ once: false, margin: "-80px" }}
               transition={{ type: 'spring', stiffness: 90, damping: 18 }}
-              className="w-[88vw] sm:w-[560px] md:w-[760px] flex-shrink-0 bg-white border border-gray-150 rounded-[2.5rem] p-8 md:p-12 flex flex-col md:flex-row gap-8 md:gap-10 justify-between shadow-[0_8px_30px_rgba(0,0,0,0.02)] snap-start hover:shadow-[0_25px_60px_rgba(0,0,0,0.06)] transition-all duration-500 hover:border-gray-200 min-h-[460px] md:min-h-[500px]"
+              className="w-[88vw] sm:w-[560px] md:w-[760px] flex-shrink-0 bg-white border border-gray-100 rounded-[2.5rem] p-8 md:p-12 flex flex-col md:flex-row gap-8 md:gap-10 justify-between shadow-[0_8px_30px_rgba(0,0,0,0.02)] snap-start hover:shadow-[0_25px_60px_rgba(0,0,0,0.06)] transition-all duration-500 hover:border-gray-200 min-h-[460px] md:min-h-[500px]"
               style={{
                 scrollMarginLeft: leftOffset
               }}
@@ -519,10 +519,10 @@ export default function CreatorCarousel() {
               {/* Left Details */}
               <div className="flex-1 flex flex-col justify-between min-w-0">
                 <div>
-                  <span className={`inline-block text-6xl md:text-7xl font-black bg-gradient-to-r ${card.accent} bg-clip-text text-transparent opacity-85 mb-5`}>
+                  <span className="mb-5 inline-block font-mono text-5xl font-medium tabular-nums tracking-tight text-[var(--line-strong)] md:text-6xl">
                     {card.id}
                   </span>
-                  <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-4 tracking-tight">
+                  <h3 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight mb-4 tracking-tight">
                     {card.title}
                   </h3>
                   <p className="text-sm md:text-base text-gray-500 font-semibold leading-relaxed mb-8">
@@ -533,7 +533,7 @@ export default function CreatorCarousel() {
                 {/* Bullet Points */}
                 <ul className="space-y-3.5 border-t border-gray-100 pt-6">
                   {card.bullets.map((bullet, idx) => (
-                    <li key={idx} className="flex items-start gap-3 text-sm text-gray-650 font-bold leading-normal">
+                    <li key={idx} className="flex items-start gap-3 text-sm text-gray-600 font-bold leading-normal">
                       <div className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" />
@@ -576,7 +576,7 @@ export default function CreatorCarousel() {
               </svg>
             </div>
             <div>
-              <h3 className="text-base md:text-lg font-black text-gray-900 leading-tight">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight">
                 Everything you need to grow your creator journey.
               </h3>
               <p className="text-xs md:text-sm text-gray-500 font-semibold mt-1">
@@ -587,7 +587,7 @@ export default function CreatorCarousel() {
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
             <Link
               href={`${process.env.NEXT_PUBLIC_APP_URL}/signup/influencer`}
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-purple-600 hover:bg-purple-750 text-white font-black text-xs md:text-sm shadow-md shadow-purple-500/25 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs md:text-sm shadow-md shadow-purple-500/25 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
             >
               Create Your Profile Now
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
