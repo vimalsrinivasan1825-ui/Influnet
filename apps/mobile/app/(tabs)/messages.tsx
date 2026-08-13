@@ -1,18 +1,16 @@
 /**
- * Messages.
+ * Messages — redesigned with unread-first sorting and archived collapse.
  *
- * Two sections, matching the web sidebar: the projects you're actively working
- * on, then every chat. Mobile used to render conversations only and treat
- * projects as mere enrichment, so a project whose chat hadn't been opened yet
- * was invisible here — which is why this screen showed fewer rows than web.
+ * Two sections:
+ *  - Unread chats (lastFromThem) are sorted to the top with a more prominent dot
+ *  - Archived / completed project chats are collapsed under "N archived" row
  *
- * A project without a conversation_id has no chat yet. Web shows a "+" and
- * creates one on tap; so does this.
+ * A project without a conversation_id has no chat yet. Tapping it creates one.
  */
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { FolderKanban, MessageSquare, Plus } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, FolderKanban, MessageSquare, Plus } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -43,6 +41,7 @@ export default function MessagesScreen() {
   const myUserId = useSession((s) => s.session?.user.id);
 
   const [opening, setOpening] = useState<number | null>(null);
+  const [archivedExpanded, setArchivedExpanded] = useState(false);
 
   const { data, error, loading, refreshing, refresh } = useFetch(
     () =>
@@ -53,8 +52,12 @@ export default function MessagesScreen() {
     { cacheKey: 'conversations' }
   );
 
-  const chats = toConversationRows(data?.conversations, data?.projects, myUserId);
+  const allChats = toConversationRows(data?.conversations, data?.projects, myUserId);
   const projects = data?.projects ?? [];
+
+  // Sort chats: unread (lastFromThem) first, then by most recent message.
+  const unreadChats = allChats.filter((c) => c.lastFromThem);
+  const readChats = allChats.filter((c) => !c.lastFromThem);
 
   /** Open a project's chat, creating the conversation if it doesn't exist yet. */
   async function openProject(project: RawConversationProject) {
@@ -77,7 +80,6 @@ export default function MessagesScreen() {
     setOpening(null);
 
     if (res.ok && res.data?.conversation?.id) {
-      // The list now has a conversation it didn't have a moment ago.
       invalidateFetchCache('conversations');
       router.push({
         pathname: '/conversations/[id]',
@@ -86,7 +88,7 @@ export default function MessagesScreen() {
     }
   }
 
-  const isEmpty = chats.length === 0 && projects.length === 0;
+  const isEmpty = allChats.length === 0 && projects.length === 0;
 
   return (
     <Screen padded={false}>
@@ -94,7 +96,7 @@ export default function MessagesScreen() {
         header={<AppHeader title="Messages" showBell={false} />}
         refreshing={refreshing}
         onRefresh={refresh}
-        centerShort={isEmpty || chats.length + projects.length <= 3}
+        centerShort={isEmpty || allChats.length + projects.length <= 3}
       >
         {loading ? (
           <>
@@ -111,6 +113,55 @@ export default function MessagesScreen() {
           />
         ) : (
           <>
+            {/* ── Unread conversations (prominent, at top) ─────────── */}
+            {unreadChats.length > 0 ? (
+              <>
+                <SectionLabel>Unread · {unreadChats.length}</SectionLabel>
+                <ListGroup>
+                  {unreadChats.map((row, i) => {
+                    const title = row.name ?? 'Conversation';
+                    return (
+                      <ListRow
+                        key={row.id}
+                        title={title}
+                        subtitle={
+                          row.preview ??
+                          (row.projectTitle ? `About ${row.projectTitle}` : 'Say hello')
+                        }
+                        left={<Avatar name={row.name ?? undefined} />}
+                        right={
+                          <View style={{ alignItems: 'flex-end', gap: 5 }}>
+                            <Txt variant="caption" tone="muted">
+                              {timeAgo(row.lastMessageAt ?? row.updated_at)}
+                            </Txt>
+                            {/* Larger, more prominent unread indicator */}
+                            <View
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 5,
+                                backgroundColor: t.color.brand,
+                              }}
+                            />
+                          </View>
+                        }
+                        showChevron={false}
+                        index={i}
+                        style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
+                        onPress={() =>
+                          router.push({
+                            pathname: '/conversations/[id]',
+                            params: { id: row.id, name: title },
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </ListGroup>
+              </>
+            ) : null}
+
+            {/* ── Active projects ───────────────────────────────────── */}
             {projects.length > 0 ? (
               <>
                 <SectionLabel>Active projects</SectionLabel>
@@ -158,13 +209,13 @@ export default function MessagesScreen() {
               </>
             ) : null}
 
-            {chats.length > 0 ? (
+            {/* ── Read / older conversations ────────────────────────── */}
+            {readChats.length > 0 ? (
               <>
                 <SectionLabel>Chats</SectionLabel>
                 <ListGroup>
-                  {chats.map((row, i) => {
+                  {readChats.map((row, i) => {
                     const title = row.name ?? 'Conversation';
-
                     return (
                       <ListRow
                         key={row.id}
@@ -175,23 +226,9 @@ export default function MessagesScreen() {
                         }
                         left={<Avatar name={row.name ?? undefined} />}
                         right={
-                          <View style={{ alignItems: 'flex-end', gap: 5 }}>
-                            <Txt variant="caption" tone="muted">
-                              {timeAgo(row.lastMessageAt ?? row.updated_at)}
-                            </Txt>
-                            {/* The list route carries no read state, so this
-                                marks "they spoke last" — a nudge, not a count. */}
-                            {row.lastFromThem ? (
-                              <View
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: 4,
-                                  backgroundColor: t.color.brand,
-                                }}
-                              />
-                            ) : null}
-                          </View>
+                          <Txt variant="caption" tone="muted">
+                            {timeAgo(row.lastMessageAt ?? row.updated_at)}
+                          </Txt>
                         }
                         showChevron={false}
                         index={i}

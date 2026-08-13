@@ -33,7 +33,7 @@
  * — see projectTurn() in @influnet/core.
  */
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AlertCircle,
@@ -52,6 +52,7 @@ import {
   Send,
   TrendingUp,
   Video,
+  Users,
 } from 'lucide-react-native';
 import { STAGES, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
@@ -670,17 +671,57 @@ export default function HomeScreen() {
               </>
             ) : null}
 
-            {/* ── The funnel, on one line ───────────────────────────── */}
+            {/* ── Project pipeline — with "View all" link and colored step indicators ─ */}
             {pipelineHasWork ? (
               <>
-                <SectionLabel>Pipeline</SectionLabel>
-                <Card>
-                  <PipelineStrip
-                    steps={pipelineSteps}
-                    onPressStep={(key) =>
-                      router.push(key === 'requests' ? '/requests' : '/projects')
-                    }
-                  />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Project pipeline</Txt>
+                  <Pressable onPress={() => router.push('/projects')}>
+                    <Txt variant="caption" style={{ color: t.color.brand, fontWeight: '600' }}>View all projects</Txt>
+                  </Pressable>
+                </View>
+                <Card padded={false} style={{ overflow: 'hidden' }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingVertical: t.spacing.lg, gap: 4 }}
+                  >
+                    {pipelineSteps.map((step, idx) => {
+                      // Each step gets a distinct accent colour so the pipeline
+                      // reads as a progression, not a monochrome badge row.
+                      const stepColors = ['#ee3e96', '#d97706', '#7c3aed', '#2563eb', '#059669', '#16a34a'];
+                      const color = stepColors[idx % stepColors.length];
+                      const active = step.count > 0;
+                      return (
+                        <Pressable
+                          key={step.key}
+                          onPress={() => router.push(step.key === 'requests' ? '/requests' : '/projects')}
+                          style={({ pressed }) => ({
+                            alignItems: 'center',
+                            minWidth: 72,
+                            paddingVertical: t.spacing.md,
+                            paddingHorizontal: t.spacing.sm,
+                            borderRadius: t.radii.md,
+                            backgroundColor: active ? `${color}12` : t.color.surfaceMuted,
+                            borderBottomWidth: 3,
+                            borderBottomColor: active ? color : t.color.hairline,
+                            opacity: pressed ? 0.8 : 1,
+                            marginRight: idx < pipelineSteps.length - 1 ? t.spacing.sm : 0,
+                          })}
+                        >
+                          <Txt
+                            variant="title3"
+                            style={{ color: active ? color : t.color.contentMuted, fontVariant: ['tabular-nums'] }}
+                          >
+                            {step.count}
+                          </Txt>
+                          <Txt variant="caption" tone={active ? 'soft' : 'muted'} numberOfLines={1}>
+                            {step.label}
+                          </Txt>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
                 </Card>
               </>
             ) : null}
@@ -764,60 +805,145 @@ export default function HomeScreen() {
               ) : null}
             </Card>
 
-            {/* ── Who is noticing you ───────────────────────────────── */}
-            {/* Reach and views are the only numbers on this screen that a
-                creator cannot influence by doing their existing work — which is
-                exactly why they belong here rather than buried in Profile. */}
-            {isCreator && reach && reach.clicks > 0 ? (
-              <>
-                <SectionLabel>Your reach · last {reach.window_days} days</SectionLabel>
-                <Card style={{ gap: t.spacing.lg }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: t.spacing.sm }}>
-                    <Txt
-                      variant="title1"
-                      style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}
-                    >
-                      {formatCount(reach.clicks)}
-                    </Txt>
-                    {reach.delta_pct != null ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingBottom: 4 }}>
-                        <ArrowUpRight
-                          size={13}
-                          color={reach.delta_pct >= 0 ? t.color.ok : t.color.danger}
-                          style={reach.delta_pct >= 0 ? undefined : { transform: [{ scaleY: -1 }] }}
-                        />
-                        <Txt
-                          variant="caption"
-                          style={{
-                            fontWeight: '600',
-                            color: reach.delta_pct >= 0 ? t.color.ok : t.color.danger,
-                          }}
-                        >
-                          {Math.abs(reach.delta_pct)}%
-                        </Txt>
+            {/* ── Two-column mid section: Reach (left) + Review queue (right) ── */}
+            {/* Matches the AI reference: the two cards sit side by side so the
+                first viewport shows the most critical information without scrolling. */}
+            {(isCreator && reach && reach.clicks > 0) || reviewItems.length > 0 ? (
+              <View style={{ flexDirection: 'row', gap: t.spacing.md, alignItems: 'flex-start' }}>
+                {/* Left: Your reach */}
+                {isCreator && reach && reach.clicks > 0 ? (
+                  <Card style={{ flex: 1, gap: t.spacing.md }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Txt variant="footnote" style={{ fontWeight: '600' }}>Your reach</Txt>
+                      <View style={{ backgroundColor: t.color.brandSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: t.radii.pill }}>
+                        <Txt variant="caption" style={{ color: t.color.brand, fontWeight: '600' }}>30d</Txt>
                       </View>
-                    ) : null}
-                  </View>
-                  <Txt variant="footnote" tone="muted" style={{ marginTop: -t.spacing.md }}>
-                    Taps on your links from your Influnet profile
-                  </Txt>
+                    </View>
 
-                  <BarList data={reachChannels} formatValue={(v) => formatCount(v)} />
-                </Card>
-              </>
+                    <View>
+                      <Txt variant="title2" style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>
+                        {formatCount(reach.clicks)}
+                      </Txt>
+                      {reach.delta_pct != null ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                          <ArrowUpRight size={11} color={reach.delta_pct >= 0 ? t.color.ok : t.color.danger} />
+                          <Txt variant="caption" style={{ color: reach.delta_pct >= 0 ? t.color.ok : t.color.danger, fontWeight: '600' }}>
+                            {Math.abs(reach.delta_pct)}%
+                          </Txt>
+                        </View>
+                      ) : null}
+                      <Txt variant="caption" tone="muted" style={{ marginTop: 2 }}>Clicked your link</Txt>
+                    </View>
+
+                    {/* Compact bar list */}
+                    <View style={{ gap: 8 }}>
+                      {reachChannels.slice(0, 4).map((ch) => (
+                        <View key={ch.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {ch.icon}
+                          <Txt variant="caption" tone="muted" style={{ width: 36 }} numberOfLines={1}>{ch.label}</Txt>
+                          <View style={{ flex: 1, height: 5, backgroundColor: t.color.hairline, borderRadius: 3, overflow: 'hidden' }}>
+                            <View
+                              style={{
+                                height: '100%',
+                                borderRadius: 3,
+                                backgroundColor: t.color.brand,
+                                width: `${Math.round((ch.value / (reachChannels[0]?.value || 1)) * 100)}%`,
+                              }}
+                            />
+                          </View>
+                          <Txt variant="caption" style={{ fontWeight: '600', width: 30, textAlign: 'right' }}>
+                            {formatCount(ch.value)}
+                          </Txt>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Business viewers row */}
+                    {isCreator && attention?.business_viewers != null ? (
+                      <Pressable
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                          paddingTop: t.spacing.sm,
+                          borderTopWidth: 1,
+                          borderTopColor: t.color.hairline,
+                        }}
+                        onPress={() => router.push('/profile')}
+                      >
+                        <Eye size={14} color={t.color.brand} />
+                        <Txt variant="caption" tone="soft" style={{ flex: 1 }}>
+                          {formatCount(attention.business_viewers)} business owners viewed
+                        </Txt>
+                        <ChevronRight size={13} color={t.color.contentMuted} />
+                      </Pressable>
+                    ) : null}
+                  </Card>
+                ) : null}
+
+                {/* Right: ReviewQueue inline (compact) */}
+                {reviewItems.length > 0 ? (
+                  <Card style={{ flex: 1, gap: t.spacing.sm }}>
+                    <Txt variant="footnote" style={{ fontWeight: '600' }}>
+                      You have {reviewItems.reduce((s, i) => s + i.count, 0)} things to review
+                    </Txt>
+
+                    <View style={{ gap: t.spacing.xs }}>
+                      {reviewItems.slice(0, 3).map((item) => {
+                        const tones = {
+                          brand: { fg: t.color.brand, bg: t.color.brandSoft },
+                          warn: { fg: t.color.warn, bg: t.color.warnSoft },
+                          ok: { fg: t.color.ok, bg: t.color.okSoft },
+                        } as const;
+                        const c = tones[item.tone];
+                        return (
+                          <Pressable
+                            key={item.key}
+                            onPress={item.onPress}
+                            style={({ pressed }) => ({
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 8,
+                              paddingVertical: t.spacing.sm,
+                              borderRadius: t.radii.sm,
+                              backgroundColor: pressed ? t.color.surfaceMuted : 'transparent',
+                            })}
+                          >
+                            <View style={{ width: 30, height: 30, borderRadius: t.radii.sm, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
+                              {item.icon}
+                            </View>
+                            <Txt variant="caption" style={{ flex: 1, fontWeight: '500' }} numberOfLines={2}>{item.title}</Txt>
+                            <ChevronRight size={13} color={t.color.contentMuted} />
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    <Pressable
+                      onPress={reviewItems[0].onPress}
+                      style={({ pressed }) => ({
+                        backgroundColor: t.color.brand,
+                        borderRadius: t.radii.md,
+                        paddingVertical: t.spacing.sm,
+                        alignItems: 'center',
+                        opacity: pressed ? 0.9 : 1,
+                      })}
+                    >
+                      <Txt variant="caption" tone="inverse" style={{ fontWeight: '700' }}>Review now →</Txt>
+                    </Pressable>
+                  </Card>
+                ) : null}
+              </View>
             ) : null}
 
-            {/* ── At a glance ──────────────────────────────────────── */}
-            {/* Four tiles, and the two rate figures that used to need a card
-                each. A conversion rate is one number; giving it a chart with a
-                progress bar did not make it any more informative. */}
+            {/* ── At a glance — multi-color stat grid ──────────────── */}
             <SectionLabel>At a glance</SectionLabel>
             <StatGrid>
               {attention ? (
                 <StatCard
                   label="Profile views"
                   value={formatCount(attention.profile_views)}
-                  icon={<Eye size={15} color={t.color.contentMuted} />}
+                  icon={<Eye size={15} color="#7c3aed" />}
                   delta={attention.profile_views_delta_pct}
                   hint={attention.profile_views_delta_pct == null ? `last ${attention.window_days}d` : undefined}
                 />
@@ -827,53 +953,46 @@ export default function HomeScreen() {
                 <StatCard
                   label="Brands who looked"
                   value={formatCount(attention.business_viewers)}
-                  icon={<Eye size={15} color={t.color.contentMuted} />}
+                  icon={<Users size={15} color="#059669" />}
                   hint="all time"
                 />
               ) : null}
 
               <StatCard
-                label="Needs your move"
-                value={counts?.your_turn ?? yourMove.length}
-                icon={<Handshake size={15} color={t.color.contentMuted} />}
-                onPress={() => router.push('/projects')}
+                label="Collab requests"
+                value={(isCreator ? counts?.pending_requests : counts?.awaiting_them) ?? 0}
+                icon={<Inbox size={15} color="#ee3e96" />}
+                hint={((isCreator ? counts?.pending_requests : counts?.awaiting_them) ?? 0) > 0 ? 'pending' : undefined}
+                onPress={() => router.push('/requests')}
               />
 
               <StatCard
-                label="Active projects"
+                label="Projects"
                 value={counts?.ongoing ?? 0}
-                icon={<FolderKanban size={15} color={t.color.contentMuted} />}
+                icon={<FolderKanban size={15} color="#2563eb" />}
+                hint={counts?.ongoing ? 'active' : undefined}
                 onPress={() => router.push('/projects')}
               />
 
               <StatCard
                 label="Completed"
                 value={counts?.completed ?? 0}
-                icon={<BadgeCheck size={15} color={t.color.contentMuted} />}
+                icon={<BadgeCheck size={15} color="#16a34a" />}
               />
 
-              {/* A rate with a zero denominator is hidden rather than shown as
-                  0% — "0% accepted" with nothing received reads as failure
-                  where the truth is "not applicable". */}
               {funnel?.accept_rate != null ? (
                 <StatCard
                   label={isCreator ? 'Accepted' : 'Acceptance'}
                   value={`${funnel.accept_rate}%`}
-                  icon={<Inbox size={15} color={t.color.contentMuted} />}
+                  icon={<Handshake size={15} color="#d97706" />}
                   hint={`of ${funnel.received} received`}
                 />
               ) : (
                 <StatCard
-                  label={isCreator ? 'Open requests' : 'Proposals out'}
-                  value={(isCreator ? counts?.pending_requests : counts?.awaiting_them) ?? 0}
-                  icon={
-                    isCreator ? (
-                      <Inbox size={15} color={t.color.contentMuted} />
-                    ) : (
-                      <Send size={15} color={t.color.contentMuted} />
-                    )
-                  }
-                  onPress={() => router.push(isCreator ? '/requests' : '/projects')}
+                  label="Needs your move"
+                  value={counts?.your_turn ?? yourMove.length}
+                  icon={<Handshake size={15} color="#d97706" />}
+                  onPress={() => router.push('/projects')}
                 />
               )}
             </StatGrid>
