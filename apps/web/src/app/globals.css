@@ -358,6 +358,41 @@ a {
   }
 }
 
+/* Pro plan card — a slow gold sheen that sweeps once, then rests. Distinct
+   from .ds-shimmer (constant, fast, for loading skeletons): this one should
+   read as an idle premium surface, not as something still loading. */
+@keyframes pro-shine {
+  0%   { transform: translateX(-120%) skewX(-14deg); opacity: 0; }
+  8%   { opacity: 1; }
+  30%  { transform: translateX(220%) skewX(-14deg); opacity: 1; }
+  38%  { opacity: 0; }
+  100% { transform: translateX(220%) skewX(-14deg); opacity: 0; }
+}
+.pro-shine {
+  position: relative;
+  overflow: hidden;
+}
+.pro-shine::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10%;
+  width: 30%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.6),
+    transparent
+  );
+  animation: pro-shine 4.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pro-shine::before {
+    animation: none;
+    content: none;
+  }
+}
+
 /* Align Stream Chat's built-in theme with the brand accent */
 .str-chat {
   --str-chat__primary-color: var(--brand);
