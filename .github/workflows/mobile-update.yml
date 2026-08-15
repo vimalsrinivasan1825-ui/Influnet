@@ -59,6 +59,7 @@ jobs:
           # pointing testers at the Azure staging container — which also has no
           # STREAM_API_SECRET configured, so chat tokens fail there outright.
           EXPO_PUBLIC_API_BASE_URL: https://dev.influnet.io
+          EXPO_PUBLIC_STREAM_API_KEY: ${{ secrets.DEV_STREAM_API_KEY || 'kw5uagr7nxs7' }}
 
   update-production:
     name: Publish OTA Update (Production Channel)
@@ -95,4 +96,5 @@ jobs:
           # what caused the silent sign-out loop on preview.
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          EXPO_PUBLIC_API_BASE_URL: ${{ secrets.PRODUCTION_APP_URL }}
+          EXPO_PUBLIC_API_BASE_URL: ${{ secrets.PRODUCTION_APP_URL || 'https://staging.influnet.io' }}
+          EXPO_PUBLIC_STREAM_API_KEY: ${{ secrets.STREAM_API_KEY || '5z6hhrgmrdj9' }}

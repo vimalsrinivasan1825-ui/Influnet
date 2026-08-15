@@ -60,10 +60,6 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://staging.influnet.io",
-      "supabaseUrl": "https://jaajosocopoicmqcffuu.supabase.co",
-      "supabaseAnonKey": "sb_publishable_zbfMv-IHhMwsLBj_wAXbng_b6byZL5x",
-      "streamApiKey": "kw5uagr7nxs7",
       "router": {},
       "eas": {
         "projectId": "edd0c6bd-e125-4fe4-956b-8c074ec576fb"

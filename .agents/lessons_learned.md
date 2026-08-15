@@ -2,6 +2,26 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-08-15: Mobile & Staging Stream API Key Configuration & Sanitization
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Stream Configuration (`apps/mobile/lib/stream.ts`)**: Added `sanitize()` helper to strip line breaks and spaces from `EXPO_PUBLIC_STREAM_API_KEY`, preventing trailing-whitespace connection failures.
+- **EAS Build Profiles (`apps/mobile/eas.json`)**: Configured environment-specific `EXPO_PUBLIC_STREAM_API_KEY` across `preview` / `preview-device` (`kw5uagr7nxs7`) and `production` (`5z6hhrgmrdj9`).
+- **OTA Updates (`.github/workflows/mobile-update.yml`)**: Injected explicit `EXPO_PUBLIC_STREAM_API_KEY` into both `update-preview` and `update-production` jobs.
+- **Removed Hardcoded Credentials (`apps/mobile/app.json`)**: Cleaned up the `extra` object so environment variables drive configuration cleanly across builds and environments.
+
+### Broken & Resolved
+- **Mobile Chat Connection Failure on Staging**: `apps/mobile/app.json` had a hardcoded `streamApiKey` fallback pointing to the dev key (`kw5uagr7nxs7`), causing mobile builds to attempt connecting with dev credentials while the staging backend issued staging-signed tokens (`5z6hhrgmrdj9`). Resolved by moving Stream keys strictly to `eas.json` profiles and workflow environment variables with whitespace sanitization.
+
+### Key Lessons
+- Never leave environment-specific credentials hardcoded in `app.json` `extra`; use `eas.json` `env` blocks for builds and workflow `env` blocks for OTA updates.
+- Third-party API keys and secrets copied from web dashboards should always be sanitized with regex to remove accidental leading/trailing whitespace and line breaks before passing to SDK instances.
+
+### Next Target
+- Verify mobile chat connection on staging physical device / preview build.
+
 ### Session — 2026-08-13: Mobile UI Redesign (Home, Requests, Messages, Projects)
 
 **Branch**: `dev`

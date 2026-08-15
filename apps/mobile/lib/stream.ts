@@ -22,12 +22,14 @@ import { endpoints } from './api';
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
 
+const sanitize = (val?: string) => (val ?? '').replace(/[\r\n\s]+/g, '');
+
 /**
  * Publishable key — the same value web ships to the browser as
  * NEXT_PUBLIC_STREAM_API_KEY. Safe on the client; the secret stays server-side.
  */
 export const STREAM_API_KEY =
-  process.env.EXPO_PUBLIC_STREAM_API_KEY ?? extra.streamApiKey ?? '';
+  sanitize(process.env.EXPO_PUBLIC_STREAM_API_KEY ?? extra.streamApiKey);
 
 let client: StreamChat | null = null;
 /** In-flight connect, so concurrent screens share one handshake. */
