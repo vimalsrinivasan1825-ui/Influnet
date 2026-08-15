@@ -7,10 +7,17 @@ import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
+  BadgeCheck,
+  Camera,
   Check,
+  Clock,
   Copy,
+  CreditCard,
+  Eye,
   ExternalLink,
+  FileClock,
   FolderKanban,
+  Handshake,
   Inbox,
   AtSign,
   PlaySquare,
@@ -30,10 +37,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedBadge, type VerificationStatus } from "@/components/ui/verified-badge";
 import { useEntitlements } from "@/lib/hooks/use-entitlements";
-import { VerificationGuide } from "@/components/dashboard/verification-guide";
 import { Reveal } from "@/components/ui/motion";
 import { dealStateOf, DEAL_STATE_STYLE } from "@/lib/project-status";
 import { STAGE_LABELS, type Stage } from "@/lib/project-lifecycle";
+import { PlatformMark, platformLabel, platformColor } from "@/components/dashboard/platform-mark";
 import { cn } from "@/lib/utils";
 
 interface HomeData {
@@ -113,7 +120,51 @@ interface HomeData {
     awaiting_them: number;
     pending_requests: number;
   };
+  /**
+   * Four blocks that existed in the database and were rendered nowhere until
+   * migration 116 and the Home rework — views, click-through, settled money and
+   * the funnel. All optional: a backend one deploy behind omits them, and every
+   * reader below treats missing as "don't draw the card" rather than as zero.
+   */
+  attention?: {
+    profile_views: number;
+    profile_views_delta_pct: number | null;
+    business_viewers: number | null;
+    window_days: number;
+  } | null;
+  reach?: {
+    people: number;
+    clicks: number;
+    delta_pct: number | null;
+    channels: { link_type: string; clicks: number; people: number }[];
+    window_days: number;
+  } | null;
+  money?: {
+    earned: number;
+    pending: number;
+    windows: { week: number; month: number; year: number };
+    settled_payments_exist: boolean;
+  } | null;
+  pipeline?: { key: string; label: string; count: number }[];
 }
+
+const rupees = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+/**
+ * One icon + one color per pipeline step, so the funnel reads as six distinct
+ * places rather than six identical purple boxes with different numbers. Keyed
+ * off the same step keys /api/home sends (see PIPELINE_STEPS there) — mobile's
+ * strip and this one can never draw a different funnel because both read the
+ * same six keys, but each picks its own presentation for its own screen.
+ */
+const PIPELINE_STEP_STYLE: Record<string, { icon: typeof Inbox; color: string }> = {
+  requests: { icon: Inbox, color: "#0BA5EC" },
+  setup: { icon: Handshake, color: "#6172F3" },
+  production: { icon: Camera, color: "#9E77ED" },
+  review: { icon: Eye, color: "#F79009" },
+  payment: { icon: CreditCard, color: "#12B76A" },
+  completed: { icon: BadgeCheck, color: "#16A34A" },
+};
 
 const compact = (n: unknown) => {
   const v = Number(n);
@@ -191,6 +242,10 @@ export default function HomePage() {
   const videos = (youtube?.videos ?? []).filter((v) => v.thumbUrl);
   const audience = data.audience;
   const reviews = data.reviews;
+  const attention = data.attention ?? null;
+  const reach = data.reach ?? null;
+  const money = data.money ?? null;
+  const pipeline = data.pipeline ?? [];
 
   // The headline numbers a brand judges you on, straight from the captured
   // snapshot the public page renders — not a second set of figures.
@@ -208,7 +263,7 @@ export default function HomePage() {
     : [];
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4 sm:p-6">
+    <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
       {/* ── How you appear publicly ─────────────────────────────────────── */}
       <Reveal>
         <Card className="overflow-hidden p-0">
@@ -300,13 +355,6 @@ export default function HomePage() {
         </Card>
       </Reveal>
 
-      {/* ── 3-step verification guide for new creators ──────────────────── */}
-      {isCreator && !data.profile.verified && (
-        <Reveal>
-          <VerificationGuide publicPath={data.public_path} />
-        </Reveal>
-      )}
-
       {/* Without a captured snapshot there are no numbers and no posts, which
           otherwise reads as a broken page rather than an unconnected account. */}
       {isCreator && !social && (
@@ -326,76 +374,277 @@ export default function HomePage() {
         </Reveal>
       )}
 
+      {/* ── Anything waiting on a decision ──────────────────────────────── */}
+      {/* Right below the profile card, above everything else — this is the
+          answer to "what do I open Home to do", and it was previously buried
+          below the pipeline and money sections where opening the page for a
+          decision meant scrolling past two cards that aren't one. One card per
+          KIND of thing waiting, not one banner naming both: a single line
+          reading "3 collaboration requests · 2 sets of terms" made the two
+          into one blur with one button that only ever went to one of them. */}
+      {needsMe > 0 && (
+        <Reveal>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-bold text-content">
+              {needsMe} thing{needsMe > 1 ? "s" : ""} waiting on you
+            </p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {data.counts.pending_requests > 0 && (
+                <Link href="/dashboard/requests">
+                  <Card
+                    interactive
+                    className="flex cursor-pointer items-center gap-3 border-warn/30 bg-warn-soft p-4 transition-colors"
+                  >
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/60 text-warn">
+                      <Inbox className="size-4.5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-content">
+                        {data.counts.pending_requests} collaboration{" "}
+                        {data.counts.pending_requests > 1 ? "requests" : "request"}
+                      </p>
+                      <p className="text-xs text-content-soft">
+                        {isCreator ? "Brands waiting for your reply" : "Waiting for a reply"}
+                      </p>
+                    </div>
+                    <ArrowRight className="size-4 shrink-0 text-warn" />
+                  </Card>
+                </Link>
+              )}
+              {data.counts.awaiting_me > 0 && (
+                <Link href="/dashboard/messages">
+                  <Card
+                    interactive
+                    className="flex cursor-pointer items-center gap-3 p-4 transition-colors"
+                    style={{ backgroundColor: "#9E77ED14", borderColor: "#9E77ED40" }}
+                  >
+                    <span
+                      className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/60"
+                      style={{ color: "#7C3AED" }}
+                    >
+                      <FileClock className="size-4.5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-content">
+                        {data.counts.awaiting_me} set{data.counts.awaiting_me > 1 ? "s" : ""} of terms
+                      </p>
+                      <p className="text-xs text-content-soft">Review and accept, or send changes</p>
+                    </div>
+                    <ArrowRight className="size-4 shrink-0" style={{ color: "#7C3AED" }} />
+                  </Card>
+                </Link>
+              )}
+            </div>
+          </div>
+        </Reveal>
+      )}
+
       {/* Collaboration counters — separate from audience analytics so the two
           kinds of number are not read as one set. */}
       {/* Each counter is a shortcut, not a decoration — the whole point of
-          having them at the top is to get somewhere in one click. */}
+          having them at the top is to get somewhere in one click. An icon and
+          a real tint on every tile, not just the ones with a nonzero count: a
+          row of four bare numbers with the same grey label reads as one
+          undifferentiated block, which was the actual complaint. */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
-          { label: "Ongoing", value: data.counts.ongoing, href: "/dashboard/projects", tone: "brand" },
-          { label: "Completed", value: data.counts.completed, href: "/dashboard/projects", tone: "ok" },
+          { label: "Ongoing", value: data.counts.ongoing, href: "/dashboard/projects", icon: FolderKanban, fg: "text-brand", bg: "bg-brand-soft" },
+          { label: "Completed", value: data.counts.completed, href: "/dashboard/projects", icon: BadgeCheck, fg: "text-ok", bg: "bg-ok-soft" },
           {
             label: "Needs you",
             value: needsMe,
             href: data.counts.pending_requests ? "/dashboard/requests" : "/dashboard/messages",
-            tone: "warn",
+            icon: Handshake,
+            fg: "text-warn",
+            bg: "bg-warn-soft",
           },
-          { label: "Awaiting them", value: data.counts.awaiting_them, href: "/dashboard/messages", tone: "muted" },
+          { label: "Awaiting them", value: data.counts.awaiting_them, href: "/dashboard/messages", icon: Clock, fg: "text-info", bg: "bg-info-soft" },
         ].map((c) => (
           <Link key={c.label} href={c.href}>
-            <Card
-              interactive
-              className={cn(
-                "cursor-pointer px-4 py-3 transition-colors",
-                c.value > 0 && c.tone === "brand" && "border-brand/25 bg-brand-soft/40",
-                c.value > 0 && c.tone === "ok" && "border-ok/25 bg-ok-soft/50",
-                c.value > 0 && c.tone === "warn" && "border-warn/30 bg-warn-soft",
-              )}
-            >
-              <div className="text-lg font-extrabold text-content">{c.value}</div>
-              <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
-                {c.label}
+            <Card interactive className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors">
+              <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", c.bg, c.fg)}>
+                <c.icon className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <div className="text-lg font-extrabold tabular-nums text-content">{c.value}</div>
+                <div className="truncate text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
+                  {c.label}
+                </div>
               </div>
             </Card>
           </Link>
         ))}
       </div>
 
-      {/* ── Anything waiting on a decision ──────────────────────────────── */}
-      {needsMe > 0 && (
+      {/* ── The funnel, on one line ─────────────────────────────────────── */}
+      {/* Six steps, starting BEFORE a project exists: an inbound request is the
+          real first step of a collaboration, and no stage-based view can show
+          it because nothing has been created yet. The steps come from the API
+          so this and the mobile strip can never draw different funnels. */}
+      {pipeline.length > 0 && pipeline.some((s) => s.count > 0) && (
         <Reveal>
-          <Card className="flex flex-col gap-3 border-warn/30 bg-warn-soft p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-warn-soft text-warn">
-                <Inbox className="size-4" />
-              </span>
-              <div>
-                <p className="text-sm font-bold text-content">
-                  {needsMe} thing{needsMe > 1 ? "s" : ""} waiting on you
-                </p>
-                <p className="text-xs text-content-soft">
-                  {[
-                    data.counts.pending_requests
-                      ? `${data.counts.pending_requests} collaboration request${data.counts.pending_requests > 1 ? "s" : ""}`
-                      : null,
-                    data.counts.awaiting_me
-                      ? `${data.counts.awaiting_me} set${data.counts.awaiting_me > 1 ? "s" : ""} of terms to review`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
+          <Card className="overflow-x-auto p-5 sm:p-6">
+            {/* justify-between rather than a packed row: six tiles at a fixed
+                min-width left in a "min-w-max" flex used to bunch together on
+                anything wider than a phone, with the whole card's extra room
+                sitting unused on the right. Spreading them across the card's
+                actual width is what a wider container was FOR. */}
+            <div className="flex w-full min-w-max items-center justify-between gap-2">
+              {pipeline.map((step, i) => {
+                const style = PIPELINE_STEP_STYLE[step.key] ?? PIPELINE_STEP_STYLE.requests;
+                const Icon = style.icon;
+                return (
+                  <div key={step.key} className="flex items-center gap-2">
+                    <Link
+                      href={step.key === "requests" ? "/dashboard/requests" : "/dashboard/projects"}
+                      className="flex min-w-[6.5rem] flex-col items-center gap-1.5 rounded-xl border px-4 py-3 transition-opacity hover:opacity-80"
+                      style={
+                        step.count > 0
+                          ? { borderColor: `${style.color}40`, backgroundColor: `${style.color}14` }
+                          : undefined
+                      }
+                    >
+                      <span
+                        className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                        style={{
+                          backgroundColor: step.count > 0 ? style.color : "var(--surface-muted)",
+                          color: step.count > 0 ? "#fff" : "var(--content-muted)",
+                        }}
+                      >
+                        <Icon className="size-4" />
+                      </span>
+                      <span
+                        className="text-lg font-extrabold tabular-nums"
+                        style={{ color: step.count > 0 ? style.color : "var(--content-muted)" }}
+                      >
+                        {step.count}
+                      </span>
+                      <span className="text-[0.6875rem] font-semibold text-content-muted">
+                        {step.label}
+                      </span>
+                    </Link>
+                    {i < pipeline.length - 1 && (
+                      <ArrowRight className="size-4 shrink-0 text-content-muted" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <ButtonLink
-              href={data.counts.pending_requests ? "/dashboard/requests" : "/dashboard/messages"}
-              variant="brand"
-              size="sm"
-            >
-              Review <ArrowRight />
-            </ButtonLink>
           </Card>
         </Reveal>
+      )}
+
+      {/* ── Money, and who is looking — side by side, not stacked ────────── */}
+      {/* Two cards, not one four-way divided strip: settled/pending money and
+          who's-looking/reach are different questions, and giving them each a
+          full card is both what makes the money numbers big enough to read at
+          a glance and what actually uses the width a wider page freed up. */}
+      {(money || attention) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {money && (
+            <Reveal>
+              <Card className="flex h-full flex-col justify-center gap-5 p-5 sm:p-6">
+                <div>
+                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide text-content-muted">
+                    {isCreator ? "Settled to you" : "Paid out"}
+                  </p>
+                  <p className="mt-1 text-4xl font-extrabold tracking-tight tabular-nums text-content">
+                    {rupees(money.earned)}
+                  </p>
+                </div>
+                {money.pending > 0 && (
+                  <div className="flex items-center gap-3 rounded-xl bg-warn-soft px-4 py-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/60 text-warn">
+                      <CreditCard className="size-4" />
+                    </span>
+                    <div>
+                      <p className="text-xl font-extrabold tabular-nums text-warn">
+                        {rupees(money.pending)}
+                      </p>
+                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
+                        {isCreator ? "Awaiting payment" : "Due to pay"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </Reveal>
+          )}
+
+          {attention && (
+            <Reveal delay={0.05}>
+              <Card className="flex h-full flex-col gap-4 p-5 sm:p-6">
+                <div className="flex gap-6">
+                  <div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-2xl font-extrabold tabular-nums text-content">
+                        {compact(attention.profile_views) ?? attention.profile_views}
+                      </span>
+                      {attention.profile_views_delta_pct != null && (
+                        <span
+                          className={cn(
+                            "text-xs font-bold",
+                            attention.profile_views_delta_pct >= 0 ? "text-ok" : "text-danger",
+                          )}
+                        >
+                          {attention.profile_views_delta_pct >= 0 ? "+" : "−"}
+                          {Math.abs(attention.profile_views_delta_pct)}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
+                      Profile views · {attention.window_days}d
+                    </p>
+                  </div>
+                  {isCreator && attention.business_viewers != null && (
+                    <div>
+                      <span className="text-2xl font-extrabold tabular-nums text-content">
+                        {compact(attention.business_viewers) ?? attention.business_viewers}
+                      </span>
+                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
+                        Brands who looked
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Where the visitors went. Only drawn once somebody has
+                    actually clicked something — an empty panel on a new
+                    profile is a worse first impression than no panel. */}
+                {isCreator && reach && reach.clicks > 0 && (
+                  <div className="flex flex-col gap-2.5 border-t border-hairline pt-4">
+                    <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+                      Where visitors go · last {reach.window_days} days
+                    </p>
+                    {reach.channels.map((c) => (
+                      <div key={c.link_type} className="flex items-center gap-3">
+                        <PlatformMark platform={c.link_type} size={22} />
+                        <span className="w-16 shrink-0 text-xs font-semibold text-content-soft">
+                          {platformLabel(c.link_type)}
+                        </span>
+                        <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                          <span
+                            className="block h-full rounded-full"
+                            style={{
+                              backgroundColor: platformColor(c.link_type),
+                              width: `${Math.max(
+                                (c.clicks / Math.max(...reach.channels.map((x) => x.clicks), 1)) * 100,
+                                4,
+                              )}%`,
+                            }}
+                          />
+                        </span>
+                        <span className="w-10 shrink-0 text-right text-xs font-bold tabular-nums text-content">
+                          {c.clicks}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </Reveal>
+          )}
+        </div>
       )}
 
       {/* ── Ongoing collaborations ──────────────────────────────────────── */}

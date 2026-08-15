@@ -72,16 +72,18 @@ function unlimitedEntitlements(): Entitlements {
     limits: {
       activeProjects: null,
       requestsPerMonth: null,
+      projectConversions: null,
       shortlistSize: null,
       analyticsDays: null,
     },
     freeLimits: {
       activeProjects: null,
       requestsPerMonth: null,
+      projectConversions: null,
       shortlistSize: null,
       analyticsDays: null,
     },
-    usage: { activeProjects: 0, requestsThisMonth: 0 },
+    usage: { activeProjects: 0, requestsThisMonth: 0, projectConversions: 0 },
     price: { paise: 0, currency: 'INR' },
     subscriptionsEnabled: false,
   };
@@ -101,16 +103,18 @@ function freeFallback(): Entitlements {
     limits: {
       activeProjects: null,
       requestsPerMonth: null,
+      projectConversions: null,
       shortlistSize: null,
       analyticsDays: null,
     },
     freeLimits: {
       activeProjects: null,
       requestsPerMonth: null,
+      projectConversions: null,
       shortlistSize: null,
       analyticsDays: null,
     },
-    usage: { activeProjects: 0, requestsThisMonth: 0 },
+    usage: { activeProjects: 0, requestsThisMonth: 0, projectConversions: 0 },
     price: { paise: 0, currency: 'INR' },
     subscriptionsEnabled: true,
   };

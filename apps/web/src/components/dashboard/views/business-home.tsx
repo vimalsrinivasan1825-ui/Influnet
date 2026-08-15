@@ -15,12 +15,9 @@ import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal, Stagger } from "@/components/ui/motion";
-import { AreaChart, BarChart, type ChartConfig } from "@/components/ui/chart";
+import { BarChart, type ChartConfig } from "@/components/ui/chart";
 import type { BusinessHomeData } from "./types";
-
-const spendConfig: ChartConfig = {
-  spend: { label: "Pipeline", color: "var(--brand)" },
-};
+import { BrandEarningsChart } from "@/components/dashboard/brand-earnings-chart";
 const pipelineConfig: ChartConfig = {
   value: { label: "Collabs", color: "var(--brand)" },
 };
@@ -86,15 +83,24 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.1} className="lg:col-span-2">
-          <SectionCard eyebrow="Pipeline" title="Weekly pipeline trend" className="h-full">
-            <AreaChart
-              data={data.weekly_spend}
-              config={spendConfig}
-              xKey="week"
-              areas={[{ dataKey: "spend" }]}
-              height={220}
-              prefix="₹"
-            />
+          <SectionCard eyebrow="Pipeline" title="Spend by creator" className="h-full">
+            {data.earnings_series && data.earnings_series.length > 0 ? (
+              <BrandEarningsChart
+                endpoint="/api/business/dashboard"
+                initialData={data.earnings_by_brand ?? []}
+                initialSeries={data.earnings_series}
+                initialRange={data.earnings_range ?? "week"}
+                emptyLabel="No spend yet"
+              />
+            ) : (
+              <BrandEarningsChart
+                endpoint="/api/business/dashboard"
+                initialData={data.weekly_spend.map((w) => ({ period: w.week, spend: w.spend }))}
+                initialSeries={[{ key: "spend", label: "Spend" }]}
+                initialRange="week"
+                emptyLabel="No spend yet"
+              />
+            )}
           </SectionCard>
         </Reveal>
         <Reveal delay={0.15}>

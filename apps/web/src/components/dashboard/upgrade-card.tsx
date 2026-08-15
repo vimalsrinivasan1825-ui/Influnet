@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Check, Loader2, Lock, Minus, Sparkles, TrendingUp } from 'lucide-react';
+import { Check, Loader2, Lock, Sparkles, TrendingUp } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -28,42 +28,42 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 
 /**
- * The comparison. Written as capabilities rather than features — "browse and
- * filter creators" tells someone what they can do, "advanced search" tells them
- * nothing. Free is listed honestly, including the things it does well, because
- * a comparison that makes Free look worthless reads as a sales pitch rather
- * than information.
- */
-/**
- * Built from the SERVER's limits, never from constants.
+ * What each plan includes, written as bullet lists rather than a table row by
+ * row — the two cards ARE the comparison now, so a capability only needs to
+ * appear once, on the side it belongs to.
  *
- * The numbers live in `billing_settings` precisely so they can be changed
- * without a deploy — which means a hardcoded "2 projects" here would start
- * lying the first time anybody tuned them, while the usage meters two hundred
- * pixels above kept telling the truth. Same reason packages/core carries no
- * numbers.
+ * Built from the SERVER's limits, never from constants. The numbers live in
+ * `billing_settings` precisely so they can be changed without a deploy — a
+ * hardcoded "2 projects" here would start lying the first time anybody tuned
+ * them, while the usage meters above kept telling the truth. Same reason
+ * packages/core carries no numbers.
  */
-function buildComparison(
-  limits: Entitlements['limits'],
-): { label: string; free: string | false; pro: string | true }[] {
-  const n = (v: number | null, unit = '') => (v === null ? 'Unlimited' : `${v}${unit}`);
+function freeFeatures(limits: Entitlements['limits']): string[] {
+  const n = (v: number | null) => (v === null ? 'Unlimited' : v);
   return [
-    { label: 'Run campaigns end to end', free: 'Unlimited', pro: true },
-    { label: 'Messaging, sign-off and payments', free: 'Included', pro: true },
-    { label: 'Active projects at once', free: n(limits.activeProjects), pro: 'Unlimited' },
-    { label: 'Collaboration requests', free: n(limits.requestsPerMonth, ' / month'), pro: 'Unlimited' },
-    { label: 'Look up a creator by handle', free: 'Included', pro: true },
-    { label: 'Browse & filter by niche, location, reach', free: false, pro: true },
-    { label: 'Audience demographics & engagement', free: false, pro: true },
-    { label: 'Creator contact details & rates', free: false, pro: true },
-    {
-      label: 'Analytics history',
-      free: limits.analyticsDays === null ? 'Full' : `${limits.analyticsDays} days`,
-      pro: 'Full + export',
-    },
-    { label: 'Gold verified badge', free: false, pro: true },
+    'Run campaigns end to end',
+    // Requests are unlimited on every plan (migration 117) — what's capped
+    // is turning one into a project, not sending it.
+    'Unlimited collaboration requests',
+    'Messaging, sign-off and payments',
+    `${n(limits.activeProjects)} active project${limits.activeProjects === 1 ? '' : 's'} at once`,
+    limits.projectConversions === null
+      ? 'Unlimited project conversions'
+      : `${limits.projectConversions} project${limits.projectConversions === 1 ? '' : 's'} converted from a request, ever`,
+    'Look up a creator by handle',
+    limits.analyticsDays === null ? 'Full analytics history' : `${limits.analyticsDays}-day analytics history`,
   ];
 }
+
+const PRO_FEATURES = [
+  'Unlimited active projects',
+  'Unlimited project conversions',
+  'Browse & filter creators by niche, location, reach',
+  'Audience demographics & engagement data',
+  'Creator contact details & rates',
+  'Full analytics history, with export',
+  'Gold verified badge',
+];
 
 /** A usage bar. Turns amber at 75% and red once the ceiling is reached. */
 function UsageMeter({ label, used, limit }: { label: string; used: number; limit: number }) {
@@ -184,14 +184,14 @@ export function UpgradeCard({
       : Math.max(0, Math.ceil((new Date(entitlements.currentPeriodEnd).getTime() - now) / 86_400_000));
 
     return (
-      <div className="space-y-4">
-        <div className="relative overflow-hidden rounded-2xl border border-[#E0C99B] bg-gradient-to-br from-[#FDF8EC] via-[#FBF3E4] to-[#F6E9CC] p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          {/* Ambient sheen. Decorative only, and behind the content. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-16 -top-16 size-52 rounded-full bg-[radial-gradient(circle,rgba(240,200,110,0.55),transparent_65%)]"
-          />
-          <div className="relative">
+      <div className="pro-shine relative overflow-hidden rounded-2xl border border-[#E0C99B] bg-gradient-to-br from-[#FDF8EC] via-[#FBF3E4] to-[#F6E9CC] p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-8">
+        {/* Ambient glow. Decorative only, and behind the content and the shine sweep. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-16 size-52 rounded-full bg-[radial-gradient(circle,rgba(240,200,110,0.55),transparent_65%)]"
+        />
+        <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E0C99B] bg-white/70 px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-[#8A5A08] shadow-[0_0_10px_-2px_rgba(224,165,38,0.7)]">
               <Sparkles className="size-3" /> Influnet Pro
             </span>
@@ -209,7 +209,15 @@ export function UpgradeCard({
             )}
           </div>
         </div>
-        <PlanComparison highlight="pro" limits={entitlements.freeLimits} />
+
+        <ul className="relative z-10 mt-6 grid gap-x-6 gap-y-2.5 border-t border-[#E0C99B]/60 pt-6 sm:grid-cols-2">
+          {PRO_FEATURES.map((f) => (
+            <li key={f} className="flex items-start gap-2 text-sm text-[#5B3E05]">
+              <Check className="mt-0.5 size-3.5 shrink-0 text-[#8A5A08]" aria-hidden />
+              {f}
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
@@ -217,12 +225,12 @@ export function UpgradeCard({
   // ── Free ─────────────────────────────────────────────────────────────────
   const atAnyCap =
     (limits.activeProjects !== null && usage.activeProjects >= limits.activeProjects) ||
-    (limits.requestsPerMonth !== null && usage.requestsThisMonth >= limits.requestsPerMonth);
+    (limits.projectConversions !== null && usage.projectConversions >= limits.projectConversions);
 
   return (
-    <div className="space-y-4">
-      {/* Where you are now */}
-      <div className="rounded-2xl border border-hairline bg-surface-card p-6">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+      {/* Free — small, plain, current plan */}
+      <div className="flex flex-col rounded-2xl border border-hairline bg-surface-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <span className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
@@ -237,44 +245,81 @@ export function UpgradeCard({
           )}
         </div>
 
-        {(limits.activeProjects !== null || limits.requestsPerMonth !== null) && (
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        {(limits.activeProjects !== null || limits.projectConversions !== null) && (
+          <div className="mt-5 space-y-4">
             {limits.activeProjects !== null && (
               <UsageMeter label="Active projects" used={usage.activeProjects} limit={limits.activeProjects} />
             )}
-            {limits.requestsPerMonth !== null && (
-              <UsageMeter label="Requests this month" used={usage.requestsThisMonth} limit={limits.requestsPerMonth} />
+            {limits.projectConversions !== null && (
+              <UsageMeter
+                label="Projects converted, ever"
+                used={usage.projectConversions}
+                limit={limits.projectConversions}
+              />
             )}
-          </div>
-        )}
-      </div>
-
-      {/* The offer */}
-      <div className="overflow-hidden rounded-2xl border border-[#E0C99B] bg-surface-card">
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#FDF8EC] to-[#F6E9CC] px-6 py-5">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-12 -top-20 size-48 rounded-full bg-[radial-gradient(circle,rgba(240,200,110,0.5),transparent_65%)]"
-          />
-          <div className="relative flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <span className="inline-flex items-center gap-1.5 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-[#8A5A08]">
-                <Sparkles className="size-3" /> Influnet Pro
-              </span>
-              <h3 className="mt-1.5 text-lg font-extrabold tracking-tight text-[#4A3405]">
-                Find creators, not just look them up
-              </h3>
-            </div>
-            <p className="text-[#6B4A05]">
-              <span className="text-3xl font-extrabold tracking-tight text-[#4A3405]">
-                {formatPrice(entitlements.price.paise, entitlements.price.currency)}
-              </span>
-              <span className="ml-1.5 text-sm">for 30 days</span>
+            {/* Both meters count what YOU own as a business. A creator
+                account never owns a project — see get_entitlements() — so
+                these stay at 0 for that role, on every plan. That is the
+                mechanism working, not stale data. Requests themselves are
+                never limited (migration 117); it's only converting one into
+                a running project that's capped. */}
+            <p className="text-xs leading-relaxed text-content-muted">
+              Active projects counts campaigns you're running right now.
+              Projects converted is a lifetime count and never resets —
+              sending requests is always unlimited.
             </p>
           </div>
+        )}
+
+        <div className="mt-5 border-t border-hairline pt-5">
+          <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+            What&apos;s included
+          </p>
+          <ul className="mt-3 space-y-2.5">
+            {freeFeatures(limits).map((f) => (
+              <li key={f} className="flex items-start gap-2 text-sm text-content-soft">
+                <Check className="mt-0.5 size-3.5 shrink-0 text-ok" aria-hidden />
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Pro — large, golden, animated */}
+      <div className="pro-shine relative flex flex-col overflow-hidden rounded-2xl border border-[#E0C99B] bg-gradient-to-br from-[#FDF8EC] via-[#FBF3E4] to-[#F6E9CC] p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-10">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-24 size-64 rounded-full bg-[radial-gradient(circle,rgba(240,200,110,0.5),transparent_65%)]"
+        />
+
+        <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E0C99B] bg-white/70 px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-[#8A5A08] shadow-[0_0_10px_-2px_rgba(224,165,38,0.7)]">
+              <Sparkles className="size-3" /> Influnet Pro
+            </span>
+            <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-[#4A3405] sm:text-3xl">
+              Find creators, not just look them up
+            </h3>
+          </div>
+          <p className="shrink-0 text-[#6B4A05] sm:text-right">
+            <span className="text-5xl font-extrabold tracking-tight text-[#4A3405] sm:text-6xl">
+              {formatPrice(entitlements.price.paise, entitlements.price.currency)}
+            </span>
+            <span className="ml-1.5 block text-sm sm:mt-1 sm:inline-block">for 30 days</span>
+          </p>
         </div>
 
-        <div className="px-6 py-5">
+        <ul className="relative z-10 mt-10 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+          {PRO_FEATURES.map((f) => (
+            <li key={f} className="flex items-start gap-2.5 text-base font-medium text-[#5B3E05]">
+              <Check className="mt-0.5 size-4 shrink-0 text-[#8A5A08]" aria-hidden />
+              {f}
+            </li>
+          ))}
+        </ul>
+
+        <div className="relative z-10 mt-10 border-t border-[#E0C99B]/60 pt-6">
           {error && (
             <p role="alert" className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
               {error}
@@ -283,88 +328,18 @@ export function UpgradeCard({
           <Button
             onClick={startUpgrade}
             disabled={busy}
-            className="w-full bg-gradient-to-r from-[#E0A526] to-[#C98C13] text-white shadow-[0_0_16px_-4px_rgba(224,165,38,0.9)] hover:from-[#EBB33A] hover:to-[#D69A1D]"
+            size="xl"
+            className="h-14 w-full gap-2.5 rounded-xl bg-gradient-to-r from-[#E0A526] to-[#C98C13] px-8 text-base font-bold text-white shadow-[0_8px_24px_-6px_rgba(224,165,38,0.9)] hover:from-[#EBB33A] hover:to-[#D69A1D] sm:w-auto [&_svg]:size-5"
           >
             {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {busy ? 'Opening checkout…' : 'Upgrade to Pro'}
           </Button>
-          <p className="mt-2.5 flex items-center justify-center gap-1.5 text-xs text-content-muted">
+          <p className="mt-3 flex items-center gap-1.5 text-xs text-content-muted">
             <Lock className="size-3" aria-hidden />
             Secure payment by Razorpay · Cancel any time
           </p>
         </div>
       </div>
-
-      <PlanComparison highlight="free" limits={entitlements.freeLimits} />
-    </div>
-  );
-}
-
-/** Free vs Pro, side by side. The thing that makes a price feel like a choice. */
-function PlanComparison({
-  highlight,
-  limits,
-}: {
-  highlight: 'free' | 'pro';
-  limits: Entitlements['limits'];
-}) {
-  const rows = buildComparison(limits);
-  return (
-    <div className="overflow-hidden rounded-2xl border border-hairline bg-surface-card">
-      <div className="border-b border-hairline px-6 py-4">
-        <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-content-muted">
-          What changes
-        </h3>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] text-sm">
-          <thead>
-            <tr className="border-b border-hairline">
-              <th className="px-6 py-3 text-left font-semibold text-content-soft">Capability</th>
-              <th
-                className={cn(
-                  'w-28 px-3 py-3 text-center font-bold',
-                  highlight === 'free' ? 'text-content' : 'text-content-muted',
-                )}
-              >
-                Free
-              </th>
-              <th
-                className={cn(
-                  'w-32 px-3 py-3 text-center font-bold',
-                  highlight === 'pro' ? 'text-[#8A5A08]' : 'text-[#8A5A08]',
-                )}
-              >
-                Pro
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.label} className="border-b border-hairline last:border-0">
-                <td className="px-6 py-3 text-content-soft">{row.label}</td>
-                <td className="px-3 py-3 text-center">
-                  {row.free === false ? (
-                    <Minus className="mx-auto size-4 text-content-muted" aria-label="Not included" />
-                  ) : (
-                    <span className="font-medium text-content">{row.free}</span>
-                  )}
-                </td>
-                <td className={cn('px-3 py-3 text-center', highlight === 'pro' && 'bg-[#FBF3E4]/60')}>
-                  {row.pro === true ? (
-                    <Check className="mx-auto size-4 text-ok" aria-label="Included" />
-                  ) : (
-                    <span className="font-semibold text-[#8A5A08]">{row.pro}</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="border-t border-hairline px-6 py-3 text-xs text-content-muted">
-        Sign-off, payments, blocking and reporting are free on every plan, always.
-      </p>
     </div>
   );
 }

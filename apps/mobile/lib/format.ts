@@ -48,6 +48,34 @@ export function timeAgo(iso?: string | null): string {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
+/**
+ * The stamp on a conversation row in the inbox: "10:42 AM" today, "Yesterday",
+ * a weekday inside the last week, then a date.
+ *
+ * Deliberately NOT `timeAgo`. An inbox is scanned vertically, and a column of
+ * "2h ago / 5h ago / 3d ago" forces you to do arithmetic on every row to work
+ * out whether two chats happened on the same day. A clock time answers that at
+ * a glance, which is why every messaging app on the phone uses one.
+ */
+export function formatInboxTime(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const now = new Date();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOf(now) - startOf(d)) / 86_400_000);
+
+  if (diffDays === 0) return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return d.toLocaleDateString('en-IN', { weekday: 'short' });
+  return d.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: d.getFullYear() === now.getFullYear() ? undefined : '2-digit',
+  });
+}
+
 /** "10:42 AM" — the per-bubble stamp once a day separator carries the date. */
 export function formatMessageTime(iso?: string | null): string {
   if (!iso) return '';

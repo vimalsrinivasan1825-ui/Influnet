@@ -87,11 +87,30 @@ export function useFetch<T>(
     };
   }, []);
 
+  /**
+   * Generation counter — bumped by every fetch AND every manual `setData`.
+   *
+   * Without this, a background refetch and an optimistic local write can race:
+   * a silent revalidate starts on focus, a screen calls `setData` to flip a
+   * switch instantly before that request returns, and then the OLDER request
+   * resolves with the pre-toggle server value and overwrites the optimistic
+   * one unconditionally. Visually that is a toggle that flips, silently snaps
+   * back, and only settles to the right value once a later fetch happens to
+   * land — which is exactly the "glitch, corrects itself a second later" bug
+   * this was written to fix (see togglePortfolioItemVisible in profile.tsx).
+   *
+   * Each `run` captures the generation BEFORE it awaits and only applies its
+   * result if nothing newer — another `run` or a manual `setData` — has
+   * happened since. A fetch that loses the race is discarded, not applied.
+   */
+  const generation = useRef(0);
+
   const run = useCallback(async (mode: 'initial' | 'pull' | 'silent') => {
     if (mode === 'pull') setRefreshing(true);
+    const myGen = ++generation.current;
 
     const res = await fetcherRef.current();
-    if (!mounted.current) return;
+    if (!mounted.current || myGen !== generation.current) return;
 
     if (res.ok) {
       setData(res.data);
@@ -136,12 +155,17 @@ export function useFetch<T>(
     refreshing,
     refresh: () => void run('pull'),
     revalidate: () => void run('silent'),
-    setData: (updater) =>
+    setData: (updater) => {
+      // Bump the generation FIRST: any fetch already in flight is now stale
+      // and must lose the race to this write when it resolves — see the note
+      // on `generation` above.
+      generation.current += 1;
       setData((prev) => {
         const next =
           typeof updater === 'function' ? (updater as (p: T | null) => T | null)(prev) : updater;
         if (keyRef.current && next !== null) cache.set(keyRef.current, next);
         return next;
-      }),
+      });
+    },
   };
 }

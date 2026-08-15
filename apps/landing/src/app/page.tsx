@@ -1,4 +1,5 @@
 import Hero from '@/components/landing/hero';
+import ReplyGap from '@/components/landing/reply-gap';
 import HowItWorks from '@/components/landing/how-it-works';
 import TrustVerification from '@/components/landing/trust-verification';
 import CreatorCarousel from '@/components/landing/creator-carousel';
@@ -12,6 +13,7 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       <main>
         <Hero />
+        <ReplyGap />
         <HowItWorks />
         <TrustVerification />
         <CreatorCarousel />

@@ -273,7 +273,13 @@ export function DealPanel({
       </button>
 
       {expanded && (
-        <div className="px-4 pb-3.5">
+        // A single gap governs every block below instead of each one carrying
+        // its own ad-hoc mt-*/mb-* — the "Create project" button was landing
+        // flush against the projects list above it in some branches because
+        // its own margin wasn't the only thing standing between them, and a
+        // handful of individually-tuned margins is exactly the setup where
+        // that kind of gap silently goes missing. One flex gap can't do that.
+        <div className="flex flex-col gap-4 px-4 pb-3.5">
           {/* Business profiles are private — this link only resolves for a
               creator who actually has a request or project with the brand. It
               lives outside the request card so it stays reachable once that
@@ -281,7 +287,7 @@ export function DealPanel({
           {partner?.role === "business_owner" && partner.slug && (
             <Link
               href={`/b/${partner.slug}`}
-              className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
             >
               <Building2 className="size-3" /> View brand profile
             </Link>
@@ -291,11 +297,11 @@ export function DealPanel({
               creator, i.e. only a business viewer ever sees this. */}
           {partner?.role === "influencer" && (
             partner.verified_badge ? (
-              <Badge variant="verified" size="sm" className="mb-2">
+              <Badge variant="verified" size="sm">
                 <VerifiedMark className="size-3" /> Verified by Influnet
               </Badge>
             ) : (
-              <div className="mb-2 rounded-xl border border-warn/30 bg-warn-soft p-3 text-xs text-warn">
+              <div className="rounded-xl border border-warn/30 bg-warn-soft p-3 text-xs text-warn">
                 <p className="font-bold">Ownership not verified</p>
                 <p className="mt-0.5 text-warn/90">
                   {partner.name || "This creator"} hasn&apos;t confirmed they control the
@@ -355,7 +361,7 @@ export function DealPanel({
           {/* Every project run with this partner — completed ones stay visible
               so the working history sits alongside the current deal. */}
           {projects.length > 0 && (
-            <div className={cn("flex flex-col gap-1.5", showRequestCard && "mt-4")}>
+            <div className="flex flex-col gap-1.5">
               <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
                 Projects with {partner?.name || "this partner"}
               </p>
@@ -392,7 +398,7 @@ export function DealPanel({
           {/* Terms on the table. Deliberately NOT a project yet — nothing is
               created until the other side accepts. */}
           {pendingTerms && (
-            <div className="mt-4 rounded-xl border border-warn/30 bg-warn-soft p-3">
+            <div className="rounded-xl border border-warn/30 bg-warn-soft p-3">
               <div className="flex items-center gap-2">
                 <Hourglass className="size-3.5 shrink-0 text-warn" />
                 <p className="text-sm font-bold text-content">{pendingTerms.title}</p>
@@ -473,7 +479,7 @@ export function DealPanel({
               refused terms stay on screen with the reason, and either side can
               open a fresh proposal pre-filled from them. */}
           {declined && !pendingTerms && (
-            <div className="mt-4 rounded-xl border border-hairline bg-surface-muted p-3">
+            <div className="rounded-xl border border-hairline bg-surface-muted p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <X className="size-3.5 shrink-0 text-content-muted" />
                 <p className="text-sm font-bold text-content-soft line-through">{declined.title}</p>
@@ -515,7 +521,7 @@ export function DealPanel({
           )}
 
           {viewer.can_propose && !composing && !declined && (
-            <Button size="sm" variant="brand" className="mt-4" onClick={() => setComposing(true)}>
+            <Button size="sm" variant="brand" onClick={() => setComposing(true)}>
               <FolderKanban /> Create project
             </Button>
           )}

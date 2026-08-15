@@ -357,6 +357,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
               'This brand has reached their limit for active projects right now. They will need to free up a slot before this project can start.',
             );
       }
+      // Separate from the active-projects cap above: this one never clears on
+      // its own (migration 117) because it counts every project a Free brand
+      // has EVER converted, not how many are running right now.
+      if (error.message?.includes('project_conversion_limit_exceeded')) {
+        return role === 'business_owner'
+          ? jsonError(
+              402,
+              'You have used all your free project conversions. Upgrade to Pro for unlimited projects.',
+            )
+          : jsonError(
+              409,
+              'This brand has used all their free project conversions and will need to upgrade before this project can start.',
+            );
+      }
       return mapRpcError(error.message, RESPOND_ERRORS) ?? jsonError(500, 'Could not respond to the terms', error);
     }
 

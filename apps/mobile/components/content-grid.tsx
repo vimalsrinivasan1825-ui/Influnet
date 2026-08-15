@@ -48,8 +48,15 @@ const open = (url: string) => {
   });
 };
 
+/**
+ * Told about each tap, so a creator's own reach figure counts the app's
+ * visitors as well as the web's. Optional everywhere: the creator looking at
+ * their own profile passes nothing, and their taps are not reach.
+ */
+export type OpenTracker = (linkType: 'instagram' | 'youtube') => void;
+
 /** Instagram posts, three across. Only tiles with a cached thumbnail render. */
-export function PostGrid({ posts }: { posts: ContentPost[] }) {
+export function PostGrid({ posts, onOpen }: { posts: ContentPost[]; onOpen?: OpenTracker }) {
   const t = useTheme();
   const withThumbs = posts.filter((p) => p.thumbUrl);
   if (withThumbs.length === 0) return null;
@@ -65,7 +72,10 @@ export function PostGrid({ posts }: { posts: ContentPost[] }) {
             key={post.url}
             accessibilityRole="link"
             accessibilityLabel="Open post"
-            onPress={() => open(post.url)}
+            onPress={() => {
+              onOpen?.('instagram');
+              open(post.url);
+            }}
             style={({ pressed }) => ({
               // Three columns inside a card, accounting for the two gaps.
               width: `${(100 - 4) / 3}%`,
@@ -115,7 +125,7 @@ export function PostGrid({ posts }: { posts: ContentPost[] }) {
 }
 
 /** YouTube uploads. Titles matter here, so these are rows, not tiles. */
-export function VideoList({ videos }: { videos: ContentVideo[] }) {
+export function VideoList({ videos, onOpen }: { videos: ContentVideo[]; onOpen?: OpenTracker }) {
   const t = useTheme();
   const withThumbs = videos.filter((v) => v.thumbUrl);
   if (withThumbs.length === 0) return null;
@@ -127,7 +137,10 @@ export function VideoList({ videos }: { videos: ContentVideo[] }) {
           key={video.url}
           accessibilityRole="link"
           accessibilityLabel={`Open video: ${video.title}`}
-          onPress={() => open(video.url)}
+          onPress={() => {
+            onOpen?.('youtube');
+            open(video.url);
+          }}
           style={({ pressed }) => ({
             flexDirection: 'row',
             gap: t.spacing.md,

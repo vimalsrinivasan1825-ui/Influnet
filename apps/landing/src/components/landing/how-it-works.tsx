@@ -11,163 +11,59 @@ interface StepData {
   focus: 'business' | 'creator' | 'both';
 }
 
+// Discovery (search / match) deliberately sits outside this walkthrough. The
+// landing page's story starts at the moment a brand actually reaches out —
+// finding creators is not the part that goes wrong.
 const STEPS: StepData[] = [
   {
     number: 1,
-    title: 'Search',
-    description: 'Business searches and filters creators based on highly specific criteria like location, niche, and engagement.',
-    focus: 'business'
-  },
-  {
-    number: 2,
-    title: 'Match',
-    description: 'Business discovers a great match and analyzes verified creator metrics and insights.',
-    focus: 'business'
-  },
-  {
-    number: 3,
     title: 'Invite Sent',
     description: 'Business sends a direct collaboration request detailing the campaign type, budget, and deliverables.',
     focus: 'business'
   },
   {
-    number: 4,
+    number: 2,
     title: 'Connected',
     description: 'Influencer accepts the incoming request, establishing a secure connection between both parties.',
     focus: 'creator'
   },
   {
-    number: 5,
+    number: 3,
     title: 'Discuss',
     description: 'Both parties use real-time messaging to discuss campaign details, content direction, and expectations.',
     focus: 'both'
   },
   {
-    number: 6,
+    number: 4,
     title: 'Agreement',
-    description: 'Terms, timeline, and payment splits are locked and signed securely using smart contracts.',
+    description: 'Terms, timeline, and payment splits are locked and signed by both sides before any work begins.',
     focus: 'both'
   },
   {
-    number: 7,
+    number: 5,
     title: 'Content',
     description: 'Influencer designs and uploads the content deliverables for the brand to review and approve.',
     focus: 'creator'
   },
   {
-    number: 8,
+    number: 6,
     title: 'Payment',
     description: 'Business approves the submitted deliverables, releasing payment securely from escrow to the creator.',
     focus: 'business'
   },
   {
-    number: 9,
+    number: 7,
     title: 'Completed',
     description: 'The campaign completes. Both review final reach metrics, analytics, and payouts in their dashboard.',
     focus: 'both'
   }
 ];
 
+const STEP_COUNT = STEPS.length;
+
 const SARAH_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80";
 
 // --- Left Side (Business/Brand) Visualizers ---
-
-function BusinessSearch({ focused }: { focused: boolean }) {
-  return (
-    <div className={`rounded-3xl p-7 border transition-all duration-300 h-full flex flex-col justify-between w-full max-w-[420px] mx-auto min-h-[460px] bg-white ${
-      focused ? 'border-gray-100 shadow-[0_12px_40px_rgba(0,0,0,0.06)]' : 'border-gray-100/70 shadow-[0_8px_30px_rgba(0,0,0,0.02)]'
-    }`}>
-      <div>
-        <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 1: Discover
-          </span>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-pink-50' : 'bg-gray-50'}`}>
-            <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-pink-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </div>
-        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Find Creators</h3>
-        <p className={`text-sm mb-5 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Filter database of creators dynamically.</p>
-        
-        <div className="space-y-4">
-          <div className={`flex items-center gap-3 border rounded-2xl px-4 py-3.5 transition-all duration-300 ${focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'}`}>
-            <span className={`text-sm transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Search niche, tags, username...</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className={`rounded-2xl p-3.5 border transition-all duration-300 ${focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'}`}>
-              <div className={`text-[11px] font-bold uppercase tracking-wider mb-0.5 transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Niche</div>
-              <div className={`text-sm font-extrabold transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>Fitness</div>
-            </div>
-            <div className={`rounded-2xl p-3.5 border transition-all duration-300 ${focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'}`}>
-              <div className={`text-[11px] font-bold uppercase tracking-wider mb-0.5 transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Location</div>
-              <div className={`text-sm font-extrabold transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>Chennai, India</div>
-            </div>
-          </div>
-          <div className={`rounded-2xl p-3.5 border transition-all duration-300 ${focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'}`}>
-            <div className={`text-[11px] font-bold uppercase tracking-wider mb-0.5 transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Followers</div>
-            <div className={`text-sm font-extrabold transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>50K+</div>
-          </div>
-        </div>
-      </div>
-      <button className={`w-full mt-6 font-extrabold text-sm py-4 rounded-2xl transition-all duration-300 ${
-        focused ? 'bg-pink-500 hover:bg-pink-600 text-white shadow-md shadow-pink-500/20 active:scale-[0.98]' : 'bg-gray-100 text-gray-500'
-      }`}>
-        Search Creators
-      </button>
-    </div>
-  );
-}
-
-function BusinessMatch({ focused }: { focused: boolean }) {
-  return (
-    <div className={`rounded-3xl p-7 border transition-all duration-300 h-full flex flex-col justify-between w-full max-w-[420px] mx-auto min-h-[460px] bg-white ${
-      focused ? 'border-gray-100 shadow-[0_12px_40px_rgba(0,0,0,0.06)]' : 'border-gray-100/70 shadow-[0_8px_30px_rgba(0,0,0,0.02)]'
-    }`}>
-      <div>
-        <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 2: Match
-          </span>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-pink-50' : 'bg-gray-50'}`}>
-            <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-pink-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-          </div>
-        </div>
-        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Discover Creators</h3>
-        <p className={`text-sm mb-6 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Business finds suitable creators with verified insights.</p>
-        
-        <div className={`flex items-center gap-4 p-4 border rounded-2xl mb-5 transition-all duration-300 ${focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'}`}>
-          <img src={SARAH_AVATAR} alt="Sarah" className="w-14 h-14 rounded-full object-cover border-2 border-gray-250" />
-          <div className="min-w-0 flex-grow">
-            <div className="flex items-center gap-1.5">
-              <span className={`text-sm font-black truncate transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Sarah Fitness</span>
-              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold transition-colors duration-300 ${focused ? 'bg-blue-500' : 'bg-blue-400'}`}>✓</span>
-            </div>
-            <div className={`text-xs truncate transition-colors duration-300 ${focused ? 'text-gray-450' : 'text-gray-500'}`}>@sarah.fit</div>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className={`font-medium transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Followers</span>
-            <span className={`font-extrabold transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>50K</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className={`font-medium transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Engagement Rate</span>
-            <span className={`font-extrabold transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>8.6%</span>
-          </div>
-        </div>
-      </div>
-      <button className={`w-full mt-6 border-2 font-extrabold text-sm py-4 rounded-2xl transition-all duration-300 ${
-        focused ? 'bg-white border-pink-100 text-pink-600 hover:border-pink-300 active:scale-[0.98]' : 'bg-white border-gray-200 text-gray-500'
-      }`}>
-        View Profile
-      </button>
-    </div>
-  );
-}
 
 function BusinessInvite({ focused }: { focused: boolean }) {
   return (
@@ -176,8 +72,8 @@ function BusinessInvite({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 3: Campaign
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
+            Step 1: Campaign
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-pink-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-pink-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -227,8 +123,8 @@ function BusinessConnected({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 4: Connection
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
+            Step 2: Connection
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-green-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-green-500' : 'text-green-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -263,8 +159,8 @@ function BusinessDiscuss({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-4">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 5: Negotiation
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
+            Step 3: Negotiation
           </span>
           {focused && <span className="w-3 h-3 rounded-full bg-pink-500 animate-pulse"></span>}
         </div>
@@ -283,7 +179,7 @@ function BusinessDiscuss({ focused }: { focused: boolean }) {
           <div className={`rounded-2xl rounded-tl-sm p-3.5 max-w-[90%] text-left transition-all duration-300 ${
             focused ? 'bg-gray-100' : 'bg-gray-100/70 border border-gray-200/50'
           }`}>
-            <p className={`text-xs font-bold leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-750' : 'text-gray-700'}`}>
+            <p className={`text-xs font-bold leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-700' : 'text-gray-700'}`}>
               Sounds great! I can deliver by next Monday.
             </p>
             <span className={`text-[9px] mt-1 block transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>10:32 AM</span>
@@ -312,8 +208,8 @@ function BusinessAgreement({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 6: Contract
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
+            Step 4: Contract
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-pink-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-pink-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -338,7 +234,7 @@ function BusinessAgreement({ focused }: { focused: boolean }) {
             <span className={`font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-800'}`}>10 Days</span>
           </div>
           <div className={`flex justify-between text-xs p-3 rounded-xl transition-all duration-300 ${
-            focused ? 'bg-pink-50 text-pink-700 font-black' : 'bg-pink-50/40 text-pink-850 font-bold'
+            focused ? 'bg-pink-50 text-pink-700 font-bold' : 'bg-pink-50/40 text-pink-800 font-bold'
           }`}>
             <span>Split:</span>
             <span>50% Advance • 50% On Delivery</span>
@@ -361,8 +257,8 @@ function BusinessContent({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 7: Verification
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
+            Step 5: Verification
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-pink-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-pink-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -388,11 +284,11 @@ function BusinessContent({ focused }: { focused: boolean }) {
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <div className={`w-5 h-5 rounded-full border-2 transition-colors duration-300 ${focused ? 'border-gray-200' : 'border-gray-300'}`}></div>
-            <span className={`transition-colors duration-300 ${focused ? 'text-gray-550' : 'text-gray-600'}`}>Under Review</span>
+            <span className={`transition-colors duration-300 ${focused ? 'text-gray-500' : 'text-gray-600'}`}>Under Review</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <div className={`w-5 h-5 rounded-full border-2 transition-colors duration-300 ${focused ? 'border-gray-200' : 'border-gray-300'}`}></div>
-            <span className={`transition-colors duration-300 ${focused ? 'text-gray-550' : 'text-gray-600'}`}>Approved</span>
+            <span className={`transition-colors duration-300 ${focused ? 'text-gray-500' : 'text-gray-600'}`}>Approved</span>
           </div>
         </div>
       </div>
@@ -408,8 +304,8 @@ function BusinessPayment({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 8: Payment
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
+            Step 6: Payment
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-pink-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-pink-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -430,11 +326,11 @@ function BusinessPayment({ focused }: { focused: boolean }) {
               </div>
             ))}
           </div>
-          <span className={`text-[10px] font-black px-2.5 py-1.5 rounded-lg border transition-all duration-300 ${
+          <span className={`text-[10px] font-bold px-2.5 py-1.5 rounded-lg border transition-all duration-300 ${
             focused ? 'text-green-600 bg-green-50 border-green-100' : 'text-green-700 bg-green-50/80 border-green-100/60'
           }`}>Campaign Approved</span>
         </div>
-        <div className="text-xs text-gray-550 flex justify-between font-semibold">
+        <div className="text-xs text-gray-500 flex justify-between font-semibold">
           <span>Amount: <b className={`transition-colors duration-300 ${focused ? 'text-gray-805 text-sm' : 'text-gray-700 text-sm'}`}>₹50,000</b></span>
           <span>Status: <b className={`transition-colors duration-300 ${focused ? 'text-green-600 text-sm' : 'text-green-700 text-sm'}`}>Ready to Pay</b></span>
         </div>
@@ -455,8 +351,8 @@ function BusinessCompleted({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
-            Step 9: Analytics
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-pink-600' : 'text-gray-500'}`}>
+            Step 7: Analytics
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-green-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-green-500' : 'text-green-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -470,17 +366,17 @@ function BusinessCompleted({ focused }: { focused: boolean }) {
         <div className="grid grid-cols-2 gap-3 mb-5">
           <div className={`border p-3.5 rounded-2xl text-center transition-all duration-300 ${focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'}`}>
             <div className={`text-[10px] font-bold uppercase tracking-wider transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Reach</div>
-            <div className={`text-lg font-black mt-0.5 transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-750'}`}>2.4M</div>
+            <div className={`text-lg font-bold mt-0.5 transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>2.4M</div>
             <div className={`text-[10px] font-extrabold transition-colors duration-300 ${focused ? 'text-green-500' : 'text-green-600'}`}>↑ 24%</div>
           </div>
           <div className={`border p-3.5 rounded-2xl text-center transition-all duration-300 ${focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'}`}>
             <div className={`text-[10px] font-bold uppercase tracking-wider transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Engagement</div>
-            <div className={`text-lg font-black mt-0.5 transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-750'}`}>186K</div>
+            <div className={`text-lg font-bold mt-0.5 transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>186K</div>
             <div className={`text-[10px] font-extrabold transition-colors duration-300 ${focused ? 'text-green-500' : 'text-green-600'}`}>↑ 19%</div>
           </div>
         </div>
       </div>
-      <div className={`h-14 relative overflow-hidden rounded-2xl border transition-all duration-300 ${focused ? 'border-gray-100 bg-gray-50' : 'border-gray-150 bg-gray-100/50'}`}>
+      <div className={`h-14 relative overflow-hidden rounded-2xl border transition-all duration-300 ${focused ? 'border-gray-100 bg-gray-50' : 'border-gray-100 bg-gray-100/50'}`}>
         <svg className="w-full h-full" viewBox="0 0 100 40" preserveAspectRatio="none">
           <path d="M0,40 Q25,18 50,22 T100,4 V40 Z" fill={focused ? "#fbcfe8" : "#f3f4f6"} fillOpacity="0.4" />
           <path d="M0,40 Q25,18 50,22 T100,4" fill="none" stroke={focused ? "#db2777" : "#9ca3af"} strokeWidth="2" />
@@ -492,83 +388,6 @@ function BusinessCompleted({ focused }: { focused: boolean }) {
 
 // --- Right Side (Influencer/Creator) Visualizers ---
 
-function CreatorDashboard({ focused }: { focused: boolean }) {
-  return (
-    <div className={`rounded-3xl p-7 border transition-all duration-300 h-full flex flex-col justify-between w-full max-w-[420px] mx-auto min-h-[460px] bg-white ${
-      focused ? 'border-gray-100 shadow-[0_12px_40px_rgba(0,0,0,0.06)]' : 'border-gray-100/70 shadow-[0_8px_30px_rgba(0,0,0,0.02)]'
-    }`}>
-      <div>
-        <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 1: Settings
-          </span>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-purple-50' : 'bg-gray-50'}`}>
-            <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </div>
-        </div>
-        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Influencer Profile</h3>
-        <p className={`text-sm mb-6 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Creator profile settings page configuration.</p>
-        
-        <div className={`p-5 border rounded-2xl flex items-center gap-4 transition-all duration-300 ${
-          focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'
-        }`}>
-          <img src={SARAH_AVATAR} alt="avatar" className="w-12 h-12 rounded-full object-cover border-2 border-gray-205" />
-          <div>
-            <div className="flex items-center gap-2">
-              <div className={`text-sm font-extrabold transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>Profile Discoverable</div>
-              {focused && <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>}
-            </div>
-            <p className={`text-xs leading-normal mt-1 transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Your profile is visible to brands looking for creators.</p>
-          </div>
-        </div>
-      </div>
-      <div className="h-10"></div>
-    </div>
-  );
-}
-
-function CreatorProfileViewed({ focused }: { focused: boolean }) {
-  return (
-    <div className={`rounded-3xl p-7 border transition-all duration-300 h-full flex flex-col justify-between w-full max-w-[420px] mx-auto min-h-[460px] bg-white ${
-      focused ? 'border-gray-100 shadow-[0_12px_40px_rgba(0,0,0,0.06)]' : 'border-gray-100/70 shadow-[0_8px_30px_rgba(0,0,0,0.02)]'
-    }`}>
-      <div>
-        <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 2: Analytics
-          </span>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-purple-50' : 'bg-gray-50'}`}>
-            <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-        </div>
-        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Profile Viewed</h3>
-        <p className={`text-sm mb-6 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-405' : 'text-gray-500'}`}>Creator profile is viewed by the business.</p>
-        
-        <div className={`p-4 border rounded-2xl flex items-center justify-between transition-all duration-300 ${
-          focused ? 'bg-purple-50 border-purple-100' : 'bg-purple-50/40 border-purple-100/60'
-        }`}>
-          <div className="flex items-center gap-3">
-            <img src={SARAH_AVATAR} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
-            <div>
-              <div className={`text-sm font-extrabold transition-colors duration-300 ${focused ? 'text-gray-800' : 'text-gray-700'}`}>Sarah Fitness</div>
-              <div className={`text-xs font-bold mt-0.5 transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-purple-700'}`}>50K Followers • Fitness</div>
-            </div>
-          </div>
-          <svg className={`w-6 h-6 transition-colors duration-300 ${focused ? 'text-purple-500' : 'text-purple-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        </div>
-      </div>
-      <div className="h-10"></div>
-    </div>
-  );
-}
-
 function CreatorRequest({ focused }: { focused: boolean }) {
   return (
     <div className={`rounded-3xl p-7 border transition-all duration-300 h-full flex flex-col justify-between w-full max-w-[420px] mx-auto min-h-[460px] bg-white ${
@@ -576,8 +395,8 @@ function CreatorRequest({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 3: Campaign Invite
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
+            Step 1: Campaign Invite
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-purple-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -589,18 +408,18 @@ function CreatorRequest({ focused }: { focused: boolean }) {
         <p className={`text-sm mb-5 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Influencer receives the collaboration request.</p>
         
         <div className={`p-4 border rounded-2xl transition-all duration-300 ${
-          focused ? 'border-purple-150 bg-purple-50/20' : 'border-gray-200/50 bg-gray-50/30'
+          focused ? 'border-purple-100 bg-purple-50/20' : 'border-gray-200/50 bg-gray-50/30'
         }`}>
           <div className="flex justify-between items-start mb-3">
-            <span className={`text-sm font-black transition-colors duration-300 ${focused ? 'text-gray-805' : 'text-gray-700'}`}>FitLife Brands</span>
-            <span className={`text-[10px] font-black px-2.5 py-1 rounded transition-colors duration-300 ${
+            <span className={`text-sm font-bold transition-colors duration-300 ${focused ? 'text-gray-805' : 'text-gray-700'}`}>FitLife Brands</span>
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded transition-colors duration-300 ${
               focused ? 'text-purple-700 bg-purple-100' : 'text-purple-700 bg-purple-100/85'
             }`}>New Request</span>
           </div>
           <div className="grid grid-cols-3 gap-2 text-xs text-gray-500">
-            <div className={`p-2.5 rounded-xl border text-center font-extrabold transition-all duration-300 ${focused ? 'bg-white border-gray-100 text-gray-800' : 'bg-white border-gray-150 text-gray-700'}`}>3 Reels</div>
-            <div className={`p-2.5 rounded-xl border text-center font-extrabold transition-all duration-300 ${focused ? 'bg-white border-gray-100 text-gray-800' : 'bg-white border-gray-150 text-gray-700'}`}>₹50,000</div>
-            <div className={`p-2.5 rounded-xl border text-center font-extrabold transition-all duration-300 ${focused ? 'bg-white border-gray-100 text-gray-800' : 'bg-white border-gray-150 text-gray-700'}`}>10 Days</div>
+            <div className={`p-2.5 rounded-xl border text-center font-extrabold transition-all duration-300 ${focused ? 'bg-white border-gray-100 text-gray-800' : 'bg-white border-gray-100 text-gray-700'}`}>3 Reels</div>
+            <div className={`p-2.5 rounded-xl border text-center font-extrabold transition-all duration-300 ${focused ? 'bg-white border-gray-100 text-gray-800' : 'bg-white border-gray-100 text-gray-700'}`}>₹50,000</div>
+            <div className={`p-2.5 rounded-xl border text-center font-extrabold transition-all duration-300 ${focused ? 'bg-white border-gray-100 text-gray-800' : 'bg-white border-gray-100 text-gray-700'}`}>10 Days</div>
           </div>
         </div>
       </div>
@@ -623,8 +442,8 @@ function CreatorAccepted({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 4: Status
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
+            Step 2: Status
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-green-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-green-500' : 'text-green-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -659,8 +478,8 @@ function CreatorDiscuss({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-3">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 5: Negotiation
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
+            Step 3: Negotiation
           </span>
           {focused && <span className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></span>}
         </div>
@@ -679,7 +498,7 @@ function CreatorDiscuss({ focused }: { focused: boolean }) {
           <div className={`border rounded-2xl rounded-tr-sm p-3.5 max-w-[90%] ml-auto text-right transition-all duration-300 ${
             focused ? 'bg-purple-50 border-purple-100' : 'bg-purple-50/40 border-purple-100/60'
           }`}>
-            <p className={`text-xs font-bold leading-relaxed transition-colors duration-300 ${focused ? 'text-purple-900' : 'text-purple-850'}`}>
+            <p className={`text-xs font-bold leading-relaxed transition-colors duration-300 ${focused ? 'text-purple-900' : 'text-purple-800'}`}>
               Sounds great! I can deliver by next Monday.
             </p>
             <span className={`text-[9px] mt-1 block transition-colors duration-300 ${focused ? 'text-purple-600/70' : 'text-purple-800'}`}>10:32 AM</span>
@@ -708,8 +527,8 @@ function CreatorAgreement({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 6: Contract Review
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
+            Step 4: Contract Review
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-purple-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -734,7 +553,7 @@ function CreatorAgreement({ focused }: { focused: boolean }) {
             <span className={`font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-800'}`}>10 Days</span>
           </div>
           <div className={`flex justify-between text-xs p-3 rounded-xl transition-all duration-300 ${
-            focused ? 'bg-purple-50 text-purple-700 font-black' : 'bg-purple-50/40 text-purple-800 font-bold'
+            focused ? 'bg-purple-50 text-purple-700 font-bold' : 'bg-purple-50/40 text-purple-800 font-bold'
           }`}>
             <span>Split:</span>
             <span>50% Advance • 50% On Delivery</span>
@@ -757,8 +576,8 @@ function CreatorContent({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 7: Upload
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
+            Step 5: Upload
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-purple-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -770,7 +589,7 @@ function CreatorContent({ focused }: { focused: boolean }) {
         <p className={`text-sm mb-5 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Influencer uploads final content deliverables.</p>
         
         <div className={`flex items-center justify-between p-4 border rounded-2xl mb-5 transition-all duration-300 ${
-          focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-55/50 border-gray-150'
+          focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-55/50 border-gray-100'
         }`}>
           <div className="flex gap-2">
             {[1, 2, 3].map((i) => (
@@ -798,8 +617,8 @@ function CreatorPayment({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 8: Payout
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
+            Step 6: Payout
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-green-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-green-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -834,8 +653,8 @@ function CreatorCompleted({ focused }: { focused: boolean }) {
     }`}>
       <div>
         <div className="flex items-center justify-between mb-5">
-          <span className={`text-xs font-black tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 9: Payout Summary
+          <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
+            Step 7: Payout Summary
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-green-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-green-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -848,10 +667,10 @@ function CreatorCompleted({ focused }: { focused: boolean }) {
         
         <div className={`p-4 border rounded-2xl mb-4 transition-all duration-300 ${focused ? 'bg-purple-50 border-purple-100' : 'bg-purple-50/40 border-purple-100/60'}`}>
           <div className={`text-[10px] font-bold uppercase tracking-wider transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Total Earnings</div>
-          <div className={`text-3xl font-black mt-1 transition-colors duration-300 ${focused ? 'text-purple-700' : 'text-purple-800'}`}>₹50,000</div>
+          <div className={`text-3xl font-bold mt-1 transition-colors duration-300 ${focused ? 'text-purple-700' : 'text-purple-800'}`}>₹50,000</div>
         </div>
         <div className={`flex justify-between items-center text-xs border rounded-xl p-3 transition-all duration-300 ${
-          focused ? 'text-gray-550 bg-gray-50 border-gray-100' : 'text-gray-705 bg-gray-50/80 border-gray-200/60'
+          focused ? 'text-gray-500 bg-gray-50 border-gray-100' : 'text-gray-705 bg-gray-50/80 border-gray-200/60'
         }`}>
           <span className="font-bold">FitLife Protein Launch</span>
           <span className={`flex items-center gap-1.5 font-extrabold transition-colors duration-300 ${focused ? 'text-green-600' : 'text-green-700'}`}>
@@ -867,27 +686,23 @@ function CreatorCompleted({ focused }: { focused: boolean }) {
 
 // --- Component Maps ---
 const BUSINESS_VISUALS: Record<number, (props: { focused: boolean }) => React.JSX.Element> = {
-  1: BusinessSearch,
-  2: BusinessMatch,
-  3: BusinessInvite,
-  4: BusinessConnected,
-  5: BusinessDiscuss,
-  6: BusinessAgreement,
-  7: BusinessContent,
-  8: BusinessPayment,
-  9: BusinessCompleted,
+  1: BusinessInvite,
+  2: BusinessConnected,
+  3: BusinessDiscuss,
+  4: BusinessAgreement,
+  5: BusinessContent,
+  6: BusinessPayment,
+  7: BusinessCompleted,
 };
 
 const CREATOR_VISUALS: Record<number, (props: { focused: boolean }) => React.JSX.Element> = {
-  1: CreatorDashboard,
-  2: CreatorProfileViewed,
-  3: CreatorRequest,
-  4: CreatorAccepted,
-  5: CreatorDiscuss,
-  6: CreatorAgreement,
-  7: CreatorContent,
-  8: CreatorPayment,
-  9: CreatorCompleted,
+  1: CreatorRequest,
+  2: CreatorAccepted,
+  3: CreatorDiscuss,
+  4: CreatorAgreement,
+  5: CreatorContent,
+  6: CreatorPayment,
+  7: CreatorCompleted,
 };
 
 export default function HowItWorks() {
@@ -910,7 +725,7 @@ export default function HowItWorks() {
         return;
       }
       if (scrolled > totalHeight) {
-        setActiveStep(9);
+        setActiveStep(STEP_COUNT);
         setScrollProgress(1);
         setIsSidebarVisible(false);
         return;
@@ -923,8 +738,8 @@ export default function HowItWorks() {
       setScrollProgress(progress);
 
       const stepIndex = Math.min(
-        Math.max(Math.floor(progress * 9) + 1, 1),
-        9
+        Math.max(Math.floor(progress * STEP_COUNT) + 1, 1),
+        STEP_COUNT
       );
       setActiveStep(stepIndex);
     };
@@ -940,16 +755,22 @@ export default function HowItWorks() {
 
   const activeStepData = STEPS[activeStep - 1] || STEPS[0];
 
-  const ActiveBusinessVisual = BUSINESS_VISUALS[activeStep] || BusinessSearch;
-  const ActiveCreatorVisual = CREATOR_VISUALS[activeStep] || CreatorDashboard;
+  const ActiveBusinessVisual = BUSINESS_VISUALS[activeStep] || BusinessInvite;
+  const ActiveCreatorVisual = CREATOR_VISUALS[activeStep] || CreatorRequest;
 
   const isBusinessFocused = true;
   const isCreatorFocused = true;
 
   return (
-    // Desktop locks a 550vh scroll container for the sticky step transitions;
-    // on mobile the section is natural-height and the stacked layout flows normally.
-    <section className="relative w-full bg-[#fcfcfd] lg:h-[550vh]" ref={containerRef}>
+    // Desktop locks a tall scroll container for the sticky step transitions —
+    // roughly 60vh of scroll per step, so it must shrink when STEPS does.
+    // On mobile the section is natural-height and the stacked layout flows normally.
+    <section
+      id="how-it-works"
+      className="steps-scroll relative w-full bg-[var(--paper)]"
+      style={{ ['--steps-height' as string]: `${STEP_COUNT * 60}vh` }}
+      ref={containerRef}
+    >
 
       {/* Sticky Viewport Container (sticky/pinned on desktop only) */}
       <div className="relative w-full flex flex-col justify-center z-10 py-10 lg:sticky lg:top-0 lg:h-screen lg:overflow-hidden lg:py-16">
@@ -957,7 +778,7 @@ export default function HowItWorks() {
         {/* Scroll Progress Bar at the top of the sticky screen (desktop only) */}
         <div className="hidden lg:block absolute top-0 left-0 w-full h-1.5 bg-gray-100 z-50">
           <div 
-            className="h-full bg-gradient-to-r from-pink-500 to-purple-500 transition-all duration-75"
+            className="h-full bg-[var(--magenta)] transition-all duration-75"
             style={{ width: `${scrollProgress * 100}%` }}
           />
         </div>
@@ -966,12 +787,12 @@ export default function HowItWorks() {
         <div className={`hidden xl:flex flex-col items-center gap-4 fixed right-6 top-1/2 -translate-y-1/2 z-40 bg-white/95 backdrop-blur-md px-3 py-6 rounded-3xl border border-gray-200/50 shadow-[0_10px_30px_rgba(0,0,0,0.04)] transition-all duration-500 ${
           isSidebarVisible ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-12 pointer-events-none'
         }`}>
-          <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] [writing-mode:vertical-lr] rotate-180 mb-2">
+          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.2em] [writing-mode:vertical-lr] rotate-180 mb-2">
             PROGRESS
           </span>
           <div className="relative w-1.5 h-44 bg-gray-100 rounded-full mb-3 overflow-hidden">
             <div 
-              className="absolute top-0 left-0 w-full bg-gradient-to-b from-pink-500 to-purple-500 rounded-full transition-all duration-75"
+              className="absolute top-0 left-0 w-full bg-[var(--magenta)] rounded-full transition-all duration-75"
               style={{ height: `${scrollProgress * 100}%` }}
             />
           </div>
@@ -986,9 +807,9 @@ export default function HowItWorks() {
                   const targetScroll = rect.top + window.scrollY + (totalHeight * ((s.number - 1) / 8));
                   window.scrollTo({ top: targetScroll, behavior: 'smooth' });
                 }}
-                className={`w-6 h-6 rounded-full text-[10px] font-black border flex items-center justify-center transition-all ${
+                className={`w-6 h-6 rounded-full text-[10px] font-bold border flex items-center justify-center transition-all ${
                   activeStep === s.number
-                    ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-transparent scale-110 shadow-md shadow-pink-500/10'
+                    ? 'bg-[var(--magenta)] text-white border-transparent scale-110 shadow-md shadow-pink-500/10'
                     : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300 hover:text-gray-600'
                 }`}
                 title={s.title}
@@ -1003,17 +824,14 @@ export default function HowItWorks() {
           
           {/* Header Title (Apple-style Typography) */}
           <div className="text-center">
-            <span className="inline-block px-4 py-1.5 rounded-full text-[11px] font-bold tracking-widest uppercase text-pink-600 bg-pink-50 border border-pink-100 mb-4">
-              Collaborate & Win
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-[2.8rem] font-bold text-gray-900 leading-none tracking-tight mb-2">
-              How <span className="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">Collaborations</span> Work
+            <p className="eyebrow mb-3">Seven steps, both sides</p>
+            <h2 className="mb-3 font-display text-3xl font-bold leading-[1.06] tracking-[-0.03em] text-[var(--ink)] text-balance sm:text-4xl lg:text-[2.8rem]">
+              What happens after they say yes
             </h2>
-            <p className="text-xs sm:text-sm text-gray-400 font-semibold uppercase tracking-wider mb-2">
-              Flow step-by-step
-            </p>
-            <p className="max-w-2xl mx-auto text-sm sm:text-base text-gray-500 font-semibold leading-relaxed px-4">
-              Explore the end-to-end campaign lifecycle. From initial discovery and smart-contract negotiations to content verification and secure payouts, we bridge brands and creators in a single seamless flow.
+            <p className="mx-auto max-w-2xl px-4 text-sm leading-relaxed text-[var(--ink-soft)] sm:text-base">
+              Every step below needs both the brand and the creator to act. Nothing
+              advances because one side decided it had — and the money moves only when
+              the work is signed off.
             </p>
           </div>
 
@@ -1023,9 +841,9 @@ export default function HowItWorks() {
             {/* Left Column (💼 Business / Brand) */}
             <div className="col-span-4 flex flex-col items-center justify-center h-[500px]">
               <div className="text-center mb-4.5 h-[50px] flex items-center justify-center">
-                <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-black transition-all duration-350 shadow-sm ${
+                <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-350 shadow-sm ${
                   isBusinessFocused 
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white scale-110 shadow-[0_6px_20px_rgba(236,72,153,0.3)] border-transparent' 
+                    ? 'bg-[var(--magenta)] text-white scale-110 shadow-[0_6px_20px_rgba(236,72,153,0.3)] border-transparent' 
                     : 'bg-pink-50 text-pink-500 border border-pink-100/60 scale-95 shadow-none'
                 }`}>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1071,7 +889,7 @@ export default function HowItWorks() {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1.25, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 350, damping: 20 }}
-                  className="w-14 h-14 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white flex items-center justify-center text-xl font-black shadow-lg shadow-pink-500/20 mb-6"
+                  className="w-14 h-14 rounded-full bg-[var(--magenta)] text-white flex items-center justify-center text-xl font-bold shadow-lg shadow-pink-500/20 mb-6"
                 >
                   {activeStep}
                 </motion.div>
@@ -1086,7 +904,7 @@ export default function HowItWorks() {
                       exit={{ opacity: 0, y: -15 }}
                       transition={{ duration: 0.25 }}
                     >
-                      <h4 className="text-3xl font-black text-gray-900 tracking-tight mb-3">
+                      <h4 className="text-3xl font-bold text-gray-900 tracking-tight mb-3">
                         {activeStepData.title}
                       </h4>
                       <p className="text-base font-bold text-gray-500 leading-relaxed max-w-sm mx-auto">
@@ -1114,9 +932,9 @@ export default function HowItWorks() {
             {/* Right Column (👤 Influencer / Creator) */}
             <div className="col-span-4 flex flex-col items-center justify-center h-[500px]">
               <div className="text-center mb-4.5 h-[50px] flex items-center justify-center">
-                <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-black transition-all duration-350 shadow-sm ${
+                <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-350 shadow-sm ${
                   isCreatorFocused 
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white scale-110 shadow-[0_6px_20px_rgba(147,51,234,0.3)] border-transparent' 
+                    ? 'bg-[var(--ink)] text-white scale-110 shadow-[0_6px_20px_rgba(147,51,234,0.3)] border-transparent' 
                     : 'bg-purple-50 text-purple-500 border border-purple-100/60 scale-95 shadow-none'
                 }`}>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1158,30 +976,30 @@ export default function HowItWorks() {
           <div className="lg:hidden">
             <div className="space-y-14 py-4">
               {STEPS.map((step) => {
-                const BusinessComp = BUSINESS_VISUALS[step.number] || BusinessSearch;
-                const CreatorComp = CREATOR_VISUALS[step.number] || CreatorDashboard;
+                const BusinessComp = BUSINESS_VISUALS[step.number] || BusinessInvite;
+                const CreatorComp = CREATOR_VISUALS[step.number] || CreatorRequest;
                 
                 return (
                   <div key={step.number} className="border-b border-gray-100 pb-10 last:border-0 last:pb-0">
                     <div className="flex items-center gap-3 mb-6 justify-center">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white flex items-center justify-center text-sm font-black shadow-md shadow-pink-500/15">
+                      <div className="w-10 h-10 rounded-full bg-[var(--magenta)] text-white flex items-center justify-center text-sm font-bold shadow-md shadow-pink-500/15">
                         {step.number}
                       </div>
                       <div>
-                        <h3 className="text-lg font-black text-gray-900">{step.title}</h3>
+                        <h3 className="text-lg font-bold text-gray-900">{step.title}</h3>
                         <p className="text-xs text-gray-400 font-bold leading-tight">{step.description}</p>
                       </div>
                     </div>
                     
                     <div className="grid sm:grid-cols-2 gap-5 max-w-xl mx-auto">
                       <div className="space-y-2">
-                        <div className="text-center text-[10px] font-black text-pink-600 tracking-wide uppercase">💼 Business</div>
+                        <div className="text-center text-[10px] font-bold text-pink-600 tracking-wide uppercase">💼 Business</div>
                         <div className="border border-gray-100 rounded-3xl p-1 bg-white">
                           <BusinessComp focused={true} />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <div className="text-center text-[10px] font-black text-purple-600 tracking-wide uppercase">👤 Influencer</div>
+                        <div className="text-center text-[10px] font-bold text-purple-600 tracking-wide uppercase">👤 Influencer</div>
                         <div className="border border-gray-100 rounded-3xl p-1 bg-white">
                           <CreatorComp focused={true} />
                         </div>

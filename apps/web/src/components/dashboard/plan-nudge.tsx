@@ -45,7 +45,7 @@ const SNOOZE_AT_CAP_DAYS = 1;
 const QUIET_ALL_KEY = '__any';
 const QUIET_ALL_DAYS = 1;
 
-type Reason = 'projects' | 'requests';
+type Reason = 'projects' | 'conversions';
 
 function readSnooze(): Record<string, number> {
   if (typeof window === 'undefined') return {};
@@ -96,7 +96,7 @@ export function PlanNudge({ className }: { className?: string }) {
     const now = Date.now();
     setQuiet({
       quietAll: (snoozed[QUIET_ALL_KEY] ?? 0) > now,
-      quietReasons: (['projects', 'requests'] as Reason[]).filter(
+      quietReasons: (['projects', 'conversions'] as Reason[]).filter(
         (r) => (snoozed[r] ?? 0) > now,
       ),
     });
@@ -138,20 +138,22 @@ export function PlanNudge({ className }: { className?: string }) {
     }
   }
 
-  if (limits.requestsPerMonth !== null) {
-    const atCap = usage.requestsThisMonth >= limits.requestsPerMonth;
-    if (usage.requestsThisMonth >= limits.requestsPerMonth * NEAR_LIMIT_RATIO) {
+  // Lifetime, not monthly — see migration 117. Never clears on its own, so
+  // the "atCap" copy doesn't promise a reset the way the old requests nudge did.
+  if (limits.projectConversions !== null) {
+    const atCap = usage.projectConversions >= limits.projectConversions;
+    if (usage.projectConversions >= limits.projectConversions * NEAR_LIMIT_RATIO) {
       candidates.push({
-        reason: 'requests',
-        used: usage.requestsThisMonth,
-        limit: limits.requestsPerMonth,
+        reason: 'conversions',
+        used: usage.projectConversions,
+        limit: limits.projectConversions,
         atCap,
         title: atCap
-          ? "You've used every request this month"
-          : `${usage.requestsThisMonth} of ${limits.requestsPerMonth} requests used this month`,
+          ? `You've used all ${limits.projectConversions} of your free project conversions`
+          : `${usage.projectConversions} of ${limits.projectConversions} project conversions used`,
         body: atCap
-          ? 'Your allowance resets next month. Pro lets you keep reaching out now.'
-          : 'Pro removes the monthly cap on reaching out to creators.',
+          ? 'That allowance is lifetime and does not reset. Upgrade to Pro to keep converting requests into projects.'
+          : 'Free accounts can convert a limited number of requests into projects, ever. Pro removes the limit.',
       });
     }
   }

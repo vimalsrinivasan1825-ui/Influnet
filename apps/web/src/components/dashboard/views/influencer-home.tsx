@@ -18,15 +18,12 @@ import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal, Stagger } from "@/components/ui/motion";
-import { AreaChart, DonutChart, type ChartConfig } from "@/components/ui/chart";
+import { DonutChart } from "@/components/ui/chart";
 import type { InfluencerHomeData } from "./types";
 import { WelcomeModal } from "./welcome-modal";
 import { MediaKitNudge } from "@/components/dashboard/media-kit-nudge";
 import { VerifyOwnershipNudge } from "@/components/dashboard/verify-ownership-nudge";
-
-const earningsConfig: ChartConfig = {
-  amount: { label: "Earnings", color: "var(--brand)" },
-};
+import { BrandEarningsChart } from "@/components/dashboard/brand-earnings-chart";
 
 export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
   const p = data.profile;
@@ -125,15 +122,25 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Reveal delay={0.1} className="lg:col-span-2">
-          <SectionCard eyebrow="Earnings" title="Weekly earnings" className="h-full">
-            <AreaChart
-              data={data.earnings_trend}
-              config={earningsConfig}
-              xKey="week"
-              areas={[{ dataKey: "amount" }]}
-              height={220}
-              prefix="₹"
-            />
+          <SectionCard eyebrow="Earnings" title="Earnings by brand" className="h-full">
+            {data.earnings_series && data.earnings_series.length > 0 ? (
+              <BrandEarningsChart
+                endpoint="/api/influencer/dashboard"
+                initialData={data.earnings_by_brand ?? []}
+                initialSeries={data.earnings_series}
+                initialRange={data.earnings_range ?? "week"}
+                emptyLabel="No earnings yet"
+              />
+            ) : (
+              // An older backend without the per-brand fields still gets a chart.
+              <BrandEarningsChart
+                endpoint="/api/influencer/dashboard"
+                initialData={data.earnings_trend.map((w) => ({ period: w.week, amount: w.amount }))}
+                initialSeries={[{ key: "amount", label: "Earnings" }]}
+                initialRange="week"
+                emptyLabel="No earnings yet"
+              />
+            )}
           </SectionCard>
         </Reveal>
         <Reveal delay={0.15}>

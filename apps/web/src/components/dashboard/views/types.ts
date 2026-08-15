@@ -35,6 +35,14 @@ export interface InfluencerHomeData {
   };
   // Real payments received (project_payments, status='paid'), not requests exchanged.
   earnings_trend: { week: string; amount: number }[];
+  /**
+   * The same money as earnings_trend, reshaped one series per brand instead of
+   * one total — see lib/earnings-buckets.ts. Optional: an older backend omits
+   * these three fields, and the chart falls back to the single-series trend.
+   */
+  earnings_by_brand?: Record<string, number | string>[];
+  earnings_series?: { key: string; label: string }[];
+  earnings_range?: "week" | "month" | "year";
   request_breakdown: { name: string; value: number; fill: string }[];
   recent_collabs:
     | { id: string; name: string; amount: string; status: string; sender_id: string }[]
@@ -54,6 +62,10 @@ export interface BusinessHomeData {
     completed_value?: number;
   };
   weekly_spend: { week: string; spend: number }[];
+  /** Same reshape as InfluencerHomeData's earnings_by_brand, one series per creator. */
+  earnings_by_brand?: Record<string, number | string>[];
+  earnings_series?: { key: string; label: string }[];
+  earnings_range?: "week" | "month" | "year";
   pipeline_data: { name: string; value: number; fill: string }[];
   recent_collabs:
     | {

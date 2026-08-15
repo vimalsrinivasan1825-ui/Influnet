@@ -32,6 +32,16 @@ export interface ResolvedLink {
   thumbnailUrl: string | null;
   /** Suggested title, when the platform tells us one. The creator can override. */
   title: string | null;
+  /**
+   * The platform's own id for the post — a YouTube video id or an Instagram
+   * shortcode, already matched against the strict character class above. Null
+   * for a plain link.
+   *
+   * Exported so a caller can look the post up elsewhere (see
+   * lib/portfolio-thumbnail.ts) WITHOUT re-parsing the URL. Re-parsing is how
+   * two validators drift apart, and the one that drifts looser is the hole.
+   */
+  postId: string | null;
 }
 
 /** YouTube IDs are exactly 11 chars of URL-safe base64. Anything else is not one. */
@@ -152,6 +162,7 @@ export async function resolvePortfolioLink(input: string): Promise<ResolvedLink>
       // predictable path, so this costs no network call and cannot fail.
       thumbnailUrl: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
       title: await youtubeTitle(id),
+      postId: id,
     };
   }
 
@@ -161,18 +172,24 @@ export async function resolvePortfolioLink(input: string): Promise<ResolvedLink>
       throw new Error('Link to a specific post or reel — a profile link has no single piece of work in it.');
     }
     /**
-     * No thumbnail. Instagram's oEmbed has required a Facebook app token since
-     * 2020, and scraping the post page from a datacenter IP reliably returns a
-     * login wall rather than the image (the same wall documented for YouTube
-     * channel pages in the social-metrics notes). Rather than ship a fetch that
-     * works locally and fails silently in production, the entry is stored
-     * without one and the UI draws a branded Instagram tile.
+     * No thumbnail FROM HERE. Instagram's oEmbed has required a Facebook app
+     * token since 2020, so there is nothing this pure resolver can derive the
+     * way it derives YouTube's — and it deliberately makes no outbound request
+     * of its own, which is what keeps the SSRF argument at the top of this file
+     * a one-liner.
+     *
+     * A thumbnail is still resolved for Instagram, one layer up: the POST route
+     * hands `postId` to lib/portfolio-thumbnail.ts, which first looks for the
+     * image the snapshot pipeline has ALREADY downloaded for this creator's own
+     * recent posts, and only then tries the public embed page. That lookup
+     * needs a database and a user id, neither of which belongs in here.
      */
     return {
       platform: 'instagram',
       url: `https://www.instagram.com/p/${code}/`,
       thumbnailUrl: null,
       title: null,
+      postId: code,
     };
   }
 
@@ -183,5 +200,6 @@ export async function resolvePortfolioLink(input: string): Promise<ResolvedLink>
     url: u.toString().slice(0, 2048),
     thumbnailUrl: null,
     title: null,
+    postId: null,
   };
 }

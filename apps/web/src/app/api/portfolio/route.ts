@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { resolvePortfolioLink } from '@/lib/portfolio-link';
+import { resolveInstagramThumbnail } from '@/lib/portfolio-thumbnail';
 
 /**
  * The creator's portfolio: past work they add themselves, merged with the
@@ -91,6 +92,18 @@ export async function POST(req: Request) {
       return jsonError(400, err?.message || 'That link cannot be added.');
     }
 
+    /**
+     * Instagram gives the pure resolver nothing to derive a thumbnail from, so
+     * it is looked up here where there is a database and a user id: first the
+     * image our own snapshot pipeline already cached for this creator's recent
+     * posts, then the public embed page. Best-effort — a null just means the
+     * card renders the branded Instagram tile, exactly as before.
+     */
+    let thumbnailUrl = resolved.thumbnailUrl;
+    if (!thumbnailUrl && resolved.platform === 'instagram' && resolved.postId) {
+      thumbnailUrl = await resolveInstagramThumbnail(supabase, user.id, resolved.postId);
+    }
+
     const title = input.title ?? resolved.title;
     if (!title) {
       // YouTube fills this in for us; Instagram and plain links cannot, so the
@@ -107,7 +120,7 @@ export async function POST(req: Request) {
         description: input.description || null,
         platform: resolved.platform,
         content_url: resolved.url,
-        thumbnail_url: resolved.thumbnailUrl,
+        thumbnail_url: thumbnailUrl,
         published_at: input.published_at || null,
         views: input.views ?? null,
         likes: input.likes ?? null,

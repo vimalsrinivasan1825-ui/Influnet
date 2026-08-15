@@ -162,6 +162,7 @@ export default function RootLayout() {
               <Stack.Screen name="verification-guide" options={{ title: 'How to verify' }} />
               <Stack.Screen name="search" options={{ title: 'Search' }} />
               <Stack.Screen name="creator/[username]" options={{ title: '' }} />
+              <Stack.Screen name="business/[username]" options={{ title: '' }} />
               <Stack.Screen name="portfolio/add" options={{ title: 'Add past work' }} />
               <Stack.Screen name="requests/new" options={{ title: 'Send a request' }} />
               <Stack.Screen name="requests/[id]" options={{ title: 'Request' }} />

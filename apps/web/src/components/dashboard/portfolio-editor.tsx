@@ -79,7 +79,7 @@ function platformHint(url: string): string | null {
     return "YouTube — the title and thumbnail come across automatically.";
   }
   if (u.includes("instagram.com")) {
-    return "Instagram — add a title below; Instagram doesn't hand thumbnails to apps.";
+    return "Instagram — add a title below. Recent posts bring their own picture.";
   }
   return null;
 }

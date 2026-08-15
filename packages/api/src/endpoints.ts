@@ -78,6 +78,23 @@ export function createEndpoints(api: ApiClient) {
     /** Full public-profile view model for one creator, by username — same shape the web overlay renders. */
     getCreatorProfile: <T = unknown>(username: string) =>
       api.get<T>(`/api/creators/${encodeURIComponent(username)}`),
+    /**
+     * "A visitor tapped one of this creator's outbound links." Feeds the reach
+     * figure on their Home. Fire-and-forget: the route answers 204 whatever
+     * happens, and nothing should ever await this before opening the link.
+     */
+    recordLinkClick: <T = unknown>(username: string, linkType: string) =>
+      api.post<T>(`/api/creators/${encodeURIComponent(username)}/link-click`, {
+        link_type: linkType,
+      }),
+    /**
+     * A business's private profile, by username — the JSON twin of the
+     * business branch of web's /<username>. Unlike a creator's, this 404s for
+     * anyone without an established relationship (a request or a project) —
+     * see apps/web's /api/businesses/[username] for the access rule.
+     */
+    getBusinessProfile: <T = unknown>(username: string) =>
+      api.get<T>(`/api/businesses/${encodeURIComponent(username)}`),
 
     // ── Collaboration requests ─────────────────────────────────────
     listCollabs: <T = unknown>() => api.get<T>('/api/collabs'),

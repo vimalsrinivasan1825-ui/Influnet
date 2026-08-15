@@ -21,14 +21,14 @@ export default function BillingPage() {
   const { entitlements, loading, refresh } = useEntitlements();
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6">
       <PageHeader
         title="Plan & billing"
         subtitle="What your account can do today, and what changes if you upgrade."
       />
 
       {loading && (
-        <Card className="p-5">
+        <Card className="max-w-xl p-5">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="mt-4 h-4 w-full" />
           <Skeleton className="mt-2 h-4 w-3/4" />
@@ -36,7 +36,7 @@ export default function BillingPage() {
       )}
 
       {!loading && !entitlements && (
-        <Card className="p-5">
+        <Card className="max-w-xl p-5">
           <p className="text-sm text-content-soft">
             We could not load your plan just now. Refresh the page to try again.
           </p>
@@ -44,7 +44,7 @@ export default function BillingPage() {
       )}
 
       {!loading && entitlements && !entitlements.subscriptionsEnabled && (
-        <Card className="p-5">
+        <Card className="max-w-xl p-5">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-content-muted" aria-hidden />
             <h3 className="text-base font-semibold">Everything is included</h3>

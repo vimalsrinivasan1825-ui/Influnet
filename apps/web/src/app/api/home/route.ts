@@ -7,6 +7,7 @@ import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 import { parseAudience } from '@/lib/public-profile/creator-profile';
 import { hasVerifiedInstagramClaim } from '@/lib/verification-ownership';
+import { getProfileReach } from '@/lib/profile-reach';
 import {
   AUTO_APPROVE_THRESHOLD,
   OWNERSHIP_KEY,
@@ -31,6 +32,40 @@ function daysSince(iso: string | null | undefined): number {
   if (!Number.isFinite(then)) return 0;
   return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
 }
+
+/**
+ * Percentage change, or null when there is no baseline to change from.
+ *
+ * Null rather than 0 or Infinity on purpose, everywhere in this file: "up 100%"
+ * off a base of one, or "0%" off a base of none, are both statements the data
+ * does not support, and a card that shows them stops being believed.
+ */
+function deltaPct(current: number, prior: number): number | null {
+  if (prior <= 0) return null;
+  return Math.round(((current - prior) / prior) * 100);
+}
+
+/** ISO timestamp N days ago — the left edge of a rolling window. */
+function daysAgo(n: number): string {
+  return new Date(Date.now() - n * 86_400_000).toISOString();
+}
+
+/**
+ * The funnel a collaboration actually travels, as one strip.
+ *
+ * Six steps rather than the twelve stages, and rather than the four phases the
+ * bar chart uses, because this one starts BEFORE a project exists: the honest
+ * first step is an inbound request that hasn't become anything yet. Phases
+ * can't express that — there is no stage for "someone asked".
+ */
+const PIPELINE_STEPS = [
+  { key: 'requests', label: 'Requests' },
+  { key: 'setup', label: 'Setup' },
+  { key: 'production', label: 'Creating' },
+  { key: 'review', label: 'Review' },
+  { key: 'payment', label: 'Payment' },
+  { key: 'completed', label: 'Completed' },
+] as const;
 export async function GET(req: Request) {
   try {
     const auth = await withAuth(req);
@@ -173,6 +208,7 @@ export async function GET(req: Request) {
     const all = projects ?? [];
     const ongoing = all.filter((p: any) => p.status === 'active');
     const completed = all.filter((p: any) => p.status === 'completed');
+    const isCreator = role === 'influencer';
 
     // Which side of the deal the caller is on decides whose move it is: the
     // owner is always the paying brand, the counterparty the creator.
@@ -321,6 +357,143 @@ export async function GET(req: Request) {
       .eq('to_user_id', user.id)
       .eq('status', 'pending');
 
+    // ── Attention, reach and money ──────────────────────────────────
+    //
+    // Three sets of numbers that existed in the database and were rendered
+    // NOWHERE. profile_views has been collecting rows since migration 012 and
+    // nothing has ever read it; profile_link_clicks was not even being written
+    // until migration 116; and project_payments was only ever consulted to draw
+    // a chart, never to answer "how much am I owed".
+    //
+    // One Promise.all, because this endpoint is the first thing the app asks
+    // for after launch and its budget is round trips, not queries.
+    const projectIds = all.map((p: any) => p.id);
+
+    const [viewsRes, businessViewersRes, reach, paymentsRes] = await Promise.all([
+      // Rolling 60 days: the last 30 are the figure, the 30 before it are the
+      // baseline the delta is measured against.
+      isCreator
+        ? supabase
+            .from('profile_views')
+            .select('viewed_at')
+            .eq('influencer_user_id', user.id)
+            .gte('viewed_at', daysAgo(60))
+        : supabase
+            .from('business_profile_views')
+            .select('viewed_at')
+            .eq('business_user_id', user.id)
+            .gte('viewed_at', daysAgo(60)),
+
+      // Distinct brands who have ever looked — the number a creator actually
+      // wants ("who is noticing me"), not a page-hit count.
+      isCreator
+        ? supabase
+            .from('creator_profile_views')
+            .select('business_id', { count: 'exact', head: true })
+            .eq('creator_id', user.id)
+        : Promise.resolve({ count: null, error: null } as any),
+
+      isCreator ? getProfileReach(supabase) : Promise.resolve(null),
+
+      projectIds.length
+        ? supabase
+            .from('project_payments')
+            .select('amount, status, paid_at, created_at')
+            .in('project_id', projectIds)
+        : Promise.resolve({ data: [], error: null } as any),
+    ]);
+
+    /**
+     * Views, split into the two windows. A missing table (an environment behind
+     * on migrations) yields null, which tells the UI to omit the card entirely
+     * — distinct from a real zero, which is worth showing.
+     */
+    const viewRows = (viewsRes as any)?.data as { viewed_at: string }[] | null | undefined;
+    const attention = viewRows
+      ? (() => {
+          const cutoff = Date.parse(daysAgo(30));
+          let current = 0;
+          let prior = 0;
+          for (const v of viewRows) {
+            if (Date.parse(v.viewed_at) >= cutoff) current += 1;
+            else prior += 1;
+          }
+          return {
+            profile_views: current,
+            profile_views_prior: prior,
+            profile_views_delta_pct: deltaPct(current, prior),
+            /** Creator-only; null for a brand, which has no equivalent. */
+            business_viewers: (businessViewersRes as any)?.count ?? null,
+            window_days: 30,
+          };
+        })()
+      : null;
+
+    /**
+     * Money, in rupees. The ledger stores paise (migration 059) and the rest of
+     * this endpoint talks in rupees, so the conversion happens once, here,
+     * rather than in two clients that would eventually disagree.
+     *
+     * `pending` is money a real order exists for and nobody has paid — a
+     * 'created' row is written when the gate opens and flipped by the signed
+     * webhook. It is deliberately NOT "budget of everything in flight": that is
+     * the pipeline figure in the hero, and conflating a signed order with an
+     * agreed intention is how a dashboard promises money that isn't coming.
+     */
+    const paymentRows = ((paymentsRes as any)?.data ?? []) as {
+      amount: number;
+      status: string;
+      paid_at: string | null;
+    }[];
+    const toRupees = (paise: number) => Math.round((paise || 0) / 100);
+    const paid = paymentRows.filter((p) => p.status === 'paid');
+
+    const money = {
+      earned: paid.reduce((sum, p) => sum + toRupees(p.amount), 0),
+      pending: paymentRows
+        .filter((p) => p.status === 'created')
+        .reduce((sum, p) => sum + toRupees(p.amount), 0),
+      /**
+       * Settled money in three windows, so the card's Week/Month/Year control
+       * has something real behind each position. Computed from paid_at — when
+       * the money moved, not when the project was agreed.
+       */
+      windows: (() => {
+        const since = (days: number) => {
+          const cutoff = Date.parse(daysAgo(days));
+          return paid
+            .filter((p) => p.paid_at && Date.parse(p.paid_at) >= cutoff)
+            .reduce((sum, p) => sum + toRupees(p.amount), 0);
+        };
+        return { week: since(7), month: since(30), year: since(365) };
+      })(),
+      /**
+       * False when no payment has ever settled through the platform. The
+       * dashboard's earnings chart silently falls back to agreed BUDGETS in
+       * that case and still calls itself earnings — a creator who has been paid
+       * nothing sees a healthy chart. This flag lets the UI relabel it honestly
+       * instead of repeating the lie.
+       */
+      settled_payments_exist: paid.length > 0,
+    };
+
+    /** The six-step strip. Counts are live work, plus the two ends of the funnel. */
+    const pipeline = PIPELINE_STEPS.map((step) => {
+      const count =
+        step.key === 'requests'
+          ? (pendingRequests ?? []).length
+          : step.key === 'completed'
+            ? completed.length
+            : ongoing.filter((p: any) => {
+                const phase = phaseOf(p.current_stage);
+                if (step.key === 'setup') return phase === 'Setup';
+                if (step.key === 'production') return phase === 'Production';
+                if (step.key === 'review') return phase === 'Review';
+                return phase === 'Payment';
+              }).length;
+      return { key: step.key, label: step.label, count };
+    });
+
     return NextResponse.json({
       role,
       profile: {
@@ -339,8 +512,9 @@ export async function GET(req: Request) {
             avg_views: social.avgViews,
             engagement_rate: social.engagementRate,
             fetched_at: social.fetchedAt,
-            // MAX_THUMBS in lib/social-snapshot.ts caches thumbnails for the
-            // first 6 posts only — sending more just yields un-renderable tiles.
+            // Six is a grid decision, not a data one: every kept post now has
+            // a cached thumbnail (MAX_THUMBS in lib/social-snapshot.ts), and
+            // two rows of three is what the card has room for.
             posts: social.posts.slice(0, 6),
           }
         : null,
@@ -360,6 +534,16 @@ export async function GET(req: Request) {
       past_collaborations: pastCollaborations,
       // Momentum, bottlenecks and the funnel. See the derivation above.
       analytics,
+      /**
+       * Everything below existed in the database and was displayed nowhere.
+       * Each is null-able rather than zero-filled: null means "we could not
+       * read this" (an environment behind on migrations), zero means "nobody
+       * has done this yet", and the UI has different words for the two.
+       */
+      attention,
+      reach,
+      money,
+      pipeline,
       reviews,
       ongoing: ongoingRows,
       // Finished work, for both roles. Completion used to be a number on a tile

@@ -14,7 +14,6 @@
 import { ActivityIndicator, Alert, Pressable, Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import {
   BadgeCheck,
@@ -161,10 +160,9 @@ export default function ProfileScreen() {
    * Separate fetch rather than another field on /api/home: the portfolio is
    * Profile-only, and Home — which shares that endpoint — has no use for it.
    */
-  const { data: portfolio, refresh: refreshPortfolio } = useFetch<{ items: PortfolioItem[] }>(
-    () => endpoints.listPortfolio<{ items: PortfolioItem[] }>(),
-    { cacheKey: 'portfolio' },
-  );
+  const { data: portfolio, setData: setPortfolio, refresh: refreshPortfolio } = useFetch<{
+    items: PortfolioItem[];
+  }>(() => endpoints.listPortfolio<{ items: PortfolioItem[] }>(), { cacheKey: 'portfolio' });
 
   /**
    * The section-visibility switches. Also a separate fetch: /api/home only
@@ -220,12 +218,45 @@ export default function ProfileScreen() {
     await refreshPortfolio();
   }
 
-  /** Shows/hides a manual entry without deleting it. Optimistic, reverts on failure. */
+  /**
+   * Shows/hides a manual entry without deleting it.
+   *
+   * The comment here used to claim "optimistic, reverts on failure" while the
+   * code did neither: it invalidated the cache, waited out the full PATCH
+   * round trip, and only THEN refetched. The Switch's `value` prop never
+   * changed until that refetch landed, so a tap did nothing for the ~1s the
+   * request took — RN's Switch still shows its own instantaneous native
+   * animation on tap, so what a creator saw was the switch flip, silently
+   * snap back once React re-rendered with the still-old `is_visible`, then
+   * jump to correct a second later. That's the "glitch, then it turns off
+   * after a second" bug. This now flips the local state immediately (same
+   * pattern as setSectionVisibility above) and reverts only if the PATCH
+   * actually fails.
+   */
   async function togglePortfolioItemVisible(item: PortfolioItem, next: boolean) {
-    invalidateFetchCache('portfolio');
+    setPortfolio((prev) =>
+      prev
+        ? { items: prev.items.map((i) => (i.id === item.id ? { ...i, is_visible: next } : i)) }
+        : prev,
+    );
     const res = await endpoints.setPortfolioItemVisible(item.id, next);
-    if (!res.ok) Alert.alert('Could not update that item', res.error ?? undefined);
-    await refreshPortfolio();
+    if (!res.ok) {
+      setPortfolio((prev) =>
+        prev
+          ? {
+              items: prev.items.map((i) =>
+                i.id === item.id ? { ...i, is_visible: item.is_visible } : i,
+              ),
+            }
+          : prev,
+      );
+      Alert.alert('Could not update that item', res.error ?? undefined);
+      return;
+    }
+    // Success is already reflected optimistically — invalidate so the next
+    // fresh load (a different screen, a relaunch) doesn't read the stale
+    // pre-toggle value out of the module cache.
+    invalidateFetchCache('portfolio');
   }
 
   /**
@@ -726,19 +757,38 @@ export default function ProfileScreen() {
             left={<Pencil size={19} color={t.color.contentSoft} />}
             onPress={() => router.push('/edit-profile')}
           />
-          {/* Previewing your own profile opens the WEB page, not the in-app
-              screen: the whole point here is "what a brand actually sees", and
-              a brand most often arrives via a shared link. The web page is also
-              the fuller one — pricing packages and the media kit live only
-              there. The in-app screen is still what other users get when they
-              tap you in search. */}
-          {isCreator && publicUrl ? (
+          {/*
+            Previewing your own profile stays INSIDE the app, for both roles.
+
+            This used to hand the URL to expo-web-browser, which drops the
+            owner into a Safari/Chrome sheet with our web login state, an
+            address bar and no way back into the tab they came from. It reads
+            as leaving the product, and it was the one complaint that made this
+            screen feel unfinished.
+
+            A creator gets /creator/[username]; a business gets
+            /business/[username]. Both render the same view a real visitor
+            gets, natively, from the same endpoints the respective web pages
+            are built from, so the numbers cannot drift — see the header
+            comments on those two files. Each detects `isOwner` and shows
+            "This is what others see" instead of a CTA. The creator screen
+            keeps one row down to the fuller web page for the few things only
+            it carries (packages, media kit); the business one does not, since
+            business profiles have no such extra web-only content.
+          */}
+          {username ? (
             <ListRow
               title="Preview public profile"
-              subtitle="Opens the web page a brand sees when they find you"
+              subtitle={isCreator ? 'See yourself the way a brand does' : 'See yourself the way a creator does'}
               left={<Eye size={19} color={t.color.contentSoft} />}
               style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
-              onPress={() => WebBrowser.openBrowserAsync(publicUrl)}
+              onPress={() =>
+                router.push(
+                  isCreator
+                    ? { pathname: '/creator/[username]', params: { username } }
+                    : { pathname: '/business/[username]', params: { username } },
+                )
+              }
             />
           ) : null}
           {isCreator ? (

@@ -2,6 +2,75 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-08-15: Mobile & Staging Stream API Key Configuration & Sanitization
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Stream Configuration (`apps/mobile/lib/stream.ts`)**: Added `sanitize()` helper to strip line breaks and spaces from `EXPO_PUBLIC_STREAM_API_KEY`, preventing trailing-whitespace connection failures.
+- **EAS Build Profiles (`apps/mobile/eas.json`)**: Configured environment-specific `EXPO_PUBLIC_STREAM_API_KEY` across `preview` / `preview-device` (`2rpeptjh9ug8`) and `production` (`5z6hhrgmrdj9`).
+- **OTA Updates (`.github/workflows/mobile-update.yml`)**: Bound `environment: dev` and `environment: staging` to the respective OTA jobs so GitHub Environment variables (`vars.SUPABASE_URL`, `vars.SUPABASE_ANON_KEY`, `vars.STREAM_API_KEY`) and fallback constants are injected into the EAS update bundle.
+- **Removed Hardcoded Credentials (`apps/mobile/app.json`)**: Cleaned up the `extra` object so environment variables drive configuration cleanly across builds and environments.
+
+### Broken & Resolved
+- **Mobile OTA Updates Missing Database & Stream Keys**: The `mobile-update.yml` workflow lacked `environment: dev` / `environment: staging` blocks and attempted to read obsolete `DEV_*` repo secrets, resulting in empty Supabase URLs and old Stream keys during EAS update bundles. Resolved by binding jobs to GitHub Environments and setting explicit fallbacks matching `eas.json`.
+
+### Key Lessons
+- Never leave environment-specific credentials hardcoded in `app.json` `extra`; use `eas.json` `env` blocks for builds and workflow `env` blocks for OTA updates.
+- Third-party API keys and secrets copied from web dashboards should always be sanitized with regex to remove accidental leading/trailing whitespace and line breaks before passing to SDK instances.
+
+### Next Target
+- Verify mobile chat connection on staging physical device / preview build.
+
+### Session — 2026-08-13: Mobile UI Redesign (Home, Requests, Messages, Projects)
+
+**Branch**: `dev`
+
+### Scope
+- **Home Screen**: Refactored to 2-column mid section (Reach + Review queue side-by-side) matching AI reference. Project pipeline now shows colored per-step underlines with "View all projects" link. StatCards get distinct per-metric accent colors.
+- **Requests Screen**: Added `ChipRail` filter tabs (All / Pending / In Progress / Completed). Pending requests rendered as full offer cards with budget highlight and "Review offer" CTA. Completed/cancelled collapsed under tappable toggle row.
+- **Messages Screen**: Unread conversations (`lastFromThem === true`) sorted to the top of the list with a larger brand-colored dot. Active projects and read chats in separate sections below.
+- **Projects Screen**: Replaced flat `ListRow` list with `Card`-based layout including `ProgressBar` stage progress, budget badge, and partner name. Added `ChipRail` filter tabs (Ongoing | Completed | Cancelled). Within Ongoing, preserves "Your move" / "Waiting on them" sub-labels.
+
+### Broken & Resolved
+- **`SectionLabel` doesn't accept `style` prop**: Tried passing `style={{ marginTop: 0 }}` to `SectionLabel` for the pipeline header row. Component doesn't support it. Fixed by replacing with `<Txt variant="caption" tone="muted" style={{...}}>` directly.
+- **`ProgressBar` prop name**: `ProgressBar` takes `progress` (0-1 float), not `value`. Fixed by checking the component signature before using it.
+- **`ScrollView` missing from imports**: Added `ScrollView` to the RN import list in `home.tsx` for the horizontal pipeline strip.
+
+### Key Lessons
+- Always check component signatures before using them — several UI kit components (`ProgressBar`, `SectionLabel`) have non-obvious prop names that differ from HTML conventions.
+- The `ChipRail` component handles its own horizontal padding (`paddingHorizontal: t.spacing.screen`) so do not wrap it in a padded container.
+- Two-column layouts in RN use `flexDirection: 'row'` + `flex: 1` on each child card. `alignItems: 'flex-start'` is essential on the row, otherwise cards stretch to match the tallest sibling.
+- `toConversationRows()` already returns rows sorted newest-first. To get unread-first, split into two arrays by `lastFromThem` and render unread group first — no need to re-sort.
+
+### Next Target
+- Push to `dev` and verify on physical device / Expo Go that the 2-column home section renders correctly on smaller screen sizes (iPhone SE).
+- Consider adding swipe-to-dismiss on the collapsed "completed" row in Requests.
+
+
+### Session — 2026-08-12: Railway to Azure Dev Migration & Environment Variables
+
+**Branch**: `dev`
+
+### Scope
+- **Azure Container Apps Migration**: Migrated the `dev` environment from Railway to Azure Container Apps to match the existing `staging` infrastructure, ensuring deployment parity.
+- **GitHub Environments Implementation**: Restructured `.github/workflows/deploy-dev.yml` to utilize GitHub Environments (`environment: dev`), cleanly separating `dev` and `staging` secrets (like `NEXT_PUBLIC_SUPABASE_URL`) without naming conflicts.
+- **DNS Migration**: Migrated the `dev.influnet.io` custom domain from Railway to Azure via CNAME and TXT validation records.
+
+### Broken & Resolved
+- **Next.js Port Mismatch (404 Error)**: Azure's Quickstart container template defaults to Ingress Port 80, but Next.js runs on Port 3000. This caused Azure to route traffic incorrectly, resulting in a 404 error during the GitHub Action health check. Resolved by manually updating the Target Port to 3000 in the Azure Portal Ingress settings.
+- **Missing Environment Context (Empty Secrets)**: The initial `deploy-dev.yml` workflow was missing the `environment: dev` block in its jobs. As a result, GitHub Actions bypassed Environment Secrets entirely, passing empty strings to the Docker build for critical keys like `NEXT_PUBLIC_SUPABASE_URL`. This caused the deployed app to crash on startup (HTTP 500). Resolved by adding `environment: dev` to both `migrate` and `build-and-deploy` jobs.
+- **Supabase Service Role Key Mismatch (HTTP 500)**: The health check threw an internal server error because the `SUPABASE_DEV_SERVICE_ROLE_KEY` provided manually was for an entirely different Supabase project (`...mec...` vs `...mqc...`). The mismatch resulted in a 401 Unauthorized from Supabase, failing the Next.js API route. Resolved by copying the correct Service Role JWT from the correct dev Supabase project settings.
+
+### Key Lessons
+- When copying GitHub Actions workflows, always ensure the `paths` trigger is updated to watch the new file itself, otherwise subsequent pushes modifying only the new workflow will be silently ignored.
+- When configuring Azure Container Apps via GitHub Actions, the deployment action (`azure/container-apps-deploy-action`) updates the container image but does **not** alter the Ingress Target Port if it was misconfigured during manual creation. Always verify the Ingress port matches the `EXPOSE` port in your Dockerfile.
+- GitHub Actions jobs will **only** read from Environment Secrets if the job explicitly declares `environment: <name>`. If omitted, it falls back to Repository Secrets, resulting in silent empty strings for variables stored strictly inside the environment.
+- When a Next.js container deployed to Azure throws a 500 Internal Server Error immediately upon routing, it is almost always caused by an empty or mismatched Supabase URL/Key crashing the `createServerClient()` initialization.
+
+### Next Target
+- Confirm full functionality of the `dev` environment at `dev.influnet.io` once DNS propagates.
+
 ### Session — 2026-08-04: PostgREST Multiple Filter Fix & Matchmaking E2E Test Suite Alignment
 
 **Branch**: `dev`

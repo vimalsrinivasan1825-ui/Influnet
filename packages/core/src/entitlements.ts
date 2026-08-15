@@ -53,7 +53,10 @@ export interface Entitlements {
   cancelAtPeriodEnd: boolean;
   limits: {
     activeProjects: number | null;
+    /** NULL on Free too as of migration 117 — requests are never capped. */
     requestsPerMonth: number | null;
+    /** Lifetime cap on requests converted into a project. Never resets. */
+    projectConversions: number | null;
     shortlistSize: number | null;
     analyticsDays: number | null;
   };
@@ -68,12 +71,15 @@ export interface Entitlements {
   freeLimits: {
     activeProjects: number | null;
     requestsPerMonth: number | null;
+    projectConversions: number | null;
     shortlistSize: number | null;
     analyticsDays: number | null;
   };
   usage: {
     activeProjects: number;
     requestsThisMonth: number;
+    /** Total projects ever converted from a request — counts toward projectConversions. */
+    projectConversions: number;
   };
   price: {
     paise: number;

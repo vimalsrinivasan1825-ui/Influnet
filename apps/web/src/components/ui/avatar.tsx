@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { colorForKey } from "@/lib/entity-color";
 
 const sizeMap = {
   xs: "size-6 text-[0.625rem]",
@@ -31,6 +32,11 @@ function Avatar({
   const [broken, setBroken] = React.useState(false);
   const initial = (name?.trim()?.charAt(0) || "?").toUpperCase();
   const showImg = src && !broken;
+  // A flat hashed color, not a gradient — this is the WhatsApp-style identity
+  // cue (see lib/entity-color.ts), and a gradient dilutes it: two brands whose
+  // hash lands one hue apart are much easier to tell apart as flat fills than
+  // as two blends that both fade toward the same brand-2 orange.
+  const color = colorForKey(name);
 
   return (
     <span
@@ -40,14 +46,7 @@ function Avatar({
         sizeMap[size],
         className,
       )}
-      style={
-        showImg
-          ? undefined
-          : {
-              backgroundImage:
-                "linear-gradient(135deg, var(--brand), var(--brand-2))",
-            }
-      }
+      style={showImg ? undefined : { backgroundColor: color }}
     >
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Numeral, Txt } from './text';
 
@@ -8,13 +9,33 @@ export function StatCard({
   label,
   value,
   icon,
+  tint,
   hint,
+  delta,
   onPress,
 }: {
   label: string;
   value: string | number;
   icon?: ReactNode;
+  /**
+   * The icon's own hue. Supplying it seats the icon in a soft roundel of the
+   * same colour, which is what the web dashboard's counter tiles do (`bg-*-soft
+   * text-*` on a rounded square) and what stops a grid of tiles reading as one
+   * undifferentiated block of grey labels — the actual complaint on both apps.
+   *
+   * Optional: a tile that genuinely wants a bare glyph just omits it.
+   */
+  tint?: string;
   hint?: string;
+  /**
+   * Percentage change against the previous equivalent period.
+   *
+   * Null and undefined both mean "no delta", and both are correct in different
+   * situations — null when there was no baseline to compare against, undefined
+   * when this metric has no period at all. Neither renders as 0%, because a
+   * figure with nothing behind it presented as flat is a claim we can't make.
+   */
+  delta?: number | null;
   onPress?: () => void;
 }) {
   const t = useTheme();
@@ -37,14 +58,49 @@ export function StatCard({
         opacity: pressed ? 0.85 : 1,
       })}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Txt variant="footnote" tone="muted" numberOfLines={1}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: t.spacing.sm }}>
+        <Txt variant="footnote" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
           {label}
         </Txt>
-        {icon}
+        {icon && tint ? (
+          <View
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: t.radii.sm,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: `${tint}1a`,
+            }}
+          >
+            {icon}
+          </View>
+        ) : (
+          icon
+        )}
       </View>
       <Numeral>{value}</Numeral>
-      {hint ? (
+
+      {delta != null ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          {delta >= 0 ? (
+            <ArrowUpRight size={12} color={t.color.ok} />
+          ) : (
+            <ArrowDownRight size={12} color={t.color.danger} />
+          )}
+          <Txt
+            variant="caption"
+            style={{ fontWeight: '600', color: delta >= 0 ? t.color.ok : t.color.danger }}
+          >
+            {Math.abs(delta)}%
+          </Txt>
+          {hint ? (
+            <Txt variant="caption" tone="muted" numberOfLines={1}>
+              {hint}
+            </Txt>
+          ) : null}
+        </View>
+      ) : hint ? (
         <Txt variant="caption" tone="muted" numberOfLines={1}>
           {hint}
         </Txt>

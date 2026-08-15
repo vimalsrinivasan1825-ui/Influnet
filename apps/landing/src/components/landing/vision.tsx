@@ -62,19 +62,19 @@ export default function Vision() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="rounded-[2.5rem] border border-gray-150 p-8 lg:p-12 bg-gradient-to-br from-white via-white to-purple-50/15 shadow-[0_15px_50px_rgba(0,0,0,0.015)]"
+          className="rounded-[2.5rem] border border-gray-100 p-8 lg:p-12 bg-[var(--card)] shadow-[0_15px_50px_rgba(0,0,0,0.015)]"
         >
           <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             
             {/* Left Content Column */}
             <div className="lg:col-span-7">
-              <span className="inline-block px-4 py-1.5 rounded-full text-[11px] font-black tracking-widest uppercase text-pink-600 bg-pink-50 border border-pink-100 mb-5">
+              <span className="eyebrow block mb-5">
                 Our Vision
               </span>
               
-              <h2 className="text-3xl sm:text-4xl lg:text-[3.2rem] font-black text-gray-900 leading-none tracking-tight mb-4">
+              <h2 className="text-3xl sm:text-4xl lg:text-[3.2rem] font-bold text-gray-900 leading-none tracking-tight mb-4">
                 Building the Future of<br />
-                <span className="bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+                <span className="text-[var(--magenta-deep)]">
                   Influencer Marketing
                 </span>
               </h2>
@@ -100,7 +100,7 @@ export default function Vision() {
               <div className="mb-6">
                 <Link
                   href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
-                  className="inline-flex items-center gap-2 px-7 py-4 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white font-black rounded-2xl shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer text-xs md:text-sm"
+                  className="inline-flex items-center gap-2 px-7 py-4 bg-[var(--magenta)] hover:bg-[var(--magenta-deep)] text-white font-bold rounded-2xl shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer text-xs md:text-sm"
                 >
                   Join Influnet Today
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -118,12 +118,22 @@ export default function Vision() {
               <div className="absolute w-[160px] h-[160px] rounded-full bg-pink-500/10 blur-[40px] -z-10 translate-y-[-20px]" />
               <div className="absolute w-[180px] h-[60px] rounded-full bg-purple-500/8 blur-[30px] -z-10 translate-y-[100px]" />
 
-              {/* Correct visual mock pedestal image */}
-              <img 
-                src="/AZ8n2wqgm9kiSBAYwYSpdA-AZ8n2yRuC5hH5dk0gCMkFw.png" 
-                alt="Influnet Vision Centerpiece" 
-                className="w-[300px] h-auto object-contain select-none pointer-events-none drop-shadow-[0_10px_35px_rgba(236,72,153,0.03)] z-10"
-              />
+              {/* Centrepiece. This replaced an <img> pointing at a PNG that was
+                  never added to public/, so the section rendered a broken-image
+                  icon in every browser. Drawn inline instead — nothing to ship. */}
+              <div className="pointer-events-none relative z-10 flex h-[300px] w-[300px] select-none items-center justify-center">
+                <svg viewBox="0 0 300 300" className="absolute inset-0 h-full w-full" aria-hidden="true">
+                  <circle cx="150" cy="150" r="118" fill="none" stroke="var(--line)" strokeWidth="1" />
+                  <circle cx="150" cy="150" r="92" fill="none" stroke="var(--line)" strokeWidth="1" strokeDasharray="3 5" />
+                  <circle cx="150" cy="150" r="64" fill="none" stroke="var(--line-strong)" strokeWidth="1" />
+                  <circle cx="150" cy="32" r="4" fill="var(--magenta)" />
+                  <circle cx="242" cy="196" r="3.5" fill="var(--verified)" />
+                  <circle cx="58" cy="196" r="3.5" fill="var(--ink)" opacity="0.35" />
+                </svg>
+                <div className="relative flex h-[112px] w-[112px] items-center justify-center rounded-full border border-[var(--line)] bg-[var(--card)] shadow-[0_16px_40px_-20px_rgba(23,20,29,0.3)]">
+                  <img src="/influet_logo.png" alt="" className="h-11 w-auto" />
+                </div>
+              </div>
 
               {/* Floating Card 1: Verified Creators (Left) */}
               <motion.div 
@@ -132,7 +142,7 @@ export default function Vision() {
                 className="absolute left-[-25px] top-[90px] w-[120px] bg-white/90 backdrop-blur-md border border-white/60 p-2.5 rounded-2xl shadow-[0_12px_30px_rgba(236,72,153,0.06)] z-20 text-left font-sans"
               >
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-[9px] font-black text-gray-800 leading-none">Verified<br />Creators</span>
+                  <span className="text-[9px] font-bold text-gray-800 leading-none">Verified<br />Creators</span>
                   <span className="w-3.5 h-3.5 rounded-full bg-purple-100 flex items-center justify-center text-[7px] text-purple-600 font-bold border border-purple-200">✓</span>
                 </div>
                 <div className="flex items-center">
@@ -141,7 +151,7 @@ export default function Vision() {
                       <img key={i} src={av} alt="avatar" className="w-5 h-5 rounded-full border border-white object-cover" />
                     ))}
                   </div>
-                  <span className="text-[7.5px] font-black text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-md ml-1">+12K</span>
+                  <span className="text-[7.5px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-md ml-1">+12K</span>
                 </div>
               </motion.div>
 
@@ -151,7 +161,7 @@ export default function Vision() {
                 transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
                 className="absolute right-[-25px] top-[105px] w-[120px] bg-white/90 backdrop-blur-md border border-white/60 p-2.5 rounded-2xl shadow-[0_12px_30px_rgba(168,85,247,0.06)] z-20 text-left font-sans"
               >
-                <div className="text-[9px] font-black text-gray-855 mb-2 leading-none">Smart<br />Collaboration</div>
+                <div className="text-[9px] font-bold text-gray-855 mb-2 leading-none">Smart<br />Collaboration</div>
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <div className="w-4.5 h-4.5 rounded bg-purple-50 text-purple-600 flex items-center justify-center text-[8px] font-bold">💬</div>
                   <div className="w-4.5 h-4.5 rounded bg-pink-50 text-pink-600 flex items-center justify-center text-[8px] font-bold">📄</div>
@@ -165,7 +175,7 @@ export default function Vision() {
                 transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
                 className="absolute left-[110px] bottom-[15px] w-[120px] bg-white/90 backdrop-blur-md border border-white/60 p-2.5 rounded-2xl shadow-[0_12px_30px_rgba(168,85,247,0.06)] z-20 text-left font-sans"
               >
-                <div className="text-[9px] font-black text-gray-855 leading-none mb-1.5">Measurable<br />Results</div>
+                <div className="text-[9px] font-bold text-gray-855 leading-none mb-1.5">Measurable<br />Results</div>
                 <div className="h-8 relative overflow-hidden flex items-end">
                   <svg className="w-full h-7" viewBox="0 0 100 40">
                     <motion.path 
@@ -194,8 +204,8 @@ export default function Vision() {
                   {stat.icon}
                 </div>
                 <div>
-                  <div className="text-xl font-black text-gray-900 leading-none">{stat.value}</div>
-                  <div className="text-[11px] text-gray-450 font-bold mt-1 uppercase tracking-wider">{stat.label}</div>
+                  <div className="text-xl font-bold text-gray-900 leading-none">{stat.value}</div>
+                  <div className="text-[11px] text-gray-400 font-bold mt-1 uppercase tracking-wider">{stat.label}</div>
                 </div>
               </div>
             ))}
