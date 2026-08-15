@@ -8,12 +8,12 @@ This file tracks the current implementation state of each system module, issues 
 
 ### Scope
 - **Mobile Stream Configuration (`apps/mobile/lib/stream.ts`)**: Added `sanitize()` helper to strip line breaks and spaces from `EXPO_PUBLIC_STREAM_API_KEY`, preventing trailing-whitespace connection failures.
-- **EAS Build Profiles (`apps/mobile/eas.json`)**: Configured environment-specific `EXPO_PUBLIC_STREAM_API_KEY` across `preview` / `preview-device` (`kw5uagr7nxs7`) and `production` (`5z6hhrgmrdj9`).
-- **OTA Updates (`.github/workflows/mobile-update.yml`)**: Injected explicit `EXPO_PUBLIC_STREAM_API_KEY` into both `update-preview` and `update-production` jobs.
+- **EAS Build Profiles (`apps/mobile/eas.json`)**: Configured environment-specific `EXPO_PUBLIC_STREAM_API_KEY` across `preview` / `preview-device` (`2rpeptjh9ug8`) and `production` (`5z6hhrgmrdj9`).
+- **OTA Updates (`.github/workflows/mobile-update.yml`)**: Bound `environment: dev` and `environment: staging` to the respective OTA jobs so GitHub Environment variables (`vars.SUPABASE_URL`, `vars.SUPABASE_ANON_KEY`, `vars.STREAM_API_KEY`) and fallback constants are injected into the EAS update bundle.
 - **Removed Hardcoded Credentials (`apps/mobile/app.json`)**: Cleaned up the `extra` object so environment variables drive configuration cleanly across builds and environments.
 
 ### Broken & Resolved
-- **Mobile Chat Connection Failure on Staging**: `apps/mobile/app.json` had a hardcoded `streamApiKey` fallback pointing to the dev key (`kw5uagr7nxs7`), causing mobile builds to attempt connecting with dev credentials while the staging backend issued staging-signed tokens (`5z6hhrgmrdj9`). Resolved by moving Stream keys strictly to `eas.json` profiles and workflow environment variables with whitespace sanitization.
+- **Mobile OTA Updates Missing Database & Stream Keys**: The `mobile-update.yml` workflow lacked `environment: dev` / `environment: staging` blocks and attempted to read obsolete `DEV_*` repo secrets, resulting in empty Supabase URLs and old Stream keys during EAS update bundles. Resolved by binding jobs to GitHub Environments and setting explicit fallbacks matching `eas.json`.
 
 ### Key Lessons
 - Never leave environment-specific credentials hardcoded in `app.json` `extra`; use `eas.json` `env` blocks for builds and workflow `env` blocks for OTA updates.
