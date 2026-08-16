@@ -59,6 +59,7 @@ export function ChipRail({ children }: { children: React.ReactNode }) {
         gap: t.spacing.sm,
         paddingHorizontal: t.spacing.screen,
         paddingVertical: t.spacing.sm,
+        alignItems: 'center',
       }}
     >
       {children}
