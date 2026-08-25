@@ -1,173 +1,27 @@
 /**
- * Body markup for the internal product-plan report served by ./route.ts.
+ * The nine-feature release plan and competitor review, served at
+ * <base>/plan by ../[doc]/route.ts.
  *
- * Kept as a string rather than a page component on purpose: this is a static
- * document with its own self-contained stylesheet, and routing it through the
- * app's layout would inherit the dashboard chrome it is not meant to have.
+ * Kept as a string rather than a page component on purpose: these documents
+ * carry their own stylesheet, and routing them through the app's layout would
+ * inherit the dashboard chrome they are not meant to have.
  *
- * Generated content — edit the source document, not this file.
+ * Takes `base` (the tokenised root, /r/<token>) because nothing here may
+ * hard-code the token, and relative hrefs resolve differently depending on
+ * whether the visitor's URL happens to carry a trailing slash.
  */
-export const REPORT_BODY = String.raw`
+import { REPORT_HEAD, REPORT_THEMER } from './report-chrome';
+
+export function planBody(base: string): string {
+  return `
 <title>Nine Features, Three Releases</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-
-<style>
-:root{
-  --surface:#f6f7f9; --card:#ffffff; --card-2:#fdf2f8;
-  --hairline:#eef0f4; --hairline-strong:#e3e6ec;
-  --content:#0f172a; --content-soft:#475569; --content-muted:#94a3b8;
-  --brand:#ee3e96; --brand-2:#f26e59; --brand-strong:#d6358a; --brand-soft:#fdf2f8;
-  --ok:#16a34a; --ok-soft:#f0fdf4; --warn:#d97706; --warn-soft:#fffbeb;
-  --danger:#dc2626; --danger-soft:#fef2f2;
-  --shadow:0 1px 2px rgba(15,23,42,.05), 0 10px 30px -22px rgba(238,62,150,.35);
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --surface:#100910; --card:#1a111a; --card-2:#241624;
-    --hairline:#2c1f2c; --hairline-strong:#3a2a3a;
-    --content:#f7eef4; --content-soft:#cbb8c5; --content-muted:#8d7a88;
-    --brand:#f871b3; --brand-2:#f78a76; --brand-strong:#fda4c8; --brand-soft:#2e1626;
-    --ok:#4ade80; --ok-soft:#12291b; --warn:#fbbf24; --warn-soft:#2c2110;
-    --danger:#f87171; --danger-soft:#2e1414;
-    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 30px -22px rgba(0,0,0,.9);
-  }
-}
-:root[data-theme="dark"]{
-  --surface:#100910; --card:#1a111a; --card-2:#241624;
-  --hairline:#2c1f2c; --hairline-strong:#3a2a3a;
-  --content:#f7eef4; --content-soft:#cbb8c5; --content-muted:#8d7a88;
-  --brand:#f871b3; --brand-2:#f78a76; --brand-strong:#fda4c8; --brand-soft:#2e1626;
-  --ok:#4ade80; --ok-soft:#12291b; --warn:#fbbf24; --warn-soft:#2c2110;
-  --danger:#f87171; --danger-soft:#2e1414;
-  --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 30px -22px rgba(0,0,0,.9);
-}
-
-*{box-sizing:border-box}
-body{
-  margin:0; background:var(--surface); color:var(--content);
-  font-family:"Plus Jakarta Sans","Inter",system-ui,-apple-system,sans-serif;
-  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
-}
-.wrap{max-width:1060px; margin:0 auto; padding:0 26px 100px}
-h1,h2,h3,h4{text-wrap:balance; letter-spacing:-.02em; margin:0}
-a{color:var(--brand-strong); text-underline-offset:2px}
-a:focus-visible,summary:focus-visible{outline:2px solid var(--brand); outline-offset:3px; border-radius:4px}
-p{margin:0 0 14px} ul,ol{margin:0 0 14px; padding-left:20px} li{margin-bottom:6px}
-strong{font-weight:700}
-
-/* masthead */
-header.mast{padding:60px 0 34px; border-bottom:2px solid var(--brand); margin-bottom:44px}
-.eyebrow{font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; color:var(--brand); margin:0 0 18px}
-h1{font-size:clamp(36px,6vw,62px); line-height:1.03; font-weight:800; margin-bottom:16px}
-h1 em{font-style:normal; color:var(--brand)}
-.standfirst{font-size:18.5px; line-height:1.5; color:var(--content-soft); max-width:56ch; margin:0}
-
-/* sections */
-section{margin-top:64px; scroll-margin-top:16px}
-.sec-num{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--brand); background:var(--brand-soft); padding:4px 10px; border-radius:999px; margin-bottom:14px}
-h2{font-size:clamp(24px,3.2vw,32px); font-weight:800; margin-bottom:8px}
-.dek{color:var(--content-soft); font-size:16px; margin:0 0 26px; max-width:66ch}
-h3{font-size:19px; font-weight:700; margin:34px 0 10px}
-h4{font-size:15.5px; font-weight:700; margin:0 0 8px}
-
-/* tags */
-.tag{display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-  padding:3.5px 9px; border-radius:999px; white-space:nowrap; vertical-align:middle}
-.t-low{background:var(--ok-soft); color:var(--ok)}
-.t-med{background:var(--warn-soft); color:var(--warn)}
-.t-high{background:var(--danger-soft); color:var(--danger)}
-.t-r1{background:var(--brand); color:#fff}
-.t-r2{background:var(--brand-soft); color:var(--brand-strong); box-shadow:inset 0 0 0 1px var(--brand)}
-.t-r3{background:var(--card-2); color:var(--content-muted); box-shadow:inset 0 0 0 1px var(--hairline-strong)}
-
-/* tables */
-.tscroll{overflow-x:auto; margin:22px 0 26px; border:1px solid var(--hairline-strong); border-radius:14px;
-  background:var(--card); box-shadow:var(--shadow)}
-table{border-collapse:collapse; width:100%; min-width:600px}
-th{font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--content-muted);
-  text-align:left; padding:14px 16px; border-bottom:1px solid var(--hairline-strong); background:var(--brand-soft); white-space:nowrap}
-td{padding:14px 16px; border-bottom:1px solid var(--hairline); vertical-align:top; font-size:15px; line-height:1.5; color:var(--content-soft)}
-tbody tr:last-child td{border-bottom:none}
-td.nm{font-weight:700; color:var(--content); white-space:nowrap}
-td.n{font-weight:700; color:var(--brand); font-variant-numeric:tabular-nums; width:34px}
-
-/* release lanes */
-.lane{display:grid; grid-template-columns:96px 1fr; gap:0 24px; margin-top:30px}
-.lane-rail{position:relative}
-.lane-id{font-size:15px; font-weight:800; color:#fff; background:var(--brand); display:inline-block;
-  padding:5px 13px; border-radius:999px; letter-spacing:.02em}
-.lane.two .lane-id{background:var(--brand-soft); color:var(--brand-strong); box-shadow:inset 0 0 0 1.5px var(--brand)}
-.lane.three .lane-id{background:var(--card); color:var(--content-muted); box-shadow:inset 0 0 0 1.5px var(--hairline-strong)}
-.lane-when{font-size:11px; font-weight:600; color:var(--content-muted); margin-top:8px; padding-left:2px}
-.lane-rail::after{content:""; position:absolute; left:14px; top:46px; bottom:-30px; width:2px; background:var(--hairline-strong)}
-.lane:last-child .lane-rail::after{display:none}
-.lane-body{padding-bottom:22px}
-.lane-body>h3:first-child{margin-top:0}
-
-/* cards */
-.card{background:var(--card); border:1px solid var(--hairline-strong); border-radius:14px; padding:18px 20px;
-  box-shadow:var(--shadow)}
-.card h4{display:flex; align-items:center; gap:9px; flex-wrap:wrap}
-.card p:last-child,.card ul:last-child{margin-bottom:0}
-.card p{font-size:15px; color:var(--content-soft)}
-.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:14px}
-.card.hero{border-color:var(--brand); border-width:2px}
-
-/* callout */
-.call{border-left:4px solid var(--brand); background:var(--card); padding:16px 20px; border-radius:0 12px 12px 0;
-  margin:20px 0; box-shadow:var(--shadow)}
-.call.w{border-left-color:var(--warn)}
-.call p{font-size:15px; color:var(--content-soft)} .call p:last-child{margin-bottom:0}
-.call .lbl{display:block; font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
-  color:var(--brand); margin-bottom:8px}
-.call.w .lbl{color:var(--warn)}
-
-/* competitor blocks */
-.arch{margin-top:30px; padding-top:22px; border-top:1px solid var(--hairline-strong)}
-.arch>h3{margin:0 0 4px}
-.arch-sub{font-size:13.5px; color:var(--content-muted); margin:0 0 6px; font-weight:600}
-.comp{padding:14px 0; border-bottom:1px solid var(--hairline)}
-.comp:last-child{border-bottom:none}
-.comp-name{font-weight:800; font-size:16px; margin:0 0 6px; color:var(--content)}
-.comp dl{display:grid; grid-template-columns:74px 1fr; gap:4px 14px; margin:0; font-size:15px}
-.comp dt{font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--content-muted); padding-top:5px}
-.comp dd{margin:0; color:var(--content-soft)}
-.comp dd.take{color:var(--brand-strong); font-weight:600}
-
-footer{margin-top:70px; border-top:1px solid var(--hairline-strong); padding-top:24px; font-size:13.5px; color:var(--content-muted)}
-footer a{color:var(--content-muted)}
-footer ul{columns:2; column-gap:34px; padding-left:16px}
-
-@media (max-width:640px){
-  .wrap{padding:0 16px 70px}
-  .lane{grid-template-columns:1fr}
-  .lane-rail{display:flex; align-items:center; gap:12px; margin-bottom:12px}
-  .lane-when{margin-top:0}
-  .lane-rail::after{display:none}
-  footer ul{columns:1}
-}
-@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
-
-/* theme toggle */
-.themer{position:fixed; top:14px; right:14px; z-index:50; display:flex; align-items:center; gap:6px;
-  background:var(--card); border:1px solid var(--hairline-strong); border-radius:999px; padding:4px;
-  box-shadow:var(--shadow)}
-.themer button{appearance:none; border:0; background:transparent; cursor:pointer; border-radius:999px;
-  padding:6px 12px; font:inherit; font-size:12px; font-weight:700; color:var(--content-muted);
-  letter-spacing:.02em; line-height:1}
-.themer button[aria-pressed="true"]{background:var(--brand); color:#fff}
-.themer button:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
-@media print{.themer{display:none}}
-@media (max-width:640px){.themer{top:8px; right:8px}}
-</style>
-
+${REPORT_HEAD}
 <div class="wrap">
 
+<nav class="docnav"><a href="${base}">← All documents</a></nav>
+
 <header class="mast">
-  <p class="eyebrow">Influnet · Product plan · August 2026 · IST</p>
+  <p class="eyebrow">Influnet · Product plan · 19 August 2026 · IST</p>
   <h1>Nine Features,<br><em>Three Releases</em></h1>
   <p class="standfirst">A build order for the nine ideas the team proposed, checked against what Influnet has already built — and what thirty competitors are doing that is worth copying.</p>
 </header>
@@ -554,34 +408,7 @@ footer ul{columns:2; column-gap:34px; padding-left:16px}
 </footer>
 
 
-<div class="themer" role="group" aria-label="Colour theme">
-  <button type="button" data-set="light" aria-pressed="false">Light</button>
-  <button type="button" data-set="system" aria-pressed="true">Auto</button>
-  <button type="button" data-set="dark" aria-pressed="false">Dark</button>
-</div>
-<script>
-(function(){
-  var KEY = "influnet-report-theme";
-  var root = document.documentElement;
-  function apply(mode){
-    if (mode === "light" || mode === "dark") root.setAttribute("data-theme", mode);
-    else root.removeAttribute("data-theme");
-    var btns = document.querySelectorAll(".themer button");
-    for (var i = 0; i < btns.length; i++){
-      btns[i].setAttribute("aria-pressed", String(btns[i].dataset.set === mode));
-    }
-  }
-  var saved;
-  try { saved = localStorage.getItem(KEY); } catch (e) {}
-  apply(saved === "light" || saved === "dark" ? saved : "system");
-  document.querySelector(".themer").addEventListener("click", function(ev){
-    var btn = ev.target.closest("button[data-set]");
-    if (!btn) return;
-    var mode = btn.dataset.set;
-    try { localStorage.setItem(KEY, mode); } catch (e) {}
-    apply(mode);
-  });
-})();
-</script>
+${REPORT_THEMER}
 </div>
 `;
+}
