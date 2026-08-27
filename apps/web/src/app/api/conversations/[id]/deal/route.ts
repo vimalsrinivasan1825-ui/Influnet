@@ -6,6 +6,7 @@ import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { requireVerifiedOwnership } from '@/lib/ownership-gate';
 import { ensureStageItems } from '@/lib/stage-items-gate';
+import { flowOf } from '@influnet/core';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -110,7 +111,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     if (latest) {
       const { data: props } = await supabase
         .from('project_proposals')
-        .select('id, title, description, budget, advance_amount, due_date, note, review_note, status, proposed_by, resolved_by, resolved_at, created_at')
+        .select('id, title, description, budget, advance_amount, due_date, note, review_note, status, proposed_by, resolved_by, resolved_at, created_at, flow_key, deliverables, start_date, is_barter, barter_details')
         .eq('collab_request_id', latest.id)
         .order('created_at', { ascending: false });
 
@@ -169,6 +170,11 @@ const ProposeSchema = z.object({
   advance_amount: z.coerce.number().nonnegative().max(100_000_000).optional(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   note: z.string().max(2000).optional(),
+  flow_key: z.enum(['full', 'short_pay_after', 'short_pay_before']).default('full'),
+  deliverables: z.string().max(4000).optional(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  is_barter: z.boolean().default(false),
+  barter_details: z.string().max(1000).optional(),
 });
 
 const RespondSchema = z.object({
@@ -184,6 +190,12 @@ const PROPOSE_ERRORS: Record<string, [number, string]> = {
   project_already_exists: [409, 'This collaboration already has a project.'],
   proposal_already_pending: [409, 'There are already terms awaiting a response.'],
   title_required: [400, 'Give the project a title.'],
+  invalid_flow_key: [400, 'Invalid project type.'],
+  short_flow_requires_due_date: [400, 'A short-term project needs a delivery date.'],
+  short_flow_requires_budget_or_barter: [400, 'A short-term project needs a budget or must be marked as barter.'],
+  barter_requires_details: [400, 'Barter projects need a description of what is being exchanged.'],
+  barter_forces_zero_budget: [400, 'A barter project has no cash budget.'],
+  short_flow_no_advance: [400, 'Short-term projects do not use advances.'],
 };
 
 const RESPOND_ERRORS: Record<string, [number, string]> = {
@@ -223,10 +235,29 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
-    const { collab_request_id, title, description, budget, advance_amount, due_date, note } = parsed.data;
+    const { collab_request_id, title, description, budget, advance_amount, due_date, note, flow_key, deliverables, start_date, is_barter, barter_details } = parsed.data;
+
+    // Server-side validation for short flows (defence in depth with the RPC)
+    if (flow_key !== 'full') {
+      if (!due_date) {
+        return jsonError(400, 'A short-term project needs a delivery date.');
+      }
+      if ((!budget || budget <= 0) && !is_barter) {
+        return jsonError(400, 'A short-term project needs a budget or must be marked as barter.');
+      }
+      if (is_barter && (!barter_details || !barter_details.trim())) {
+        return jsonError(400, 'Barter projects need a description of what is being exchanged.');
+      }
+      if (is_barter && budget && budget > 0) {
+        return jsonError(400, 'A barter project has no cash budget — set budget to 0.');
+      }
+      if (advance_amount != null) {
+        return jsonError(400, 'Short-term projects do not use advances.');
+      }
+    }
 
     if (advance_amount != null && budget != null && advance_amount > budget) {
-      return jsonError(400, 'The advance can’t be more than the total budget.');
+      return jsonError(400, 'The advance can\u2019t be more than the total budget.');
     }
 
     const { data: result, error } = await supabase.rpc('propose_project', {
@@ -237,6 +268,11 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       p_advance_amount: advance_amount ?? null,
       p_due_date: due_date ?? null,
       p_note: note ?? null,
+      p_flow_key: flow_key,
+      p_deliverables: deliverables ?? null,
+      p_start_date: start_date ?? null,
+      p_is_barter: is_barter,
+      p_barter_details: barter_details ?? null,
     });
     if (error) {
       return mapRpcError(error.message, PROPOSE_ERRORS) ?? jsonError(500, 'Could not send the terms', error);
@@ -385,7 +421,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // seed it on first use if this fails.
     if (accepting && result?.project_id) {
       try {
-        await ensureStageItems(supabase, result.project_id as number);
+        // Read the project's flow to seed the right checklist stages.
+        const { data: createdProject } = await supabase
+          .from('campaign_projects')
+          .select('flow_key')
+          .eq('id', result.project_id)
+          .maybeSingle();
+        const projectFlow = flowOf(createdProject ?? {});
+        await ensureStageItems(supabase, result.project_id as number, projectFlow);
       } catch (seedErr) {
         console.error('[deal] stage checklist seeding failed (gate will retry):', seedErr);
       }
