@@ -865,7 +865,7 @@ Tick as each task merges to `dev`.
 - [x] A1 Flow foundation · `119`
 - [x] A2 Choosing the kind at proposal time · *blocked on Q2*
 - [x] A3 Short-term stage machine
-- [ ] A4 Single payment gate + barter · `120` *(guard trigger)*
+- [x] A4 Single payment gate + barter · `120` *(guard trigger)*
 - [ ] A5 Short-term UI, web + mobile
 - [ ] B1 Document store · `121`
 - [ ] B2 Generator
