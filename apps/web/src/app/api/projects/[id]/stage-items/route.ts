@@ -3,6 +3,7 @@ import { withAuth, jsonError } from '@/lib/api';
 import { z } from 'zod';
 import { ensureStageItems } from '@/lib/stage-items-gate';
 import { isRazorpayConfigured } from '@/lib/payments/razorpay';
+import { flowOf } from '@influnet/core';
 
 // GET: list a project's stage checklist. Seeds the default items on first load
 // (idempotent via the UNIQUE(project_id, stage_key, label) constraint).
@@ -22,7 +23,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     // true thing, and keep the rule uniform across /api/projects/[id]/*.
     const { data: project } = await supabase
       .from('campaign_projects')
-      .select('owner_user_id, counterparty_user_id')
+      .select('owner_user_id, counterparty_user_id, flow_key')
       .eq('id', projectId)
       .maybeSingle();
 
@@ -35,7 +36,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     // seeding path means the gate can never disagree with what this endpoint
     // reports, which is exactly how the checklist used to end up empty for
     // anyone who acted on a project without opening it first.
-    const items = await ensureStageItems(supabase, projectId);
+    const items = await ensureStageItems(supabase, projectId, flowOf(project ?? {}));
 
     // null = the checklist genuinely can't be read (migration 054 not applied).
     // Return an empty list so the board still loads, same as before.
@@ -123,7 +124,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (done && isRazorpayConfigured()) {
       // Only PAYMENT gates open via a confirmed payment. Approval gates
       // (content_confirmation, final_approval) are ticked by hand as normal.
-      const isPaymentGate = item.is_gate && (item.stage_key === 'advance_payment' || item.stage_key === 'final_payment');
+      const isPaymentGate = item.is_gate && (item.stage_key === 'advance_payment' || item.stage_key === 'final_payment' || item.stage_key === 'quick_payment');
       if (isPaymentGate) {
         const { data: paid } = await supabase
           .from('project_payments')

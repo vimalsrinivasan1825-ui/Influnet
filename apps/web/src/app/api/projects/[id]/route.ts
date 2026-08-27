@@ -108,7 +108,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // the confirm_completion branch reads those columns separately.
     const { data: project, error: fetchErr } = await supabase
       .from('campaign_projects')
-      .select('id, title, owner_user_id, counterparty_user_id, current_stage, stage_progress')
+      .select('id, title, owner_user_id, counterparty_user_id, current_stage, stage_progress, flow_key')
       .eq('id', id)
       .single();
 
