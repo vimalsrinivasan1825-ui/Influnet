@@ -76,6 +76,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
   { label: "Rate limits", href: "/dashboard/admin/rate-limits", icon: Gauge },
   { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
+  { label: "Campaigns", href: "/dashboard/admin/campaigns", icon: Sparkles },
   { label: "Support", href: "/dashboard/admin/support", icon: Inbox },
   // Reports had a working API since migration 056 and no screen at all — every
   // harassment report filed by a user went into a table nobody could read.

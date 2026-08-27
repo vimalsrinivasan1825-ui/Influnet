@@ -84,8 +84,15 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (v !== undefined) updates[k] = v;
     }
 
-    // If transitioning to 'live', set published_at
-    if (parsed.data.status === 'live' && !updates.published_at) {
+    // If transitioning to 'live', enforce minimum brief standard (C5)
+    if (parsed.data.status === 'live') {
+      // Title is required (already enforced by schema min(1))
+      // Must have a description of at least 50 chars or deliverables
+      const desc = (updates.description as string) ?? (existing as any).description ?? '';
+      const deliv = (updates.deliverables as string) ?? (updates.deliverables as string) ?? '';
+      if (desc.length < 50 && deliv.length < 50) {
+        return jsonError(400, 'A campaign needs at least 50 characters of description or deliverables before going live.');
+      }
       updates.published_at = new Date().toISOString();
     }
 
