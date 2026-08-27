@@ -73,6 +73,14 @@ export function createEndpoints(api: ApiClient) {
       providerSessionId: string;
     }) => api.post<T>('/api/phone-otp/verify', body),
 
+    // ── Campaigns ──────────────────────────────────────────────────
+    campaigns: <T = unknown>() => api.get<T>('/api/campaigns'),
+    getCampaign: <T = unknown>(id: string) => api.get<T>(`/api/campaigns/${id}`),
+    applyToCampaign: <T = unknown>(id: string, body: unknown) => api.post<T>(`/api/campaigns/${id}/applications`, body),
+    listCampaignApplications: <T = unknown>(id: string) => api.get<T>(`/api/campaigns/${id}/applications`),
+    updateApplicationStatus: <T = unknown>(campaignId: string, appId: string, body: unknown) =>
+      api.patch<T>(`/api/campaigns/${campaignId}/applications/${appId}`, body),
+
     // ── Discovery ──────────────────────────────────────────────────
     discover: <T = unknown>(query: string) => api.get<T>(`/api/discover${query ? `?${query}` : ''}`),
     /** Full public-profile view model for one creator, by username — same shape the web overlay renders. */
