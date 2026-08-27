@@ -33,6 +33,7 @@ interface ProfileResponse {
   headline?: string | null;
   instagram_handle?: string | null;
   youtube_handle?: string | null;
+  creating_since?: number | null;
 }
 
 export default function EditProfileScreen() {
@@ -62,6 +63,7 @@ export default function EditProfileScreen() {
   const [bio, setBio] = useState('');
   const [instagram, setInstagram] = useState('');
   const [youtube, setYoutube] = useState('');
+  const [creatingSince, setCreatingSince] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -85,6 +87,7 @@ export default function EditProfileScreen() {
       setBio(p.bio ?? '');
       setInstagram(p.instagram_handle ?? '');
       setYoutube(p.youtube_handle ?? '');
+      setCreatingSince(p.creating_since != null ? String(p.creating_since) : '');
       setLoading(false);
     })();
   }, []);
@@ -139,6 +142,14 @@ export default function EditProfileScreen() {
       payload.bio = bio.trim() || undefined;
       payload.instagram_handle = instagram.trim() || undefined;
       payload.youtube_handle = youtube.trim() || undefined;
+      // Same range web's settings page validates — not before creators
+      // realistically existed on the platform, not in the future.
+      if (creatingSince.trim()) {
+        const yr = Number(creatingSince);
+        if (Number.isInteger(yr) && yr >= 1990 && yr <= new Date().getFullYear()) {
+          payload.creating_since = yr;
+        }
+      }
       if (avatarUrl) payload.avatar_url = avatarUrl;
       if (username.trim()) payload.username = username.trim().toLowerCase().replace(/[^a-z0-9_.]/g, '');
     }
@@ -257,6 +268,13 @@ export default function EditProfileScreen() {
             <Field label="Bio" value={bio} onChangeText={setBio} placeholder="Tell brands about yourself…" multiline />
             <Field label="Instagram handle" value={instagram} onChangeText={setInstagram} placeholder="@username" autoCapitalize="none" />
             <Field label="YouTube channel" value={youtube} onChangeText={setYoutube} placeholder="@channel" autoCapitalize="none" />
+            <Field
+              label="Creating since (year)"
+              value={creatingSince}
+              onChangeText={(v) => setCreatingSince(v.replace(/[^0-9]/g, '').slice(0, 4))}
+              placeholder="e.g. 2019"
+              keyboardType="number-pad"
+            />
           </Card>
         </>
       ) : null}

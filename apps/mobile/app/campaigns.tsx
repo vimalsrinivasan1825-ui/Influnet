@@ -91,7 +91,7 @@ export default function CampaignsScreen() {
             return (
               <Pressable
                 key={c.id}
-                onPress={() => router.push(`/projects/${c.id}` as any)}
+                onPress={() => router.push(`/campaigns/${c.id}` as any)}
                 style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
               >
                 <Card raised style={{ marginBottom: t.spacing.md, gap: t.spacing.sm }}>

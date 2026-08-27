@@ -20,6 +20,7 @@ import { styleForStatus } from '@/lib/deal-state-style';
 import { formatCurrency, formatDate, timeAgo } from '@/lib/format';
 import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
 import { ProjectReviews } from '@/components/project-reviews';
+import { ProjectDocuments } from '@/components/project-documents';
 import {
   Badge,
   Button,
@@ -432,6 +433,8 @@ export default function ProjectDetailScreen() {
                 />
               </ListGroup>
             ) : null}
+
+            <ProjectDocuments projectId={id} />
 
             {project.status === 'completed' ? (
               <ProjectReviews projectId={id} partner={partner} />

@@ -10,7 +10,7 @@
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Globe } from 'lucide-react-native';
+import { Globe, Star } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 // Lucide ships no brand marks, so channels used to be a grey @ and a grey
 // chain link — Instagram and YouTube as the same row with different words.
@@ -54,6 +54,11 @@ interface CreatorProfileView {
   subtitleAccent: string;
   tagline: string;
   heroStats: { label: string; value: string }[];
+  /** S1 — derived from audience size, computed once server-side so the
+   *  boundary can never disagree between platforms. */
+  creatorLevel?: { tier: string; label: string; isSelfReported: boolean } | null;
+  /** S5 — never synthesised client-side; null (not zero) means no reviews yet. */
+  reviews?: { count: number; average: number | null } | null;
   instagramHandle?: string | null;
   youtubeHandle?: string | null;
   /** Instagram posts. `views` arrives pre-formatted, e.g. "1.2K". */
@@ -218,6 +223,16 @@ export default function CreatorDetail() {
                   tone={creator.isVerified ? 'verified' : 'neutral'}
                   icon={creator.isVerified ? <VerifiedBadge size={13} /> : undefined}
                 />
+                {creator.creatorLevel ? (
+                  <Badge
+                    label={
+                      creator.creatorLevel.isSelfReported
+                        ? `${creator.creatorLevel.label} (self-reported)`
+                        : creator.creatorLevel.label
+                    }
+                    tone="neutral"
+                  />
+                ) : null}
               </View>
 
               {creator.subtitleLead || creator.subtitleAccent ? (
@@ -267,6 +282,18 @@ export default function CreatorDetail() {
                     </Txt>
                   </View>
                 ))}
+              </Card>
+            ) : null}
+
+            {creator.reviews && creator.reviews.count > 0 ? (
+              <Card style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+                <Star size={16} color={t.color.warn} fill={t.color.warn} />
+                <Txt variant="body" style={{ fontWeight: '700' }}>
+                  {creator.reviews.average?.toFixed(1) ?? '—'}
+                </Txt>
+                <Txt variant="caption" tone="muted">
+                  ({creator.reviews.count} {creator.reviews.count === 1 ? 'review' : 'reviews'})
+                </Txt>
               </Card>
             ) : null}
 

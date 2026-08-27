@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
+import { requireLiveCampaignQuota } from '@/lib/entitlements';
 
 const PatchSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
@@ -67,7 +68,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     const { data: existing } = await supabase
       .from('campaigns')
-      .select('business_user_id')
+      .select('business_user_id, status, description, deliverables, platforms, expires_at')
       .eq('id', id)
       .maybeSingle();
 
@@ -84,15 +85,47 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (v !== undefined) updates[k] = v;
     }
 
-    // If transitioning to 'live', enforce minimum brief standard (C5)
-    if (parsed.data.status === 'live') {
-      // Title is required (already enforced by schema min(1))
-      // Must have a description of at least 50 chars or deliverables
-      const desc = (updates.description as string) ?? (existing as any).description ?? '';
-      const deliv = (updates.deliverables as string) ?? (updates.deliverables as string) ?? '';
+    // If transitioning to 'live', enforce the minimum brief standard (C5) and
+    // the free-tier live-campaign cap (C6) — this is where "publish" actually
+    // happens; a draft can be as empty as its owner likes.
+    if (parsed.data.status === 'live' && existing.status !== 'live') {
+      // Title is required (already enforced by schema min(1)).
+      const desc = (updates.description as string) ?? existing.description ?? '';
+      // BUG FIXED: this previously compared updates.deliverables to itself,
+      // so a campaign whose deliverables were set at creation and never
+      // resent on this PATCH always evaluated as "" here, regardless of what
+      // was actually stored.
+      const deliv = (updates.deliverables as string) ?? existing.deliverables ?? '';
       if (desc.length < 50 && deliv.length < 50) {
         return jsonError(400, 'A campaign needs at least 50 characters of description or deliverables before going live.');
       }
+
+      // At least one platform — a brief with none tells a creator nothing
+      // about where the work will run.
+      const platforms = (updates.platforms as string[] | undefined) ?? existing.platforms ?? [];
+      if (!Array.isArray(platforms) || platforms.length === 0) {
+        return jsonError(400, 'Pick at least one platform before publishing.');
+      }
+
+      // Expiry required at publish, defaulted from billing_settings rather
+      // than left to run forever — a campaign nobody set an end date on is
+      // exactly the "dead campaign never falls off the board" case C5 exists
+      // to prevent.
+      if (!updates.expires_at && !existing.expires_at) {
+        const { data: settings } = await supabase
+          .from('billing_settings')
+          .select('campaign_default_days')
+          .maybeSingle();
+        const days = settings?.campaign_default_days ?? 30;
+        updates.expires_at = new Date(Date.now() + days * 864e5).toISOString();
+      }
+
+      const quotaBlocked = await requireLiveCampaignQuota(
+        auth,
+        'You are at your limit for live campaigns. Close one to publish another, or upgrade to Pro for unlimited campaigns.',
+      );
+      if (quotaBlocked) return quotaBlocked;
+
       updates.published_at = new Date().toISOString();
     }
 
@@ -103,7 +136,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       .select()
       .single();
 
-    if (error) return jsonError(500, 'Failed to update campaign', error);
+    if (error) {
+      // The route-level requireLiveCampaignQuota() check above is a
+      // 60-second-cached read — see resolveEntitlements — so several rapid
+      // publishes for one brand can all read the same pre-publish usage
+      // count and all pass it. enforce_campaign_quota_trg (migration 131) is
+      // the real, uncached backstop for exactly that case, and it CAN fire
+      // even when the route-level check just said yes. Map its exception the
+      // same way the deal route maps project_quota_exceeded, or this reaches
+      // the client as an unexplained 500 instead of "you're at your limit".
+      if (error.message?.includes('campaign_quota_exceeded')) {
+        return jsonError(402, 'You are at your limit for live campaigns. Close one to publish another, or upgrade to Pro for unlimited campaigns.');
+      }
+      return jsonError(500, 'Failed to update campaign', error);
+    }
     return NextResponse.json({ campaign });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);

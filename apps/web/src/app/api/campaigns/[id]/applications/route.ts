@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { requireWeeklyQuota, releaseWeeklyQuota } from '@/lib/entitlements';
 
 const ApplySchema = z.object({
   pitch: z.string().trim().min(10).max(2000),
@@ -115,6 +116,18 @@ export async function POST(
       );
     }
 
+    // Weekly plan quota — separate from the rate limit above, which is an
+    // abuse guard (a fixed ceiling for everyone) rather than a plan gate.
+    // Consumes a unit atomically immediately before the write, per the
+    // convention documented on requireWeeklyQuota.
+    const quotaBlocked = await requireWeeklyQuota(
+      auth,
+      'campaigns.apply',
+      'applications_week',
+      'You have used all your campaign applications for this week. Upgrade to Pro for unlimited applications.',
+    );
+    if (quotaBlocked) return quotaBlocked;
+
     const { data: application, error } = await supabase
       .from('campaign_applications')
       .insert({
@@ -127,6 +140,9 @@ export async function POST(
       .single();
 
     if (error) {
+      // The write didn't happen — give the quota unit back so a rejected
+      // duplicate or a race against expiry doesn't cost a real application.
+      await releaseWeeklyQuota(auth, 'applications_week');
       if (error.code === '23505') {
         return jsonError(409, 'You have already applied to this campaign');
       }

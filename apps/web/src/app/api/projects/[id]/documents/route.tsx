@@ -10,6 +10,7 @@
  * Envelope: `document` on POST, `documents` on GET.
  */
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
@@ -160,8 +161,20 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       return jsonError(500, 'Failed to generate PDF');
     }
 
-    // Store the document row
-    const { data: doc, error: insErr } = await supabase
+    // Store the document row with the SERVICE ROLE. project_documents has RLS
+    // enabled with deliberately NO insert policy for `authenticated` (migration
+    // 124) — a participant is meant to trigger a document being written, not
+    // write one themselves, so a forged document can't be inserted by talking
+    // to PostgREST directly with the anon key. Everything above this point
+    // (reads, the participation check, the payment snapshot) still runs on the
+    // caller's own client so RLS keeps gating what THIS route may read; only
+    // the write that RLS is designed to refuse crosses over.
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!serviceKey || !serviceUrl) return jsonError(500, 'Server misconfigured');
+    const admin = createClient(serviceUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+    const { data: doc, error: insErr } = await admin
       .from('project_documents')
       .insert({
         project_id: projectId,

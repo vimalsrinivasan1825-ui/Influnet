@@ -4,9 +4,10 @@ import {
   buildDefaultStageItems,
   blockingItems,
   canAdvanceStage,
+  paymentGateStage,
   type StageItem,
 } from '@/lib/project-stage-items';
-import { STAGES } from '@/lib/project-lifecycle';
+import { STAGES, STAGE_FLOWS } from '@/lib/project-lifecycle';
 
 function mk(partial: Partial<StageItem> & { stage_key: string }): StageItem {
   return {
@@ -75,5 +76,26 @@ describe('gate logic', () => {
       mk({ stage_key: 'project_discussion', is_required: true, done_at: null }),
     ];
     expect(canAdvanceStage('collaboration_started', items)).toBe(true);
+  });
+});
+
+// paymentGateStage() derives the terminal money stage BY NAME, not by
+// position. It has to get all three flows right: the full flow has THREE
+// is_gate/business stages (content_confirmation, final_approval,
+// final_payment) and must pick the last of them, not the first — a bug the
+// review of A1–A4 found and this pins down permanently.
+describe('paymentGateStage', () => {
+  it('full flow: picks final_payment, not the earlier approval gates', () => {
+    expect(paymentGateStage(STAGE_FLOWS.full)).toBe('final_payment');
+  });
+
+  it('short_pay_after: picks quick_payment, which is also the last stage before completion', () => {
+    expect(paymentGateStage(STAGE_FLOWS.short_pay_after)).toBe('quick_payment');
+  });
+
+  it('short_pay_before: picks quick_payment even though quick_delivery is positionally last — the bug this exists to prevent', () => {
+    const stages = STAGE_FLOWS.short_pay_before.stages;
+    expect(stages[stages.length - 2]).toBe('quick_delivery'); // sanity check on the flow shape itself
+    expect(paymentGateStage(STAGE_FLOWS.short_pay_before)).toBe('quick_payment');
   });
 });

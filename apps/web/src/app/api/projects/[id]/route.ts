@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
-import { blockingItems, type StageItem } from '@/lib/project-stage-items';
+import { blockingItems, paymentGateStage, type StageItem } from '@/lib/project-stage-items';
 import { evaluateStageGate } from '@/lib/stage-items-gate';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
@@ -654,10 +654,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // 1b) Dual-confirm completion: BOTH participants must confirm before a
     // project reaches 'project_completed' (which unlocks reviews + means paid).
     if (action === 'confirm_completion') {
-      // The stage just before project_completed is the terminal payment stage.
-      // For the full flow that is 'final_payment'; for short flows it is 'quick_payment'.
-      const completedIdx = flow.stages.indexOf('project_completed');
-      const terminalStage = completedIdx > 0 ? flow.stages[completedIdx - 1] : null;
+      // The stage carrying the payment gate item — NOT "the stage just before
+      // project_completed" by position. Those coincide for 'full' and
+      // 'short_pay_after' but not for 'short_pay_before', whose last stage
+      // before completion is quick_delivery, not the payment stage. See
+      // paymentGateStage()'s own comment for why this bit anyone reading it.
+      const terminalStage = paymentGateStage(flow);
       if (project.current_stage !== terminalStage) {
         return jsonError(400, 'Completion can only be confirmed at the terminal payment stage');
       }

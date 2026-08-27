@@ -81,6 +81,22 @@ export function createEndpoints(api: ApiClient) {
     updateApplicationStatus: <T = unknown>(campaignId: string, appId: string, body: unknown) =>
       api.patch<T>(`/api/campaigns/${campaignId}/applications/${appId}`, body),
 
+    // ── Saved items (favourites) ──────────────────────────────────
+    listSavedItems: <T = unknown>() => api.get<T>('/api/saved-items'),
+    saveItem: <T = unknown>(kind: 'creator' | 'campaign', targetId: string) =>
+      api.post<T>('/api/saved-items', { kind, target_id: targetId }),
+    unsaveItem: <T = unknown>(id: string) =>
+      api.del<T>(`/api/saved-items?id=${encodeURIComponent(id)}`),
+
+    // ── Project documents ──────────────────────────────────────────
+    listProjectDocuments: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/documents`),
+    issueProjectDocument: <T = unknown>(id: string, kind: 'receipt' | 'proforma') =>
+      api.post<T>(`/api/projects/${id}/documents`, { kind }),
+    /** Mints a short-lived signed link this device's system browser can open
+     *  without an Authorization header — see download-token.ts. */
+    getDocumentDownloadLink: <T = unknown>(projectId: string, docId: string) =>
+      api.post<T>(`/api/projects/${projectId}/documents/${docId}/token`),
+
     // ── Discovery ──────────────────────────────────────────────────
     discover: <T = unknown>(query: string) => api.get<T>(`/api/discover${query ? `?${query}` : ''}`),
     /** Full public-profile view model for one creator, by username — same shape the web overlay renders. */

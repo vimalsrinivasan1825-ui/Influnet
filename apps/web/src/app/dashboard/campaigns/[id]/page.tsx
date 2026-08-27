@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft, Calendar, Check, Clock, ExternalLink, MapPin,
-  Megaphone, Users, X, Loader2,
+  Megaphone, MessageSquare, Users, X, Loader2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
@@ -111,13 +111,18 @@ export default function CampaignDetailPage() {
     }
   };
 
-  const handleApplicationAction = async (appId: string, action: "shortlist" | "decline" | "withdraw") => {
+  const handleApplicationAction = async (appId: string, action: "shortlist" | "decline" | "withdraw" | "accept") => {
     try {
-      const res = await apiFetch<{ application: Application }>(
+      const res = await apiFetch<{ application: Application; conversation_id?: string | null }>(
         `/api/campaigns/${id}/applications/${appId}`,
         { method: "PATCH", body: JSON.stringify({ action }) },
       );
       if (res.ok) {
+        if (action === "accept" && res.data?.conversation_id) {
+          toast.success("Application accepted — opening the conversation");
+          router.push(`/dashboard/messages?conv=${res.data.conversation_id}`);
+          return;
+        }
         toast.success(`Application ${action}ed`);
         await fetchData();
       } else {
@@ -257,13 +262,20 @@ export default function CampaignDetailPage() {
                       <p className="text-sm text-content-soft mt-1">{app.pitch}</p>
                       {app.proposed_rate && <span className="text-xs text-content-muted">Rate: ₹{app.proposed_rate.toLocaleString()}</span>}
                     </div>
-                    {app.status === "applied" && (
+                    {(app.status === "applied" || app.status === "shortlisted") && (
                       <div className="flex gap-2 shrink-0">
-                        <Button variant="surface" size="sm" onClick={() => handleApplicationAction(app.id, "decline")}>
-                          <X size={14} /> Decline
-                        </Button>
-                        <Button variant="brand" size="sm" onClick={() => handleApplicationAction(app.id, "shortlist")}>
-                          <Check size={14} /> Shortlist
+                        {app.status === "applied" && (
+                          <>
+                            <Button variant="surface" size="sm" onClick={() => handleApplicationAction(app.id, "decline")}>
+                              <X size={14} /> Decline
+                            </Button>
+                            <Button variant="surface" size="sm" onClick={() => handleApplicationAction(app.id, "shortlist")}>
+                              <Check size={14} /> Shortlist
+                            </Button>
+                          </>
+                        )}
+                        <Button variant="brand" size="sm" onClick={() => handleApplicationAction(app.id, "accept")}>
+                          <MessageSquare size={14} /> Accept &amp; message
                         </Button>
                       </div>
                     )}

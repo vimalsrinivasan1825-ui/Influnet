@@ -107,6 +107,36 @@ export function getFlowStageItems(flow: StageFlow): Record<string, StageItemSeed
   return SHORT_STAGE_ITEMS;
 }
 
+/**
+ * Which stage in this flow is the money gate — the one a payment webhook
+ * actually ticks (see /api/payments/webhook), as opposed to an approval gate
+ * like `content_confirmation` or `final_approval` which also carry
+ * `is_gate: true` but for a brand's sign-off, not a payment.
+ *
+ * Finding this BY NAME rather than by position
+ * (`stages[stages.length - 2]`) matters because `short_pay_before` puts
+ * payment SECOND and delivery last — "the stage before project_completed"
+ * there is `quick_delivery`, not the payment stage at all. A position-based
+ * lookup silently evaluates the wrong stage's checklist on that flow, so the
+ * completion money check would pass by checking whether delivery happened,
+ * not whether payment did.
+ *
+ * The full flow has three `is_gate` stages (content_confirmation,
+ * final_approval, final_payment) — only the LAST one is ever a payment stage
+ * in any flow this module defines, so this takes the last match, not the
+ * first.
+ */
+export function paymentGateStage(flow: StageFlow): string | null {
+  const items = getFlowStageItems(flow);
+  let found: string | null = null;
+  for (const stage of flow.stages) {
+    if ((items[stage] ?? []).some((it) => it.is_gate && it.owner_role === 'business')) {
+      found = stage;
+    }
+  }
+  return found;
+}
+
 // Required items of a stage that are NOT yet done. Empty array => gate is open.
 export function blockingItems(stageKey: string, items: StageItem[]): StageItem[] {
   return items.filter(
