@@ -11,7 +11,7 @@ import { isValidGstin, isValidWebsite, normalizeWebsite } from "@influnet/core";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { CityInput } from "@/components/ui/city-input";
-import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
+import { PhoneOtpField, usePhoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
 import { Check, X } from "lucide-react";
@@ -48,6 +48,7 @@ export default function BusinessSignupPage() {
 
 function BusinessSignupContent() {
   const router = useRouter();
+  const phoneOtpEnabled = usePhoneOtpEnabled();
   const searchParams = useSearchParams();
   const nextParam = (() => {
     const n = searchParams.get("next");

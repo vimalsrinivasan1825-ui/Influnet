@@ -33,7 +33,7 @@ import {
 } from "@/lib/hooks/use-availability";
 import { SocialConnectField } from "@/components/signup/social-connect-field";
 import { SocialDisclosure } from "@/components/signup/social-disclosure";
-import { PhoneOtpField, phoneOtpEnabled } from "@/components/signup/phone-otp-field";
+import { PhoneOtpField, usePhoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { publicProfileUrl, publicProfileUrlDisplay } from "@/lib/site";
 
@@ -240,6 +240,7 @@ function Chip({
 
 function InfluencerSignupContent() {
   const router = useRouter();
+  const phoneOtpEnabled = usePhoneOtpEnabled();
   const searchParams = useSearchParams();
   const nextParam = (() => {
     const n = searchParams.get("next");

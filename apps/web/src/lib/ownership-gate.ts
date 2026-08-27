@@ -12,9 +12,14 @@
  */
 import type { NextResponse } from 'next/server';
 import { jsonError } from './api';
+import { flag } from './feature-flags';
 
+/**
+ * Resolved from the `feature_flags` table (migration 137), falling back to the
+ * `OWNERSHIP_GATE_ENABLED` env var.
+ */
 export function ownershipGateEnabled(): boolean {
-  return process.env.OWNERSHIP_GATE_ENABLED === 'true';
+  return flag('ownership_gate');
 }
 
 /**

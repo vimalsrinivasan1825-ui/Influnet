@@ -9,14 +9,21 @@
  * See docs/operations/PHONE_OTP.md.
  */
 import { createClient } from '@supabase/supabase-js';
+import { flag } from './feature-flags';
 
 /**
  * Whether phone verification is live. Defaults to OFF: until the Edge Function
  * is deployed and `TWOFACTOR_API_KEY` is set, enabling the signup gate would
  * lock every new user out, so this must be turned on deliberately.
+ *
+ * Resolved from the `feature_flags` table (migration 137), falling back to the
+ * `PHONE_OTP_ENABLED` / `NEXT_PUBLIC_PHONE_OTP_ENABLED` env var. The browser no
+ * longer reads the build-time constant — the signup wizard fetches
+ * /api/auth/config, which calls flagFresh('phone_otp'), so this flips at
+ * runtime for web and mobile alike.
  */
 export function phoneOtpEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === 'true';
+  return flag('phone_otp');
 }
 
 /** Calls the `phone-otp` Edge Function and passes its response straight back. */

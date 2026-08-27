@@ -42,6 +42,7 @@ import {
 } from '@influnet/core';
 import { jsonError } from './api';
 import { logger } from './logger';
+import { flag } from './feature-flags';
 
 /**
  * Is the paid product live in this environment?
@@ -49,9 +50,13 @@ import { logger } from './logger';
  * Defaults to OFF, the same way the phone-OTP and ownership gates do: turning
  * a restriction on must be a deliberate act, because switching it on instantly
  * changes what every existing user can do.
+ *
+ * Resolved from the `feature_flags` table (migration 137), falling back to the
+ * `SUBSCRIPTIONS_ENABLED` env var. Still server-only and still not NEXT_PUBLIC_
+ * — the browser learns it from GET /api/billing/entitlements as before.
  */
 export function subscriptionsEnabled(): boolean {
-  return process.env.SUBSCRIPTIONS_ENABLED === 'true';
+  return flag('subscriptions');
 }
 
 /**
