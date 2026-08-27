@@ -864,7 +864,7 @@ Tick as each task merges to `dev`.
 **Lane 1 — the deal**
 - [x] A1 Flow foundation · `119`
 - [x] A2 Choosing the kind at proposal time · *blocked on Q2*
-- [ ] A3 Short-term stage machine
+- [x] A3 Short-term stage machine
 - [ ] A4 Single payment gate + barter · `120` *(guard trigger)*
 - [ ] A5 Short-term UI, web + mobile
 - [ ] B1 Document store · `121`
