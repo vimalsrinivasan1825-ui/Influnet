@@ -2,18 +2,33 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { deliverEmail } from './email/policy';
 import type { EmailCategory, TemplateId } from './email/templates';
 
-// Notification types persisted in public.notifications.type (see migration 047).
+// Notification types persisted in public.notifications.type. The column is
+// free-text (migration 047 has no CHECK), so this union is the only place the
+// set is pinned down — extend it here when a new kind of row is written.
+//
+//   verification — the Verified badge landed (or a step toward it)
+//   nudge        — re-engagement prompt ("you have unread messages", "3 new
+//                  campaigns since you were last here"); mobile push + in-app
+//                  card only, never email
+//   upsell       — a Pro-gated action was attempted; surfaces the plan
 export type NotificationType =
   | 'collab_request'
   | 'collab_accepted'
   | 'collab_declined'
   | 'project_stage'
   | 'project_cancel'
-  | 'message';
+  | 'message'
+  | 'verification'
+  | 'nudge'
+  | 'upsell';
 
 /**
  * Which opt-out category each notification type falls under, so a user who
  * turns off "messages" in settings doesn't also lose payment mail.
+ *
+ * `verification`/`nudge`/`upsell` map to 'account' only as a formality — none
+ * of them pass an `email` option to notifyUser(), so this is never consulted
+ * for them. They are in-app + push surfaces.
  */
 const CATEGORY_BY_TYPE: Record<NotificationType, EmailCategory> = {
   collab_request: 'collab',
@@ -22,6 +37,9 @@ const CATEGORY_BY_TYPE: Record<NotificationType, EmailCategory> = {
   project_stage: 'project',
   project_cancel: 'project',
   message: 'message',
+  verification: 'account',
+  nudge: 'account',
+  upsell: 'account',
 };
 
 export interface NotifyEmailOptions {

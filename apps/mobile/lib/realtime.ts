@@ -35,6 +35,7 @@ import { create } from 'zustand';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { useNotificationSummary } from './notification-summary';
+import { useNotificationToast } from './notification-toast';
 import { logger } from './logger';
 
 /** Screens subscribe to these counters; each bump means "refetch yourself". */
@@ -163,7 +164,10 @@ function openChannels(userId: string): void {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
       (payload) => {
-        const type = (payload.new as { type?: string } | null)?.type;
+        const row = payload.new as
+          | { id?: string | number; type?: string; title?: string | null; body?: string | null; link?: string | null }
+          | null;
+        const type = row?.type;
 
         // The summary moves for everything, including chat: the unread badge is
         // exactly what a 'message' row is for.
@@ -176,6 +180,21 @@ function openChannels(userId: string): void {
         // message changes no request and no project. Same intent as the web
         // shell's TOASTABLE gate: chat is Stream's business, not this channel's.
         if (type === 'message') return;
+
+        // Everything else surfaces as an in-app card. Chat is excluded above
+        // for the same reason it is: Stream, the OS banner and the unread badge
+        // already cover a message, and a card per message is the noise we just
+        // took out of email.
+        if (row?.id != null) {
+          useNotificationToast.getState().push({
+            id: String(row.id),
+            type: type ?? 'generic',
+            title: row.title?.trim() || 'New update',
+            body: row.body?.trim() || null,
+            link: row.link ?? null,
+            receivedAt: Date.now(),
+          });
+        }
 
         // Anything else: a notification usually accompanies a row change on one
         // of the two tables below, but not always from a path we replicate (a
@@ -418,6 +437,9 @@ export function stopRealtime(): void {
   clearTimers();
   appStateSub?.remove();
   appStateSub = null;
+  // Drop any card still queued from the outgoing session, and forget which ids
+  // were shown, so the next account starts clean.
+  useNotificationToast.getState().clear();
   void closeChannels();
   // A project screen can still be mounted at sign-out (signing out from a deep
   // link, a session that expired under you), and its channel would otherwise
