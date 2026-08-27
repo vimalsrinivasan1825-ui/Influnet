@@ -583,14 +583,36 @@ function ProposalForm({
   );
   const [advance, setAdvance] = useState(prefill?.advance_amount != null ? String(prefill.advance_amount) : "");
   const [dueDate, setDueDate] = useState(prefill?.due_date || "");
+  const [flowKey, setFlowKey] = useState<"full" | "short_pay_after" | "short_pay_before">(
+    (prefill as any)?.flow_key === "short_pay_after" || (prefill as any)?.flow_key === "short_pay_before"
+      ? (prefill as any).flow_key
+      : "full"
+  );
   const [note, setNote] = useState("");
+  const [deliverables, setDeliverables] = useState((prefill as any)?.deliverables || "");
+  const [isBarter, setIsBarter] = useState((prefill as any)?.is_barter || false);
+  const [barterDetails, setBarterDetails] = useState((prefill as any)?.barter_details || "");
+
+  const isShort = flowKey !== "full";
 
   const submit = async () => {
     if (!title.trim()) {
       toast.error("Give the project a title.");
       return;
     }
-    if (advance && budget && Number(advance) > Number(budget)) {
+    if (isShort && !dueDate) {
+      toast.error("A short-term project needs a delivery date.");
+      return;
+    }
+    if (isShort && (!budget || Number(budget) <= 0) && !isBarter) {
+      toast.error("A short-term project needs a budget or must be marked as barter.");
+      return;
+    }
+    if (isBarter && !barterDetails.trim()) {
+      toast.error("Barter projects need a description of what is being exchanged.");
+      return;
+    }
+    if (!isShort && advance && budget && Number(advance) > Number(budget)) {
       toast.error("The advance can’t be more than the total budget.");
       return;
     }
@@ -602,10 +624,13 @@ function ProposalForm({
           collab_request_id: request.id,
           title: title.trim(),
           description,
+          flow_key: flowKey,
           ...(budget ? { budget: Number(budget) } : {}),
-          ...(advance ? { advance_amount: Number(advance) } : {}),
+          ...(!isShort && advance ? { advance_amount: Number(advance) } : {}),
           ...(dueDate ? { due_date: dueDate } : {}),
           ...(note ? { note } : {}),
+          ...(deliverables ? { deliverables } : {}),
+          ...(isBarter ? { is_barter: true, barter_details: barterDetails } : {}),
         }),
       });
       if (!res.ok) throw new Error(res.error || "Could not send the terms");
@@ -643,6 +668,58 @@ function ProposalForm({
           onChange={(e) => setDescription(e.target.value)}
           maxLength={4000}
         />
+
+        {/* Flow kind selector */}
+        <div className="flex gap-2">
+          {([
+            { key: "full" as const, label: "Full project", desc: "12-stage guided pipeline" },
+            { key: "short_pay_after" as const, label: "Short-term", desc: "Deliver then get paid" },
+          ]).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => { setFlowKey(opt.key); if (opt.key !== "full") setAdvance(""); }}
+              className={`flex-1 rounded-lg border p-2.5 text-left transition-colors ${
+                flowKey === opt.key
+                  ? "border-brand bg-brand-soft/60 ring-1 ring-brand"
+                  : "border-hairline bg-surface hover:border-hairline-strong"
+              }`}
+            >
+              <span className="block text-sm font-bold text-content">{opt.label}</span>
+              <span className="block text-[0.625rem] text-content-muted">{opt.desc}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Short-flow specific fields */}
+        {isShort && (
+          <>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="deal-budget">Budget (₹) *</Label>
+                <Input id="deal-budget" type="number" min={0} placeholder={isBarter ? "0 (barter)" : "e.g. 30000"} value={budget} onChange={(e) => setBudget(e.target.value)} disabled={isBarter} />
+              </div>
+              <div>
+                <Label htmlFor="deal-due">Due date *</Label>
+                <Input id="deal-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="deal-deliverables">Deliverables</Label>
+              <Textarea id="deal-deliverables" placeholder="Specific deliverables for this short project…" rows={2} value={deliverables} onChange={(e) => setDeliverables(e.target.value)} maxLength={4000} />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-content">
+              <input type="checkbox" checked={isBarter} onChange={(e) => { setIsBarter(e.target.checked); if (e.target.checked) setBudget("0"); }} className="size-4 rounded border-hairline-strong" />
+              This is a barter (no cash payment)
+            </label>
+            {isBarter && (
+              <Textarea placeholder="What is being exchanged? (e.g. product for content)" rows={2} value={barterDetails} onChange={(e) => setBarterDetails(e.target.value)} maxLength={1000} />
+            )}
+          </>
+        )}
+
+        {/* Full-flow fields */}
+        {!isShort && (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div>
             <Label htmlFor="deal-budget">Total budget (₹)</Label>
@@ -676,6 +753,7 @@ function ProposalForm({
             />
           </div>
         </div>
+        )}
         <Input
           placeholder="Note to the other side (optional)"
           value={note}
