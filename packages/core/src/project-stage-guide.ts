@@ -12,7 +12,7 @@
 //   - project_completed → terminal, nothing to confirm
 // Those are listed in NON_SIGNOFF_STAGES and the UI renders their own controls.
 
-import type { Stage } from './project-lifecycle';
+import type { Stage, StageFlow } from './project-lifecycle';
 
 export interface StageGuide {
   // One-line purpose of the stage, shown to both parties.
@@ -22,7 +22,7 @@ export interface StageGuide {
   creator: string[];
 }
 
-export const STAGE_GUIDE: Record<Stage, StageGuide> = {
+export const STAGE_GUIDE: Record<string, StageGuide> = {
   collaboration_started: {
     summary: 'Say hello and align on what this collaboration is about before diving into details.',
     brand: ['Introduce your brand and the campaign idea', 'Share what outcome you are hoping for'],
@@ -83,34 +83,64 @@ export const STAGE_GUIDE: Record<Stage, StageGuide> = {
     brand: ['Leave a review for the creator'],
     creator: ['Leave a review for the brand'],
   },
+
+  // ── Short-flow stages ──────────────────────────────────────────────
+  quick_agreement: {
+    summary: 'Confirm the scope, deliverables and terms before work starts.',
+    brand: ['Confirm the deliverables and budget', 'Agree on the timeline'],
+    creator: ['Confirm you can deliver within the terms', 'Sign off on the agreement'],
+  },
+  quick_delivery: {
+    summary: 'The creator delivers the work and the business confirms receipt.',
+    brand: ['Review the delivered work', 'Confirm it meets the agreed scope'],
+    creator: ['Deliver the work (link or upload)', 'Confirm delivery is complete'],
+  },
+  quick_payment: {
+    summary: 'The business pays and both sides confirm the project is done.',
+    brand: ['Pay the agreed amount', 'Confirm completion'],
+    creator: ['Confirm payment arrived', 'Confirm completion'],
+  },
 };
 
-// Stages that do NOT use plain two-sided sign-off — they have their own controls.
+// ─── Flow-aware helpers ────────────────────────────────────────────────
+// These read the StageFlow's nonSignoffStages / nonSkippableStages sets
+// instead of hardcoded sets, so short flows get their own rules.
+
+export function isMutualSignoffStage(stageKey: string): boolean;
+export function isMutualSignoffStage(stageKey: string, flow: StageFlow): boolean;
+export function isMutualSignoffStage(stageKey: string, flow?: StageFlow): boolean {
+  // Guard: .filter(isMutualSignoffStage) passes the array index as the
+  // second arg — a number is truthy but not a StageFlow.
+  if (flow && typeof flow === 'object' && 'nonSignoffStages' in flow) {
+    return !flow.nonSignoffStages.has(stageKey);
+  }
+  // Backward-compatible: use the full flow's hardcoded set.
+  return !FULL_NON_SIGNOFF.has(stageKey);
+}
+
+export function isSkippableStage(stageKey: string): boolean;
+export function isSkippableStage(stageKey: string, flow: StageFlow): boolean;
+export function isSkippableStage(stageKey: string, flow?: StageFlow): boolean {
+  if (flow && typeof flow === 'object' && 'nonSkippableStages' in flow) {
+    return !flow.nonSkippableStages.has(stageKey);
+  }
+  return !FULL_NON_SKIPPABLE.has(stageKey);
+}
+
+// ─── Full-flow-only constants (backward compat) ─────────────────────────
+// Kept so callers that don't have a StageFlow still compile.
 //
 // `revisions` is one-sided on purpose. The brand has already spoken: it asked
 // for changes, which is what put the project here. The stage is the creator
-// doing the rework, and the brand's next say is the re-review it goes back to —
-// STAGE_ACTOR has always said 'creator' and the stage guide has always read
-// "Resubmit the updated draft". Running it as a mutual sign-off made the brand
-// confirm that someone else's work was finished, then immediately review it
-// again: two approvals for one decision, and the first one meaningless.
-export const NON_SIGNOFF_STAGES: ReadonlySet<string> = new Set([
+// doing the rework, and the brand's next say is the re-review it goes back to.
+const FULL_NON_SIGNOFF: ReadonlySet<string> = new Set([
   'sent_for_review',
   'revisions',
   'final_payment',
   'project_completed',
 ]);
 
-// Does this stage advance via mutual sign-off (both sides confirm)?
-export function isMutualSignoffStage(stageKey: string): boolean {
-  return !NON_SIGNOFF_STAGES.has(stageKey);
-}
-
-// Stages that can NEVER be skipped: money stages (both must be honoured), the
-// brand's final green light, the review fork (needs a decision, not a skip), the
-// revision loop, and the terminal stage. Everything else can be skipped by
-// MUTUAL consent — one side proposes, the other confirms.
-export const NON_SKIPPABLE_STAGES: ReadonlySet<string> = new Set([
+const FULL_NON_SKIPPABLE: ReadonlySet<string> = new Set([
   'advance_payment',
   'final_payment',
   'final_approval',
@@ -119,9 +149,9 @@ export const NON_SKIPPABLE_STAGES: ReadonlySet<string> = new Set([
   'project_completed',
 ]);
 
-export function isSkippableStage(stageKey: string): boolean {
-  return !NON_SKIPPABLE_STAGES.has(stageKey);
-}
+// Legacy exports for callers without a flow context.
+export const NON_SIGNOFF_STAGES = FULL_NON_SIGNOFF;
+export const NON_SKIPPABLE_STAGES = FULL_NON_SKIPPABLE;
 
 // A pending skip proposal on a stage, read out of stage_progress. Null if none.
 export function stageSkipProposal(

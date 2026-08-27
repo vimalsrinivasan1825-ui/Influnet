@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight, FolderKanban, Trash2 } from 'lucide-react-native';
-import { dealStateOf, STAGES, type Stage } from '@influnet/core';
+import { dealStateOf, STAGES, flowOf, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -42,6 +42,7 @@ interface ProjectRow {
   title: string;
   status: string;
   current_stage: string;
+  flow_key?: string | null;
   budget: number | null;
   updated_at: string;
   owner_user_id: string;
@@ -108,8 +109,9 @@ export default function ProjectsScreen() {
     const s = styleForStatus(p.status, t.color);
     const isOwner = p.owner_user_id === me;
     const partner = (isOwner ? p.counterparty?.name : p.owner?.name) ?? 'Partner';
-    const stageIndex = STAGES.indexOf(p.current_stage as Stage);
-    const progress = STAGES.length > 0 ? (stageIndex + 1) / STAGES.length : 0;
+    const projectFlow = flowOf(p);
+    const stageIndex = projectFlow.stages.indexOf(p.current_stage);
+    const progress = projectFlow.stages.length > 0 ? (stageIndex + 1) / projectFlow.stages.length : 0;
 
     return (
       <Pressable
@@ -132,7 +134,7 @@ export default function ProjectsScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Txt variant="caption" tone="muted">{humanizeStage(p.current_stage)}</Txt>
               <Txt variant="caption" tone="muted">
-                Step {stageIndex + 1} of {STAGES.length}
+                Step {stageIndex + 1} of {projectFlow.stages.length}
               </Txt>
             </View>
             <ProgressBar progress={progress} />

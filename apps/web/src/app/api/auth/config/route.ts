@@ -1,20 +1,25 @@
 import { NextResponse } from 'next/server';
-import { phoneOtpEnabled } from '@/lib/phone-otp';
+import { flagFresh } from '@/lib/feature-flags';
 
 /**
  * Public, unauthenticated signup configuration.
  *
- * This exists for the mobile app. Web reads NEXT_PUBLIC_* directly at build
- * time, but a shipped binary can't: if mobile baked the OTP flag in, every
- * already-installed build would start failing signup the moment the gate was
- * switched on server-side (register would 403 on a number the app never asked
- * to verify). Reading it at runtime keeps one binary correct either way.
+ * This is how BOTH clients learn the phone-OTP state at runtime. A shipped
+ * mobile binary can't read an env var, and the web bundle used to bake in
+ * NEXT_PUBLIC_PHONE_OTP_ENABLED — so flipping the gate meant a rebuild. Now the
+ * web signup wizard fetches this too (see components/signup/phone-otp-field),
+ * and the value comes from the `feature_flags` table (migration 137), so one
+ * dashboard toggle reaches every client.
+ *
+ * `flagFresh` rather than `flag`: this endpoint is the source of truth for the
+ * clients, so it forces a load when its 45s snapshot is stale instead of
+ * possibly serving a value that's a few seconds behind a just-made change.
  *
  * Exposes only booleans — no keys, no provider details.
  */
-export function GET() {
+export async function GET() {
   return NextResponse.json(
-    { phoneOtpEnabled: phoneOtpEnabled() },
+    { phoneOtpEnabled: await flagFresh('phone_otp') },
     // Short cache: long enough to keep wizard launches cheap, short enough that
     // flipping the flag takes effect in about a minute.
     { headers: { 'Cache-Control': 'public, max-age=60' } },

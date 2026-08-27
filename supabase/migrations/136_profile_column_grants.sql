@@ -1,0 +1,30 @@
+-- Migration 136: grant the column-level UPDATE privileges two features have
+-- been silently missing
+--
+-- This project grants UPDATE on public.profiles column-by-column to
+-- `authenticated`, rather than table-wide — an explicit allow-list, not an
+-- oversight (see the existing grants: name, phone, location, and a handful
+-- of dismissal timestamps, deliberately excluding things like role or
+-- verified_badge that must never be self-written).
+--
+-- Two columns were added to this table without ever being added to that
+-- grant list:
+--
+--   - creating_since (S2, an earlier session) — meaning every attempt to
+--     save "creating since" from web or mobile settings has been failing
+--     with a 500 ("permission denied for table profiles") since the feature
+--     shipped. Nobody caught it because the settings page's error toast and
+--     a generic save failure look identical.
+--
+--   - gst_number (this session, migration 135) — same failure, caught
+--     immediately by tests/e2e/phase8-r1-features.mjs before it shipped.
+--
+-- Postgres column privileges are all-or-nothing PER QUERY: a client that
+-- selects or updates even one ungranted column fails the entire statement,
+-- not just that column. That is also why the tax-invoice document route was
+-- separately fixed to read profiles.gst_number through the service-role
+-- client rather than the caller's own — a participant should not gain a
+-- standing SELECT grant on another user's GST number just so a document
+-- generator can read it once.
+
+GRANT UPDATE (creating_since, gst_number) ON public.profiles TO authenticated;

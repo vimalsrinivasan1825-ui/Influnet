@@ -36,6 +36,13 @@ import {
   Txt,
 } from '@/components/ui';
 
+interface Funnel {
+  requests_sent: number;
+  requests_accepted: number;
+  projects_total: number;
+  projects_completed: number;
+}
+
 /** Mirrors ActivityEvent in apps/web/src/app/api/activity/route.ts. */
 interface ActivityEvent {
   at: string;
@@ -89,6 +96,10 @@ export default function ActivityScreen() {
   const { data, error, loading, refreshing, refresh } = useFetch(() =>
     endpoints.activity<{ events: ActivityEvent[]; migration_pending?: boolean }>(), { cacheKey: 'activity' }
   );
+  // Independent of the event list, same as web's activity page — a funnel
+  // load failure shouldn't block the page the way an activity-feed one does.
+  const { data: funnelData } = useFetch(() => endpoints.statsFunnel<{ funnel: Funnel }>(), { cacheKey: 'stats-funnel' });
+  const funnel = funnelData?.funnel;
 
   const events = data?.events ?? [];
 
@@ -105,8 +116,23 @@ export default function ActivityScreen() {
     <ScreenScroll
       refreshing={refreshing}
       onRefresh={refresh}
-      centerShort={events.length === 0}
+      centerShort={events.length === 0 && !funnel}
     >
+      {funnel ? (
+        <Card style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.lg, marginBottom: t.spacing.md }}>
+          {([
+            ['Requests sent', funnel.requests_sent],
+            ['Accepted', funnel.requests_accepted],
+            ['Became projects', funnel.projects_total],
+            ['Completed', funnel.projects_completed],
+          ] as const).map(([label, value]) => (
+            <View key={label} style={{ gap: 2 }}>
+              <Txt variant="title3" style={{ fontVariant: ['tabular-nums'] }}>{value}</Txt>
+              <Txt variant="caption" tone="muted">{label}</Txt>
+            </View>
+          ))}
+        </Card>
+      ) : null}
       {loading ? (
         <>
           <SkeletonCard />

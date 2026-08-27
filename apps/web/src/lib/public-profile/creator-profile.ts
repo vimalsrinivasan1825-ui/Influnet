@@ -6,7 +6,7 @@
 // not-yet-available analytics with mock data, controlled by a flag. Flip the flag
 // off (or pass ?mock=0) once real `social_connections` data is wired in.
 
-import { PRICE_TIERS } from '@influnet/core';
+import { PRICE_TIERS, creatorLevel as getCreatorLevel } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
 import type { PublicPortfolioItem } from './get-portfolio';
 
@@ -153,6 +153,10 @@ export interface CreatorProfileView {
   instagramHandle?: string | null;
   youtubeHandle?: string | null;
   packages: ProfilePackage[];
+  /** Tier derived from audience size. Null when no follower data is available. */
+  creatorLevel: { tier: string; label: string; isSelfReported: boolean } | null;
+  /** S2 — the year this creator started, if they set one. Null if they didn't. */
+  creatingSince: number | null;
 }
 
 /** Loosely-typed shape of the `get_public_influencer` RPC payload. */
@@ -187,6 +191,8 @@ export interface RawPublicProfile {
   audienceDemographics?: Record<string, unknown> | null;
   pastCollaborations?: unknown[] | null;
   engagementRate?: number | null;
+  /** Migration 134. Optional so this stays backward-compatible before it's applied. */
+  creatingSince?: number | null;
 }
 
 /** Format a raw count into a compact label: 1284 → "1,284", 92400 → "92.4K". */
@@ -741,6 +747,8 @@ export function buildCreatorProfileView(
     instagramHandle: cleanHandle(profile.instagramHandle ?? null),
     youtubeHandle: cleanHandle(profile.youtubeHandle ?? (yt as any)?.handle ?? null),
     packages: buildProfilePackages(profile),
+    creatorLevel: audienceSize > 0 ? getCreatorLevel(audienceSize, !!(ig || yt)) : null,
+    creatingSince: profile.creatingSince ?? null,
   };
 }
 

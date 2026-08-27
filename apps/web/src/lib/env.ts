@@ -46,9 +46,19 @@ const envSchema = z.object({
   // as the phone-otp Edge Function's TWOFACTOR_API_KEY secret. This flag is the
   // signup gate, and defaults to false on purpose: switching it on before that
   // function is deployed would block every new registration.
+  // Legacy build-time copy. Still read as a fallback, but the browser no longer
+  // depends on it — the signup wizard fetches /api/auth/config now — so flipping
+  // OTP no longer needs a web rebuild.
   NEXT_PUBLIC_PHONE_OTP_ENABLED: z
     .enum(['true', 'false'])
     .default('false')
+    .transform((v) => v === 'true'),
+
+  // Runtime server copy, and the env fallback for feature_flags.phone_otp
+  // (migration 137). Set this per-environment; the DB row overrides it.
+  PHONE_OTP_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
     .transform((v) => v === 'true'),
 
   // Signup-completion gate (lib/ownership-gate.ts): blocks a creator from
@@ -192,7 +202,15 @@ export function describeEnv(): {
   const present = (k: string) => Boolean(process.env[k]?.trim());
   const missingRequired = REQUIRED.filter((k) => !present(k));
 
-  const emailsOn = process.env.NOTIFY_EMAILS_ENABLED === 'true';
+  // These are the ENV-VAR fallbacks only. The authoritative value for each is a
+  // `feature_flags` row (migration 137), resolved at runtime by lib/feature-flags.ts
+  // — which can't be read synchronously here at boot, hence the "overrides at
+  // runtime" note on each row below.
+  const emailsOn = (process.env.NOTIFY_EMAILS_ENABLED || '').trim().split(/\s+/)[0] === 'true';
+  const phoneOtpFallback =
+    process.env.PHONE_OTP_ENABLED === 'true' ||
+    process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === 'true';
+  const subscriptionsFallback = process.env.SUBSCRIPTIONS_ENABLED === 'true';
 
   const rows: EnvRow[] = [
     {
@@ -227,32 +245,31 @@ export function describeEnv(): {
     {
       label: 'Mobile OTP',
       value:
-        process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === 'true'
+        (phoneOtpFallback
           ? 'ENABLED (2Factor, signup gated)'
-          : 'disabled (NEXT_PUBLIC_PHONE_OTP_ENABLED=false)',
+          : 'disabled') + ' · env fallback; feature_flags.phone_otp overrides at runtime',
       ok: true,
     },
     {
       label: 'Paid plans',
       value:
-        process.env.SUBSCRIPTIONS_ENABLED === 'true'
+        (subscriptionsFallback
           ? present('RAZORPAY_KEY_ID')
             ? 'ENABLED (Free/Pro gates active)'
             : 'ENABLED but Razorpay is NOT configured — nobody can upgrade'
-          : 'disabled (SUBSCRIPTIONS_ENABLED=false — everyone gets everything)',
+          : 'disabled — everyone gets everything') +
+        ' · env fallback; feature_flags.subscriptions overrides at runtime',
       // Gates on with no way to pay is the one combination that strands users
       // at a paywall they cannot clear, so flag it rather than let it look fine.
-      ok:
-        process.env.SUBSCRIPTIONS_ENABLED !== 'true' ||
-        present('RAZORPAY_KEY_ID'),
+      ok: !subscriptionsFallback || present('RAZORPAY_KEY_ID'),
     },
     {
       label: 'Email sends',
       value: !present('RESEND_API_KEY')
         ? 'disabled (no RESEND_API_KEY)'
-        : emailsOn
-          ? `ENABLED as ${process.env.EMAIL_FROM || 'Influnet <noreply@influnet.io>'}`
-          : 'disabled (NOTIFY_EMAILS_ENABLED=false)',
+        : (emailsOn
+            ? `ENABLED as ${process.env.EMAIL_FROM || 'Influnet <noreply@influnet.io>'}`
+            : 'disabled') + ' · env fallback; feature_flags.notify_emails overrides at runtime',
       ok: true,
     },
     {

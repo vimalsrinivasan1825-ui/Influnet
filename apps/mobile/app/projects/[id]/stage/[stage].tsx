@@ -8,6 +8,8 @@ import {
   STAGES,
   STAGE_ACTOR,
   STAGE_GUIDE,
+  STAGE_FLOWS,
+  flowOf,
   isMutualSignoffStage,
   isSkippableStage,
   stageSkipProposal,
@@ -60,6 +62,7 @@ interface ProjectDetail {
   title: string;
   status: string;
   current_stage: string;
+  flow_key?: string | null;
   owner_user_id: string;
   counterparty_user_id: string;
   stage_progress: Record<string, StageProgressEntry> | null;
@@ -156,10 +159,14 @@ export default function StageScreen() {
   const mySignoff = isOwner ? entry?.owner_signoff_at : entry?.creator_signoff_at;
   const theirSignoff = isOwner ? entry?.creator_signoff_at : entry?.owner_signoff_at;
 
+  const flow = project ? flowOf(project) : STAGE_FLOWS.full;
   const isCurrent = project?.current_stage === stageKey;
-  const isPast = project ? STAGES.indexOf(stageKey) < STAGES.indexOf(project.current_stage as Stage) : false;
-  const usesSignoff = isMutualSignoffStage(stageKey);
-  const isPaymentStage = stageKey === 'advance_payment' || stageKey === 'final_payment';
+  const isPast = project && flow ? flow.stages.indexOf(stageKey) < flow.stages.indexOf(project.current_stage) : false;
+  const usesSignoff = isMutualSignoffStage(stageKey, flow);
+  // For short flows, the payment stage is 'quick_payment'; for full, it is 'advance_payment' or 'final_payment'.
+  const isPaymentStage = flow ?
+    (flow.stages.includes('quick_payment') ? stageKey === 'quick_payment' : stageKey === 'advance_payment' || stageKey === 'final_payment') :
+    stageKey === 'advance_payment' || stageKey === 'final_payment';
 
   // In-app Razorpay checkout is web-only for now (no React Native SDK in this
   // project, and this app has a real history of native-dependency crashes —
@@ -177,7 +184,10 @@ export default function StageScreen() {
   // this branch the final stage rendered NO footer at all, so a project started
   // on the phone could be carried all the way to final payment and then never
   // finished — 'signoff' is rejected outright by the API for this stage.
-  const isCompletionStage = stageKey === 'final_payment';
+  // Completion is the stage just before project_completed — 'final_payment' for full flow, 'quick_payment' for short flows.
+  const completedIdx = flow ? flow.stages.indexOf('project_completed') : -1;
+  const terminalStage = completedIdx > 0 ? flow!.stages[completedIdx - 1] : 'final_payment';
+  const isCompletionStage = stageKey === terminalStage;
 
   // The review fork. `sent_for_review` is in NON_SIGNOFF_STAGES, so it is
   // neither a sign-off stage nor the completion stage — which is exactly how it
@@ -732,7 +742,7 @@ export default function StageScreen() {
           ) : (
             <>
               <Button label="Confirm this stage" onPress={() => act('signoff')} loading={busy} />
-              {isSkippableStage(stageKey) ? (
+              {isSkippableStage(stageKey, flow) ? (
                 <Button
                   label="Propose skipping this stage"
                   variant="ghost"

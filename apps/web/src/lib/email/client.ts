@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { supportEmail } from './theme';
+import { flag } from '../feature-flags';
 
 /**
  * The only place that talks to Resend.
@@ -42,11 +43,14 @@ export function isValidEmail(value: string | null | undefined): boolean {
   return !!value && EMAIL_RE.test(value.trim());
 }
 
-/** Master switch. Off in dev/staging by default so nobody mails real users by accident. */
+/**
+ * Master switch. Off in dev/staging by default so nobody mails real users by
+ * accident. Resolved from the `feature_flags` table (migration 137), falling
+ * back to the `NOTIFY_EMAILS_ENABLED` env var (tolerant of a stray leading
+ * space / trailing comment, which some .env loaders keep).
+ */
 export function emailsEnabled(): boolean {
-  // Trailing inline comments in .env files survive in some loaders, so compare
-  // on the first token rather than the raw string.
-  return (process.env.NOTIFY_EMAILS_ENABLED || '').trim().split(/\s+/)[0] === 'true';
+  return flag('notify_emails');
 }
 
 export function emailConfigured(): boolean {

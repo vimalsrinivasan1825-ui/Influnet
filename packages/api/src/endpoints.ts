@@ -18,6 +18,8 @@ export function createEndpoints(api: ApiClient) {
     influencerDashboard: <T = unknown>() => api.get<T>('/api/influencer/dashboard'),
     businessDashboard: <T = unknown>() => api.get<T>('/api/business/dashboard'),
     activity: <T = unknown>() => api.get<T>('/api/activity'),
+    /** S4 — the networking funnel: requests sent/accepted, projects, completions. */
+    statsFunnel: <T = unknown>() => api.get<T>('/api/stats/funnel'),
 
     // ── Profile ────────────────────────────────────────────────────
     getProfile: <T = unknown>() => api.get<T>('/api/profile'),
@@ -72,6 +74,41 @@ export function createEndpoints(api: ApiClient) {
       otp: string;
       providerSessionId: string;
     }) => api.post<T>('/api/phone-otp/verify', body),
+
+    // ── Campaigns ──────────────────────────────────────────────────
+    /** `mine: true` lists every campaign the caller owns, any status — the
+     *  live board otherwise never shows a draft, even to its own owner. */
+    campaigns: <T = unknown>(opts?: { mine?: boolean; category?: string; sort?: 'newest' | 'closing_soon' }) => {
+      const params = new URLSearchParams();
+      if (opts?.mine) params.set('mine', 'true');
+      if (opts?.category) params.set('category', opts.category);
+      if (opts?.sort) params.set('sort', opts.sort);
+      const qs = params.toString();
+      return api.get<T>(`/api/campaigns${qs ? `?${qs}` : ''}`);
+    },
+    createCampaign: <T = unknown>(body: unknown) => api.post<T>('/api/campaigns', body),
+    updateCampaign: <T = unknown>(id: string, body: unknown) => api.patch<T>(`/api/campaigns/${id}`, body),
+    getCampaign: <T = unknown>(id: string) => api.get<T>(`/api/campaigns/${id}`),
+    applyToCampaign: <T = unknown>(id: string, body: unknown) => api.post<T>(`/api/campaigns/${id}/applications`, body),
+    listCampaignApplications: <T = unknown>(id: string) => api.get<T>(`/api/campaigns/${id}/applications`),
+    updateApplicationStatus: <T = unknown>(campaignId: string, appId: string, body: unknown) =>
+      api.patch<T>(`/api/campaigns/${campaignId}/applications/${appId}`, body),
+
+    // ── Saved items (favourites) ──────────────────────────────────
+    listSavedItems: <T = unknown>() => api.get<T>('/api/saved-items'),
+    saveItem: <T = unknown>(kind: 'creator' | 'campaign', targetId: string) =>
+      api.post<T>('/api/saved-items', { kind, target_id: targetId }),
+    unsaveItem: <T = unknown>(id: string) =>
+      api.del<T>(`/api/saved-items?id=${encodeURIComponent(id)}`),
+
+    // ── Project documents ──────────────────────────────────────────
+    listProjectDocuments: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/documents`),
+    issueProjectDocument: <T = unknown>(id: string, kind: 'receipt' | 'proforma' | 'tax_invoice') =>
+      api.post<T>(`/api/projects/${id}/documents`, { kind }),
+    /** Mints a short-lived signed link this device's system browser can open
+     *  without an Authorization header — see download-token.ts. */
+    getDocumentDownloadLink: <T = unknown>(projectId: string, docId: string) =>
+      api.post<T>(`/api/projects/${projectId}/documents/${docId}/token`),
 
     // ── Discovery ──────────────────────────────────────────────────
     discover: <T = unknown>(query: string) => api.get<T>(`/api/discover${query ? `?${query}` : ''}`),

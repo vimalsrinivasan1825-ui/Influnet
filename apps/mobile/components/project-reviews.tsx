@@ -50,6 +50,23 @@ function StarPicker({ value, onChange }: { value: number; onChange: (n: number) 
   );
 }
 
+/** A compact, single-line criteria picker — five small stars beside a label. */
+function CriteriaPicker({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Txt variant="footnote" tone="soft">{label}</Txt>
+      <View style={{ flexDirection: 'row', gap: 4 }}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Pressable key={n} hitSlop={6} onPress={() => onChange(n)}>
+            <Star size={18} color={n <= value ? t.color.warn : t.color.contentMuted} fill={n <= value ? t.color.warn : 'transparent'} />
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function StarRow({ rating, size = 13 }: { rating: number; size?: number }) {
   const t = useTheme();
   return (
@@ -79,6 +96,10 @@ export function ProjectReviews({ projectId, partner }: { projectId: string; part
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quality, setQuality] = useState(5);
+  const [communication, setCommunication] = useState(5);
+  const [timeliness, setTimeliness] = useState(5);
+  const [professionalism, setProfessionalism] = useState(5);
 
   const reviews = data?.reviews ?? [];
   const mine = reviews.find((r) => r.from_user?.id === me);
@@ -87,7 +108,14 @@ export function ProjectReviews({ projectId, partner }: { projectId: string; part
     if (submitting) return;
     setSubmitting(true);
     setError(null);
-    const res = await endpoints.createReview(projectId, { rating, comment: comment.trim() || null });
+    const res = await endpoints.createReview(projectId, {
+      rating,
+      comment: comment.trim() || null,
+      quality_score: quality,
+      communication_score: communication,
+      timeliness_score: timeliness,
+      professionalism_score: professionalism,
+    });
     setSubmitting(false);
     if (!res.ok) {
       // The DB rejects a second review for the same project; surface that
@@ -128,6 +156,13 @@ export function ProjectReviews({ projectId, partner }: { projectId: string; part
           </View>
 
           <StarPicker value={rating} onChange={setRating} />
+
+          <View style={{ gap: t.spacing.sm }}>
+            <CriteriaPicker label="Quality of work" value={quality} onChange={setQuality} />
+            <CriteriaPicker label="Communication" value={communication} onChange={setCommunication} />
+            <CriteriaPicker label="Timeliness" value={timeliness} onChange={setTimeliness} />
+            <CriteriaPicker label="Professionalism" value={professionalism} onChange={setProfessionalism} />
+          </View>
 
           <Field
             label="Comment (optional)"

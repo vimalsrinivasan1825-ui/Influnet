@@ -35,6 +35,10 @@ export const GATED_FEATURES = [
   'projects.create',
   /** Send another collab request this month (quota-metered). */
   'requests.send',
+  /** Publish a campaign (quota-metered). */
+  'campaigns.publish',
+  /** Apply to a campaign (quota-metered). */
+  'campaigns.apply',
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
 
@@ -59,6 +63,8 @@ export interface Entitlements {
     projectConversions: number | null;
     shortlistSize: number | null;
     analyticsDays: number | null;
+    liveCampaigns: number | null;
+    applicationsPerWeek: number | null;
   };
   /**
    * The FREE tier's ceilings, regardless of who is asking.
@@ -74,12 +80,18 @@ export interface Entitlements {
     projectConversions: number | null;
     shortlistSize: number | null;
     analyticsDays: number | null;
+    liveCampaigns: number | null;
+    applicationsPerWeek: number | null;
   };
   usage: {
     activeProjects: number;
     requestsThisMonth: number;
     /** Total projects ever converted from a request — counts toward projectConversions. */
     projectConversions: number;
+    /** How many campaigns this brand has LIVE right now — a standing count, not a running total. */
+    liveCampaigns: number;
+    /** Applications this creator has submitted since the start of the current week. */
+    applicationsThisWeek: number;
   };
   price: {
     paise: number;
@@ -102,6 +114,8 @@ const FEATURES_BY_TIER: Record<PlanTier, ReadonlySet<GatedFeature>> = {
     // is what refuses at the boundary.
     'projects.create',
     'requests.send',
+    'campaigns.publish',
+    'campaigns.apply',
   ]),
   pro: new Set<GatedFeature>(GATED_FEATURES),
 };
@@ -119,7 +133,12 @@ export function hasFeature(tier: PlanTier, feature: GatedFeature): boolean {
 
 /** Quota-metered features need a limit check as well as a feature check. */
 export function isMetered(feature: GatedFeature): boolean {
-  return feature === 'projects.create' || feature === 'requests.send';
+  return (
+    feature === 'projects.create' ||
+    feature === 'requests.send' ||
+    feature === 'campaigns.publish' ||
+    feature === 'campaigns.apply'
+  );
 }
 
 /**
@@ -155,4 +174,6 @@ export const FEATURE_LABELS: Record<GatedFeature, string> = {
   'analytics.full': 'Full analytics history',
   'projects.create': 'Active projects',
   'requests.send': 'Collaboration requests',
+  'campaigns.publish': 'Publish campaigns',
+  'campaigns.apply': 'Apply to campaigns',
 };

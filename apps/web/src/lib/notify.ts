@@ -2,18 +2,33 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { deliverEmail } from './email/policy';
 import type { EmailCategory, TemplateId } from './email/templates';
 
-// Notification types persisted in public.notifications.type (see migration 047).
+// Notification types persisted in public.notifications.type. The column is
+// free-text (migration 047 has no CHECK), so this union is the only place the
+// set is pinned down — extend it here when a new kind of row is written.
+//
+//   verification — the Verified badge landed (or a step toward it)
+//   nudge        — re-engagement prompt ("you have unread messages", "3 new
+//                  campaigns since you were last here"); mobile push + in-app
+//                  card only, never email
+//   upsell       — a Pro-gated action was attempted; surfaces the plan
 export type NotificationType =
   | 'collab_request'
   | 'collab_accepted'
   | 'collab_declined'
   | 'project_stage'
   | 'project_cancel'
-  | 'message';
+  | 'message'
+  | 'verification'
+  | 'nudge'
+  | 'upsell';
 
 /**
  * Which opt-out category each notification type falls under, so a user who
  * turns off "messages" in settings doesn't also lose payment mail.
+ *
+ * `verification`/`nudge`/`upsell` map to 'account' only as a formality — none
+ * of them pass an `email` option to notifyUser(), so this is never consulted
+ * for them. They are in-app + push surfaces.
  */
 const CATEGORY_BY_TYPE: Record<NotificationType, EmailCategory> = {
   collab_request: 'collab',
@@ -22,6 +37,9 @@ const CATEGORY_BY_TYPE: Record<NotificationType, EmailCategory> = {
   project_stage: 'project',
   project_cancel: 'project',
   message: 'message',
+  verification: 'account',
+  nudge: 'account',
+  upsell: 'account',
 };
 
 export interface NotifyEmailOptions {
@@ -199,13 +217,15 @@ async function maybeEmail(input: NotifyInput): Promise<void> {
  * Fan a new chat message out to the other participants.
  *
  * Lives here because there are two ways a message arrives — the Stream webhook
- * and the REST messages endpoint — and they must behave identically. In
- * particular the dedupe key has to match byte-for-byte between them: it is what
- * collapses a whole hour of chatter into one email, and two copies drifting
- * apart would mean the same conversation mails twice in the same hour.
+ * and the REST messages endpoint — and they must behave identically.
  *
- * Truncation, the hour bucket and the payload all live in this one function so
- * that guarantee is structural rather than a comment asking two files to agree.
+ * Chat notifications are IN-APP + PUSH ONLY. There is deliberately no email
+ * here: mobile push already covers a new message, and an email on top of that
+ * — even the old one-per-hour rollup — was pure noise for anyone with the app,
+ * and fired the instant the first message of a clock hour landed regardless of
+ * whether the recipient was sitting in the conversation reading it. Every other
+ * email (welcome, collab, payment) is unaffected; they run from their own call
+ * sites. The `unread_messages` template is kept for admin/manual use only.
  */
 export async function notifyNewMessage(input: {
   conversationId: string;
@@ -216,12 +236,8 @@ export async function notifyNewMessage(input: {
   const { conversationId, recipientIds, senderName, text } = input;
   if (recipientIds.length === 0) return;
 
-  const { hourBucket } = await import('./email/policy');
-  const { profileNames, nameOf } = await import('./email/context');
-
   const preview = text.length > 100 ? `${text.slice(0, 97)}...` : text;
   const chatLink = `/dashboard/messages?conv=${conversationId}`;
-  const names = await profileNames(recipientIds);
 
   for (const userId of recipientIds) {
     await notifyUser({
@@ -230,22 +246,6 @@ export async function notifyNewMessage(input: {
       title: `New message from ${senderName}`,
       body: preview,
       link: chatLink,
-      email: {
-        templateId: 'unread_messages',
-        // The only per-message email in the product. Everything inside one
-        // clock hour for this conversation collapses into the first send, so a
-        // busy chat produces one mail an hour rather than one per message.
-        dedupeKey: `message:${conversationId}:${userId}:${hourBucket()}`,
-        data: {
-          recipientName: nameOf(names, userId),
-          senderName,
-          // A conversation need not belong to a project — people talk before
-          // any project exists, which is the point of accepting a request.
-          projectName: null,
-          preview,
-          dashboardUrl: chatLink,
-        },
-      },
     });
   }
 }

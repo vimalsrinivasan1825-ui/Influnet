@@ -14,6 +14,11 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'turbo.json'
+  # Manual re-deploy — use this after changing a feature-flag Environment
+  # variable (Settings → Environments → dev → Variables) to re-assert it on the
+  # container without a commit. The fast per-flag flip is the `feature_flags`
+  # table in the dev Supabase project; this is for the env-var floor.
+  workflow_dispatch: {}
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.REGISTRY_LOGIN_SERVER }}
@@ -140,7 +145,7 @@ jobs:
             --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ vars.SUPABASE_ANON_KEY }}" \
             --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ vars.STREAM_API_KEY }}" \
             --build-arg NEXT_PUBLIC_APP_URL="${{ env.NEXT_PUBLIC_APP_URL }}" \
-            --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ secrets.NEXT_PUBLIC_PHONE_OTP_ENABLED }}" \
+            --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ vars.PHONE_OTP_ENABLED }}" \
             --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
             --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
             -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
@@ -206,13 +211,14 @@ jobs:
       # re-tighten, put a comma-separated list here (`@influnet.io,someone@x.com`)
       # or wire it back to secrets.EMAIL_ALLOWLIST.
       #
-      # SUBSCRIPTIONS_ENABLED is set to a literal `false` rather than left out.
-      # Absent and false behave identically in code, but "absent" is a guess
-      # about a default and "false" is a decision — and per the note above, a
-      # value omitted here is also a value this deploy cannot CLEAR if somebody
-      # sets it by hand in the portal. Flip it to `true` when dev is meant
-      # to exercise the paid tiers; migration 115 ships the schema either way,
-      # and with the flag off every gate is open exactly as it is today.
+      # Feature flags (phone_otp, notify_emails, subscriptions, ownership_gate).
+      # The authoritative value now lives in the `feature_flags` table in the dev
+      # Supabase project (migration 137) — flip a boolean there and the app picks
+      # it up in ~45s, no deploy. These env vars are only the FALLBACK for a key
+      # with no row, set from the `dev` GitHub Environment *variables* (not
+      # secrets — they're booleans you want to read at a glance). Set them in
+      # Settings → Environments → dev → Variables; an unset variable expands to
+      # an empty string here, which the app reads as "false".
       - name: Set Backend Environment Variables on Container App
         uses: azure/cli@v2
         with:
@@ -238,13 +244,15 @@ jobs:
                 "RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}" \
                 "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" \
                 "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
-                "NOTIFY_EMAILS_ENABLED=${{ secrets.NOTIFY_EMAILS_ENABLED }}" \
                 "EMAIL_ALLOWLIST=" \
                 "EMAIL_TEST_SECRET=${{ secrets.EMAIL_TEST_SECRET }}" \
                 "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
                 "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
-                "SUBSCRIPTIONS_ENABLED=true" \
-                "APP_ENV=dev"
+                "APP_ENV=dev" \
+                "PHONE_OTP_ENABLED=${{ vars.PHONE_OTP_ENABLED }}" \
+                "NOTIFY_EMAILS_ENABLED=${{ vars.NOTIFY_EMAILS_ENABLED }}" \
+                "SUBSCRIPTIONS_ENABLED=${{ vars.SUBSCRIPTIONS_ENABLED }}" \
+                "OWNERSHIP_GATE_ENABLED=${{ vars.OWNERSHIP_GATE_ENABLED }}"
 
       - name: Wait for the new revision to serve traffic
         run: |

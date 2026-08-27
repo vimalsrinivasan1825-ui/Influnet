@@ -21,8 +21,54 @@ const RAW_MAX_LENGTH = 64;
 
 const OTP_LENGTH = 6;
 
-/** Mirrors NEXT_PUBLIC_PHONE_OTP_ENABLED; false → plain phone field, no gate. */
-export const phoneOtpEnabled = process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === "true";
+// ── Runtime OTP-flag read ────────────────────────────────────────────────────
+// The gate used to be baked in from NEXT_PUBLIC_PHONE_OTP_ENABLED, so flipping
+// it meant a web rebuild. It now comes from GET /api/auth/config — a runtime
+// read of the `feature_flags` table (migration 137) — fetched once per page
+// load and shared across every consumer.
+let cachedOtpFlag: boolean | null = null;
+let otpFlagInflight: Promise<boolean> | null = null;
+
+function loadPhoneOtpFlag(): Promise<boolean> {
+  if (cachedOtpFlag !== null) return Promise.resolve(cachedOtpFlag);
+  if (!otpFlagInflight) {
+    otpFlagInflight = fetch("/api/auth/config")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        cachedOtpFlag = d?.phoneOtpEnabled === true;
+        return cachedOtpFlag;
+      })
+      .catch(() => {
+        // Network hiccup → treat as off. Safe: /api/auth/register independently
+        // rejects an unverified number when the server-side flag is on, so the
+        // worst case is a 403 the wizard already knows how to recover from.
+        cachedOtpFlag = false;
+        return false;
+      })
+      .finally(() => {
+        otpFlagInflight = null;
+      });
+  }
+  return otpFlagInflight;
+}
+
+/**
+ * Whether the phone-OTP signup gate is on. `false` until the one-time
+ * /api/auth/config fetch resolves (a few hundred ms), then the real value.
+ */
+export function usePhoneOtpEnabled(): boolean {
+  const [enabled, setEnabled] = useState(cachedOtpFlag ?? false);
+  useEffect(() => {
+    let alive = true;
+    void loadPhoneOtpFlag().then((v) => {
+      if (alive) setEnabled(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return enabled;
+}
 
 interface PhoneOtpFieldProps {
   phone: string;
@@ -46,6 +92,7 @@ export function PhoneOtpField({
   label = "Mobile number",
   disabled = false,
 }: PhoneOtpFieldProps) {
+  const phoneOtpEnabled = usePhoneOtpEnabled();
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [providerSessionId, setProviderSessionId] = useState<string | null>(null);

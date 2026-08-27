@@ -13,7 +13,7 @@ import {
 export const maxDuration = 30;
 
 const CreateOrderSchema = z.object({
-  stage_key: z.enum(['advance_payment', 'final_payment']),
+  stage_key: z.enum(['advance_payment', 'final_payment', 'quick_payment']),
   // Amount is NEVER taken from the client — the gate represents the AGREED
   // sum changing hands, so the payer doesn't get to choose it (see below).
   // This field only exists so a mismatched value can be rejected outright
@@ -102,10 +102,13 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     // otherwise a payer could open the advance gate by paying ₹1 through a
     // genuine Razorpay checkout while the creator waits on the real deposit.
     // advance_payment = the agreed advance (or the full budget if no advance
-    // was set); final_payment = whatever of the budget the advance didn't cover.
+    // was set); final_payment = whatever of the budget the advance didn't cover;
+    // quick_payment = the full budget (short flows have no advance).
     const budget = Number(project.budget);
     const advance = project.advance_amount != null ? Number(project.advance_amount) : budget;
-    const rupees = stage_key === 'advance_payment' ? advance : budget - advance;
+    const rupees = stage_key === 'quick_payment'
+      ? budget
+      : stage_key === 'advance_payment' ? advance : budget - advance;
 
     if (!Number.isFinite(rupees) || rupees <= 0) {
       return jsonError(400, 'No agreed amount is set for this stage — agree the terms first.');

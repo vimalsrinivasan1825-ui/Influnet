@@ -13,6 +13,7 @@ import { syncPushToken, usePushNotificationRouting } from '@/lib/push';
 import { BrandSplash } from '@/components/brand/splash';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppUpdateBanner } from '@/components/app-update-banner';
+import { NotificationToastHost } from '@/components/notification-toast-host';
 import { identify, installGlobalErrorHandler, resetIdentity } from '@/lib/analytics';
 
 // Hold the native splash so the OS screen hands straight over to the animated
@@ -192,6 +193,11 @@ export default function RootLayout() {
           {/* Only after the intro has played — a download nudge fighting the
               splash animation for attention is the wrong first impression. */}
           <AppUpdateBanner enabled={introDone} />
+
+          {/* Incoming notifications slide in over everything. Last child so it
+              sits on top; harmless while signed out — the queue only fills from
+              the Realtime channel, which needs a session. */}
+          <NotificationToastHost />
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

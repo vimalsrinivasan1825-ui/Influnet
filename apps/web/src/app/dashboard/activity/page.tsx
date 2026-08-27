@@ -92,12 +92,51 @@ function dayLabel(iso: string) {
   });
 }
 
+interface Funnel {
+  requests_sent: number;
+  requests_accepted: number;
+  projects_total: number;
+  projects_active: number;
+  projects_completed: number;
+  projects_cancelled: number;
+  partners_total: number;
+}
+
+/**
+ * S4 — the networking funnel, as four running totals rather than a literal
+ * funnel chart: each number is a lifetime count, not a cohort moving through
+ * stages over time, so a shrinking-bars visual would imply a comparison
+ * (conversion rate between adjacent steps) the underlying data doesn't
+ * actually support cleanly — a request from last year and a project from
+ * today aren't the same cohort. The count from get_collaboration_stats() is
+ * the honest reading of the number.
+ */
+function NetworkingFunnel({ funnel }: { funnel: Funnel }) {
+  const steps: Array<{ label: string; value: number; tone: string }> = [
+    { label: "Requests sent", value: funnel.requests_sent, tone: "brand" },
+    { label: "Accepted", value: funnel.requests_accepted, tone: "ok" },
+    { label: "Became projects", value: funnel.projects_total, tone: "warn" },
+    { label: "Completed", value: funnel.projects_completed, tone: "ok" },
+  ];
+  return (
+    <Card className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4 sm:p-5">
+      {steps.map((s) => (
+        <div key={s.label} className="flex flex-col gap-1">
+          <span className="text-2xl font-extrabold tabular-nums text-content">{s.value}</span>
+          <span className="text-xs font-semibold text-content-muted">{s.label}</span>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
 export default function ActivityPage() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [done, setDone] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [funnel, setFunnel] = useState<Funnel | null>(null);
 
   const fetchPage = async (offset: number) => {
     const res = await apiFetch<{ events: ActivityEvent[]; migration_pending?: boolean }>(
@@ -118,6 +157,12 @@ export default function ActivityPage() {
       } finally {
         setLoading(false);
       }
+    })();
+    // Independent of the event list — a funnel load failure shouldn't block
+    // the page the way an activity-feed failure does.
+    (async () => {
+      const res = await apiFetch<{ funnel: Funnel }>("/api/stats/funnel");
+      if (res.ok && res.data) setFunnel(res.data.funnel);
     })();
   }, []);
 
@@ -167,6 +212,8 @@ export default function ActivityPage() {
         title="My activity"
         subtitle="Everything you've done on Influnet, newest first. Tap any entry to open it."
       />
+
+      {funnel && <NetworkingFunnel funnel={funnel} />}
 
       {events.length === 0 ? (
         <Card>

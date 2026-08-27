@@ -57,11 +57,12 @@ import {
   FolderKanban,
   Handshake,
   Inbox,
+  Megaphone,
   MessageCircle,
   TrendingUp,
   Users,
 } from 'lucide-react-native';
-import { STAGES, type Stage } from '@influnet/core';
+import { STAGES, flowOf, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -920,6 +921,26 @@ export default function HomeScreen() {
                 </Card>
               </>
             ) : null}
+
+            {/* ── Browse campaigns ────────────────────────────────── */}
+            <SectionLabel>Campaigns</SectionLabel>
+            <Pressable
+              onPress={() => router.push('/campaigns' as any)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <Card raised style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: t.color.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Megaphone size={18} color={t.color.brand} />
+                  </View>
+                  <View>
+                    <Txt variant="bodyStrong">Browse open campaigns</Txt>
+                    <Txt variant="caption" tone="muted">Find opportunities that match your audience</Txt>
+                  </View>
+                </View>
+                <ChevronRight size={18} color={t.color.contentMuted} />
+              </Card>
+            </Pressable>
 
             {/* ── At a glance ───────────────────────────────────────── */}
             {/* Every tile carries its icon in a roundel of its own hue, the

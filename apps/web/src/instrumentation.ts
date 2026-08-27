@@ -65,6 +65,37 @@ export async function register() {
     );
   }
 
+  // Staging runs every feature flag ON, always — it's the always-current demo.
+  // A `feature_flags` row (migration 137) explicitly set to `false` there is a
+  // misconfiguration, not a decision, so refuse to boot rather than serve a
+  // demo with a gate quietly open. A MISSING row or an unreadable table is
+  // fine — that just falls back to the env var, which staging sets to `true`.
+  if (info.appEnv === 'staging') {
+    try {
+      const { explicitlyDisabled } = await import('./lib/feature-flags');
+      const off = await explicitlyDisabled();
+      if (off.length > 0) {
+        console.error(
+          `\n${C.red}${C.bold}Refusing to start staging: feature flags disabled${C.reset}\n` +
+            `  ${off.join(', ')} — staging must run every flag ON.\n` +
+            `  Re-enable in the Supabase dashboard: ` +
+            `update public.feature_flags set enabled = true where key = any(array[${off
+              .map((k) => `'${k}'`)
+              .join(', ')}]);\n`,
+        );
+        throw new Error(`staging: feature_flags disabled: ${off.join(', ')}`);
+      }
+    } catch (err) {
+      // Only the guard's own throw should stop the boot. A failure to READ the
+      // table (network, transient) must not — that path already falls back to
+      // the env vars, and bricking staging over a blip is worse than the risk.
+      if (err instanceof Error && err.message.startsWith('staging: feature_flags disabled')) {
+        throw err;
+      }
+      console.warn('[instrumentation] staging feature-flag guard could not read feature_flags:', err);
+    }
+  }
+
   // Loud warning: running a dev server against PRODUCTION credentials.
   if (info.appEnv === 'production' && info.nodeEnv !== 'production') {
     out.push(

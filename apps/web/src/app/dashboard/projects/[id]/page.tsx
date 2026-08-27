@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, getAuthToken } from '@/lib/api-client';
 import { useRealtimeRefresh } from '@/hooks/use-realtime-refresh';
 import {
   DndContext, DragOverlay, useSensor, useSensors,
@@ -163,6 +163,27 @@ function isCellCoveredBySpan(card: ProjectCard, datesList: Date[], cellDate: str
 }
 
 // ─── Hex color → light tint for card backgrounds ───
+/**
+ * Fetches a document's PDF with the session's auth header (a plain <a href>
+ * cannot carry one) and opens it as a blob URL in a new tab. The PDF is never
+ * stored server-side — this re-renders it from the frozen snapshot on every
+ * call, so a stale bytes-vs-record mismatch cannot happen.
+ */
+async function downloadDocumentPdf(projectId: string | number, docId: string) {
+  const token = await getAuthToken();
+  const res = await fetch(`/api/projects/${projectId}/documents/${docId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    toast.error('Could not open that document.');
+    return;
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 function hexToLightBg(hex: string): string {
   const h = hex.replace('#', '');
   const r = parseInt(h.substring(0, 2), 16);
@@ -1687,7 +1708,17 @@ export default function ProjectKanbanPage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  // Criteria-level scoring (S5) — the route has accepted these since
+  // migration 128, but nothing ever collected them until now.
+  const [qualityScore, setQualityScore] = useState(5);
+  const [communicationScore, setCommunicationScore] = useState(5);
+  const [timelinessScore, setTimelinessScore] = useState(5);
+  const [professionalismScore, setProfessionalismScore] = useState(5);
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Documents state
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [issuingDoc, setIssuingDoc] = useState(false);
 
   // Report state (trust & safety)
   const [showReportModal, setShowReportModal] = useState(false);
@@ -1714,7 +1745,7 @@ export default function ProjectKanbanPage() {
     try {
       setError(null);
       setNotAccessible(false);
-      const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes, payRes] = await Promise.all([
+      const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes, payRes, docsRes] = await Promise.all([
         apiFetch<{ project: any }>(`/api/projects/${projectId}`),
         apiFetch<{ cards: ProjectCard[] }>(`/api/projects/${projectId}/cards`),
         apiFetch<{ reviews: any[] }>(`/api/projects/${projectId}/reviews`),
@@ -1723,6 +1754,7 @@ export default function ProjectKanbanPage() {
         apiFetch<{ change_requests: any[] }>(`/api/projects/${projectId}/change-requests`),
         apiFetch<{ entries: any[] }>(`/api/projects/${projectId}/stage-entries`),
         apiFetch<{ configured: boolean; key_id: string | null }>(`/api/projects/${projectId}/payments`),
+        apiFetch<{ documents: any[] }>(`/api/projects/${projectId}/documents`),
       ]);
       if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
       else if (projRes.status === 403 || projRes.status === 404) {
@@ -1741,6 +1773,7 @@ export default function ProjectKanbanPage() {
       if (crRes.ok && crRes.data) { setChangeRequests(crRes.data.change_requests || []); }
       if (entriesRes.ok && entriesRes.data) { setStageEntries(entriesRes.data.entries || []); }
       if (payRes.ok && payRes.data) { setPaymentConfig({ configured: !!payRes.data.configured, keyId: payRes.data.key_id ?? null }); }
+      if (docsRes.ok && docsRes.data) { setDocuments(docsRes.data.documents || []); }
     } catch (e) { console.error(e); setError('Network error'); }
     finally { setLoading(false); }
   }, [projectId]);
@@ -2771,6 +2804,87 @@ export default function ProjectKanbanPage() {
         </div>
       )}
 
+      {/* Documents section */}
+      <div className="rounded-2xl border border-hairline bg-surface-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-extrabold text-content">Documents</h3>
+          <div className="flex gap-2">
+            <Button
+              variant="surface"
+              size="sm"
+              disabled={issuingDoc}
+              onClick={async () => {
+                setIssuingDoc(true);
+                try {
+                  const res = await apiFetch<{ document: any }>(`/api/projects/${projectId}/documents`, {
+                    method: 'POST',
+                    body: JSON.stringify({ kind: 'proforma' }),
+                  });
+                  if (res.ok && res.data) {
+                    setDocuments((prev) => [res.data!.document, ...prev.filter((d) => d.kind !== 'proforma' || d.cancelled_at)]);
+                    toast.success('Proforma issued');
+                  } else {
+                    toast.error(res.error || 'Failed to issue document');
+                  }
+                } finally {
+                  setIssuingDoc(false);
+                }
+              }}
+            >
+              {issuingDoc ? <Loader2 className="animate-spin" /> : <FileText />} Issue proforma
+            </Button>
+            <Button
+              variant="surface"
+              size="sm"
+              disabled={issuingDoc}
+              onClick={async () => {
+                setIssuingDoc(true);
+                try {
+                  const res = await apiFetch<{ document: any }>(`/api/projects/${projectId}/documents`, {
+                    method: 'POST',
+                    body: JSON.stringify({ kind: 'tax_invoice' }),
+                  });
+                  if (res.ok && res.data) {
+                    setDocuments((prev) => [res.data!.document, ...prev.filter((d) => d.kind !== 'tax_invoice' || d.cancelled_at)]);
+                    toast.success('Tax invoice issued');
+                  } else {
+                    toast.error(res.error || 'Needs at least one confirmed payment first.');
+                  }
+                } finally {
+                  setIssuingDoc(false);
+                }
+              }}
+            >
+              {issuingDoc ? <Loader2 className="animate-spin" /> : <FileText />} Issue tax invoice
+            </Button>
+          </div>
+        </div>
+        {documents.length === 0 ? (
+          <p className="text-sm text-content-muted">No documents issued yet.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {documents.map((doc) => (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => downloadDocumentPdf(projectId, doc.id)}
+                className="flex items-center justify-between rounded-xl border border-hairline bg-surface p-3 text-left transition-colors hover:bg-surface-hover"
+              >
+                <div>
+                  <span className="text-sm font-bold text-content">{doc.number}</span>
+                  <span className="ml-2 text-xs text-content-muted">{doc.kind}</span>
+                  {doc.cancelled_at && <span className="ml-2 text-xs text-danger">cancelled</span>}
+                </div>
+                <span className="flex items-center gap-2 text-xs text-content-muted">
+                  {new Date(doc.issued_at).toLocaleDateString('en-IN')}
+                  <FileText size={14} />
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {showReviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
@@ -2804,7 +2918,7 @@ export default function ProjectKanbanPage() {
             {!reviews.some(r => r.from_user?.id === userId) && (
               <div className="space-y-4 border-t border-hairline pt-4">
                 <div>
-                  <Label>Rating</Label>
+                  <Label>Overall rating</Label>
                   <div className="mt-2 flex gap-2">
                     {[1, 2, 3, 4, 5].map(star => (
                       <button key={star} onClick={() => setReviewRating(star)}>
@@ -2813,12 +2927,29 @@ export default function ProjectKanbanPage() {
                     ))}
                   </div>
                 </div>
+                {([
+                  ['Quality of work', qualityScore, setQualityScore],
+                  ['Communication', communicationScore, setCommunicationScore],
+                  ['Timeliness', timelinessScore, setTimelinessScore],
+                  ['Professionalism', professionalismScore, setProfessionalismScore],
+                ] as const).map(([label, value, setValue]) => (
+                  <div key={label} className="flex items-center justify-between gap-3">
+                    <Label className="mb-0">{label}</Label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} onClick={() => setValue(star)}>
+                          <Star size={16} fill={star <= value ? "var(--brand)" : "none"} color={star <= value ? "var(--brand)" : "#cbd5e1"} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
                 <div>
                   <Label>Comment (optional)</Label>
                   <Textarea value={reviewComment} onChange={e => setReviewComment(e.target.value)} placeholder="How was working with them?" rows={3} />
                 </div>
-                <Button 
-                  variant="brand" 
+                <Button
+                  variant="brand"
                   className="w-full"
                   disabled={submittingReview}
                   onClick={async () => {
@@ -2826,7 +2957,14 @@ export default function ProjectKanbanPage() {
                     try {
                       const res = await apiFetch(`/api/projects/${projectId}/reviews`, {
                         method: 'POST',
-                        body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
+                        body: JSON.stringify({
+                          rating: reviewRating,
+                          comment: reviewComment,
+                          quality_score: qualityScore,
+                          communication_score: communicationScore,
+                          timeliness_score: timelinessScore,
+                          professionalism_score: professionalismScore,
+                        })
                       });
                       if (res.ok) {
                         await fetchData();

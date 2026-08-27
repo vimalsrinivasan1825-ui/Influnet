@@ -136,7 +136,12 @@ export const RegisterProfileSchema = z.object({
   // Proof of mobile OTP verification, minted by the phone-otp Edge Function.
   // Carries no trust on its own — /api/auth/register re-validates it against
   // phone_otp_sessions before the profile is created.
-  phoneVerificationToken: z.string().uuid().optional(),
+  // `.nullable()` matters: when the phone-OTP feature is OFF the wizards have no
+  // token and send `null` (not `undefined`). Without this a flag toggle turns
+  // every signup into a 400 "Invalid registration payload". The route re-checks
+  // this against phone_otp_sessions only when phoneOtpEnabled(), and strips it
+  // either way before the RPC.
+  phoneVerificationToken: z.string().uuid().nullable().optional(),
   // business fields
   companyName: z.string().optional(),
   businessType: z.string().optional(),
@@ -253,6 +258,12 @@ export const ProfileUpdateSchema = z.object({
   avatar_url: z.string().url().optional().or(z.literal('')),
   cover_image_url: z.string().url().optional().or(z.literal('')),
   portfolio: z.array(z.object({ url: z.string(), title: z.string().optional() })).optional(),
+  // Creating since: year the creator started making content (S2).
+  creating_since: z.number().int().min(1990).max(new Date().getFullYear()).optional(),
+  // Optional — most individual creators are not GST-registered, and that is
+  // the legally correct default, not a gap (B4: an unregistered supplier gets
+  // a Bill of Supply instead of a Tax Invoice with a GST breakup).
+  gst_number: GstNumberSchema.optional(),
   // Media-kit fields collected from settings (not signup — keeps signup light).
   pricing_min: z.number().min(0).max(100_000_000).optional(),
   pricing_max: z.number().min(0).max(100_000_000).optional(),

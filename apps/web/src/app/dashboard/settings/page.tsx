@@ -224,6 +224,8 @@ export default function SettingsPage() {
   const [pricingMin, setPricingMin] = useState("");
   const [pricingMax, setPricingMax] = useState("");
   const [pastCollabs, setPastCollabs] = useState("");
+  const [creatingSince, setCreatingSince] = useState<string>("");
+  const [gstNumber, setGstNumber] = useState<string>("");
   const [locations, setLocations] = useState<SliceRow[]>([]);
   const [ages, setAges] = useState<SliceRow[]>([]);
   const [genders, setGenders] = useState<SliceRow[]>([]);
@@ -250,6 +252,8 @@ export default function SettingsPage() {
         setPricingMin(p.pricing_min != null ? String(p.pricing_min) : "");
         setPricingMax(p.pricing_max != null ? String(p.pricing_max) : "");
         setPastCollabs(collabNames(p.past_collaborations).join("\n"));
+        if ((p as any).creating_since) setCreatingSince(String((p as any).creating_since));
+        if ((p as any).gst_number) setGstNumber(String((p as any).gst_number));
         const ad = (p.audience_demographics || {}) as AudienceDemographics;
         setLocations(toRows(ad.locations));
         setAges(toRows(ad.age));
@@ -288,6 +292,15 @@ export default function SettingsPage() {
         const pmax = Number(pricingMax);
         if (pricingMin.trim() && Number.isFinite(pmin)) payload.pricing_min = pmin;
         if (pricingMax.trim() && Number.isFinite(pmax)) payload.pricing_max = pmax;
+        if (creatingSince.trim()) {
+          const yr = Number(creatingSince);
+          if (Number.isInteger(yr) && yr >= 1990 && yr <= new Date().getFullYear()) {
+            payload.creating_since = yr;
+          }
+        }
+        // Optional — most creators are not GST-registered, and the server
+        // validates the format when one is provided (see GstNumberSchema).
+        payload.gst_number = gstNumber.trim().toUpperCase();
         payload.past_collaborations = pastCollabs
           .split(/[\n,]/)
           .map((s) => s.trim())
@@ -483,6 +496,23 @@ export default function SettingsPage() {
             </Field>
             <Field label="Bio">
               <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell brands about yourself…" rows={3} />
+            </Field>
+            <Field label="Creating since" hint="The year you started creating content. Shown on your public profile.">
+              <Input
+                type="number"
+                value={creatingSince}
+                onChange={(e) => setCreatingSince(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                placeholder="e.g. 2020"
+                min="1990"
+                max={new Date().getFullYear()}
+              />
+            </Field>
+            <Field label="GST number (optional)" hint="Only if you're GST-registered. Needed to issue a tax invoice instead of a bill of supply.">
+              <Input
+                value={gstNumber}
+                onChange={(e) => setGstNumber(e.target.value.toUpperCase().slice(0, 15))}
+                placeholder="e.g. 22AAAAA0000A1Z5"
+              />
             </Field>
             <Field label="Instagram handle">
               <Input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@username" />

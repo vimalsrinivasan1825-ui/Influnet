@@ -3,7 +3,7 @@
 // project-lifecycle.ts. The gate rule (canAdvanceStage) is enforced server-side
 // in the project PATCH `advance` action and mirrored in the UI.
 
-import { STAGES, type Stage } from './project-lifecycle';
+import { STAGES, STAGE_FLOWS, type Stage, type StageFlow, type FlowKey } from './project-lifecycle';
 
 export type OwnerRole = 'business' | 'creator' | 'both';
 
@@ -28,9 +28,25 @@ export interface StageItem {
   done_by: string | null;
 }
 
+// ── Short-flow default checklist items ────────────────────────────────
+const SHORT_STAGE_ITEMS: Record<string, StageItemSeed[]> = {
+  quick_agreement: [
+    { label: 'Scope confirmed by both parties', owner_role: 'both', is_required: true, is_gate: false },
+    { label: 'Deliverables and timeline agreed', owner_role: 'both', is_required: true, is_gate: false },
+  ],
+  quick_delivery: [
+    { label: 'Work delivered', owner_role: 'creator', is_required: true, is_gate: false },
+    { label: 'Delivery confirmed by brand', owner_role: 'business', is_required: true, is_gate: false },
+  ],
+  quick_payment: [
+    { label: 'Payment received', owner_role: 'business', is_required: true, is_gate: true },
+  ],
+  project_completed: [],
+};
+
 // Ordered default checklist for every stage. Required items gate advancement;
 // gate items (payment/approval) are visually emphasized in the UI.
-export const DEFAULT_STAGE_ITEMS: Record<Stage, StageItemSeed[]> = {
+export const DEFAULT_STAGE_ITEMS: Record<string, StageItemSeed[]> = {
   collaboration_started: [
     { label: 'Both parties introduced', owner_role: 'both', is_required: false, is_gate: false },
     { label: 'Scope & goals aligned', owner_role: 'both', is_required: true, is_gate: false },
@@ -70,16 +86,55 @@ export const DEFAULT_STAGE_ITEMS: Record<Stage, StageItemSeed[]> = {
 };
 
 // Build the flat seed payload for a project (positions assigned per stage).
-export function buildDefaultStageItems(projectId: number): Array<
+// Flow-aware: short projects get only their 3 stages seeded, not all 12.
+export function buildDefaultStageItems(projectId: number, flow?: StageFlow): Array<
   StageItemSeed & { project_id: number; stage_key: string; position: number }
 > {
+  const stages = flow?.stages ?? STAGES;
+  const items = flow ? getFlowStageItems(flow) : DEFAULT_STAGE_ITEMS;
   const rows: Array<StageItemSeed & { project_id: number; stage_key: string; position: number }> = [];
-  for (const stage of STAGES) {
-    DEFAULT_STAGE_ITEMS[stage].forEach((item, i) => {
+  for (const stage of stages) {
+    (items[stage] ?? []).forEach((item, i) => {
       rows.push({ ...item, project_id: projectId, stage_key: stage, position: i });
     });
   }
   return rows;
+}
+
+/** Get the stage items record for a given flow. */
+export function getFlowStageItems(flow: StageFlow): Record<string, StageItemSeed[]> {
+  if (flow.stages === STAGE_FLOWS.full.stages) return DEFAULT_STAGE_ITEMS;
+  return SHORT_STAGE_ITEMS;
+}
+
+/**
+ * Which stage in this flow is the money gate — the one a payment webhook
+ * actually ticks (see /api/payments/webhook), as opposed to an approval gate
+ * like `content_confirmation` or `final_approval` which also carry
+ * `is_gate: true` but for a brand's sign-off, not a payment.
+ *
+ * Finding this BY NAME rather than by position
+ * (`stages[stages.length - 2]`) matters because `short_pay_before` puts
+ * payment SECOND and delivery last — "the stage before project_completed"
+ * there is `quick_delivery`, not the payment stage at all. A position-based
+ * lookup silently evaluates the wrong stage's checklist on that flow, so the
+ * completion money check would pass by checking whether delivery happened,
+ * not whether payment did.
+ *
+ * The full flow has three `is_gate` stages (content_confirmation,
+ * final_approval, final_payment) — only the LAST one is ever a payment stage
+ * in any flow this module defines, so this takes the last match, not the
+ * first.
+ */
+export function paymentGateStage(flow: StageFlow): string | null {
+  const items = getFlowStageItems(flow);
+  let found: string | null = null;
+  for (const stage of flow.stages) {
+    if ((items[stage] ?? []).some((it) => it.is_gate && it.owner_role === 'business')) {
+      found = stage;
+    }
+  }
+  return found;
 }
 
 // Required items of a stage that are NOT yet done. Empty array => gate is open.

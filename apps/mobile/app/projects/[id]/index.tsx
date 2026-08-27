@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { Ban, Check, CircleCheck, EllipsisVertical, Flag, RotateCcw, Trash2 } from 'lucide-react-native';
 import {
   STAGES,
+  flowOf,
   CANCELLATION_REASONS,
   cancellationReasonLabel,
   cancellationReasonRequiresText,
@@ -19,6 +20,7 @@ import { styleForStatus } from '@/lib/deal-state-style';
 import { formatCurrency, formatDate, timeAgo } from '@/lib/format';
 import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
 import { ProjectReviews } from '@/components/project-reviews';
+import { ProjectDocuments } from '@/components/project-documents';
 import {
   Badge,
   Button,
@@ -41,6 +43,7 @@ interface ProjectDetail {
   description: string | null;
   status: string;
   current_stage: string;
+  flow_key?: string | null;
   budget: number | null;
   advance_amount: number | null;
   created_at: string;
@@ -120,7 +123,8 @@ export default function ProjectDetailScreen() {
   const project = data?.project;
   const isOwner = project?.owner_user_id === me;
   const partner = (isOwner ? project?.counterparty?.name : project?.owner?.name) ?? 'Partner';
-  const stageIndex = project ? STAGES.indexOf(project.current_stage as Stage) : -1;
+  const flow = project ? flowOf(project) : undefined;
+  const stageIndex = project && flow ? flow.stages.indexOf(project.current_stage) : -1;
   const s = styleForStatus(project?.status, t.color);
 
   const pendingChangeCount = (crData?.change_requests ?? []).filter((cr) => cr.status === 'pending').length;
@@ -336,7 +340,7 @@ export default function ProjectDetailScreen() {
                 {project.budget ? (
                   <Badge label={formatCurrency(project.budget)} tone="neutral" />
                 ) : null}
-                <Badge label={`Step ${stageIndex + 1} of ${STAGES.length}`} tone="neutral" />
+                <Badge label={`Step ${stageIndex + 1} of ${flow?.stages?.length ?? STAGES.length}`} tone="neutral" />
               </View>
 
               {project.description ? (
@@ -410,6 +414,7 @@ export default function ProjectDetailScreen() {
                 currentStage={project.current_stage}
                 stageProgress={project.stage_progress}
                 onOpenStage={(stage) => router.push(`/projects/${id}/stage/${stage}`)}
+                flow={flowOf(project)}
               />
             </Card>
 
@@ -428,6 +433,8 @@ export default function ProjectDetailScreen() {
                 />
               </ListGroup>
             ) : null}
+
+            <ProjectDocuments projectId={id} />
 
             {project.status === 'completed' ? (
               <ProjectReviews projectId={id} partner={partner} />

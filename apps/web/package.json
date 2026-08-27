@@ -30,6 +30,7 @@
     "@influnet/core": "*",
     "@influnet/tokens": "*",
     "@influnet/types": "*",
+    "@react-pdf/renderer": "^4.8.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.0",
     "@xyflow/react": "^12.11.2",

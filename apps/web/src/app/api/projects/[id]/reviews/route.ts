@@ -74,7 +74,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     if (limited) return limited;
 
     const body = await req.json().catch(() => ({}));
-    const { rating, comment } = body;
+    const { rating, comment, quality_score, communication_score, timeliness_score, professionalism_score } = body;
 
     if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 5) {
       return jsonError(400, 'Rating must be an integer between 1 and 5');
@@ -84,6 +84,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     }
     if (typeof comment === 'string' && comment.length > 2000) {
       return jsonError(400, 'Keep your review under 2000 characters.');
+    }
+
+    // Validate optional criteria scores (1–5 integer, or null)
+    const validScore = (v: unknown) => v === null || v === undefined || (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 5);
+    if (!validScore(quality_score) || !validScore(communication_score) || !validScore(timeliness_score) || !validScore(professionalism_score)) {
+      return jsonError(400, 'Criteria scores must be integers between 1 and 5');
     }
 
     // Check project status and access
@@ -112,6 +118,10 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         to_user_id,
         rating,
         comment: comment || null,
+        quality_score: quality_score ?? null,
+        communication_score: communication_score ?? null,
+        timeliness_score: timeliness_score ?? null,
+        professionalism_score: professionalism_score ?? null,
       })
       .select()
       .single();

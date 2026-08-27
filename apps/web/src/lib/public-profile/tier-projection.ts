@@ -48,6 +48,11 @@ const FREE_FIELDS = [
   'instagramHandle',
   'youtubeHandle',
   'profileUrl',
+  // S1/S2 — a tier derived from public follower counts and the year someone
+  // started are the same kind of signal as the identity fields above: "who is
+  // this creator", not "the analysis a brand is buying".
+  'creatorLevel',
+  'creatingSince',
 
   // Trust signals. Never gated — a verification badge that only paying viewers
   // can see is not a trust signal, and hiding ratings would make the platform

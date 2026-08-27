@@ -42,6 +42,7 @@ import {
 } from '@influnet/core';
 import { jsonError } from './api';
 import { logger } from './logger';
+import { flag } from './feature-flags';
 
 /**
  * Is the paid product live in this environment?
@@ -49,9 +50,13 @@ import { logger } from './logger';
  * Defaults to OFF, the same way the phone-OTP and ownership gates do: turning
  * a restriction on must be a deliberate act, because switching it on instantly
  * changes what every existing user can do.
+ *
+ * Resolved from the `feature_flags` table (migration 137), falling back to the
+ * `SUBSCRIPTIONS_ENABLED` env var. Still server-only and still not NEXT_PUBLIC_
+ * — the browser learns it from GET /api/billing/entitlements as before.
  */
 export function subscriptionsEnabled(): boolean {
-  return process.env.SUBSCRIPTIONS_ENABLED === 'true';
+  return flag('subscriptions');
 }
 
 /**
@@ -75,6 +80,8 @@ function unlimitedEntitlements(): Entitlements {
       projectConversions: null,
       shortlistSize: null,
       analyticsDays: null,
+      liveCampaigns: null,
+      applicationsPerWeek: null,
     },
     freeLimits: {
       activeProjects: null,
@@ -82,8 +89,10 @@ function unlimitedEntitlements(): Entitlements {
       projectConversions: null,
       shortlistSize: null,
       analyticsDays: null,
+      liveCampaigns: null,
+      applicationsPerWeek: null,
     },
-    usage: { activeProjects: 0, requestsThisMonth: 0, projectConversions: 0 },
+    usage: { activeProjects: 0, requestsThisMonth: 0, projectConversions: 0, liveCampaigns: 0, applicationsThisWeek: 0 },
     price: { paise: 0, currency: 'INR' },
     subscriptionsEnabled: false,
   };
@@ -106,6 +115,8 @@ function freeFallback(): Entitlements {
       projectConversions: null,
       shortlistSize: null,
       analyticsDays: null,
+      liveCampaigns: null,
+      applicationsPerWeek: null,
     },
     freeLimits: {
       activeProjects: null,
@@ -113,8 +124,10 @@ function freeFallback(): Entitlements {
       projectConversions: null,
       shortlistSize: null,
       analyticsDays: null,
+      liveCampaigns: null,
+      applicationsPerWeek: null,
     },
-    usage: { activeProjects: 0, requestsThisMonth: 0, projectConversions: 0 },
+    usage: { activeProjects: 0, requestsThisMonth: 0, projectConversions: 0, liveCampaigns: 0, applicationsThisWeek: 0 },
     price: { paise: 0, currency: 'INR' },
     subscriptionsEnabled: true,
   };
@@ -278,6 +291,88 @@ export async function requireQuota(
     return paywall(feature, ent, message, { limit, used: limit });
   }
   return null;
+}
+
+/**
+ * `requireQuota`'s WEEKLY twin, for campaigns.apply — the only feature metered
+ * per week rather than per month. Kept as a separate function rather than a
+ * period parameter on `requireQuota` so a caller can't pass month/week for the
+ * wrong meter by mistake; `campaigns.apply` only ever means week.
+ */
+export async function requireWeeklyQuota(
+  auth: AuthCtx,
+  feature: Extract<GatedFeature, 'campaigns.apply'>,
+  meter: 'applications_week',
+  message: string,
+): Promise<NextResponse | null> {
+  const ent = await resolveEntitlements(auth.supabase, auth.user.id);
+  if (ent.tier === 'pro') return null;
+
+  const limit = ent.limits.applicationsPerWeek;
+  if (limit === null) return null;
+
+  const { data, error } = await (auth.supabase.rpc as any)('consume_weekly_quota', {
+    p_meter: meter,
+    p_limit: limit,
+  });
+
+  if (error) {
+    logger.error('weekly quota consumption failed — refusing', { userId: auth.user.id, meter, err: error });
+    return paywall(feature, ent, message, { limit, used: ent.usage.applicationsThisWeek });
+  }
+
+  if (data === false) {
+    return paywall(feature, ent, message, { limit, used: limit });
+  }
+  return null;
+}
+
+/**
+ * Gate `campaigns.publish` — NOT atomic like the two quota helpers above,
+ * because a live campaign isn't consumed and released the way a monthly
+ * request unit is: it is a standing count (however many are live RIGHT NOW),
+ * not a running total. Reading `usage.liveCampaigns` and comparing to the
+ * limit is the correct check for a standing count; the enforce_campaign_quota
+ * trigger (migration 131) is the atomic backstop for the race this read alone
+ * cannot close (two publishes landing together both seeing "2 of 3 used").
+ */
+export async function requireLiveCampaignQuota(
+  auth: AuthCtx,
+  message: string,
+): Promise<NextResponse | null> {
+  const ent = await resolveEntitlements(auth.supabase, auth.user.id);
+  if (ent.tier === 'pro') return null;
+
+  const limit = ent.limits.liveCampaigns;
+  if (limit === null) return null;
+
+  if (isOverLimit(ent.usage.liveCampaigns, limit)) {
+    return paywall('campaigns.publish', ent, message, { limit, used: ent.usage.liveCampaigns });
+  }
+  return null;
+}
+
+/**
+ * Give back a unit `requireWeeklyQuota` consumed, when the write it guarded
+ * did not actually happen (a duplicate-application conflict, a campaign that
+ * expired between the check and the insert). Same reasoning as
+ * `release_quota` in migration 115: consuming has to happen before the write
+ * to stay atomic with it, so a write that fails afterward for an unrelated
+ * reason has already spent a unit unless this is called in that catch path.
+ */
+export async function releaseWeeklyQuota(
+  auth: AuthCtx,
+  meter: 'applications_week',
+): Promise<void> {
+  // supabase-js's query builder is a PromiseLike, not a real Promise — it
+  // implements .then() but not .catch(), so chaining .catch() directly on it
+  // throws "not a function" instead of swallowing the RPC's own error the way
+  // this was meant to. Awaiting it inside a real try/catch works either way.
+  try {
+    await (auth.supabase.rpc as any)('release_weekly_quota', { p_meter: meter });
+  } catch {
+    /* best-effort — a failed release just means the unit isn't given back */
+  }
 }
 
 /**

@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
-import { blockingItems, type StageItem } from '@/lib/project-stage-items';
+import { blockingItems, paymentGateStage, type StageItem } from '@/lib/project-stage-items';
 import { evaluateStageGate } from '@/lib/stage-items-gate';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
 import { logger, requestId } from '@/lib/logger';
-import { CANCELLATION_REASONS, cancellationReasonLabel } from '@influnet/core';
+import { CANCELLATION_REASONS, cancellationReasonLabel, flowOf, type StageFlow } from '@influnet/core';
 
 const CANCELLATION_REASON_VALUES = CANCELLATION_REASONS.map((r) => r.value) as [string, ...string[]];
 
@@ -108,7 +108,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // the confirm_completion branch reads those columns separately.
     const { data: project, error: fetchErr } = await supabase
       .from('campaign_projects')
-      .select('id, title, owner_user_id, counterparty_user_id, current_stage, stage_progress')
+      .select('id, title, owner_user_id, counterparty_user_id, current_stage, stage_progress, flow_key')
       .eq('id', id)
       .single();
 
@@ -121,6 +121,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     const { action } = result.data;
     const { STAGES, ALLOWED_TRANSITIONS, STAGE_ACTOR, STAGE_LABELS, Stage } = require('@/lib/project-lifecycle');
+    // Flow-aware: get the stage list and transitions for this project.
+    const flow: StageFlow = flowOf(project);
 
     // Legacy safety net. Migration 071 stopped creating 'pending_acceptance'
     // projects (terms now live in project_proposals until accepted), but rows
@@ -171,12 +173,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     // 1) Advance to next stage
     if (action === 'advance') {
-      const currentIdx = STAGES.indexOf(project.current_stage);
+      const currentIdx = flow.stages.indexOf(project.current_stage);
       if (currentIdx === -1) {
         return jsonError(400, 'Invalid current stage');
       }
 
-      const currentStageActor = STAGE_ACTOR[project.current_stage as typeof Stage] || 'either';
+      const currentStageActor = flow.actor[project.current_stage] || 'either';
       if (currentStageActor !== 'either' && currentStageActor !== userRole) {
         return jsonError(403, `Only the ${currentStageActor} can advance the stage from ${project.current_stage}`);
       }
@@ -194,29 +196,29 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       if (stage_key) {
         // Enforce transition map
-        const allowed = ALLOWED_TRANSITIONS[project.current_stage] || [];
+        const allowed = flow.transitions[project.current_stage] || [];
         if (!allowed.includes(stage_key)) {
           return jsonError(400, `Invalid stage transition from ${project.current_stage} to ${stage_key}`);
         }
         nextStage = stage_key;
       } else {
-        if (currentIdx >= STAGES.length - 1) {
+        if (currentIdx >= flow.stages.length - 1) {
           return jsonError(400, 'Already at final stage');
         }
         // Default target = the stage's only legal transition, NOT the next
         // array element. The explicit-stage_key branch above already validates
-        // against ALLOWED_TRANSITIONS; this branch skipped that check entirely
+        // against flow.transitions; this branch skipped that check entirely
         // and walked the array, so a bare "Advance" on `revisions` jumped to
-        // `final_approval` — past the re-review that ALLOWED_TRANSITIONS.revisions
+        // `final_approval` — past the re-review that flow.transitions.revisions
         // exists to require.
         //
         // A forking stage (sent_for_review) has no single default and must be
         // told which way to go, which is what the review fork's buttons do.
-        const defaultNext: string[] = ALLOWED_TRANSITIONS[project.current_stage] || [];
+        const defaultNext: string[] = flow.transitions[project.current_stage] || [];
         if (defaultNext.length !== 1) {
           return jsonError(
             400,
-            `The ${STAGE_LABELS[project.current_stage] || project.current_stage} stage needs an explicit decision — pick where it goes next.`,
+            `The ${flow.labels[project.current_stage] || project.current_stage} stage needs an explicit decision — pick where it goes next.`,
           );
         }
         nextStage = defaultNext[0];
@@ -224,7 +226,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       // Completion is DUAL-CONFIRM (see 1b and migration 056) — but this older
       // `advance` path could still walk straight into 'project_completed', and
-      // STAGE_ACTOR['final_payment'] is 'business'. That meant a brand alone
+      // flow.actor['final_payment'] is 'business'. That meant a brand alone
       // could close a project the creator never agreed was finished, which ends
       // the change-request window, locks the workspace, and now also publishes
       // the collaboration and a rating on the creator's public profile.
@@ -245,7 +247,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       // GET /stage-items — so a project nobody had opened had no rows, nothing
       // to block on, and every gate stood open, including the two money gates.
       // See lib/stage-items-gate.ts.
-      const gate = await evaluateStageGate(supabase, id, project.current_stage);
+      const gate = await evaluateStageGate(supabase, id, project.current_stage, flow);
       if (gate.reason === 'unavailable') {
         log.warn('stage checklist unavailable, skipping gate', { stage: project.current_stage });
       }
@@ -303,7 +305,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           ? { type: 'revisions_requested' as const, summary: 'Requested revisions on the draft' }
           : project.current_stage === 'sent_for_review' && nextStage === 'final_approval'
           ? { type: 'draft_approved' as const, summary: 'Approved the draft' }
-          : { type: 'stage_advanced' as const, summary: `Moved the project to ${STAGE_LABELS[nextStage] || nextStage}` };
+          : { type: 'stage_advanced' as const, summary: `Moved the project to ${flow.labels[nextStage] || nextStage}` };
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, ...advanceActivity,
         metadata: { from: project.current_stage, to: nextStage },
@@ -312,12 +314,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       // Tell the counterparty the stage moved, and whether the ball is now in
       // their court. Best-effort — never blocks the response on a failed write.
       if (counterpartyId) {
-        const nextActor = STAGE_ACTOR[nextStage as typeof Stage] || 'either';
+        const nextActor = flow.actor[nextStage] || 'either';
         const yourTurn = nextActor === 'either' || nextActor === recipientRole;
         await notifyUser({
           userId: counterpartyId,
           type: 'project_stage',
-          title: `${projectLabel} moved to ${STAGE_LABELS[nextStage] || nextStage}`,
+          title: `${projectLabel} moved to ${flow.labels[nextStage] || nextStage}`,
           body: yourTurn
             ? "It's your turn to move this project forward."
             : `Now waiting on the ${nextActor === 'business' ? 'brand' : 'creator'}.`,
@@ -332,7 +334,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
                   recipientName,
                   projectName,
                   stage: nextStage,
-                  action: `${actorName} moved this to ${STAGE_LABELS[nextStage] || nextStage}. It cannot move on until you act.`,
+                  action: `${actorName} moved this to ${flow.labels[nextStage] || nextStage}. It cannot move on until you act.`,
                   waitingSince: null,
                   dashboardUrl: projectLink,
                 },
@@ -364,10 +366,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (action === 'signoff' || action === 'revoke_signoff') {
       const { isMutualSignoffStage } = require('@/lib/project-stage-guide');
       const currentStage = project.current_stage as string;
-      const currentIdx = STAGES.indexOf(currentStage);
+      const currentIdx = flow.stages.indexOf(currentStage);
       if (currentIdx === -1) return jsonError(400, 'Invalid current stage');
-      if (!isMutualSignoffStage(currentStage)) {
-        return jsonError(400, `The ${STAGE_LABELS[currentStage] || currentStage} stage does not use sign-off.`);
+      if (!isMutualSignoffStage(currentStage, flow)) {
+        return jsonError(400, `The ${flow.labels[currentStage] || currentStage} stage does not use sign-off.`);
       }
 
       if (action === 'revoke_signoff') {
@@ -385,7 +387,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       // off. Same materialise-then-evaluate as the advance path — sign-off is
       // how 8 of the 12 stages are left, so leaving it on the old read-only
       // check would have kept the bypass alive for most of the pipeline.
-      const gate = await evaluateStageGate(supabase, id, currentStage);
+      const gate = await evaluateStageGate(supabase, id, currentStage, flow);
       if (gate.reason === 'unavailable') {
         log.warn('stage checklist unavailable, skipping gate', { stage: currentStage });
       }
@@ -414,14 +416,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       // A sign-off stage has exactly one exit by definition; anything with a
       // fork (sent_for_review) is in NON_SIGNOFF_STAGES and never reaches here.
       // Bail rather than guess if that ever stops being true.
-      const allowedNext: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
-      if (currentIdx < STAGES.length - 1 && allowedNext.length !== 1) {
+      const allowedNext: string[] = flow.transitions[currentStage] || [];
+      if (currentIdx < flow.stages.length - 1 && allowedNext.length !== 1) {
         return jsonError(
           500,
-          `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't advance by sign-off.`,
+          `The ${flow.labels[currentStage] || currentStage} stage has no single next step, so it can't advance by sign-off.`,
         );
       }
-      const candidateNext = currentIdx < STAGES.length - 1 ? allowedNext[0] : null;
+      const candidateNext = currentIdx < flow.stages.length - 1 ? allowedNext[0] : null;
 
       // Atomic: the RPC takes a row lock, re-reads stage_progress, writes ONLY
       // this side's keys and advances only if both are present (migration 114).
@@ -465,13 +467,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (nextStage) {
         await logActivity(supabase, {
           projectId: id, actorUserId: user.id, type: 'stage_advanced',
-          summary: `Confirmed ${STAGE_LABELS[currentStage] || currentStage} — both sides agreed, moved to ${STAGE_LABELS[nextStage] || nextStage}`,
+          summary: `Confirmed ${flow.labels[currentStage] || currentStage} — both sides agreed, moved to ${flow.labels[nextStage] || nextStage}`,
           metadata: { from: currentStage, to: nextStage, both: true },
         });
       } else {
         await logActivity(supabase, {
           projectId: id, actorUserId: user.id, type: 'stage_signoff',
-          summary: `Confirmed the ${STAGE_LABELS[currentStage] || currentStage} stage`,
+          summary: `Confirmed the ${flow.labels[currentStage] || currentStage} stage`,
           metadata: { stage: currentStage },
         });
       }
@@ -481,8 +483,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           userId: counterpartyId,
           type: 'project_stage',
           title: nextStage
-            ? `${projectLabel} moved to ${STAGE_LABELS[nextStage] || nextStage}`
-            : `${projectLabel}: ${STAGE_LABELS[currentStage] || currentStage} confirmed`,
+            ? `${projectLabel} moved to ${flow.labels[nextStage] || nextStage}`
+            : `${projectLabel}: ${flow.labels[currentStage] || currentStage} confirmed`,
           body: nextStage
             ? 'Both sides confirmed — the project moved to the next stage.'
             : `The ${userRole === 'business' ? 'brand' : 'creator'} confirmed this stage. Confirm on your side to move forward.`,
@@ -526,10 +528,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (action === 'propose_skip' || action === 'confirm_skip' || action === 'cancel_skip') {
       const { isSkippableStage } = require('@/lib/project-stage-guide');
       const currentStage = project.current_stage as string;
-      const currentIdx = STAGES.indexOf(currentStage);
+      const currentIdx = flow.stages.indexOf(currentStage);
       if (currentIdx === -1) return jsonError(400, 'Invalid current stage');
-      if (!isSkippableStage(currentStage)) {
-        return jsonError(400, `The ${STAGE_LABELS[currentStage] || currentStage} stage can’t be skipped.`);
+      if (!isSkippableStage(currentStage, flow)) {
+        return jsonError(400, `The ${flow.labels[currentStage] || currentStage} stage can’t be skipped.`);
       }
 
       const stageProgress = (project.stage_progress || {}) as Record<string, any>;
@@ -562,7 +564,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             userId: counterpartyId,
             type: 'project_stage',
             title: `${projectLabel}: skip proposed`,
-            body: `The ${userRole === 'business' ? 'brand' : 'creator'} suggested skipping the ${STAGE_LABELS[currentStage] || currentStage} stage. Confirm or reject it.`,
+            body: `The ${userRole === 'business' ? 'brand' : 'creator'} suggested skipping the ${flow.labels[currentStage] || currentStage} stage. Confirm or reject it.`,
             link: projectLink,
             email: {
               templateId: 'project_action_needed',
@@ -571,7 +573,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
                 recipientName,
                 projectName,
                 stage: currentStage,
-                action: `${actorName} proposed skipping the ${STAGE_LABELS[currentStage] || currentStage} stage. It stays where it is until you confirm or reject.`,
+                action: `${actorName} proposed skipping the ${flow.labels[currentStage] || currentStage} stage. It stays where it is until you confirm or reject.`,
                 waitingSince: null,
                 dashboardUrl: projectLink,
               },
@@ -585,18 +587,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       const proposedBy = entry.skip_proposed_by;
       if (!proposedBy) return jsonError(400, 'No skip has been proposed for this stage.');
       if (proposedBy === user.id) return jsonError(400, 'The other party has to confirm the skip you proposed.');
-      if (currentIdx >= STAGES.length - 1) return jsonError(400, 'Already at the final stage');
+      if (currentIdx >= flow.stages.length - 1) return jsonError(400, 'Already at the final stage');
 
       // Same rule as sign-off above: the transition map decides where a stage
       // leads, never the array order. No skippable stage forks or loops today,
       // so this is defence in depth rather than a live fix — but it is the
       // identical hazard, and leaving one of the two paths advancing by index
       // is how they drift apart again.
-      const skipAllowed: string[] = ALLOWED_TRANSITIONS[currentStage] || [];
+      const skipAllowed: string[] = flow.transitions[currentStage] || [];
       if (skipAllowed.length !== 1) {
         return jsonError(
           500,
-          `The ${STAGE_LABELS[currentStage] || currentStage} stage has no single next step, so it can't be skipped.`,
+          `The ${flow.labels[currentStage] || currentStage} stage has no single next step, so it can't be skipped.`,
         );
       }
       const skipNext = skipAllowed[0];
@@ -622,15 +624,15 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       log.info('project stage skipped', { stage: currentStage, to: skipNext, by: userRole });
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, type: 'stage_skipped',
-        summary: `Skipped the ${STAGE_LABELS[currentStage] || currentStage} stage — both sides agreed`,
+        summary: `Skipped the ${flow.labels[currentStage] || currentStage} stage — both sides agreed`,
         metadata: { from: currentStage, to: skipNext },
       });
       if (counterpartyId) {
         await notifyUser({
           userId: counterpartyId,
           type: 'project_stage',
-          title: `${projectLabel} skipped ${STAGE_LABELS[currentStage] || currentStage}`,
-          body: `Both sides agreed to skip it — now on ${STAGE_LABELS[skipNext] || skipNext}.`,
+          title: `${projectLabel} skipped ${flow.labels[currentStage] || currentStage}`,
+          body: `Both sides agreed to skip it — now on ${flow.labels[skipNext] || skipNext}.`,
           link: projectLink,
           email: {
             templateId: 'project_stage',
@@ -640,7 +642,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
               projectName,
               stage: skipNext,
               actorName,
-              note: `Both sides agreed to skip the ${STAGE_LABELS[currentStage] || currentStage} stage.`,
+              note: `Both sides agreed to skip the ${flow.labels[currentStage] || currentStage} stage.`,
               dashboardUrl: projectLink,
             },
           },
@@ -652,8 +654,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // 1b) Dual-confirm completion: BOTH participants must confirm before a
     // project reaches 'project_completed' (which unlocks reviews + means paid).
     if (action === 'confirm_completion') {
-      if (project.current_stage !== 'final_payment') {
-        return jsonError(400, 'Completion can only be confirmed at the final payment stage');
+      // The stage carrying the payment gate item — NOT "the stage just before
+      // project_completed" by position. Those coincide for 'full' and
+      // 'short_pay_after' but not for 'short_pay_before', whose last stage
+      // before completion is quick_delivery, not the payment stage. See
+      // paymentGateStage()'s own comment for why this bit anyone reading it.
+      const terminalStage = paymentGateStage(flow);
+      if (project.current_stage !== terminalStage) {
+        return jsonError(400, 'Completion can only be confirmed at the terminal payment stage');
       }
 
       // The CREATOR may not confirm completion while the final payment gate is
@@ -676,7 +684,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         // money check in the pipeline: without it a creator can be talked into
         // marking a project complete — which publishes it and closes the
         // change-request window — before the final payment has landed.
-        const finalGate = await evaluateStageGate(supabase, id, 'final_payment');
+        const finalGate = await evaluateStageGate(supabase, id, terminalStage!, flow);
         if (finalGate.reason === 'unavailable') {
           log.warn('final payment checklist unavailable, skipping gate');
         }
@@ -791,7 +799,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return jsonError(400, 'stage_key and updates required');
       }
 
-      if (!STAGES.includes(stage_key)) {
+      if (!flow.stages.includes(stage_key)) {
         return jsonError(400, `Invalid stage key: ${stage_key}`);
       }
 

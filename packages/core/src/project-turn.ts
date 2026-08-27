@@ -11,7 +11,7 @@
  * JSONB. No DB, no platform APIs, so Home (mobile), the API layer, and the web
  * dashboard can all reach the same verdict rather than each inventing one.
  */
-import { STAGES, STAGE_ACTOR, type Stage } from './project-lifecycle';
+import { STAGES, STAGE_ACTOR, STAGE_FLOWS, type Stage, type StageFlow, type FlowKey } from './project-lifecycle';
 import { isMutualSignoffStage, stageSignoffAt } from './project-stage-guide';
 
 export type Side = 'business' | 'creator';
@@ -101,19 +101,21 @@ export function projectTurn(args: {
   stage: string;
   side: Side;
   stageProgress?: Record<string, any> | null;
+  flow?: StageFlow;
 }): ProjectTurn {
   const { stage, side, stageProgress } = args;
+  const flow = args.flow ?? STAGE_FLOWS.full;
 
-  const known = STAGES.includes(stage as Stage);
+  const known = flow.stages.includes(stage);
   if (!known) return { turn: 'you', action: 'Open the project' };
 
-  const s = stage as Stage;
+  const s = stage;
   const other: Side = side === 'business' ? 'creator' : 'business';
-  const action = (who: Side) => TURN_ACTION[s][who];
+  const action = (who: Side) => (TURN_ACTION as Record<string, Record<Side, string>>)[s]?.[who] ?? 'Continue';
 
   if (s === 'project_completed') return { turn: 'none', action: action(side) };
 
-  if (isMutualSignoffStage(s)) {
+  if (isMutualSignoffStage(s, flow)) {
     const mine = stageSignoffAt(stageProgress, s, side);
     const theirs = stageSignoffAt(stageProgress, s, other);
 
@@ -144,13 +146,13 @@ export function projectTurn(args: {
      * STAGE_ACTOR knows who actually does the work in this stage; the other side
      * is genuinely waiting, and Home should say so.
      */
-    const primary = STAGE_ACTOR[s];
+    const primary = flow.actor[s];
     return primary === 'either' || primary === side
       ? { turn: 'you', action: action(side) }
       : { turn: 'them', action: action(other) };
   }
 
-  const actor = STAGE_ACTOR[s];
+  const actor = flow.actor[s];
   if (actor === 'either' || actor === side) return { turn: 'you', action: action(side) };
   return { turn: 'them', action: action(other) };
 }

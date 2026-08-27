@@ -52,6 +52,7 @@ const CREATOR_NAV: NavItem[] = [
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+  { label: "Campaigns", href: "/dashboard/campaigns", icon: Sparkles },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
   { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
@@ -63,6 +64,7 @@ const BUSINESS_NAV: NavItem[] = [
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+  { label: "Campaigns", href: "/dashboard/campaigns", icon: Sparkles },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
   { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
@@ -74,6 +76,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
   { label: "Rate limits", href: "/dashboard/admin/rate-limits", icon: Gauge },
   { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
+  { label: "Campaigns", href: "/dashboard/admin/campaigns", icon: Sparkles },
   { label: "Support", href: "/dashboard/admin/support", icon: Inbox },
   // Reports had a working API since migration 056 and no screen at all — every
   // harassment report filed by a user went into a table nobody could read.
