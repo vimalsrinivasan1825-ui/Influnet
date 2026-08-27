@@ -1689,6 +1689,10 @@ export default function ProjectKanbanPage() {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Documents state
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [issuingDoc, setIssuingDoc] = useState(false);
+
   // Report state (trust & safety)
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState<'spam' | 'harassment' | 'scam' | 'fake' | 'other'>('scam');
@@ -1714,7 +1718,7 @@ export default function ProjectKanbanPage() {
     try {
       setError(null);
       setNotAccessible(false);
-      const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes, payRes] = await Promise.all([
+      const [projRes, cardsRes, reviewsRes, itemsRes, activityRes, crRes, entriesRes, payRes, docsRes] = await Promise.all([
         apiFetch<{ project: any }>(`/api/projects/${projectId}`),
         apiFetch<{ cards: ProjectCard[] }>(`/api/projects/${projectId}/cards`),
         apiFetch<{ reviews: any[] }>(`/api/projects/${projectId}/reviews`),
@@ -1723,6 +1727,7 @@ export default function ProjectKanbanPage() {
         apiFetch<{ change_requests: any[] }>(`/api/projects/${projectId}/change-requests`),
         apiFetch<{ entries: any[] }>(`/api/projects/${projectId}/stage-entries`),
         apiFetch<{ configured: boolean; key_id: string | null }>(`/api/projects/${projectId}/payments`),
+        apiFetch<{ documents: any[] }>(`/api/projects/${projectId}/documents`),
       ]);
       if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
       else if (projRes.status === 403 || projRes.status === 404) {
@@ -1741,6 +1746,7 @@ export default function ProjectKanbanPage() {
       if (crRes.ok && crRes.data) { setChangeRequests(crRes.data.change_requests || []); }
       if (entriesRes.ok && entriesRes.data) { setStageEntries(entriesRes.data.entries || []); }
       if (payRes.ok && payRes.data) { setPaymentConfig({ configured: !!payRes.data.configured, keyId: payRes.data.key_id ?? null }); }
+      if (docsRes.ok && docsRes.data) { setDocuments(docsRes.data.documents || []); }
     } catch (e) { console.error(e); setError('Network error'); }
     finally { setLoading(false); }
   }, [projectId]);
@@ -2770,6 +2776,57 @@ export default function ProjectKanbanPage() {
           </div>
         </div>
       )}
+
+      {/* Documents section */}
+      <div className="rounded-2xl border border-hairline bg-surface-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-extrabold text-content">Documents</h3>
+          <div className="flex gap-2">
+            <Button
+              variant="surface"
+              size="sm"
+              disabled={issuingDoc}
+              onClick={async () => {
+                setIssuingDoc(true);
+                try {
+                  const res = await apiFetch<{ document: any }>(`/api/projects/${projectId}/documents`, {
+                    method: 'POST',
+                    body: JSON.stringify({ kind: 'proforma' }),
+                  });
+                  if (res.ok && res.data) {
+                    setDocuments((prev) => [res.data!.document, ...prev.filter((d) => d.kind !== 'proforma' || d.cancelled_at)]);
+                    toast.success('Proforma issued');
+                  } else {
+                    toast.error(res.error || 'Failed to issue document');
+                  }
+                } finally {
+                  setIssuingDoc(false);
+                }
+              }}
+            >
+              {issuingDoc ? <Loader2 className="animate-spin" /> : <FileText />} Issue proforma
+            </Button>
+          </div>
+        </div>
+        {documents.length === 0 ? (
+          <p className="text-sm text-content-muted">No documents issued yet.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {documents.map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between rounded-xl border border-hairline bg-surface p-3">
+                <div>
+                  <span className="text-sm font-bold text-content">{doc.number}</span>
+                  <span className="ml-2 text-xs text-content-muted">{doc.kind}</span>
+                  {doc.cancelled_at && <span className="ml-2 text-xs text-danger">cancelled</span>}
+                </div>
+                <span className="text-xs text-content-muted">
+                  {new Date(doc.issued_at).toLocaleDateString('en-IN')}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {showReviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
