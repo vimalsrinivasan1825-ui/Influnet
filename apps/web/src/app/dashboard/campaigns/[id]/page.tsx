@@ -15,7 +15,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Input, Textarea } from "@/components/ui/input";
+import { Input, Label, Textarea } from "@/components/ui/input";
+import { SOCIAL_PLATFORMS, PLATFORM_LABEL } from "@/lib/social/types";
 
 interface Campaign {
   id: string;
@@ -60,6 +61,16 @@ export default function CampaignDetailPage() {
   const [proposedRate, setProposedRate] = useState("");
   const [showApplyForm, setShowApplyForm] = useState(false);
 
+  // Owner-side draft editing + publish/close. The campaign detail page had no
+  // way to do either — a draft, once created, had nowhere to go.
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDeliverables, setEditDeliverables] = useState("");
+  const [editPlatforms, setEditPlatforms] = useState<string[]>([]);
+  const [publishing, setPublishing] = useState(false);
+  const [closing, setClosing] = useState(false);
+
   useEffect(() => {
     (async () => {
       const sb = createClient();
@@ -79,8 +90,61 @@ export default function CampaignDetailPage() {
       apiFetch<{ campaign: Campaign }>(`/api/campaigns/${id}`),
       apiFetch<{ applications: Application[] }>(`/api/campaigns/${id}/applications`),
     ]);
-    if (campRes.ok && campRes.data) setCampaign(campRes.data.campaign);
+    if (campRes.ok && campRes.data) {
+      setCampaign(campRes.data.campaign);
+      setEditTitle(campRes.data.campaign.title);
+      setEditDescription(campRes.data.campaign.description || "");
+      setEditDeliverables(campRes.data.campaign.deliverables || "");
+      setEditPlatforms(campRes.data.campaign.platforms || []);
+    }
     if (appsRes.ok && appsRes.data) setApplications(appsRes.data.applications || []);
+  };
+
+  const toggleEditPlatform = (p: string) => {
+    setEditPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  };
+
+  const savePublish = async (goLive: boolean) => {
+    setPublishing(true);
+    try {
+      const res = await apiFetch<{ campaign: Campaign }>(`/api/campaigns/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          deliverables: editDeliverables.trim(),
+          platforms: editPlatforms,
+          ...(goLive ? { status: "live" } : {}),
+        }),
+      });
+      if (res.ok) {
+        toast.success(goLive ? "Campaign published" : "Draft saved");
+        setShowEditForm(false);
+        await fetchData();
+      } else {
+        toast.error(res.error || "Could not save the campaign");
+      }
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const closeCampaign = async () => {
+    setClosing(true);
+    try {
+      const res = await apiFetch<{ campaign: Campaign }>(`/api/campaigns/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "closed" }),
+      });
+      if (res.ok) {
+        toast.success("Campaign closed");
+        await fetchData();
+      } else {
+        toast.error(res.error || "Could not close the campaign");
+      }
+    } finally {
+      setClosing(false);
+    }
   };
 
   const handleApply = async () => {
@@ -189,6 +253,77 @@ export default function CampaignDetailPage() {
           </div>
         )}
       </Card>
+
+      {/* Owner controls: this campaign's whole lifecycle — draft, live, closed — used
+          to have no UI at all past creation. A draft had nowhere to go. */}
+      {isOwner && (
+        <Card className="p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-sm font-extrabold text-content">
+              Status: <Badge variant={campaign.status === "live" ? "success" : campaign.status === "closed" ? "neutral" : "neutral"}>{campaign.status}</Badge>
+            </span>
+            <div className="flex gap-2">
+              {campaign.status === "draft" && (
+                <Button variant="surface" size="sm" onClick={() => setShowEditForm((v) => !v)}>
+                  {showEditForm ? "Cancel" : "Edit brief"}
+                </Button>
+              )}
+              {campaign.status === "draft" && !showEditForm && (
+                <Button variant="brand" size="sm" disabled={publishing} onClick={() => savePublish(true)}>
+                  {publishing ? <Loader2 className="animate-spin" /> : null} Publish
+                </Button>
+              )}
+              {campaign.status === "live" && (
+                <Button variant="surface" size="sm" disabled={closing} onClick={closeCampaign}>
+                  {closing ? <Loader2 className="animate-spin" /> : null} Close campaign
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {showEditForm && (
+            <div className="flex flex-col gap-3 border-t border-hairline pt-4">
+              <div>
+                <Label>Title</Label>
+                <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+              </div>
+              <div>
+                <Label>Deliverables</Label>
+                <Textarea rows={2} value={editDeliverables} onChange={(e) => setEditDeliverables(e.target.value)} />
+              </div>
+              <div>
+                <Label>Platforms *</Label>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {SOCIAL_PLATFORMS.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => toggleEditPlatform(p)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        editPlatforms.includes(p) ? "bg-brand text-white" : "bg-surface-muted text-content-muted hover:text-content"
+                      }`}
+                    >
+                      {PLATFORM_LABEL[p]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="surface" size="sm" disabled={publishing} onClick={() => savePublish(false)}>
+                  Save draft
+                </Button>
+                <Button variant="brand" size="sm" disabled={publishing} onClick={() => savePublish(true)}>
+                  {publishing ? <Loader2 className="animate-spin" /> : null} Save &amp; publish
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Apply button for creators */}
       {role === "influencer" && !isOwner && !hasApplied && (

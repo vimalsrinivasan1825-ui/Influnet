@@ -116,6 +116,23 @@ export async function POST(
       );
     }
 
+    // A duplicate application must be refused as a duplicate, not as "you're
+    // out of quota" — a creator who has already applied and is at their
+    // weekly limit would otherwise be told the wrong thing when clicking
+    // Apply a second time on the same campaign by mistake. This is a read,
+    // not a write, so checking it before the quota consumption doesn't
+    // violate requireWeeklyQuota's own "consume immediately before the
+    // write" rule — the actual write is still the insert below.
+    const { data: existingApp } = await supabase
+      .from('campaign_applications')
+      .select('id')
+      .eq('campaign_id', campaignId)
+      .eq('creator_user_id', user.id)
+      .maybeSingle();
+    if (existingApp) {
+      return jsonError(409, 'You have already applied to this campaign');
+    }
+
     // Weekly plan quota — separate from the rate limit above, which is an
     // abuse guard (a fixed ceiling for everyone) rather than a plan gate.
     // Consumes a unit atomically immediately before the write, per the

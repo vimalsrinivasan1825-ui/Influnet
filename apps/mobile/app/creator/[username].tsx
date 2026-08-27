@@ -59,6 +59,8 @@ interface CreatorProfileView {
   creatorLevel?: { tier: string; label: string; isSelfReported: boolean } | null;
   /** S5 — never synthesised client-side; null (not zero) means no reviews yet. */
   reviews?: { count: number; average: number | null } | null;
+  /** S2 — the year this creator started, if they set one. */
+  creatingSince?: number | null;
   instagramHandle?: string | null;
   youtubeHandle?: string | null;
   /** Instagram posts. `views` arrives pre-formatted, e.g. "1.2K". */
@@ -232,6 +234,9 @@ export default function CreatorDetail() {
                     }
                     tone="neutral"
                   />
+                ) : null}
+                {creator.creatingSince ? (
+                  <Badge label={`Creating since ${creator.creatingSince}`} tone="neutral" />
                 ) : null}
               </View>
 

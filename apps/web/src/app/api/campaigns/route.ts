@@ -5,7 +5,15 @@
  * Envelope: `campaigns` on list, `campaign` on single.
  *
  * GET filters: category, platform, min_followers, max_followers, sort (newest|closing_soon)
- * Only returns live, non-expired campaigns. Blocked users are excluded server-side.
+ * Only returns live, non-expired campaigns by default.
+ *
+ * ?mine=true switches to "every campaign I own, any status" — a business
+ * owner otherwise had no way to find a draft again once they navigated away
+ * from the page they created it on: drafts don't appear on the public board
+ * (by design — nobody else should see them), and there was no other route
+ * that would list them. RLS's own campaigns_select_own policy already allows
+ * this read; this just exposes it as a real query rather than a raw table
+ * scan a brand would have to run in SQL.
  */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -20,6 +28,7 @@ const ListQuerySchema = z.object({
   sort: z.enum(['newest', 'closing_soon']).default('newest'),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().nonnegative().default(0),
+  mine: z.coerce.boolean().default(false),
 });
 
 const CreateSchema = z.object({
@@ -50,7 +59,7 @@ export async function GET(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
-    const { category, platform, min_followers, max_followers, sort, limit, offset } = parsed.data;
+    const { category, platform, min_followers, max_followers, sort, limit, offset, mine } = parsed.data;
 
     let query = supabase
       .from('campaigns')
@@ -61,16 +70,26 @@ export async function GET(req: Request) {
         published_at, expires_at, created_at,
         business_user:profiles!campaigns_business_user_id_fkey(id, name)
       `, { count: 'exact' })
-      .eq('status', 'live')
-      .gt('expires_at', new Date().toISOString())
       .range(offset, offset + limit - 1);
+
+    if (mine) {
+      // Every campaign this caller owns, any status — RLS still restricts
+      // this to rows they actually own even if business_user_id were omitted.
+      query = query.eq('business_user_id', user.id);
+    } else {
+      query = query.eq('status', 'live').gt('expires_at', new Date().toISOString());
+    }
 
     if (category) query = query.contains('categories', [category]);
     if (platform) query = query.contains('platforms', [platform]);
     if (min_followers) query = query.lte('follower_min', min_followers);
     if (max_followers) query = query.gte('follower_max', max_followers);
 
-    query = query.order(sort === 'closing_soon' ? 'expires_at' : 'published_at', { ascending: sort === 'closing_soon' });
+    // A draft has no published_at, so ordering by it would scatter drafts
+    // unpredictably — created_at is always present.
+    query = mine
+      ? query.order('created_at', { ascending: false })
+      : query.order(sort === 'closing_soon' ? 'expires_at' : 'published_at', { ascending: sort === 'closing_soon' });
 
     const { data: campaigns, error, count } = await query;
     if (error) return jsonError(500, 'Failed to fetch campaigns', error);

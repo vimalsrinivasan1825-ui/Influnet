@@ -12,7 +12,7 @@
  * conversation everything downstream (terms, project, payments) already
  * knows how to run.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar, Check, Heart, MapPin, MessageSquare, Users, X } from 'lucide-react-native';
@@ -71,6 +71,17 @@ export default function CampaignDetailScreen() {
   const [saved, setSaved] = useState(false);
   const [actingOn, setActingOn] = useState<string | null>(null);
 
+  // Owner: draft editing + publish/close. Mirrors web's campaign detail page —
+  // before this, a draft created on mobile had nowhere to go on either platform.
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDeliverables, setEditDeliverables] = useState('');
+  const [editPlatforms, setEditPlatforms] = useState<string[]>([]);
+  const [publishing, setPublishing] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [editInitialised, setEditInitialised] = useState(false);
+
   const load = useCallback(async () => {
     const [campRes, appsRes, savedRes] = await Promise.all([
       endpoints.getCampaign<{ campaign: Campaign }>(id),
@@ -101,6 +112,43 @@ export default function CampaignDetailScreen() {
   const applications = data?.applications ?? [];
   const isOwner = campaign?.business_user?.id === myUserId;
   const myApplication = applications.find((a) => a.creator?.id === myUserId);
+
+  useEffect(() => {
+    if (campaign && !editInitialised) {
+      setEditTitle(campaign.title);
+      setEditDescription(campaign.description || '');
+      setEditDeliverables(campaign.deliverables || '');
+      setEditPlatforms(campaign.platforms || []);
+      setEditInitialised(true);
+    }
+  }, [campaign, editInitialised]);
+
+  function togglePlatform(list: string[], set: (v: string[]) => void, p: string) {
+    set(list.includes(p) ? list.filter((x) => x !== p) : [...list, p]);
+  }
+
+  async function savePublish(goLive: boolean) {
+    setPublishing(true);
+    const res = await endpoints.updateCampaign(id, {
+      title: editTitle.trim(),
+      description: editDescription.trim(),
+      deliverables: editDeliverables.trim(),
+      platforms: editPlatforms,
+      ...(goLive ? { status: 'live' } : {}),
+    });
+    setPublishing(false);
+    if (res.ok) {
+      setShowEditForm(false);
+      refresh();
+    }
+  }
+
+  async function closeCampaign() {
+    setClosing(true);
+    await endpoints.updateCampaign(id, { status: 'closed' });
+    setClosing(false);
+    refresh();
+  }
 
   async function toggleSave() {
     if (!campaign) return;
@@ -223,6 +271,54 @@ export default function CampaignDetailScreen() {
             </ChipWrap>
           )}
         </Card>
+
+        {/* Owner controls: this campaign's whole lifecycle — draft, live,
+            closed — had no UI at all past creation. A draft had nowhere to go
+            on either platform before this. */}
+        {isOwner && (
+          <Card style={{ gap: t.spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+                <Txt variant="body">Status</Txt>
+                <Badge label={campaign.status} tone={campaign.status === 'live' ? 'ok' : 'neutral'} />
+              </View>
+              <View style={{ flexDirection: 'row', gap: t.spacing.sm }}>
+                {campaign.status === 'draft' && (
+                  <Button
+                    variant="secondary" size="md" label={showEditForm ? 'Cancel' : 'Edit brief'}
+                    onPress={() => setShowEditForm((v) => !v)} inline
+                  />
+                )}
+                {campaign.status === 'draft' && !showEditForm && (
+                  <Button variant="primary" size="md" label="Publish" loading={publishing} onPress={() => savePublish(true)} inline />
+                )}
+                {campaign.status === 'live' && (
+                  <Button variant="secondary" size="md" label="Close campaign" loading={closing} onPress={closeCampaign} inline />
+                )}
+              </View>
+            </View>
+
+            {showEditForm && (
+              <View style={{ gap: t.spacing.md }}>
+                <Field label="Title" value={editTitle} onChangeText={setEditTitle} />
+                <Field label="Description" value={editDescription} onChangeText={setEditDescription} multiline />
+                <Field label="Deliverables" value={editDeliverables} onChangeText={setEditDeliverables} multiline />
+                <View style={{ gap: 6 }}>
+                  <Txt variant="footnote" tone="soft">Platforms *</Txt>
+                  <ChipWrap>
+                    {['instagram', 'youtube', 'facebook', 'twitter', 'snapchat'].map((p) => (
+                      <Chip key={p} label={p} selected={editPlatforms.includes(p)} onPress={() => togglePlatform(editPlatforms, setEditPlatforms, p)} />
+                    ))}
+                  </ChipWrap>
+                </View>
+                <View style={{ flexDirection: 'row', gap: t.spacing.sm, justifyContent: 'flex-end' }}>
+                  <Button variant="secondary" size="md" label="Save draft" loading={publishing} onPress={() => savePublish(false)} inline />
+                  <Button variant="primary" size="md" label="Save & publish" loading={publishing} onPress={() => savePublish(true)} inline />
+                </View>
+              </View>
+            )}
+          </Card>
+        )}
 
         {/* Apply — creator, not the owner, hasn't already applied */}
         {role === 'influencer' && !isOwner && !myApplication && (

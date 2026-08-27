@@ -31,15 +31,15 @@ export function ProjectDocuments({ projectId }: { projectId: string }) {
     () => endpoints.listProjectDocuments<{ documents: ProjectDocument[] }>(projectId),
     { cacheKey: `documents:${projectId}` },
   );
-  const [issuing, setIssuing] = useState(false);
+  const [issuingKind, setIssuingKind] = useState<'proforma' | 'tax_invoice' | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
 
   const documents = data?.documents ?? [];
 
-  async function issueProforma() {
-    setIssuing(true);
-    await endpoints.issueProjectDocument(projectId, 'proforma');
-    setIssuing(false);
+  async function issue(kind: 'proforma' | 'tax_invoice') {
+    setIssuingKind(kind);
+    await endpoints.issueProjectDocument(projectId, kind);
+    setIssuingKind(null);
     refresh();
   }
 
@@ -56,15 +56,26 @@ export function ProjectDocuments({ projectId }: { projectId: string }) {
     <View style={{ gap: t.spacing.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <SectionLabel>Documents</SectionLabel>
-        <Button
-          variant="secondary"
-          size="md"
-          label="Issue proforma"
-          icon={<FileText size={14} color={t.color.content} />}
-          loading={issuing}
-          onPress={issueProforma}
-          inline
-        />
+        <View style={{ flexDirection: 'row', gap: t.spacing.sm }}>
+          <Button
+            variant="secondary"
+            size="md"
+            label="Proforma"
+            icon={<FileText size={14} color={t.color.content} />}
+            loading={issuingKind === 'proforma'}
+            onPress={() => issue('proforma')}
+            inline
+          />
+          <Button
+            variant="secondary"
+            size="md"
+            label="Tax invoice"
+            icon={<FileText size={14} color={t.color.content} />}
+            loading={issuingKind === 'tax_invoice'}
+            onPress={() => issue('tax_invoice')}
+            inline
+          />
+        </View>
       </View>
 
       {documents.length === 0 ? (

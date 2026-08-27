@@ -65,6 +65,10 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [sort, setSort] = useState<"newest" | "closing_soon">("newest");
+  // A brand's draft never appears on the live board — before "mine", a
+  // business owner had no way to find it again once they navigated away from
+  // the page they created it on.
+  const [view, setView] = useState<"browse" | "mine">("browse");
 
   useEffect(() => {
     (async () => {
@@ -89,11 +93,12 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     fetchCampaigns();
-  }, [sort, categoryFilter]);
+  }, [sort, categoryFilter, view]);
 
   const fetchCampaigns = async () => {
     const params = new URLSearchParams({ sort });
     if (categoryFilter) params.set("category", categoryFilter);
+    if (view === "mine") params.set("mine", "true");
     const res = await apiFetch<{ campaigns: Campaign[] }>(
       `/api/campaigns?${params}`,
     );
@@ -139,6 +144,23 @@ export default function CampaignsPage() {
           </Button>
         )}
       </div>
+
+      {role === "business_owner" && (
+        <div className="flex gap-1">
+          {(["browse", "mine"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                view === v ? "bg-brand text-white" : "bg-surface-muted text-content-muted hover:text-content",
+              )}
+            >
+              {v === "browse" ? "Browse" : "My campaigns"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -189,7 +211,9 @@ export default function CampaignsPage() {
             description={
               search || categoryFilter
                 ? "Try adjusting your filters."
-                : "No live campaigns right now. Check back soon!"
+                : view === "mine"
+                  ? "You haven't created a campaign yet."
+                  : "No live campaigns right now. Check back soon!"
             }
           />
         </Card>
@@ -215,6 +239,9 @@ export default function CampaignsPage() {
                         <Badge variant="warning" size="sm">
                           <Clock size={10} /> Closing soon
                         </Badge>
+                      )}
+                      {view === "mine" && c.status !== "live" && (
+                        <Badge variant="neutral" size="sm">{c.status}</Badge>
                       )}
                     </div>
                     <h3 className="mt-1 text-lg font-extrabold tracking-tight text-content">

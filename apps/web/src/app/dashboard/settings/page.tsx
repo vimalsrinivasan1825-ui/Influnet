@@ -225,6 +225,7 @@ export default function SettingsPage() {
   const [pricingMax, setPricingMax] = useState("");
   const [pastCollabs, setPastCollabs] = useState("");
   const [creatingSince, setCreatingSince] = useState<string>("");
+  const [gstNumber, setGstNumber] = useState<string>("");
   const [locations, setLocations] = useState<SliceRow[]>([]);
   const [ages, setAges] = useState<SliceRow[]>([]);
   const [genders, setGenders] = useState<SliceRow[]>([]);
@@ -252,6 +253,7 @@ export default function SettingsPage() {
         setPricingMax(p.pricing_max != null ? String(p.pricing_max) : "");
         setPastCollabs(collabNames(p.past_collaborations).join("\n"));
         if ((p as any).creating_since) setCreatingSince(String((p as any).creating_since));
+        if ((p as any).gst_number) setGstNumber(String((p as any).gst_number));
         const ad = (p.audience_demographics || {}) as AudienceDemographics;
         setLocations(toRows(ad.locations));
         setAges(toRows(ad.age));
@@ -296,6 +298,9 @@ export default function SettingsPage() {
             payload.creating_since = yr;
           }
         }
+        // Optional — most creators are not GST-registered, and the server
+        // validates the format when one is provided (see GstNumberSchema).
+        payload.gst_number = gstNumber.trim().toUpperCase();
         payload.past_collaborations = pastCollabs
           .split(/[\n,]/)
           .map((s) => s.trim())
@@ -500,6 +505,13 @@ export default function SettingsPage() {
                 placeholder="e.g. 2020"
                 min="1990"
                 max={new Date().getFullYear()}
+              />
+            </Field>
+            <Field label="GST number (optional)" hint="Only if you're GST-registered. Needed to issue a tax invoice instead of a bill of supply.">
+              <Input
+                value={gstNumber}
+                onChange={(e) => setGstNumber(e.target.value.toUpperCase().slice(0, 15))}
+                placeholder="e.g. 22AAAAA0000A1Z5"
               />
             </Field>
             <Field label="Instagram handle">

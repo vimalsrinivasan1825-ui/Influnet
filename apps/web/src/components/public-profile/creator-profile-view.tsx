@@ -406,6 +406,20 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
                     )}
                   </span>
 
+                  {(data.creatorLevel || data.creatingSince) && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
+                      {data.creatorLevel && (
+                        <span className={styles.eyebrowNeutral}>
+                          {data.creatorLevel.label}
+                          {data.creatorLevel.isSelfReported ? ' (self-reported)' : ''}
+                        </span>
+                      )}
+                      {data.creatingSince && (
+                        <span className={styles.eyebrowNeutral}>Creating since {data.creatingSince}</span>
+                      )}
+                    </div>
+                  )}
+
                   <h1>
                     {data.name}
                     {data.isVerified && (

@@ -2833,6 +2833,30 @@ export default function ProjectKanbanPage() {
             >
               {issuingDoc ? <Loader2 className="animate-spin" /> : <FileText />} Issue proforma
             </Button>
+            <Button
+              variant="surface"
+              size="sm"
+              disabled={issuingDoc}
+              onClick={async () => {
+                setIssuingDoc(true);
+                try {
+                  const res = await apiFetch<{ document: any }>(`/api/projects/${projectId}/documents`, {
+                    method: 'POST',
+                    body: JSON.stringify({ kind: 'tax_invoice' }),
+                  });
+                  if (res.ok && res.data) {
+                    setDocuments((prev) => [res.data!.document, ...prev.filter((d) => d.kind !== 'tax_invoice' || d.cancelled_at)]);
+                    toast.success('Tax invoice issued');
+                  } else {
+                    toast.error(res.error || 'Needs at least one confirmed payment first.');
+                  }
+                } finally {
+                  setIssuingDoc(false);
+                }
+              }}
+            >
+              {issuingDoc ? <Loader2 className="animate-spin" /> : <FileText />} Issue tax invoice
+            </Button>
           </div>
         </div>
         {documents.length === 0 ? (

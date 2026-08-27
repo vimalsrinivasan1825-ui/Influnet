@@ -255,6 +255,10 @@ export const ProfileUpdateSchema = z.object({
   portfolio: z.array(z.object({ url: z.string(), title: z.string().optional() })).optional(),
   // Creating since: year the creator started making content (S2).
   creating_since: z.number().int().min(1990).max(new Date().getFullYear()).optional(),
+  // Optional — most individual creators are not GST-registered, and that is
+  // the legally correct default, not a gap (B4: an unregistered supplier gets
+  // a Bill of Supply instead of a Tax Invoice with a GST breakup).
+  gst_number: GstNumberSchema.optional(),
   // Media-kit fields collected from settings (not signup — keeps signup light).
   pricing_min: z.number().min(0).max(100_000_000).optional(),
   pricing_max: z.number().min(0).max(100_000_000).optional(),

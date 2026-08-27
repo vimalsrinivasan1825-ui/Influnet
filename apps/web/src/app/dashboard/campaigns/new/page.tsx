@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { SOCIAL_PLATFORMS, PLATFORM_LABEL } from "@/lib/social/types";
 
 const CATEGORIES = [
   "fashion", "beauty", "tech", "food", "travel", "fitness", "lifestyle", "gaming",
@@ -34,6 +35,10 @@ export default function NewCampaignPage() {
     setCategories((prev) => prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]);
   };
 
+  const togglePlatform = (p: string) => {
+    setPlatforms((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       toast.error("Give your campaign a title.");
@@ -41,6 +46,10 @@ export default function NewCampaignPage() {
     }
     if (description.trim().length < 50 && deliverables.trim().length < 50) {
       toast.error("Add at least 50 characters of description or deliverables.");
+      return;
+    }
+    if (platforms.length === 0) {
+      toast.error("Pick at least one platform.");
       return;
     }
     setSaving(true);
@@ -62,7 +71,7 @@ export default function NewCampaignPage() {
         }),
       });
       if (res.ok && res.data) {
-        toast.success("Campaign created! It will be reviewed before going live.");
+        toast.success("Campaign created as a draft — publish it from here when you're ready.");
         router.push(`/dashboard/campaigns/${res.data.campaign.id}`);
       } else {
         toast.error(res.error || "Failed to create campaign");
@@ -121,6 +130,25 @@ export default function NewCampaignPage() {
             <div>
               <Label>Applications close</Label>
               <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label>Platforms *</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {SOCIAL_PLATFORMS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => togglePlatform(p)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    platforms.includes(p)
+                      ? "bg-brand text-white"
+                      : "bg-surface-muted text-content-muted hover:text-content"
+                  }`}
+                >
+                  {PLATFORM_LABEL[p]}
+                </button>
+              ))}
             </div>
           </div>
           <div>

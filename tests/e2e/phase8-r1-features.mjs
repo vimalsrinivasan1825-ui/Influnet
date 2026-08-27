@@ -412,6 +412,13 @@ async function main() {
              delete from campaigns where business_user_id = ${lit(uid('wakefit'))};
              select 1 as ok;`);
 
+  // Clean slate for sourav's weekly application quota too — a re-run of this
+  // phase otherwise exhausts the real weekly cap after a handful of runs in
+  // the same week, and the duplicate-application check below needs quota
+  // headroom to prove duplicate-detection runs BEFORE the quota check, not
+  // "creator is out of quota" masking it.
+  await sql(`delete from plan_usage where user_id = ${lit(uid('sourav'))} and meter = 'applications_week'`);
+
   // C1 + C5 — minimum brief standard blocks a thin campaign from going live.
   const thinCampaign = await A.wakefit.post('/api/campaigns', {
     title: 'Too thin', description: 'short', deliverables: '', platforms: ['instagram'],
@@ -585,6 +592,177 @@ async function main() {
   if (f) {
     s.check('requests_sent counts real rows, not zero', typeof f.requests_sent === 'number', { severity: 'LOW', observed: f });
     s.check('projects_completed <= projects_total', f.projects_completed <= f.projects_total, { severity: 'MEDIUM', observed: f });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  s.section('B4 — tax invoices: bill of supply and the real thing');
+
+  // Clean slate for sourav's GST number so this section is deterministic
+  // regardless of what a previous run left behind.
+  await sql(`update profiles set gst_number = null where id = ${lit(uid('sourav'))}`);
+
+  // No GST number on file → Bill of Supply, not a Tax Invoice with a GST line.
+  // Uses proj1 for both this and the "with GST" case below, deleting the
+  // tax_invoice row between them — the route is idempotent per (project,
+  // kind), so re-issuing on the same project without clearing it first would
+  // just return the earlier row and prove nothing about the current gst_number.
+  await sql(`delete from project_documents where project_id = ${lit(proj1 ?? -1)} and kind = 'tax_invoice'`);
+  const bosDoc = proj1 ? await A.boat.post(`/api/projects/${proj1}/documents`, { kind: 'tax_invoice' }) : { status: 0 };
+  s.check('tax invoice issues without a GST number on file', bosDoc.status === 200 || bosDoc.status === 201, {
+    severity: 'HIGH', observed: bosDoc.status, note: JSON.stringify(bosDoc.body).slice(0, 200),
+  });
+  const [bosRow] = bosDoc.body?.document
+    ? await sql(`select snapshot from project_documents where id = ${lit(bosDoc.body.document.id)}`)
+    : [null];
+  s.check('renders as Bill of Supply, not a Tax Invoice, when unregistered', bosRow?.snapshot?.tax?.isBillOfSupply === true, {
+    severity: 'CRITICAL', observed: bosRow?.snapshot?.tax,
+  });
+  s.check('no GST charged on a Bill of Supply', bosRow?.snapshot?.tax?.taxAmountPaise === 0, {
+    severity: 'HIGH', observed: bosRow?.snapshot?.tax?.taxAmountPaise,
+  });
+  s.check('document number is series-formatted (BOS-year-nnnnn)', /^BOS-\d{4}-\d{5}$/.test(bosDoc.body?.document?.number ?? ''), {
+    severity: 'MEDIUM', observed: bosDoc.body?.document?.number,
+  });
+
+  // Give sourav a real (syntactically valid) GSTIN and issue on proj1 instead.
+  await sql(`update profiles set gst_number = '27AAPFU0939F1ZV' where id = ${lit(uid('sourav'))}`);
+  await sql(`delete from project_documents where project_id = ${lit(proj1 ?? -1)} and kind = 'tax_invoice'`);
+  const invDoc = proj1 ? await A.boat.post(`/api/projects/${proj1}/documents`, { kind: 'tax_invoice' }) : { status: 0 };
+  s.check('tax invoice issues once a GST number is on file', invDoc.status === 200 || invDoc.status === 201, {
+    severity: 'HIGH', observed: invDoc.status, note: JSON.stringify(invDoc.body).slice(0, 200),
+  });
+  const [invRow] = invDoc.body?.document
+    ? await sql(`select snapshot, total_paise from project_documents where id = ${lit(invDoc.body.document.id)}`)
+    : [null];
+  s.check('renders as a real Tax Invoice, not a Bill of Supply, once registered', invRow?.snapshot?.tax?.isBillOfSupply === false, {
+    severity: 'CRITICAL', observed: invRow?.snapshot?.tax,
+  });
+  s.check('GST charged at the configured rate (18% default)', invRow?.snapshot?.tax?.taxAmountPaise === Math.round(invRow?.snapshot?.tax?.taxableAmountPaise * 18 / 100), {
+    severity: 'HIGH', observed: invRow?.snapshot?.tax,
+  });
+  s.check('supplier GSTIN on the invoice is the CREATOR\'s, not the brand\'s', invRow?.snapshot?.tax?.supplier?.gstin === '27AAPFU0939F1ZV', {
+    severity: 'CRITICAL', observed: invRow?.snapshot?.tax?.supplier, note: 'creator is the supplier — see migration 135',
+  });
+  s.check('invoice number is series-formatted (INV-year-nnnnn)', /^INV-\d{4}-\d{5}$/.test(invDoc.body?.document?.number ?? ''), {
+    severity: 'MEDIUM', observed: invDoc.body?.document?.number,
+  });
+
+  // Cannot issue a tax invoice with nothing paid.
+  await dropProjectsBetween(uid('mamaearth'), uid('sourav'));
+  const reqMamaearth = await acceptedRequestBetween(uid('mamaearth'), uid('sourav'));
+  if (reqMamaearth) {
+    const unpaid = await openShortProject(A.mamaearth, A.sourav, reqMamaearth, { flowKey: 'short_pay_after', budget: 4000 });
+    const unpaidProj = unpaid.project?.id;
+    if (unpaidProj) {
+      const refused = await A.mamaearth.post(`/api/projects/${unpaidProj}/documents`, { kind: 'tax_invoice' });
+      s.check('tax invoice refused with nothing paid yet', refused.status >= 400, { severity: 'HIGH', observed: refused.status });
+    }
+  }
+
+  // Sequential numbers actually increment and never collide (the gapless
+  // series primitive itself, direct — same request.jwt.claim.sub technique
+  // used for the weekly quota above).
+  const allocated = [];
+  for (let i = 0; i < 3; i++) {
+    const [row] = await sql(`select public.allocate_invoice_number('phase8_probe_series') as n`);
+    allocated.push(row.n);
+  }
+  s.check('allocate_invoice_number returns strictly increasing, gapless numbers', allocated[1] === allocated[0] + 1 && allocated[2] === allocated[1] + 1, {
+    severity: 'HIGH', observed: allocated,
+  });
+
+  // GST number round-trips through /api/profile (creator side — the SAME
+  // field name as business_profiles.gst_number but a different table, and a
+  // route bug could easily cross the two).
+  const gstSet = await A.sourav.patch('/api/profile', { gst_number: '29AAAAA0000A1Z5' });
+  s.check('creator can set a GST number via /api/profile', gstSet.status === 200, { severity: 'MEDIUM', observed: gstSet.status });
+  const gstGet = await A.sourav.get('/api/profile');
+  s.check('and it reads back correctly', gstGet.body?.profile?.gst_number === '29AAAAA0000A1Z5', { severity: 'MEDIUM', observed: gstGet.body?.profile?.gst_number });
+  // Restore the GSTIN the tax-invoice checks above depend on, so a re-run of
+  // just this section (or a later one reading sourav's gst_number) is not
+  // left in whichever state this probe happened to leave it in.
+  await sql(`update profiles set gst_number = '27AAPFU0939F1ZV' where id = ${lit(uid('sourav'))}`);
+
+  // ══════════════════════════════════════════════════════════════════════
+  s.section('S2 — creating_since and S1 — creatorLevel actually reach the profile view');
+
+  const profileView = await A.boat.get(`/api/creators/souravjoshi`);
+  s.check('public profile view responds', profileView.status === 200, { severity: 'HIGH', observed: profileView.status });
+  s.check('creatingSince reaches the shared profile view (web + mobile both read this)', profileView.body?.data?.creatingSince === 2019, {
+    severity: 'CRITICAL', observed: profileView.body?.data?.creatingSince, note: 'was set earlier this session; was previously stripped by the free-tier tier-projection allow-list',
+  });
+  s.check('creatorLevel also reaches it (was ALSO stripped by the same allow-list until this session)', profileView.body?.data?.creatorLevel !== undefined, {
+    severity: 'HIGH', observed: profileView.body?.data?.creatorLevel,
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  s.section('C — campaign lifecycle: create → edit → publish → close, and "mine"');
+
+  await sql(`delete from campaign_applications where campaign_id in (select id from campaigns where business_user_id = ${lit(uid('plum'))});
+             delete from campaigns where business_user_id = ${lit(uid('plum'))};
+             select 1 as ok;`);
+
+  const lifecycleCreate = await A.plum.post('/api/campaigns', {
+    title: 'Lifecycle test', description: 'short', platforms: [],
+  });
+  const lifecycleId = lifecycleCreate.body?.campaign?.id;
+  s.check('a draft can be created with no platforms at all', lifecycleCreate.status === 201, { severity: 'MEDIUM', observed: lifecycleCreate.status });
+
+  if (lifecycleId) {
+    const mineBeforePublish = await A.plum.get('/api/campaigns?mine=true');
+    const foundAsDraft = (mineBeforePublish.body?.campaigns ?? []).find((c) => c.id === lifecycleId);
+    s.check('"mine" finds the draft — the gap that made a draft unreachable after creation', Boolean(foundAsDraft) && foundAsDraft.status === 'draft', {
+      severity: 'CRITICAL', observed: foundAsDraft,
+    });
+
+    const boardBeforePublish = await A.sourav.get('/api/campaigns');
+    s.check('a draft is invisible on the public board even to someone else', !(boardBeforePublish.body?.campaigns ?? []).some((c) => c.id === lifecycleId), {
+      severity: 'HIGH', observed: boardBeforePublish.status,
+    });
+
+    // Edit while still a draft (no status change) — title only.
+    const edited = await A.plum.patch(`/api/campaigns/${lifecycleId}`, { title: 'Lifecycle test, edited' });
+    s.check('owner can edit a draft', edited.status === 200 && edited.body?.campaign?.title === 'Lifecycle test, edited', {
+      severity: 'MEDIUM', observed: edited.status,
+    });
+
+    // Publish still fails without a platform (brief also still short).
+    const publishNoPlatform = await A.plum.patch(`/api/campaigns/${lifecycleId}`, { status: 'live' });
+    s.check('cannot publish with no platform even after editing the title', publishNoPlatform.status >= 400, {
+      severity: 'HIGH', observed: publishNoPlatform.status,
+    });
+
+    // Fix both and publish for real, in the one call the mobile/web "Save & publish" button makes.
+    const publishReal = await A.plum.patch(`/api/campaigns/${lifecycleId}`, {
+      description: 'A proper brief with real substance, comfortably over fifty characters long now.',
+      platforms: ['instagram'],
+      status: 'live',
+    });
+    s.check('publishes once the brief and platform are both fixed', publishReal.status === 200 && publishReal.body?.campaign?.status === 'live', {
+      severity: 'CRITICAL', observed: publishReal.status,
+    });
+
+    const boardAfterPublish = await A.sourav.get('/api/campaigns');
+    s.check('now visible on the public board', (boardAfterPublish.body?.campaigns ?? []).some((c) => c.id === lifecycleId), {
+      severity: 'HIGH', observed: boardAfterPublish.status,
+    });
+
+    // Close it.
+    const closed = await A.plum.patch(`/api/campaigns/${lifecycleId}`, { status: 'closed' });
+    s.check('owner can close a live campaign', closed.status === 200 && closed.body?.campaign?.status === 'closed', {
+      severity: 'MEDIUM', observed: closed.status,
+    });
+
+    const boardAfterClose = await A.sourav.get('/api/campaigns');
+    s.check('a closed campaign leaves the public board', !(boardAfterClose.body?.campaigns ?? []).some((c) => c.id === lifecycleId), {
+      severity: 'MEDIUM', observed: boardAfterClose.status,
+    });
+
+    const mineAfterClose = await A.plum.get('/api/campaigns?mine=true');
+    const foundClosed = (mineAfterClose.body?.campaigns ?? []).find((c) => c.id === lifecycleId);
+    s.check('but stays visible to its owner via "mine", correctly marked closed', foundClosed?.status === 'closed', {
+      severity: 'MEDIUM', observed: foundClosed,
+    });
   }
 
   const summary = s.finish();

@@ -18,6 +18,8 @@ export function createEndpoints(api: ApiClient) {
     influencerDashboard: <T = unknown>() => api.get<T>('/api/influencer/dashboard'),
     businessDashboard: <T = unknown>() => api.get<T>('/api/business/dashboard'),
     activity: <T = unknown>() => api.get<T>('/api/activity'),
+    /** S4 — the networking funnel: requests sent/accepted, projects, completions. */
+    statsFunnel: <T = unknown>() => api.get<T>('/api/stats/funnel'),
 
     // ── Profile ────────────────────────────────────────────────────
     getProfile: <T = unknown>() => api.get<T>('/api/profile'),
@@ -74,7 +76,18 @@ export function createEndpoints(api: ApiClient) {
     }) => api.post<T>('/api/phone-otp/verify', body),
 
     // ── Campaigns ──────────────────────────────────────────────────
-    campaigns: <T = unknown>() => api.get<T>('/api/campaigns'),
+    /** `mine: true` lists every campaign the caller owns, any status — the
+     *  live board otherwise never shows a draft, even to its own owner. */
+    campaigns: <T = unknown>(opts?: { mine?: boolean; category?: string; sort?: 'newest' | 'closing_soon' }) => {
+      const params = new URLSearchParams();
+      if (opts?.mine) params.set('mine', 'true');
+      if (opts?.category) params.set('category', opts.category);
+      if (opts?.sort) params.set('sort', opts.sort);
+      const qs = params.toString();
+      return api.get<T>(`/api/campaigns${qs ? `?${qs}` : ''}`);
+    },
+    createCampaign: <T = unknown>(body: unknown) => api.post<T>('/api/campaigns', body),
+    updateCampaign: <T = unknown>(id: string, body: unknown) => api.patch<T>(`/api/campaigns/${id}`, body),
     getCampaign: <T = unknown>(id: string) => api.get<T>(`/api/campaigns/${id}`),
     applyToCampaign: <T = unknown>(id: string, body: unknown) => api.post<T>(`/api/campaigns/${id}/applications`, body),
     listCampaignApplications: <T = unknown>(id: string) => api.get<T>(`/api/campaigns/${id}/applications`),
@@ -90,7 +103,7 @@ export function createEndpoints(api: ApiClient) {
 
     // ── Project documents ──────────────────────────────────────────
     listProjectDocuments: <T = unknown>(id: string) => api.get<T>(`/api/projects/${id}/documents`),
-    issueProjectDocument: <T = unknown>(id: string, kind: 'receipt' | 'proforma') =>
+    issueProjectDocument: <T = unknown>(id: string, kind: 'receipt' | 'proforma' | 'tax_invoice') =>
       api.post<T>(`/api/projects/${id}/documents`, { kind }),
     /** Mints a short-lived signed link this device's system browser can open
      *  without an Authorization header — see download-token.ts. */
