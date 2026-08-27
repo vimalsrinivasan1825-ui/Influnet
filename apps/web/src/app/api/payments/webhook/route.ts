@@ -198,8 +198,9 @@ export async function POST(req: Request) {
     try {
       const rupees = Math.round((payment.amount || 0) / 100);
       const amountLabel = `₹${rupees.toLocaleString('en-IN')}`;
-      const isAdvance = payment.stage_key === 'advance_payment';
-      const label = isAdvance ? 'advance' : 'final payment';
+      const label = payment.stage_key === 'advance_payment' ? 'advance'
+        : payment.stage_key === 'quick_payment' ? 'payment'
+        : 'final payment';
 
       const { data: proj } = await admin
         .from('campaign_projects')
@@ -228,7 +229,7 @@ export async function POST(req: Request) {
               amount: rupees,
               // The template keys off 'advance' | 'final' | 'full' — `label` is
               // the prose form ('final payment') and would miss that lookup.
-              paymentType: isAdvance ? 'advance' : 'final',
+              paymentType: payment.stage_key === 'advance_payment' ? 'advance' : payment.stage_key === 'quick_payment' ? 'full' : 'final',
               paymentId,
               paidOn: new Date().toLocaleDateString('en-IN', {
                 day: 'numeric',
