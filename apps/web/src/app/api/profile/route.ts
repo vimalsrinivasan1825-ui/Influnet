@@ -27,6 +27,7 @@ export async function GET(req: Request) {
       location: p.location,
       created_at: p.created_at,
       updated_at: p.updated_at,
+      creating_since: p.creating_since ?? null,
       verification_status: p.verification_status ?? 'unverified',
       verified_badge: p.verified_badge ?? false,
       verified_at: p.verified_at ?? null,
@@ -151,13 +152,14 @@ export async function PATCH(req: Request) {
     }
 
     // Base profile fields come from the validated payload only
-    const { name, phone, location } = validatedData;
+    const { name, phone, location, creating_since } = validatedData;
 
     // Update base profile
     const profileUpdates: any = {};
     if (name !== undefined) profileUpdates.name = name;
     if (phone !== undefined) profileUpdates.phone = phone;
     if (location !== undefined) profileUpdates.location = location;
+    if (creating_since !== undefined) profileUpdates.creating_since = creating_since;
     
     if (Object.keys(profileUpdates).length > 0) {
       profileUpdates.updated_at = new Date().toISOString();
@@ -173,6 +175,7 @@ export async function PATCH(req: Request) {
     delete validatedData.name;
     delete validatedData.phone;
     delete validatedData.location;
+    delete validatedData.creating_since;
 
     // Determine extended profile updates from validatedData
     if (role === 'business_owner' && Object.keys(validatedData).length > 0) {

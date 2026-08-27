@@ -253,6 +253,8 @@ export const ProfileUpdateSchema = z.object({
   avatar_url: z.string().url().optional().or(z.literal('')),
   cover_image_url: z.string().url().optional().or(z.literal('')),
   portfolio: z.array(z.object({ url: z.string(), title: z.string().optional() })).optional(),
+  // Creating since: year the creator started making content (S2).
+  creating_since: z.number().int().min(1990).max(new Date().getFullYear()).optional(),
   // Media-kit fields collected from settings (not signup — keeps signup light).
   pricing_min: z.number().min(0).max(100_000_000).optional(),
   pricing_max: z.number().min(0).max(100_000_000).optional(),

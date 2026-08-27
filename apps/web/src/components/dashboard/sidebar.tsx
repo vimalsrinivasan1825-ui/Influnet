@@ -52,6 +52,7 @@ const CREATOR_NAV: NavItem[] = [
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+  { label: "Campaigns", href: "/dashboard/campaigns", icon: Sparkles },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
   { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
@@ -63,6 +64,7 @@ const BUSINESS_NAV: NavItem[] = [
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+  { label: "Campaigns", href: "/dashboard/campaigns", icon: Sparkles },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
   { label: "My activity", href: "/dashboard/activity", icon: History },
 ];

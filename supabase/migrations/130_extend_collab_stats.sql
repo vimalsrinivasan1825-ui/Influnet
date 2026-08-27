@@ -2,8 +2,12 @@
 --
 -- Adds requests_sent to get_collaboration_stats so the networking funnel
 -- screen can show both directions.
+--
+-- Can't CREATE OR REPLACE with a different return type — must DROP first.
 
-CREATE OR REPLACE FUNCTION public.get_collaboration_stats(p_user_id UUID)
+DROP FUNCTION IF EXISTS public.get_collaboration_stats(UUID);
+
+CREATE FUNCTION public.get_collaboration_stats(p_user_id UUID)
 RETURNS TABLE (
   partners_total      INT,
   projects_total      INT,
@@ -52,3 +56,5 @@ AS $$
     (SELECT min(created_at) FROM mine),
     (SELECT max(created_at) FROM mine);
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_collaboration_stats(UUID) TO anon, authenticated;
