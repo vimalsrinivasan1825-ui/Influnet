@@ -3,7 +3,7 @@
 // project-lifecycle.ts. The gate rule (canAdvanceStage) is enforced server-side
 // in the project PATCH `advance` action and mirrored in the UI.
 
-import { STAGES, type Stage } from './project-lifecycle';
+import { STAGES, STAGE_FLOWS, type Stage, type StageFlow, type FlowKey } from './project-lifecycle';
 
 export type OwnerRole = 'business' | 'creator' | 'both';
 
@@ -28,9 +28,25 @@ export interface StageItem {
   done_by: string | null;
 }
 
+// ── Short-flow default checklist items ────────────────────────────────
+const SHORT_STAGE_ITEMS: Record<string, StageItemSeed[]> = {
+  quick_agreement: [
+    { label: 'Scope confirmed by both parties', owner_role: 'both', is_required: true, is_gate: false },
+    { label: 'Deliverables and timeline agreed', owner_role: 'both', is_required: true, is_gate: false },
+  ],
+  quick_delivery: [
+    { label: 'Work delivered', owner_role: 'creator', is_required: true, is_gate: false },
+    { label: 'Delivery confirmed by brand', owner_role: 'business', is_required: true, is_gate: false },
+  ],
+  quick_payment: [
+    { label: 'Payment received', owner_role: 'business', is_required: true, is_gate: true },
+  ],
+  project_completed: [],
+};
+
 // Ordered default checklist for every stage. Required items gate advancement;
 // gate items (payment/approval) are visually emphasized in the UI.
-export const DEFAULT_STAGE_ITEMS: Record<Stage, StageItemSeed[]> = {
+export const DEFAULT_STAGE_ITEMS: Record<string, StageItemSeed[]> = {
   collaboration_started: [
     { label: 'Both parties introduced', owner_role: 'both', is_required: false, is_gate: false },
     { label: 'Scope & goals aligned', owner_role: 'both', is_required: true, is_gate: false },
@@ -70,16 +86,25 @@ export const DEFAULT_STAGE_ITEMS: Record<Stage, StageItemSeed[]> = {
 };
 
 // Build the flat seed payload for a project (positions assigned per stage).
-export function buildDefaultStageItems(projectId: number): Array<
+// Flow-aware: short projects get only their 3 stages seeded, not all 12.
+export function buildDefaultStageItems(projectId: number, flow?: StageFlow): Array<
   StageItemSeed & { project_id: number; stage_key: string; position: number }
 > {
+  const stages = flow?.stages ?? STAGES;
+  const items = flow ? getFlowStageItems(flow) : DEFAULT_STAGE_ITEMS;
   const rows: Array<StageItemSeed & { project_id: number; stage_key: string; position: number }> = [];
-  for (const stage of STAGES) {
-    DEFAULT_STAGE_ITEMS[stage].forEach((item, i) => {
+  for (const stage of stages) {
+    (items[stage] ?? []).forEach((item, i) => {
       rows.push({ ...item, project_id: projectId, stage_key: stage, position: i });
     });
   }
   return rows;
+}
+
+/** Get the stage items record for a given flow. */
+export function getFlowStageItems(flow: StageFlow): Record<string, StageItemSeed[]> {
+  if (flow.stages === STAGE_FLOWS.full.stages) return DEFAULT_STAGE_ITEMS;
+  return SHORT_STAGE_ITEMS;
 }
 
 // Required items of a stage that are NOT yet done. Empty array => gate is open.

@@ -61,7 +61,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react-native';
-import { STAGES, type Stage } from '@influnet/core';
+import { STAGES, flowOf, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';

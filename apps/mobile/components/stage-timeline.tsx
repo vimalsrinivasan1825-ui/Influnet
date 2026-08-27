@@ -17,8 +17,10 @@ import { Check, ChevronRight, Clock, SkipForward } from 'lucide-react-native';
 import {
   STAGES,
   STAGE_GUIDE,
+  STAGE_FLOWS,
   isSkippableStage,
   type Stage,
+  type StageFlow,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { humanizeStage, timeAgo } from '@/lib/format';
@@ -94,17 +96,21 @@ export function StageTimeline({
   currentStage,
   stageProgress,
   onOpenStage,
+  flow,
 }: {
   currentStage: string;
   stageProgress: Record<string, StageProgressEntry> | null | undefined;
   onOpenStage: (stage: Stage) => void;
+  flow?: StageFlow;
 }) {
   const t = useTheme();
-  const currentIndex = STAGES.indexOf(currentStage as Stage);
+  const resolvedFlow = flow ?? STAGE_FLOWS.full;
+  const stages = resolvedFlow.stages;
+  const currentIndex = stages.indexOf(currentStage);
 
   return (
     <View>
-      {STAGES.map((stage, index) => {
+      {stages.map((stage, index) => {
         const entry = stageProgress?.[stage];
         const state: StageState = entry?.skipped
           ? 'skipped'
@@ -114,7 +120,7 @@ export function StageTimeline({
               ? 'current'
               : 'upcoming';
 
-        const isLast = index === STAGES.length - 1;
+        const isLast = index === stages.length - 1;
         const guide = STAGE_GUIDE[stage];
 
         const dotColor =
@@ -250,7 +256,7 @@ export function StageTimeline({
                     />
                   </View>
 
-                  {isSkippableStage(stage) ? (
+                  {isSkippableStage(stage, resolvedFlow) ? (
                     <Txt variant="caption" tone="muted">
                       Both sides can agree to skip this stage.
                     </Txt>

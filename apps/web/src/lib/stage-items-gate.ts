@@ -38,15 +38,17 @@
 
 import {
   DEFAULT_STAGE_ITEMS,
+  getFlowStageItems,
   buildDefaultStageItems,
   blockingItems,
   type StageItem,
 } from './project-stage-items';
-import type { Stage } from '@influnet/core';
+import type { Stage, StageFlow } from '@influnet/core';
 
-/** Does this stage have required items by definition? */
-export function stageHasRequiredItems(stageKey: string): boolean {
-  const defaults = DEFAULT_STAGE_ITEMS[stageKey as Stage];
+/** Does this stage have required items by definition? Flow-aware. */
+export function stageHasRequiredItems(stageKey: string, flow?: StageFlow): boolean {
+  const items = flow ? getFlowStageItems(flow) : DEFAULT_STAGE_ITEMS;
+  const defaults = items[stageKey];
   return Array.isArray(defaults) && defaults.some((it) => it.is_required);
 }
 
@@ -79,6 +81,7 @@ export interface GateResult {
 export async function ensureStageItems(
   supabase: any,
   projectId: number | string,
+  flow?: StageFlow,
 ): Promise<StageItem[] | null> {
   const { data: existing, error } = await supabase
     .from('project_stage_items')
@@ -94,7 +97,7 @@ export async function ensureStageItems(
 
   const { error: seedErr } = await supabase
     .from('project_stage_items')
-    .upsert(buildDefaultStageItems(Number(projectId)), {
+    .upsert(buildDefaultStageItems(Number(projectId), flow), {
       onConflict: 'project_id,stage_key,label',
       ignoreDuplicates: true,
     });
@@ -119,8 +122,9 @@ export async function evaluateStageGate(
   supabase: any,
   projectId: number | string,
   stageKey: string,
+  flow?: StageFlow,
 ): Promise<GateResult> {
-  const items = await ensureStageItems(supabase, projectId);
+  const items = await ensureStageItems(supabase, projectId, flow);
 
   if (items === null) {
     // Table genuinely unavailable. Degrade rather than block every project on
@@ -129,12 +133,13 @@ export async function evaluateStageGate(
   }
 
   const forStage = items.filter((it) => it.stage_key === stageKey);
-  if (forStage.length === 0 && stageHasRequiredItems(stageKey)) {
+  if (forStage.length === 0 && stageHasRequiredItems(stageKey, flow)) {
     // Read succeeded, seeding ran, and this stage still has no rows. Something
     // is wrong with the checklist — refuse to treat that as "nothing pending".
+    const stageItems = flow ? getFlowStageItems(flow) : DEFAULT_STAGE_ITEMS;
     return {
       open: false,
-      blocking: DEFAULT_STAGE_ITEMS[stageKey as Stage]
+      blocking: (stageItems[stageKey] ?? [])
         .filter((it) => it.is_required)
         .map((it) => it.label),
       reason: 'not_seeded',
