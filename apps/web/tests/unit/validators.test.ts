@@ -138,6 +138,24 @@ describe('RegisterProfileSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts phoneVerificationToken as null (OTP feature disabled) or a uuid', () => {
+    const base = {
+      name: 'Creator',
+      role: 'influencer' as const,
+      instagramHandle: '@creator',
+    };
+    // OTP off: the wizards have no token and send null.
+    expect(RegisterProfileSchema.safeParse({ ...base, phoneVerificationToken: null }).success).toBe(true);
+    // OTP off, field omitted entirely.
+    expect(RegisterProfileSchema.safeParse(base).success).toBe(true);
+    // OTP on: a real minted token.
+    expect(RegisterProfileSchema.safeParse({
+      ...base, phoneVerificationToken: '00000000-0000-0000-0000-000000000000',
+    }).success).toBe(true);
+    // A non-uuid string is still rejected.
+    expect(RegisterProfileSchema.safeParse({ ...base, phoneVerificationToken: 'nope' }).success).toBe(false);
+  });
+
   it('passes through unknown fields (preserves RPC data)', () => {
     const result = RegisterProfileSchema.safeParse({
       name: 'Creator',

@@ -513,7 +513,7 @@ function InfluencerSignupContent() {
           },
           // The OTP token is deliberately NOT part of `payload` — that object
           // becomes permanent auth metadata and is stashed server-side.
-          body: JSON.stringify({ ...payload, phoneVerificationToken: phoneToken }),
+          body: JSON.stringify({ ...payload, phoneVerificationToken: phoneToken ?? undefined }),
         });
         if (!res.ok) {
           const resData = await res.json();

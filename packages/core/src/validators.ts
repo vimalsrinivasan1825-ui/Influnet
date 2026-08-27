@@ -136,7 +136,12 @@ export const RegisterProfileSchema = z.object({
   // Proof of mobile OTP verification, minted by the phone-otp Edge Function.
   // Carries no trust on its own — /api/auth/register re-validates it against
   // phone_otp_sessions before the profile is created.
-  phoneVerificationToken: z.string().uuid().optional(),
+  // `.nullable()` matters: when the phone-OTP feature is OFF the wizards have no
+  // token and send `null` (not `undefined`). Without this a flag toggle turns
+  // every signup into a 400 "Invalid registration payload". The route re-checks
+  // this against phone_otp_sessions only when phoneOtpEnabled(), and strips it
+  // either way before the RPC.
+  phoneVerificationToken: z.string().uuid().nullable().optional(),
   // business fields
   companyName: z.string().optional(),
   businessType: z.string().optional(),
