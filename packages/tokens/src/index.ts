@@ -10,7 +10,17 @@
  */
 
 export const palette = {
-  surface: '#f6f7f9',
+  /**
+   * The page ground.
+   *
+   * Deepened from #f6f7f9 as part of the flat redesign. Against a white card
+   * that was roughly a 3% luminance step — barely a visible edge on a phone in
+   * daylight — and it only ever read as a surface because the brand wash used
+   * to sit on top of it. With the wash gone, the ground has to do that work
+   * itself, and it does it together with the card shadows below: neither is
+   * enough alone.
+   */
+  surface: '#f2f4f8',
   surfaceCard: '#ffffff',
   surfaceMuted: '#f8fafc',
 
@@ -146,19 +156,38 @@ export const typography = {
  * both are set so a card looks raised on either platform.
  */
 export const shadows = {
+  /**
+   * The default card elevation — every card gets it.
+   *
+   * It used to be 5% opacity at 3px, applied only to the two or three cards
+   * per screen that passed `raised`. That is invisible on a phone, so cards
+   * and page were telling apart by a hairline border alone, and after the
+   * gradient wash was removed the whole app read as one flat white sheet.
+   *
+   * Web can express this as two stacked shadows — a tight contact shadow plus
+   * a wider ambient one. React Native takes a single shadow per view, so the
+   * numbers here are the compromise that reads closest to that pair: enough
+   * radius to be an ambient falloff, enough opacity to survive an outdoor
+   * screen, and a 1px offset so it still reads as contact rather than glow.
+   *
+   * `elevation` is Android's own renderer and is NOT derived from the iOS
+   * numbers — it is tuned separately, because a given elevation draws heavier
+   * on Android than the equivalent iOS shadow.
+   */
   card: {
     shadowColor: '#0f172a',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
+  /** For a card that has to sit above its neighbours — a decision, a milestone. */
   raised: {
     shadowColor: '#0f172a',
     shadowOpacity: 0.1,
-    shadowRadius: 14,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    elevation: 6,
   },
   pop: {
     shadowColor: '#0f172a',

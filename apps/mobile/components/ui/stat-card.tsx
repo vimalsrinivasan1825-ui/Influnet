@@ -39,7 +39,7 @@
  * A count-up runs on mount in every state that shows a figure, so a number that
  * IS there announces itself.
  */
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react-native';
 import { metricState } from '@influnet/core';
@@ -149,12 +149,16 @@ export function StatCard({
         flex: 1,
         backgroundColor: t.color.surfaceCard,
         borderRadius: t.radii.lg,
+        // Transparent rather than absent, for the same reason as Card: the box
+        // keeps its size, and the shadow carries the edge instead of a line.
         borderWidth: 1,
-        borderColor: t.color.hairline,
+        borderColor: 'transparent',
         padding: t.spacing.lg,
         gap: 6,
-        // Deliberately no shadow. Six raised tiles in a grid is six competing
-        // planes; the hairline is enough separation against the flat surface.
+        // The ordinary card elevation, not `raised`. A grid of six tiles all
+        // floating hard would be six competing planes; they need separation
+        // from the ground, not from each other.
+        ...t.shadows.card,
       }}
     >
       <View
@@ -276,8 +280,12 @@ export function StatCard({
 
   // A tile that does nothing on tap must not offer press feedback — a scale
   // that springs back with no navigation reads as a failed tap.
+  //
+  // Neither branch sets a width. StatGrid owns the column geometry now (see
+  // below); a tile that also declared `flex: 1` was the cause of the runaway
+  // heights this grid used to render.
   if (!onPress) {
-    return <View style={{ flex: 1, minWidth: '45%' }}>{body}</View>;
+    return body;
   }
 
   return (
@@ -285,16 +293,67 @@ export function StatCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value}`}
-      style={{ flex: 1, minWidth: '45%' }}
+      style={{ flex: 1 }}
     >
       {body}
     </PressableScale>
   );
 }
 
+/**
+ * Two-column tile grid.
+ *
+ * ── WHY THIS CHUNKS INSTEAD OF WRAPPING ───────────────────────────────
+ *
+ * This was `flexDirection: 'row'` + `flexWrap: 'wrap'`, with every tile at
+ * `flex: 1, minWidth: '45%'`. On a real device that produced tiles over a
+ * thousand points tall, and it is worth writing down why, because the shape
+ * looks completely reasonable:
+ *
+ * `flex: 1` in React Native expands to `flexBasis: 0%`. Yoga decides where a
+ * line WRAPS by measuring flex basis — so with a basis of zero, nothing ever
+ * exceeds the line and all six tiles land on ONE flex line. Only afterwards
+ * does `minWidth: '45%'` inflate each of them, by which point the line is
+ * ~270% of the container and every subsequent size is computed off an
+ * overflowing row.
+ *
+ * The runaway height came from the same place. `alignItems` defaults to
+ * `stretch`, so each tile stretched to that broken line's height — but only
+ * the tiles WITHOUT an `onPress`, because a pressable tile has a content-sized
+ * `Pressable` in the middle that absorbs the stretch. That is why "Profile
+ * views" ballooned while "Collab requests" beside it did not: not two bugs, one
+ * bug seen through two different wrappers.
+ *
+ * Chunking into explicit rows of two removes the wrap heuristic entirely.
+ * Each row is its own flex container with a known child count, `stretch` does
+ * what it is meant to (both tiles in a row share the taller one's height), and
+ * the layout cannot depend on flex-basis subtleties again.
+ */
 export function StatGrid({ children }: { children: ReactNode }) {
   const t = useTheme();
+
+  // `toArray` drops nulls and falses for us, which matters because callers
+  // render tiles conditionally — pairing before that filter would leave a hole
+  // in a row wherever a tile was omitted.
+  const tiles = Children.toArray(children);
+  const rows: ReactNode[][] = [];
+  for (let i = 0; i < tiles.length; i += 2) rows.push(tiles.slice(i, i + 2));
+
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.md }}>{children}</View>
+    <View style={{ gap: t.spacing.md }}>
+      {rows.map((row, i) => (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'stretch', gap: t.spacing.md }}>
+          {row.map((tile, j) => (
+            <View key={j} style={{ flex: 1 }}>
+              {tile}
+            </View>
+          ))}
+          {/* An odd final tile keeps its half of the row rather than growing to
+              full width. A lone double-width tile at the end of a grid reads as
+              a different, more important kind of card. */}
+          {row.length === 1 ? <View style={{ flex: 1 }} /> : null}
+        </View>
+      ))}
+    </View>
   );
 }

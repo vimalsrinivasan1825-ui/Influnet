@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import {
   RefreshControl,
   ScrollView,
+  StyleSheet,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -220,6 +221,44 @@ export function ScreenScroll({
   );
 }
 
+/**
+ * Box properties that belong to the OUTER shadow layer rather than the inner
+ * clipping layer — see the note in Card below.
+ *
+ * Everything here is about where the card sits and how big it is. Anything
+ * about what it looks like inside (background, padding, flexDirection, gap,
+ * borderColor) stays on the inner layer, so a caller's `style` keeps behaving
+ * exactly as it did when this was one view.
+ */
+const OUTER_STYLE_KEYS = new Set([
+  'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight',
+  'marginHorizontal', 'marginVertical', 'marginStart', 'marginEnd',
+  'alignSelf', 'flex', 'flexGrow', 'flexShrink', 'flexBasis',
+  'width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight',
+  'position', 'top', 'bottom', 'left', 'right', 'zIndex',
+]);
+
+/**
+ * The standard surface.
+ *
+ * ── WHY THIS IS TWO VIEWS ─────────────────────────────────────────────
+ *
+ * It was one, and one cannot both clip and cast. `overflow: 'hidden'` is what
+ * keeps an unpadded card's edge-to-edge rows inside the rounded corners — and
+ * on iOS that same property clips the view's own shadow away to nothing. With
+ * the flat redesign the shadow IS the card's edge, so a single view would have
+ * shipped a change that is invisible on every iPhone: correct on Android,
+ * where elevation is drawn by the platform and unaffected, and silently
+ * missing on iOS.
+ *
+ * So the shadow goes on the outer box and the clipping on the inner one. This
+ * is the same split, for the same reason, as GradientCard in ui/gradient.tsx.
+ *
+ * The caller's `style` is divided between the two by OUTER_STYLE_KEYS above,
+ * which is what keeps this a drop-in change: `marginBottom` still moves the
+ * whole card, `gap` and `flexDirection` still lay out its children, and
+ * `borderColor` still draws the accent ring on a decision card.
+ */
 export function Card({
   children,
   style,
@@ -229,25 +268,57 @@ export function Card({
   children: ReactNode;
   style?: ViewStyle;
   padded?: boolean;
+  /**
+   * Sits above its neighbours. No longer means "has a shadow at all" — every
+   * card is elevated now; this is the heavier of the two steps.
+   */
   raised?: boolean;
 }) {
   const t = useTheme();
+
+  const flat = (StyleSheet.flatten(style) ?? {}) as Record<string, unknown>;
+  const outer: Record<string, unknown> = {};
+  const inner: Record<string, unknown> = {};
+  for (const key of Object.keys(flat)) {
+    (OUTER_STYLE_KEYS.has(key) ? outer : inner)[key] = flat[key];
+  }
+
+  // The shadow layer needs an opaque background of its own: iOS derives the
+  // shadow from the layer's shape, and a fully transparent box casts nothing.
+  // The inner layer covers it exactly, so this is never seen.
+  const surface = (inner.backgroundColor as string | undefined) ?? t.color.surfaceCard;
+
   return (
     <View
       style={[
-        {
-          backgroundColor: t.color.surfaceCard,
-          borderRadius: t.radii.lg,
-          borderWidth: 1,
-          borderColor: t.color.hairline,
-          padding: padded ? t.spacing.lg : 0,
-          overflow: 'hidden',
-        },
-        raised ? t.shadows.card : null,
-        style,
+        { borderRadius: t.radii.lg, backgroundColor: surface },
+        raised ? t.shadows.raised : t.shadows.card,
+        outer as ViewStyle,
       ]}
     >
-      {children}
+      <View
+        style={[
+          {
+            backgroundColor: t.color.surfaceCard,
+            borderRadius: t.radii.lg,
+            /**
+             * A transparent border, not no border. The edge is the shadow now;
+             * a hairline on every card as well reads as a second, competing
+             * outline. Keeping the 1px width means the box is exactly the size
+             * it always was, so nothing reflows — and it leaves the slot open
+             * for the cards that DO want a visible ring, which set only
+             * `borderColor` and still land.
+             */
+            borderWidth: 1,
+            borderColor: 'transparent',
+            padding: padded ? t.spacing.lg : 0,
+            overflow: 'hidden',
+          },
+          inner as ViewStyle,
+        ]}
+      >
+        {children}
+      </View>
     </View>
   );
 }

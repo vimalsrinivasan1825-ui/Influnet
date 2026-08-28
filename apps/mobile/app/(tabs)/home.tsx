@@ -1003,10 +1003,16 @@ export default function HomeScreen() {
                   ) : null}
                 </View>
                 {pipelineHasWork ? (
+                  // Vertical padding on the card, horizontal padding on the
+                  // scroller's CONTENT. The strip has six steps and never fits
+                  // 375pt, so the last visible one has to be cut by the card's
+                  // own edge — a step cut off 16pt short of the edge reads as
+                  // clipped-by-mistake rather than as "there is more, push it".
                   <Card padded={false}>
-                    <View style={{ padding: t.spacing.lg }}>
+                    <View style={{ paddingVertical: t.spacing.lg }}>
                       <PipelineStrip
                         steps={pipelineSteps}
+                        inset={t.spacing.lg}
                         onPressStep={(key) =>
                           router.push(key === 'requests' ? '/requests' : '/projects')
                         }

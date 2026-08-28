@@ -150,13 +150,26 @@ export function HomeCampaignsRail({
               accessibilityLabel={`${c.title}${budget ? `, ${budget}` : ''}`}
               style={{ width: CARD_WIDTH }}
             >
+              {/* Two layers, same reason as Card in ui/surfaces.tsx: the cover
+                  art needs `overflow: 'hidden'` to sit inside the rounded
+                  corners, and on iOS that clips the card's own shadow away. */}
+              <View
+                style={[
+                  {
+                    width: CARD_WIDTH,
+                    borderRadius: t.radii.lg,
+                    backgroundColor: t.color.surfaceCard,
+                  },
+                  t.shadows.card,
+                ]}
+              >
               <View
                 style={{
                   width: CARD_WIDTH,
                   backgroundColor: t.color.surfaceCard,
                   borderRadius: t.radii.lg,
                   borderWidth: 1,
-                  borderColor: t.color.hairline,
+                  borderColor: 'transparent',
                   overflow: 'hidden',
                 }}
               >
@@ -227,6 +240,7 @@ export function HomeCampaignsRail({
                     </Txt>
                   ) : null}
                 </View>
+              </View>
               </View>
             </PressableScale>
           );

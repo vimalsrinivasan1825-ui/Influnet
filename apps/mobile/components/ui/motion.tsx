@@ -95,6 +95,12 @@ export function PressableScale({
   return (
     <Animated.View style={[animated, style]}>
       <Pressable
+        // Fills the animated wrapper rather than sizing to its content. Without
+        // this the Pressable is a content-sized box in the middle of a
+        // stretching flex item, so a pressable child and a non-pressable one
+        // laid out side by side resolve to different heights — which is exactly
+        // how the stat grid ended up with one tile a thousand points tall.
+        style={{ flex: 1 }}
         onPressIn={() => {
           pressed.value = withSpring(1, { damping: 20, stiffness: 400 });
         }}
