@@ -28,7 +28,8 @@ import { useProjectLive } from '@/lib/realtime';
 import { styleForStatus } from '@/lib/deal-state-style';
 import { ProjectHero, ProjectIcon } from '@/components/project-cover';
 import { formatCurrency, formatDate, timeAgo } from '@/lib/format';
-import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
+import { type StageProgressEntry } from '@/components/stage-timeline';
+import { CurrentStageCard } from '@/components/current-stage-card';
 import { ProjectReviews } from '@/components/project-reviews';
 import { ProjectDocuments } from '@/components/project-documents';
 import {
@@ -467,15 +468,23 @@ export default function ProjectDetailScreen() {
               </Card>
             ) : null}
 
-            <SectionLabel>Progress</SectionLabel>
-            <Card>
-              <StageTimeline
-                currentStage={project.current_stage}
-                stageProgress={project.stage_progress}
-                onOpenStage={(stage) => router.push(`/projects/${id}/stage/${stage}`)}
-                flow={flowOf(project)}
-              />
-            </Card>
+            {/* Where it stands: the current stage only, not the full
+                twelve-stage history — see current-stage-card.tsx for why.
+                An active project shows what to do next; a finished one has
+                nothing left to stand on, so this gives way to the timeline
+                button below instead of showing a stage frozen at "done". */}
+            {project.status === 'active' ? (
+              <>
+                <SectionLabel>Where it stands</SectionLabel>
+                <CurrentStageCard
+                  currentStage={project.current_stage}
+                  stageProgress={project.stage_progress}
+                  flow={flowOf(project)}
+                  dueDate={project.due_date}
+                  onOpenStage={() => router.push(`/projects/${id}/stage/${project.current_stage}`)}
+                />
+              </>
+            ) : null}
 
             {/* Change requests and activity are detail, not the primary task
                 of this screen — a one-line summary each, full UI one tap

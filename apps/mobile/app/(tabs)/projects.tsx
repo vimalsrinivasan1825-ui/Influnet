@@ -45,6 +45,8 @@ import {
 interface ProjectRow {
   id: string;
   title: string;
+  /** Feeds the icon classifier alongside the title — see project-card.tsx. */
+  description?: string | null;
   status: string;
   current_stage: string;
   flow_key?: string | null;
@@ -132,6 +134,7 @@ export default function ProjectsScreen() {
         data={{
           id: p.id,
           title: p.title,
+          description: p.description,
           status: p.status,
           current_stage: p.current_stage,
           flow_key: p.flow_key,
