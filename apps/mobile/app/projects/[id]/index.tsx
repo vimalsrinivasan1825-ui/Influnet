@@ -2,7 +2,16 @@ import { useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Ban, Check, CircleCheck, EllipsisVertical, Flag, RotateCcw, Trash2 } from 'lucide-react-native';
+import {
+  Ban,
+  Check,
+  CircleCheck,
+  EllipsisVertical,
+  Flag,
+  ListChecks,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react-native';
 import {
   STAGES,
   flowOf,
@@ -17,6 +26,7 @@ import { endpoints } from '@/lib/api';
 import { useFetch, invalidateFetchCache } from '@/lib/use-fetch';
 import { useProjectLive } from '@/lib/realtime';
 import { styleForStatus } from '@/lib/deal-state-style';
+import { ProjectHero, ProjectIcon } from '@/components/project-cover';
 import { formatCurrency, formatDate, timeAgo } from '@/lib/format';
 import { StageTimeline, type StageProgressEntry } from '@/components/stage-timeline';
 import { ProjectReviews } from '@/components/project-reviews';
@@ -35,6 +45,7 @@ import {
   SkeletonCard,
   Txt,
   type SheetRef,
+  PressableScale,
 } from '@/components/ui';
 
 interface ProjectDetail {
@@ -46,6 +57,8 @@ interface ProjectDetail {
   flow_key?: string | null;
   budget: number | null;
   advance_amount: number | null;
+  /** Already returned — the route selects `*`. */
+  due_date?: string | null;
   created_at: string;
   owner_user_id: string;
   counterparty_user_id: string;
@@ -305,14 +318,60 @@ export default function ProjectDetailScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
+      <ScreenScroll refreshing={refreshing} onRefresh={refresh} padded={false}>
         {loading ? (
-          <SkeletonCard />
+          <View style={{ paddingHorizontal: t.spacing.screen }}>
+            <SkeletonCard />
+          </View>
         ) : error ? (
-          <ErrorState message={error} onRetry={refresh} />
+          <View style={{ paddingHorizontal: t.spacing.screen }}>
+            <ErrorState message={error} onRetry={refresh} />
+          </View>
         ) : project ? (
-          <>
+          <View style={{ gap: t.spacing.md }}>
+            {/* The banner. Full-bleed, which is why this scroller is unpadded
+                and every block below carries its own gutter — a hero inset by
+                16pt on each side is a picture of a hero. */}
+            <View style={{ marginBottom: -44 }}>
+              <ProjectHero
+                id={project.id}
+                title={project.title}
+                description={project.description}
+              >
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: t.spacing.md,
+                    right: t.spacing.md,
+                    backgroundColor: 'rgba(255,255,255,0.94)',
+                    borderRadius: t.radii.pill,
+                    paddingHorizontal: t.spacing.md,
+                    paddingVertical: 5,
+                  }}
+                >
+                  <Txt variant="caption" style={{ color: t.color.brand, fontWeight: '700' }}>
+                    {s.label}
+                  </Txt>
+                </View>
+              </ProjectHero>
+            </View>
+
+            <View style={{ paddingHorizontal: t.spacing.screen }}>
             <Card raised style={{ gap: t.spacing.md }}>
+              {/* The classified icon again, straddling the hero's lower edge.
+                  It is the same mark the list showed, which is what makes a
+                  project recognisable across the two screens. */}
+              <View style={{ marginTop: -46, marginBottom: -4, alignSelf: 'flex-start' }}>
+                <View
+                  style={{
+                    borderWidth: 3,
+                    borderColor: t.color.surfaceCard,
+                    borderRadius: 19,
+                  }}
+                >
+                  <ProjectIcon title={project.title} description={project.description} size={60} />
+                </View>
+              </View>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: t.spacing.sm }}>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Txt variant="title2">{project.title}</Txt>
@@ -447,7 +506,37 @@ export default function ProjectDetailScreen() {
                 onPress={() => router.push(`/projects/${id}/activity`)}
               />
             </ListGroup>
-          </>
+
+            {/* The whole stage history, from first to last. The blocks above
+                answer "where is this now"; this is the only route to "how did
+                it get here", and it is a screen rather than an expander
+                because twelve stages with their sign-offs is not something to
+                unfold inside another scroller. */}
+            <PressableScale
+              onPress={() => router.push(`/projects/${id}/timeline`)}
+              accessibilityRole="button"
+              accessibilityLabel="View the full project timeline"
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: t.spacing.sm,
+                  borderWidth: 1.5,
+                  borderColor: t.color.brand,
+                  borderRadius: t.radii.md,
+                  paddingVertical: t.spacing.lg,
+                }}
+              >
+                <ListChecks size={18} color={t.color.brand} />
+                <Txt variant="bodyStrong" style={{ color: t.color.brand }}>
+                  View full timeline
+                </Txt>
+              </View>
+            </PressableScale>
+            </View>
+          </View>
         ) : null}
       </ScreenScroll>
 

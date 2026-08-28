@@ -172,6 +172,7 @@ export default function RootLayout() {
               <Stack.Screen name="projects/[id]/stage/[stage]" options={{ title: 'Stage' }} />
               <Stack.Screen name="projects/[id]/change-requests" options={{ title: 'Change requests' }} />
               <Stack.Screen name="projects/[id]/activity" options={{ title: 'Activity' }} />
+              <Stack.Screen name="projects/[id]/timeline" options={{ title: 'Timeline' }} />
               <Stack.Screen name="projects/deleted" options={{ title: 'Deleted Projects' }} />
               <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />
               {/* Directory route: the screen name is the file path, so

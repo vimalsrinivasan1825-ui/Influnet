@@ -87,6 +87,7 @@ export function CoverArt({
   width,
   height,
   radius = 0,
+  colors,
   children,
   style,
 }: {
@@ -95,11 +96,23 @@ export function CoverArt({
   width: number;
   height: number;
   radius?: number;
+  /**
+   * Override the palette.
+   *
+   * The seeded pick is right when the only requirement is "distinct and
+   * stable" — campaign cards, where nothing about the row could determine a
+   * colour. A project CAN determine one: its category does (see
+   * lib/project-icon.ts), and a classified colour beats a random one because
+   * it means something. Passing `colors` is how that gets to say so.
+   */
+  colors?: [string, string];
   /** The glyph laid over the wash. See note 3 above — the wash alone is wallpaper. */
   children?: ReactNode;
   style?: ViewStyle;
 }) {
-  const [from, to] = coverPalette(seed);
+  // The seed still drives the BLOB placement even when the palette is given,
+  // so two projects in one category share a colour and not a composition.
+  const [from, to] = colors ?? coverPalette(seed);
   const h = hash(seed);
   const next = rng(h);
   const id = `cover${h.toString(36)}`;

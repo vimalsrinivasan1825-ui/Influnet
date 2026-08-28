@@ -20,6 +20,11 @@ import { useLiveRefresh } from '@/lib/realtime';
 import { styleForStatus } from '@/lib/deal-state-style';
 import { formatCurrency, humanizeStage, timeAgo } from '@/lib/format';
 import { AppHeader } from '@/components/app-header';
+import { ProjectCard } from '@/components/project-card';
+import {
+  OVERVIEW_MIN_PROJECTS,
+  ProjectsOverview,
+} from '@/components/projects-overview';
 import {
   Badge,
   Card,
@@ -44,6 +49,9 @@ interface ProjectRow {
   current_stage: string;
   flow_key?: string | null;
   budget: number | null;
+  /** Both already returned — the route selects `*`. */
+  due_date?: string | null;
+  created_at?: string | null;
   updated_at: string;
   owner_user_id: string;
   counterparty_user_id: string;
@@ -104,88 +112,40 @@ export default function ProjectsScreen() {
     return { yours, active, completed, cancelled };
   }, [data, me]);
 
-  /** A rich project card with progress bar and budget. */
-  function projectCard(p: ProjectRow) {
+  /**
+   * Every project draws as the same card, open or closed.
+   *
+   * There used to be two builders — a rich one for ongoing work and a stripped
+   * one for finished work — and the second was solving a problem it did not
+   * have. A completed project still has a partner, a budget and a title worth
+   * recognising by its icon; all it lacks is a NEXT step, and `ProjectCard`
+   * already omits the bar and the deadline when the stage or the date is
+   * missing. Two layouts for one object cost more in recognition than the
+   * handful of pixels the short one saved.
+   */
+  function card(p: ProjectRow, yourMove = false) {
     const s = styleForStatus(p.status, t.color);
     const isOwner = p.owner_user_id === me;
-    const partner = (isOwner ? p.counterparty?.name : p.owner?.name) ?? 'Partner';
-    const projectFlow = flowOf(p);
-    const stageIndex = projectFlow.stages.indexOf(p.current_stage);
-    const progress = projectFlow.stages.length > 0 ? (stageIndex + 1) / projectFlow.stages.length : 0;
-
     return (
-      <Pressable
+      <ProjectCard
         key={p.id}
+        data={{
+          id: p.id,
+          title: p.title,
+          status: p.status,
+          current_stage: p.current_stage,
+          flow_key: p.flow_key,
+          budget: p.budget,
+          due_date: p.due_date,
+          created_at: p.created_at,
+          partner: (isOwner ? p.counterparty?.name : p.owner?.name) ?? 'Partner',
+          statusLabel: s.label,
+          statusFg: s.fg,
+          statusBg: s.bg,
+          yourMove,
+        }}
         onPress={() => router.push(`/projects/${p.id}`)}
-        style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-      >
-        <Card style={{ gap: t.spacing.md }}>
-          {/* Title row */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Txt variant="bodyStrong" numberOfLines={1}>{p.title}</Txt>
-              <Txt variant="caption" tone="muted">{partner}</Txt>
-            </View>
-            <Badge label={s.label} fg={s.fg} bg={s.bg} />
-          </View>
-
-          {/* Stage progress bar */}
-          <View style={{ gap: t.spacing.xs }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Txt variant="caption" tone="muted">{humanizeStage(p.current_stage)}</Txt>
-              <Txt variant="caption" tone="muted">
-                Step {stageIndex + 1} of {projectFlow.stages.length}
-              </Txt>
-            </View>
-            <ProgressBar progress={progress} />
-          </View>
-
-          {/* Footer: budget + time */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            {p.budget ? (
-              <Txt variant="footnote" style={{ color: t.color.brand, fontWeight: '600' }}>
-                {formatCurrency(p.budget)}
-              </Txt>
-            ) : (
-              <View />
-            )}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Txt variant="caption" tone="muted">{timeAgo(p.updated_at)}</Txt>
-              <ChevronRight size={13} color={t.color.contentMuted} />
-            </View>
-          </View>
-        </Card>
-      </Pressable>
-    );
-  }
-
-  /** A simpler closed-project card (no progress bar). */
-  function closedCard(p: ProjectRow) {
-    const s = styleForStatus(p.status, t.color);
-    const isOwner = p.owner_user_id === me;
-    const partner = (isOwner ? p.counterparty?.name : p.owner?.name) ?? 'Partner';
-
-    return (
-      <Pressable
-        key={p.id}
-        onPress={() => router.push(`/projects/${p.id}`)}
-        style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-      >
-        <Card style={{ gap: t.spacing.sm }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Txt variant="bodyStrong" numberOfLines={1}>{p.title}</Txt>
-              <Txt variant="caption" tone="muted">{partner} · {timeAgo(p.updated_at)}</Txt>
-            </View>
-            <View style={{ alignItems: 'flex-end', gap: 4 }}>
-              <Badge label={s.label} fg={s.fg} bg={s.bg} />
-              {p.budget ? (
-                <Txt variant="caption" tone="muted">{formatCurrency(p.budget)}</Txt>
-              ) : null}
-            </View>
-          </View>
-        </Card>
-      </Pressable>
+      />
     );
   }
 
@@ -238,6 +198,21 @@ export default function ProjectsScreen() {
               })}
             </ChipRail>
 
+            {/* Only once there is something to summarise — see the note in
+                projects-overview.tsx. */}
+            {ongoing.length + groups.completed.length + groups.cancelled.length >=
+            OVERVIEW_MIN_PROJECTS ? (
+              <>
+                <SectionLabel>Overview</SectionLabel>
+                <ProjectsOverview
+                  active={groups.active.length}
+                  yourMove={groups.yours.length}
+                  completed={groups.completed.length}
+                  cancelled={groups.cancelled.length}
+                />
+              </>
+            ) : null}
+
             {visibleItems.length === 0 ? (
               <EmptyState
                 icon={<FolderKanban size={24} color={t.color.brand} />}
@@ -251,18 +226,18 @@ export default function ProjectsScreen() {
                   <>
                     <SectionLabel>Your move · {groups.yours.length}</SectionLabel>
                     <View style={{ gap: t.spacing.md }}>
-                      {groups.yours.map(projectCard)}
+                      {groups.yours.map((p) => card(p, true))}
                     </View>
                     <SectionLabel>Waiting on them · {groups.active.length}</SectionLabel>
                     <View style={{ gap: t.spacing.md }}>
-                      {groups.active.map(projectCard)}
+                      {groups.active.map((p) => card(p))}
                     </View>
                   </>
                 ) : (
                   <View style={{ gap: t.spacing.md }}>
-                    {filter === 'ongoing'
-                      ? visibleItems.map(projectCard)
-                      : visibleItems.map(closedCard)}
+                    {visibleItems.map((p) =>
+                      card(p, filter === 'ongoing' && groups.yours.includes(p)),
+                    )}
                   </View>
                 )}
               </>
