@@ -13,10 +13,13 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import {
+  BellOff,
   ChevronRight,
   CornerUpLeft,
   FileText,
   Handshake,
+  Image as ImageIcon,
+  MoreVertical,
   Paperclip,
   SendHorizontal,
   X,
@@ -29,6 +32,31 @@ import { endpoints } from '@/lib/api';
 import { getConversationChannel, getLastStreamFailureReason, isStreamConfigured } from '@/lib/stream';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { formatCurrency, formatDayLabel, formatMessageTime, timeAgo } from '@/lib/format';
+import {
+  TEXT_SCALE as TEXT_SCALE_PREVIEW,
+  TEXT_SIZE_LABEL,
+  useChatDisplay,
+  type ChatTextSize,
+} from '@/lib/use-chat-display';
+import { ChatPaper } from '@/components/chat-paper';
+import { flowOf } from '@influnet/core';
+
+/**
+ * " · Step 2 of 12", or nothing.
+ *
+ * Nothing when the backend did not send a stage, and nothing when the stage is
+ * one this build does not know — a strip or a counter that cannot place the
+ * project must say less, not guess. The denominator comes from the project's
+ * own flow: the short flows have four stages, and reporting a finished short
+ * project as "step 4 of 12" would be worse than saying nothing at all.
+ */
+function stageLine(stage: string | null, flowKey: string | null): string {
+  if (!stage) return '';
+  const flow = flowOf({ flow_key: flowKey });
+  const index = flow.stages.indexOf(stage);
+  if (index < 0) return '';
+  return ` · Step ${index + 1} of ${flow.stages.length}`;
+}
 
 /** Stream hands back slightly different message types by call site. */
 type StreamMessage = MessageResponse | LocalMessage;
@@ -74,7 +102,15 @@ interface DealPayload {
   other_user_id?: string | null;
   partner?: { id: string; name?: string | null; role?: string | null; verified_badge?: boolean | null } | null;
   request?: { id: string; status: string } | null;
-  projects?: { id: string; title: string; budget: number | null; status: string }[];
+  projects?: {
+    id: string;
+    title: string;
+    budget: number | null;
+    status: string;
+    /** Both absent on an older backend; the banner falls back to a status line. */
+    current_stage?: string | null;
+    flow_key?: string | null;
+  }[];
   proposal?: {
     id: string;
     title: string;
@@ -273,6 +309,14 @@ interface DealSummary {
   canPropose: boolean;
   /** propose_project() hangs the proposal off the collab request, so it's required. */
   collabRequestId: string | null;
+  /**
+   * Set only when there is live work. These are what turn the bar at the top
+   * of the thread from a status line into the project itself — the thing the
+   * conversation is actually about, pinned where it is always readable.
+   */
+  projectTitle: string | null;
+  currentStage: string | null;
+  flowKey: string | null;
 }
 
 /**
@@ -297,6 +341,9 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       canWithdraw: !!payload.viewer?.can_withdraw_proposal,
       canPropose,
       collabRequestId,
+      projectTitle: null,
+      currentStage: null,
+      flowKey: null,
     };
   }
 
@@ -312,6 +359,9 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       canWithdraw: false,
       canPropose,
       collabRequestId,
+      projectTitle: null,
+      currentStage: null,
+      flowKey: null,
     };
   }
 
@@ -328,6 +378,9 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       canWithdraw: false,
       canPropose,
       collabRequestId,
+      projectTitle: live.title,
+      currentStage: live.current_stage ?? null,
+      flowKey: live.flow_key ?? null,
     };
   }
 
@@ -343,6 +396,9 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       canWithdraw: false,
       canPropose,
       collabRequestId,
+      projectTitle: null,
+      currentStage: null,
+      flowKey: null,
     };
   }
 
@@ -353,9 +409,13 @@ export default function ConversationScreen() {
   const t = useTheme();
   const router = useRouter();
   const navigation = useNavigation();
+  const displaySheet = useRef<SheetRef>(null);
   const insets = useSafeAreaInsets();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const me = useSession((s) => s.profile?.id);
+  // Per-account, so a shared device does not hand the second person the first
+  // person's text size. See lib/use-chat-display.ts.
+  const { display, update, scale } = useChatDisplay(me);
 
   const listRef = useRef<FlatList<ListItem>>(null);
   const dealSheet = useRef<SheetRef>(null);
@@ -407,8 +467,26 @@ export default function ConversationScreen() {
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    navigation.setOptions({ title: name ?? 'Chat' });
-  }, [navigation, name]);
+    navigation.setOptions({
+      title: name ?? 'Chat',
+      /**
+       * The only header action. Deliberately not a call button: this app does
+       * not place calls, and an affordance that looks like it does is a
+       * promise the product cannot keep.
+       */
+      headerRight: () => (
+        <Pressable
+          onPress={() => displaySheet.current?.expand()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Chat display options"
+          style={({ pressed }) => ({ paddingHorizontal: 4, opacity: pressed ? 0.5 : 1 })}
+        >
+          <MoreVertical size={20} color={t.color.brand} />
+        </Pressable>
+      ),
+    });
+  }, [navigation, name, t.color.brand]);
 
   const messages = useMemo(() => mergeMessages(legacy, live), [legacy, live]);
   const listItems = useMemo(() => withDaySeparators(messages), [messages]);
@@ -766,15 +844,24 @@ export default function ConversationScreen() {
 
   return (
     <KeyboardAvoider style={{ backgroundColor: t.color.surface }}>
-      {/* Deal bar — the web's side panel, compressed to a single line you can
-          always see while you're negotiating. */}
+      {/*
+        The deal bar — the web's side panel, compressed to something you can
+        always see while you are negotiating. Pinned above the message list, so
+        it never scrolls away from a conversation that is entirely about it.
+
+        Two shapes. Once there is a live project it names the WORK: title on
+        the first line, state and stage on the second. Before that there is no
+        project to name, so it stays the single status line it always was —
+        "Terms proposed to you", "Talking — no terms yet" — which is the whole
+        truth at that point.
+      */}
       {deal ? (
         <Pressable onPress={() => dealSheet.current?.expand()} accessibilityRole="button">
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: t.spacing.sm,
+              gap: t.spacing.md,
               paddingHorizontal: t.spacing.screen,
               paddingVertical: t.spacing.md,
               // Something waiting on you gets the warm tint; everything else
@@ -784,15 +871,54 @@ export default function ConversationScreen() {
               borderBottomColor: t.color.hairline,
             }}
           >
-            <Handshake size={17} color={deal.awaitingMe ? t.color.warn : t.color.brand} />
-            <Txt
-              variant="footnote"
-              style={{ flex: 1, color: deal.awaitingMe ? t.color.warn : t.color.brandStrong }}
-              numberOfLines={1}
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: t.radii.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: t.color.surfaceCard,
+              }}
             >
-              {deal.status}
-              {deal.budget ? ` · ${formatCurrency(deal.budget)}` : ''}
-            </Txt>
+              {deal.projectTitle ? (
+                <FileText size={17} color={deal.awaitingMe ? t.color.warn : t.color.brand} />
+              ) : (
+                <Handshake size={17} color={deal.awaitingMe ? t.color.warn : t.color.brand} />
+              )}
+            </View>
+
+            <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+              {deal.projectTitle ? (
+                <>
+                  <Txt variant="bodyStrong" style={{ fontSize: 15 }} numberOfLines={1}>
+                    {deal.projectTitle}
+                  </Txt>
+                  <Txt
+                    variant="caption"
+                    numberOfLines={1}
+                    style={{
+                      color: deal.awaitingMe ? t.color.warn : t.color.brandStrong,
+                      fontWeight: '600',
+                    }}
+                  >
+                    {deal.status}
+                    {stageLine(deal.currentStage, deal.flowKey)}
+                    {deal.budget ? ` · ${formatCurrency(deal.budget)}` : ''}
+                  </Txt>
+                </>
+              ) : (
+                <Txt
+                  variant="footnote"
+                  style={{ color: deal.awaitingMe ? t.color.warn : t.color.brandStrong }}
+                  numberOfLines={1}
+                >
+                  {deal.status}
+                  {deal.budget ? ` · ${formatCurrency(deal.budget)}` : ''}
+                </Txt>
+              )}
+            </View>
+
             <ChevronRight size={16} color={deal.awaitingMe ? t.color.warn : t.color.brand} />
           </View>
         </Pressable>
@@ -812,10 +938,15 @@ export default function ConversationScreen() {
         </View>
       ) : null}
 
+      {/* The paper sits under the list, not behind the whole screen: the deal
+          bar and the composer are chrome and belong on the app's own surface.
+          `flex: 1` on the wrapper is what gives the list its height. */}
+      <ChatPaper enabled={display.wallpaper}>
       <FlatList
         ref={listRef}
         data={listItems}
         keyExtractor={(item) => item.id}
+        style={{ backgroundColor: 'transparent' }}
         contentContainerStyle={{
           padding: t.spacing.screen,
           gap: t.spacing.sm,
@@ -931,7 +1062,12 @@ export default function ConversationScreen() {
                       <Txt
                         variant="footnote"
                         numberOfLines={1}
-                        style={{ flex: 1, color: mine ? t.color.white : t.color.content }}
+                        style={{
+                          flex: 1,
+                          color: mine ? t.color.white : t.color.content,
+                          fontSize: 13 * scale,
+                          lineHeight: 18 * scale,
+                        }}
                       >
                         {a.title || 'File'}
                       </Txt>
@@ -939,7 +1075,18 @@ export default function ConversationScreen() {
                   ))}
 
                 {message.body ? (
-                  <Txt variant="body" style={{ color: mine ? t.color.white : t.color.content }}>
+                  /* Scaled by the reader's own chat text size — multiplied on
+                     top of the OS setting rather than replacing it, so someone
+                     who has already scaled their phone up gets a bigger chat
+                     still. See lib/use-chat-display.ts. */
+                  <Txt
+                    variant="body"
+                    style={{
+                      color: mine ? t.color.white : t.color.content,
+                      fontSize: 16 * scale,
+                      lineHeight: 23 * scale,
+                    }}
+                  >
                     {message.deleted ? 'Message deleted' : message.body}
                   </Txt>
                 ) : null}
@@ -984,7 +1131,11 @@ export default function ConversationScreen() {
               <Txt
                 variant="caption"
                 tone="muted"
-                style={{ alignSelf: mine ? 'flex-end' : 'flex-start', fontSize: 11 }}
+                style={{
+                  alignSelf: mine ? 'flex-end' : 'flex-start',
+                  fontSize: 11 * scale,
+                  lineHeight: 15 * scale,
+                }}
               >
                 {formatMessageTime(message.created_at)}
               </Txt>
@@ -992,6 +1143,7 @@ export default function ConversationScreen() {
           );
         }}
       />
+      </ChatPaper>
 
       {replyTo ? (
         <View
@@ -1187,6 +1339,122 @@ export default function ConversationScreen() {
             }}
           />
         ) : null}
+      </Sheet>
+
+      {/*
+        Display options. The reason this menu exists is text size: a thread is
+        the one screen in this app people read for minutes at a stretch, and
+        the size that suits reading is routinely not the size someone wants for
+        every button on their phone.
+      */}
+      <Sheet ref={displaySheet} title="Display">
+        <View style={{ gap: t.spacing.xl }}>
+          <View style={{ gap: t.spacing.sm }}>
+            <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
+              Text size
+            </Txt>
+            <View style={{ flexDirection: 'row', gap: t.spacing.sm }}>
+              {(['small', 'default', 'large', 'xl'] as ChatTextSize[]).map((size) => {
+                const active = display.textSize === size;
+                return (
+                  <Pressable
+                    key={size}
+                    onPress={() => update({ textSize: size })}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`Text size ${TEXT_SIZE_LABEL[size]}`}
+                    style={{
+                      flex: 1,
+                      paddingVertical: t.spacing.md,
+                      borderRadius: t.radii.md,
+                      borderWidth: 1.5,
+                      borderColor: active ? t.color.brand : t.color.hairlineStrong,
+                      backgroundColor: active ? t.color.brandSoft : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    {/* Each option is set AT the size it selects, so the
+                        control is its own preview and nobody has to apply a
+                        setting to find out what it does. */}
+                    <Txt
+                      style={{
+                        fontSize: 15 * TEXT_SCALE_PREVIEW[size],
+                        fontWeight: active ? '700' : '500',
+                        color: active ? t.color.brand : t.color.contentSoft,
+                      }}
+                    >
+                      {TEXT_SIZE_LABEL[size]}
+                    </Txt>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <Pressable
+            onPress={() => update({ wallpaper: !display.wallpaper })}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: display.wallpaper }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: t.spacing.md,
+              paddingVertical: t.spacing.sm,
+            }}
+          >
+            <ImageIcon size={19} color={t.color.contentSoft} />
+            <View style={{ flex: 1 }}>
+              <Txt variant="bodyStrong" style={{ fontSize: 15 }}>
+                Chat wallpaper
+              </Txt>
+              <Txt variant="caption" tone="muted">
+                The patterned paper behind messages
+              </Txt>
+            </View>
+            <View
+              style={{
+                width: 46,
+                height: 27,
+                borderRadius: 14,
+                padding: 3,
+                backgroundColor: display.wallpaper ? t.color.brand : t.color.hairlineStrong,
+                alignItems: display.wallpaper ? 'flex-end' : 'flex-start',
+              }}
+            >
+              <View
+                style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: t.color.white }}
+              />
+            </View>
+          </Pressable>
+
+          {/* Muting is a notification preference and lives with the others.
+              Linked rather than duplicated — two places to mute a chat is two
+              places for them to disagree. */}
+          <Pressable
+            onPress={() => {
+              displaySheet.current?.close();
+              router.push('/settings');
+            }}
+            accessibilityRole="button"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: t.spacing.md,
+              paddingVertical: t.spacing.sm,
+            }}
+          >
+            <BellOff size={19} color={t.color.contentSoft} />
+            <View style={{ flex: 1 }}>
+              <Txt variant="bodyStrong" style={{ fontSize: 15 }}>
+                Notifications
+              </Txt>
+              <Txt variant="caption" tone="muted">
+                Manage message alerts in Settings
+              </Txt>
+            </View>
+            <ChevronRight size={16} color={t.color.contentMuted} />
+          </Pressable>
+        </View>
       </Sheet>
 
       <Sheet ref={proposeSheet} title="Propose project terms">

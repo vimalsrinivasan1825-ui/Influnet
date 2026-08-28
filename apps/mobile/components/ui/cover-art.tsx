@@ -44,6 +44,7 @@
 import type { ReactNode } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { hashSeed } from '@/lib/seed';
 
 /**
  * Six palettes, each a light-to-mid pair that stays readable under white text
@@ -59,23 +60,8 @@ const PALETTES: readonly (readonly [string, string])[] = [
   ['#FDE6DC', '#F9BCA0'], // clay
 ] as const;
 
-/**
- * FNV-1a, 32-bit. A real hash rather than summing char codes: sums collide
- * constantly on ids that share characters, which is exactly what UUIDs from
- * one table do, and the result is six cards in a row wearing the same colour.
- *
- * `>>> 0` after each step keeps it in unsigned 32-bit range — JS bitwise ops
- * produce signed integers, and a negative here would index off the front of
- * the palette array.
- */
-function hash(seed: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < seed.length; i += 1) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h >>> 0;
-}
+/** Shared with the avatar palette — see lib/seed.ts for why it is a real hash. */
+const hash = hashSeed;
 
 /** Deterministic 0–1 stream from one seed, so each blob differs from the last. */
 function rng(seed: number): () => number {

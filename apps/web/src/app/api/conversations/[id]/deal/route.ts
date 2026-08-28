@@ -86,7 +86,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     // NULL, and looking them up by request made completed work invisible here.
     const { data: projects, error: projErr } = await supabase
       .from('campaign_projects')
-      .select('id, title, description, budget, advance_amount, due_date, status, current_stage, created_by_user_id, collab_request_id, owner_user_id, counterparty_user_id, created_at')
+      .select('id, title, description, budget, advance_amount, due_date, status, current_stage, flow_key, created_by_user_id, collab_request_id, owner_user_id, counterparty_user_id, created_at')
       .or(
         `and(owner_user_id.eq.${user.id},counterparty_user_id.eq.${otherUserId}),` +
         `and(owner_user_id.eq.${otherUserId},counterparty_user_id.eq.${user.id})`,
