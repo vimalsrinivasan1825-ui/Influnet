@@ -1,40 +1,48 @@
 /**
  * Half-width metric tile. Two per row is the whole layout system for stats.
  *
- * ── WHAT CHANGED, AND WHY ─────────────────────────────────────────────
+ * ── FIVE STATES, NOT TWO ──────────────────────────────────────────────
  *
- * This tile used to be a label, a number and maybe a delta. That is a fine
- * tile for an account with history and a bad one for everybody else, because
- * the two states it cannot tell apart are the two that matter most:
+ * This tile used to be a label, a number and maybe a delta. That is a fine tile
+ * for an account with years behind it and a bad one for everybody else, because
+ * "has data / has no data" fails at both ends.
  *
- *   "0 profile views"  — nobody has looked at you yet
- *   "0 profile views"  — we could not read the view table
+ * At the empty end a brand-new account got a grid of six bold zeros — the most
+ * discouraging thing a product can show someone on day one, because it reads as
+ * a verdict on them rather than as a description of an empty account, and
+ * nothing on the tile suggests the number will ever move. It also could not
+ * tell "nobody has looked at you yet" apart from "we could not read the view
+ * table", which are opposite problems.
  *
- * and, worse, a brand-new account got a grid of six bold zeros. Six zeros is
- * the most discouraging thing a product can show someone on day one: it reads
- * as a verdict on them rather than as a description of an empty account, and
- * there is nothing on the tile suggesting the number is ever going to move.
+ * At the full end it treated one data point as a trend: day three, three views
+ * against one last week, "+200%" under a sparkline that is a flat line with one
+ * bump. Arithmetic, not information — and worse than nothing, because it is
+ * indistinguishable from a real +200%.
  *
- * Three additions fix that:
+ * The five states and the reasoning behind each live in `metricState()` in
+ * @influnet/core, so the web dashboard cannot drift from this. What the tile
+ * adds is how each one LOOKS:
  *
- *  1. `series` — a 30-day shape under the number. Direction is the question;
- *     the total is only the starting point of the answer.
- *  2. `dormant` — an explicit "there is nothing to report" look. The figure is
- *     replaced by a muted "--", NOT a zero: a bold 0 is a measurement, and
- *     claiming we measured nought views is different from admitting nothing has
- *     happened yet. The sparkline becomes a flat baseline and `emptyHint` says
- *     the ONE thing that would make the tile move, so an empty tile reads as an
- *     instruction instead of a score.
+ *   unavailable  Renders nothing at all — the caller drops the tile.
+ *   dormant      "--" in muted type, a flat hairline where the chart goes, and
+ *                `emptyHint`: the one action that would make it move. An empty
+ *                tile becomes an instruction instead of a score.
+ *   paused       The real 0, in full weight, plus the shape that fell away and
+ *                `pausedHint`. A zero with history behind it is a signal and
+ *                gets said in the loud type; a zero without one is not.
+ *   warming      The number and a sparse bar shape, no delta. Forced to bars
+ *                even when the caller asked for an area: a smooth curve through
+ *                two points invents the days between them, which is precisely
+ *                the lie this state exists to avoid.
+ *   live         Number, sparkline and delta. The tile as originally designed.
  *
- *     A real zero still renders as `0` — that is the point of testing the
- *     SERIES and not just the total. "0 requests pending" on an account that
- *     received eleven this month is a fact worth stating plainly; "0 requests"
- *     on an account that has never had one is just an empty tile.
- *  3. A count-up on mount, so a number that IS there announces itself.
+ * A count-up runs on mount in every state that shows a figure, so a number that
+ * IS there announces itself.
  */
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react-native';
+import { metricState } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { Numeral, Txt } from './text';
 import { MicroBars, Sparkline } from './sparkline';
@@ -50,6 +58,8 @@ export function StatCard({
   series,
   seriesShape = 'area',
   emptyHint,
+  pausedHint,
+  lifetime,
   index = 0,
   onPress,
 }: {
@@ -85,10 +95,23 @@ export function StatCard({
    */
   seriesShape?: 'area' | 'bars';
   /**
-   * Shown instead of a delta when the metric is still at zero: the single next
-   * action that would move it. Short — this is a caption, not a lesson.
+   * Shown when the metric has never moved: the single next action that would
+   * change that. Short — this is a caption, not a lesson.
    */
   emptyHint?: string;
+  /**
+   * Shown when the metric is at zero but has history behind it. Deliberately a
+   * SEPARATE string from `emptyHint`: "share your profile link to get seen" is
+   * advice for someone who has never been seen, and telling it to someone whose
+   * views just stopped ignores the only interesting thing on the tile.
+   */
+  pausedHint?: string;
+  /**
+   * Evidence this metric was non-zero outside the current window — a prior
+   * period's count or an all-time total. It is the only thing separating
+   * `paused` from `dormant`, so pass it wherever it is known.
+   */
+  lifetime?: number | null;
   /** Position in the grid. Drives the entrance stagger and the sparkline's. */
   index?: number;
   onPress?: () => void;
@@ -104,12 +127,21 @@ export function StatCard({
   // ends up rendering as "42".
   const display = typeof value === 'number' ? counted : value;
 
-  const hasSeries = Array.isArray(series) && series.length > 1;
-  const seriesHasData = hasSeries && series!.some((v) => v > 0);
-  // Nothing in the total AND nothing in the window. Either alone is not enough:
-  // a zero total with a live series is a real, informative zero, and a total
-  // with no series is just a backend that does not send one yet.
-  const dormant = numeric === 0 && !seriesHasData;
+  /**
+   * The whole state decision, in one shared function. See metric-state.ts in
+   * @influnet/core for the five states and why the thresholds sit where they do.
+   *
+   * A pre-formatted `value` ("42%") is never nullable — the caller already
+   * committed to having a figure — so it enters as its parsed number and can
+   * only land in `warming` or `live`, both of which just show it.
+   */
+  const verdict = metricState({
+    total: Number.isFinite(numeric) ? numeric : null,
+    series,
+    lifetime,
+  });
+  const { state, showSeries, showDelta } = verdict;
+  const dormant = state === 'dormant';
 
   const body = (
     <View
@@ -157,7 +189,8 @@ export function StatCard({
         )}
       </View>
 
-      {/* "--" rather than "0". See note 2 at the top of the file. */}
+      {/* "--" only when nothing has ever happened. A `paused` zero keeps full
+          weight — it is a real measurement and a real signal. */}
       <Numeral style={dormant ? { color: t.color.contentMuted } : undefined}>
         {dormant ? '--' : display}
       </Numeral>
@@ -167,16 +200,22 @@ export function StatCard({
           flat hairline instead, which occupies the same height — so a grid
           with a mix of live and empty tiles stays on one baseline rather than
           going ragged — while making no claim about a trend. */}
-      {hasSeries ? (
-        seriesHasData ? (
+      {series ? (
+        showSeries ? (
           <View style={{ marginTop: 2 }}>
-            {seriesShape === 'bars' ? (
-              <MicroBars data={series!} color={tint ?? t.color.brand} height={30} delay={index * 60} />
+            {/* `warming` is forced to bars whatever the caller asked for. An
+                area chart smooths a curve BETWEEN points, which on two real
+                days invents the twenty-eight in between; discrete bars can only
+                claim what actually happened on each day. */}
+            {seriesShape === 'bars' || state === 'warming' ? (
+              <MicroBars data={series} color={tint ?? t.color.brand} height={30} delay={index * 60} />
             ) : (
-              <Sparkline data={series!} color={tint ?? t.color.brand} height={30} delay={index * 60} />
+              <Sparkline data={series} color={tint ?? t.color.brand} height={30} delay={index * 60} />
             )}
           </View>
         ) : (
+          // Same height as a chart, so a grid mixing live and empty tiles keeps
+          // one baseline instead of going ragged — while claiming nothing.
           <View style={{ height: 30, justifyContent: 'flex-end', marginTop: 2 }}>
             <View style={{ height: 2, borderRadius: 1, backgroundColor: t.color.hairlineStrong }} />
           </View>
@@ -188,7 +227,7 @@ export function StatCard({
           Never a delta AND an instruction — a tile that says both "+24%" and
           "share your profile to get seen" is telling someone to fix something
           that is already working. */}
-      {delta != null && !dormant ? (
+      {delta != null && showDelta ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
           {delta >= 0 ? (
             <ArrowUpRight size={12} color={t.color.ok} />
@@ -212,6 +251,20 @@ export function StatCard({
           {/* A tile with no instruction still has to say WHY it is blank, or a
               row of dashes reads as a rendering failure. */}
           {emptyHint ?? 'No data yet'}
+        </Txt>
+      ) : state === 'paused' ? (
+        <Txt variant="caption" tone="muted" numberOfLines={2}>
+          {/* Falls back to the window, not to `emptyHint`. Advice for a
+              never-started account is wrong here by construction. */}
+          {pausedHint ?? 'Nothing in this window'}
+        </Txt>
+      ) : state === 'warming' && verdict.activeDays > 0 ? (
+        <Txt variant="caption" tone="muted" numberOfLines={2}>
+          {/* Says why there is no percentage, rather than leaving a gap where
+              every other tile has one. Naming the count is what makes it read
+              as "not yet" instead of "broken". */}
+          {hint ??
+            (verdict.activeDays === 1 ? 'First activity — too early to trend' : 'Too early to trend')}
         </Txt>
       ) : hint ? (
         <Txt variant="caption" tone="muted" numberOfLines={1}>

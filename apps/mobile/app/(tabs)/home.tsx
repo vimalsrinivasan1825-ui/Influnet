@@ -1312,6 +1312,9 @@ export default function HomeScreen() {
             <Appear index={nextStep()}>
               <SectionLabel>At a glance</SectionLabel>
               <StatGrid>
+                {/* Omitted entirely when `attention` is null — the view table
+                    could not be read, which is not the same as nobody looking,
+                    and there is no honest tile for "we don't know". */}
                 {attention ? (
                   <StatCard
                     index={0}
@@ -1323,6 +1326,10 @@ export default function HomeScreen() {
                     tint={t.color.brand}
                     delta={attention.profile_views_delta_pct}
                     series={series?.profile_views}
+                    // The previous 30 days. This is what turns "0 views" from
+                    // an empty slot into "your views stopped", which is the
+                    // more urgent of the two and used to be invisible.
+                    lifetime={attention.profile_views_prior}
                     hint={
                       attention.profile_views_delta_pct == null
                         ? `last ${attention.window_days}d`
@@ -1332,6 +1339,11 @@ export default function HomeScreen() {
                       isCreator
                         ? 'Share your profile link to get seen.'
                         : 'Creators check your page before replying.'
+                    }
+                    pausedHint={
+                      attention.profile_views_prior > 0
+                        ? `Quiet — ${formatCount(attention.profile_views_prior)} the month before`
+                        : undefined
                     }
                   />
                 ) : null}
@@ -1356,13 +1368,22 @@ export default function HomeScreen() {
                   tint={STAT_TINT.requests}
                   series={series?.requests}
                   seriesShape="bars"
+                  // All-time received. Zero pending with eleven behind you is
+                  // "you're on top of it"; zero pending with none ever is a
+                  // different sentence entirely.
+                  lifetime={funnel?.received}
                   hint={
                     ((isCreator ? counts?.pending_requests : counts?.awaiting_them) ?? 0) > 0
                       ? 'pending'
                       : undefined
                   }
                   emptyHint={
-                    isCreator ? 'None waiting right now.' : 'Reach out to a creator to start one.'
+                    isCreator ? 'None yet — get verified to rank higher.' : 'Reach out to a creator to start one.'
+                  }
+                  pausedHint={
+                    funnel?.received
+                      ? `All answered · ${formatCount(funnel.received)} received`
+                      : 'All answered'
                   }
                   onPress={() => router.push('/requests')}
                 />
@@ -1375,8 +1396,16 @@ export default function HomeScreen() {
                   tint={STAT_TINT.projects}
                   series={series?.projects_started}
                   seriesShape="bars"
+                  // Finished work counts as history. "0 active" beside three
+                  // completed is a lull; "0 active" beside nothing is day one.
+                  lifetime={counts?.completed}
                   hint={counts?.ongoing ? 'active' : undefined}
                   emptyHint="Accepted requests become projects."
+                  pausedHint={
+                    counts?.completed
+                      ? `Between projects · ${counts.completed} done`
+                      : 'Nothing active right now'
+                  }
                   onPress={() => router.push('/projects')}
                 />
 
@@ -1407,7 +1436,9 @@ export default function HomeScreen() {
                     value={counts?.your_turn ?? yourMove.length}
                     icon={<Handshake size={15} color={STAT_TINT.moves} />}
                     tint={STAT_TINT.moves}
+                    lifetime={counts?.ongoing}
                     emptyHint="Nothing is blocked on you."
+                    pausedHint="Nothing is blocked on you."
                     onPress={() => router.push('/projects')}
                   />
                 )}
