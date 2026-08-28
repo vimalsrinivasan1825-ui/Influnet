@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     // still needing attention.
     const { data: projects } = await supabase
       .from('campaign_projects')
-      .select('id, title, status, current_stage, owner_user_id, counterparty_user_id, collab_request_id, created_at')
+      .select('id, title, status, current_stage, flow_key, owner_user_id, counterparty_user_id, collab_request_id, created_at')
       .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`);
 
     // Terms nobody has accepted are NOT this request's outcome. A brand and a
@@ -111,7 +111,25 @@ export async function GET(req: Request) {
       const open = mine.find((p) => p.status !== 'completed' && p.status !== 'cancelled');
       return {
         ...c,
-        project: project ? { id: project.id, title: project.title, status: project.status } : null,
+        /**
+         * `current_stage` and `flow_key` ride along so the request list can
+         * draw how far a live collaboration has actually got.
+         *
+         * Both were already being selected above for the annotation pass and
+         * then thrown away here, so this costs nothing. `flow_key` matters as
+         * much as the stage: the full flow has twelve stages and the short
+         * ones have four, and a strip that assumed twelve would report a
+         * finished short project as a third done.
+         */
+        project: project
+          ? {
+              id: project.id,
+              title: project.title,
+              status: project.status,
+              current_stage: project.current_stage,
+              flow_key: project.flow_key ?? null,
+            }
+          : null,
         // Fail safe: a business sender whose status we could not read is
         // reported as 'unknown', not null. Both clients show the precaution for
         // any value other than 'approved', so an unreadable status now reads as

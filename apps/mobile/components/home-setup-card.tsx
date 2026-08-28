@@ -44,7 +44,7 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Check, FolderKanban } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-import { Button, Card, ProgressRing, Txt } from '@/components/ui';
+import { Button, Card, DashedRule, ProgressRing, Txt } from '@/components/ui';
 import { PressableScale } from '@/components/ui/motion';
 
 export interface SetupStep {
@@ -345,18 +345,18 @@ function PipelineNode({ size, opacity }: { size: number; opacity: number }) {
   );
 }
 
-/** The link between two nodes. Dashed, because nothing has happened yet. */
+/**
+ * The link between two nodes. Dashed, because nothing has happened yet.
+ *
+ * Via DashedRule rather than `borderStyle: 'dashed'`, which Android renders as
+ * a solid line when only one side has a width — see the note there.
+ */
 function PipelineConnector() {
   const t = useTheme();
   return (
-    <View
-      style={{
-        width: 26,
-        borderTopWidth: 1.5,
-        borderStyle: 'dashed',
-        borderColor: t.color.brandRing,
-      }}
-    />
+    <View style={{ width: 26 }}>
+      <DashedRule color={t.color.brandRing} />
+    </View>
   );
 }
 

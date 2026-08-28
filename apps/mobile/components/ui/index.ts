@@ -22,6 +22,7 @@ export {
 export { GradientCard, GradientBackground } from './gradient';
 export { Sparkline, MicroBars } from './sparkline';
 export { CoverArt, coverPalette } from './cover-art';
+export { DashedRule } from './dashed-rule';
 export { Appear, AppearRow, PressableScale, useCountUp } from './motion';
 export { Sheet, StickyFooter, type SheetRef } from './sheet';
 export { KeyboardAvoider, useRevealFocusedInput } from './keyboard-avoider';
