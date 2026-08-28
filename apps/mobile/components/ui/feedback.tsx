@@ -53,19 +53,29 @@ export function Skeleton({
   );
 }
 
-/** Card-shaped placeholder used while a list loads. */
+/**
+ * Card-shaped placeholder used while a list loads.
+ *
+ * Carries the same elevation as a real `Card`, deliberately. A skeleton that
+ * sits flat and is replaced by a card that lifts makes the whole screen appear
+ * to pop upward the moment data lands — the loading state has to occupy the
+ * same visual plane as the thing it stands in for, not just the same box.
+ */
 export function SkeletonCard() {
   const t = useTheme();
   return (
     <View
-      style={{
-        backgroundColor: t.color.surfaceCard,
-        borderRadius: t.radii.lg,
-        borderWidth: 1,
-        borderColor: t.color.hairline,
-        padding: t.spacing.lg,
-        gap: t.spacing.sm,
-      }}
+      style={[
+        {
+          backgroundColor: t.color.surfaceCard,
+          borderRadius: t.radii.lg,
+          borderWidth: 1,
+          borderColor: 'transparent',
+          padding: t.spacing.lg,
+          gap: t.spacing.sm,
+        },
+        t.shadows.card,
+      ]}
     >
       <Skeleton height={18} width="55%" />
       <Skeleton height={13} width="80%" />

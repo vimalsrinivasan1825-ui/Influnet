@@ -361,6 +361,18 @@ export function ProgressRing({
   size?: number;
   thickness?: number;
   label: string;
+  /**
+   * A word under the figure. Optional, and usually the wrong choice.
+   *
+   * A ring is already unmistakably a progress indicator, so a caption spelling
+   * that out ("stage", "done") is a label for something the shape has already
+   * said — and it costs more than it sounds like. Two stacked lines inside a
+   * 54pt circle push the figure off the optical centre and shrink it to fit,
+   * which is the one thing in the ring anyone actually reads.
+   *
+   * Supply it only where the unit is genuinely ambiguous and not stated
+   * anywhere nearby.
+   */
   caption?: string;
   color?: string;
 }) {
@@ -400,8 +412,21 @@ export function ProgressRing({
         />
       </Svg>
 
+      {/* Dead centre when the figure stands alone, which is the common case.
+          Scaled off the ring rather than fixed, so "4/12" fills a 54pt ring the
+          same way it fills a 72pt one instead of rattling around inside it. */}
       <View style={{ alignItems: 'center' }}>
-        <Txt variant="footnote" style={{ fontWeight: '700', fontVariant: ['tabular-nums'] }}>
+        <Txt
+          numberOfLines={1}
+          style={{
+            fontWeight: '700',
+            fontVariant: ['tabular-nums'],
+            letterSpacing: -0.3,
+            fontSize: caption ? 13 : Math.round(size * 0.29),
+            lineHeight: caption ? 18 : Math.round(size * 0.34),
+            color: t.color.content,
+          }}
+        >
           {label}
         </Txt>
         {caption ? (

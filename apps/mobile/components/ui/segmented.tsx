@@ -48,7 +48,9 @@ export function SegmentedControl<T extends string>({
               paddingVertical: 9,
               borderRadius: t.radii.sm,
               backgroundColor: active ? t.color.surfaceCard : 'transparent',
-              ...(active ? t.shadows.card : null),
+              // `thumb`, not `card` — see the note in @influnet/tokens. A card's
+              // ambient falloff under a 30pt pill is a smudge.
+              ...(active ? t.shadows.thumb : null),
             }}
           >
             <Txt variant="footnote" style={{ color: active ? t.color.content : t.color.contentSoft, fontWeight: active ? '600' : '400' }}>

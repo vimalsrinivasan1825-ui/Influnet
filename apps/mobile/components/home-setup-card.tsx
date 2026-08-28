@@ -171,11 +171,12 @@ export function HomeSetupCard({ steps, name }: { steps: SetupStep[]; name?: stri
   return (
     <Card raised style={{ gap: t.spacing.lg, borderColor: t.color.brandRing }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.lg }}>
+        {/* The line beside it already says how many steps are left, so the
+            ring only has to carry the count. */}
         <ProgressRing
           progress={doneCount / steps.length}
           size={58}
           label={`${doneCount}/${steps.length}`}
-          caption="done"
         />
         <View style={{ flex: 1, gap: 3 }}>
           {/* Named, when we have one. "Welcome, Priya" and "Get set up" are

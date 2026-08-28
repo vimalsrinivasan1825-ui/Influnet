@@ -738,11 +738,15 @@ export default function HomeScreen() {
                             borderColor: t.color.brandRing,
                           }}
                         >
+                          {/* No caption. The row underneath already names
+                              the stage in words ("Content production"), so
+                              "stage" under the figure was labelling something
+                              stated twice over — and it pushed the number off
+                              centre to do it. */}
                           <ProgressRing
                             progress={ratio}
                             size={54}
                             label={`${index + 1}/${STAGES.length}`}
-                            caption="stage"
                           />
                           <View style={{ flex: 1, gap: 3 }}>
                             <Txt variant="bodyStrong" numberOfLines={1}>

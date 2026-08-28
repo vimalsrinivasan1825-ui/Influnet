@@ -181,6 +181,23 @@ export const shadows = {
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
+  /**
+   * A small control that lifts off its track — the active segment of a
+   * segmented control, a switch knob.
+   *
+   * Its own token rather than borrowing `card`, because the two are different
+   * jobs at different scales. `card` is an ambient falloff tuned for a surface
+   * a few hundred points wide; the same 10px blur under a 30pt pill spills past
+   * the pill on every side and reads as a smudge rather than as a raised
+   * control. This is a tight contact shadow: barely any blur, no offset drift.
+   */
+  thumb: {
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
   /** For a card that has to sit above its neighbours — a decision, a milestone. */
   raised: {
     shadowColor: '#0f172a',
