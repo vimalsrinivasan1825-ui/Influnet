@@ -11,7 +11,16 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { formatCount } from '@/lib/format';
-import { Badge, Button, Screen, ScreenScroll, Card, Txt, EmptyState, ErrorState, SkeletonCard } from '@/components/ui';
+import { Badge, Button, Screen, ScreenScroll, Card, CoverArt, Txt, EmptyState, ErrorState, SkeletonCard } from '@/components/ui';
+import { PlatformMark } from '@/components/platform-mark';
+
+/**
+ * Nominal width for the cover generator. CoverArt places its blobs in real
+ * pixels — an SVG has no intrinsic size to take a percentage of — and the
+ * `width: '100%'` on the view stretches the result to the card. The art is
+ * abstract, so a fixed nominal beats a layout pass per card.
+ */
+const COVER_WIDTH = 360;
 
 interface Campaign {
   id: string;
@@ -126,7 +135,17 @@ export default function CampaignsScreen() {
                 onPress={() => router.push(`/campaigns/${c.id}` as any)}
                 style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
               >
-                <Card raised style={{ marginBottom: t.spacing.md, gap: t.spacing.sm }}>
+                <Card raised padded={false} style={{ marginBottom: t.spacing.md }}>
+                  {/* Generated cover art, seeded on the campaign id — the same
+                      art this campaign wears in the Home rail, because the
+                      seed is the row id and nothing else. The campaigns table
+                      has no image column; see ui/cover-art.tsx for why this is
+                      generated rather than fetched or bundled. */}
+                  <CoverArt seed={c.id} width={COVER_WIDTH} height={92} style={{ width: '100%' }}>
+                    {c.platforms?.[0] ? <PlatformMark platform={c.platforms[0]} size={28} /> : null}
+                  </CoverArt>
+
+                  <View style={{ padding: t.spacing.lg, gap: t.spacing.sm }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Txt variant="caption" style={{ color: t.color.brand, fontWeight: '700' }}>
                       {c.business_user?.name || 'Brand'}
@@ -177,6 +196,7 @@ export default function CampaignsScreen() {
                       ))}
                     </View>
                   )}
+                  </View>
                 </Card>
               </Pressable>
             );

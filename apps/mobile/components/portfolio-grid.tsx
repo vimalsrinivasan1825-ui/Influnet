@@ -23,7 +23,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { BadgeCheck, Camera, Link2, Play, Trash2, Video } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { formatCount } from '@/lib/format';
-import { Txt } from '@/components/ui';
+import { CoverArt, Txt } from '@/components/ui';
 
 export interface PortfolioItem {
   id: string;
@@ -142,27 +142,56 @@ function Thumb({ item, height }: { item: PortfolioItem; height: number }) {
     );
   }
 
+  /**
+   * No thumbnail — the common case, not the error case.
+   *
+   * This used to be a flat `surfaceMuted` box with a grey glyph in it, and a
+   * grid of six of those is indistinguishable from a grid that failed to load.
+   * Generated cover art (ui/cover-art.tsx) gives every tile its own art,
+   * deterministic on the item id so the same piece of work looks the same
+   * every time it is rendered, and costs no network request — which matters
+   * here specifically, because the reason there is no thumbnail is usually
+   * that Instagram refused us one from a datacenter IP.
+   *
+   * Verified items keep the badge glyph and the accent. That distinction is
+   * load-bearing — "Influnet confirmed this" is the single most valuable thing
+   * a portfolio tile can say — so it survives the art behind it.
+   */
   return (
-    <View
-      style={{
-        height,
-        borderRadius: t.radii.md,
-        backgroundColor: item.verified ? t.color.brandSoft : t.color.surfaceMuted,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: t.color.hairline,
-      }}
-    >
-      {item.verified ? (
-        <BadgeCheck size={22} color={t.color.brand} />
-      ) : (
-        <PlatformGlyph platform={item.platform} size={22} color={t.color.contentMuted} />
-      )}
+    <View style={{ height, borderRadius: t.radii.md, overflow: 'hidden' }}>
+      <CoverArt seed={item.id} width={SEED_WIDTH} height={height} style={{ width: '100%' }}>
+        {item.verified ? (
+          <View
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255,255,255,0.82)',
+            }}
+          >
+            <BadgeCheck size={22} color={t.color.brand} />
+          </View>
+        ) : (
+          <PlatformGlyph platform={item.platform} size={26} color="rgba(15,23,42,0.42)" />
+        )}
+      </CoverArt>
       <PlatformBadge platform={item.platform} />
     </View>
   );
 }
+
+/**
+ * Nominal width handed to the generator.
+ *
+ * CoverArt needs real numbers to place its blobs — an SVG cannot take a
+ * percentage from a flex parent (the same trap documented in ui/gradient.tsx).
+ * A tile is roughly half a phone screen, and the art is abstract, so a fixed
+ * nominal width stretched by the `width: '100%'` above is visually identical to
+ * measuring each tile and costs no layout pass.
+ */
+const SEED_WIDTH = 200;
 
 function ProvenanceLine({ item }: { item: PortfolioItem }) {
   const t = useTheme();

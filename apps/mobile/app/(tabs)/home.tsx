@@ -115,6 +115,7 @@ import {
   buildSetupSteps,
 } from '@/components/home-setup-card';
 import { HomeMilestoneCard } from '@/components/home-milestone-card';
+import { HomeCampaignsRail, type RailCampaign } from '@/components/home-campaigns-rail';
 import { ApprovalBanner } from '@/components/approval-banner';
 import { PlatformMark, platformColor, platformLabel } from '@/components/platform-mark';
 import { PipelineStrip, type PipelineStep } from '@/components/pipeline-strip';
@@ -305,6 +306,13 @@ interface DashboardPayload {
 interface HomeData {
   home: HomePayload;
   dashboard: DashboardPayload | null;
+  /**
+   * Live campaigns for the rail. Empty array and null mean different things and
+   * are both handled: empty means the board really has nothing (the section is
+   * removed), null means the request failed and the section is removed too —
+   * but only the section, never the screen.
+   */
+  campaigns: RailCampaign[] | null;
 }
 
 type MoneyWindow = 'week' | 'month' | 'year';
@@ -373,22 +381,52 @@ export default function HomeScreen() {
       return { ok: false, status: home.status, error: home.error, data: null };
     }
 
-    const dashboard =
-      home.data.role === 'influencer'
-        ? await endpoints.influencerDashboard<DashboardPayload>()
-        : await endpoints.businessDashboard<DashboardPayload>();
+    const creator = home.data.role === 'influencer';
 
-    // A failed dashboard costs the charts, not the screen.
+    /**
+     * Both follow-ups in parallel — they depend on `role`, not on each other.
+     *
+     * The campaign query differs by side and that is the whole point of it: a
+     * creator wants the open board (work they can apply for), while a brand
+     * wants THEIR campaigns (work they are running). Showing a brand other
+     * brands' listings on their own home screen is a competitor feed, not a
+     * feature.
+     */
+    const [dashboard, campaigns] = await Promise.all([
+      creator
+        ? endpoints.influencerDashboard<DashboardPayload>()
+        : endpoints.businessDashboard<DashboardPayload>(),
+      endpoints.campaigns<{ campaigns: RailCampaign[] }>(creator ? undefined : { mine: true }),
+    ]);
+
+    // A failed dashboard costs the charts; a failed campaign list costs the
+    // rail. Neither costs the screen.
     return {
       ok: true,
       status: home.status,
       error: null,
-      data: { home: home.data, dashboard: dashboard.ok ? dashboard.data : null },
+      data: {
+        home: home.data,
+        dashboard: dashboard.ok ? dashboard.data : null,
+        // `{campaigns}` — this route's own envelope, not a shared one. See the
+        // envelope note in AGENTS.md.
+        campaigns: campaigns.ok ? (campaigns.data?.campaigns ?? []) : null,
+      },
     };
   }, { cacheKey: 'home' });
 
   const home = data?.home;
   const dashboard = data?.dashboard;
+
+  /**
+   * The rail's rows. A brand's own list is filtered to `live` — a draft or an
+   * expired campaign is not something to "discover", and drafts in particular
+   * are visible to nobody else, so surfacing them in a discovery rail teaches
+   * the wrong thing about what the section is.
+   */
+  const railCampaigns = (data?.campaigns ?? [])
+    .filter((c) => !c.status || c.status === 'live')
+    .slice(0, 8);
   const counts = home?.counts;
   const isCreator = (home?.role ?? profile?.role) === 'influencer';
   const avatar = isCreator ? profile?.avatar_url : profile?.logo_url;
@@ -1375,6 +1413,18 @@ export default function HomeScreen() {
                 )}
               </StatGrid>
             </Appear>
+
+            {/* ── Discover campaigns ────────────────────────────────── */}
+            {/* Renders nothing when the list is empty — heading included. A
+                "Discover campaigns" title over an empty rail is a section whose
+                only content is an apology, and the Campaigns row above already
+                covers the case where there is nothing on the board today.
+
+                No match score on these cards. There is nothing in this product
+                that could compute one, and a fabricated percentage changes
+                which campaign someone applies to — see the note in
+                home-campaigns-rail.tsx. */}
+            <HomeCampaignsRail campaigns={railCampaigns} isCreator={isCreator} />
           </>
         )}
       </ScreenScroll>
