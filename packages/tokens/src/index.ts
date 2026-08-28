@@ -121,6 +121,15 @@ export const radii = {
  * body text is 16px because phone reading distance and small glyphs don't mix.
  */
 export const typography = {
+  /**
+   * The screen-opening headline. Bigger and heavier than `display`, and the
+   * only place in the app that gets this much weight — a screen with two of
+   * these has neither.
+   *
+   * Tracking is negative because at 30pt the default letter-spacing reads
+   * loose and web-like; large type needs less air between glyphs, not more.
+   */
+  hero: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8 },
   display: { fontSize: 32, lineHeight: 38, fontWeight: '700' },
   title1: { fontSize: 26, lineHeight: 32, fontWeight: '700' },
   title2: { fontSize: 21, lineHeight: 27, fontWeight: '700' },

@@ -51,6 +51,44 @@ function daysAgo(n: number): string {
 }
 
 /**
+ * Daily counts over the last `days` days, oldest first — the series behind each
+ * counter tile's sparkline.
+ *
+ * Every caller below passes timestamps this endpoint had already fetched to
+ * compute a total, so a sparkline costs no extra query. That is the whole
+ * reason the shape is "hand me an array of ISO strings" rather than "run an
+ * aggregate": Home's budget is round trips, and a `date_trunc` per tile would
+ * have been four more.
+ *
+ * Bucketing is by LOCAL calendar day, not by 24-hour blocks back from now. A
+ * rolling-24h bucket puts this morning and yesterday evening in the same column
+ * and slides every column an hour each time you refresh, so the chart moves
+ * when the data hasn't.
+ */
+function dailySeries(timestamps: (string | null | undefined)[], days: number): number[] {
+  const buckets = new Array<number>(days).fill(0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startOfToday = today.getTime();
+
+  for (const ts of timestamps) {
+    if (!ts) continue;
+    const parsed = Date.parse(ts);
+    if (Number.isNaN(parsed)) continue;
+    const day = new Date(parsed);
+    day.setHours(0, 0, 0, 0);
+    // 0 = today, 1 = yesterday. Anything outside the window is dropped rather
+    // than clamped into the end bucket, which would spike the last column with
+    // the entire backlog.
+    const back = Math.round((startOfToday - day.getTime()) / 86_400_000);
+    if (back < 0 || back >= days) continue;
+    buckets[days - 1 - back] += 1;
+  }
+
+  return buckets;
+}
+
+/**
  * The funnel a collaboration actually travels, as one strip.
  *
  * Six steps rather than the twelve stages, and rather than the four phases the
@@ -196,7 +234,7 @@ export async function GET(req: Request) {
     const { data: projects } = await supabase
       .from('campaign_projects')
       .select(`
-        id, title, status, current_stage, budget, updated_at, stage_progress,
+        id, title, status, current_stage, budget, created_at, updated_at, stage_progress,
         owner_user_id, counterparty_user_id,
         owner:profiles!campaign_projects_owner_user_id_fkey(id, name),
         counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name)
@@ -314,7 +352,9 @@ export async function GET(req: Request) {
     // The funnel, counted over every request this user has ever received.
     const { data: allRequests } = await supabase
       .from('collab_requests')
-      .select('id, status')
+      // `created_at` is here only for the requests sparkline. It rides along on
+      // the query the funnel already runs rather than costing a second one.
+      .select('id, status, created_at')
       .eq('to_user_id', user.id);
 
     const requestsReceived = (allRequests ?? []).length;
@@ -430,6 +470,31 @@ export async function GET(req: Request) {
       : null;
 
     /**
+     * Thirty days of daily counts, one array per counter tile.
+     *
+     * These are what let the "At a glance" tiles show a shape rather than a
+     * bare number. A total tells you where you are; the shape tells you which
+     * way you're going, and that is the thing someone opens Home to find out.
+     *
+     * `profile_views` is null — not zero-filled — when the view table could not
+     * be read, matching `attention` above: a flat line at zero is a claim that
+     * nobody looked, and we do not know that. The other three are always
+     * readable, so a genuine run of zeros is a genuine run of zeros.
+     *
+     * `projects_started` counts creation, `completed` counts closure, because
+     * those are the two events with a real date on them. A daily series of "how
+     * many were active that day" would need per-day state this endpoint does
+     * not have, and guessing it is worse than not drawing it.
+     */
+    const series = {
+      window_days: 30,
+      profile_views: viewRows ? dailySeries(viewRows.map((v) => v.viewed_at), 30) : null,
+      requests: dailySeries((allRequests ?? []).map((r: any) => r.created_at), 30),
+      projects_started: dailySeries(all.map((p: any) => p.created_at), 30),
+      completed: dailySeries(completed.map((p: any) => p.updated_at), 30),
+    };
+
+    /**
      * Money, in rupees. The ledger stores paise (migration 059) and the rest of
      * this endpoint talks in rupees, so the conversion happens once, here,
      * rather than in two clients that would eventually disagree.
@@ -541,6 +606,9 @@ export async function GET(req: Request) {
        * has done this yet", and the UI has different words for the two.
        */
       attention,
+      // Per-tile sparkline data. See the derivation above for why each of these
+      // costs nothing extra.
+      series,
       reach,
       money,
       pipeline,

@@ -27,15 +27,25 @@ export function Screen({
   children,
   style,
   padded = true,
-  gradient = true,
+  gradient = false,
   avoidKeyboard = true,
 }: {
   children: ReactNode;
   style?: ViewStyle;
   padded?: boolean;
   /**
-   * The brand wash behind the top of the page. On by default — it is what
-   * carries the theme onto screens that are otherwise white cards on grey.
+   * The brand wash behind the top of the page.
+   *
+   * OFF by default as of the flat redesign. The wash was doing two jobs and
+   * failing both: it was meant to carry the theme onto screens that are
+   * otherwise white cards on grey, but a coloured haze behind every surface
+   * lowers the contrast of everything sitting on it, and it made the role
+   * accent read as *background* rather than as the thing you press.
+   *
+   * The accent now arrives through content instead — the headline's second
+   * line, buttons, badges, active states — which is stronger identity at
+   * higher contrast. Anything that genuinely wants a tinted page (a celebration
+   * or a takeover) opts in with `gradient`.
    */
   gradient?: boolean;
   /**
