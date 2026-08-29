@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -13,7 +13,6 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import {
-  STAGES,
   flowOf,
   CANCELLATION_REASONS,
   cancellationReasonLabel,
@@ -86,6 +85,23 @@ interface ChangeRequestSummary {
 }
 
 /**
+ * "18 Aug", or "18 Aug 2025" once it is not this year.
+ *
+ * Narrower than `formatDate`, which always carries the year: these sit in a
+ * four-column strip about 80pt wide each, and "18 Aug 2026" wraps there.
+ */
+function shortDate(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    ...(d.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }),
+  });
+}
+
+/**
  * The whole record used to live on this one screen: header, progress, the
  * full change-request negotiation UI (with its own form sheet), and the
  * entire activity log, all in one scroll. Two real problems came out of that:
@@ -137,9 +153,28 @@ export default function ProjectDetailScreen() {
   const project = data?.project;
   const isOwner = project?.owner_user_id === me;
   const partner = (isOwner ? project?.counterparty?.name : project?.owner?.name) ?? 'Partner';
-  const flow = project ? flowOf(project) : undefined;
-  const stageIndex = project && flow ? flow.stages.indexOf(project.current_stage) : -1;
   const s = styleForStatus(project?.status, t.color);
+
+  /**
+   * The facts strip under the title.
+   *
+   * Built as a list rather than four fixed columns because only the budget and
+   * the start date are guaranteed: `due_date` is frequently unset and
+   * `advance_amount` only exists once terms are agreed. Pushing just the ones
+   * that exist means three real columns share the width instead of four with a
+   * blank in the middle.
+   */
+  const facts: { label: string; value: string; tint?: string }[] = [];
+  if (project) {
+    if (project.budget) {
+      facts.push({ label: 'Agreed budget', value: formatCurrency(project.budget), tint: t.color.brand });
+    }
+    facts.push({ label: 'Started', value: shortDate(project.created_at) });
+    if (project.due_date) facts.push({ label: 'Deadline', value: shortDate(project.due_date) });
+    if (project.advance_amount) {
+      facts.push({ label: 'Advance', value: formatCurrency(project.advance_amount) });
+    }
+  }
 
   const pendingChangeCount = (crData?.change_requests ?? []).filter((cr) => cr.status === 'pending').length;
   const latestActivity = activityData?.activity?.[0];
@@ -334,11 +369,7 @@ export default function ProjectDetailScreen() {
                 and every block below carries its own gutter — a hero inset by
                 16pt on each side is a picture of a hero. */}
             <View style={{ marginBottom: -44 }}>
-              <ProjectHero
-                id={project.id}
-                title={project.title}
-                description={project.description}
-              >
+              <ProjectHero id={project.id} title={project.title}>
                 <View
                   style={{
                     position: 'absolute',
@@ -357,7 +388,11 @@ export default function ProjectDetailScreen() {
               </ProjectHero>
             </View>
 
-            <View style={{ paddingHorizontal: t.spacing.screen }}>
+            {/* `gap` here, not margins on each block. The scroller's own gap
+                stops at this wrapper's edge, so without it every card below
+                sat flush against the next one and the screen read as one
+                undivided slab. */}
+            <View style={{ paddingHorizontal: t.spacing.screen, gap: t.spacing.md }}>
             <Card raised style={{ gap: t.spacing.md }}>
               {/* The classified icon again, straddling the hero's lower edge.
                   It is the same mark the list showed, which is what makes a
@@ -370,14 +405,21 @@ export default function ProjectDetailScreen() {
                     borderRadius: 19,
                   }}
                 >
-                  <ProjectIcon title={project.title} description={project.description} size={60} />
+                  <ProjectIcon title={project.title} seed={project.id} size={60} />
                 </View>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: t.spacing.sm }}>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Txt variant="title2">{project.title}</Txt>
+                  {/* The mockup names the other side and says which side they
+                      are, rather than repeating a date the facts row below
+                      already carries. `owner` is always the paying brand and
+                      `counterparty` always the creator — see AGENTS.md. */}
                   <Txt variant="footnote" tone="muted">
-                    With {partner} · started {formatDate(project.created_at)}
+                    <Txt variant="footnote" style={{ color: t.color.brand, fontWeight: '700' }}>
+                      {partner}
+                    </Txt>
+                    {isOwner ? ' · Creator' : ' · Brand'}
                   </Txt>
                 </View>
 
@@ -395,18 +437,60 @@ export default function ProjectDetailScreen() {
                 </Pressable>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: t.spacing.sm, flexWrap: 'wrap' }}>
-                <Badge label={s.label} fg={s.fg} bg={s.bg} />
-                {project.budget ? (
-                  <Badge label={formatCurrency(project.budget)} tone="neutral" />
-                ) : null}
-                <Badge label={`Step ${stageIndex + 1} of ${flow?.stages?.length ?? STAGES.length}`} tone="neutral" />
-              </View>
-
               {project.description ? (
                 <Txt variant="callout" tone="soft">
                   {project.description}
                 </Txt>
+              ) : null}
+
+              {/* The four numbers worth carrying at the top of a project.
+                  This replaced a row of pills that repeated what the screen
+                  already said twice over — the status is the badge on the
+                  hero, and the step is the gauge below. Only facts that
+                  exist are drawn: a "Deadline —" column on a project nobody
+                  set a date for is a blank pretending to be data. */}
+              {facts.length > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'stretch',
+                    marginTop: t.spacing.xs,
+                    paddingTop: t.spacing.md,
+                    borderTopWidth: 1,
+                    borderTopColor: t.color.hairline,
+                  }}
+                >
+                  {facts.map((f, i) => (
+                    <Fragment key={f.label}>
+                      {i > 0 ? (
+                        <View
+                          style={{ width: 1, backgroundColor: t.color.hairline, marginVertical: 2 }}
+                        />
+                      ) : null}
+                      <View style={{ flex: 1, alignItems: 'center', gap: 3, paddingHorizontal: 2 }}>
+                        <Txt
+                          numberOfLines={1}
+                          style={{
+                            fontSize: 14,
+                            fontWeight: '700',
+                            letterSpacing: -0.2,
+                            color: f.tint ?? t.color.content,
+                          }}
+                        >
+                          {f.value}
+                        </Txt>
+                        <Txt
+                          variant="caption"
+                          tone="muted"
+                          numberOfLines={2}
+                          style={{ fontSize: 10.5, lineHeight: 13, textAlign: 'center' }}
+                        >
+                          {f.label}
+                        </Txt>
+                      </View>
+                    </Fragment>
+                  ))}
+                </View>
               ) : null}
             </Card>
 
@@ -481,10 +565,41 @@ export default function ProjectDetailScreen() {
                   stageProgress={project.stage_progress}
                   flow={flowOf(project)}
                   dueDate={project.due_date}
+                  side={isOwner ? 'business' : 'creator'}
+                  partner={partner}
                   onOpenStage={() => router.push(`/projects/${id}/stage/${project.current_stage}`)}
                 />
               </>
             ) : null}
+
+            {/* The whole stage history, from first to last. The blocks above
+                answer "where is this now"; this is the only route to "how did
+                it get here", and it is a screen rather than an expander
+                because twelve stages with their sign-offs is not something to
+                unfold inside another scroller. */}
+            <PressableScale
+              onPress={() => router.push(`/projects/${id}/timeline`)}
+              accessibilityRole="button"
+              accessibilityLabel="View the full project timeline"
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: t.spacing.sm,
+                  borderWidth: 1.5,
+                  borderColor: t.color.brand,
+                  borderRadius: t.radii.md,
+                  paddingVertical: t.spacing.lg,
+                }}
+              >
+                <ListChecks size={18} color={t.color.brand} />
+                <Txt variant="bodyStrong" style={{ color: t.color.brand }}>
+                  View full timeline
+                </Txt>
+              </View>
+            </PressableScale>
 
             {/* Change requests and activity are detail, not the primary task
                 of this screen — a one-line summary each, full UI one tap
@@ -516,34 +631,6 @@ export default function ProjectDetailScreen() {
               />
             </ListGroup>
 
-            {/* The whole stage history, from first to last. The blocks above
-                answer "where is this now"; this is the only route to "how did
-                it get here", and it is a screen rather than an expander
-                because twelve stages with their sign-offs is not something to
-                unfold inside another scroller. */}
-            <PressableScale
-              onPress={() => router.push(`/projects/${id}/timeline`)}
-              accessibilityRole="button"
-              accessibilityLabel="View the full project timeline"
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: t.spacing.sm,
-                  borderWidth: 1.5,
-                  borderColor: t.color.brand,
-                  borderRadius: t.radii.md,
-                  paddingVertical: t.spacing.lg,
-                }}
-              >
-                <ListChecks size={18} color={t.color.brand} />
-                <Txt variant="bodyStrong" style={{ color: t.color.brand }}>
-                  View full timeline
-                </Txt>
-              </View>
-            </PressableScale>
             </View>
           </View>
         ) : null}

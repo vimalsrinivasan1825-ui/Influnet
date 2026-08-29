@@ -18,12 +18,14 @@
  * `/projects/[id]/timeline` is for, one tap away via the button below this.
  */
 import { View } from 'react-native';
-import { Check, Clock } from 'lucide-react-native';
+import { Check, Clock, Sparkles } from 'lucide-react-native';
 import {
   STAGE_GUIDE,
   isMutualSignoffStage,
   isSkippableStage,
+  projectTurn,
   stageSignoffAt,
+  type Side,
   type StageFlow,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
@@ -90,12 +92,17 @@ export function CurrentStageCard({
   stageProgress,
   flow,
   dueDate,
+  side,
+  partner,
   onOpenStage,
 }: {
   currentStage: string;
   stageProgress: Record<string, any> | null | undefined;
   flow: StageFlow;
   dueDate?: string | null;
+  /** Which side the signed-in user is — decides whose move this reads as. */
+  side: Side;
+  partner: string;
   onOpenStage: () => void;
 }) {
   const t = useTheme();
@@ -113,6 +120,17 @@ export function CurrentStageCard({
 
   const brandAt = stageSignoffAt(stageProgress, currentStage, 'business');
   const creatorAt = stageSignoffAt(stageProgress, currentStage, 'creator');
+
+  /**
+   * Whose move it is, and the one thing that side owes.
+   *
+   * The mockup's card here reads "On track — next up is the advance payment".
+   * That phrasing assumes the next stage is always the following array entry,
+   * and it isn't: `sent_for_review` forks and `revisions` goes BACKWARDS (see
+   * AGENTS.md). `projectTurn` answers from ALLOWED_TRANSITIONS and the recorded
+   * sign-offs instead, so the line is right on those stages too.
+   */
+  const turn = projectTurn({ stage: currentStage, side, stageProgress, flow });
 
   return (
     <View style={{ gap: t.spacing.md }}>
@@ -193,6 +211,47 @@ export function CurrentStageCard({
           ) : null}
         </Card>
       </PressableScale>
+
+      {/* One line on what happens next. Worth its own card rather than another
+          line inside the one above: this is the only thing on the screen that
+          is addressed to the reader personally. */}
+      {turn.turn !== 'none' ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: t.spacing.md,
+            backgroundColor: t.color.brandSoft,
+            borderRadius: t.radii.lg,
+            padding: t.spacing.lg,
+          }}
+        >
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: t.color.surfaceCard,
+            }}
+          >
+            {turn.turn === 'you' ? (
+              <Sparkles size={20} color={t.color.brand} strokeWidth={1.8} />
+            ) : (
+              <Clock size={20} color={t.color.brand} strokeWidth={1.8} />
+            )}
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Txt variant="bodyStrong" style={{ fontSize: 15 }}>
+              {turn.turn === 'you' ? 'Your move' : `Waiting on ${partner}`}
+            </Txt>
+            <Txt variant="caption" tone="muted">
+              {turn.action}
+            </Txt>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }

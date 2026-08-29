@@ -27,12 +27,42 @@
  *
  * ── WHEN IT DOESN'T MATCH ─────────────────────────────────────────────
  *
- * `general` is a real answer, not a failure. Plenty of titles ("August
- * collaboration", "Round 2") genuinely have no subject in them, and a folder
- * in neutral slate is the honest way to say so — better than forcing one of
- * the specific icons and telling someone their beauty campaign is about food.
+ * Having no subject in the title is common and legitimate ("August
+ * collaboration", "Jupiter Media Audit — collaboration", "Round 2"), and the
+ * classifier must not invent one: telling someone their media audit is about
+ * food is worse than saying nothing.
+ *
+ * But ONE shared fallback is its own failure — every unmatched project drew the
+ * identical slate folder, so eight generically-titled projects were eight
+ * identical rows, which is exactly the unreadable list the icon exists to
+ * prevent. So the fallback is a neutral GRID: six palettes crossed with six
+ * subject-free glyphs, indexed by a hash of the project's id.
+ *
+ * Six of each rather than one list of six because the two are chosen
+ * INDEPENDENTLY: a single list gives six possible looks and collides constantly
+ * on a list of eight, while crossing them gives 36 and collides rarely. Nothing
+ * in the grid claims a subject — a folder, a briefcase, a crate are all "some
+ * piece of work" — so no fact is asserted that the title didn't support.
+ *
+ * That is the one place a hash is correct here, and the distinction is worth
+ * keeping straight: a MATCHED project's look is meaning (two skincare campaigns
+ * look alike because they are alike); an UNMATCHED project's look is only
+ * identity.
+ *
+ * ── WHY THE DESCRIPTION IS NOT READ ───────────────────────────────────
+ *
+ * It used to be part of the haystack, and it cost a day. Descriptions are long
+ * free text, so their odds of holding a stray keyword are far higher than a
+ * title's, and a wrong match is silent. Every seeded demo project carries
+ * "[home-demo] active work seeded for the Home review." — the word "home" — so
+ * all of them classified as furniture and the whole app went green, on projects
+ * whose titles said "Media Audit" and "delivered campaign".
+ *
+ * A title is what a project is called; a description is prose about it. Only
+ * the first is a name, so only the first is classified.
  */
 
+/** The subjects a title can be recognised as. `general` means "not one of these". */
 export type ProjectCategory =
   | 'video'
   | 'beauty'
@@ -46,8 +76,24 @@ export type ProjectCategory =
   | 'home'
   | 'general';
 
+/**
+ * Which glyph to draw.
+ *
+ * Separate from the category because for a classified project the two are the
+ * same thing, while for an unclassified one the glyph and the colour are picked
+ * independently — see the grid note at the top.
+ */
+export type ProjectGlyph =
+  | ProjectCategory
+  | 'briefcase'
+  | 'clipboard'
+  | 'crate'
+  | 'megaphone'
+  | 'spark';
+
 export interface ProjectLook {
   category: ProjectCategory;
+  glyph: ProjectGlyph;
   /** Soft ground for the roundel. */
   bg: string;
   /** Ink for the glyph, dark enough to read on `bg`. */
@@ -55,6 +101,8 @@ export interface ProjectLook {
   /** The two stops of the generated cover, for the detail hero. */
   cover: [string, string];
 }
+
+type Palette = Pick<ProjectLook, 'bg' | 'fg' | 'cover'>;
 
 /**
  * Keyword → category, in priority order.
@@ -80,13 +128,13 @@ const KEYWORDS: readonly (readonly [ProjectCategory, readonly string[]])[] = [
 ] as const;
 
 /**
- * Palettes per category.
+ * Palettes per recognised category.
  *
  * Each `bg`/`fg` pair clears 4.5:1 — these carry a glyph that has to be
  * identifiable, not merely visible. `cover` is a saturated pair for the detail
  * hero, which carries white artwork instead and wants the opposite contrast.
  */
-const LOOKS: Record<ProjectCategory, Omit<ProjectLook, 'category'>> = {
+const CATEGORY_PALETTE: Record<Exclude<ProjectCategory, 'general'>, Palette> = {
   video: { bg: '#FFE4EC', fg: '#C2185B', cover: ['#C2185B', '#F26E59'] },
   beauty: { bg: '#E8E4FF', fg: '#5B34C7', cover: ['#6D28D9', '#A855F7'] },
   fashion: { bg: '#FFE3D6', fg: '#C2410C', cover: ['#C2410C', '#F97316'] },
@@ -97,18 +145,58 @@ const LOOKS: Record<ProjectCategory, Omit<ProjectLook, 'category'>> = {
   fitness: { bg: '#D6F5EA', fg: '#0F766E', cover: ['#0F766E', '#14B8A6'] },
   jewellery: { bg: '#FFF4D6', fg: '#A16207', cover: ['#A16207', '#EAB308'] },
   home: { bg: '#E2F0D9', fg: '#3F6212', cover: ['#3F6212', '#84CC16'] },
-  general: { bg: '#EDF0F5', fg: '#475569', cover: ['#475569', '#94A3B8'] },
 };
 
 /**
- * Classify a project from its title (and description, when there is one).
+ * The neutral half of the grid: colours that carry no category meaning.
+ *
+ * Deliberately more muted than the category palettes above. On a mixed list
+ * that reads correctly — the projects we actually know something about are the
+ * ones that stand out, and the rest are told apart without shouting.
+ */
+const NEUTRAL_PALETTE: readonly Palette[] = [
+  { bg: '#EDF0F5', fg: '#475569', cover: ['#475569', '#94A3B8'] },
+  { bg: '#E4EEFF', fg: '#3B5BA9', cover: ['#3B5BA9', '#7DA0DC'] },
+  { bg: '#EDE7FB', fg: '#5B4B9C', cover: ['#5B4B9C', '#9585CE'] },
+  { bg: '#E2F1EE', fg: '#3B6F66', cover: ['#3B6F66', '#79AFA5'] },
+  { bg: '#F7E9E4', fg: '#8C5340', cover: ['#8C5340', '#C08B76'] },
+  { bg: '#F1ECE0', fg: '#6B6042', cover: ['#6B6042', '#A99C79'] },
+];
+
+/** The neutral glyphs. Every one means "a piece of work" and nothing narrower. */
+const NEUTRAL_GLYPH: readonly ProjectGlyph[] = [
+  'general', 'briefcase', 'clipboard', 'crate', 'megaphone', 'spark',
+];
+
+/**
+ * FNV-1a. Small, dependency-free, and — the part that matters — STABLE: the
+ * same project id yields the same look on the list, on the project's own
+ * screen, and after a reinstall. A random pick would reshuffle a user's
+ * projects on every render.
+ */
+function hash(seed: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Classify a project from its title.
  *
  * Matching is on whole words rather than substrings. "Reelected" contains
  * "reel" and "Chennai" contains "hen"; a substring match would classify a
  * political campaign as a video shoot and be very hard to explain afterwards.
+ *
+ * `seed` is the project's id. It is used ONLY when the title matches nothing,
+ * to pick this project's cell of the neutral grid — see the note at the top.
+ * Callers should always pass it: without one every unmatched project collapses
+ * onto the same slate folder, which is the behaviour this replaced.
  */
-export function lookForProject(title?: string | null, description?: string | null): ProjectLook {
-  const haystack = ` ${(title ?? '')} ${(description ?? '')} `
+export function lookForProject(title?: string | null, seed?: string | null): ProjectLook {
+  const haystack = ` ${title ?? ''} `
     .toLowerCase()
     // Every non-letter becomes a space, so word boundaries are just spaces and
     // the check below is a plain `includes` on a padded string.
@@ -116,8 +204,18 @@ export function lookForProject(title?: string | null, description?: string | nul
 
   for (const [category, words] of KEYWORDS) {
     if (words.some((w) => haystack.includes(` ${w} `))) {
-      return { category, ...LOOKS[category] };
+      return { category, glyph: category, ...CATEGORY_PALETTE[category as Exclude<ProjectCategory, 'general'>] };
     }
   }
-  return { category: 'general', ...LOOKS.general };
+
+  if (!seed) {
+    return { category: 'general', glyph: 'general', ...NEUTRAL_PALETTE[0] };
+  }
+
+  // Colour and glyph off different parts of the same hash, so they vary
+  // independently and the grid is 36 cells rather than 6.
+  const h = hash(seed);
+  const palette = NEUTRAL_PALETTE[h % NEUTRAL_PALETTE.length];
+  const glyph = NEUTRAL_GLYPH[Math.floor(h / NEUTRAL_PALETTE.length) % NEUTRAL_GLYPH.length];
+  return { category: 'general', glyph, ...palette };
 }

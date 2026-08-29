@@ -2,8 +2,9 @@
  * The face of a project: a roundel in a list, a full cover on its own screen.
  *
  * Both read their icon and colours from `lookForProject`, which classifies a
- * project from its title — see lib/project-icon.ts for why that is a
- * classification and not a hash.
+ * project from its title, falling back to one of several neutral looks chosen
+ * by the project's id — see lib/project-icon.ts for why it works that way, and
+ * why the description is deliberately not part of it.
  *
  * ── THE HERO IS GENERATED, AND WILL STAY THAT WAY ─────────────────────
  *
@@ -22,24 +23,34 @@
 import { View } from 'react-native';
 import { Image } from 'expo-image';
 import {
+  Boxes,
+  Briefcase,
+  ClipboardList,
   Clapperboard,
   Dumbbell,
   FolderKanban,
   Footprints,
   Gem,
+  Megaphone,
   Plane,
   Shirt,
   Smartphone,
   Sofa,
+  Sparkles,
   SprayCan,
   UtensilsCrossed,
   type LucideIcon,
 } from 'lucide-react-native';
-import { lookForProject, type ProjectCategory, type ProjectLook } from '@/lib/project-icon';
+import { lookForProject, type ProjectGlyph, type ProjectLook } from '@/lib/project-icon';
 import { useTheme } from '@/lib/theme';
 import { CoverArt } from '@/components/ui';
 
-const CATEGORY_ICON: Record<ProjectCategory, LucideIcon> = {
+/**
+ * Keyed on the look's `glyph`, not its category: a classified project's glyph
+ * IS its category, while an unclassified one gets a subject-free glyph chosen
+ * separately from its colour. See lib/project-icon.ts.
+ */
+const GLYPH_ICON: Record<ProjectGlyph, LucideIcon> = {
   video: Clapperboard,
   beauty: SprayCan,
   fashion: Shirt,
@@ -50,29 +61,40 @@ const CATEGORY_ICON: Record<ProjectCategory, LucideIcon> = {
   fitness: Dumbbell,
   jewellery: Gem,
   home: Sofa,
+  // The neutral glyphs — each means "a piece of work" and nothing narrower.
   general: FolderKanban,
+  briefcase: Briefcase,
+  clipboard: ClipboardList,
+  crate: Boxes,
+  megaphone: Megaphone,
+  spark: Sparkles,
 };
 
-export function useProjectLook(title?: string | null, description?: string | null): ProjectLook {
-  return lookForProject(title, description);
+export function useProjectLook(title?: string | null, seed?: string | null): ProjectLook {
+  return lookForProject(title, seed);
 }
 
 /** The square badge that fronts a project in a list. */
 export function ProjectIcon({
   title,
-  description,
+  /**
+   * The project's id. Only decides WHICH neutral look an unclassifiable title
+   * gets — see lib/project-icon.ts. Always pass it; omitting it collapses
+   * every unmatched project back onto the one slate folder.
+   */
+  seed,
   size = 56,
   look,
 }: {
   title?: string | null;
-  description?: string | null;
+  seed?: string | null;
   size?: number;
   /** Pass a look already computed by the caller rather than recomputing it. */
   look?: ProjectLook;
 }) {
   const t = useTheme();
-  const resolved = look ?? lookForProject(title, description);
-  const Icon = CATEGORY_ICON[resolved.category];
+  const resolved = look ?? lookForProject(title, seed);
+  const Icon = GLYPH_ICON[resolved.glyph];
 
   return (
     <View
@@ -97,22 +119,21 @@ export function ProjectIcon({
 export function ProjectHero({
   id,
   title,
-  description,
   height = 168,
   imageUrl,
   children,
 }: {
   id: string;
   title?: string | null;
-  description?: string | null;
   height?: number;
   /** Not in the schema yet — see the note at the top. */
   imageUrl?: string | null;
   /** Overlaid chrome, e.g. the status pill. */
   children?: React.ReactNode;
 }) {
-  const look = lookForProject(title, description);
-  const Icon = CATEGORY_ICON[look.category];
+  // The id doubles as the neutral-look seed and as the cover-art seed.
+  const look = lookForProject(title, id);
+  const Icon = GLYPH_ICON[look.glyph];
 
   if (imageUrl) {
     return (

@@ -12,15 +12,14 @@
  *
  * The icon does the work no text can: `campaign_projects` has no image, so
  * without it a list of projects is three lines of grey type repeated. See
- * lib/project-icon.ts — it is classified from what the project says it is,
- * not hashed.
+ * lib/project-icon.ts — it is classified from the title, and where the title
+ * says nothing classifiable the project's id picks one of several neutral
+ * looks so two such projects still differ.
  *
- * That classification reads the title AND the description, and this card has
- * to pass both. It used to pass only the title while the project's own screen
- * passed both, so a project whose subject sits in its description wore a slate
- * folder in the list and its real icon and colour one tap later — the two
- * screens disagreeing about the same project, which is exactly the recognition
- * the icon exists to provide.
+ * Pass BOTH the title and the id. This screen and the project's own screen
+ * have to feed the classifier identically or the same project wears two
+ * different faces one tap apart, which is precisely the recognition the icon
+ * exists to provide.
  *
  * ── DUE DATES ARE A WARNING OR THEY ARE NOTHING ───────────────────────
  *
@@ -41,12 +40,6 @@ import { Badge, Card, PressableScale, ProgressBar, Txt } from '@/components/ui';
 export interface ProjectCardData {
   id: string;
   title: string;
-  /**
-   * Classified alongside the title — see the note above. Optional only
-   * because a project may genuinely have none, never because a caller may
-   * skip passing it.
-   */
-  description?: string | null;
   status: string;
   current_stage: string;
   flow_key?: string | null;
@@ -96,7 +89,7 @@ function startedLabel(iso?: string | null): string | null {
 export function ProjectCard({ data, onPress }: { data: ProjectCardData; onPress: () => void }) {
   const t = useTheme();
 
-  const look = lookForProject(data.title, data.description);
+  const look = lookForProject(data.title, data.id);
   const flow = flowOf({ flow_key: data.flow_key });
   const index = flow.stages.indexOf(data.current_stage);
   // An unknown stage means this build and the database disagree about the
