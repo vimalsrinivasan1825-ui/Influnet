@@ -121,6 +121,28 @@ async function cacheImage(
 }
 
 /**
+ * Download one image into the social-cache bucket under `path`.
+ *
+ * The snapshot pipeline's own `cacheImage` with the admin client resolved
+ * here, exposed for callers outside this module — specifically
+ * lib/portfolio-thumbnail.ts, which caches a single post's picture on demand
+ * when that post is older than the snapshot window. Storing OUR copy is the
+ * whole point: the CDN URLs these come from carry a signed expiry, so keeping
+ * one in the database would give a portfolio card that works today and breaks
+ * silently in a few weeks.
+ *
+ * Returns the storage path, or null if anything at all went wrong.
+ */
+export async function cacheSocialImage(sourceUrl: string, path: string): Promise<string | null> {
+  const admin = serviceClient();
+  if (!admin) {
+    logger.warn('social-snapshot: cacheSocialImage skipped — service role key not configured');
+    return null;
+  }
+  return cacheImage(admin, sourceUrl, path);
+}
+
+/**
  * Persist an Instagram snapshot for a user from an already-fetched profile.
  * Fire-and-forget semantics: logs and returns false on failure, never throws.
  */

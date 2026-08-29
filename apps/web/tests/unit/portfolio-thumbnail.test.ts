@@ -3,18 +3,27 @@
  *
  * The behaviour worth pinning down is not "does it find an image" but the rules
  * around the lookup: only the creator's OWN cached snapshot is readable, only
- * our own bucket path is returned, and nothing here ever reaches the network.
- * That last one is a regression guard with history: a scrape of Instagram's
- * embed page was written, measured against real posts, found to return a
- * client-rendered shell, and removed. If a future change reintroduces a fetch
- * here, this suite fails.
+ * our own bucket path is ever returned, and the network fallback only ever
+ * follows a redirect to a host we recognise.
+ *
+ * This suite used to assert the opposite of that last rule — that nothing here
+ * touched the network at all — because a scrape of Instagram's *embed page* had
+ * been written, measured, found to return a client-rendered shell, and removed.
+ * That guard was aimed at the wrong thing: it forbade all fetching, when what
+ * does not work is parsing that one HTML document. The /media/ endpoint is a
+ * redirect, and it does work (verified 2026-08-29 on real posts, one from
+ * 2023). So the invariant is now about WHERE a redirect may lead, which is the
+ * property that actually keeps this safe.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+const cacheSocialImage = vi.fn(async (_url: string, path: string) => path);
+
 vi.mock('@/lib/social-snapshot', () => ({
   socialCachePublicUrl: (path: string) =>
     `https://project.supabase.co/storage/v1/object/public/social-cache/${path}`,
+  cacheSocialImage: (url: string, path: string) => cacheSocialImage(url, path),
 }));
 
 const { resolveInstagramThumbnail } = await import('@/lib/portfolio-thumbnail');
@@ -41,8 +50,17 @@ function stubSupabase(
   return { from: () => builder } as unknown as SupabaseClient;
 }
 
+/** A 302 whose Location is `location`, as the /media/ endpoint answers. */
+function redirectTo(location: string) {
+  return { status: 302, headers: { get: (h: string) => (h === 'location' ? location : null) } };
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
+  cacheSocialImage.mockClear();
+  // Default: the endpoint finds nothing, so tests that are not about the
+  // fallback keep asserting a null result.
+  fetchMock.mockResolvedValue({ status: 404, headers: { get: () => null } });
   vi.stubGlobal('fetch', fetchMock);
 });
 
@@ -82,34 +100,105 @@ describe('the creator’s own cached snapshot', () => {
     );
   });
 
-  it('returns null for a post that is not in the snapshot', async () => {
+  it('does not reach the network when the snapshot already has the picture', async () => {
+    const supabase = stubSupabase([{ shortcode: 'CxYzAbCdEfG', thumb_path: 'ig/u1/x.jpg' }]);
+
+    await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('the /media/ redirect fallback', () => {
+  it('caches our own copy and returns the bucket URL', async () => {
     const supabase = stubSupabase([{ shortcode: 'SOMETHINGELSE', thumb_path: 'ig/u1/s.jpg' }]);
+    fetchMock.mockResolvedValue(
+      redirectTo('https://instagram.fmaa3-3.fna.fbcdn.net/v/t51/123_n.jpg?oe=DEADBEEF'),
+    );
+
+    const got = await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG');
+
+    // The CDN URL carries a signed expiry, so what is STORED must be ours.
+    expect(cacheSocialImage).toHaveBeenCalledWith(
+      'https://instagram.fmaa3-3.fna.fbcdn.net/v/t51/123_n.jpg?oe=DEADBEEF',
+      'ig/u1/CxYzAbCdEfG.jpg',
+    );
+    expect(got).toBe(
+      'https://project.supabase.co/storage/v1/object/public/social-cache/ig/u1/CxYzAbCdEfG.jpg',
+    );
+  });
+
+  it('runs for a creator who has no snapshot at all', async () => {
+    // The common case for someone who never connected Instagram. This used to
+    // return null before the lookup even started.
+    const supabase = stubSupabase(null, {}, { message: 'no rows' });
+    fetchMock.mockResolvedValue(redirectTo('https://scontent.cdninstagram.com/v/x.jpg'));
+
+    expect(await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG')).toBe(
+      'https://project.supabase.co/storage/v1/object/public/social-cache/ig/u1/CxYzAbCdEfG.jpg',
+    );
+  });
+
+  it('refuses to follow a redirect off Instagram’s CDN', async () => {
+    const supabase = stubSupabase([]);
+
+    for (const evil of [
+      'http://169.254.169.254/latest/meta-data/',
+      'https://attacker.example/x.jpg',
+      'https://fbcdn.net.attacker.example/x.jpg',
+      'http://scontent.cdninstagram.com/x.jpg',
+    ]) {
+      cacheSocialImage.mockClear();
+      fetchMock.mockResolvedValue(redirectTo(evil));
+
+      expect(await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG')).toBeNull();
+      expect(cacheSocialImage).not.toHaveBeenCalled();
+    }
+  });
+
+  it('returns null when the post does not resolve, or the fetch throws', async () => {
+    const supabase = stubSupabase([]);
+
+    fetchMock.mockResolvedValue({ status: 404, headers: { get: () => null } });
+    expect(await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG')).toBeNull();
+
+    // 200 means a page (the login/consent wall), not an image.
+    fetchMock.mockResolvedValue({ status: 200, headers: { get: () => null } });
+    expect(await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG')).toBeNull();
+
+    fetchMock.mockRejectedValue(new Error('timed out'));
     expect(await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG')).toBeNull();
   });
 
-  it('returns null rather than throwing when the snapshot cannot be read', async () => {
-    const supabase = stubSupabase(null, {}, { message: 'relation does not exist' });
+  it('returns null when the image could not be cached', async () => {
+    const supabase = stubSupabase([]);
+    fetchMock.mockResolvedValue(redirectTo('https://scontent.cdninstagram.com/v/x.jpg'));
+    cacheSocialImage.mockResolvedValueOnce(null);
+
     expect(await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG')).toBeNull();
   });
 });
 
 describe('the invariants', () => {
-  it('never makes a network request', async () => {
-    // Instagram's embed endpoint no longer contains the image (see the module
-    // header). Anything that reintroduces a fetch here is a regression.
-    const supabase = stubSupabase([{ shortcode: 'CxYzAbCdEfG', thumb_path: 'ig/u1/x.jpg' }]);
+  it('only ever asks Instagram about a URL it built itself', async () => {
+    const supabase = stubSupabase([]);
 
     await resolveInstagramThumbnail(supabase, 'u1', 'CxYzAbCdEfG');
-    await resolveInstagramThumbnail(supabase, 'u1', 'NOTINSNAPSHOT');
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://www.instagram.com/p/CxYzAbCdEfG/media/?size=l',
+    );
+    // Manual, so the host check below is reachable at all.
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ redirect: 'manual' });
   });
 
-  it('refuses a shortcode the parser would not have produced', async () => {
+  it('refuses a shortcode the parser would not have produced — before any fetch', async () => {
     const supabase = stubSupabase([]);
 
     for (const bad of ['../../etc', 'a', 'code with spaces', 'x'.repeat(40)]) {
       expect(await resolveInstagramThumbnail(supabase, 'u1', bad)).toBeNull();
     }
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
