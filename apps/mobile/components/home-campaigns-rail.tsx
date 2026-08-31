@@ -49,12 +49,17 @@ export interface RailCampaign {
   /** Present on a brand's own list, absent on the public board (all live). */
   status?: string | null;
   business_user?: { id: string; name: string | null } | null;
+  /** On every /api/campaigns row — shown when a campaign states no budget. */
+  follower_min?: number | null;
   /** Not in the schema yet. Wired through so the day it exists this just works. */
   imageUrl?: string | null;
 }
 
-const CARD_WIDTH = 190;
-const COVER_HEIGHT = 108;
+// Wide enough to carry a title, a brand and a meta line without any of them
+// truncating on the first campaign — the old 190 fit a title and little else,
+// which is the "three thin cards" the rail was being read as.
+const CARD_WIDTH = 248;
+const COVER_HEIGHT = 116;
 
 /** Whole days left to apply. Null when there is no deadline or it has passed. */
 function daysLeft(expiresAt?: string | null): number | null {
@@ -219,26 +224,47 @@ export function HomeCampaignsRail({
                 </View>
 
                 <View style={{ padding: t.spacing.md, gap: 3 }}>
-                  <Txt variant="bodyStrong" numberOfLines={2} style={{ fontSize: 15, lineHeight: 20 }}>
-                    {c.title}
-                  </Txt>
                   {/* Only for a creator. A brand does not need its own name
                       printed on every one of its own campaign cards. */}
                   {isCreator && c.business_user?.name ? (
-                    <Txt variant="caption" tone="muted" numberOfLines={1}>
-                      {c.business_user.name}
-                    </Txt>
-                  ) : null}
-                  {/* Only when there is one — see budgetLabel. */}
-                  {budget ? (
                     <Txt
                       variant="caption"
                       numberOfLines={1}
-                      style={{ color: t.color.brand, fontWeight: '700', marginTop: 2 }}
+                      style={{ color: t.color.brand, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, fontSize: 10 }}
                     >
-                      {budget}
+                      {c.business_user.name}
                     </Txt>
                   ) : null}
+
+                  <Txt variant="bodyStrong" numberOfLines={2} style={{ fontSize: 15, lineHeight: 20 }}>
+                    {c.title}
+                  </Txt>
+
+                  {/* One meta line: budget (or a follower floor when there's no
+                      budget line — see budgetLabel), then the non-urgent
+                      days-left. Urgent days-left is on the cover chip already,
+                      so the two never say the same thing twice. */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
+                    {budget ? (
+                      <Txt variant="caption" numberOfLines={1} style={{ color: t.color.brand, fontWeight: '700' }}>
+                        {budget}
+                      </Txt>
+                    ) : c.follower_min && c.follower_min > 0 ? (
+                      <Txt variant="caption" tone="muted" numberOfLines={1}>
+                        {formatCount(c.follower_min)}+ followers
+                      </Txt>
+                    ) : null}
+                    {days != null && days > 14 ? (
+                      <>
+                        {budget || (c.follower_min && c.follower_min > 0) ? (
+                          <Txt variant="caption" tone="muted">·</Txt>
+                        ) : null}
+                        <Txt variant="caption" tone="muted" numberOfLines={1}>
+                          {`${days} days left`}
+                        </Txt>
+                      </>
+                    ) : null}
+                  </View>
                 </View>
               </View>
               </View>
