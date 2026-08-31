@@ -96,10 +96,14 @@ export default function Index() {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
+          gap: spacing.md,
           backgroundColor: palette.surface,
         }}
       >
-        <ActivityIndicator color={palette.contentMuted} />
+        <ActivityIndicator color={palette.verified} />
+        <Txt variant="footnote" tone="muted">
+          {switching ? 'Switching account…' : 'Getting things ready…'}
+        </Txt>
       </View>
     );
   }
