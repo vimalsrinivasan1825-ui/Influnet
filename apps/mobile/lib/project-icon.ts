@@ -200,8 +200,19 @@ function hash(seed: string): number {
  * to pick this project's cell of the neutral grid — see the note at the top.
  * Callers should always pass it: without one every unmatched project collapses
  * onto the same slate folder, which is the behaviour this replaced.
+ *
+ * It is typed `string | number` on purpose: `campaign_projects.id` is a bigint,
+ * so a list response hands it over as a NUMBER while a route param hands over a
+ * string. `hash()` does string work, and on a number it reads `.length` as
+ * undefined, never loops, and returns the FNV offset basis unchanged — the same
+ * constant for every project. That is why an un-normalised list showed one
+ * identical periwinkle megaphone on every row while the detail screen, fed the
+ * string route param, looked fine. Normalise here, once.
  */
-export function lookForProject(title?: string | null, seed?: string | null): ProjectLook {
+export function lookForProject(
+  title?: string | null,
+  seed?: string | number | null,
+): ProjectLook {
   const haystack = ` ${title ?? ''} `
     .toLowerCase()
     // Every non-letter becomes a space, so word boundaries are just spaces and
@@ -214,13 +225,14 @@ export function lookForProject(title?: string | null, seed?: string | null): Pro
     }
   }
 
-  if (!seed) {
+  const key = seed == null ? '' : String(seed);
+  if (!key) {
     return { category: 'general', glyph: 'general', ...NEUTRAL_PALETTE[0] };
   }
 
   // Colour and glyph off different parts of the same hash, so they vary
   // independently and the grid is 36 cells rather than 6.
-  const h = hash(seed);
+  const h = hash(key);
   const palette = NEUTRAL_PALETTE[h % NEUTRAL_PALETTE.length];
   const glyph = NEUTRAL_GLYPH[Math.floor(h / NEUTRAL_PALETTE.length) % NEUTRAL_GLYPH.length];
   return { category: 'general', glyph, ...palette };

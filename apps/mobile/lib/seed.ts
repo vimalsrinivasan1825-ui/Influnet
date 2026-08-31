@@ -13,16 +13,19 @@
  * Shared so that a person's colour is the same everywhere it is derived, and
  * so there is one place to look when asking why something is the colour it is.
  */
-export function hashSeed(seed: string): number {
+export function hashSeed(seed: string | number): number {
+  // A number id (bigint columns arrive as one) has no `.length`, so the loop
+  // below would never run and every caller would get the same constant. Coerce.
+  const s = typeof seed === 'string' ? seed : String(seed ?? '');
   let h = 0x811c9dc5;
-  for (let i = 0; i < seed.length; i += 1) {
-    h ^= seed.charCodeAt(i);
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
     h = Math.imul(h, 0x01000193) >>> 0;
   }
   return h >>> 0;
 }
 
 /** Pick from a palette by seed. Same seed, same entry, forever. */
-export function pickBySeed<T>(palette: readonly T[], seed: string): T {
+export function pickBySeed<T>(palette: readonly T[], seed: string | number): T {
   return palette[hashSeed(seed) % palette.length];
 }
