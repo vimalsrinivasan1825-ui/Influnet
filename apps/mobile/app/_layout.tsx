@@ -181,6 +181,7 @@ export default function RootLayout() {
               <Stack.Screen name="support/index" options={{ title: 'Help & support' }} />
               <Stack.Screen name="support/[id]" options={{ title: 'Conversation' }} />
               <Stack.Screen name="feedback" options={{ title: 'Send feedback' }} />
+              <Stack.Screen name="billing" options={{ title: 'Plan & billing' }} />
             </Stack>
           </ErrorBoundary>
 

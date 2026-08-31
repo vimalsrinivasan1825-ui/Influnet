@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Settings,
   Share2,
+  Sparkles,
   Star,
   Users,
 } from 'lucide-react-native';
@@ -37,6 +38,7 @@ import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
 import { invalidateFetchCache, useFetch } from '@/lib/use-fetch';
 import { formatCount } from '@/lib/format';
+import { useEntitlements } from '@/lib/use-entitlements';
 import { uploadImage } from '@/lib/upload';
 import {
   Avatar,
@@ -129,6 +131,7 @@ export default function ProfileScreen() {
   const { profile, loadProfile } = useSession();
   const myUserId = useSession((s) => s.session?.user.id);
   const { signOut, signingOut } = useSignOutAction();
+  const { entitlements, isPro, enabled: billingEnabled } = useEntitlements();
   const [refreshingSocial, setRefreshingSocial] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
@@ -812,6 +815,23 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/verification')}
               />
             </>
+          ) : null}
+          {billingEnabled ? (
+            <ListRow
+              title={isPro ? 'Influnet Pro' : 'Plan & billing'}
+              subtitle={
+                isPro
+                  ? 'Everything unlocked · manage your plan'
+                  : entitlements
+                    ? 'You’re on Free — see what Pro adds'
+                    : 'View your plan'
+              }
+              left={
+                <Sparkles size={19} color={isPro ? '#C98C13' : t.color.contentSoft} />
+              }
+              style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
+              onPress={() => router.push('/billing' as any)}
+            />
           ) : null}
           <ListRow
             title="My activity"
