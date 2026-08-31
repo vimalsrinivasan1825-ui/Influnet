@@ -1,14 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Bell, Menu, MessageSquare, LogOut, Settings, Search } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Bell, Menu, MessageSquare, Search } from "lucide-react";
 import { useNotificationStore } from "@/store/notification-store";
-import { useAuthStore } from "@/store/auth-store";
-import { Avatar } from "@/components/ui/avatar";
+import { AccountMenu } from "@/components/dashboard/account-menu";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { CreatorProfileOverlay } from "@/components/dashboard/creator-profile-overlay";
 import { cn } from "@/lib/utils";
@@ -30,7 +27,6 @@ export default function DashboardHeader({
 }: DashboardHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [previewUsername, setPreviewUsername] = useState<string | null>(null);
-  const router = useRouter();
   const {
     summary,
     notifications,
@@ -38,21 +34,9 @@ export default function DashboardHeader({
     setNotifications,
     markAsRead,
   } = useNotificationStore();
-  const logout = useAuthStore((s) => s.logout);
-  const [openPanel, setOpenPanel] = useState<"notif" | "user" | null>(null);
+  const [openPanel, setOpenPanel] = useState<"notif" | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
-  const userRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
-
-  const handleLogout = async () => {
-    try {
-      await createClient().auth.signOut();
-    } catch {
-      /* fall through — clear local state regardless */
-    }
-    logout();
-    router.push("/login");
-  };
 
   // The search affordance has always shown a "/" hint — wire it up. Ignored
   // while typing in a field so it never swallows a real slash.
@@ -86,10 +70,7 @@ export default function DashboardHeader({
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (
-        !notifRef.current?.contains(t) &&
-        !userRef.current?.contains(t)
-      ) {
+      if (!notifRef.current?.contains(t)) {
         setOpenPanel(null);
       }
       if (!searchRef.current?.contains(t)) {
@@ -240,45 +221,8 @@ export default function DashboardHeader({
           )}
         </div>
 
-        {/* User menu */}
-        <div className="relative ml-1 pl-2" ref={userRef}>
-          <button
-            onClick={() => setOpenPanel(openPanel === "user" ? null : "user")}
-            className="flex items-center gap-2 rounded-full p-0.5 transition-colors hover:bg-surface-muted"
-            aria-label="Account menu"
-          >
-            <Avatar name={userName} src={avatarUrl} size="sm" />
-          </button>
-
-          {openPanel === "user" && (
-            <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)]">
-              <div className="flex items-center gap-3 border-b border-hairline px-4 py-3">
-                <Avatar name={userName} src={avatarUrl} size="md" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-content">{userName}</p>
-                  <p className="text-xs text-content-muted">Signed in</p>
-                </div>
-              </div>
-              <div className="p-1.5">
-                <Link
-                  href="/dashboard/settings"
-                  onClick={() => setOpenPanel(null)}
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-content-soft transition-colors hover:bg-surface-muted hover:text-content"
-                >
-                  <Settings className="size-4" />
-                  Settings
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger-soft"
-                >
-                  <LogOut className="size-4" />
-                  Log out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Account menu — identity, multi-account switcher, settings, sign out */}
+        <AccountMenu userName={userName} avatarUrl={avatarUrl} role={role} />
       </div>
     </header>
 
