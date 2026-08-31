@@ -27,6 +27,7 @@ export interface MeProfile {
   name: string;
   phone: string | null;
   location: string | null;
+  nudges_opt_out?: boolean;
   verification_status?: string;
   verified_badge?: boolean;
   // creator

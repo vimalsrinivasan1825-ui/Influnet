@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Alert, Linking, Platform, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Linking, Platform, Switch, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
@@ -45,6 +45,21 @@ export default function SettingsScreen() {
   const { signOut, signingOut } = useSignOutAction();
   const deleteSheet = useRef<SheetRef>(null);
   const [testingPush, setTestingPush] = useState(false);
+  // Re-engagement nudges opt-out (migration 142). Optimistic — the Switch
+  // shows the new state immediately and reconciles if the PATCH fails.
+  const [nudgesOff, setNudgesOff] = useState<boolean>(Boolean(profile?.nudges_opt_out));
+  useEffect(() => {
+    setNudgesOff(Boolean(profile?.nudges_opt_out));
+  }, [profile]);
+
+  async function toggleNudges(next: boolean) {
+    setNudgesOff(next);
+    const res = await endpoints.updateProfile({ nudges_opt_out: next });
+    if (!res.ok) {
+      setNudgesOff(!next);
+      Alert.alert('Could not save', res.error ?? 'Please try again.');
+    }
+  }
 
   const showDiagnostics =
     Boolean(profile?.email) && DEVELOPER_EMAILS.includes(String(profile?.email).toLowerCase());
@@ -158,6 +173,25 @@ export default function SettingsScreen() {
             subtitle="An idea, something confusing, or something we got right"
             left={<MessageSquareHeart size={19} color={t.color.contentSoft} />}
             onPress={() => router.push('/feedback')}
+          />
+        </ListGroup>
+
+        <SectionLabel>Notifications</SectionLabel>
+        <ListGroup>
+          <ListRow
+            title="Reminders when you're away"
+            subtitle="Unread messages, projects waiting on you, new campaigns"
+            left={<Bell size={19} color={t.color.contentSoft} />}
+            right={
+              <Switch
+                value={!nudgesOff}
+                onValueChange={(on) => toggleNudges(!on)}
+                trackColor={{ true: t.color.brand, false: t.color.hairlineStrong }}
+                thumbColor={t.color.white}
+                style={{ transform: [{ scale: 0.85 }] }}
+                accessibilityLabel="Reminders when you're away"
+              />
+            }
           />
         </ListGroup>
 

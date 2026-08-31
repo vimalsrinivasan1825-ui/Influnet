@@ -29,6 +29,7 @@ export async function GET(req: Request) {
       updated_at: p.updated_at,
       creating_since: p.creating_since ?? null,
       gst_number: p.gst_number ?? null,
+      nudges_opt_out: p.nudges_opt_out ?? false,
       verification_status: p.verification_status ?? 'unverified',
       verified_badge: p.verified_badge ?? false,
       verified_at: p.verified_at ?? null,
@@ -156,7 +157,7 @@ export async function PATCH(req: Request) {
     }
 
     // Base profile fields come from the validated payload only
-    const { name, phone, location, creating_since } = validatedData;
+    const { name, phone, location, creating_since, nudges_opt_out } = validatedData;
     // gst_number is base-profile only for a CREATOR (profiles.gst_number,
     // migration 135). A business's gst_number lives on business_profiles and
     // goes through the business branch below via BusinessProfileUpdateSchema —
@@ -170,6 +171,7 @@ export async function PATCH(req: Request) {
     if (location !== undefined) profileUpdates.location = location;
     if (creating_since !== undefined) profileUpdates.creating_since = creating_since;
     if (creator_gst_number !== undefined) profileUpdates.gst_number = creator_gst_number;
+    if (nudges_opt_out !== undefined) profileUpdates.nudges_opt_out = nudges_opt_out;
 
     if (Object.keys(profileUpdates).length > 0) {
       profileUpdates.updated_at = new Date().toISOString();
@@ -186,6 +188,7 @@ export async function PATCH(req: Request) {
     delete validatedData.phone;
     delete validatedData.location;
     delete validatedData.creating_since;
+    delete validatedData.nudges_opt_out;
     // Only for a creator — a business's gst_number is a DIFFERENT field on
     // business_profiles and must stay in validatedData for that branch below.
     if (role === 'influencer') delete validatedData.gst_number;

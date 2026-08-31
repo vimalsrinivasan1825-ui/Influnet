@@ -8,6 +8,7 @@ import { sanitizePhoneInput } from "@influnet/core";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
+import { Switch } from "@/components/ui/switch";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
@@ -215,6 +216,7 @@ export default function SettingsPage() {
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [nudgesOptOut, setNudgesOptOut] = useState(false);
   const [bio, setBio] = useState("");
   const [headline, setHeadline] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -250,6 +252,7 @@ export default function SettingsPage() {
         setContactName((p as any).contact_name || "");
         setContactPhone((p as any).contact_phone || "");
         setContactEmail((p as any).contact_email || "");
+        setNudgesOptOut(Boolean((p as any).nudges_opt_out));
         setBio(p.bio || "");
         setUsername(p.username || "");
         setHeadline(p.headline || "");
@@ -277,7 +280,7 @@ export default function SettingsPage() {
     setSuccess("");
     setError("");
     try {
-      const payload: Record<string, unknown> = { name, phone, location };
+      const payload: Record<string, unknown> = { name, phone, location, nudges_opt_out: nudgesOptOut };
       if (profile?.role === "business_owner") {
         payload.company_name = companyName;
         payload.industry = industry;
@@ -617,6 +620,23 @@ export default function SettingsPage() {
           </div>
         </SectionCard>
       )}
+
+      <SectionCard title="Notifications">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-content">Reminders when you&apos;re away</p>
+            <p className="text-xs text-content-muted">
+              Unread messages, projects waiting on you, and new campaigns since your
+              last visit — in-app and on your phone. Never email.
+            </p>
+          </div>
+          <Switch
+            checked={!nudgesOptOut}
+            onCheckedChange={(on) => setNudgesOptOut(!on)}
+            label="Reminders when you're away"
+          />
+        </div>
+      </SectionCard>
 
       <div className="flex justify-end">
         <Button variant="brand" size="xl" onClick={handleSave} disabled={saving}>

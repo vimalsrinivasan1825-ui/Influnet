@@ -183,8 +183,32 @@ export async function withAuth(
       return { ok: false, res: jsonError(403, `Forbidden: Requires ${opts.role} role`) };
     }
 
+    // Keep `profiles.last_active_at` roughly current for the re-engagement
+    // nudge job (migration 142). Fire-and-forget and throttled in-process to
+    // once/hour/user, so an active session doesn't write on every request; the
+    // RPC itself also no-ops if the column was touched in the last 30 min.
+    touchLastActive(supabase, user.id);
+
     return { ok: true, supabase, user, role: userRole };
   } catch (error) {
     return { ok: false, res: jsonError(500, 'Internal server error', error) };
   }
+}
+
+// ── last_active_at bump (re-engagement nudges, migration 142) ────────────────
+const lastActiveTouchedAt = new Map<string, number>();
+const TOUCH_THROTTLE_MS = 60 * 60 * 1000;
+
+function touchLastActive(supabase: SupabaseClient, userId: string): void {
+  const now = Date.now();
+  const prev = lastActiveTouchedAt.get(userId) ?? 0;
+  if (now - prev < TOUCH_THROTTLE_MS) return;
+  lastActiveTouchedAt.set(userId, now);
+  if (lastActiveTouchedAt.size > 5000) lastActiveTouchedAt.clear();
+  // Fire-and-forget: never blocks or fails a request. A missing RPC (migration
+  // not applied here yet) is swallowed like any other error.
+  void (supabase.rpc as any)('touch_last_active').then(
+    () => {},
+    () => {},
+  );
 }

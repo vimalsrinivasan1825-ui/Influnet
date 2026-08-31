@@ -235,6 +235,8 @@ export const ProfileUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   phone: PhoneSchema,
   location: z.string().optional(),
+  /** Turn off "you've been away" re-engagement nudges (migration 142). */
+  nudges_opt_out: z.boolean().optional(),
   bio: z.string().max(2000).optional(),
   niche: z.array(z.string()).optional(),
   username: UsernameSchema.optional(),
@@ -292,6 +294,8 @@ export const BusinessProfileUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   phone: PhoneSchema,
   location: z.string().optional(),
+  /** Turn off "you've been away" re-engagement nudges (migration 142). */
+  nudges_opt_out: z.boolean().optional(),
   username: UsernameSchema.optional(),
   company_name: z.string().min(1).optional(),
   industry: z.string().optional(),
