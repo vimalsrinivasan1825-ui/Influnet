@@ -444,6 +444,28 @@ Commits:
 
 ---
 
+## 11b. Progress (updated as commits land)
+
+- [x] `docs(product)` — this plan
+- [x] `feat(mobile): entitlements client` — use-entitlements store + endpoints
+- [x] `feat(mobile): Pro upgrade` — /checkout/pro host page + billing screen +
+      in-app Razorpay via openAuthSessionAsync + profile "Plan & billing" row
+- [x] `feat(billing): project-conversion confirmation card` (§1) — web toast +
+      mobile pop card, owner-only
+- [x] `feat(db): billing_settings — remaining ceilings (migration 138)` — all
+      7 columns + get_entitlements rewrite + core types + conversation_pins /
+      business_contact_reveals tables
+- [x] `feat(billing): portfolio cap — Free 5 / Pro 24 (migration 139)` (§6)
+- [x] `feat(billing): pin conversations — Free 3 (migration 140)` (§3)
+- [ ] who-viewed-your-profile list — Free 5 (§5)
+- [ ] invoices — 10/month (§7)
+- [ ] business contact reveal — 5 (§2)
+- [ ] multi-account (scope A) — Pro (§4)
+- [ ] peer collab requests — 10/month (§8)
+- [ ] re-engagement nudge scheduler (§10)
+- [ ] web sidebar Free/Pro chip — ALREADY EXISTS (sidebar.tsx FooterLink), no
+      work needed
+
 ## 11. Recommended commit order
 
 Phase 1 — spine & visibility (unblocks everything, low risk):
