@@ -17,6 +17,7 @@ import { logger } from './logger';
 import { disconnectStream } from './stream';
 import { clearPushToken } from './push';
 import { stopNotificationSummary } from './notification-summary';
+import { resetEntitlements } from './use-entitlements';
 import { stopRealtime } from './realtime';
 
 export interface MeProfile {
@@ -186,6 +187,7 @@ export const useSession = create<SessionState>((set, get) => ({
         // The screen cache is keyed by screen, not by user, so leaving it
         // populated would paint the previous account's data to the next one.
         clearFetchCache();
+        resetEntitlements();
         set({ session: null, profile: null });
         signOutInFlight = null;
       }

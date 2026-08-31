@@ -94,6 +94,22 @@ export function createEndpoints(api: ApiClient) {
     updateApplicationStatus: <T = unknown>(campaignId: string, appId: string, body: unknown) =>
       api.patch<T>(`/api/campaigns/${campaignId}/applications/${appId}`, body),
 
+    // ── Billing & entitlements ────────────────────────────────────
+    /**
+     * The caller's own plan, resolved at runtime. Returns the entitlement
+     * object at the TOP LEVEL (not wrapped) — see the route. This is also how
+     * the client learns whether paid plans exist at all in this deployment
+     * (`subscriptionsEnabled`).
+     */
+    getEntitlements: <T = unknown>() => api.get<T>('/api/billing/entitlements'),
+    /**
+     * Opens a Pro purchase. Server decides the amount and currency from
+     * `billing_settings`; the client sends nothing. Returns the Razorpay order
+     * the checkout sheet needs. Never grants anything — the tier changes only
+     * when the signed webhook confirms the capture.
+     */
+    startProCheckout: <T = unknown>() => api.post<T>('/api/billing/checkout'),
+
     // ── Saved items (favourites) ──────────────────────────────────
     listSavedItems: <T = unknown>() => api.get<T>('/api/saved-items'),
     saveItem: <T = unknown>(kind: 'creator' | 'campaign', targetId: string) =>
