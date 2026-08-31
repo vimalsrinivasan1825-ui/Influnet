@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Search, Users } from "lucide-react";
+import { toast } from "sonner";
+import { AlertTriangle, Loader2, Search, Trash2, Users } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,9 @@ interface PlatformUser {
   approval_status?: string;
   username?: string;
   niche?: string[];
+  /** True for an auth user with no profiles row — a stalled signup. */
+  orphaned?: boolean;
+  email_confirmed?: boolean;
 }
 
 /**
@@ -56,23 +60,49 @@ const roleMeta = (role: string) => {
 export default function AdminUsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<PlatformUser[]>([]);
+  const [orphans, setOrphans] = useState<PlatformUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const res = await apiFetch<{ users: PlatformUser[]; orphans?: PlatformUser[] }>("/api/admin/users");
+      if (!res.ok || !res.data) throw new Error(res.error || "Failed to fetch users");
+      setUsers(res.data.users || []);
+      setOrphans(res.data.orphans || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch users");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await apiFetch<{ users: PlatformUser[] }>("/api/admin/users");
-        if (!res.ok || !res.data) throw new Error(res.error || "Failed to fetch users");
-        setUsers(res.data.users || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch users");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    void load();
   }, []);
+
+  async function deleteUser(u: PlatformUser) {
+    const label = u.email || u.name || u.id;
+    if (
+      !window.confirm(
+        `Permanently delete ${label}?\n\nThis removes the account and everything it owns — projects, requests, messages, portfolio. Documents they issued are kept but un-linked. This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setDeleting(u.id);
+    const res = await apiFetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+    setDeleting(null);
+    if (!res.ok) {
+      toast.error(res.error || "Could not delete this user.");
+      return;
+    }
+    toast.success(`Deleted ${label}`);
+    setUsers((prev) => prev.filter((x) => x.id !== u.id));
+    setOrphans((prev) => prev.filter((x) => x.id !== u.id));
+  }
 
   const filtered = users.filter(
     (u) =>
@@ -87,7 +117,7 @@ export default function AdminUsersPage() {
       <PageHeader
         eyebrow="User management"
         title="All users"
-        subtitle={`${users.length} total platform users`}
+        subtitle={`${users.length} platform users${orphans.length ? ` · ${orphans.length} incomplete signup${orphans.length === 1 ? "" : "s"}` : ""}`}
         icon={<Users />}
         actions={
           <InputGroup icon={<Search />} className="w-full sm:w-64">
@@ -131,6 +161,7 @@ export default function AdminUsersPage() {
                 <th className="hidden md:table-cell">Location</th>
                 <th className="hidden sm:table-cell">Joined</th>
                 <th>Last seen</th>
+                <th className="w-10" />
               </tr>
             </THead>
             <TBody>
@@ -194,9 +225,88 @@ export default function AdminUsersPage() {
                         <span className="text-content-muted">Never</span>
                       )}
                     </td>
+                    <td>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${u.name || u.email}`}
+                        disabled={deleting === u.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void deleteUser(u);
+                        }}
+                        className="rounded-lg p-1.5 text-content-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50"
+                      >
+                        {deleting === u.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                      </button>
+                    </td>
                   </TRow>
                 );
               })}
+            </TBody>
+          </Table>
+        </Card>
+      )}
+
+      {/* Stalled signups — an auth user with no profile. Almost always safe to
+          delete; nothing depends on them. */}
+      {!loading && orphans.length > 0 && (
+        <Card className="overflow-hidden border-warn/30">
+          <div className="flex items-center gap-2 border-b border-hairline bg-warn-soft px-5 py-3 text-sm font-bold text-warn">
+            <AlertTriangle className="size-4" />
+            Incomplete signups ({orphans.length})
+            <span className="font-medium text-content-muted">
+              — auth account created, profile never finished
+            </span>
+          </div>
+          <Table>
+            <THead>
+              <tr>
+                <th>Email</th>
+                <th className="hidden sm:table-cell">Intended role</th>
+                <th className="hidden md:table-cell">Created</th>
+                <th>Email confirmed</th>
+                <th className="w-10" />
+              </tr>
+            </THead>
+            <TBody>
+              {orphans.map((u) => (
+                <TRow key={u.id}>
+                  <td>
+                    <div className="text-sm font-semibold text-content">{u.email}</div>
+                    {u.username && (
+                      <div className="text-xs text-content-muted">wanted @{u.username}</div>
+                    )}
+                  </td>
+                  <td className="hidden text-sm text-content-soft sm:table-cell">
+                    {u.role === "unknown" ? "—" : roleMeta(u.role).label}
+                  </td>
+                  <td className="hidden text-sm text-content-soft md:table-cell">
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
+                  </td>
+                  <td className="text-sm text-content-soft">
+                    {u.email_confirmed ? "Yes" : "No"}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${u.email}`}
+                      disabled={deleting === u.id}
+                      onClick={() => void deleteUser(u)}
+                      className="rounded-lg p-1.5 text-content-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50"
+                    >
+                      {deleting === u.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-4" />
+                      )}
+                    </button>
+                  </td>
+                </TRow>
+              ))}
             </TBody>
           </Table>
         </Card>

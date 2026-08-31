@@ -9,19 +9,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowLeft,
   BadgeCheck,
   Calendar,
   History,
+  Loader2,
   Mail,
   MapPin,
   Phone,
+  Trash2,
   Users,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -117,6 +121,7 @@ const STAGE_LABELS: Record<string, string> = {
 
 export default function AdminUserDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
 
   const [user, setUser] = useState<UserDetail | null>(null);
@@ -125,6 +130,28 @@ export default function AdminUserDetailPage() {
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function deleteUser() {
+    if (!user) return;
+    const label = user.email || user.name || id;
+    if (
+      !window.confirm(
+        `Permanently delete ${label}?\n\nRemoves the account and everything it owns — projects, requests, messages, portfolio. Documents they issued are kept but un-linked. This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    const res = await apiFetch(`/api/admin/users/${id}`, { method: "DELETE" });
+    setDeleting(false);
+    if (!res.ok) {
+      toast.error(res.error || "Could not delete this user.");
+      return;
+    }
+    toast.success(`Deleted ${label}`);
+    router.push("/dashboard/admin/users");
+  }
 
   useEffect(() => {
     (async () => {
@@ -234,6 +261,12 @@ export default function AdminUserDetailPage() {
               </div>
             </div>
           </div>
+          {user.role !== "admin" && (
+            <Button variant="destructive" size="sm" onClick={deleteUser} disabled={deleting}>
+              {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              Delete user
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-hairline pt-4 text-sm sm:grid-cols-4">
