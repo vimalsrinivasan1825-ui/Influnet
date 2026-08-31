@@ -5,9 +5,15 @@ asks that came with them — **make the Free plan visible** (especially on mobil
 and **build real re-engagement notifications** ("you haven't opened the app in
 days", "3 new campaigns since you were here").
 
-This document is analysis + a commit-by-commit build order. Nothing here is
-committed yet. Open product questions are collected in the last section — those
-block the features they touch, not the whole plan.
+This document is analysis + a commit-by-commit build order.
+
+> **STATUS 2026-08-31 (end of session).** All work below is committed to `dev`
+> locally. The founder pushed an early batch (CI caught 3 failures — 2
+> pre-existing, 1 from this branch's eslint; all fixed in `fix(ci): green up
+> the dev checks` + `migration 143`). Nothing else pushed. Migrations
+> **138–143** apply on the next deploy. See §11b for the per-item checklist and
+> §14 for the same-day scope additions (account switcher, WebView profile,
+> open-in-app banner, slow-launch splash).
 
 ---
 
@@ -567,3 +573,56 @@ numbered 138+ in this order. **Nothing pushed** — founder reviews, then pushes
 | 9 | Mobile checkout: **Razorpay in-app** now, or **"manage on web" deep-link** for v1? | Deep-link v1 |
 | 10 | Nudge cadence day-3 / day-7 acceptable? Opt-out on by default? | As written, opt-out available |
 | — | Rollout: keep new limits **dev-only** like 115–131, or push the whole chain to staging as part of this? | Dev-only, founder rolls staging |
+
+---
+
+## 14. Same-day scope additions (2026-08-31)
+
+The founder re-prioritised mid-session. These supersede/extend the plan above.
+
+### Multi-account — REDEFINED & DONE
+Not social handles — an **Influnet account switcher on the device**. Add account
+→ sign in / sign up (**Pro-gated**) → second account added → switch freely.
+**Sign out removes the account** (no tap-to-relogin entry). No backend change.
+Files: `apps/mobile/lib/accounts.ts`, `lib/session.ts` (`switchAccount`,
+sign-out-removes), `components/account-switcher.tsx`, profile "Switch account"
+row, `(auth)/login?add=1`.
+
+### Web public profile in a WebView — DONE (creator only)
+`apps/mobile/app/creator/[username]` now embeds the real `/<username>?app=1`
+web page in a `react-native-webview` (native header + action footer stay
+native). Web `CreatorProfileViewComponent` gained an `embedded` prop.
+**Business profiles stayed native** — private, needs a session bridge
+(short-lived exchange token → web route sets the cookie). Follow-up.
+⚠️ `react-native-webview` is a new native dep — run `npx expo install
+react-native-webview` and do a fresh EAS build.
+
+### "Open in app / continue on web" banner — DONE
+`components/open-in-app-banner.tsx` in the web root layout. Mobile-UA + not
+inside the app's own WebView + once, dismissible (localStorage). "Open app"
+tries `influnet://`, falls back to `NEXT_PUBLIC_IOS_APP_URL` /
+`NEXT_PUBLIC_ANDROID_APP_URL` when set (not set yet — app isn't publicly
+listed).
+
+### Slow cold-start splash — DONE
+`BrandSplash` shows a "Getting things ready…" row (pulsing dots + breathing
+mark) once it's been up 2.4s and the app still isn't ready. A fast launch
+never sees it. `app/index.tsx` fallback spinner got a matching label.
+
+### Pre-existing bug fixed in passing
+`migration 143` — `respond_to_proposal` inserted NULL into
+`campaign_projects.deliverables` (NOT NULL) when a proposal had no
+deliverables. Broke accept-terms and the matchmaking E2E test. Bug since
+migration 121.
+
+## 15. What's still open
+
+| Item | Status |
+|---|---|
+| **Business profile in a WebView** | needs the auth session-bridge (exchange token → cookie). Not built. |
+| **Native Razorpay sheet on mobile** | current flow is the in-app browser session against `/checkout/pro`. Works; a fully native sheet needs `react-native-razorpay` (another native dep). |
+| **Roll migrations 138–143 to staging** | founder step. Dev applies them on the next deploy. |
+| **Enable the nudge scheduler** | founder step — `CRON_SECRET` env var + `NUDGE_ENDPOINT`/`CRON_SECRET` Actions secrets. See `docs/operations/REENGAGEMENT_NUDGES.md`. |
+| **`npx expo install react-native-webview` + EAS build** | founder step, before the WebView profile works on devices. |
+| **`NEXT_PUBLIC_IOS_APP_URL` / `NEXT_PUBLIC_ANDROID_APP_URL`** | set once the app is on the stores, so "Open app" has a fallback. |
+| **Bump `LAST_COMMIT_TIME`** in mobile `settings.tsx` | on the shipping commit, per the release-stamp checklist. |
