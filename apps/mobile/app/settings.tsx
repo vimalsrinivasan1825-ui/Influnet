@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Platform, Switch, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import {
   Bell,
+  CirclePlay,
   LifeBuoy,
   LogOut,
   Mail,
   MessageSquareHeart,
   PlayCircle,
+  RotateCcw,
   ShieldOff,
   Trash2,
 } from 'lucide-react-native';
+import { useGuides } from '@/components/guides/use-guides';
 import { useTheme } from '@/lib/theme';
 import { LAST_COMMIT_TIME } from '@/lib/build-info';
 import { useSession, useSignOutAction } from '@/lib/session';
@@ -41,6 +44,8 @@ const DEVELOPER_EMAILS = [
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
+  const resetGuides = useGuides((s) => s.resetSeen);
+  const guidesSeen = useGuides((s) => s.seen.length);
   const { profile } = useSession();
   const { signOut, signingOut } = useSignOutAction();
   const deleteSheet = useRef<SheetRef>(null);
@@ -162,6 +167,25 @@ export default function SettingsScreen() {
 
         <SectionLabel>Help</SectionLabel>
         <ListGroup>
+          <ListRow
+            title="How things work"
+            subtitle="Every short walkthrough, in one place"
+            left={<CirclePlay size={19} color={t.color.brand} />}
+            onPress={() => router.push('/guides' as Href)}
+          />
+          <ListRow
+            title="Replay product guides"
+            subtitle={
+              guidesSeen > 0
+                ? `${guidesSeen} watched — auto-play them all again`
+                : 'Auto-play a section’s guide the first time you open it'
+            }
+            left={<RotateCcw size={19} color={t.color.contentSoft} />}
+            onPress={() => {
+              resetGuides();
+              Alert.alert('Guides reset', 'Each section’s walkthrough will play once again next time you open it.');
+            }}
+          />
           <ListRow
             title="Help & support"
             subtitle="Ask us anything — a real person reads every request"

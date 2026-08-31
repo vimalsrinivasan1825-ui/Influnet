@@ -5,6 +5,7 @@ import { Bell, Search } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Txt } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
+import { GuideLauncherButton } from '@/components/guides/guide-launcher';
 
 /** Large-title header with the notification bell. Used on tab roots. */
 export function AppHeader({
@@ -87,6 +88,8 @@ export function AppHeader({
           <Search size={22} color={t.color.contentSoft} />
         </Pressable>
       ) : null}
+
+      <GuideLauncherButton />
 
       {showBell ? (
         <Pressable

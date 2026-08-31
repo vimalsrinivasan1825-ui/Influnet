@@ -33,6 +33,7 @@ import { Bell, Search } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Txt } from '@/components/ui';
 import { Appear } from '@/components/ui/motion';
+import { GuideLauncherButton } from '@/components/guides/guide-launcher';
 
 export type HomeMood = 'first-run' | 'waiting' | 'active' | 'clear';
 
@@ -121,6 +122,8 @@ export function HomeHeader({
           ) : null}
           👋
         </Txt>
+
+        <GuideLauncherButton />
 
         <Pressable
           onPress={() => router.push('/search')}

@@ -14,6 +14,7 @@ import { BrandSplash } from '@/components/brand/splash';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppUpdateBanner } from '@/components/app-update-banner';
 import { NotificationToastHost } from '@/components/notification-toast-host';
+import { GuideRoot } from '@/components/guides/guide-root';
 import { identify, installGlobalErrorHandler, resetIdentity } from '@/lib/analytics';
 
 // Hold the native splash so the OS screen hands straight over to the animated
@@ -161,6 +162,7 @@ export default function RootLayout() {
               <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
               <Stack.Screen name="verification" options={{ title: 'Verify Instagram' }} />
               <Stack.Screen name="verification-guide" options={{ title: 'How to verify' }} />
+              <Stack.Screen name="guides" options={{ title: 'How things work' }} />
               <Stack.Screen name="search" options={{ title: 'Search' }} />
               <Stack.Screen name="creator/[username]" options={{ headerShown: false }} />
               <Stack.Screen name="business/[username]" options={{ title: '' }} />
@@ -201,6 +203,10 @@ export default function RootLayout() {
               sits on top; harmless while signed out — the queue only fills from
               the Realtime channel, which needs a session. */}
           <NotificationToastHost />
+
+          {/* Contextual guide auto-run + the guide modal. No-ops while signed
+              out or for admins. */}
+          <GuideRoot />
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
