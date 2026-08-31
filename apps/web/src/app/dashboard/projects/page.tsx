@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { PlanNudge } from "@/components/dashboard/plan-nudge";
+import { ProjectIcon } from "@/components/dashboard/project-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedTabs } from "@/components/ui/tabs";
 import { Reveal } from "@/components/ui/motion";
@@ -276,32 +277,38 @@ export default function ProjectsPage() {
                   )}
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
-                          {isOwner ? "Client portal" : "Creator portal"}
-                        </span>
-                        <span className="text-content-muted">·</span>
-                        <span className="text-sm font-semibold text-content-soft">
-                          With {counterparty?.name || "Partner"} (
-                          {counterparty?.role === "influencer" ? "Creator" : "Brand"})
-                        </span>                              {!isCompleted && !isCancelled && myTurn && (
-                          <>
-                            <span className="text-content-muted">·</span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-brand-strong">
-                              Your turn
-                            </span>
-                          </>
+                    <div className="flex min-w-0 gap-3.5">
+                      {/* Classified from the title — see components/dashboard/project-icon.
+                          Without it every project row is the same three lines of grey. */}
+                      <ProjectIcon title={p.title} seed={p.id} size={44} className="mt-0.5" />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
+                            {isOwner ? "Client portal" : "Creator portal"}
+                          </span>
+                          <span className="text-content-muted">·</span>
+                          <span className="text-sm font-semibold text-content-soft">
+                            With {counterparty?.name || "Partner"} (
+                            {counterparty?.role === "influencer" ? "Creator" : "Brand"})
+                          </span>
+                          {!isCompleted && !isCancelled && myTurn && (
+                            <>
+                              <span className="text-content-muted">·</span>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-brand-strong">
+                                Your turn
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <h3 className="mt-1.5 text-lg font-extrabold tracking-tight text-content">
+                          {p.title}
+                        </h3>
+                        {p.description && (
+                          <p className="mt-1.5 text-sm leading-relaxed text-content-soft">
+                            {p.description}
+                          </p>
                         )}
                       </div>
-                      <h3 className="mt-1.5 text-lg font-extrabold tracking-tight text-content">
-                        {p.title}
-                      </h3>
-                      {p.description && (
-                        <p className="mt-1.5 text-sm leading-relaxed text-content-soft">
-                          {p.description}
-                        </p>
-                      )}
                     </div>
 
                     <div className="flex shrink-0 items-center gap-4">

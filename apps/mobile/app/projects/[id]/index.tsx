@@ -393,21 +393,14 @@ export default function ProjectDetailScreen() {
                 sat flush against the next one and the screen read as one
                 undivided slab. */}
             <View style={{ paddingHorizontal: t.spacing.screen, gap: t.spacing.md }}>
-            <Card raised style={{ gap: t.spacing.md }}>
-              {/* The classified icon again, straddling the hero's lower edge.
-                  It is the same mark the list showed, which is what makes a
-                  project recognisable across the two screens. */}
-              <View style={{ marginTop: -46, marginBottom: -4, alignSelf: 'flex-start' }}>
-                <View
-                  style={{
-                    borderWidth: 3,
-                    borderColor: t.color.surfaceCard,
-                    borderRadius: 19,
-                  }}
-                >
-                  <ProjectIcon title={project.title} seed={project.id} size={60} />
-                </View>
-              </View>
+            {/* The classified icon straddles the hero's lower edge. It has to
+                sit OUTSIDE the Card: the Card clips to its rounded corners
+                (`overflow: 'hidden'`), so an icon pulled up with a negative
+                margin from inside it lost its top ~30pt to the clip. Rendered
+                here as an absolute sibling over a relative wrapper, nothing
+                clips it, and `paddingTop` on the Card keeps the title clear. */}
+            <View style={{ position: 'relative' }}>
+              <Card raised style={{ gap: t.spacing.md, paddingTop: 46 }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: t.spacing.sm }}>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Txt variant="title2">{project.title}</Txt>
@@ -492,7 +485,23 @@ export default function ProjectDetailScreen() {
                   ))}
                 </View>
               ) : null}
-            </Card>
+              </Card>
+
+              <View
+                pointerEvents="none"
+                style={{ position: 'absolute', top: -36, left: t.spacing.lg, zIndex: 10 }}
+              >
+                <View
+                  style={{
+                    borderWidth: 3,
+                    borderColor: t.color.surfaceCard,
+                    borderRadius: 19,
+                  }}
+                >
+                  <ProjectIcon title={project.title} seed={project.id} size={60} />
+                </View>
+              </View>
+            </View>
 
             {/* Pending cancellation — shown to BOTH sides, worded for whichever
                 one they are. This is deliberately the loudest card on the

@@ -1,11 +1,14 @@
 /**
  * What a project looks like, classified from what it is called.
  *
- * ── KEEP IN SYNC WITH WEB ─────────────────────────────────────────────
+ * ── KEEP IN SYNC WITH MOBILE ──────────────────────────────────────────
  *
- * `apps/web/src/lib/project-icon.ts` is a verbatim mirror of this file so a
- * project wears the same face on web and on the phone. This module is pure
- * (no React / RN), so the copy is deliberate — edit the keyword list in both.
+ * This is a verbatim mirror of `apps/mobile/lib/project-icon.ts`. The two
+ * clients have to classify a project identically or the same project wears a
+ * different face on web and on the phone. It is pure — no React, no
+ * React Native — so a copy is cheaper than a shared package and there is
+ * nothing here to diverge except the keyword list, which must be edited in
+ * both files together.
  *
  * ── WHY A PROJECT NEEDS A FACE ────────────────────────────────────────
  *

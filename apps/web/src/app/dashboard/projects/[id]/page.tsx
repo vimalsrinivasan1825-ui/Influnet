@@ -51,6 +51,7 @@ function nextStageKey(currentStage: string | undefined): string | null {
 }
 import { STAGE_GUIDE, isMutualSignoffStage, stageSignoffAt, isSkippableStage, stageSkipProposal } from '@/lib/project-stage-guide';
 import { Avatar } from '@/components/ui/avatar';
+import { ProjectIcon } from '@/components/dashboard/project-icon';
 import { Badge } from '@/components/ui/badge';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Input, Label, Select, Textarea } from '@/components/ui/input';
@@ -2283,12 +2284,10 @@ export default function ProjectKanbanPage() {
           </Button>
           <div className="flex min-w-0 items-center gap-2.5">
             {project && (
-              <Avatar
-                name={(project.owner_user_id === userId ? project.counterparty : project.owner)?.name}
-                size="sm"
-                square
-                className="shrink-0"
-              />
+              // The project's own classified mark — the same one the list showed,
+              // which is what makes it recognisable across the two screens. The
+              // counterparty's name is already spelled out on the label row below.
+              <ProjectIcon title={project.title} seed={project.id} size={32} className="shrink-0" />
             )}
             <div className="min-w-0">
               <div className="truncate text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">
