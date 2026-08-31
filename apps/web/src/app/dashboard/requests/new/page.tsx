@@ -34,8 +34,11 @@ export default function NewRequestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [alreadySent, setAlreadySent] = useState(false);
+  // A creator sending to another creator is a "peer" request — a different
+  // endpoint (metered 10/month) and softer copy (no budget, no project title).
+  const [isPeer, setIsPeer] = useState(false);
 
-  // Guard: business_owner only
+  // Guard: a business owner (any creator) or a creator (peer requests only)
   useEffect(() => {
     (async () => {
       const sb = createClient();
@@ -49,10 +52,11 @@ export default function NewRequestPage() {
         .single();
 
       const role = (profile as any)?.role;
-      if (role !== "business_owner" && role !== "admin") {
+      if (role !== "business_owner" && role !== "admin" && role !== "influencer") {
         router.replace("/dashboard");
         return;
       }
+      setIsPeer(role === "influencer");
       setRoleLoading(false);
 
       // If no ?to= param, bounce back
@@ -110,13 +114,13 @@ export default function NewRequestPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim()) { setError("Please enter a project title."); return; }
+    if (!isPeer && !form.title.trim()) { setError("Please enter a project title."); return; }
 
     // Keep the sign in the sanitizer — stripping "-" first turned "-500" into
     // 500 and slipped past the positive check below.
     const rawBudget = form.budget.trim();
     const budgetNum = rawBudget ? Number(rawBudget.replace(/[^0-9.-]/g, "")) : null;
-    if (rawBudget && (!Number.isFinite(budgetNum) || (budgetNum as number) <= 0)) {
+    if (!isPeer && rawBudget && (!Number.isFinite(budgetNum) || (budgetNum as number) <= 0)) {
       setError("Budget must be a positive number.");
       return;
     }
@@ -124,15 +128,20 @@ export default function NewRequestPage() {
     setSubmitting(true);
     setError("");
 
-    const res = await apiFetch("/api/collabs", {
-      method: "POST",
-      body: JSON.stringify({
-        to_user_id: toUserId,
-        project_title: form.title,
-        project_description: form.message,
-        budget: budgetNum,
-      }),
-    });
+    const res = isPeer
+      ? await apiFetch("/api/collabs/peer", {
+          method: "POST",
+          body: JSON.stringify({ to_user_id: toUserId, message: form.message || undefined }),
+        })
+      : await apiFetch("/api/collabs", {
+          method: "POST",
+          body: JSON.stringify({
+            to_user_id: toUserId,
+            project_title: form.title,
+            project_description: form.message,
+            budget: budgetNum,
+          }),
+        });
 
     if (!res.ok) {
       if (res.status === 409) {
@@ -233,35 +242,43 @@ export default function NewRequestPage() {
       {/* Request form */}
       <Card className="p-5 sm:p-6">
         <form onSubmit={handleSubmit} className="flex flex-col gap-5" id="collab-request-form">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="req-title">Project / campaign title *</Label>
-            <Input
-              id="req-title"
-              placeholder="e.g. Summer launch campaign"
-              value={form.title}
-              onChange={handleChange("title")}
-              required
-            />
-          </div>
+          {!isPeer && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="req-title">Project / campaign title *</Label>
+                <Input
+                  id="req-title"
+                  placeholder="e.g. Summer launch campaign"
+                  value={form.title}
+                  onChange={handleChange("title")}
+                  required
+                />
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="req-budget">Budget (₹) — optional</Label>
-            <Input
-              id="req-budget"
-              type="text"
-              inputMode="numeric"
-              placeholder="e.g. 25000"
-              value={form.budget}
-              onChange={handleChange("budget")}
-            />
-          </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="req-budget">Budget (₹) — optional</Label>
+                <Input
+                  id="req-budget"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="e.g. 25000"
+                  value={form.budget}
+                  onChange={handleChange("budget")}
+                />
+              </div>
+            </>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="req-message">Message — optional</Label>
             <Textarea
               id="req-message"
               rows={4}
-              placeholder="Tell the creator about your brand, goals, and what you'd like them to do…"
+              placeholder={
+                isPeer
+                  ? "Say hi and what you'd like to collaborate on…"
+                  : "Tell the creator about your brand, goals, and what you'd like them to do…"
+              }
               value={form.message}
               onChange={handleChange("message")}
             />

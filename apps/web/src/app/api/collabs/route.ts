@@ -423,17 +423,33 @@ export async function PATCH(req: Request) {
         ? `/dashboard/messages?conv=${conversationId}`
         : '/dashboard/messages';
 
+      // A peer request (creator → creator) has no brand and no project to
+      // start, so it gets a plain in-app notification rather than the
+      // brand-flavoured collab_accepted email.
+      const { data: senderRow } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', collab.from_user_id)
+        .maybeSingle();
+      const isPeerRequest = (senderRow as { role?: string } | null)?.role === 'influencer';
+
       await notifyUser({
         userId: collab.from_user_id,
         type: 'collab_accepted',
-        title: 'Your collaboration request was accepted',
-        body: 'The creator accepted — start the conversation to agree on scope and budget, then create the project.',
+        title: isPeerRequest
+          ? `${creatorName} accepted your collaboration request`
+          : 'Your collaboration request was accepted',
+        body: isPeerRequest
+          ? 'Open the conversation to start talking.'
+          : 'The creator accepted — start the conversation to agree on scope and budget, then create the project.',
         link: chatLink,
-        email: {
-          templateId: 'collab_accepted',
-          dedupeKey: `collab_accepted:${collab.id}`,
-          data: { businessName, creatorName, projectName, dashboardUrl: chatLink },
-        },
+        email: isPeerRequest
+          ? undefined
+          : {
+              templateId: 'collab_accepted',
+              dedupeKey: `collab_accepted:${collab.id}`,
+              data: { businessName, creatorName, projectName, dashboardUrl: chatLink },
+            },
       });
 
       // Fetch the updated collab to return

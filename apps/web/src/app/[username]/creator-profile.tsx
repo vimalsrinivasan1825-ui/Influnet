@@ -149,6 +149,10 @@ export async function CreatorProfile({
       // No prior relationship — standard "Work with me" flow.
       ctaHref = `/dashboard/requests/new?to=${profile.userId}`;
     }
+  } else if (user && viewerRole === 'influencer') {
+    // Creator → creator: a peer collaboration request (metered on Free).
+    ctaHref = `/dashboard/requests/new?to=${profile.userId}`;
+    ctaLabel = 'Request to collaborate';
   } else if (user) {
     ctaHref = '/dashboard';
     ctaLabel = 'Back to dashboard';

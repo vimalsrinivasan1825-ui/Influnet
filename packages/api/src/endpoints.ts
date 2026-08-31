@@ -157,6 +157,9 @@ export function createEndpoints(api: ApiClient) {
     // ── Collaboration requests ─────────────────────────────────────
     listCollabs: <T = unknown>() => api.get<T>('/api/collabs'),
     createCollab: <T = unknown>(body: unknown) => api.post<T>('/api/collabs', body),
+    /** Creator → creator collaboration request. Free: 10/month → 402. */
+    createPeerCollab: <T = unknown>(body: { to_user_id: string; message?: string }) =>
+      api.post<T>('/api/collabs/peer', body),
     getCollab: <T = unknown>(id: string) => api.get<T>(`/api/collabs/${id}`),
     /** Status changes PATCH the collection with { id, status } — not /collabs/:id. */
     updateCollabStatus: <T = unknown>(id: string, status: string) =>

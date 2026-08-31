@@ -7,11 +7,13 @@
  * works on the builds people already have, and reuses the same view model the
  * web page is built from (/api/creators/[username]), so the numbers can't drift.
  */
-import { View } from 'react-native';
+import { useState } from 'react';
+import { Alert, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Globe, Star } from 'lucide-react-native';
+import { Globe, Handshake, Star } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+import { useSession } from '@/lib/session';
 // Lucide ships no brand marks, so channels used to be a grey @ and a grey
 // chain link — Instagram and YouTube as the same row with different words.
 // PlatformMark draws the real coloured marks, same table as the web app.
@@ -113,6 +115,8 @@ export default function CreatorDetail() {
   const t = useTheme();
   const router = useRouter();
   const { username } = useLocalSearchParams<{ username: string }>();
+  const myRole = useSession((s) => s.profile?.role);
+  const [sendingPeer, setSendingPeer] = useState(false);
 
   // Same view model and RPC as the web page (/api/creators/[username]) — one
   // profile, rendered natively instead of opening a web link out of the app.
@@ -401,6 +405,35 @@ export default function CreatorDetail() {
               } else if (res.ctaAction === 'view_project' && res.ctaProjectId) {
                 router.push({ pathname: '/projects/[id]', params: { id: res.ctaProjectId } });
               }
+            }}
+          />
+        </StickyFooter>
+      ) : creator && res && !res.isOwner && myRole === 'influencer' ? (
+        <StickyFooter>
+          <Button
+            label={sendingPeer ? 'Sending…' : 'Request to collaborate'}
+            loading={sendingPeer}
+            icon={<Handshake size={16} color={t.color.white} />}
+            onPress={() => {
+              Alert.alert(
+                `Collaborate with ${creator.name}?`,
+                'They get a request they can accept to open a conversation with you.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Send request',
+                    onPress: async () => {
+                      setSendingPeer(true);
+                      const r = await endpoints.createPeerCollab({ to_user_id: res.userId });
+                      setSendingPeer(false);
+                      Alert.alert(
+                        r.ok ? 'Request sent' : r.status === 402 ? 'Monthly limit reached' : 'Could not send',
+                        r.ok ? `${creator.name} will see your request.` : r.error ?? 'Please try again.',
+                      );
+                    },
+                  },
+                ],
+              );
             }}
           />
         </StickyFooter>

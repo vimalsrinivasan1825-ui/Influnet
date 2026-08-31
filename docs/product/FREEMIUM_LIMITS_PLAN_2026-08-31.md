@@ -457,9 +457,12 @@ Commits:
       business_contact_reveals tables
 - [x] `feat(billing): portfolio cap — Free 5 / Pro 24 (migration 139)` (§6)
 - [x] `feat(billing): pin conversations — Free 3 (migration 140)` (§3)
-- [ ] who-viewed-your-profile list — Free 5 (§5)
-- [ ] invoices — 10/month (§7)
-- [ ] business contact reveal — 5 (§2)
+- [x] `feat(billing): who viewed your profile` — Free 5 / Pro all (§5); read
+      gate, web `/dashboard/profile-viewers` + mobile `/profile-viewers`
+- [x] `feat(billing): invoice generation — Free 10/month (§7)` — migration
+      generalised `requireQuota` over MONTHLY_METERS; receipts exempt
+- [x] `feat(billing): business contact reveal — Free 5 lifetime (§2, migration
+      141)` — contact_* columns + atomic reveal RPC + web/mobile reveal UI
 - [ ] multi-account (scope A) — Pro (§4)
 - [ ] peer collab requests — 10/month (§8)
 - [ ] re-engagement nudge scheduler (§10)
