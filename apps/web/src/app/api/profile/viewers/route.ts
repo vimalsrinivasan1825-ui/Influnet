@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     const locked = total - visible.length;
 
     const businessIds = visible.map((r) => r.business_id);
-    let profiles: Record<string, { name: string | null; avatarUrl: string | null; username: string | null }> = {};
+    const profiles: Record<string, { name: string | null; avatarUrl: string | null; username: string | null }> = {};
 
     if (businessIds.length > 0) {
       const [{ data: baseRows }, { data: bizRows }] = await Promise.all([

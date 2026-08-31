@@ -18,7 +18,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-const cacheSocialImage = vi.fn(async (_url: string, path: string) => path);
+// Typed to the real signature (Promise<string | null>) so a test can simulate
+// a failed cache with mockResolvedValueOnce(null) — the inferred type from the
+// implementation alone would be Promise<string> and reject that.
+const cacheSocialImage = vi.fn<(url: string, path: string) => Promise<string | null>>(
+  async (_url, path) => path,
+);
 
 vi.mock('@/lib/social-snapshot', () => ({
   socialCachePublicUrl: (path: string) =>

@@ -2,6 +2,7 @@
 import { toast } from "sonner";
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { apiFetch, getAuthToken } from '@/lib/api-client';
@@ -2823,9 +2824,9 @@ export default function ProjectKanbanPage() {
                 {invoicesAtCap && (
                   <>
                     {' · '}
-                    <a href="/dashboard/billing" className="font-semibold text-brand hover:underline">
+                    <Link href="/dashboard/billing" className="font-semibold text-brand hover:underline">
                       Upgrade for unlimited
-                    </a>
+                    </Link>
                   </>
                 )}
               </p>
