@@ -17,7 +17,13 @@ import Constants from 'expo-constants';
 
 const SECURE_LIMIT = 2000;
 
-const secureAdapter = {
+/**
+ * Storage that keeps small values in the OS keychain/keystore and spills
+ * anything over SecureStore's 2 KB limit to AsyncStorage. Used for the Supabase
+ * session and — via the export below — for the multi-account book's stored
+ * sessions, which carry the same kind of secret (a refresh token).
+ */
+export const secureAdapter = {
   getItem: async (key: string) => {
     const secure = await SecureStore.getItemAsync(key).catch(() => null);
     if (secure !== null) return secure;

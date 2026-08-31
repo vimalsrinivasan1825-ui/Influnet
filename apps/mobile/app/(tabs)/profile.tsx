@@ -31,7 +31,7 @@ import {
   Star,
   Users,
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTheme } from '@/lib/theme';
 import { useSession, useSignOutAction } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
@@ -60,6 +60,8 @@ import {
   type TrendPoint,
 } from '@/components/ui';
 import { AppHeader } from '@/components/app-header';
+import { AccountSwitcher } from '@/components/account-switcher';
+import type { SheetRef } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { PostGrid, VideoList } from '@/components/content-grid';
 import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
@@ -132,6 +134,7 @@ export default function ProfileScreen() {
   const myUserId = useSession((s) => s.session?.user.id);
   const { signOut, signingOut } = useSignOutAction();
   const { entitlements, isPro, enabled: billingEnabled } = useEntitlements();
+  const accountSheet = useRef<SheetRef>(null);
   const [refreshingSocial, setRefreshingSocial] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
@@ -816,6 +819,12 @@ export default function ProfileScreen() {
               />
             </>
           ) : null}
+          <ListRow
+            title="Switch account"
+            subtitle="Add or move between accounts on this device"
+            left={<Users size={19} color={t.color.contentSoft} />}
+            onPress={() => accountSheet.current?.expand()}
+          />
           {billingEnabled ? (
             <ListRow
               title={isPro ? 'Influnet Pro' : 'Plan & billing'}
@@ -869,6 +878,10 @@ export default function ProfileScreen() {
           </Txt>
         </View>
       </ScreenScroll>
+
+      {/* Sibling of ScreenScroll — see the note on Settings' delete sheet for
+          why a gorhom BottomSheet must not be nested inside a scroll view. */}
+      <AccountSwitcher ref={accountSheet} />
     </Screen>
   );
 }

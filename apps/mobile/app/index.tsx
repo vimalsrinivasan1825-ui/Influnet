@@ -15,7 +15,7 @@ import { Button, Screen, Txt } from '@/components/ui';
 type Recovery = 'idle' | 'running' | 'failed';
 
 export default function Index() {
-  const { session, profile, ready, loadingProfile, loadProfile } = useSession();
+  const { session, profile, ready, loadingProfile, switching, loadProfile } = useSession();
   const { signOut, signingOut } = useSignOutAction();
 
   const [recovery, setRecovery] = useState<Recovery>('idle');
@@ -89,7 +89,7 @@ export default function Index() {
     );
   }
 
-  if (!ready || (session && !profile && (loadingProfile || recovery === 'running'))) {
+  if (!ready || switching || (session && !profile && (loadingProfile || recovery === 'running'))) {
     return (
       <View
         style={{

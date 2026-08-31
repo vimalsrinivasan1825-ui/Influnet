@@ -32,8 +32,9 @@ export default function TabsLayout() {
   const role = useSession((s) => s.profile?.role);
   const ready = useSession((s) => s.ready);
   const session = useSession((s) => s.session);
+  const switching = useSession((s) => s.switching);
   const isCreator = role === 'influencer';
-  const signedOut = ready && !session;
+  const signedOut = ready && !session && !switching;
 
   // Badge counts, polled on a slow cadence by the shared store so the header
   // bell on Home reads the same numbers these tabs do. Not started (and torn

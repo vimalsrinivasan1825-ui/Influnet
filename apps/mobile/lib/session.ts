@@ -19,6 +19,12 @@ import { clearPushToken } from './push';
 import { stopNotificationSummary } from './notification-summary';
 import { resetEntitlements } from './use-entitlements';
 import { stopRealtime } from './realtime';
+import {
+  recordSignIn,
+  syncActive,
+  getStoredSession,
+  removeActive,
+} from './accounts';
 
 export interface MeProfile {
   id: string;
@@ -62,9 +68,15 @@ interface SessionState {
   /** False until the stored session has been read once — gates the splash. */
   ready: boolean;
   loadingProfile: boolean;
+  /** True while switchAccount() is mid-flight — the session briefly goes null
+   *  to force the tab tree to remount, and this stops that being read as a
+   *  sign-out (which would flash the Welcome screen). */
+  switching: boolean;
   setSession: (session: Session | null) => void;
   loadProfile: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Switch the app to another signed-in account (multi-account book). */
+  switchAccount: (userId: string) => Promise<{ ok: boolean; error?: string }>;
   init: () => () => void;
 }
 
@@ -100,6 +112,7 @@ export const useSession = create<SessionState>((set, get) => ({
   profile: null,
   ready: false,
   loadingProfile: false,
+  switching: false,
 
   setSession: (session) => set({ session }),
 
@@ -113,7 +126,20 @@ export const useSession = create<SessionState>((set, get) => ({
     // envelope instead of its contents leaves every field undefined, which
     // reads as "signed in but nobody home" on every screen that uses the store.
     const res = await endpoints.getProfile<{ profile: MeProfile }>();
-    set({ profile: res.ok ? (res.data?.profile ?? null) : null, loadingProfile: false });
+    const profile = res.ok ? (res.data?.profile ?? null) : null;
+    set({ profile, loadingProfile: false });
+
+    // Record this account in the multi-account book so the switcher can list
+    // it. Best-effort — a failure here never blocks the app.
+    const session = get().session;
+    if (session && profile) {
+      void recordSignIn(session, {
+        email: profile.email,
+        name: profile.name ?? null,
+        role: profile.role ?? null,
+        avatarUrl: profile.avatar_url ?? profile.logo_url ?? null,
+      }).catch(() => {});
+    }
   },
 
   signOut: async () => {
@@ -190,6 +216,18 @@ export const useSession = create<SessionState>((set, get) => ({
         clearFetchCache();
         resetEntitlements();
         set({ session: null, profile: null });
+
+        // Multi-account: signing out REMOVES this account from the device
+        // (product decision 2026-08-31 — it is not left as a re-login entry).
+        // If another account remains, switch straight into it rather than
+        // dropping the user on Welcome.
+        try {
+          const next = await removeActive();
+          if (next) await get().switchAccount(next.userId);
+        } catch (err) {
+          logger.warn('[session] post-signout account switch failed', { err });
+        }
+
         signOutInFlight = null;
       }
     })();
@@ -198,16 +236,65 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   /**
+   * Switch the app to another signed-in account.
+   *
+   * Tears the current account's background work down (WITHOUT revoking its
+   * session — it may still be in the book), installs the target's stored
+   * session, and re-initialises. `/` (app/index.tsx) re-routes on the new
+   * session, same as any other sign-in.
+   */
+  switchAccount: async (userId: string) => {
+    const stored = await getStoredSession(userId);
+    if (!stored) return { ok: false, error: 'That account is no longer available. Sign in again.' };
+
+    set({ switching: true });
+    try {
+      // Stop the outgoing account's background work — mirrors signOut() minus
+      // the auth.signOut() revoke (the account stays in the book).
+      stopNotificationSummary();
+      stopRealtime();
+      await withTimeout(disconnectStream(), TEARDOWN_TIMEOUT_MS);
+      clearFetchCache();
+      resetEntitlements();
+
+      // Null the session first so the tab tree unmounts — `switching` keeps the
+      // route mapper from treating that as a sign-out. It remounts fresh on the
+      // new session below.
+      set({ session: null, profile: null });
+
+      const { data, error } = await supabase.auth.setSession({
+        access_token: stored.access_token,
+        refresh_token: stored.refresh_token,
+      });
+      if (error || !data.session) {
+        return { ok: false, error: error?.message ?? 'Could not switch to that account.' };
+      }
+
+      set({ session: data.session, profile: null });
+      await get().loadProfile(); // also re-records the account as active in the book
+      return { ok: true };
+    } finally {
+      set({ switching: false });
+    }
+  },
+
+  /**
    * Subscribe to auth changes. onAuthStateChange fires once with the restored
    * session on startup, which is also what flips `ready` — so there's no
    * separate getSession() race to manage.
    */
   init: () => {
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       const had = get().session?.user.id;
+      // Mid-switch the session briefly goes null on purpose — don't let the
+      // library's own SIGNED_OUT for that flip `ready`-gated screens.
+      if (get().switching && !session) return;
       set({ session, ready: true });
       if (session && session.user.id !== had) void get().loadProfile();
       if (!session) set({ profile: null });
+      // supabase-js rotates the refresh token on every refresh; keep the
+      // active account's stored copy current so a later switch back still works.
+      if (event === 'TOKEN_REFRESHED' && session) void syncActive(session).catch(() => {});
     });
 
     // If there is no stored session, onAuthStateChange still fires (with null),
