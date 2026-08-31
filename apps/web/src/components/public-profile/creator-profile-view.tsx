@@ -167,9 +167,16 @@ export interface CreatorProfileViewProps {
    * unverified profile look verified.
    */
   isPro?: boolean;
+  /**
+   * Rendered inside the mobile app's WebView. Strips the site chrome that the
+   * app already provides or that doesn't belong in an embed: the influnet
+   * masthead link, the owner edit/preview bar, the "Work with me" CTAs (the
+   * app has its own action button), and the floating appearance controls.
+   */
+  embedded?: boolean;
 }
 
-export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ctaLabel, collaborationStats, isPro = false }: CreatorProfileViewProps) {
+export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ctaLabel, collaborationStats, isPro = false, embedded = false }: CreatorProfileViewProps) {
   const [accent, setAccent] = useState(PRESETS[0].a);
   const [accent2, setAccent2] = useState(PRESETS[0].b);
   const [dark, setDark] = useState(false);
@@ -317,7 +324,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
         <span className={`${styles.blob} ${styles.b2}`} />
       </div>
 
-      {isOwner && (
+      {isOwner && !embedded && (
         <div className={styles.previewbanner}>
           <span><Ic d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6" />You&apos;re viewing your public profile exactly as a visitor sees it</span>
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -338,7 +345,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
             work are the ones that earn the click; this one just competed with
             them. The address itself is gone for the same reason it left the
             sidebar: nobody retypes a URL off a screen. */}
-        <div className={styles.topbar}>
+        <div className={styles.topbar} style={embedded ? { display: 'none' } : undefined}>
           <span className={styles.topspacer} aria-hidden="true" />
 
           <Link href="/" className={styles.brand}>
@@ -435,7 +442,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
 
                   <p className={styles.tag}>{data.tagline}</p>
 
-                  <div className={styles.cta}>
+                  <div className={styles.cta} style={embedded ? { display: 'none' } : undefined}>
                     <Link className={`${styles.btn} ${styles.accent}`} href={ctaHref}><Send />{ctaLabel}</Link>
                     <a
                       className={`${styles.btn} ${styles.ghost}`}
@@ -552,11 +559,13 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
               </div>
             )}
 
-            <div className={`${styles.card} ${styles.pad} ${styles.growcard}`}>
-              <h3>Ready to grow together?</h3>
-              <p>Let&apos;s create something impactful.</p>
-              <Link className={`${styles.btn} ${styles.accent} ${styles.wide} ${styles.sm}`} href={ctaHref}><Send />{ctaLabel}</Link>
-            </div>
+            {!embedded && (
+              <div className={`${styles.card} ${styles.pad} ${styles.growcard}`}>
+                <h3>Ready to grow together?</h3>
+                <p>Let&apos;s create something impactful.</p>
+                <Link className={`${styles.btn} ${styles.accent} ${styles.wide} ${styles.sm}`} href={ctaHref}><Send />{ctaLabel}</Link>
+              </div>
+            )}
           </div>
         </div>
 
@@ -952,7 +961,7 @@ export default function CreatorProfileViewComponent({ data, isOwner, ctaHref, ct
         </div>
       </footer>
 
-      {isOwner && !previewing && (
+      {isOwner && !previewing && !embedded && (
         <div className={styles.toolbar}>
           <button className={`${styles.btn} ${styles.accent} ${styles.tb}`} onClick={publish}><Ic d="M22 2 11 13M22 2l-7 20-4-9-9-4Z" />Save &amp; publish</button>
           <button className={`${styles.btn} ${styles.tb}`} onClick={() => { setPreviewing(true); setEditing(false); }}><Ic d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6" />Preview as visitor</button>

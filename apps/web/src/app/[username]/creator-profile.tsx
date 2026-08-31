@@ -75,9 +75,10 @@ export async function CreatorProfile({
   searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ mock?: string }>;
+  searchParams: Promise<{ mock?: string; app?: string }>;
 }) {
   const [{ username }, sp] = await Promise.all([params, searchParams]);
+  const embedded = sp?.app === '1';
   const profile = await getProfile(username);
   if (!profile) notFound();
   // profileId is guaranteed string from here — userId is marked optional in the type
@@ -264,6 +265,7 @@ export async function CreatorProfile({
       ctaHref={ctaHref}
       ctaLabel={ctaLabel}
       collaborationStats={collaborationStats}
+      embedded={embedded}
     />
   );
 }
