@@ -25,6 +25,8 @@ export function createEndpoints(api: ApiClient) {
     getProfile: <T = unknown>() => api.get<T>('/api/profile'),
     updateProfile: <T = unknown>(body: unknown) => api.patch<T>('/api/profile', body),
     refreshProfile: <T = unknown>() => api.post<T>('/api/profile/refresh'),
+    /** Who viewed your profile. Free sees the most-recent few + a locked count. */
+    profileViewers: <T = unknown>() => api.get<T>('/api/profile/viewers'),
     dismissWelcome: <T = unknown>() => api.post<T>('/api/profile/welcome'),
     /** Registers (token) or clears (null) this device's Expo push token. */
     registerPushToken: <T = unknown>(token: string | null) =>

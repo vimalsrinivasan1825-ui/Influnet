@@ -1233,7 +1233,7 @@ export default function HomeScreen() {
                     <PressableScale
                       accessibilityRole="button"
                       accessibilityLabel={`${attention.business_viewers} business owners viewed your profile`}
-                      onPress={() => router.push('/profile')}
+                      onPress={() => router.push('/profile-viewers' as any)}
                     >
                       <View
                         style={{

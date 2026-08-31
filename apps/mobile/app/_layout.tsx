@@ -182,6 +182,7 @@ export default function RootLayout() {
               <Stack.Screen name="support/[id]" options={{ title: 'Conversation' }} />
               <Stack.Screen name="feedback" options={{ title: 'Send feedback' }} />
               <Stack.Screen name="billing" options={{ title: 'Plan & billing' }} />
+              <Stack.Screen name="profile-viewers" options={{ title: 'Who viewed your profile' }} />
             </Stack>
           </ErrorBoundary>
 
