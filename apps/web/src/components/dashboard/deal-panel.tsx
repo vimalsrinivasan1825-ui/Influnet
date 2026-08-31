@@ -169,7 +169,9 @@ export function DealPanel({
     if (!proposalId) return;
     setBusy(true);
     try {
-      const res = await apiFetch(`/api/conversations/${conversationId}/deal`, {
+      const res = await apiFetch<{
+        conversions: { used: number; limit: number } | null;
+      }>(`/api/conversations/${conversationId}/deal`, {
         method: "PATCH",
         body: JSON.stringify({
           proposal_id: proposalId,
@@ -178,9 +180,16 @@ export function DealPanel({
         }),
       });
       if (!res.ok) throw new Error(res.error || "Could not respond to the terms");
+      const conv = res.data?.conversions;
       toast.success(
         action === "accept"
-          ? "Project started — both sides agreed on the terms."
+          ? conv
+            ? `Project started. You've used ${conv.used} of ${conv.limit} free project conversions${
+                conv.limit - conv.used > 0
+                  ? ` — ${conv.limit - conv.used} left.`
+                  : " — upgrade to Pro for unlimited."
+              }`
+            : "Project started — both sides agreed on the terms."
           : action === "withdraw"
             ? "Terms withdrawn."
             : "Terms declined. Keep talking here and propose new ones when you're ready.",

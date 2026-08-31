@@ -31,6 +31,7 @@ import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { getConversationChannel, getLastStreamFailureReason, isStreamConfigured } from '@/lib/stream';
 import { useNotificationSummary } from '@/lib/notification-summary';
+import { useNotificationToast } from '@/lib/notification-toast';
 import { formatCurrency, formatDayLabel, formatMessageTime, timeAgo } from '@/lib/format';
 import {
   TEXT_SCALE as TEXT_SCALE_PREVIEW,
@@ -630,7 +631,9 @@ export default function ConversationScreen() {
     setRespondBusy(true);
     setRespondError(null);
 
-    const res = await endpoints.respondToDeal(id, { proposal_id: deal.proposalId, action });
+    const res = await endpoints.respondToDeal<{
+      conversions: { used: number; limit: number } | null;
+    }>(id, { proposal_id: deal.proposalId, action });
     setRespondBusy(false);
 
     if (!res.ok) {
@@ -639,6 +642,26 @@ export default function ConversationScreen() {
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     dealSheet.current?.close();
+
+    // Positive confirmation of where the brand now stands on the free project
+    // cap — the server only fills this in when the caller owns the new project
+    // and is on a metered Free plan (see the deal route).
+    const conv = action === 'accept' ? res.data?.conversions : null;
+    if (conv) {
+      const left = conv.limit - conv.used;
+      useNotificationToast.getState().push({
+        id: `local:conversions:${Date.now()}`,
+        type: 'upsell',
+        title: 'Project started',
+        body:
+          left > 0
+            ? `You've used ${conv.used} of ${conv.limit} free project conversions — ${left} left.`
+            : `You've used all ${conv.limit} free project conversions. Upgrade to Pro for unlimited.`,
+        link: '/dashboard/billing',
+        receivedAt: Date.now(),
+      });
+    }
+
     void load();
   }
 
