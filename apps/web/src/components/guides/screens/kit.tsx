@@ -171,8 +171,9 @@ export function Row({
 /** Default profile image — a designed avatar, never an empty grey disc. */
 export function Avatar({ size = 24, uri }: { size?: number; uri?: string | null }) {
   if (uri) {
-    // eslint-disable-next-line @next/next/no-img-element
+    // A mock avatar in a guide screen — next/image's loader is pointless at 24px.
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={uri}
         alt=""
