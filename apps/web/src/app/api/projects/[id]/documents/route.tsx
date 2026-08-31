@@ -24,6 +24,7 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { requireQuota, releaseQuota } from '@/lib/entitlements';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { ReceiptDocument, type ReceiptSnapshot } from '@/lib/documents/receipt-template';
 
@@ -129,6 +130,26 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       return NextResponse.json({ document: existing });
     }
 
+    // ── Free-tier invoice quota ──────────────────────────────────────────
+    // Only tax invoices and proformas count — a receipt is an automatic record
+    // of a payment that happened, not something a creator chooses to generate.
+    // Consumed HERE, before allocate_invoice_number() runs: a number allocated
+    // and then not written leaves a gap in the tax series (migration 135's own
+    // caveat), so the quota must refuse before that point, and every error
+    // path between here and the successful insert releases the unit.
+    const metered = kind === 'tax_invoice' || kind === 'proforma';
+    if (metered) {
+      const blocked = await requireQuota(
+        auth,
+        'invoices_month',
+        'You have generated the 10 documents a Free plan allows this month. Upgrade to Pro for unlimited invoicing.',
+      );
+      if (blocked) return blocked;
+    }
+    const releaseInvoiceUnit = async () => {
+      if (metered) await releaseQuota(auth, 'invoices_month');
+    };
+
     // Service role from here on: project_documents has RLS enabled with
     // deliberately NO insert policy for `authenticated` (migration 124) — a
     // participant is meant to trigger a document being written, not write one
@@ -200,7 +221,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
       const series = `${isBillOfSupply ? 'bos' : 'inv'}_${new Date().getFullYear()}`;
       const { data: seq, error: seqErr } = await admin.rpc('allocate_invoice_number', { p_series: series });
-      if (seqErr || seq == null) return jsonError(500, 'Could not allocate an invoice number', seqErr);
+      if (seqErr || seq == null) { await releaseInvoiceUnit(); return jsonError(500, 'Could not allocate an invoice number', seqErr); }
       number = `${isBillOfSupply ? 'BOS' : 'INV'}-${new Date().getFullYear()}-${String(seq).padStart(5, '0')}`;
     } else {
       // Receipt / proforma keep their existing per-project sequence — this
@@ -239,6 +260,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       pdfBuffer = await renderToBuffer(<ReceiptDocument snapshot={snapshot} />) as Buffer;
     } catch (renderErr) {
       console.error('[documents] PDF render failed:', renderErr);
+      await releaseInvoiceUnit();
       return jsonError(500, 'Failed to generate PDF');
     }
 
@@ -256,7 +278,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       .select('id, kind, number, file_url, issued_at')
       .single();
 
-    if (insErr) return jsonError(500, 'Failed to record document', insErr);
+    if (insErr) { await releaseInvoiceUnit(); return jsonError(500, 'Failed to record document', insErr); }
 
     return NextResponse.json({ document: doc });
   } catch (error: any) {

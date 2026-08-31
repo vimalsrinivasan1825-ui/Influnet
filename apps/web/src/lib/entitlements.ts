@@ -301,17 +301,30 @@ export async function requireFeature(
  * Consuming means this must be called only once the action is definitely going
  * ahead. Call it after validation, immediately before the write.
  */
+/**
+ * The monthly metered features and where each reads its limit and current
+ * usage from. Adding one is a line here — the mechanism (consume_quota, the
+ * plan_usage row keyed by month) is identical for all of them.
+ */
+const MONTHLY_METERS = {
+  requests_month: { feature: 'requests.send', limitKey: 'requestsPerMonth', usageKey: 'requestsThisMonth' },
+  invoices_month: { feature: 'invoices.generate', limitKey: 'invoicesPerMonth', usageKey: 'invoicesThisMonth' },
+  peer_requests_month: { feature: 'requests.peer', limitKey: 'peerRequestsPerMonth', usageKey: 'peerRequestsThisMonth' },
+} as const;
+
+type MonthlyMeter = keyof typeof MONTHLY_METERS;
+
 export async function requireQuota(
   auth: AuthCtx,
-  feature: Extract<GatedFeature, 'requests.send'>,
-  meter: 'requests_month',
+  meter: MonthlyMeter,
   message: string,
 ): Promise<NextResponse | null> {
+  const spec = MONTHLY_METERS[meter];
   const ent = await resolveEntitlements(auth.supabase, auth.user.id);
   if (ent.tier === 'pro') return null;
 
-  const limit = ent.limits.requestsPerMonth;
-  if (limit === null) return null; // no ceiling configured
+  const limit = ent.limits[spec.limitKey];
+  if (limit === null || limit === undefined) return null; // no ceiling configured
 
   const { data, error } = await (auth.supabase.rpc as any)('consume_quota', {
     p_meter: meter,
@@ -322,13 +335,27 @@ export async function requireQuota(
     // Fail closed, consistent with resolveEntitlements. An unreadable counter
     // must not become a free pass.
     logger.error('quota consumption failed — refusing', { userId: auth.user.id, meter, err: error });
-    return paywall(feature, ent, message, { limit, used: ent.usage.requestsThisMonth });
+    return paywall(spec.feature, ent, message, { limit, used: ent.usage[spec.usageKey] });
   }
 
   if (data === false) {
-    return paywall(feature, ent, message, { limit, used: limit });
+    return paywall(spec.feature, ent, message, { limit, used: limit });
   }
   return null;
+}
+
+/**
+ * Give back a monthly unit `requireQuota` consumed, when the write it guarded
+ * did not actually happen. Same reasoning as `releaseWeeklyQuota` /
+ * `release_quota` (migration 115): consume must run before the write to stay
+ * atomic with it, so a later unrelated failure has already spent a unit.
+ */
+export async function releaseQuota(auth: AuthCtx, meter: MonthlyMeter): Promise<void> {
+  try {
+    await (auth.supabase.rpc as any)('release_quota', { p_meter: meter });
+  } catch {
+    /* best-effort */
+  }
 }
 
 /**

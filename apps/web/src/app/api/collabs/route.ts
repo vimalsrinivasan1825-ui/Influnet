@@ -244,7 +244,6 @@ export async function POST(req: Request) {
     // The cost of that ordering is handled by the release in the error path below.
     const overQuota = await requireQuota(
       { supabase, user },
-      'requests.send',
       'requests_month',
       'You have used all your collaboration requests for this month. Upgrade to Pro for more.',
     );

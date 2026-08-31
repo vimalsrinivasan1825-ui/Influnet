@@ -56,6 +56,7 @@ import { Input, Label, Select, Textarea } from '@/components/ui/input';
 import { PaymentGate } from '@/components/dashboard/payment-gate';
 import { ProjectFlow } from '@/components/dashboard/project-flow';
 import { uploadToCloudinary } from '@/lib/storage/upload-client';
+import { useEntitlements } from '@/lib/hooks/use-entitlements';
 
 const ROW_HEIGHT = 64;
 const HEADER_HEIGHT = 44;
@@ -1719,6 +1720,13 @@ export default function ProjectKanbanPage() {
   // Documents state
   const [documents, setDocuments] = useState<any[]>([]);
   const [issuingDoc, setIssuingDoc] = useState(false);
+  const { entitlements: docEnt } = useEntitlements();
+  const invoiceLimit =
+    docEnt?.subscriptionsEnabled && typeof docEnt.limits.invoicesPerMonth === 'number'
+      ? docEnt.limits.invoicesPerMonth
+      : null;
+  const invoicesUsed = docEnt?.usage.invoicesThisMonth ?? 0;
+  const invoicesAtCap = invoiceLimit !== null && invoicesUsed >= invoiceLimit;
 
   // Report state (trust & safety)
   const [showReportModal, setShowReportModal] = useState(false);
@@ -2807,12 +2815,27 @@ export default function ProjectKanbanPage() {
       {/* Documents section */}
       <div className="rounded-2xl border border-hairline bg-surface-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-extrabold text-content">Documents</h3>
+          <div>
+            <h3 className="text-sm font-extrabold text-content">Documents</h3>
+            {invoiceLimit !== null && (
+              <p className={`text-xs ${invoicesAtCap ? 'text-warn' : 'text-content-muted'}`}>
+                {invoicesUsed} of {invoiceLimit} invoices this month
+                {invoicesAtCap && (
+                  <>
+                    {' · '}
+                    <a href="/dashboard/billing" className="font-semibold text-brand hover:underline">
+                      Upgrade for unlimited
+                    </a>
+                  </>
+                )}
+              </p>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button
               variant="surface"
               size="sm"
-              disabled={issuingDoc}
+              disabled={issuingDoc || invoicesAtCap}
               onClick={async () => {
                 setIssuingDoc(true);
                 try {
@@ -2836,7 +2859,7 @@ export default function ProjectKanbanPage() {
             <Button
               variant="surface"
               size="sm"
-              disabled={issuingDoc}
+              disabled={issuingDoc || invoicesAtCap}
               onClick={async () => {
                 setIssuingDoc(true);
                 try {
