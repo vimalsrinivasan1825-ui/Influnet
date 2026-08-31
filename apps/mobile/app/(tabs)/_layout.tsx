@@ -13,6 +13,7 @@
  * must agree on.
  */
 import { useEffect } from 'react';
+import { Pressable, type GestureResponderEvent } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
@@ -25,6 +26,8 @@ import {
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { useNotificationSummary } from '@/lib/notification-summary';
+import { useAccountSheet } from '@/lib/use-account-sheet';
+import { AccountSwitcher } from '@/components/account-switcher';
 import { startRealtime, stopRealtime } from '@/lib/realtime';
 
 export default function TabsLayout() {
@@ -82,6 +85,7 @@ export default function TabsLayout() {
   const badge = (n?: number) => (n && n > 0 ? (n > 99 ? '99+' : String(n)) : undefined);
 
   return (
+    <>
     <Tabs
       // A tick under the thumb on every tab change. Selection feedback is the
       // lightest haptic there is — right for something you do constantly.
@@ -149,8 +153,25 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => <UserRound color={color} size={size} />,
+          // Long-press the Profile tab → open the account switcher, wherever
+          // you are. A normal tap still navigates to the tab.
+          tabBarButton: (props) => (
+            <Pressable
+              {...(props as any)}
+              onLongPress={(e: GestureResponderEvent) => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                useAccountSheet.getState().open();
+              }}
+              delayLongPress={300}
+            />
+          ),
         }}
       />
     </Tabs>
+
+    {/* Mounted once, driven by useAccountSheet — opened from here (long-press
+        Profile) and from the "Switch account" row in Profile. */}
+    <AccountSwitcher />
+    </>
   );
 }

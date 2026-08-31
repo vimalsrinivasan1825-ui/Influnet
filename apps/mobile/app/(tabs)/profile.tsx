@@ -60,8 +60,7 @@ import {
   type TrendPoint,
 } from '@/components/ui';
 import { AppHeader } from '@/components/app-header';
-import { AccountSwitcher } from '@/components/account-switcher';
-import type { SheetRef } from '@/components/ui';
+import { useAccountSheet } from '@/lib/use-account-sheet';
 import { Logo } from '@/components/brand/logo';
 import { PostGrid, VideoList } from '@/components/content-grid';
 import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
@@ -134,7 +133,7 @@ export default function ProfileScreen() {
   const myUserId = useSession((s) => s.session?.user.id);
   const { signOut, signingOut } = useSignOutAction();
   const { entitlements, isPro, enabled: billingEnabled } = useEntitlements();
-  const accountSheet = useRef<SheetRef>(null);
+  const openAccountSheet = useAccountSheet((s) => s.open);
   const [refreshingSocial, setRefreshingSocial] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
@@ -821,9 +820,9 @@ export default function ProfileScreen() {
           ) : null}
           <ListRow
             title="Switch account"
-            subtitle="Add or move between accounts on this device"
+            subtitle="Add or move between accounts — or long-press the Profile tab"
             left={<Users size={19} color={t.color.contentSoft} />}
-            onPress={() => accountSheet.current?.expand()}
+            onPress={openAccountSheet}
           />
           {billingEnabled ? (
             <ListRow
@@ -836,7 +835,24 @@ export default function ProfileScreen() {
                     : 'View your plan'
               }
               left={
-                <Sparkles size={19} color={isPro ? '#C98C13' : t.color.contentSoft} />
+                isPro ? (
+                  <View
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#FBF3E4',
+                      borderWidth: 1,
+                      borderColor: '#E0C99B',
+                    }}
+                  >
+                    <Sparkles size={16} color="#8A5A08" />
+                  </View>
+                ) : (
+                  <Sparkles size={19} color={t.color.contentSoft} />
+                )
               }
               style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
               onPress={() => router.push('/billing' as any)}
@@ -878,10 +894,6 @@ export default function ProfileScreen() {
           </Txt>
         </View>
       </ScreenScroll>
-
-      {/* Sibling of ScreenScroll — see the note on Settings' delete sheet for
-          why a gorhom BottomSheet must not be nested inside a scroll view. */}
-      <AccountSwitcher ref={accountSheet} />
     </Screen>
   );
 }

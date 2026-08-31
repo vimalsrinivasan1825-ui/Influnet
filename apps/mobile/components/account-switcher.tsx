@@ -2,28 +2,36 @@
  * The account switcher — a bottom sheet listing every Influnet account signed
  * in on this device, plus "Add account".
  *
+ * Mounted ONCE (in the tab layout) and driven by `useAccountSheet`, so it can
+ * be opened from anywhere: the "Switch account" row in Profile, and a
+ * long-press on the Profile tab.
+ *
  * Adding a second account is a Pro feature (product decision 2026-08-31): a
- * Free user sees the row locked with an upgrade prompt. Switching between
- * accounts you already have is free. Signing out of an account removes it from
- * the device (see lib/accounts.ts) — this sheet doesn't offer a per-row sign
- * out; the Settings "Sign out" button does that for the active account.
+ * Free user is sent to the paywall. Switching between accounts you already
+ * have is free. Signing out of an account removes it from the device (see
+ * lib/accounts.ts) — this sheet doesn't offer a per-row sign out; the Settings
+ * "Sign out" button does that for the active account.
  */
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, Plus, Sparkles } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { useEntitlements } from '@/lib/use-entitlements';
+import { useAccountSheet } from '@/lib/use-account-sheet';
 import { listAccounts, type AccountSummary } from '@/lib/accounts';
 import { Avatar, ListRow, Sheet, Txt, type SheetRef } from '@/components/ui';
 
-export const AccountSwitcher = forwardRef<SheetRef>(function AccountSwitcher(_props, ref) {
+export function AccountSwitcher() {
   const t = useTheme();
   const router = useRouter();
   const sheet = useRef<SheetRef>(null);
   const switchAccount = useSession((s) => s.switchAccount);
   const { isPro, enabled: billingEnabled } = useEntitlements();
+
+  const visible = useAccountSheet((s) => s.visible);
+  const close = useAccountSheet((s) => s.close);
 
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -35,13 +43,14 @@ export const AccountSwitcher = forwardRef<SheetRef>(function AccountSwitcher(_pr
     setActiveId(activeUserId);
   }, []);
 
-  useImperativeHandle(ref, () => ({
-    expand: () => {
+  useEffect(() => {
+    if (visible) {
       void load();
       sheet.current?.expand();
-    },
-    close: () => sheet.current?.close(),
-  }));
+    } else {
+      sheet.current?.close();
+    }
+  }, [visible, load]);
 
   async function pick(acct: AccountSummary) {
     if (acct.userId === activeId || busyId) return;
@@ -52,11 +61,11 @@ export const AccountSwitcher = forwardRef<SheetRef>(function AccountSwitcher(_pr
       Alert.alert('Could not switch', res.error ?? 'Please sign in to that account again.');
       return;
     }
-    sheet.current?.close();
+    close();
   }
 
   function addAccount() {
-    sheet.current?.close();
+    close();
     // Gate is a product decision, not a server-enforced one — adding an account
     // is just signing in, which anyone can do. Free users get the paywall.
     if (billingEnabled && !isPro) {
@@ -71,7 +80,7 @@ export const AccountSwitcher = forwardRef<SheetRef>(function AccountSwitcher(_pr
   }
 
   return (
-    <Sheet ref={sheet} title="Your accounts">
+    <Sheet ref={sheet} title="Your accounts" onClose={close}>
       <View style={{ gap: 2, paddingBottom: t.spacing.md }}>
         {accounts.map((a) => (
           <ListRow
@@ -119,4 +128,4 @@ export const AccountSwitcher = forwardRef<SheetRef>(function AccountSwitcher(_pr
       </View>
     </Sheet>
   );
-});
+}
