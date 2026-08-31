@@ -463,11 +463,44 @@ Commits:
       generalised `requireQuota` over MONTHLY_METERS; receipts exempt
 - [x] `feat(billing): business contact reveal — Free 5 lifetime (§2, migration
       141)` — contact_* columns + atomic reveal RPC + web/mobile reveal UI
-- [ ] multi-account (scope A) — Pro (§4)
-- [ ] peer collab requests — 10/month (§8)
-- [ ] re-engagement nudge scheduler (§10)
-- [ ] web sidebar Free/Pro chip — ALREADY EXISTS (sidebar.tsx FooterLink), no
-      work needed
+- [x] `feat(billing): creator→creator collab requests — Free 10/month (§8)` —
+      /api/collabs/peer, shared receive/accept, sender-role-aware copy
+- [x] `feat(notifications): re-engagement nudges (§10)` — migration 142 +
+      /api/cron/nudges + workflow + opt-out; SCHEDULER IS A FOUNDER STEP
+      (secrets + env var), see docs/operations/REENGAGEMENT_NUDGES.md
+- [ ] **multi-account (scope A) — Pro (§4)** — the one remaining. Largest and
+      riskiest: replaces the single-handle-per-platform column model. Needs its
+      own focused pass — see §13 below.
+- [x] web sidebar Free/Pro chip — ALREADY EXISTED (sidebar.tsx FooterLink)
+
+## 13. Multi-account (§4) — remaining work, spelled out
+
+Not started. Scope A confirmed (extra ownership-verified handles per platform,
+switch which is primary; NOT a profile switcher). Why it's held back: every
+public-profile RPC (027, 046, 111, 134, …) and search path reads
+`influencer_profiles.instagram_handle` / `youtube_handle` / … directly. A new
+`connected_social_accounts` table has to keep those columns in sync (as the
+`is_primary` row) or rewrite ~8 RPCs — that decision wants care, not a rushed
+commit at the end of a long session.
+
+Planned commits:
+1. `feat(db): connected_social_accounts (migration 143)` — table, backfill the
+   existing single columns as `is_primary=true` rows, a trigger that mirrors the
+   primary row back to `influencer_profiles.<platform>_handle` so the existing
+   RPCs keep working untouched. `free_connected_accounts` (migration 138) already
+   exists.
+2. `feat(core): social.multiaccount` — already in GATED_FEATURES (migration 138
+   commit); wire `hasFeature` so it's Pro-only (already is — not in the free set).
+3. `feat(api): connected social accounts CRUD` — `POST /api/social/accounts`
+   (requireFeature('social.multiaccount') → existing ownership-claim flow),
+   `PATCH .../primary`, `DELETE`. Free can still manage its 1 per platform.
+4. `feat(web): multi-account manager in settings` — per platform, list of
+   connected handles, "Make primary", "Add account" (Pro-locked on Free).
+5. `feat(mobile): multi-account sheet` — long-press the platform chip on the
+   profile tab → connected set + "Add account"; primary quick-switch.
+
+Open sub-decision still standing: scrape secondary accounts on the normal
+cadence (Apify cost × N) or slower.
 
 ## 11. Recommended commit order
 
