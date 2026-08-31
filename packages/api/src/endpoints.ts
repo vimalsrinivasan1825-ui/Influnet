@@ -148,6 +148,9 @@ export function createEndpoints(api: ApiClient) {
      * anyone without an established relationship (a request or a project) —
      * see apps/web's /api/businesses/[username] for the access rule.
      */
+    /** Spend a contact reveal (Free: 5 lifetime) and get the business's details. */
+    revealBusinessContact: <T = unknown>(username: string) =>
+      api.post<T>(`/api/businesses/${encodeURIComponent(username)}/reveal-contact`),
     getBusinessProfile: <T = unknown>(username: string) =>
       api.get<T>(`/api/businesses/${encodeURIComponent(username)}`),
 

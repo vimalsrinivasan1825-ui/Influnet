@@ -15,6 +15,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { ButtonLink } from '@/components/ui/button';
+import { BusinessContactReveal } from '@/components/public-profile/business-contact-reveal';
 
 // Business profiles are PRIVATE. Unlike creator profiles they are never public:
 // a business is only visible to itself and to a creator who has an established
@@ -269,6 +270,7 @@ export async function BusinessProfile({
                   <ButtonLink href={`/dashboard/messages?new=${profile.userId}`} variant="brand" className="w-full justify-center">
                     Message
                   </ButtonLink>
+                  <BusinessContactReveal username={username} />
                 </>
               )}
             </div>

@@ -212,6 +212,9 @@ export default function SettingsPage() {
   const [location, setLocation] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [industry, setIndustry] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [bio, setBio] = useState("");
   const [headline, setHeadline] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -244,6 +247,9 @@ export default function SettingsPage() {
         setCoverImageUrl(p.cover_image_url || "");
         setCompanyName(p.company_name || "");
         setIndustry(p.industry || "");
+        setContactName((p as any).contact_name || "");
+        setContactPhone((p as any).contact_phone || "");
+        setContactEmail((p as any).contact_email || "");
         setBio(p.bio || "");
         setUsername(p.username || "");
         setHeadline(p.headline || "");
@@ -275,6 +281,9 @@ export default function SettingsPage() {
       if (profile?.role === "business_owner") {
         payload.company_name = companyName;
         payload.industry = industry;
+        payload.contact_name = contactName;
+        payload.contact_phone = contactPhone;
+        payload.contact_email = contactEmail;
         if (avatarUrl) payload.logo_url = avatarUrl;
         if (coverImageUrl) payload.cover_image_url = coverImageUrl;
         if (username) payload.username = username;
@@ -463,6 +472,24 @@ export default function SettingsPage() {
             <Field label="Industry">
               <Input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="e.g. Fashion, Tech, Food" />
             </Field>
+          </div>
+
+          <div className="mt-5 border-t border-hairline pt-5">
+            <p className="text-sm font-bold text-content">Contact details</p>
+            <p className="mb-3 text-xs text-content-muted">
+              Shown to a creator only after they choose to reveal it (or on Pro). Never on your public profile.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Contact person">
+                <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Who creators should reach" />
+              </Field>
+              <Field label="Phone">
+                <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+91…" />
+              </Field>
+              <Field label="Email">
+                <Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="you@company.com" />
+              </Field>
+            </div>
           </div>
         </SectionCard>
       )}

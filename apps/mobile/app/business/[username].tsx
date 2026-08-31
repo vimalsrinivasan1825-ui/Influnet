@@ -15,7 +15,7 @@
  * "Preview public profile" row for why leaving the app reads as broken).
  */
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Briefcase,
@@ -23,7 +23,9 @@ import {
   Globe,
   Handshake,
   Lock,
+  Mail,
   MapPin,
+  Phone,
   ShieldCheck,
   Users,
 } from 'lucide-react-native';
@@ -31,6 +33,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
+import { useEntitlements } from '@/lib/use-entitlements';
 import {
   Avatar,
   Badge,
@@ -83,6 +86,31 @@ export default function BusinessDetail() {
   const { username } = useLocalSearchParams<{ username: string }>();
   const myUserId = useSession((s) => s.session?.user.id);
   const [messaging, setMessaging] = useState(false);
+  const [revealing, setRevealing] = useState(false);
+  const [contact, setContact] = useState<{
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    website: string | null;
+  } | null>(null);
+  const { entitlements, isPro, refresh: refreshEnt } = useEntitlements();
+
+  async function revealContact() {
+    setRevealing(true);
+    const res = await endpoints.revealBusinessContact<{
+      contact: { name: string | null; phone: string | null; email: string | null; website: string | null };
+    }>(username);
+    setRevealing(false);
+    if (!res.ok || !res.data) {
+      Alert.alert(
+        res.status === 402 ? 'Reveal limit reached' : 'Could not load contact details',
+        res.error ?? 'Please try again.',
+      );
+      return;
+    }
+    setContact(res.data.contact);
+    refreshEnt();
+  }
 
   const { data: res, error, loading, refreshing, refresh } = useFetch(
     () => endpoints.getBusinessProfile<BusinessProfileResponse>(username),
@@ -217,6 +245,69 @@ export default function BusinessDetail() {
                       <Globe size={13} color={t.color.brand} /> {biz.website.replace(/^https?:\/\//, '')}
                     </Txt>
                   ) : null}
+                </Card>
+              </>
+            ) : null}
+
+            {!isOwner ? (
+              <>
+                <SectionLabel>Contact</SectionLabel>
+                <Card style={{ gap: t.spacing.sm }}>
+                  {contact ? (
+                    <>
+                      {contact.name ? (
+                        <Txt variant="body" style={{ fontWeight: '600' }}>{contact.name}</Txt>
+                      ) : null}
+                      {contact.phone ? (
+                        <Txt
+                          variant="footnote"
+                          style={{ color: t.color.brand }}
+                          onPress={() => Linking.openURL(`tel:${contact.phone}`)}
+                        >
+                          <Phone size={13} color={t.color.brand} /> {contact.phone}
+                        </Txt>
+                      ) : null}
+                      {contact.email ? (
+                        <Txt
+                          variant="footnote"
+                          style={{ color: t.color.brand }}
+                          onPress={() => Linking.openURL(`mailto:${contact.email}`)}
+                        >
+                          <Mail size={13} color={t.color.brand} /> {contact.email}
+                        </Txt>
+                      ) : null}
+                      {contact.website ? (
+                        <Txt
+                          variant="footnote"
+                          style={{ color: t.color.brand }}
+                          onPress={() => Linking.openURL(contact.website!)}
+                        >
+                          <Globe size={13} color={t.color.brand} /> {contact.website.replace(/^https?:\/\//, '')}
+                        </Txt>
+                      ) : null}
+                      {!contact.name && !contact.phone && !contact.email && !contact.website ? (
+                        <Txt variant="footnote" tone="muted">
+                          This brand hasn&apos;t added contact details yet.
+                        </Txt>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <Txt variant="footnote" tone="muted">
+                        See this brand&apos;s direct phone and email.
+                        {entitlements?.subscriptionsEnabled && !isPro && typeof entitlements.limits.contactReveals === 'number'
+                          ? ` Free reveals ${entitlements.usage.contactReveals}/${entitlements.limits.contactReveals} used.`
+                          : ''}
+                      </Txt>
+                      <Button
+                        label="Show contact details"
+                        size="md"
+                        loading={revealing}
+                        icon={<Lock size={15} color={t.color.white} />}
+                        onPress={revealContact}
+                      />
+                    </>
+                  )}
                 </Card>
               </>
             ) : null}

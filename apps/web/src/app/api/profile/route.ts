@@ -66,6 +66,9 @@ export async function GET(req: Request) {
           approval_status: biz.approval_status,
           logo_url: biz.logo_url,
           cover_image_url: biz.cover_image_url,
+          contact_name: biz.contact_name,
+          contact_phone: biz.contact_phone,
+          contact_email: biz.contact_email,
         });
       }
     } else if (p.role === 'influencer') {
