@@ -57,7 +57,18 @@ export default function Index() {
         // so the redirect below has something to route on.
         void endpoints.startVerification({}).catch(() => {});
         await loadProfile();
-        if (!cancelled) setRecovery('idle');
+        if (cancelled) return;
+        // Register said OK but the profile STILL won't load — one retry, then
+        // stop. Going back to 'idle' here re-fires this effect on the unchanged
+        // (profile === null) state, which is an infinite spinner.
+        if (useSession.getState().profile) {
+          setRecovery('idle');
+        } else {
+          setRecoveryError(
+            'We could not load your account. Check your connection and open the app again — or sign out and back in.',
+          );
+          setRecovery('failed');
+        }
         return;
       }
 

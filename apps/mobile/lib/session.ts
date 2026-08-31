@@ -83,6 +83,16 @@ interface SessionState {
 /** Shared across concurrent signOut() callers so the teardown runs once. */
 let signOutInFlight: Promise<void> | null = null;
 
+/**
+ * Bumped on every loadProfile() call. A slow fetch that resolves after a newer
+ * one started must NOT write its (possibly stale, possibly 401'd) result over
+ * the fresh one — that stale clobber is what leaves `profile` null right after
+ * a sign-in and drops the entry gate into its recovery loop. The add-account
+ * flow makes this race routine: the auth listener and the login screen both
+ * call loadProfile() for the new session at once.
+ */
+let profileLoadGen = 0;
+
 /** See the call sites in signOut(): long enough for a real network, short enough not to strand the user. */
 const TEARDOWN_TIMEOUT_MS = 3000;
 
@@ -117,20 +127,27 @@ export const useSession = create<SessionState>((set, get) => ({
   setSession: (session) => set({ session }),
 
   loadProfile: async () => {
-    if (!get().session) {
+    const startedForUser = get().session?.user.id;
+    if (!startedForUser) {
       set({ profile: null });
       return;
     }
+    const gen = ++profileLoadGen;
     set({ loadingProfile: true });
     // /api/profile wraps the merged profile as { profile: {...} }. Storing the
     // envelope instead of its contents leaves every field undefined, which
     // reads as "signed in but nobody home" on every screen that uses the store.
     const res = await endpoints.getProfile<{ profile: MeProfile }>();
     const profile = res.ok ? (res.data?.profile ?? null) : null;
+
+    // A newer loadProfile() started, or the account changed under us, while
+    // this fetch was in flight — drop this result rather than clobber.
+    if (gen !== profileLoadGen || get().session?.user.id !== startedForUser) return;
+
     set({ profile, loadingProfile: false });
 
     // Record this account in the multi-account book so the switcher can list
-    // it. Best-effort — a failure here never blocks the app.
+    // it. Best-effort, non-blocking — a failure here never affects the app.
     const session = get().session;
     if (session && profile) {
       void recordSignIn(session, {
@@ -138,7 +155,7 @@ export const useSession = create<SessionState>((set, get) => ({
         name: profile.name ?? null,
         role: profile.role ?? null,
         avatarUrl: profile.avatar_url ?? profile.logo_url ?? null,
-      }).catch(() => {});
+      });
     }
   },
 
@@ -245,7 +262,9 @@ export const useSession = create<SessionState>((set, get) => ({
    */
   switchAccount: async (userId: string) => {
     const stored = await getStoredSession(userId);
-    if (!stored) return { ok: false, error: 'That account is no longer available. Sign in again.' };
+    if (!stored?.access_token || !stored?.refresh_token) {
+      return { ok: false, error: 'That account is no longer available. Sign in again.' };
+    }
 
     set({ switching: true });
     try {
@@ -262,17 +281,36 @@ export const useSession = create<SessionState>((set, get) => ({
       // new session below.
       set({ session: null, profile: null });
 
-      const { data, error } = await supabase.auth.setSession({
-        access_token: stored.access_token,
-        refresh_token: stored.refresh_token,
-      });
-      if (error || !data.session) {
-        return { ok: false, error: error?.message ?? 'Could not switch to that account.' };
+      // setSession has NO timeout of its own and will refresh over the network
+      // if the stored access token is stale — on a dead connection that hangs,
+      // and because `switching` gates the whole app on a spinner, a hang here
+      // is a brick. Bound it. On timeout we fall through to the error return,
+      // `finally` clears `switching`, and the app lands on Welcome.
+      const TIMEOUT = Symbol('timeout');
+      const result = await Promise.race([
+        supabase.auth.setSession({
+          access_token: stored.access_token,
+          refresh_token: stored.refresh_token,
+        }),
+        new Promise<typeof TIMEOUT>((r) => setTimeout(() => r(TIMEOUT), 8000)),
+      ]);
+
+      if (result === TIMEOUT || result.error || !result.data.session) {
+        return {
+          ok: false,
+          error:
+            result === TIMEOUT
+              ? 'Switching timed out. Check your connection and try again.'
+              : (result.error?.message ?? 'Could not switch to that account.'),
+        };
       }
 
-      set({ session: data.session, profile: null });
+      set({ session: result.data.session, profile: null });
       await get().loadProfile(); // also re-records the account as active in the book
       return { ok: true };
+    } catch (err) {
+      logger.error('[session] switchAccount threw', { err });
+      return { ok: false, error: 'Could not switch to that account.' };
     } finally {
       set({ switching: false });
     }
