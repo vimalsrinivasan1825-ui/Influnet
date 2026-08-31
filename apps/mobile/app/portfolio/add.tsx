@@ -18,6 +18,7 @@ import { BadgeCheck, Info } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { invalidateFetchCache } from '@/lib/use-fetch';
+import { useEntitlements } from '@/lib/use-entitlements';
 import {
   Button,
   Card,
@@ -61,9 +62,16 @@ export default function AddPortfolioItemScreen() {
   const [brand, setBrand] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { entitlements, isPro } = useEntitlements();
+
+  const portfolioLimit = entitlements?.limits.portfolioItems ?? null;
+  const atCap =
+    !!entitlements?.subscriptionsEnabled &&
+    typeof portfolioLimit === 'number' &&
+    entitlements.usage.portfolioItems >= portfolioLimit;
 
   const hint = platformHint(url);
-  const canSave = url.trim().length > 3 && !saving;
+  const canSave = url.trim().length > 3 && !saving && !atCap;
 
   async function save() {
     if (!canSave) return;
@@ -174,8 +182,19 @@ export default function AddPortfolioItemScreen() {
           </View>
         </Card>
 
+        {atCap && (
+          <Card style={{ gap: 4, borderColor: t.color.warn }}>
+            <Txt variant="footnote" style={{ fontWeight: '600', color: t.color.warn }}>
+              Free portfolio is full ({portfolioLimit} items)
+            </Txt>
+            <Txt variant="caption" tone="muted">
+              Remove one from your profile, or{isPro ? '' : ' upgrade to Pro to'} add more.
+            </Txt>
+          </Card>
+        )}
+
         <Button
-          label={saving ? 'Adding…' : 'Add to portfolio'}
+          label={saving ? 'Adding…' : atCap ? 'Portfolio full' : 'Add to portfolio'}
           onPress={save}
           disabled={!canSave}
         />
