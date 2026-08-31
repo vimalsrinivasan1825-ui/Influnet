@@ -473,10 +473,20 @@ Commits:
       own focused pass — see §13 below.
 - [x] web sidebar Free/Pro chip — ALREADY EXISTED (sidebar.tsx FooterLink)
 
-## 13. Multi-account (§4) — remaining work, spelled out
+## 13. Multi-account (§4) — REDEFINED & DONE (2026-08-31)
 
-Not started. Scope A confirmed (extra ownership-verified handles per platform,
-switch which is primary; NOT a profile switcher). Why it's held back: every
+The founder clarified: §4 is **not** about extra social handles. It's an
+**Influnet account switcher on the device** — "add account" → sign in/up → a
+second account is added → switch between them freely. Shipped:
+
+- `apps/mobile/lib/accounts.ts` — the account book (per-account stored session)
+- `lib/session.ts` — `switchAccount()`, `signOut()` now *removes* the account
+  (no relogin entry — founder's call), token-refresh sync
+- `components/account-switcher.tsx` — the sheet; "Add account" is **Pro-gated**
+  (client-only check — adding an account is just signing in)
+- profile tab "Switch account" row; `(auth)/login?add=1`
+
+Superseded plan (extra ownership-verified handles per platform, switch primary): Why it's held back: every
 public-profile RPC (027, 046, 111, 134, …) and search path reads
 `influencer_profiles.instagram_handle` / `youtube_handle` / … directly. A new
 `connected_social_accounts` table has to keep those columns in sync (as the
