@@ -24,6 +24,8 @@ export interface RawConversation {
     created_at: string;
     sender_user_id: string;
   }[];
+  /** The caller's own pin state — /api/conversations sets this per row. */
+  pinned?: boolean;
 }
 
 /** A project that has a conversation attached, from the same response. */
@@ -55,6 +57,8 @@ export interface ConversationRow {
   lastFromThem: boolean;
   /** Title of the project this conversation belongs to, when there is one. */
   projectTitle: string | null;
+  /** The caller has pinned this conversation to the top of the inbox. */
+  pinned: boolean;
 }
 
 /**
@@ -99,12 +103,16 @@ export function toConversationRows(
       lastMessageAt: latest?.created_at ?? null,
       lastFromThem: !!latest && !!myUserId && latest.sender_user_id !== myUserId,
       projectTitle: project?.title ?? null,
+      pinned: !!conversation.pinned,
     };
   });
 
-  return rows.sort(
-    (a, b) =>
+  // Pinned first, then newest activity within each group.
+  return rows.sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return (
       new Date(b.lastMessageAt ?? b.updated_at).getTime() -
       new Date(a.lastMessageAt ?? a.updated_at).getTime()
-  );
+    );
+  });
 }

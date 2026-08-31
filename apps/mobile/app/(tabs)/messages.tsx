@@ -32,9 +32,9 @@
  * back to is a search field people stop using.
  */
 import { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { FolderKanban, MessageSquare, Search, UserPlus, X } from 'lucide-react-native';
+import { FolderKanban, MessageSquare, Pin, Search, UserPlus, X } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -122,6 +122,27 @@ export default function MessagesScreen() {
   const unreadCount = allChats.filter(
     (c) => (live.get(c.id)?.unread ?? (c.lastFromThem ? 1 : 0)) > 0,
   ).length;
+
+  /** Pin / unpin from a long-press. Free caps at 3 — a 402 says so. */
+  async function togglePin(row: ConversationRow) {
+    const res = await endpoints.setConversationPinned(row.id, !row.pinned);
+    if (!res.ok) {
+      Alert.alert(
+        res.status === 402 ? 'Pin limit reached' : 'Could not update',
+        res.error ?? 'Please try again.',
+      );
+      return;
+    }
+    invalidateFetchCache('conversations');
+    refresh();
+  }
+
+  function onLongPressRow(row: ConversationRow) {
+    Alert.alert(row.name ?? 'Chat', undefined, [
+      { text: row.pinned ? 'Unpin' : 'Pin to top', onPress: () => void togglePin(row) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
 
   /** Open a project's chat, creating the conversation if it doesn't exist yet. */
   async function openProject(project: RawConversationProject) {
@@ -226,19 +247,31 @@ export default function MessagesScreen() {
               </Card>
             ) : null}
 
-            {chats.map((row) => (
-              <ConversationCard
-                key={row.id}
-                row={row}
-                live={live}
-                onPress={() =>
-                  router.push({
-                    pathname: '/conversations/[id]',
-                    params: { id: row.id, name: row.name ?? 'Chat' },
-                  })
-                }
-              />
-            ))}
+            {chats.some((c) => c.pinned) && !q ? (
+              <SectionLabel>Pinned</SectionLabel>
+            ) : null}
+            {chats.map((row, i) => {
+              const prev = chats[i - 1];
+              const firstUnpinned = !q && !row.pinned && (i === 0 || prev?.pinned);
+              return (
+                <View key={row.id}>
+                  {firstUnpinned && chats.some((c) => c.pinned) ? (
+                    <SectionLabel>All conversations</SectionLabel>
+                  ) : null}
+                  <ConversationCard
+                    row={row}
+                    live={live}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/conversations/[id]',
+                        params: { id: row.id, name: row.name ?? 'Chat' },
+                      })
+                    }
+                    onLongPress={() => onLongPressRow(row)}
+                  />
+                </View>
+              );
+            })}
 
             {/* Projects with nobody talking in them yet. A different action —
                 these CREATE a conversation rather than opening one — so they
@@ -343,10 +376,12 @@ function ConversationCard({
   row,
   live,
   onPress,
+  onLongPress,
 }: {
   row: ConversationRow;
   live: InboxLive;
   onPress: () => void;
+  onLongPress?: () => void;
 }) {
   const t = useTheme();
 
@@ -366,8 +401,10 @@ function ConversationCard({
   return (
     <PressableScale
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={300}
       accessibilityRole="button"
-      accessibilityLabel={`${row.name ?? 'Chat'}${
+      accessibilityLabel={`${row.name ?? 'Chat'}${row.pinned ? ', pinned' : ''}${
         unreadCount > 0 ? `, ${unreadCount} unread` : unread ? ', unread' : ''
       }. ${preview}`}
     >
@@ -410,6 +447,9 @@ function ConversationCard({
             >
               {row.name ?? 'Chat'}
             </Txt>
+            {row.pinned ? (
+              <Pin size={12} color={t.color.contentMuted} fill={t.color.contentMuted} />
+            ) : null}
             <Txt
               variant="caption"
               style={{

@@ -159,6 +159,9 @@ export function createEndpoints(api: ApiClient) {
 
     // ── Conversations & deals ──────────────────────────────────────
     listConversations: <T = unknown>() => api.get<T>('/api/conversations'),
+    /** Pin / unpin a conversation for the caller. Free caps at 3 → 402. */
+    setConversationPinned: <T = unknown>(id: string, pinned: boolean) =>
+      api.patch<T>(`/api/conversations/${id}/pin`, { pinned }),
     /** Opens (or returns) the conversation with another user. */
     createConversation: <T = unknown>(body: { other_user_id: string }) =>
       api.post<T>('/api/conversations', body),
