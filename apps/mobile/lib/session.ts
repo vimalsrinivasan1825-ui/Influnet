@@ -75,6 +75,14 @@ interface SessionState {
   setSession: (session: Session | null) => void;
   loadProfile: () => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * Make a freshly-authenticated session the active one and load its profile.
+   * `replacingLive` — true when another account was signed in a moment ago
+   * (the "add account" flow): tears that account's background work + screen
+   * caches down and forces the tab tree to remount, so the app shows the NEW
+   * account rather than the previous one's cached data.
+   */
+  activateSession: (session: Session, replacingLive: boolean) => Promise<void>;
   /** Switch the app to another signed-in account (multi-account book). */
   switchAccount: (userId: string) => Promise<{ ok: boolean; error?: string }>;
   init: () => () => void;
@@ -127,29 +135,49 @@ export const useSession = create<SessionState>((set, get) => ({
   setSession: (session) => set({ session }),
 
   loadProfile: async () => {
-    const startedForUser = get().session?.user.id;
-    if (!startedForUser) {
-      set({ profile: null });
+    const uid = get().session?.user.id;
+    const gen = ++profileLoadGen;
+    if (!uid) {
+      if (gen === profileLoadGen) set({ profile: null, loadingProfile: false });
       return;
     }
-    const gen = ++profileLoadGen;
     set({ loadingProfile: true });
+
     // /api/profile wraps the merged profile as { profile: {...} }. Storing the
     // envelope instead of its contents leaves every field undefined, which
     // reads as "signed in but nobody home" on every screen that uses the store.
-    const res = await endpoints.getProfile<{ profile: MeProfile }>();
-    const profile = res.ok ? (res.data?.profile ?? null) : null;
+    //
+    // Bounded at 12s: the API client has no timeout, and a hung /api/profile
+    // otherwise pins `loadingProfile: true` — which is the splash's "not ready"
+    // signal, i.e. a permanent "Getting things ready…".
+    let profile: MeProfile | null = null;
+    try {
+      const TIMED_OUT = Symbol('timeout');
+      const race = await Promise.race([
+        endpoints.getProfile<{ profile: MeProfile }>(),
+        new Promise<typeof TIMED_OUT>((r) => setTimeout(() => r(TIMED_OUT), 12000)),
+      ]);
+      if (race !== TIMED_OUT) {
+        profile = race.ok ? (race.data?.profile ?? null) : null;
+      }
+    } catch {
+      profile = null;
+    }
 
-    // A newer loadProfile() started, or the account changed under us, while
-    // this fetch was in flight — drop this result rather than clobber.
-    if (gen !== profileLoadGen || get().session?.user.id !== startedForUser) return;
+    // A newer loadProfile() has taken over — it owns the outcome, including
+    // loadingProfile. Do nothing.
+    if (gen !== profileLoadGen) return;
 
-    set({ profile, loadingProfile: false });
+    // We ARE the latest call, so we must always clear loadingProfile. If the
+    // account changed under us mid-fetch, this profile is for the wrong user —
+    // keep whatever is there, but never leave the flag stuck.
+    const stillSameUser = get().session?.user.id === uid;
+    set({ loadingProfile: false, ...(stillSameUser ? { profile } : {}) });
 
     // Record this account in the multi-account book so the switcher can list
     // it. Best-effort, non-blocking — a failure here never affects the app.
     const session = get().session;
-    if (session && profile) {
+    if (stillSameUser && session && profile) {
       void recordSignIn(session, {
         email: profile.email,
         name: profile.name ?? null,
@@ -260,6 +288,28 @@ export const useSession = create<SessionState>((set, get) => ({
    * session, and re-initialises. `/` (app/index.tsx) re-routes on the new
    * session, same as any other sign-in.
    */
+  activateSession: async (session: Session, replacingLive: boolean) => {
+    if (replacingLive) {
+      // Another account was active a moment ago. Stop its background work (no
+      // revoke — it stays in the book), drop its cached screens and
+      // entitlements, and null the session so the tab tree unmounts. `switching`
+      // keeps the route mapper from reading that null as a sign-out.
+      set({ switching: true });
+      stopNotificationSummary();
+      stopRealtime();
+      await withTimeout(disconnectStream(), TEARDOWN_TIMEOUT_MS);
+      clearFetchCache();
+      resetEntitlements();
+      set({ session: null, profile: null });
+    }
+    try {
+      set({ session });
+      await get().loadProfile();
+    } finally {
+      if (replacingLive) set({ switching: false });
+    }
+  },
+
   switchAccount: async (userId: string) => {
     const stored = await getStoredSession(userId);
     if (!stored?.access_token || !stored?.refresh_token) {
@@ -335,13 +385,36 @@ export const useSession = create<SessionState>((set, get) => ({
       if (event === 'TOKEN_REFRESHED' && session) void syncActive(session).catch(() => {});
     });
 
-    // If there is no stored session, onAuthStateChange still fires (with null),
-    // but guard against a cold start that somehow doesn't.
-    void supabase.auth.getSession().then(({ data: d }) => {
-      if (!get().ready) set({ session: d.session, ready: true });
-    });
+    // Read the stored session directly too. onAuthStateChange USUALLY fires on
+    // startup, but a corrupt auth-storage value (a half-written session from a
+    // failed add-account) makes getSession() reject and the listener silent —
+    // and then `ready` never flips and the app hangs on the splash. So: catch
+    // the rejection, wipe the poisoned storage, and proceed signed-out.
+    void supabase.auth
+      .getSession()
+      .then(({ data: d }) => {
+        if (!get().ready) set({ session: d.session, ready: true });
+      })
+      .catch(async (err) => {
+        logger.error('[session] getSession() failed on init — clearing auth storage', { err });
+        await clearPersistedAuth().catch(() => {});
+        if (!get().ready) set({ session: null, ready: true });
+      });
 
-    return () => data.subscription.unsubscribe();
+    // Last-resort watchdog: whatever happened above, the splash must not sit
+    // forever. If nothing has flipped `ready` within 8s, force it — index.tsx
+    // then routes on whatever session state we have (usually null → Welcome).
+    const watchdog = setTimeout(() => {
+      if (!get().ready) {
+        logger.warn('[session] init watchdog fired — forcing ready');
+        set({ ready: true });
+      }
+    }, 8000);
+
+    return () => {
+      clearTimeout(watchdog);
+      data.subscription.unsubscribe();
+    };
   },
 }));
 

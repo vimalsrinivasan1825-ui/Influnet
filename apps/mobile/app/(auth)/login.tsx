@@ -14,8 +14,7 @@ export default function Login() {
   const router = useRouter();
   const { add } = useLocalSearchParams<{ add?: string }>();
   const adding = add === '1';
-  const loadProfile = useSession((s) => s.loadProfile);
-  const setSession = useSession((s) => s.setSession);
+  const activateSession = useSession((s) => s.activateSession);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,8 +71,10 @@ export default function Login() {
       return;
     }
 
-    setSession(data.session);
-    await loadProfile();
+    // `adding` = a second account was signed in while another was live. That
+    // path has to tear the previous account's caches/connections down and
+    // remount, or the app keeps showing the old account's data.
+    await activateSession(data.session, adding);
     setBusy(false);
     router.replace('/');
   }

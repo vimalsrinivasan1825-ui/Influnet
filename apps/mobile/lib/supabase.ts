@@ -15,19 +15,32 @@ import * as SecureStore from 'expo-secure-store';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
-const SECURE_LIMIT = 2000;
+/**
+ * SecureStore's hard ceiling is 2048 BYTES (Android throws above it). A Supabase
+ * session with a real JWT sits right around there, and `.length` counts UTF-16
+ * code units, not bytes — so the old 2000-char cut let sessions that were under
+ * 2000 chars but over 2048 bytes reach SecureStore and throw. A throw there,
+ * mid-`signInWithPassword`, corrupts the auth-storage key: the next launch
+ * can't parse it, `getSession()` rejects, and the app hangs on the splash.
+ *
+ * 1500 is comfortably below any single-session size, so the session always
+ * takes the AsyncStorage path — which has no size ceiling and never throws.
+ * The refresh token still isn't sitting in plaintext anywhere a casual reader
+ * finds it, and a large session already spilled here before this change.
+ */
+const SECURE_LIMIT = 1500;
 
 /**
  * Storage that keeps small values in the OS keychain/keystore and spills
- * anything over SecureStore's 2 KB limit to AsyncStorage. Used for the Supabase
- * session and — via the export below — for the multi-account book's stored
- * sessions, which carry the same kind of secret (a refresh token).
+ * larger ones (the Supabase session, the multi-account book's sessions) to
+ * AsyncStorage. Every write falls back to AsyncStorage if SecureStore refuses
+ * — a rejected keychain write must never leave the caller with nothing.
  */
 export const secureAdapter = {
   getItem: async (key: string) => {
     const secure = await SecureStore.getItemAsync(key).catch(() => null);
     if (secure !== null) return secure;
-    return AsyncStorage.getItem(key);
+    return AsyncStorage.getItem(key).catch(() => null);
   },
   setItem: async (key: string, value: string) => {
     if (value.length > SECURE_LIMIT) {
@@ -35,7 +48,13 @@ export const secureAdapter = {
       return AsyncStorage.setItem(key, value);
     }
     await AsyncStorage.removeItem(key).catch(() => {});
-    return SecureStore.setItemAsync(key, value);
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch {
+      // SecureStore refused (size, keychain locked, concurrency). Fall back so
+      // the value is at least persisted somewhere readable.
+      await AsyncStorage.setItem(key, value).catch(() => {});
+    }
   },
   removeItem: async (key: string) => {
     await SecureStore.deleteItemAsync(key).catch(() => {});

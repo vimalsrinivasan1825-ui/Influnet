@@ -18,7 +18,7 @@
  * in (three pulsing dots + a line of text) and the mark starts breathing. A
  * fast launch never sees any of it.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -52,6 +52,7 @@ const MARK_SIZE = 124;
 const WORDMARK_IN = 260;
 const HOLD_UNTIL = 1800;
 const LOADER_AFTER = 2400;
+const MAX_HOLD = 14000;
 const FADE_MS = 320;
 
 /** One breathing dot. Staggered by `delay` so the three read as a wave. */
@@ -129,8 +130,18 @@ export function BrandSplash({
     return () => clearTimeout(t);
   }, [canExit, loader, breathe, reduced]);
 
+  // Hard ceiling: whatever the app is doing, the splash hands over after
+  // MAX_HOLD. The entry gate (app/index.tsx) has its own spinner AND a
+  // recovery / "sign out" escape — a stuck splash has neither, so a genuinely
+  // wedged launch is far better off there.
+  const [forceExit, setForceExit] = useState(false);
   useEffect(() => {
-    if (!canExit || exiting.current) return;
+    const t = setTimeout(() => setForceExit(true), MAX_HOLD);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if ((!canExit && !forceExit) || exiting.current) return;
     exiting.current = true;
 
     // Let the animation finish if the session came back faster than it plays.
@@ -143,7 +154,7 @@ export function BrandSplash({
         if (finished) runOnJS(onDone)();
       })
     );
-  }, [canExit, screen, reduced, onDone]);
+  }, [canExit, forceExit, screen, reduced, onDone]);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: screen.value }));
 

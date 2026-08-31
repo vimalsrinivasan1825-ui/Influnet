@@ -35,6 +35,10 @@ export default function TabsLayout() {
   const switching = useSession((s) => s.switching);
   const isCreator = role === 'influencer';
   const signedOut = ready && !session && !switching;
+  // Mid account-switch: bounce to the entry gate so this whole tree unmounts
+  // and then remounts CLEAN on the new session — otherwise the tabs keep their
+  // mounted state and their cached data belongs to the previous account.
+  const midSwitch = switching;
 
   // Badge counts, polled on a slow cadence by the shared store so the header
   // bell on Home reads the same numbers these tabs do. Not started (and torn
@@ -73,7 +77,7 @@ export default function TabsLayout() {
    * the moment the session goes is what makes "no stray requests after
    * sign-out" structural rather than a matter of getting every screen right.
    */
-  if (signedOut) return <Redirect href="/" />;
+  if (signedOut || midSwitch) return <Redirect href="/" />;
 
   const badge = (n?: number) => (n && n > 0 ? (n > 99 ? '99+' : String(n)) : undefined);
 
