@@ -17,6 +17,7 @@ import { VerificationPanel } from "@/components/dashboard/verification-panel";
 import { BlockedAccountsPanel } from "@/components/dashboard/blocked-accounts-panel";
 import { EmailPreferencesPanel } from "@/components/dashboard/email-preferences-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
+import { GuideReplayControl } from "@/components/guides/guide-replay-control";
 import { PortfolioEditor } from "@/components/dashboard/portfolio-editor";
 import { ProfileVisibilityEditor } from "@/components/dashboard/profile-visibility-editor";
 import { publicProfileUrlDisplay } from "@/lib/site";
@@ -655,6 +656,12 @@ export default function SettingsPage() {
       <div className="mt-8">
         <SectionCard eyebrow="Notifications" title="Email preferences">
           <EmailPreferencesPanel />
+        </SectionCard>
+      </div>
+
+      <div className="mt-8">
+        <SectionCard eyebrow="Help" title="Product guides">
+          <GuideReplayControl />
         </SectionCard>
       </div>
 

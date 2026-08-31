@@ -7,6 +7,7 @@ import { Bell, Menu, MessageSquare, Search } from "lucide-react";
 import { useNotificationStore } from "@/store/notification-store";
 import { AccountMenu } from "@/components/dashboard/account-menu";
 import { CommandPalette } from "@/components/dashboard/command-palette";
+import { GuideLauncher } from "@/components/guides/guide-launcher";
 import { CreatorProfileOverlay } from "@/components/dashboard/creator-profile-overlay";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
@@ -149,6 +150,8 @@ export default function DashboardHeader({
       </div>
 
       <div className="ml-auto flex items-center gap-1 lg:ml-3">
+        <GuideLauncher role={role} />
+
         <Link
           href="/dashboard/messages"
           aria-label="Messages"
