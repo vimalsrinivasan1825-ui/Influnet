@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { Pressable } from 'react-native';
 import { useTheme } from '@/lib/theme';
@@ -12,8 +12,9 @@ import { Button, Field, KeyboardAvoider, ScreenScroll, Txt } from '@/components/
 export default function Login() {
   const t = useTheme();
   const router = useRouter();
-  const loadProfile = useSession((s) => s.loadProfile);
-  const setSession = useSession((s) => s.setSession);
+  const { add } = useLocalSearchParams<{ add?: string }>();
+  const adding = add === '1';
+  const activateSession = useSession((s) => s.activateSession);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,8 +71,10 @@ export default function Login() {
       return;
     }
 
-    setSession(data.session);
-    await loadProfile();
+    // `adding` = a second account was signed in while another was live. That
+    // path has to tear the previous account's caches/connections down and
+    // remount, or the app keeps showing the old account's data.
+    await activateSession(data.session, adding);
     setBusy(false);
     router.replace('/');
   }
@@ -82,8 +85,12 @@ export default function Login() {
     <KeyboardAvoider>
       <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing['2xl'], gap: t.spacing.lg }}>
         <AuthHeader
-          title="Welcome back"
-          subtitle="Sign in to pick up where you left off."
+          title={adding ? 'Add an account' : 'Welcome back'}
+          subtitle={
+            adding
+              ? 'Sign in to another account — you can switch between them any time.'
+              : 'Sign in to pick up where you left off.'
+          }
           compact
         />
 
@@ -157,7 +164,7 @@ export default function Login() {
         <Button
           label="Create an account"
           variant="ghost"
-          onPress={() => router.replace('/signup')}
+          onPress={() => (adding ? router.push('/signup') : router.replace('/signup'))}
         />
       </ScreenScroll>
     </KeyboardAvoider>

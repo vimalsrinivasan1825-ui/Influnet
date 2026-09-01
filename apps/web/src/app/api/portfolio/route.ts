@@ -129,14 +129,26 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      // 23505 = the (user_id, content_url) unique index; 23514 = the 24-item
-      // cap trigger. Both are the creator's doing and deserve a real sentence,
-      // not a 500.
+      // 23505 = the (user_id, content_url) unique index; 23514 = a cap trigger.
+      // All the creator's doing and deserving a real sentence, not a 500.
       if (error.code === '23505') {
         return jsonError(409, 'That post is already in your portfolio.');
       }
+      // The billing ceiling (migration 139) — a 402 with an upgrade path, told
+      // apart from the absolute wall by its machine-readable message.
+      if (/portfolio_quota_exceeded/i.test(error.message || '')) {
+        return NextResponse.json(
+          {
+            error:
+              'Free portfolios hold 5 items. Upgrade to Pro to add more, or remove one first.',
+            feature: 'portfolio.add',
+            upgradeUrl: '/dashboard/billing',
+          },
+          { status: 402 },
+        );
+      }
       if (error.code === '23514' || /Portfolio is full/i.test(error.message || '')) {
-        return jsonError(409, 'Your portfolio is full (24 items). Remove one to add another.');
+        return jsonError(409, 'Your portfolio is full. Remove one to add another.');
       }
       return jsonError(500, 'Failed to add to your portfolio', error);
     }

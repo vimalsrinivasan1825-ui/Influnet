@@ -597,14 +597,14 @@ export default function HomePage() {
                     </p>
                   </div>
                   {isCreator && attention.business_viewers != null && (
-                    <div>
-                      <span className="text-2xl font-extrabold tabular-nums text-content">
+                    <Link href="/dashboard/profile-viewers" className="group">
+                      <span className="text-2xl font-extrabold tabular-nums text-content group-hover:text-brand">
                         {compact(attention.business_viewers) ?? attention.business_viewers}
                       </span>
-                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
-                        Brands who looked
+                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted group-hover:text-brand">
+                        Brands who looked →
                       </p>
-                    </div>
+                    </Link>
                   )}
                 </div>
 

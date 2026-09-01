@@ -27,16 +27,18 @@ import {
   RefreshCw,
   Settings,
   Share2,
+  Sparkles,
   Star,
   Users,
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTheme } from '@/lib/theme';
 import { useSession, useSignOutAction } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
 import { invalidateFetchCache, useFetch } from '@/lib/use-fetch';
 import { formatCount } from '@/lib/format';
+import { useEntitlements } from '@/lib/use-entitlements';
 import { uploadImage } from '@/lib/upload';
 import {
   Avatar,
@@ -58,6 +60,7 @@ import {
   type TrendPoint,
 } from '@/components/ui';
 import { AppHeader } from '@/components/app-header';
+import { useAccountSheet } from '@/lib/use-account-sheet';
 import { Logo } from '@/components/brand/logo';
 import { PostGrid, VideoList } from '@/components/content-grid';
 import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
@@ -129,6 +132,8 @@ export default function ProfileScreen() {
   const { profile, loadProfile } = useSession();
   const myUserId = useSession((s) => s.session?.user.id);
   const { signOut, signingOut } = useSignOutAction();
+  const { entitlements, isPro, enabled: billingEnabled } = useEntitlements();
+  const openAccountSheet = useAccountSheet((s) => s.open);
   const [refreshingSocial, setRefreshingSocial] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
@@ -812,6 +817,46 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/verification')}
               />
             </>
+          ) : null}
+          <ListRow
+            title="Switch account"
+            subtitle="Add or move between accounts — or long-press the Profile tab"
+            left={<Users size={19} color={t.color.contentSoft} />}
+            onPress={openAccountSheet}
+          />
+          {billingEnabled ? (
+            <ListRow
+              title={isPro ? 'Influnet Pro' : 'Plan & billing'}
+              subtitle={
+                isPro
+                  ? 'Everything unlocked · manage your plan'
+                  : entitlements
+                    ? 'You’re on Free — see what Pro adds'
+                    : 'View your plan'
+              }
+              left={
+                isPro ? (
+                  <View
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#FBF3E4',
+                      borderWidth: 1,
+                      borderColor: '#E0C99B',
+                    }}
+                  >
+                    <Sparkles size={16} color="#8A5A08" />
+                  </View>
+                ) : (
+                  <Sparkles size={19} color={t.color.contentSoft} />
+                )
+              }
+              style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
+              onPress={() => router.push('/billing' as any)}
+            />
           ) : null}
           <ListRow
             title="My activity"

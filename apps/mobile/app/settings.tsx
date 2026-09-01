@@ -1,20 +1,23 @@
-import { useRef, useState } from 'react';
-import { Alert, Linking, Platform, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Linking, Platform, Switch, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import {
   Bell,
+  CirclePlay,
   LifeBuoy,
   LogOut,
   Mail,
   MessageSquareHeart,
   PlayCircle,
+  RotateCcw,
   ShieldOff,
   Trash2,
 } from 'lucide-react-native';
+import { useGuides } from '@/components/guides/use-guides';
 import { useTheme } from '@/lib/theme';
 import { LAST_COMMIT_TIME } from '@/lib/build-info';
 import { useSession, useSignOutAction } from '@/lib/session';
@@ -41,10 +44,27 @@ const DEVELOPER_EMAILS = [
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
+  const resetGuides = useGuides((s) => s.resetSeen);
+  const guidesSeen = useGuides((s) => s.seen.length);
   const { profile } = useSession();
   const { signOut, signingOut } = useSignOutAction();
   const deleteSheet = useRef<SheetRef>(null);
   const [testingPush, setTestingPush] = useState(false);
+  // Re-engagement nudges opt-out (migration 142). Optimistic — the Switch
+  // shows the new state immediately and reconciles if the PATCH fails.
+  const [nudgesOff, setNudgesOff] = useState<boolean>(Boolean(profile?.nudges_opt_out));
+  useEffect(() => {
+    setNudgesOff(Boolean(profile?.nudges_opt_out));
+  }, [profile]);
+
+  async function toggleNudges(next: boolean) {
+    setNudgesOff(next);
+    const res = await endpoints.updateProfile({ nudges_opt_out: next });
+    if (!res.ok) {
+      setNudgesOff(!next);
+      Alert.alert('Could not save', res.error ?? 'Please try again.');
+    }
+  }
 
   const showDiagnostics =
     Boolean(profile?.email) && DEVELOPER_EMAILS.includes(String(profile?.email).toLowerCase());
@@ -148,6 +168,25 @@ export default function SettingsScreen() {
         <SectionLabel>Help</SectionLabel>
         <ListGroup>
           <ListRow
+            title="How things work"
+            subtitle="Every short walkthrough, in one place"
+            left={<CirclePlay size={19} color={t.color.brand} />}
+            onPress={() => router.push('/guides' as Href)}
+          />
+          <ListRow
+            title="Replay product guides"
+            subtitle={
+              guidesSeen > 0
+                ? `${guidesSeen} watched — auto-play them all again`
+                : 'Auto-play a section’s guide the first time you open it'
+            }
+            left={<RotateCcw size={19} color={t.color.contentSoft} />}
+            onPress={() => {
+              resetGuides();
+              Alert.alert('Guides reset', 'Each section’s walkthrough will play once again next time you open it.');
+            }}
+          />
+          <ListRow
             title="Help & support"
             subtitle="Ask us anything — a real person reads every request"
             left={<LifeBuoy size={19} color={t.color.brand} />}
@@ -158,6 +197,25 @@ export default function SettingsScreen() {
             subtitle="An idea, something confusing, or something we got right"
             left={<MessageSquareHeart size={19} color={t.color.contentSoft} />}
             onPress={() => router.push('/feedback')}
+          />
+        </ListGroup>
+
+        <SectionLabel>Notifications</SectionLabel>
+        <ListGroup>
+          <ListRow
+            title="Reminders when you're away"
+            subtitle="Unread messages, projects waiting on you, new campaigns"
+            left={<Bell size={19} color={t.color.contentSoft} />}
+            right={
+              <Switch
+                value={!nudgesOff}
+                onValueChange={(on) => toggleNudges(!on)}
+                trackColor={{ true: t.color.brand, false: t.color.hairlineStrong }}
+                thumbColor={t.color.white}
+                style={{ transform: [{ scale: 0.85 }] }}
+                accessibilityLabel="Reminders when you're away"
+              />
+            }
           />
         </ListGroup>
 

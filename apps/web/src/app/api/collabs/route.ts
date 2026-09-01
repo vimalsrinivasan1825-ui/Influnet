@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     // still needing attention.
     const { data: projects } = await supabase
       .from('campaign_projects')
-      .select('id, title, status, current_stage, owner_user_id, counterparty_user_id, collab_request_id, created_at')
+      .select('id, title, status, current_stage, flow_key, owner_user_id, counterparty_user_id, collab_request_id, created_at')
       .or(`owner_user_id.eq.${user.id},counterparty_user_id.eq.${user.id}`);
 
     // Terms nobody has accepted are NOT this request's outcome. A brand and a
@@ -111,7 +111,25 @@ export async function GET(req: Request) {
       const open = mine.find((p) => p.status !== 'completed' && p.status !== 'cancelled');
       return {
         ...c,
-        project: project ? { id: project.id, title: project.title, status: project.status } : null,
+        /**
+         * `current_stage` and `flow_key` ride along so the request list can
+         * draw how far a live collaboration has actually got.
+         *
+         * Both were already being selected above for the annotation pass and
+         * then thrown away here, so this costs nothing. `flow_key` matters as
+         * much as the stage: the full flow has twelve stages and the short
+         * ones have four, and a strip that assumed twelve would report a
+         * finished short project as a third done.
+         */
+        project: project
+          ? {
+              id: project.id,
+              title: project.title,
+              status: project.status,
+              current_stage: project.current_stage,
+              flow_key: project.flow_key ?? null,
+            }
+          : null,
         // Fail safe: a business sender whose status we could not read is
         // reported as 'unknown', not null. Both clients show the precaution for
         // any value other than 'approved', so an unreadable status now reads as
@@ -226,7 +244,6 @@ export async function POST(req: Request) {
     // The cost of that ordering is handled by the release in the error path below.
     const overQuota = await requireQuota(
       { supabase, user },
-      'requests.send',
       'requests_month',
       'You have used all your collaboration requests for this month. Upgrade to Pro for more.',
     );
@@ -406,17 +423,33 @@ export async function PATCH(req: Request) {
         ? `/dashboard/messages?conv=${conversationId}`
         : '/dashboard/messages';
 
+      // A peer request (creator → creator) has no brand and no project to
+      // start, so it gets a plain in-app notification rather than the
+      // brand-flavoured collab_accepted email.
+      const { data: senderRow } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', collab.from_user_id)
+        .maybeSingle();
+      const isPeerRequest = (senderRow as { role?: string } | null)?.role === 'influencer';
+
       await notifyUser({
         userId: collab.from_user_id,
         type: 'collab_accepted',
-        title: 'Your collaboration request was accepted',
-        body: 'The creator accepted — start the conversation to agree on scope and budget, then create the project.',
+        title: isPeerRequest
+          ? `${creatorName} accepted your collaboration request`
+          : 'Your collaboration request was accepted',
+        body: isPeerRequest
+          ? 'Open the conversation to start talking.'
+          : 'The creator accepted — start the conversation to agree on scope and budget, then create the project.',
         link: chatLink,
-        email: {
-          templateId: 'collab_accepted',
-          dedupeKey: `collab_accepted:${collab.id}`,
-          data: { businessName, creatorName, projectName, dashboardUrl: chatLink },
-        },
+        email: isPeerRequest
+          ? undefined
+          : {
+              templateId: 'collab_accepted',
+              dedupeKey: `collab_accepted:${collab.id}`,
+              data: { businessName, creatorName, projectName, dashboardUrl: chatLink },
+            },
       });
 
       // Fetch the updated collab to return

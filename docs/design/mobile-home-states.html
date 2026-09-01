@@ -1,0 +1,2118 @@
+<title>Influnet Mobile States</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+/* ─────────────────────────────────────────────────────────────
+   REVIEW CHROME — the board these mockups are pinned to.
+   Its palette is deliberately NOT the app's: a cool slate ground
+   so the device frames read as objects sitting on something,
+   which is the exact quality under review inside them.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --ground:      #e9ecf2;
+  --ground-deep: #dde1ea;
+  --panel:       #ffffff;
+  --ink:         #14161d;
+  --ink-soft:    #414958;
+  --ink-mute:    #5b6478;
+  --rule:        #cdd3df;
+  --rule-soft:   #e0e4ec;
+  --note:        #9a6b1c;
+  --note-bg:     #fbf4e6;
+  --chip:        #eef1f6;
+  --shadow-pin:  0 1px 2px rgba(20,22,29,.08), 0 12px 28px -8px rgba(20,22,29,.22);
+  --focus:       #2a3145;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #14161c;
+    --ground-deep: #0d0f14;
+    --panel:       #1c1f27;
+    --ink:         #eef0f5;
+    --ink-soft:    #b6bdcc;
+    --ink-mute:    #8b93a5;
+    --rule:        #333947;
+    --rule-soft:   #262b35;
+    --note:        #d8a94e;
+    --note-bg:     #2a2418;
+    --chip:        #262b35;
+    --shadow-pin:  0 1px 2px rgba(0,0,0,.5), 0 16px 34px -10px rgba(0,0,0,.7);
+    --focus:       #aeb8cc;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #14161c;
+  --ground-deep: #0d0f14;
+  --panel:       #1c1f27;
+  --ink:         #eef0f5;
+  --ink-soft:    #b6bdcc;
+  --ink-mute:    #8b93a5;
+  --rule:        #333947;
+  --rule-soft:   #262b35;
+  --note:        #d8a94e;
+  --note-bg:     #2a2418;
+  --chip:        #262b35;
+  --shadow-pin:  0 1px 2px rgba(0,0,0,.5), 0 16px 34px -10px rgba(0,0,0,.7);
+  --focus:       #aeb8cc;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 96px; }
+
+/* ── Masthead ─────────────────────────────────────────────── */
+.mast { display: flex; flex-direction: column; gap: 14px; padding-bottom: 26px; border-bottom: 1px solid var(--rule); }
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-mute);
+}
+h1 { margin: 0; font-size: clamp(28px, 4vw, 40px); font-weight: 600; letter-spacing: -.02em; line-height: 1.1; text-wrap: balance; }
+.lede { margin: 0; max-width: 62ch; color: var(--ink-soft); font-size: 16px; }
+
+/* ── Controls ─────────────────────────────────────────────── */
+.controls {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-end;
+  margin: 26px 0 34px; padding: 16px 18px;
+  background: var(--panel); border: 1px solid var(--rule-soft); border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(20,22,29,.06), 0 8px 20px -10px rgba(20,22,29,.18);
+}
+.ctl { display: flex; flex-direction: column; gap: 7px; }
+.ctl > span {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute);
+}
+.seg { display: flex; gap: 4px; padding: 3px; background: var(--chip); border-radius: 9px; }
+.seg button {
+  appearance: none; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  padding: 7px 13px; border-radius: 7px;
+  background: transparent; color: var(--ink-soft);
+  transition: background .15s ease, color .15s ease;
+}
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(20,22,29,.14); }
+.seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.verdict {
+  margin-left: auto; align-self: center;
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; color: var(--ink-mute);
+  max-width: 30ch; line-height: 1.5;
+}
+.verdict b { color: var(--ink); font-weight: 600; }
+
+/* ── Board ────────────────────────────────────────────────── */
+.board { display: flex; gap: 30px; overflow-x: auto; padding: 8px 4px 34px; scroll-snap-type: x proximity; }
+.slot { scroll-snap-align: start; flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px; width: 375px; }
+.slot-head { display: flex; align-items: baseline; gap: 10px; }
+.slot-head h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.slot-head code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px;
+  color: var(--ink-mute); background: var(--chip); padding: 2px 7px; border-radius: 5px;
+}
+.slot-note { font-size: 13.5px; color: var(--ink-mute); line-height: 1.5; min-height: 42px; }
+
+/* ─────────────────────────────────────────────────────────────
+   DEVICE — a 375pt screen. Everything below this comment is a
+   faithful redraw of the app, so it uses the APP's tokens
+   (@influnet/tokens) and a system font stack, never the review
+   chrome's Plex. A mockup that inherits the reviewing page's
+   typeface stops being evidence.
+   ───────────────────────────────────────────────────────────── */
+.device {
+  width: 375px; height: 720px; overflow: hidden; position: relative;
+  border-radius: 30px; background: var(--app-bg);
+  box-shadow: var(--shadow-pin);
+  border: 1px solid var(--rule);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  color: #0f172a;
+}
+/* Sits UNDER the tab bar, which is a sibling pinned to the device. The
+   bottom padding is what keeps the last card from being trapped beneath it. */
+.screen { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 72px; }
+.screen::-webkit-scrollbar { width: 0; }
+
+/* App tokens, per surface treatment. `data-treatment` on the board
+   rewrites these and every frame re-skins at once. */
+[data-treatment="current"] {
+  --app-bg: #f6f7f9;
+  --app-card: #ffffff;
+  --app-border: 1px solid #eef0f4;
+  --app-elev: none;
+  --app-elev-raised: 0 1px 3px rgba(15,23,42,.05);
+}
+[data-treatment="ground"] {
+  --app-bg: #edf0f5;
+  --app-card: #ffffff;
+  --app-border: 1px solid #e4e8ef;
+  --app-elev: 0 1px 2px rgba(15,23,42,.04);
+  --app-elev-raised: 0 2px 8px rgba(15,23,42,.07);
+}
+/* SHIPPED. These are the literal token values on dev, not a web approximation
+   of them: React Native takes ONE shadow per view, so the two-layer stack this
+   was originally drawn with has been collapsed to the single shadow the app
+   actually renders — shadows.card is opacity .06 / radius 10 / offset y 2, and
+   shadows.raised is .1 / 18 / 6. If this page showed a richer shadow than the
+   platform can produce it would be selling something undeliverable. */
+[data-treatment="elevation"] {
+  --app-bg: #f2f4f8;
+  --app-card: #ffffff;
+  --app-border: 1px solid transparent;
+  --app-elev: 0 2px 10px rgba(15,23,42,.06);
+  --app-elev-raised: 0 6px 18px rgba(15,23,42,.10);
+}
+
+/* Role accent — the whole point of the redesign. */
+[data-role="business"] { --brand:#ee3e96; --brand-strong:#d6358a; --brand-soft:#fdf2f8; --brand-ring:rgba(238,62,150,.35); }
+[data-role="creator"]  { --brand:#7c3aed; --brand-strong:#6d28d9; --brand-soft:#f5f3ff; --brand-ring:rgba(124,58,237,.35); }
+
+/* Fixed semantic hues — these never follow the role.
+   Declared on BOTH surfaces that host app chrome. Putting them on `.device`
+   alone left the state gallery's tiles with no --mute / --hair-2 at all, and
+   inheriting the review page's ink, which in dark mode is near-white text on a
+   white card. Any app surface carries the app's own ink, whatever theme the
+   board around it is in. */
+.device, .gstage {
+  --warn:#d97706; --warn-soft:#fffbeb; --ok:#16a34a; --danger:#dc2626;
+  --soft:#475569; --mute:#94a3b8; --hair:#eef0f4; --hair-2:#e3e6ec;
+}
+.card, .tile, .ccard { color: #0f172a; }
+
+.pad { padding: 0 16px; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+
+.card {
+  background: var(--app-card); border: var(--app-border); border-radius: 16px;
+  padding: 16px; box-shadow: var(--app-elev);
+}
+.card.raised { box-shadow: var(--app-elev-raised); }
+.card.flush { padding: 0; }
+
+/* Header */
+.hdr { padding: 22px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.hdr-row { display: flex; align-items: center; gap: 12px; }
+.greet { flex: 1; font-size: 15px; color: var(--soft); }
+.greet b { color: #0f172a; font-weight: 700; }
+.icn { width: 22px; height: 22px; flex: 0 0 auto; color: var(--soft); }
+.bell-wrap { position: relative; }
+.badge-n {
+  position: absolute; top: -3px; right: -5px; min-width: 18px; height: 18px;
+  border-radius: 9px; background: var(--brand); color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 18px; text-align: center;
+  border: 2px solid var(--app-bg); padding: 0 3px;
+}
+.avatar {
+  width: 40px; height: 40px; border-radius: 20px; background: var(--brand-soft);
+  color: var(--brand); font-weight: 700; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.hero-h { font-size: 30px; line-height: 36px; font-weight: 800; letter-spacing: -.8px; margin: 0; }
+.hero-h span { color: var(--brand); display: block; }
+
+/* Rows */
+.qrow { display: flex; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--hair); }
+.qrow:first-of-type { border-top: 0; }
+.roundel { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.t-strong { font-size: 16px; font-weight: 600; line-height: 21px; }
+.t-body { font-size: 16px; line-height: 23px; }
+.t-foot { font-size: 13px; line-height: 18px; color: var(--soft); }
+.t-cap { font-size: 12px; line-height: 16px; color: var(--mute); font-weight: 500; }
+.t-mute { color: var(--mute); }
+.sec-label {
+  font-size: 12px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase;
+  color: var(--mute); margin: 12px 0 4px;
+}
+.sec-row { display: flex; align-items: baseline; justify-content: space-between; margin: 12px 0 4px; }
+.link-b { font-size: 12px; font-weight: 700; color: var(--brand); }
+
+/* Progress ring */
+.ring { width: 54px; height: 54px; flex: 0 0 auto; position: relative; }
+.ring svg { transform: rotate(-90deg); }
+.ring-lbl { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+/* No caption. A ring already reads as progress, so a word under the figure
+   labels what the shape has said — and two stacked lines inside a 54pt circle
+   push the number off the optical centre and shrink it to fit. Sized off the
+   ring rather than fixed, so it fills a 54pt one the way it fills a 72pt one. */
+.ring-lbl b { font-size: 16px; font-weight: 700; letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+
+/* Stat tiles */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile {
+  background: var(--app-card); border: var(--app-border); border-radius: 16px;
+  padding: 16px; box-shadow: var(--app-elev); display: flex; flex-direction: column; gap: 6px;
+}
+.tile-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tile-lbl { font-size: 13px; color: var(--mute); }
+.tile-ic { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.tile-val { font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
+.tile-val.dim { color: var(--mute); }
+.chart { height: 30px; margin-top: 2px; }
+.baseline { height: 30px; display: flex; align-items: flex-end; margin-top: 2px; }
+.baseline i { display: block; height: 2px; width: 100%; border-radius: 1px; background: var(--hair-2); }
+.delta { display: flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; }
+.bars { display: flex; align-items: flex-end; gap: 3px; height: 30px; }
+.bars i { flex: 1; border-radius: 2.5px; display: block; }
+
+/* Buttons */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; border-radius: 12px; background: var(--brand); color: #fff;
+  font-size: 16px; font-weight: 600;
+}
+.btn.sec { background: var(--app-card); color: #0f172a; border: 1px solid var(--hair-2); }
+.btn.tall { height: 52px; }
+
+/* Empty pipeline diagram */
+.diagram { display: flex; align-items: center; justify-content: center; }
+.node { border-radius: 999px; background: var(--brand-soft); border: 1px solid var(--brand-ring); display: flex; align-items: center; justify-content: center; }
+.conn { width: 26px; border-top: 1.5px dashed var(--brand-ring); }
+
+/* Setup checklist */
+.step { display: flex; gap: 12px; align-items: flex-start; }
+.tick { width: 22px; height: 22px; border-radius: 11px; margin-top: 1px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+.tick.done { background: var(--brand); }
+.tick.next { border: 2px solid var(--brand); }
+.tick.later { border: 2px solid var(--hair-2); }
+.step.later { opacity: .45; }
+.strike { color: var(--mute); text-decoration: line-through; }
+
+/* Campaign rail */
+.rail { display: flex; gap: 12px; overflow-x: auto; padding: 2px 16px 2px; }
+.rail::-webkit-scrollbar { height: 0; }
+.ccard { flex: 0 0 auto; width: 190px; background: var(--app-card); border: var(--app-border); border-radius: 16px; overflow: hidden; box-shadow: var(--app-elev); }
+.cover { height: 108px; position: relative; display: flex; align-items: center; justify-content: center; }
+.cover .pill {
+  position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 4px;
+  background: rgba(15,23,42,.72); color: #fff; font-size: 11px; font-weight: 700;
+  padding: 4px 8px; border-radius: 999px;
+}
+.cbody { padding: 12px; display: flex; flex-direction: column; gap: 3px; }
+
+/* Tab bar */
+.tabs {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 66px;
+  background: rgba(255,255,255,.94); backdrop-filter: blur(12px);
+  border-top: 1px solid var(--hair); display: flex; align-items: center;
+  padding: 0 8px 10px;
+}
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--mute); }
+.tab.on { color: var(--brand); font-weight: 600; }
+
+
+/* ── Sent requests screen ─────────────────────────────────── */
+.rq-hdr { padding: 20px 16px 14px; display: flex; align-items: center; gap: 12px; }
+.rq-mark { width: 34px; height: 34px; flex: 0 0 auto; }
+.rq-title { flex: 1; font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -.5px; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 6px; }
+.chips::-webkit-scrollbar { height: 0; }
+.chip {
+  flex: 0 0 auto; padding: 8px 15px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  background: var(--app-card); border: var(--app-border); border-color: var(--hair-2);
+  color: var(--soft); box-shadow: var(--app-elev);
+}
+.chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.ovw { display: flex; align-items: stretch; }
+.ovw-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.ovw-sep { width: 1px; background: var(--hair); margin: 2px 0; }
+.ovw-ic {
+  width: 36px; height: 36px; border-radius: 10px; background: var(--brand-soft);
+  display: flex; align-items: center; justify-content: center;
+}
+.ovw-n { font-size: 24px; line-height: 29px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.tip { display: flex; align-items: flex-start; gap: 12px; background: var(--brand-soft); border-radius: 14px; padding: 14px; }
+
+.pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.pill.brand { background: var(--brand-soft); color: var(--brand); }
+.pill.warn  { background: var(--warn-soft); color: var(--warn); }
+
+/* The five-node stage strip. Nodes are flex:1 and the connector is drawn as a
+   pseudo-element between dot centres, so the row stays even no matter how many
+   lines a label wraps to. */
+.strip { display: flex; align-items: flex-start; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.snode { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; }
+.snode:not(:last-child)::after {
+  content: ''; position: absolute; top: 16px;
+  left: calc(50% + 21px); right: calc(-50% + 21px);
+  border-top: 1.5px dashed var(--hair-2);
+}
+.snode.done:not(:last-child)::after { border-color: var(--brand-ring); }
+.sdot {
+  width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center;
+  background: var(--app-card); border: 1.5px solid var(--hair-2);
+}
+.snode.done .sdot { background: var(--brand); border-color: var(--brand); }
+.slabel { font-size: 10px; line-height: 13px; text-align: center; color: var(--mute); }
+.snode.done .slabel { color: var(--brand); font-weight: 700; }
+.step-of { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; }
+
+
+/* ── Messages: inbox ──────────────────────────────────────── */
+/* Header and search stay put while only the list moves. `position: sticky`
+   inside the scroller is the web equivalent of a pinned header in RN. */
+.msg-pin {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--app-bg);
+  padding: 26px 16px 10px;
+  border-bottom: 1px solid var(--hair);
+}
+.msg-top { display: flex; align-items: flex-start; gap: 12px; }
+.msg-h { flex: 1; }
+.msg-h b { display: block; font-size: 26px; line-height: 31px; font-weight: 700; letter-spacing: -.5px; }
+.msg-h span { font-size: 13px; color: var(--mute); }
+.msg-search-btn {
+  width: 42px; height: 42px; border-radius: 21px; flex: 0 0 auto;
+  background: var(--app-card); box-shadow: var(--app-elev);
+  display: flex; align-items: center; justify-content: center;
+}
+.searchbar {
+  margin-top: 14px; display: flex; align-items: center; gap: 10px;
+  background: var(--app-card); border-radius: 14px; padding: 12px 14px;
+  box-shadow: var(--app-elev);
+}
+.searchbar input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: #0f172a; }
+.searchbar input::placeholder { color: var(--mute); }
+
+.conv {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--app-card); border-radius: 16px; padding: 14px;
+  box-shadow: var(--app-elev);
+}
+/* An unread thread tints toward the ROLE accent — pink for a brand, purple for
+   a creator — so "somebody is waiting on you" is legible peripherally, without
+   reading a single name. */
+.conv.unread { background: var(--brand-soft); }
+.av { position: relative; flex: 0 0 auto; }
+.av-c {
+  width: 50px; height: 50px; border-radius: 25px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700; letter-spacing: -.2px;
+}
+.av-dot {
+  position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px;
+  border-radius: 6px; background: #22c55e; border: 2px solid var(--app-card);
+}
+.conv.unread .av-dot { border-color: var(--brand-soft); }
+.conv-body { flex: 1; min-width: 0; }
+.conv-row1 { display: flex; align-items: baseline; gap: 8px; }
+.conv-name { flex: 1; font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+.conv.unread .conv-name { font-weight: 700; }
+.conv-time { font-size: 12px; color: var(--mute); }
+.conv.unread .conv-time { color: var(--brand); font-weight: 700; }
+.conv-row2 { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+.conv-prev { flex: 1; font-size: 14px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv.unread .conv-prev { color: #0f172a; font-weight: 500; }
+.conv-badge {
+  min-width: 21px; height: 21px; border-radius: 11px; padding: 0 6px;
+  background: var(--brand); color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Messages: thread ─────────────────────────────────────── */
+.th-pin { position: sticky; top: 0; z-index: 5; background: var(--app-card); box-shadow: var(--app-elev); }
+.th-hdr { display: flex; align-items: center; gap: 12px; padding: 26px 14px 12px; }
+.th-name { flex: 1; min-width: 0; }
+.th-name b { display: block; font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+.th-name span { font-size: 13px; color: var(--brand); font-weight: 600; }
+.th-proj {
+  display: flex; align-items: center; gap: 12px; margin: 0 12px 12px;
+  background: var(--brand-soft); border-radius: 12px; padding: 11px 12px;
+}
+.th-proj-ic { width: 36px; height: 36px; border-radius: 10px; background: var(--app-card); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+
+/* The paper. A tiled doodle at very low ink — the texture reads as "this is a
+   conversation" the way it does in every messenger, without competing with the
+   bubbles sitting on it. */
+.paper {
+  background-color: #F1EAE3;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.05' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 22h20v14H14z'/%3E%3Cpath d='m14 22 10 8 10-8'/%3E%3Ccircle cx='96' cy='28' r='9'/%3E%3Cpath d='M92 30a5 5 0 0 0 8 0M93 25h.01M99 25h.01'/%3E%3Cpath d='m112 96 18-7-7 18-3-8z'/%3E%3Cpath d='M40 108c0-5 8-5 8 0s-8 9-8 9-8-4-8-9 8-5 8 0'/%3E%3Cpath d='m72 60 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z'/%3E%3Cpath d='M20 74h16M20 80h10'/%3E%3Cpath d='M104 122h18v10h-18z'/%3E%3C/g%3E%3C/svg%3E");
+  padding: 14px 12px 8px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.daychip {
+  align-self: center; background: rgba(255,255,255,.9); border-radius: 999px;
+  padding: 4px 12px; font-size: 12px; font-weight: 600; color: var(--soft);
+}
+.b { max-width: 78%; border-radius: 16px; padding: 9px 12px 6px; font-size: 15px; line-height: 21px; }
+.b.out { align-self: flex-end; background: var(--brand); color: #fff; border-bottom-right-radius: 5px; }
+.b.in  { align-self: flex-start; background: #fff; color: #0f172a; border-bottom-left-radius: 5px; box-shadow: 0 1px 1px rgba(15,23,42,.07); }
+.b-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 11px; margin-top: 3px; }
+.b.out .b-meta { color: rgba(255,255,255,.8); }
+.b.in .b-meta { color: var(--mute); }
+.b-wrap { display: flex; align-items: flex-end; gap: 8px; max-width: 82%; align-self: flex-start; }
+.b-av { width: 30px; height: 30px; border-radius: 15px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.file {
+  display: flex; align-items: center; gap: 10px; background: rgba(15,23,42,.04);
+  border-radius: 10px; padding: 9px 10px; margin-top: 6px;
+}
+.file-ic { width: 34px; height: 40px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.unread-rule { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+.unread-rule i { flex: 1; height: 1px; background: var(--brand-ring); }
+.unread-rule span { font-size: 12px; font-weight: 700; color: var(--brand); background: rgba(255,255,255,.9); padding: 3px 12px; border-radius: 999px; }
+
+.composer {
+  position: sticky; bottom: 0; background: var(--app-card);
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px 12px;
+  border-top: 1px solid var(--hair);
+}
+.comp-btn { width: 42px; height: 42px; border-radius: 21px; background: var(--brand); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.comp-in { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--app-bg); border-radius: 21px; padding: 10px 12px; }
+.comp-in span { flex: 1; font-size: 15px; color: var(--mute); }
+
+/* The display sheet behind the 3-dot. */
+/* Above the pinned thread header, which sits at z-index 5. A scrim that dims
+   the messages but not the header reads as a rendering fault, not as a modal. */
+.sheet-scrim { position: absolute; inset: 0; z-index: 20; background: rgba(15,23,42,.4); display: flex; align-items: flex-end; }
+.sheet { width: 100%; background: var(--app-card); border-radius: 22px 22px 0 0; padding: 8px 16px 24px; }
+.sheet-grip { width: 38px; height: 4px; border-radius: 2px; background: var(--hair-2); margin: 0 auto 14px; }
+.sheet-row { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--hair); }
+.sheet-row:first-of-type { border-top: 0; }
+.sizes { display: flex; gap: 8px; }
+.size-opt {
+  flex: 1; text-align: center; padding: 10px 0; border-radius: 12px;
+  border: 1.5px solid var(--hair-2); color: var(--soft); font-weight: 600;
+}
+.size-opt.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.toggle { width: 44px; height: 26px; border-radius: 13px; background: var(--brand); position: relative; flex: 0 0 auto; }
+.toggle i { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 10px; background: #fff; }
+
+
+/* ── Projects ─────────────────────────────────────────────── */
+.pj-ic { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.pj-card { background: var(--app-card); border-radius: 16px; padding: 14px; box-shadow: var(--app-elev); }
+.pj-top { display: flex; gap: 12px; align-items: flex-start; }
+.pj-meta { display: flex; align-items: center; gap: 7px; margin-top: 5px; flex-wrap: wrap; }
+.pj-step { font-size: 11.5px; font-weight: 600; color: var(--soft); background: var(--app-bg); padding: 3px 8px; border-radius: 6px; }
+.pj-pct { font-size: 19px; font-weight: 800; color: var(--brand); letter-spacing: -.4px; font-variant-numeric: tabular-nums; }
+.bar { height: 6px; border-radius: 3px; background: var(--hair-2); overflow: hidden; margin-top: 10px; }
+.bar i { display: block; height: 100%; border-radius: 3px; background: var(--brand); }
+.pj-foot { display: flex; align-items: center; gap: 6px; margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--hair); }
+
+.ovw-strip { display: flex; align-items: stretch; }
+.ovw-strip .ovw-col { gap: 4px; }
+.ovw-underline { width: 22px; height: 3px; border-radius: 2px; margin-top: 3px; }
+
+/* Detail hero. The cover is generated when a project has no image — the same
+   wash-and-blob treatment the campaign cards use, with the classified icon
+   sitting on it so the placeholder still says what the work IS. */
+.hero { height: 168px; position: relative; display: flex; align-items: center; justify-content: center; }
+.hero-badge { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,.94); color: var(--brand); font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px; }
+.hero-card { margin: -44px 12px 0; position: relative; z-index: 2; }
+.hero-ic { position: absolute; top: -28px; left: 14px; width: 62px; height: 62px; border-radius: 16px; border: 3px solid var(--app-card); display: flex; align-items: center; justify-content: center; }
+
+.facts { display: flex; align-items: stretch; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.fact { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.fact b { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
+.fact span { font-size: 10.5px; color: var(--mute); line-height: 13px; }
+.fact-sep { width: 1px; background: var(--hair); margin: 2px 0; }
+
+.gauge { display: flex; align-items: center; gap: 14px; background: var(--brand-soft); border-radius: 16px; padding: 16px 14px; }
+
+/* Timeline */
+.tl { position: relative; }
+.tl-row { display: flex; gap: 12px; position: relative; padding-bottom: 16px; }
+.tl-row:last-child { padding-bottom: 0; }
+.tl-rail { position: absolute; left: 15px; top: 32px; bottom: -4px; width: 2px; background: var(--hair-2); }
+.tl-row.done .tl-rail { background: var(--brand); }
+.tl-row:last-child .tl-rail { display: none; }
+.tl-dot { width: 32px; height: 32px; border-radius: 16px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; z-index: 1; }
+.tl-row.done .tl-dot { background: var(--brand); color: #fff; }
+.tl-row.now .tl-dot { background: var(--app-card); color: var(--brand); border: 2.5px solid var(--brand); }
+.tl-row.next .tl-dot { background: var(--app-bg); color: var(--mute); border: 2px solid var(--hair-2); }
+.tl-body { flex: 1; min-width: 0; padding-top: 4px; }
+.tl-name { font-size: 15px; font-weight: 600; }
+.tl-row.next .tl-name { color: var(--mute); font-weight: 500; }
+.tl-when { font-size: 12px; color: var(--mute); margin-top: 2px; }
+.tl-open { background: var(--app-card); border-radius: 12px; padding: 12px; margin-top: 9px; box-shadow: var(--app-elev); }
+.sign { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.sign-tick { width: 20px; height: 20px; border-radius: 10px; background: var(--brand); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+
+/* Annotation callouts */
+.notes { margin-top: 8px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.note {
+  background: var(--note-bg); border-left: 3px solid var(--note); border-radius: 0 8px 8px 0;
+  padding: 12px 14px; font-size: 13.5px; line-height: 1.55; color: var(--ink-soft);
+}
+.note b { color: var(--ink); font-weight: 600; display: block; margin-bottom: 3px; }
+.note code { font-family: "IBM Plex Mono", monospace; font-size: 12px; background: rgba(154,107,28,.12); padding: 1px 5px; border-radius: 4px; color: var(--note); }
+
+/* Section headings on the board */
+.h2 { margin: 54px 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -.015em; }
+.h2 + p { margin: 0 0 22px; max-width: 68ch; color: var(--ink-soft); }
+
+/* State gallery */
+.gallery { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: start; }
+.gcell { display: flex; flex-direction: column; gap: 10px; }
+.gcell > .tile { width: 100%; min-height: 132px; justify-content: flex-start; }
+.gcell > .tile .t-cap { margin-top: auto; }
+.gname {
+  font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--ink);
+}
+.gdesc { font-size: 13px; color: var(--ink-mute); line-height: 1.5; }
+.gstage { background: var(--app-bg); border: 1px solid var(--rule-soft); border-radius: 14px; padding: 14px; }
+
+/* Diff table */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--rule-soft); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 560px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule-soft); }
+th { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); font-weight: 500; }
+tr:last-child td { border-bottom: 0; }
+td code { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink); }
+.sw { display: inline-block; width: 13px; height: 13px; border-radius: 3px; border: 1px solid var(--rule); vertical-align: -2px; margin-right: 6px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="eyebrow">Influnet · mobile · dev @ 7afaa48f</div>
+    <h1>Every screen, every state</h1>
+    <p class="lede">
+      Screen by screen, drawn at true 375pt. <b>Home</b> is what is on <code style="font-family:'IBM Plex Mono',monospace;font-size:.9em">dev</code> right now; <b>Sent requests</b> is the next one, not built yet.
+      The card surfaces are settled — <b>Shipped</b> is what the app renders today; the other two are kept so the change stays legible.
+      Flat white cards on a near-white page were hard to tell apart, and removing the gradient wash is what took that separation away.
+    </p>
+  </header>
+
+  <div class="controls">
+    <label class="ctl">
+      <span>Account role</span>
+      <div class="seg" id="roleSeg">
+        <button type="button" data-role="business" aria-pressed="true">Business · pink</button>
+        <button type="button" data-role="creator" aria-pressed="false">Creator · purple</button>
+      </div>
+    </label>
+
+    <label class="ctl">
+      <span>Card surface</span>
+      <div class="seg" id="treatSeg">
+        <button type="button" data-treatment="current" aria-pressed="false">Before</button>
+        <button type="button" data-treatment="ground" aria-pressed="false">Alternative</button>
+        <button type="button" data-treatment="elevation" aria-pressed="true">Shipped</button>
+      </div>
+    </label>
+
+    <p class="verdict" id="verdict"></p>
+  </div>
+
+  <h2 class="h2" style="margin-top:34px">Home <span style="font-size:13px;font-weight:400;color:var(--ink-mute)">· shipped</span></h2>
+  <div class="board" id="board" data-treatment="elevation" data-role="business">
+
+    <!-- ═══ FRAME 1 — established account ═══════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>Established</h2><code>mood: waiting</code></div>
+      <p class="slot-note">Work in flight and decisions pending. Headline counts them; the queue below is that sentence's detail.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="hdr">
+            <div class="hdr-row">
+              <div class="greet">Good afternoon, <b>Arjun</b> 👋</div>
+              <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <div class="bell-wrap">
+                <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                <em class="badge-n">3</em>
+              </div>
+              <div class="avatar">A</div>
+            </div>
+            <h3 class="hero-h">3 things need<span>your attention</span></h3>
+          </div>
+
+          <div class="pad stack">
+            <div class="card flush">
+              <div style="padding:16px 16px 4px"><div class="t-strong">You have 3 things to review</div></div>
+              <div class="qrow">
+                <div class="roundel" style="background:var(--brand-soft)">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M11 17 8 20l-5-5 4-4"/><path d="m13 7 3-3 5 5-4 4"/><path d="m8 12 4 4"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="t-strong" style="font-size:15px">1 proposal to review</div>
+                  <div class="t-foot">Accept the terms or send changes.</div>
+                </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="qrow">
+                <div class="roundel" style="background:var(--warn-soft)">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.5 2 12v6h20v-6l-3.5-6.5A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.5z"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="t-strong" style="font-size:15px">2 collaboration requests</div>
+                  <div class="t-foot">Waiting for your reply.</div>
+                </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="sec-label">Your move</div>
+            <div class="card raised" style="border-color:var(--brand-ring);display:flex;gap:16px;align-items:center">
+              <div class="ring">
+                <svg width="54" height="54"><circle cx="27" cy="27" r="24" stroke="#e3e6ec" stroke-width="6" fill="none"/><circle cx="27" cy="27" r="24" stroke="var(--brand)" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="50 151"/></svg>
+                <div class="ring-lbl"><b>4/12</b></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="t-strong">Confirm the shoot date</div>
+                <div class="t-foot" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Diwali mega reel</div>
+                <div class="t-cap">Krishnan · Content production</div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+
+            <div class="card" style="gap:12px;display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+                <div>
+                  <div class="t-cap" style="text-transform:uppercase;letter-spacing:.6px">Committed spend</div>
+                  <div style="font-size:32px;line-height:38px;font-weight:700;letter-spacing:-1px;color:var(--brand);font-variant-numeric:tabular-nums">₹12,50,000</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="width:36px;height:36px;border-radius:18px;background:var(--brand-soft);display:flex;align-items:center;justify-content:center;margin-left:auto">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>
+                  </div>
+                  <div style="font-size:12px;font-weight:700;color:var(--ok);margin-top:4px">+18%</div>
+                  <div class="t-cap">vs last month</div>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;border-top:1px solid var(--hair);padding-top:12px">
+                <div class="t-foot">Across 3 active projects</div>
+                <div class="t-foot" style="font-weight:600;color:#0f172a">₹4,20,000 completed</div>
+              </div>
+            </div>
+
+            <div class="sec-label">At a glance</div>
+            <div class="grid">
+              <div class="tile">
+                <div class="tile-top"><span class="tile-lbl">Profile views</span>
+                  <span class="tile-ic" style="background:var(--brand-soft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                </div>
+                <div class="tile-val">1,248</div>
+                <div class="chart" data-spark="views" data-color="brand"></div>
+                <div class="delta" style="color:var(--ok)">▲ 24%</div>
+              </div>
+              <div class="tile">
+                <div class="tile-top"><span class="tile-lbl">Collab requests</span>
+                  <span class="tile-ic" style="background:#0ba5ec1f"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0BA5EC" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.5 2 12v6h20v-6l-3.5-6.5A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.5z"/></svg></span>
+                </div>
+                <div class="tile-val">16</div>
+                <div class="chart bars" data-bars="requests" data-color="#0BA5EC"></div>
+                <div class="t-cap">pending</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec-row pad" style="margin-top:16px"><span class="sec-label" style="margin:0">Discover campaigns</span><span class="link-b">View all ›</span></div>
+          <div class="rail">
+            <article class="ccard">
+              <div class="cover" data-cover="c1">
+                <span class="pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>4 days left</span>
+              </div>
+              <div class="cbody">
+                <div class="t-strong" style="font-size:15px;line-height:20px">Diwali beauty campaign</div>
+                <div class="t-cap">Kaya Naturals</div>
+                <div style="font-size:12px;font-weight:700;color:var(--brand);margin-top:2px">₹45K – ₹70K</div>
+              </div>
+            </article>
+            <article class="ccard">
+              <div class="cover" data-cover="c2"></div>
+              <div class="cbody">
+                <div class="t-strong" style="font-size:15px;line-height:20px">Festive fragrance launch</div>
+                <div class="t-cap">Aurelia</div>
+                <div style="font-size:12px;font-weight:700;color:var(--brand);margin-top:2px">₹60K+</div>
+              </div>
+            </article>
+          </div>
+
+        </div>
+          <div class="tabs">
+            <div class="tab on"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 9 8h-2.5v9h-13v-9H3z"/></svg>Home</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-5 2 2-5z"/></svg>Discover</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Messages</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>Projects</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg>Profile</div>
+          </div>
+      </div>
+    </section>
+
+    <!-- ═══ FRAME 2 — first run ═════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>First run</h2><code>mood: first-run</code></div>
+      <p class="slot-note">Signed up minutes ago. Nothing is a zero — the checklist opens already ticked, and every tile says what would move it.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="hdr">
+            <div class="hdr-row">
+              <div class="greet">Good afternoon, <b>Arjun</b> 👋</div>
+              <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+              <div class="avatar">A</div>
+            </div>
+            <h3 class="hero-h" data-headline>Let's find your<span data-headline-accent>first creator</span></h3>
+          </div>
+
+          <div class="pad stack">
+            <div class="card raised" style="border-color:var(--brand-ring);display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;align-items:center;gap:16px">
+                <div class="ring" style="width:58px;height:58px">
+                  <svg width="58" height="58"><circle cx="29" cy="29" r="26" stroke="#e3e6ec" stroke-width="6" fill="none"/><circle cx="29" cy="29" r="26" stroke="var(--brand)" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="41 163"/></svg>
+                  <div class="ring-lbl"><b data-copy="setupRing">1/4</b></div>
+                </div>
+                <div style="flex:1">
+                  <div class="t-strong" style="font-size:18px">Welcome, Arjun</div>
+                  <div class="t-foot" data-copy="setupRemaining">3 short steps and you're live.</div>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:12px" data-steps></div>
+
+              <div class="btn tall"><span data-copy="setupCta">Finish your business profile</span>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M4 12h15"/><path d="m13 5 7 7-7 7"/></svg>
+              </div>
+            </div>
+
+            <div class="sec-label">Project pipeline</div>
+            <div class="card" style="align-items:center;display:flex;flex-direction:column;gap:12px;padding:24px 16px">
+              <div class="diagram">
+                <span class="node" style="width:38px;height:38px;opacity:.35"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg></span>
+                <span class="conn"></span>
+                <span class="node" style="width:50px;height:50px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg></span>
+                <span class="conn"></span>
+                <span class="node" style="width:38px;height:38px;opacity:.35"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg></span>
+              </div>
+              <div class="t-strong" style="font-size:18px">No projects yet</div>
+              <div class="t-foot" style="text-align:center;color:var(--mute);max-width:280px" data-copy="pipelineBody">Start a collaboration and track it here — every stage from brief to payment in one place.</div>
+              <div class="btn" style="align-self:center;padding:0 20px;margin-top:8px"><span data-copy="pipelineCta">Start your first project</span>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M4 12h15"/><path d="m13 5 7 7-7 7"/></svg>
+              </div>
+            </div>
+
+            <div class="sec-label">At a glance</div>
+            <div class="grid">
+              <div class="tile">
+                <div class="tile-top"><span class="tile-lbl">Profile views</span>
+                  <span class="tile-ic" style="background:var(--brand-soft);opacity:.7"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                </div>
+                <div class="tile-val dim">--</div>
+                <div class="baseline"><i></i></div>
+                <div class="t-cap" data-copy="viewsEmpty">Creators check your page before replying.</div>
+              </div>
+              <div class="tile">
+                <div class="tile-top"><span class="tile-lbl">Projects</span>
+                  <span class="tile-ic" style="background:#6172f312"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6172F3" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg></span>
+                </div>
+                <div class="tile-val dim">--</div>
+                <div class="baseline"><i></i></div>
+                <div class="t-cap">Accepted requests become projects.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+          <div class="tabs">
+            <div class="tab on"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 9 8h-2.5v9h-13v-9H3z"/></svg>Home</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-5 2 2-5z"/></svg>Discover</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Messages</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>Projects</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg>Profile</div>
+          </div>
+      </div>
+    </section>
+
+    <!-- ═══ FRAME 3 — first milestone ═══════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>First view</h2><code>milestone: first_view</code></div>
+      <p class="slot-note">The 0 → 1 moment, announced once. After "Got it" the fact keeps living in the tile below, which now holds a real number.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="hdr">
+            <div class="hdr-row">
+              <div class="greet">Good afternoon, <b>Arjun</b> 👋</div>
+              <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <div class="bell-wrap">
+                <svg class="icn" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                <em class="badge-n">1</em>
+              </div>
+              <div class="avatar">A</div>
+            </div>
+            <h3 class="hero-h">Let's build something<span>amazing today</span></h3>
+          </div>
+
+          <div class="pad stack">
+            <div class="card raised" style="background:var(--brand-soft);border-color:var(--brand-ring);display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;gap:16px;align-items:flex-start">
+                <div style="width:46px;height:46px;display:flex;align-items:center;justify-content:center;flex:0 0 auto">
+                  <span style="width:38px;height:38px;border-radius:19px;background:var(--brand);display:flex;align-items:center;justify-content:center">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="m12 3 2 5.5L19.5 10 14 12l-2 5.5L10 12 4.5 10 10 8.5z"/></svg>
+                  </span>
+                </div>
+                <div style="flex:1">
+                  <div class="t-strong" style="font-size:18px">You got your first profile view</div>
+                  <div class="t-foot" style="margin-top:4px" data-copy="milestoneBody">A creator looked you up. They check who is asking before they reply.</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px">
+                <div class="btn sec" style="flex:1;font-size:15px">Got it</div>
+                <div class="btn" style="flex:1;font-size:15px">See your profile</div>
+              </div>
+            </div>
+
+            <div class="sec-label">At a glance</div>
+            <div class="grid">
+              <div class="tile">
+                <div class="tile-top"><span class="tile-lbl">Profile views</span>
+                  <span class="tile-ic" style="background:var(--brand-soft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                </div>
+                <div class="tile-val">1</div>
+                <div class="chart bars" data-bars="first" data-color="brand"></div>
+                <div class="t-cap">First activity — too early to trend</div>
+              </div>
+              <div class="tile">
+                <div class="tile-top"><span class="tile-lbl">Collab requests</span>
+                  <span class="tile-ic" style="background:#0ba5ec12"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0BA5EC" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.5 2 12v6h20v-6l-3.5-6.5A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.5z"/></svg></span>
+                </div>
+                <div class="tile-val dim">--</div>
+                <div class="baseline"><i></i></div>
+                <div class="t-cap" data-copy="requestsEmpty">Reach out to a creator to start one.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+          <div class="tabs">
+            <div class="tab on"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 9 8h-2.5v9h-13v-9H3z"/></svg>Home</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-5 2 2-5z"/></svg>Discover</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Messages</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>Projects</div>
+            <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg>Profile</div>
+          </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="notes">
+    <div class="note"><b>Why “Before” looks flat</b>
+      Page <code>#f6f7f9</code> against card <code>#ffffff</code> is roughly a 3% luminance step, and only 2 of the 8 cards on Home passed <code>raised</code> — which itself mapped to <code>shadows.card</code> at 5% opacity and 3px blur. The gradient wash used to paper over this. Now the ground is deeper and every card carries a shadow.</div>
+    <div class="note"><b>Card is two views in the app, and has to be</b>
+      <code>overflow:'hidden'</code> keeps an unpadded card’s edge-to-edge rows inside its rounded corners — and on iOS it clips the view’s own shadow to nothing. Shadow on the outer box, clipping on the inner. A single view would have shipped a change that is correct on Android and absent on every iPhone.</div>
+    <div class="note"><b>One elevation, no exceptions</b>
+      Two surfaces built their own box instead of using <code>Card</code>, so the redesign passed them by: the “Waiting on others” list group, and the loading skeleton. Both carry the card shadow now — a flat skeleton replaced by a lifted card makes the screen appear to pop upward the moment data lands.</div>
+    <div class="note"><b>The device screens stay light in dark mode</b>
+      Deliberate: the app has no dark theme, so these are photographs of a light-mode screen. The board around them follows your system setting.</div>
+  </div>
+
+
+  <h2 class="h2" id="sent">Sent requests <span style="font-size:13px;font-weight:400;color:var(--ink-mute)">· proposed</span></h2>
+  <p>The second screen, drawn from the same design. Every field on these cards is one <code style="font-family:'IBM Plex Mono',monospace;font-size:.9em">/api/collabs</code> already returns — with one honest change to the stage strip, noted underneath.</p>
+
+  <div class="board" id="board2" data-treatment="elevation" data-role="business">
+
+    <!-- ═══ Sent · with requests ════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>With requests</h2><code>3 sent</code></div>
+      <p class="slot-note">Grouped by what is happening, not by date. Live collaborations carry their stage strip; a request nobody has answered has no stage to show.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="rq-hdr">
+            <svg class="rq-mark" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2">
+              <circle cx="6" cy="7" r="2.4" fill="var(--brand)"/><circle cx="18" cy="5" r="2" fill="var(--brand)"/>
+              <circle cx="19" cy="15" r="2.4" fill="var(--brand)"/><circle cx="8" cy="18" r="2" fill="var(--brand)"/>
+              <circle cx="12" cy="11" r="2.6" fill="var(--brand)"/>
+              <path d="M8.3 9.6 7 8.2M14 10.2l3.2-3.6M13.7 12.4l3.6 2M10 12.8 8.7 16"/>
+            </svg>
+            <div class="rq-title" data-copy="rqTitle">Sent requests</div>
+            <svg class="icn" style="color:var(--brand)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </div>
+
+          <div class="chips">
+            <span class="chip on">All (3)</span>
+            <span class="chip">Pending (1)</span>
+            <span class="chip">In progress (2)</span>
+            <span class="chip">Completed (0)</span>
+          </div>
+
+          <div class="pad stack" style="margin-top:10px">
+            <div class="card" style="display:flex;flex-direction:column;gap:14px">
+              <div class="t-strong" data-copy="rqOverview">Requests overview</div>
+              <div class="ovw">
+                <div class="ovw-col">
+                  <span class="ovw-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg></span>
+                  <span class="ovw-n">3</span><span class="t-cap" data-copy="rqStat1">Total sent</span>
+                </div>
+                <div class="ovw-sep"></div>
+                <div class="ovw-col">
+                  <span class="ovw-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+                  <span class="ovw-n">1</span><span class="t-cap">Pending</span>
+                </div>
+                <div class="ovw-sep"></div>
+                <div class="ovw-col">
+                  <span class="ovw-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M20 11a8 8 0 0 0-14-4.5L3 9"/><path d="M4 13a8 8 0 0 0 14 4.5L21 15"/><path d="M3 5v4h4M21 19v-4h-4"/></svg></span>
+                  <span class="ovw-n">2</span><span class="t-cap">In progress</span>
+                </div>
+                <div class="ovw-sep"></div>
+                <div class="ovw-col">
+                  <span class="ovw-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></span>
+                  <span class="ovw-n">0</span><span class="t-cap">Completed</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tip">
+              <span class="ovw-ic" style="background:var(--app-card);flex:0 0 auto"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M9 18h6M10 22h4"/><path d="M12 2a6 6 0 0 0-3.5 10.9c.6.5.9 1.2 1 1.9h5c.1-.7.4-1.4 1-1.9A6 6 0 0 0 12 2z"/></svg></span>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:15px" data-copy="rqTipTitle">Track and manage your requests</div>
+                <div class="t-foot" data-copy="rqTipBody">We'll notify you when creators respond.</div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </div>
+
+            <div class="sec-label" style="margin-top:4px">In progress</div>
+
+            <div class="card">
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div class="avatar" style="width:48px;height:48px;border-radius:24px;font-size:18px">K</div>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="t-strong" style="font-size:17px">Krishnan</span>
+                    <span class="pill brand">In progress</span>
+                  </div>
+                  <div class="t-body" style="font-size:15px;margin-top:2px">Two reels for cracker business</div>
+                  <div class="t-cap" style="margin-top:3px">₹2,00,000 · Sent on 18 Aug</div>
+                </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="strip" data-strip="1"></div>
+              <div class="step-of">
+                <span class="t-cap">Step 1 of 12 · Collaboration Started</span>
+                <span class="t-cap" style="color:var(--brand);font-weight:700">View all</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div class="avatar" style="width:48px;height:48px;border-radius:24px;font-size:18px">D</div>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="t-strong" style="font-size:17px">Diya Sharma</span>
+                    <span class="pill brand">In progress</span>
+                  </div>
+                  <div class="t-body" style="font-size:15px;margin-top:2px">Festive campaign for brand launch</div>
+                  <div class="t-cap" style="margin-top:3px">₹1,20,000 · Sent on 15 Aug</div>
+                </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="strip" data-strip="2"></div>
+              <div class="step-of">
+                <span class="t-cap">Step 2 of 12 · Discussion</span>
+                <span class="t-cap" style="color:var(--brand);font-weight:700">View all</span>
+              </div>
+            </div>
+
+            <div class="sec-label" style="margin-top:4px">Pending response</div>
+
+            <div class="card">
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div class="avatar" style="width:48px;height:48px;border-radius:24px;font-size:18px">R</div>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="t-strong" style="font-size:17px">Rahul Verma</span>
+                    <span class="pill warn">Awaiting reply</span>
+                  </div>
+                  <div class="t-body" style="font-size:15px;margin-top:2px">Product review + unboxing</div>
+                  <div class="t-cap" style="margin-top:3px">₹80,000 · Sent on 20 Aug</div>
+                </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="card" style="background:var(--brand-soft);display:flex;gap:14px;align-items:center;margin-top:4px">
+              <div class="cover" data-cover="c3" style="width:64px;height:64px;border-radius:32px;flex:0 0 auto">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg>
+              </div>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:15px" data-copy="rqCtaTitle">Looking for the right creator?</div>
+                <div class="t-foot" style="margin-top:2px" data-copy="rqCtaBody">Browse open campaigns and connect with creators who match your brand.</div>
+                <div style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 14px;border-radius:10px;border:1.5px solid var(--brand)">
+                  <span style="font-size:14px;font-weight:700;color:var(--brand)" data-copy="rqCtaBtn">Browse campaigns</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 9 8v9h-6v-6H9v6H3v-9z"/></svg>Home</div>
+          <div class="tab on"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg><span data-copy="rqTab">Sent</span></div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Messages</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>Projects</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg>Profile</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Sent · nothing yet ══════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>Nothing sent yet</h2><code>0 requests</code></div>
+      <p class="slot-note">The overview card and the filter rail are gone, not zeroed. Four counters reading 0 above an empty list is the wall-of-zeros problem again.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="rq-hdr">
+            <svg class="rq-mark" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2">
+              <circle cx="6" cy="7" r="2.4" fill="var(--brand)"/><circle cx="18" cy="5" r="2" fill="var(--brand)"/>
+              <circle cx="19" cy="15" r="2.4" fill="var(--brand)"/><circle cx="8" cy="18" r="2" fill="var(--brand)"/>
+              <circle cx="12" cy="11" r="2.6" fill="var(--brand)"/>
+              <path d="M8.3 9.6 7 8.2M14 10.2l3.2-3.6M13.7 12.4l3.6 2M10 12.8 8.7 16"/>
+            </svg>
+            <div class="rq-title" data-copy="rqTitle">Sent requests</div>
+            <svg class="icn" style="color:var(--brand)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </div>
+
+          <div class="pad stack" style="margin-top:20px">
+            <div class="card" style="align-items:center;display:flex;flex-direction:column;gap:12px;padding:28px 16px">
+              <div class="diagram">
+                <span class="node" style="width:38px;height:38px;opacity:.35"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg></span>
+                <span class="conn"></span>
+                <span class="node" style="width:50px;height:50px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg></span>
+                <span class="conn"></span>
+                <span class="node" style="width:38px;height:38px;opacity:.35"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg></span>
+              </div>
+              <div class="t-strong" style="font-size:18px" data-copy="rqEmptyTitle">No requests sent yet</div>
+              <div class="t-foot" style="text-align:center;color:var(--mute);max-width:280px" data-copy="rqEmptyBody">Find a creator whose audience fits, and the request you send them starts here.</div>
+              <div class="btn" style="align-self:center;padding:0 20px;margin-top:8px"><span data-copy="rqEmptyCta">Find a creator</span>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M4 12h15"/><path d="m13 5 7 7-7 7"/></svg>
+              </div>
+            </div>
+
+            <div class="card" style="background:var(--brand-soft);display:flex;gap:14px;align-items:center">
+              <div class="cover" data-cover="c4" style="width:64px;height:64px;border-radius:32px;flex:0 0 auto">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M3 11h4l3-7 4 16 3-9h4"/></svg>
+              </div>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:15px" data-copy="rqCtaTitle">Looking for the right creator?</div>
+                <div class="t-foot" style="margin-top:2px" data-copy="rqCtaBody">Browse open campaigns and connect with creators who match your brand.</div>
+                <div style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 14px;border-radius:10px;border:1.5px solid var(--brand)">
+                  <span style="font-size:14px;font-weight:700;color:var(--brand)" data-copy="rqCtaBtn">Browse campaigns</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 9 8v9h-6v-6H9v6H3v-9z"/></svg>Home</div>
+          <div class="tab on"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg><span data-copy="rqTab">Sent</span></div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Messages</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>Projects</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg>Profile</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="notes">
+    <div class="note"><b>The strip shows five of twelve, and says so</b>
+      The design's five steps — Collaboration started, Project discussion, Content planning, Content confirmation, Payment terms — are not the real sequence. The full flow has <b>12</b> stages, and its third is <code>advance_payment</code>: a money gate that only opens on a signed Razorpay webhook. Drawing five unlabelled steps would tell a brand the deal is nearly a third done when it is one twelfth in, and would hide the payment gate entirely. Same visual, real labels, windowed on the current stage, with “Step 2 of 12” underneath.</div>
+    <div class="note"><b>One line of backend, no new query</b>
+      <code>/api/collabs</code> already selects <code>current_stage</code> for the annotation pass and then drops it when building <code>project</code>. Adding it to that object is the only server change this screen needs.</div>
+    <div class="note"><b>Initials, not photos</b>
+      The two profile embeds on that route select <code>name, role</code> only — there is no avatar URL in this payload. The design's initial circles are what we can actually draw, so they are drawn as designed rather than as a broken image.</div>
+  </div>
+
+
+  <h2 class="h2" id="messages">Messages <span style="font-size:13px;font-weight:400;color:var(--ink-mute)">· proposed</span></h2>
+  <p>Two screens. The header and the search field are pinned — only the list moves under them — and an unread thread tints toward the role accent so it reads without being read.</p>
+
+  <div class="board" id="board3" data-treatment="elevation" data-role="business">
+
+    <!-- ═══ Inbox ═══════════════════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>Inbox</h2><code>pinned header</code></div>
+      <p class="slot-note">Scroll the frame: header and search stay, the list moves. Each person keeps one colour, derived from their id, so a face is recognisable before a name is read.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="msg-pin">
+            <div class="msg-top">
+              <svg class="rq-mark" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2">
+                <circle cx="6" cy="7" r="2.4" fill="var(--brand)"/><circle cx="18" cy="5" r="2" fill="var(--brand)"/>
+                <circle cx="19" cy="15" r="2.4" fill="var(--brand)"/><circle cx="8" cy="18" r="2" fill="var(--brand)"/>
+                <circle cx="12" cy="11" r="2.6" fill="var(--brand)"/>
+                <path d="M8.3 9.6 7 8.2M14 10.2l3.2-3.6M13.7 12.4l3.6 2M10 12.8 8.7 16"/>
+              </svg>
+              <div class="msg-h">
+                <b>Messages</b>
+                <span data-copy="msgSub">Stay in touch with creators</span>
+              </div>
+              <div class="msg-search-btn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></div>
+            </div>
+            <div class="searchbar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input type="text" placeholder="Search conversations" aria-label="Search conversations">
+            </div>
+          </div>
+
+          <div class="pad stack" style="margin-top:12px">
+            <div class="conv unread">
+              <div class="av"><div class="av-c" style="background:#FFE4EC;color:#C2185B">PS</div><i class="av-dot"></i></div>
+              <div class="conv-body">
+                <div class="conv-row1"><span class="conv-name">Priya Sharma</span><span class="conv-time">5:12 PM</span></div>
+                <div class="conv-row2"><span class="conv-prev">Thanks! I'll share the content plan by tomorrow.</span><span class="conv-badge">2</span></div>
+              </div>
+            </div>
+
+            <div class="conv unread">
+              <div class="av"><div class="av-c" style="background:#E8E4FF;color:#5B34C7">RA</div><i class="av-dot"></i></div>
+              <div class="conv-body">
+                <div class="conv-row1"><span class="conv-name">Rohit Agarwal</span><span class="conv-time">4:48 PM</span></div>
+                <div class="conv-row2"><span class="conv-prev">Can we schedule a quick call to discuss?</span><span class="conv-badge">1</span></div>
+              </div>
+            </div>
+
+            <div class="conv">
+              <div class="av"><div class="av-c" style="background:#D6F5EA;color:#0F766E">NC</div></div>
+              <div class="conv-body">
+                <div class="conv-row1"><span class="conv-name">Naveen Christopher</span><span class="conv-time">Yesterday</span></div>
+                <div class="conv-row2"><span class="conv-prev">You: Shared the draft. Please review it.</span></div>
+              </div>
+            </div>
+
+            <div class="conv">
+              <div class="av"><div class="av-c" style="background:#FFF0D6;color:#B45309">K</div></div>
+              <div class="conv-body">
+                <div class="conv-row1"><span class="conv-name">Krishnan</span><span class="conv-time">Yesterday</span></div>
+                <div class="conv-row2"><span class="conv-prev">Perfect, let's move forward with the project.</span></div>
+              </div>
+            </div>
+
+            <div class="conv unread">
+              <div class="av"><div class="av-c" style="background:#DCEEFF;color:#1D4ED8">JM</div></div>
+              <div class="conv-body">
+                <div class="conv-row1"><span class="conv-name">Jupiter Media</span><span class="conv-time">30 Jul</span></div>
+                <div class="conv-row2"><span class="conv-prev">Sounds good — sending the brief over.</span><span class="conv-badge">3</span></div>
+              </div>
+            </div>
+
+            <div class="conv">
+              <div class="av"><div class="av-c" style="background:#F0E2FF;color:#7E22CE">ND</div></div>
+              <div class="conv-body">
+                <div class="conv-row1"><span class="conv-name">Nandhini</span><span class="conv-time">28 Jul</span></div>
+                <div class="conv-row2"><span class="conv-prev">Hey! Just checking in on the reels.</span></div>
+              </div>
+            </div>
+
+            <div class="sec-label" style="margin-top:8px">Start a new chat</div>
+            <div class="card" style="background:var(--brand-soft);display:flex;align-items:center;gap:14px">
+              <div style="width:48px;height:48px;border-radius:24px;background:var(--app-card);display:flex;align-items:center;justify-content:center;flex:0 0 auto">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><circle cx="10" cy="8" r="4"/><path d="M3 20a7 7 0 0 1 11-5.7"/><path d="M18 14v6M15 17h6"/></svg>
+              </div>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:15px" data-copy="msgNewTitle">Start a new conversation</div>
+                <div class="t-cap" data-copy="msgNewBody">Connect with creators and start collaborating</div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 9 8v9h-6v-6H9v6H3v-9z"/></svg>Home</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg><span data-copy="rqTab">Sent</span></div>
+          <div class="tab on"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Messages</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>Projects</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg>Profile</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Thread ══════════════════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>Thread</h2><code>project pinned</code></div>
+      <p class="slot-note">No call buttons. The header carries what the conversation is actually about — the project, its stage and its money — and that banner stays put while the messages scroll.</p>
+      <div class="device">
+        <div class="screen" style="padding-bottom:0;display:flex;flex-direction:column">
+          <div class="th-pin">
+            <div class="th-hdr">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2.2"><path d="M19 12H5"/><path d="m11 19-7-7 7-7"/></svg>
+              <div class="av"><div class="av-c" style="width:40px;height:40px;border-radius:20px;font-size:14px;background:#E8E4FF;color:#5B34C7">RA</div></div>
+              <div class="th-name">
+                <b>Rohit Agarwal</b>
+                <span>Project in progress · ₹9,500</span>
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--brand)" stroke="none"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+            </div>
+            <div class="th-proj">
+              <span class="th-proj-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg></span>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:15px">Two reels for cracker business</div>
+                <div style="font-size:12.5px;color:var(--brand);font-weight:600">In progress · Step 2 of 12</div>
+              </div>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </div>
+
+          <div class="paper" style="flex:1">
+            <span class="daychip">Today</span>
+
+            <div class="b out">Hii Rohit! 👋<br>Just checking in on the content plan.
+              <div class="b-meta">9:30 AM <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m1 13 4 4 8-9"/><path d="m10 15 2 2 8-9"/></svg></div>
+            </div>
+
+            <div class="b-wrap">
+              <div class="b-av" style="background:#E8E4FF;color:#5B34C7">RA</div>
+              <div class="b in">Hey! 👋<br>Here's the plan we discussed yesterday.
+                <div class="file">
+                  <span class="file-ic" style="background:#FFE1E1"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:600">Content Plan_v2.pdf</div>
+                    <div style="font-size:11.5px;color:var(--mute)">1.2 MB · PDF</div>
+                  </div>
+                </div>
+                <div class="b-meta">9:32 AM</div>
+              </div>
+            </div>
+
+            <div class="b out">Thanks! Looks great. I'll review and get back by EOD.
+              <div class="b-meta">9:34 AM <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m1 13 4 4 8-9"/><path d="m10 15 2 2 8-9"/></svg></div>
+            </div>
+
+            <div class="b-wrap">
+              <div class="b-av" style="background:#E8E4FF;color:#5B34C7">RA</div>
+              <div class="b in">Sure, let me know if you need any changes. 👍
+                <div class="b-meta">9:35 AM</div>
+              </div>
+            </div>
+
+            <div class="b out">One small change in the hook of Reel 2, rest all good.
+              <div class="b-meta">9:37 AM <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m1 13 4 4 8-9"/><path d="m10 15 2 2 8-9"/></svg></div>
+            </div>
+
+            <div class="unread-rule"><i></i><span>1 unread message</span><i></i></div>
+
+            <div class="b-wrap">
+              <div class="b-av" style="background:#E8E4FF;color:#5B34C7">RA</div>
+              <div class="b in">Done! Updated the hook in Reel 2.
+                <div class="file">
+                  <span class="file-ic" style="background:#DCEEFF"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:600">Content Plan_v2.1.pdf</div>
+                    <div style="font-size:11.5px;color:var(--mute)">1.1 MB · PDF</div>
+                  </div>
+                </div>
+                <div class="b-meta">9:40 AM</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="composer">
+            <span class="comp-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></span>
+            <div class="comp-in">
+              <span>Type a message…</span>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4 4 0 0 0 7 0M9 9h.01M15 9h.01"/></svg>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7.5-7.5"/></svg>
+            </div>
+            <span class="comp-btn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="m22 2-11 11"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Display options ═════════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>Display options</h2><code>new</code></div>
+      <p class="slot-note">Behind the three dots. Text size is the reason this menu exists — a chat is the one screen people read for minutes at a stretch.</p>
+      <div class="device">
+        <div class="screen" style="padding-bottom:0;display:flex;flex-direction:column">
+          <div class="th-pin">
+            <div class="th-hdr">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2.2"><path d="M19 12H5"/><path d="m11 19-7-7 7-7"/></svg>
+              <div class="av"><div class="av-c" style="width:40px;height:40px;border-radius:20px;font-size:14px;background:#E8E4FF;color:#5B34C7">RA</div></div>
+              <div class="th-name">
+                <b>Rohit Agarwal</b>
+                <span>Project in progress · ₹9,500</span>
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--brand)" stroke="none"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+            </div>
+            <div class="th-proj">
+              <span class="th-proj-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg></span>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:15px">Two reels for cracker business</div>
+                <div style="font-size:12.5px;color:var(--brand);font-weight:600">In progress · Step 2 of 12</div>
+              </div>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </div>
+          <div class="paper" style="flex:1">
+            <span class="daychip">Today</span>
+            <div class="b out">Hii Rohit! 👋<div class="b-meta">9:30 AM</div></div>
+            <div class="b-wrap"><div class="b-av" style="background:#E8E4FF;color:#5B34C7">RA</div><div class="b in">Hey! 👋<div class="b-meta">9:32 AM</div></div></div>
+          </div>
+
+        </div>
+        <div class="sheet-scrim">
+            <div class="sheet">
+              <div class="sheet-grip"></div>
+              <div class="t-strong" style="font-size:17px;margin-bottom:12px">Display</div>
+
+              <div style="padding-bottom:14px">
+                <div class="t-cap" style="margin-bottom:8px">Text size</div>
+                <div class="sizes">
+                  <div class="size-opt" style="font-size:13px">Small</div>
+                  <div class="size-opt on" style="font-size:15px">Default</div>
+                  <div class="size-opt" style="font-size:17px">Large</div>
+                  <div class="size-opt" style="font-size:19px">XL</div>
+                </div>
+              </div>
+
+              <div class="sheet-row">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--soft)" stroke-width="2"><path d="M3 5h18v14H3z"/><path d="m3 15 5-5 4 4 3-3 6 6"/></svg>
+                <div style="flex:1"><div class="t-strong" style="font-size:15px">Chat wallpaper</div><div class="t-cap">The patterned paper behind messages</div></div>
+                <span class="toggle"><i></i></span>
+              </div>
+
+              <div class="sheet-row">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--soft)" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="m2 2 20 20"/></svg>
+                <div style="flex:1"><div class="t-strong" style="font-size:15px">Mute this chat</div><div class="t-cap">Still delivered, just silent</div></div>
+                <span class="toggle" style="background:var(--hair-2)"><i style="right:auto;left:3px"></i></span>
+              </div>
+
+              <div class="sheet-row">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--soft)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <div style="flex:1"><div class="t-strong" style="font-size:15px">Search in conversation</div></div>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="notes">
+    <div class="note"><b>Two things here are not backed yet</b>
+      The per-thread unread <b>counts</b> and the green <b>online dots</b>. The inbox reads <code>/api/conversations</code>, which gives one boolean — whether the newest message came from them — and no presence at all. Both exist in Stream (<code>countUnread()</code>, member presence) but the list screen does not connect the Stream client today. Real work, not a line: say the word and I will scope it.</div>
+    <div class="note"><b>Everything else is real</b>
+      Attachments already send and render through Stream — the PDF cards are the existing file flow, not a mock. The project banner’s title, stage and budget all come from the project the conversation belongs to.</div>
+    <div class="note"><b>Step 2 of 12, not 5</b>
+      Same correction as the requests strip. The design said “Step 2 of 5”; the full flow has twelve stages, and the banner has room to say so.</div>
+    <div class="note"><b>Avatar colour is derived, not assigned</b>
+      Hashed from the user id, so a person wears the same colour on every screen and in every list, and nobody has to store one. Same FNV-1a helper the campaign cover art uses.</div>
+  </div>
+
+
+  <h2 class="h2" id="projects">Projects <span style="font-size:13px;font-weight:400;color:var(--ink-mute)">· proposed</span></h2>
+  <p>Three frames: the list, one project, and the full twelve-stage timeline. Every project gets an icon and a colour classified from its own title — see the note under the board for the table.</p>
+
+  <div class="board" id="board4" data-treatment="elevation" data-role="business">
+
+    <!-- ═══ List ════════════════════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>All projects</h2><code>8 projects</code></div>
+      <p class="slot-note">Same chrome rules as Sent requests: the overview and the filter rail appear only once there is enough to summarise and to filter.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="rq-hdr" style="padding-bottom:6px">
+            <svg class="rq-mark" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2">
+              <circle cx="6" cy="7" r="2.4" fill="var(--brand)"/><circle cx="18" cy="5" r="2" fill="var(--brand)"/>
+              <circle cx="19" cy="15" r="2.4" fill="var(--brand)"/><circle cx="8" cy="18" r="2" fill="var(--brand)"/>
+              <circle cx="12" cy="11" r="2.6" fill="var(--brand)"/>
+              <path d="M8.3 9.6 7 8.2M14 10.2l3.2-3.6M13.7 12.4l3.6 2M10 12.8 8.7 16"/>
+            </svg>
+            <div style="flex:1">
+              <div style="font-size:26px;line-height:31px;font-weight:700;letter-spacing:-.5px">Projects</div>
+              <div class="t-cap" data-copy="pjSub">Track and manage all your collaborations</div>
+            </div>
+            <svg class="icn" style="color:var(--brand)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </div>
+
+          <div class="chips" style="padding-top:10px">
+            <span class="chip on">All (8)</span>
+            <span class="chip">Active (3)</span>
+            <span class="chip">Awaiting you (2)</span>
+            <span class="chip">Completed (2)</span>
+            <span class="chip">Cancelled (1)</span>
+          </div>
+
+          <div class="pad stack" style="margin-top:10px">
+            <div class="sec-label" style="margin-top:2px">Overview</div>
+            <div class="card" style="padding:16px 8px">
+              <div class="ovw-strip">
+                <div class="ovw-col">
+                  <span class="ovw-ic" style="background:#FFE4EC"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ee3e96" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span>
+                  <span class="ovw-n">3</span><span class="t-cap">Active</span><i class="ovw-underline" style="background:#ee3e96"></i>
+                </div>
+                <div class="ovw-sep"></div>
+                <div class="ovw-col">
+                  <span class="ovw-ic" style="background:#FFF0D6"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+                  <span class="ovw-n">2</span><span class="t-cap">Awaiting you</span><i class="ovw-underline" style="background:#F79009"></i>
+                </div>
+                <div class="ovw-sep"></div>
+                <div class="ovw-col">
+                  <span class="ovw-ic" style="background:#D6F5EA"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F766E" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></span>
+                  <span class="ovw-n">2</span><span class="t-cap">Completed</span><i class="ovw-underline" style="background:#16A34A"></i>
+                </div>
+                <div class="ovw-sep"></div>
+                <div class="ovw-col">
+                  <span class="ovw-ic" style="background:#EDF0F5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg></span>
+                  <span class="ovw-n">1</span><span class="t-cap">Cancelled</span><i class="ovw-underline" style="background:#cbd5e1"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec-row"><span class="sec-label" style="margin:0">Active</span><span class="link-b">View all ›</span></div>
+
+            <div class="pj-card">
+              <div class="pj-top">
+                <span class="pj-ic" style="background:#FFE4EC"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C2185B" stroke-width="1.8"><path d="M3 8h18v12H3z"/><path d="m3 8 3-4h3l-3 4M9 8l3-4h3l-3 4M15 8l3-4h3l-3 4"/><path d="m10 12 5 2-5 2z"/></svg></span>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <span class="t-strong" style="font-size:17px;flex:1">Diwali mega reel</span>
+                    <span class="pill brand">Active</span>
+                  </div>
+                  <div style="font-size:13.5px;color:var(--brand);font-weight:600;margin-top:1px">Krishnan</div>
+                  <div class="pj-meta">
+                    <span class="pj-step">Step 1 of 12</span>
+                    <span class="t-cap">Started 18 Aug</span>
+                    <span style="flex:1"></span>
+                    <span class="pj-pct">8%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="bar"><i style="width:8%"></i></div>
+              <div class="pj-foot">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                <span style="font-size:13px;color:var(--brand);font-weight:600;flex:1">Due in 12 days</span>
+                <span class="t-strong" style="font-size:14px">₹2,00,000</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="pj-card">
+              <div class="pj-top">
+                <span class="pj-ic" style="background:#E8E4FF"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5B34C7" stroke-width="1.8"><path d="M8 3h3v3H8zM8 6c-1 2-1 3-1 5v8a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-8c0-2 0-3-1-5"/><path d="M15 8h3v3h-3zM15 11c-.7 1.4-.7 2-.7 3.5V20a1.5 1.5 0 0 0 1.5 1.5h.4A1.5 1.5 0 0 0 18 20v-5.5c0-1.5 0-2.1-.7-3.5"/></svg></span>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <span class="t-strong" style="font-size:17px;flex:1">Skincare product promo</span>
+                    <span class="pill brand">Active</span>
+                  </div>
+                  <div style="font-size:13.5px;color:var(--brand);font-weight:600;margin-top:1px">Priya Sharma</div>
+                  <div class="pj-meta">
+                    <span class="pj-step">Step 3 of 12</span>
+                    <span class="t-cap">Started 12 Aug</span>
+                    <span style="flex:1"></span>
+                    <span class="pj-pct">25%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="bar"><i style="width:25%"></i></div>
+              <div class="pj-foot">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                <span style="font-size:13px;color:var(--brand);font-weight:600;flex:1">Due in 7 days</span>
+                <span class="t-strong" style="font-size:14px">₹1,25,000</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="pj-card">
+              <div class="pj-top">
+                <span class="pj-ic" style="background:#FFF0D6"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="1.8"><path d="M2 17h20v3H2z"/><path d="M2 17c0-3 1-4 3-5l3-2 2 2h3l4 2c2 .7 3 1.7 3 3"/><path d="m8 10 1.5 2"/></svg></span>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <span class="t-strong" style="font-size:17px;flex:1">Sneaker launch reel</span>
+                    <span class="pill warn">Awaiting you</span>
+                  </div>
+                  <div style="font-size:13.5px;color:var(--brand);font-weight:600;margin-top:1px">Rohit Agarwal</div>
+                  <div class="pj-meta">
+                    <span class="pj-step">Step 7 of 12</span>
+                    <span class="t-cap">Started 8 Aug</span>
+                    <span style="flex:1"></span>
+                    <span class="pj-pct">58%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="bar"><i style="width:58%"></i></div>
+              <div class="pj-foot">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+                <span style="font-size:13px;color:var(--warn);font-weight:600;flex:1">Due in 4 days · your move</span>
+                <span class="t-strong" style="font-size:14px">₹75,000</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="card" style="background:var(--brand-soft);display:flex;gap:14px;align-items:center;margin-top:4px">
+              <span class="pj-ic" style="width:48px;height:48px;background:var(--app-card)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="m3 11 15-6v14L3 13z"/><path d="M7 12.5V19a2 2 0 0 0 4 0v-5"/></svg></span>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:15px" data-copy="pjCtaTitle">Discover campaigns</div>
+                <div class="t-cap" data-copy="pjCtaBody">Explore open opportunities and find the perfect match.</div>
+                <div style="display:inline-flex;align-items:center;gap:6px;margin-top:9px;padding:8px 14px;border-radius:10px;background:var(--brand)">
+                  <span style="font-size:14px;font-weight:700;color:#fff">Browse campaigns</span>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M4 12h15"/><path d="m13 5 7 7-7 7"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 9 8v9h-6v-6H9v6H3v-9z"/></svg>Home</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21 3-9.5 18-2.5-7.5L2 11z"/></svg><span data-copy="rqTab">Sent</span></div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Messages</div>
+          <div class="tab on"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.9 3.9A2 2 0 0 0 8.2 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>Projects</div>
+          <div class="tab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg>Profile</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Detail ══════════════════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>One project</h2><code>generated cover</code></div>
+      <p class="slot-note">No project has an image — there is no column for one — so the hero is always the generated wash carrying the classified icon. It reads as art, not as a missing photo.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="hero" data-cover="p1">
+            <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="1.4"><path d="M3 8h18v12H3z"/><path d="m3 8 3-4h3l-3 4M9 8l3-4h3l-3 4M15 8l3-4h3l-3 4"/><path d="m10 12 5 2-5 2z"/></svg>
+            <span class="hero-badge">Active</span>
+          </div>
+
+          <div class="card hero-card">
+            <span class="hero-ic" style="background:#FFE4EC"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C2185B" stroke-width="1.8"><path d="M3 8h18v12H3z"/><path d="m3 8 3-4h3l-3 4M9 8l3-4h3l-3 4M15 8l3-4h3l-3 4"/><path d="m10 12 5 2-5 2z"/></svg></span>
+            <div style="margin-top:24px">
+              <div style="font-size:22px;line-height:27px;font-weight:700;letter-spacing:-.4px">Diwali mega reel</div>
+              <div style="margin-top:3px;font-size:13.5px"><span style="color:var(--brand);font-weight:700">Krishnan</span><span class="t-cap"> · Creator</span></div>
+              <div class="t-foot" style="margin-top:9px">Two reels for a cracker business, with creative storytelling and product showcase.</div>
+            </div>
+            <div class="facts">
+              <div class="fact"><b style="color:var(--brand)">₹2,00,000</b><span>Agreed budget</span></div>
+              <div class="fact-sep"></div>
+              <div class="fact"><b>18 Aug</b><span>Started</span></div>
+              <div class="fact-sep"></div>
+              <div class="fact"><b>30 Aug</b><span>Deadline</span></div>
+              <div class="fact-sep"></div>
+              <div class="fact"><b>₹60,000</b><span>Advance</span></div>
+            </div>
+          </div>
+
+          <div class="pad stack" style="margin-top:12px">
+            <div class="gauge">
+              <div class="ring" style="width:64px;height:64px">
+                <svg width="64" height="64"><circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,.75)" stroke-width="7" fill="none"/><circle cx="32" cy="32" r="28" stroke="var(--brand)" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="14 176"/></svg>
+                <div class="ring-lbl"><b>8%</b></div>
+              </div>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:16px">Step 1 of 12</div>
+                <div class="t-cap" style="margin-top:1px">Collaboration Started</div>
+                <div class="bar" style="margin-top:8px;background:rgba(255,255,255,.7)"><i style="width:8%"></i></div>
+              </div>
+              <div style="text-align:center">
+                <div class="t-strong" style="font-size:18px;color:var(--brand)">12</div>
+                <div class="t-cap">days left</div>
+              </div>
+            </div>
+
+            <div class="sec-label">Where it stands</div>
+            <div class="card">
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <span class="tl-dot" style="background:var(--brand);color:#fff">1</span>
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="t-strong" style="font-size:16px;flex:1">Collaboration Started</span>
+                    <span class="pill brand">In progress</span>
+                  </div>
+                  <div class="t-foot" style="margin-top:5px">Both of you have opened the project. Agree the brief, then sign off to move to Discussion.</div>
+                </div>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--mute)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="pj-foot" style="gap:16px">
+                <div style="display:flex;align-items:center;gap:7px;flex:1">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                  <div><div class="t-cap">Started on</div><div style="font-size:13px;font-weight:600">19 Aug 2026</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:7px;flex:1">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><circle cx="9" cy="9" r="3"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M17 8a3 3 0 0 1 0 6"/></svg>
+                  <div><div class="t-cap">Waiting on</div><div style="font-size:13px;font-weight:600">You &amp; Krishnan</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="background:var(--brand-soft);display:flex;gap:12px;align-items:center">
+              <span class="pj-ic" style="width:42px;height:42px;border-radius:21px;background:var(--app-card)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.8"><path d="m12 3 2.6 5.6 6.4.9-4.6 4.4 1.1 6.1L12 17l-5.5 3 1.1-6.1L3 9.5l6.4-.9z"/></svg></span>
+              <div style="flex:1">
+                <div class="t-strong" style="font-size:15px">On track</div>
+                <div class="t-cap">Next up is the advance payment, once you both sign off here.</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid var(--brand);border-radius:12px;padding:14px;margin-top:2px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
+              <span style="font-size:16px;font-weight:700;color:var(--brand)">View full timeline</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Timeline ════════════════════════════════════════════ -->
+    <section class="slot">
+      <div class="slot-head"><h2>Full timeline</h2><code>12 stages</code></div>
+      <p class="slot-note">Every stage from first to last, with what happened and when. Tap one to open it — the third row here is expanded to show what that reveals.</p>
+      <div class="device">
+        <div class="screen">
+          <div class="rq-hdr" style="padding-bottom:10px">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2.2"><path d="M19 12H5"/><path d="m11 19-7-7 7-7"/></svg>
+            <div style="flex:1">
+              <div style="font-size:20px;line-height:25px;font-weight:700;letter-spacing:-.3px">Timeline</div>
+              <div class="t-cap">Diwali mega reel · Step 4 of 12</div>
+            </div>
+          </div>
+
+          <div class="pad" style="margin-top:6px">
+            <div class="tl">
+              <div class="tl-row done"><span class="tl-rail"></span>
+                <span class="tl-dot"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg></span>
+                <div class="tl-body"><div class="tl-name">Collaboration Started</div><div class="tl-when">Completed 19 Aug · took 1 day</div></div>
+              </div>
+
+              <div class="tl-row done"><span class="tl-rail"></span>
+                <span class="tl-dot"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg></span>
+                <div class="tl-body"><div class="tl-name">Discussion</div><div class="tl-when">Completed 21 Aug · took 2 days</div></div>
+              </div>
+
+              <div class="tl-row done"><span class="tl-rail"></span>
+                <span class="tl-dot"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg></span>
+                <div class="tl-body">
+                  <div class="tl-name">Advance Payment</div>
+                  <div class="tl-when">Completed 22 Aug · took 1 day</div>
+                  <div class="tl-open">
+                    <div class="sign">
+                      <span class="sign-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4"><path d="m5 12 5 5 9-10"/></svg></span>
+                      <span style="font-size:13px;flex:1">You paid the advance</span>
+                      <span class="t-cap">22 Aug, 2:14 PM</span>
+                    </div>
+                    <div class="sign">
+                      <span class="sign-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4"><path d="m5 12 5 5 9-10"/></svg></span>
+                      <span style="font-size:13px;flex:1">Krishnan confirmed receipt</span>
+                      <span class="t-cap">22 Aug, 6:40 PM</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;background:var(--brand-soft);border-radius:9px;padding:9px 10px;margin-top:8px">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                      <span style="font-size:12.5px;flex:1">Razorpay · captured</span>
+                      <span style="font-size:13px;font-weight:700;color:var(--brand)">₹60,000</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tl-row now"><span class="tl-rail"></span>
+                <span class="tl-dot">4</span>
+                <div class="tl-body">
+                  <div class="tl-name">Content Planning</div>
+                  <div class="tl-when" style="color:var(--brand);font-weight:600">In progress · started 23 Aug</div>
+                  <div class="tl-open">
+                    <div class="sign">
+                      <span class="sign-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4"><path d="m5 12 5 5 9-10"/></svg></span>
+                      <span style="font-size:13px;flex:1">Krishnan signed off</span>
+                      <span class="t-cap">24 Aug, 11:02 AM</span>
+                    </div>
+                    <div class="sign">
+                      <span style="width:20px;height:20px;border-radius:10px;border:2px solid var(--hair-2);flex:0 0 auto"></span>
+                      <span style="font-size:13px;flex:1;color:var(--mute)">Waiting for you to sign off</span>
+                    </div>
+                    <div class="btn" style="height:40px;font-size:14px;margin-top:9px">Review and sign off</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tl-row next"><span class="tl-rail"></span><span class="tl-dot">5</span><div class="tl-body"><div class="tl-name">Content Confirmation</div><div class="tl-when">Not started</div></div></div>
+              <div class="tl-row next"><span class="tl-rail"></span><span class="tl-dot">6</span><div class="tl-body"><div class="tl-name">Shooting in Progress</div><div class="tl-when">Not started</div></div></div>
+              <div class="tl-row next"><span class="tl-rail"></span><span class="tl-dot">7</span><div class="tl-body"><div class="tl-name">Editing in Progress</div><div class="tl-when">Not started</div></div></div>
+              <div class="tl-row next"><span class="tl-rail"></span><span class="tl-dot">8</span><div class="tl-body"><div class="tl-name">Sent for Review</div><div class="tl-when">Not started</div></div></div>
+              <div class="tl-row next"><span class="tl-rail"></span><span class="tl-dot">9</span><div class="tl-body"><div class="tl-name">Revisions</div><div class="tl-when">Not started</div></div></div>
+              <div class="tl-row next"><span class="tl-rail"></span><span class="tl-dot">10</span><div class="tl-body"><div class="tl-name">Final Approval</div><div class="tl-when">Not started</div></div></div>
+              <div class="tl-row next"><span class="tl-rail"></span><span class="tl-dot">11</span><div class="tl-body"><div class="tl-name">Final Payment</div><div class="tl-when">Not started</div></div></div>
+              <div class="tl-row next"><span class="tl-dot">12</span><div class="tl-body"><div class="tl-name">Completed</div><div class="tl-when">Not started</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="notes">
+    <div class="note"><b>The icon is classified from the title</b>
+      A keyword table maps a project’s own words onto an icon and a colour: <code>reel / video / shoot</code> → clapperboard, <code>skincare / beauty / serum</code> → bottles, <code>sneaker / shoe</code> → footwear, plus food, travel, fashion, tech, fitness and jewellery, falling back to a folder. Colour follows the CATEGORY, not a hash, so two skincare projects look like two skincare projects — the icon means something rather than merely differing.</div>
+    <div class="note"><b>No project has an image, and none can</b>
+      There is no image column on <code>campaign_projects</code>. Every cover here is generated (<code>ui/cover-art.tsx</code>) with the classified icon on it. If an upload ever lands, the hero swaps to the photo and the icon stays as the badge.</div>
+    <div class="note"><b>Two fields need backend work</b>
+      <code>due_date</code> exists on the table but the project detail route does not select it — one line. “Deliverables: 2” is not backed at all: the deal stores deliverables as free text, not a count, so this shows the advance instead, which is real. The mockup’s “1 Creator” is dropped — a project always has exactly one, so a tile that can only ever read 1 is not a number.</div>
+    <div class="note"><b>The timeline is real, including the times</b>
+      <code>stage_progress</code> records each side’s sign-off with a timestamp, which is where “took 2 days”, who signed and when all come from. Payment rows come from the ledger. Nothing on that screen is inferred.</div>
+  </div>
+
+  <h2 class="h2">The five card states</h2>
+  <p>Every tile resolves through <code style="font-family:'IBM Plex Mono',monospace;font-size:.9em">metricState()</code> in <code style="font-family:'IBM Plex Mono',monospace;font-size:.9em">@influnet/core</code>. Shown here on the same ground the grid uses, so the empty ones can be judged next to the full ones.</p>
+
+  <div class="gstage" id="gstage" data-treatment="elevation" data-role="business">
+    <div class="gallery">
+      <div class="gcell">
+        <div class="tile">
+          <div class="tile-top"><span class="tile-lbl">Profile views</span><span class="tile-ic" style="background:var(--brand-soft);opacity:.7"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span></div>
+          <div class="tile-val dim">--</div><div class="baseline"><i></i></div>
+          <div class="t-cap" data-copy="viewsEmptyGallery">Share your profile link to get seen.</div>
+        </div>
+        <div class="gname">dormant</div>
+        <div class="gdesc">Never happened. A dash, not a bold zero — “we measured nought” is a different claim from “this hasn’t started”.</div>
+      </div>
+
+      <div class="gcell">
+        <div class="tile">
+          <div class="tile-top"><span class="tile-lbl">Profile views</span><span class="tile-ic" style="background:var(--brand-soft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span></div>
+          <div class="tile-val">1</div><div class="chart bars" data-bars="first" data-color="brand"></div>
+          <div class="t-cap">First activity — too early to trend</div>
+        </div>
+        <div class="gname">warming</div>
+        <div class="gdesc">Real number, sparse bars, no percentage. Forced to bars: a smooth curve through two points invents the days between them.</div>
+      </div>
+
+      <div class="gcell">
+        <div class="tile">
+          <div class="tile-top"><span class="tile-lbl">Profile views</span><span class="tile-ic" style="background:var(--brand-soft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span></div>
+          <div class="tile-val">0</div><div class="chart bars" data-bars="lapsed" data-color="brand"></div>
+          <div class="t-cap">Quiet — 40 the month before</div>
+        </div>
+        <div class="gname">paused</div>
+        <div class="gdesc">Zero now, not always. Full-weight zero plus the fall-off. This is the state a has-data/no-data model loses entirely.</div>
+      </div>
+
+      <div class="gcell">
+        <div class="tile">
+          <div class="tile-top"><span class="tile-lbl">Profile views</span><span class="tile-ic" style="background:var(--brand-soft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span></div>
+          <div class="tile-val">1,248</div><div class="chart" data-spark="views" data-color="brand"></div>
+          <div class="delta" style="color:var(--ok)">▲ 24%</div>
+        </div>
+        <div class="gname">live</div>
+        <div class="gdesc">Three active days and five events clear the floor. Number, shape and delta.</div>
+      </div>
+
+      <div class="gcell">
+        <div style="border:1px dashed var(--rule);border-radius:16px;padding:16px;min-height:132px;display:flex;align-items:center;justify-content:center;text-align:center">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-mute);line-height:1.6">tile omitted<br>from the grid</span>
+        </div>
+        <div class="gname">unavailable</div>
+        <div class="gdesc">The metric could not be read at all. Nothing to say and no honest way to say it, so the tile is dropped rather than zeroed.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="h2">What shipped</h2>
+  <p>Landed on <code style="font-family:'IBM Plex Mono',monospace;font-size:.9em">dev</code> in <code style="font-family:'IBM Plex Mono',monospace;font-size:.9em">7afaa48f</code>. The right-hand column is the live value; the other two are kept so the change stays legible.</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Token</th><th>Before</th><th>Alternative</th><th>Shipped · live</th></tr></thead>
+      <tbody>
+        <tr><td><code>palette.surface</code></td>
+          <td><span class="sw" style="background:#f6f7f9"></span><code>#f6f7f9</code></td>
+          <td><span class="sw" style="background:#edf0f5"></span><code>#edf0f5</code></td>
+          <td><span class="sw" style="background:#f2f4f8"></span><code>#f2f4f8</code></td></tr>
+        <tr><td><code>Card</code> border</td><td><code>1px #eef0f4</code></td><td><code>1px #e4e8ef</code></td><td><code>1px transparent</code></td></tr>
+        <tr><td><code>shadows.card</code></td><td><code>.05 · r3 · y1</code></td><td><code>.04 · r6 · y1</code></td><td><code>.06 · r10 · y2</code></td></tr>
+        <tr><td><code>shadows.raised</code></td><td><code>.10 · r14 · y6</code></td><td><code>.07 · r8 · y2</code></td><td><code>.10 · r18 · y6</code></td></tr>
+        <tr><td>Cards with a shadow</td><td>2 of 8</td><td>every card</td><td>every card</td></tr>
+        <tr><td>Android <code>elevation</code></td><td><code>0 / 1</code></td><td><code>1</code></td><td><code>2</code> · <code>6</code> raised</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="notes" style="margin-top:18px">
+    <div class="note"><b>The border is transparent, not removed</b>
+      Keeping the 1px width means every box is exactly the size it was, so nothing reflowed — and it leaves the slot open for the cards that DO want a visible ring. The accent border on a decision card sets <code>borderColor</code> alone and still lands; that is the pink ring on “Confirm the shoot date”.</div>
+    <div class="note"><b>Two layout bugs went with it</b>
+      Stat tiles were rendering over a thousand points tall on device. <code>flex: 1</code> is <code>flexBasis: 0%</code>, Yoga wraps by measuring basis, so all six tiles landed on one line before <code>minWidth</code> inflated them — and only the tiles without an <code>onPress</code> stretched, because a pressable one has a content-sized <code>Pressable</code> absorbing it. The grid chunks into explicit rows of two now. The pipeline strip’s last step is also cut by the card edge rather than stopping short of it.</div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  /* Sparkline paths built from the real series shapes the API returns, so the
+     curves here are the curves the app will draw — not decorative squiggles. */
+  var SERIES = {
+    views:  [4,6,5,9,7,11,8,14,10,16,13,19,15,22,18,26,21,30,24,34,28,38,31,42,36,47,40,52,45,58],
+    first:  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    lapsed: [6,4,7,5,8,3,6,2,4,1,2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    requests:[1,0,2,1,0,3,1,2,0,1,4,2,1,0,2,3,1,0,1,2]
+  };
+
+  function areaPath(v, w, h) {
+    var n = v.length, max = Math.max.apply(null, v.concat([1])), pad = 1.5, use = h - pad * 2;
+    var step = w / (n - 1), d = '', px = 0, py = 0;
+    for (var i = 0; i < n; i++) {
+      var x = i * step, y = pad + use - (v[i] / max) * use;
+      if (i === 0) { d = 'M ' + x + ' ' + y; }
+      else { var cx = (px + x) / 2; d += ' C ' + cx + ' ' + py + ', ' + cx + ' ' + y + ', ' + x + ' ' + y; }
+      px = x; py = y;
+    }
+    return { line: d, area: d + ' L ' + w + ' ' + h + ' L 0 ' + h + ' Z' };
+  }
+
+  /* Fold a long series into ~15 buckets by SUM — the same reduction MicroBars
+     does, for the same reason: 30 bars in a 133pt tile render as dots. */
+  function bucket(v, target) {
+    if (v.length <= target) return v.slice();
+    var size = Math.ceil(v.length / target), out = [];
+    for (var i = 0; i < v.length; i += size) {
+      out.push(v.slice(i, i + size).reduce(function (s, x) { return s + x; }, 0));
+    }
+    return out;
+  }
+
+  function color(el) {
+    var c = el.getAttribute('data-color');
+    return c === 'brand' ? getComputedStyle(el).getPropertyValue('--brand').trim() : c;
+  }
+
+  function drawAll() {
+    document.querySelectorAll('[data-spark]').forEach(function (el) {
+      var v = SERIES[el.getAttribute('data-spark')], w = el.clientWidth || 130, h = 30;
+      if (!v || !w) return;
+      var p = areaPath(v, w, h), c = color(el), id = 'g' + Math.random().toString(36).slice(2, 8);
+      el.innerHTML =
+        '<svg width="' + w + '" height="' + h + '" aria-hidden="true">' +
+          '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="0" stop-color="' + c + '" stop-opacity=".28"/>' +
+            '<stop offset="1" stop-color="' + c + '" stop-opacity="0"/>' +
+          '</linearGradient></defs>' +
+          '<path d="' + p.area + '" fill="url(#' + id + ')"/>' +
+          '<path d="' + p.line + '" fill="none" stroke="' + c + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</svg>';
+    });
+
+    document.querySelectorAll('[data-bars]').forEach(function (el) {
+      var v = SERIES[el.getAttribute('data-bars')];
+      if (!v) return;
+      var b = bucket(v, 15), max = Math.max.apply(null, b.concat([1])), c = color(el);
+      el.innerHTML = b.map(function (x) {
+        var r = Math.max(x / max, 0.06);
+        return '<i style="height:' + (30 * r).toFixed(1) + 'px;background:' + c + ';opacity:' + (x === 0 ? '.18' : '1') + '"></i>';
+      }).join('');
+    });
+
+    /* Cover art: the same deterministic wash-and-blobs the app generates from a
+       row id, drawn here with two of the six fixed palettes. */
+    var PAL = {
+      c1: ['#FFF0DC', '#FFD59E'], c2: ['#E8E4FF', '#C0B4FF'],
+      c3: ['#FFE4EC', '#FFB4CE'], c4: ['#DFF1FF', '#A9D8FF'],
+      p1: ['#C2185B', '#F26E59']
+    };
+    document.querySelectorAll('[data-cover]').forEach(function (el) {
+      var p = PAL[el.getAttribute('data-cover')];
+      if (!p || el.dataset.painted) return;
+      el.dataset.painted = '1';
+      el.style.background = 'linear-gradient(135deg,' + p[0] + ',' + p[1] + ')';
+      var blobs = document.createElement('div');
+      blobs.style.cssText = 'position:absolute;inset:0;overflow:hidden';
+      blobs.innerHTML =
+        '<span style="position:absolute;left:-14%;top:-30%;width:74%;padding-top:74%;border-radius:50%;background:rgba(255,255,255,.22)"></span>' +
+        '<span style="position:absolute;right:-18%;bottom:-34%;width:66%;padding-top:66%;border-radius:50%;background:rgba(255,255,255,.16)"></span>';
+      el.insertBefore(blobs, el.firstChild);
+    });
+  }
+
+  /* ── Role copy ──────────────────────────────────────────────────────
+     Every string below is the string the app ships, lifted from
+     home-header.tsx, home-setup-card.tsx and use-first-milestone.ts. A mockup
+     that recolours to purple but keeps the brand's words is worse than no
+     mockup: it invites sign-off on copy nobody has read. */
+  var HEADLINES = {
+    business: ["Let's find your", 'first creator'],
+    creator:  ["Let's land your", 'first collab']
+  };
+
+  /* buildSetupSteps() — creator gets five, business four. */
+  var STEPS = {
+    business: [
+      ['Account created', null, 'done'],
+      ['Finish your business profile', 'Creators check who is asking before they reply.', 'next'],
+      ['Get approved', 'Approval is what unlocks messaging creators.', 'later'],
+      ['Post your first campaign', 'Let the right creators come to you.', 'later']
+    ],
+    creator: [
+      ['Account created', null, 'done'],
+      ['Finish your profile', 'A bio and a niche are what brands search on.', 'next'],
+      ['Connect a channel', 'Your real reach, pulled in automatically.', 'later'],
+      ['Get verified', 'Brands filter for the badge before they ever message.', 'later'],
+      ['Land your first collab', 'Browse open campaigns and apply to one that fits.', 'later']
+    ]
+  };
+
+  var COPY = {
+    business: {
+      setupCta: 'Finish your business profile',
+      milestoneBody: 'A creator looked you up. They check who is asking before they reply.',
+      pipelineBody: 'Start a collaboration and track it here — every stage from brief to payment in one place.',
+      pipelineCta: 'Start your first project',
+      viewsEmpty: 'Creators check your page before replying.',
+      viewsEmptyGallery: 'Creators check your page before replying.',
+      requestsEmpty: 'Reach out to a creator to start one.',
+      rqTitle: 'Sent requests',
+      rqTab: 'Sent',
+      rqStat1: 'Total sent',
+      rqTipTitle: 'Track and manage your requests',
+      rqTipBody: "We'll notify you when creators respond.",
+      rqCtaTitle: 'Looking for the right creator?',
+      rqCtaBody: 'Browse open campaigns and connect with creators who match your brand.',
+      rqCtaBtn: 'Browse campaigns',
+      rqEmptyTitle: 'No requests sent yet',
+      rqEmptyBody: 'Find a creator whose audience fits, and the request you send them starts here.',
+      rqEmptyCta: 'Find a creator',
+      msgSub: 'Stay in touch with creators',
+      msgNewTitle: 'Start a new conversation',
+      msgNewBody: 'Connect with creators and start collaborating',
+      pjSub: 'Track and manage all your collaborations',
+      pjCtaTitle: 'Discover campaigns',
+      pjCtaBody: 'Explore open opportunities and find the perfect match.'
+    },
+    creator: {
+      setupCta: 'Finish your profile',
+      milestoneBody: 'Someone searched, found you, and stopped to look. Keep your profile sharp — this is how collabs start.',
+      pipelineBody: 'Apply to an open campaign and it lands here — every stage from brief to payment in one place.',
+      pipelineCta: 'Find your first campaign',
+      viewsEmpty: 'Share your profile link to get seen.',
+      viewsEmptyGallery: 'Share your profile link to get seen.',
+      requestsEmpty: 'None yet — get verified to rank higher.',
+      /* A request only ever travels one way, so the two roles get opposite
+         halves of this screen: brands read the outbox, creators the inbox. */
+      rqTitle: 'Requests',
+      rqTab: 'Requests',
+      rqStat1: 'Total received',
+      rqTipTitle: 'Every request that comes in',
+      rqTipBody: "You'll be notified the moment a brand asks.",
+      rqCtaTitle: 'Want more requests?',
+      rqCtaBody: 'Open campaigns are the fastest way to be found by brands who are hiring now.',
+      rqCtaBtn: 'Browse campaigns',
+      rqEmptyTitle: 'No requests yet',
+      rqEmptyBody: 'Get verified and connect a channel — brands filter for both before they ever message.',
+      rqEmptyCta: 'Get verified',
+      msgSub: 'Stay in touch with brands',
+      msgNewTitle: 'Start a new conversation',
+      msgNewBody: 'Reply to a brand or follow up on a campaign',
+      pjSub: 'Every collaboration you are working on',
+      pjCtaTitle: 'Find your next campaign',
+      pjCtaBody: 'Brands post open briefs every week — apply to one that fits.'
+    }
+  };
+
+  var TICK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4"><path d="m5 12 5 5 9-10"/></svg>';
+
+  /* ── The stage strip ──────────────────────────────────────────────────
+     FULL_LABELS from @influnet/core, first five of twelve. The design showed
+     five steps ending in "Payment terms"; the real third stage is
+     `advance_payment`, a gate that only opens on a signed payment webhook, and
+     omitting it would both overstate progress and hide the money step. Same
+     five-node visual, true labels, and a "Step N of 12" line underneath. */
+  var STAGE_WINDOW = [
+    ['Collaboration Started', '<path d="M11 17 8 20l-5-5 4-4"/><path d="m13 7 3-3 5 5-4 4"/><path d="m8 12 4 4"/>'],
+    ['Discussion',            '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'],
+    ['Advance Payment',       '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>'],
+    ['Content Planning',      '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'],
+    ['Content Confirmation',  '<path d="M20 6 9 17l-5-5"/>']
+  ];
+
+  function renderStrips() {
+    document.querySelectorAll('[data-strip]').forEach(function (host) {
+      var step = parseInt(host.getAttribute('data-strip'), 10);
+      host.innerHTML = STAGE_WINDOW.map(function (st, i) {
+        var done = i < step;
+        return '<div class="snode' + (done ? ' done' : '') + '">' +
+          '<span class="sdot"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="' +
+            (done ? '#fff' : 'currentColor') + '" stroke-width="2" style="color:var(--mute)">' + st[1] + '</svg></span>' +
+          '<span class="slabel">' + st[0] + '</span></div>';
+      }).join('');
+    });
+  }
+
+  function renderSteps(role) {
+    var steps = STEPS[role];
+    document.querySelectorAll('[data-steps]').forEach(function (host) {
+      host.innerHTML = steps.map(function (st) {
+        var label = st[0], payoff = st[1], kind = st[2];
+        return '<div class="step' + (kind === 'later' ? ' later' : '') + '">' +
+          '<span class="tick ' + kind + '">' + (kind === 'done' ? TICK : '') + '</span>' +
+          '<div><div class="t-strong' + (kind === 'done' ? ' strike' : '') + '" style="font-size:15px">' + label + '</div>' +
+          (payoff ? '<div class="t-foot">' + payoff + '</div>' : '') + '</div></div>';
+      }).join('');
+    });
+
+    var done = steps.filter(function (st) { return st[2] === 'done'; }).length;
+    var remaining = steps.length - done;
+    set('setupRing', done + '/' + steps.length);
+    set('setupRemaining', remaining === 1
+      ? 'One step left before brands can find you.'
+      : remaining + " short steps and you're live.");
+  }
+
+  function set(key, text) {
+    document.querySelectorAll('[data-copy="' + key + '"]').forEach(function (el) {
+      el.textContent = text;
+    });
+  }
+
+  function applyCopy(role) {
+    var c = COPY[role];
+    Object.keys(c).forEach(function (k) { set(k, c[k]); });
+    renderSteps(role);
+  }
+
+  var VERDICTS = {
+    current:   '<b>Before</b> — kept for comparison. Page and card were nearly the same white, with a shadow on 2 of 8 cards.',
+    ground:    '<b>Alternative</b> — deeper page, visible card edge. Not taken; the border read as a second outline beside the shadow.',
+    elevation: '<b>Shipped</b> — live on <b>dev</b> at <b>7afaa48f</b>. Ground #f2f4f8, transparent border, shadow on every card.'
+  };
+
+  function setAttrEverywhere(attr, val) {
+    ['board', 'board2', 'board3', 'board4', 'gstage'].forEach(function (id) {
+      var n = document.getElementById(id);
+      if (n) n.setAttribute(attr, val);
+    });
+  }
+
+  function wire(segId, attr, after) {
+    var seg = document.getElementById(segId);
+    seg.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      seg.querySelectorAll('button').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b === btn));
+      });
+      var val = btn.getAttribute(attr === 'data-role' ? 'data-role' : 'data-treatment');
+      setAttrEverywhere(attr, val);
+      if (after) after(val);
+    });
+  }
+
+  function setRole(role) {
+    var h = HEADLINES[role];
+    document.querySelectorAll('[data-headline]').forEach(function (el) {
+      el.childNodes[0].nodeValue = h[0];
+      el.querySelector('[data-headline-accent]').textContent = h[1];
+    });
+    applyCopy(role);
+    renderStrips();
+    drawAll();
+  }
+
+  wire('roleSeg', 'data-role', setRole);
+
+  wire('treatSeg', 'data-treatment', function (t) {
+    document.getElementById('verdict').innerHTML = VERDICTS[t];
+  });
+
+  document.getElementById('verdict').innerHTML = VERDICTS.elevation;
+  setRole('business');
+  window.addEventListener('resize', drawAll);
+})();
+</script>

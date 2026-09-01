@@ -15,7 +15,7 @@ import { Button, Screen, Txt } from '@/components/ui';
 type Recovery = 'idle' | 'running' | 'failed';
 
 export default function Index() {
-  const { session, profile, ready, loadingProfile, loadProfile } = useSession();
+  const { session, profile, ready, loadingProfile, switching, loadProfile } = useSession();
   const { signOut, signingOut } = useSignOutAction();
 
   const [recovery, setRecovery] = useState<Recovery>('idle');
@@ -57,7 +57,18 @@ export default function Index() {
         // so the redirect below has something to route on.
         void endpoints.startVerification({}).catch(() => {});
         await loadProfile();
-        if (!cancelled) setRecovery('idle');
+        if (cancelled) return;
+        // Register said OK but the profile STILL won't load — one retry, then
+        // stop. Going back to 'idle' here re-fires this effect on the unchanged
+        // (profile === null) state, which is an infinite spinner.
+        if (useSession.getState().profile) {
+          setRecovery('idle');
+        } else {
+          setRecoveryError(
+            'We could not load your account. Check your connection and open the app again — or sign out and back in.',
+          );
+          setRecovery('failed');
+        }
         return;
       }
 
@@ -89,17 +100,21 @@ export default function Index() {
     );
   }
 
-  if (!ready || (session && !profile && (loadingProfile || recovery === 'running'))) {
+  if (!ready || switching || (session && !profile && (loadingProfile || recovery === 'running'))) {
     return (
       <View
         style={{
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
+          gap: spacing.md,
           backgroundColor: palette.surface,
         }}
       >
-        <ActivityIndicator color={palette.contentMuted} />
+        <ActivityIndicator color={palette.verified} />
+        <Txt variant="footnote" tone="muted">
+          {switching ? 'Switching account…' : 'Getting things ready…'}
+        </Txt>
       </View>
     );
   }

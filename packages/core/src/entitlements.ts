@@ -39,6 +39,14 @@ export const GATED_FEATURES = [
   'campaigns.publish',
   /** Apply to a campaign (quota-metered). */
   'campaigns.apply',
+  /** Generate a tax invoice / proforma (quota-metered, per month). */
+  'invoices.generate',
+  /** Send a collaboration request to another creator (quota-metered, per month). */
+  'requests.peer',
+  /** Connect more than one account on the same social platform. Pro only. */
+  'social.multiaccount',
+  /** See the full, identified list of who viewed your profile. Free sees a few. */
+  'profile.viewers',
 ] as const;
 export type GatedFeature = (typeof GATED_FEATURES)[number];
 
@@ -65,6 +73,20 @@ export interface Entitlements {
     analyticsDays: number | null;
     liveCampaigns: number | null;
     applicationsPerWeek: number | null;
+    /** Manual portfolio items. The one ceiling where Pro is a bigger number, not null. */
+    portfolioItems: number | null;
+    /** Conversations that can be pinned to the top of the inbox. */
+    pinnedChats: number | null;
+    /** Most-recent profile viewers shown identified; the rest are a count. */
+    profileViewers: number | null;
+    /** Distinct businesses whose contact card can be revealed, lifetime. */
+    contactReveals: number | null;
+    /** Accounts connectable on a single social platform. */
+    connectedAccountsPerPlatform: number | null;
+    /** Tax invoices / proformas generated per month. */
+    invoicesPerMonth: number | null;
+    /** Creator→creator collaboration requests sent per month. */
+    peerRequestsPerMonth: number | null;
   };
   /**
    * The FREE tier's ceilings, regardless of who is asking.
@@ -82,6 +104,13 @@ export interface Entitlements {
     analyticsDays: number | null;
     liveCampaigns: number | null;
     applicationsPerWeek: number | null;
+    portfolioItems: number | null;
+    pinnedChats: number | null;
+    profileViewers: number | null;
+    contactReveals: number | null;
+    connectedAccountsPerPlatform: number | null;
+    invoicesPerMonth: number | null;
+    peerRequestsPerMonth: number | null;
   };
   usage: {
     activeProjects: number;
@@ -92,6 +121,18 @@ export interface Entitlements {
     liveCampaigns: number;
     /** Applications this creator has submitted since the start of the current week. */
     applicationsThisWeek: number;
+    /** Manual portfolio items this creator has added. */
+    portfolioItems: number;
+    /** Conversations this user currently has pinned. */
+    pinnedChats: number;
+    /** Distinct businesses that have viewed this creator's profile, all-time. */
+    profileViewers: number;
+    /** Distinct businesses whose contact card this creator has revealed, lifetime. */
+    contactReveals: number;
+    /** Invoices/proformas this user has generated in the current month. */
+    invoicesThisMonth: number;
+    /** Peer collaboration requests this creator has sent in the current month. */
+    peerRequestsThisMonth: number;
   };
   price: {
     paise: number;
@@ -116,6 +157,8 @@ const FEATURES_BY_TIER: Record<PlanTier, ReadonlySet<GatedFeature>> = {
     'requests.send',
     'campaigns.publish',
     'campaigns.apply',
+    'invoices.generate',
+    'requests.peer',
   ]),
   pro: new Set<GatedFeature>(GATED_FEATURES),
 };
@@ -137,7 +180,9 @@ export function isMetered(feature: GatedFeature): boolean {
     feature === 'projects.create' ||
     feature === 'requests.send' ||
     feature === 'campaigns.publish' ||
-    feature === 'campaigns.apply'
+    feature === 'campaigns.apply' ||
+    feature === 'invoices.generate' ||
+    feature === 'requests.peer'
   );
 }
 
@@ -176,4 +221,8 @@ export const FEATURE_LABELS: Record<GatedFeature, string> = {
   'requests.send': 'Collaboration requests',
   'campaigns.publish': 'Publish campaigns',
   'campaigns.apply': 'Apply to campaigns',
+  'invoices.generate': 'Invoice generation',
+  'requests.peer': 'Requests to other creators',
+  'social.multiaccount': 'Multiple accounts per platform',
+  'profile.viewers': 'Full profile-viewer list',
 };

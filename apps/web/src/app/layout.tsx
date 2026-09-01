@@ -13,6 +13,7 @@ import { Suspense } from 'react';
 import { cn } from "@/lib/utils";
 import { Toaster } from 'sonner';
 import { ObservabilityProvider } from '@/components/observability-provider';
+import { OpenInAppBanner } from '@/components/open-in-app-banner';
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -59,6 +60,7 @@ export default function RootLayout({
       <body className="min-h-[100dvh] flex flex-col bg-background text-foreground">
         {children}
         <Toaster richColors position="top-right" />
+        <OpenInAppBanner />
         {/*
           Suspense is required, not optional: ObservabilityProvider reads
           useSearchParams(), and without a boundary that opts the ENTIRE app

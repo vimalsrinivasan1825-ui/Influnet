@@ -14,7 +14,9 @@
  * public profile and the mobile grid enforce — see migration 087.
  */
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
+import { useEntitlements } from "@/lib/hooks/use-entitlements";
 import { BadgeCheck, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -91,6 +93,15 @@ export function PortfolioEditor() {
   const [title, setTitle] = useState("");
   const [brand, setBrand] = useState("");
   const [saving, setSaving] = useState(false);
+  const { entitlements, isPro } = useEntitlements();
+
+  // Manual items only — platform entries (completed projects) don't count
+  // toward the cap, and get_entitlements() counts the same way (migration 138).
+  const manualCount = items.filter((i) => i.source === "manual").length;
+  const portfolioLimit = entitlements?.limits.portfolioItems ?? null;
+  const showMeter =
+    !!entitlements?.subscriptionsEnabled && typeof portfolioLimit === "number";
+  const atCap = showMeter && manualCount >= (portfolioLimit as number);
 
   const load = useCallback(async () => {
     const res = await apiFetch<{ items: PortfolioItem[] }>("/api/portfolio");
@@ -204,7 +215,7 @@ export function PortfolioEditor() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button onClick={add} disabled={!url.trim() || saving}>
+            <Button onClick={add} disabled={!url.trim() || saving || atCap}>
               {saving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" /> Adding…
@@ -215,8 +226,28 @@ export function PortfolioEditor() {
                 </>
               )}
             </Button>
-            <p className="text-xs text-content-muted">Shows as self-reported.</p>
+            {showMeter ? (
+              <p className="text-xs text-content-muted">
+                {manualCount} of {portfolioLimit} added
+                {!isPro && (
+                  <>
+                    {" · "}
+                    <Link href="/dashboard/billing" className="font-semibold text-brand hover:underline">
+                      {atCap ? "Upgrade to add more" : "Pro adds more"}
+                    </Link>
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="text-xs text-content-muted">Shows as self-reported.</p>
+            )}
           </div>
+          {atCap && (
+            <p className="text-xs text-warn">
+              You&apos;ve added the {portfolioLimit} items a Free portfolio holds. Remove
+              one, or upgrade to Pro to keep going.
+            </p>
+          )}
         </div>
 
         {/* ── The wall ────────────────────────────────────────────── */}

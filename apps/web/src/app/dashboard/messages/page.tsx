@@ -14,7 +14,8 @@ import {
   ChannelHeader,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/index.css";
-import { MessageSquare, Plus, FolderKanban, MoreVertical, Trash2, Loader2, ArrowLeft } from "lucide-react";
+import { MessageSquare, Plus, FolderKanban, MoreVertical, Pin, PinOff, Trash2, Loader2, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 import { DealPanel } from "@/components/dashboard/deal-panel";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,9 @@ interface Conversation {
   id: string;
   participants?: Participant[];
   messages?: { body?: string; content?: string }[];
+  /** The caller's own pin state — /api/conversations sets this per row. */
+  pinned?: boolean;
+  updated_at?: string;
 }
 interface ProjectConversation {
   project_id: string;
@@ -207,7 +211,11 @@ function MessagesContent() {
         "/api/conversations",
       );
       if (res.ok && res.data) {
-        setConversations(res.data.conversations || []);
+        // Pinned first, then whatever order the route returned (newest activity).
+        const convs = [...(res.data.conversations || [])].sort(
+          (a, b) => Number(!!b.pinned) - Number(!!a.pinned),
+        );
+        setConversations(convs);
         setProjects(res.data.projects || []);
       }
     } catch (e) {
@@ -274,6 +282,19 @@ function MessagesContent() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const togglePin = async (convId: string, next: boolean) => {
+    setMenuOpenConv(null);
+    const res = await apiFetch(`/api/conversations/${convId}/pin`, {
+      method: "PATCH",
+      body: JSON.stringify({ pinned: next }),
+    });
+    if (!res.ok) {
+      toast.error(res.error || "Could not update the pin.");
+      return;
+    }
+    await fetchConversations();
   };
 
   const deleteConversation = async (convId: string) => {
@@ -370,15 +391,20 @@ function MessagesContent() {
             </div>
           ) : (
             <>
-              {conversations.length > 0 && <SectionLabel>Chats</SectionLabel>}
-              {conversations.map((c) => {
+              {conversations.length > 0 && (
+                <SectionLabel>{conversations.some((c) => c.pinned) ? "Pinned" : "Chats"}</SectionLabel>
+              )}
+              {conversations.map((c, i) => {
                 const other = c.participants?.find((p) => p.user_id !== userId)?.profile;
                 const isActive = activeConvId === c.id;
                 const isMenuOpen = menuOpenConv === c.id;
                 const lastMsg = c.messages?.[c.messages.length - 1];
+                const firstUnpinned =
+                  !c.pinned && i > 0 && !!conversations[i - 1]?.pinned;
                 return (
+                  <div key={c.id} className="contents">
+                  {firstUnpinned && <SectionLabel>Chats</SectionLabel>}
                   <div
-                    key={c.id}
                     className={cn(
                       "group relative flex items-center rounded-xl",
                       isActive && "bg-brand-soft",
@@ -395,8 +421,9 @@ function MessagesContent() {
                         )}
                       </div>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[0.8125rem] font-bold text-content">
-                          {other?.name || "Unknown"}
+                        <span className="flex items-center gap-1 truncate text-[0.8125rem] font-bold text-content">
+                          {c.pinned && <Pin className="size-3 shrink-0 text-content-muted" />}
+                          <span className="truncate">{other?.name || "Unknown"}</span>
                         </span>
                         <span className="block truncate text-[0.6875rem] font-medium text-content-soft">
                           {lastMsg ? lastMsg.body || lastMsg.content || "" : "No messages yet"}
@@ -422,6 +449,23 @@ function MessagesContent() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              togglePin(c.id, !c.pinned);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-content transition-colors hover:bg-surface-muted"
+                          >
+                            {c.pinned ? (
+                              <>
+                                <PinOff className="size-3.5" /> Unpin
+                              </>
+                            ) : (
+                              <>
+                                <Pin className="size-3.5" /> Pin to top
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               deleteConversation(c.id);
                             }}
                             className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft"
@@ -431,6 +475,7 @@ function MessagesContent() {
                         </div>
                       )}
                     </div>
+                  </div>
                   </div>
                 );
               })}

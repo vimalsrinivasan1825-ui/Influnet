@@ -18,7 +18,9 @@ export type AdminAction =
   | 'project_deleted'
   | 'report_resolved'
   | 'admin_provisioned'
-  | 'admin_revoked';
+  | 'admin_revoked'
+  | 'user_deleted'
+  | 'user_updated';
 
 export interface AuditInput {
   actorId: string;

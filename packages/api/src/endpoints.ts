@@ -25,6 +25,8 @@ export function createEndpoints(api: ApiClient) {
     getProfile: <T = unknown>() => api.get<T>('/api/profile'),
     updateProfile: <T = unknown>(body: unknown) => api.patch<T>('/api/profile', body),
     refreshProfile: <T = unknown>() => api.post<T>('/api/profile/refresh'),
+    /** Who viewed your profile. Free sees the most-recent few + a locked count. */
+    profileViewers: <T = unknown>() => api.get<T>('/api/profile/viewers'),
     dismissWelcome: <T = unknown>() => api.post<T>('/api/profile/welcome'),
     /** Registers (token) or clears (null) this device's Expo push token. */
     registerPushToken: <T = unknown>(token: string | null) =>
@@ -94,6 +96,22 @@ export function createEndpoints(api: ApiClient) {
     updateApplicationStatus: <T = unknown>(campaignId: string, appId: string, body: unknown) =>
       api.patch<T>(`/api/campaigns/${campaignId}/applications/${appId}`, body),
 
+    // ── Billing & entitlements ────────────────────────────────────
+    /**
+     * The caller's own plan, resolved at runtime. Returns the entitlement
+     * object at the TOP LEVEL (not wrapped) — see the route. This is also how
+     * the client learns whether paid plans exist at all in this deployment
+     * (`subscriptionsEnabled`).
+     */
+    getEntitlements: <T = unknown>() => api.get<T>('/api/billing/entitlements'),
+    /**
+     * Opens a Pro purchase. Server decides the amount and currency from
+     * `billing_settings`; the client sends nothing. Returns the Razorpay order
+     * the checkout sheet needs. Never grants anything — the tier changes only
+     * when the signed webhook confirms the capture.
+     */
+    startProCheckout: <T = unknown>() => api.post<T>('/api/billing/checkout'),
+
     // ── Saved items (favourites) ──────────────────────────────────
     listSavedItems: <T = unknown>() => api.get<T>('/api/saved-items'),
     saveItem: <T = unknown>(kind: 'creator' | 'campaign', targetId: string) =>
@@ -130,12 +148,18 @@ export function createEndpoints(api: ApiClient) {
      * anyone without an established relationship (a request or a project) —
      * see apps/web's /api/businesses/[username] for the access rule.
      */
+    /** Spend a contact reveal (Free: 5 lifetime) and get the business's details. */
+    revealBusinessContact: <T = unknown>(username: string) =>
+      api.post<T>(`/api/businesses/${encodeURIComponent(username)}/reveal-contact`),
     getBusinessProfile: <T = unknown>(username: string) =>
       api.get<T>(`/api/businesses/${encodeURIComponent(username)}`),
 
     // ── Collaboration requests ─────────────────────────────────────
     listCollabs: <T = unknown>() => api.get<T>('/api/collabs'),
     createCollab: <T = unknown>(body: unknown) => api.post<T>('/api/collabs', body),
+    /** Creator → creator collaboration request. Free: 10/month → 402. */
+    createPeerCollab: <T = unknown>(body: { to_user_id: string; message?: string }) =>
+      api.post<T>('/api/collabs/peer', body),
     getCollab: <T = unknown>(id: string) => api.get<T>(`/api/collabs/${id}`),
     /** Status changes PATCH the collection with { id, status } — not /collabs/:id. */
     updateCollabStatus: <T = unknown>(id: string, status: string) =>
@@ -143,6 +167,9 @@ export function createEndpoints(api: ApiClient) {
 
     // ── Conversations & deals ──────────────────────────────────────
     listConversations: <T = unknown>() => api.get<T>('/api/conversations'),
+    /** Pin / unpin a conversation for the caller. Free caps at 3 → 402. */
+    setConversationPinned: <T = unknown>(id: string, pinned: boolean) =>
+      api.patch<T>(`/api/conversations/${id}/pin`, { pinned }),
     /** Opens (or returns) the conversation with another user. */
     createConversation: <T = unknown>(body: { other_user_id: string }) =>
       api.post<T>('/api/conversations', body),

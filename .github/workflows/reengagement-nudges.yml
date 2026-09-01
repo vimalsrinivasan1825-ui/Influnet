@@ -1,0 +1,38 @@
+# Re-engagement nudges — daily fan-out (migration 142 + /api/cron/nudges)
+#
+# DISABLED until the founder wires it: this needs two repo/environment secrets
+# that do not exist yet —
+#   NUDGE_ENDPOINT   e.g. https://dev.influnet.io/api/cron/nudges
+#   CRON_SECRET      the same value set as the CRON_SECRET env var on the
+#                    deployed container (deploy-dev.yml / deploy-staging.yml)
+#
+# Until both are set the curl below 404s (the route refuses without a secret)
+# and the job is a harmless no-op. See docs/operations/REENGAGEMENT_NUDGES.md.
+
+name: reengagement-nudges
+
+on:
+  schedule:
+    # 10:00 IST = 04:30 UTC
+    - cron: '30 4 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  fan-out:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger nudge fan-out
+        env:
+          NUDGE_ENDPOINT: ${{ secrets.NUDGE_ENDPOINT }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$NUDGE_ENDPOINT" ] || [ -z "$CRON_SECRET" ]; then
+            echo "NUDGE_ENDPOINT / CRON_SECRET not set — skipping (see docs/operations/REENGAGEMENT_NUDGES.md)"
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/out.json -w '%{http_code}' \
+            -X POST "$NUDGE_ENDPOINT" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          echo "HTTP $code"
+          cat /tmp/out.json || true
+          test "$code" = "200"

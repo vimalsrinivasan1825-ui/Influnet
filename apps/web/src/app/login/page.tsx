@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { recordWebSignIn } from "@/lib/web-accounts";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -144,10 +145,37 @@ function LoginContent() {
           }
         }
 
+        // Remember this account so the switcher can list it and switch back to
+        // it without a password. `name` is a second read rather than folded
+        // into the one above so the recovery branch keeps its narrow select.
+        try {
+          const { data: full } = await sb
+            .from("profiles")
+            .select("name, avatar_url")
+            .eq("id", data.user.id)
+            .maybeSingle();
+          const f = full as { name?: string | null; avatar_url?: string | null } | null;
+          recordWebSignIn(data.session, {
+            email: data.user.email ?? email,
+            name: f?.name ?? null,
+            avatarUrl: f?.avatar_url ?? null,
+          });
+        } catch {
+          /* the switcher just won't have this account until next sign-in */
+        }
+
         const role = (profile as { role?: string } | null)?.role;
-        if (role === "influencer") router.push(nextParam || "/dashboard");
-        else if (role === "admin") router.push(nextParam || "/dashboard/admin");
-        else router.push(nextParam || "/dashboard");
+        // A full reload (not router.push) when adding a second account: the
+        // previous account's data is cached all over the client tree, and the
+        // server needs to re-read the new session cookie from scratch.
+        const adding = searchParams.get("add") === "1";
+        const dest =
+          role === "admin" ? nextParam || "/dashboard/admin" : nextParam || "/dashboard";
+        if (adding) {
+          window.location.href = dest;
+        } else {
+          router.push(dest);
+        }
       }
     } catch {
       setError("An unexpected error occurred");

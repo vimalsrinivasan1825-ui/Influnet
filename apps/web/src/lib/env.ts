@@ -32,6 +32,12 @@ const envSchema = z.object({
   APP_ENV: z.enum(APP_ENVS).default('local'),
   NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
 
+  // Store URLs for the "open in app" banner. Optional — when absent, the
+  // banner still tries the influnet:// deep link but has no store to fall
+  // back to (the app isn't publicly listed yet).
+  NEXT_PUBLIC_IOS_APP_URL: z.string().url().optional(),
+  NEXT_PUBLIC_ANDROID_APP_URL: z.string().url().optional(),
+
   // Supabase — required for the app to function at all.
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),

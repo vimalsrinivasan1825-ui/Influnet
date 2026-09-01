@@ -13,6 +13,7 @@
  * must agree on.
  */
 import { useEffect } from 'react';
+import { Pressable, type GestureResponderEvent } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
@@ -25,6 +26,8 @@ import {
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { useNotificationSummary } from '@/lib/notification-summary';
+import { useAccountSheet } from '@/lib/use-account-sheet';
+import { AccountSwitcher } from '@/components/account-switcher';
 import { startRealtime, stopRealtime } from '@/lib/realtime';
 
 export default function TabsLayout() {
@@ -32,8 +35,13 @@ export default function TabsLayout() {
   const role = useSession((s) => s.profile?.role);
   const ready = useSession((s) => s.ready);
   const session = useSession((s) => s.session);
+  const switching = useSession((s) => s.switching);
   const isCreator = role === 'influencer';
-  const signedOut = ready && !session;
+  const signedOut = ready && !session && !switching;
+  // Mid account-switch: bounce to the entry gate so this whole tree unmounts
+  // and then remounts CLEAN on the new session — otherwise the tabs keep their
+  // mounted state and their cached data belongs to the previous account.
+  const midSwitch = switching;
 
   // Badge counts, polled on a slow cadence by the shared store so the header
   // bell on Home reads the same numbers these tabs do. Not started (and torn
@@ -72,11 +80,12 @@ export default function TabsLayout() {
    * the moment the session goes is what makes "no stray requests after
    * sign-out" structural rather than a matter of getting every screen right.
    */
-  if (signedOut) return <Redirect href="/" />;
+  if (signedOut || midSwitch) return <Redirect href="/" />;
 
   const badge = (n?: number) => (n && n > 0 ? (n > 99 ? '99+' : String(n)) : undefined);
 
   return (
+    <>
     <Tabs
       // A tick under the thumb on every tab change. Selection feedback is the
       // lightest haptic there is — right for something you do constantly.
@@ -144,8 +153,25 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => <UserRound color={color} size={size} />,
+          // Long-press the Profile tab → open the account switcher, wherever
+          // you are. A normal tap still navigates to the tab.
+          tabBarButton: (props) => (
+            <Pressable
+              {...(props as any)}
+              onLongPress={(e: GestureResponderEvent) => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                useAccountSheet.getState().open();
+              }}
+              delayLongPress={300}
+            />
+          ),
         }}
       />
     </Tabs>
+
+    {/* Mounted once, driven by useAccountSheet — opened from here (long-press
+        Profile) and from the "Switch account" row in Profile. */}
+    <AccountSwitcher />
+    </>
   );
 }

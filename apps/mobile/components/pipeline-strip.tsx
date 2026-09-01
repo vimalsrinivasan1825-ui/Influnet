@@ -61,9 +61,21 @@ const STEP_STYLE: Record<string, StepStyle> = {
 export function PipelineStrip({
   steps,
   onPressStep,
+  inset = 0,
 }: {
   steps: PipelineStep[];
   onPressStep?: (key: string) => void;
+  /**
+   * Horizontal padding applied to the scroll CONTENT rather than to a wrapper
+   * around this scroller.
+   *
+   * The distinction is the whole point: padding on a parent stops the strip
+   * short of the card edge, so the sixth step is cut with a margin of empty
+   * card beside it and reads as a clipping bug. Padding on the content lets
+   * the strip run edge to edge while its first step still lines up with
+   * everything else on the screen.
+   */
+  inset?: number;
 }) {
   const t = useTheme();
   if (steps.length === 0) return null;
@@ -72,7 +84,11 @@ export function PipelineStrip({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ alignItems: 'center', paddingRight: t.spacing.sm }}
+      contentContainerStyle={{
+        alignItems: 'center',
+        paddingLeft: inset,
+        paddingRight: inset || t.spacing.sm,
+      }}
     >
       {steps.map((step, i) => {
         // An empty step is drawn, not hidden: "nothing in review" is a fact

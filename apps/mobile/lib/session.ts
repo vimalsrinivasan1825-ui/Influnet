@@ -17,7 +17,14 @@ import { logger } from './logger';
 import { disconnectStream } from './stream';
 import { clearPushToken } from './push';
 import { stopNotificationSummary } from './notification-summary';
+import { resetEntitlements } from './use-entitlements';
 import { stopRealtime } from './realtime';
+import {
+  recordSignIn,
+  syncActive,
+  getStoredSession,
+  removeActive,
+} from './accounts';
 
 export interface MeProfile {
   id: string;
@@ -26,6 +33,7 @@ export interface MeProfile {
   name: string;
   phone: string | null;
   location: string | null;
+  nudges_opt_out?: boolean;
   verification_status?: string;
   verified_badge?: boolean;
   // creator
@@ -60,14 +68,38 @@ interface SessionState {
   /** False until the stored session has been read once — gates the splash. */
   ready: boolean;
   loadingProfile: boolean;
+  /** True while switchAccount() is mid-flight — the session briefly goes null
+   *  to force the tab tree to remount, and this stops that being read as a
+   *  sign-out (which would flash the Welcome screen). */
+  switching: boolean;
   setSession: (session: Session | null) => void;
   loadProfile: () => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * Make a freshly-authenticated session the active one and load its profile.
+   * `replacingLive` — true when another account was signed in a moment ago
+   * (the "add account" flow): tears that account's background work + screen
+   * caches down and forces the tab tree to remount, so the app shows the NEW
+   * account rather than the previous one's cached data.
+   */
+  activateSession: (session: Session, replacingLive: boolean) => Promise<void>;
+  /** Switch the app to another signed-in account (multi-account book). */
+  switchAccount: (userId: string) => Promise<{ ok: boolean; error?: string }>;
   init: () => () => void;
 }
 
 /** Shared across concurrent signOut() callers so the teardown runs once. */
 let signOutInFlight: Promise<void> | null = null;
+
+/**
+ * Bumped on every loadProfile() call. A slow fetch that resolves after a newer
+ * one started must NOT write its (possibly stale, possibly 401'd) result over
+ * the fresh one — that stale clobber is what leaves `profile` null right after
+ * a sign-in and drops the entry gate into its recovery loop. The add-account
+ * flow makes this race routine: the auth listener and the login screen both
+ * call loadProfile() for the new session at once.
+ */
+let profileLoadGen = 0;
 
 /** See the call sites in signOut(): long enough for a real network, short enough not to strand the user. */
 const TEARDOWN_TIMEOUT_MS = 3000;
@@ -98,20 +130,61 @@ export const useSession = create<SessionState>((set, get) => ({
   profile: null,
   ready: false,
   loadingProfile: false,
+  switching: false,
 
   setSession: (session) => set({ session }),
 
   loadProfile: async () => {
-    if (!get().session) {
-      set({ profile: null });
+    const uid = get().session?.user.id;
+    const gen = ++profileLoadGen;
+    if (!uid) {
+      if (gen === profileLoadGen) set({ profile: null, loadingProfile: false });
       return;
     }
     set({ loadingProfile: true });
+
     // /api/profile wraps the merged profile as { profile: {...} }. Storing the
     // envelope instead of its contents leaves every field undefined, which
     // reads as "signed in but nobody home" on every screen that uses the store.
-    const res = await endpoints.getProfile<{ profile: MeProfile }>();
-    set({ profile: res.ok ? (res.data?.profile ?? null) : null, loadingProfile: false });
+    //
+    // Bounded at 12s: the API client has no timeout, and a hung /api/profile
+    // otherwise pins `loadingProfile: true` — which is the splash's "not ready"
+    // signal, i.e. a permanent "Getting things ready…".
+    let profile: MeProfile | null = null;
+    try {
+      const TIMED_OUT = Symbol('timeout');
+      const race = await Promise.race([
+        endpoints.getProfile<{ profile: MeProfile }>(),
+        new Promise<typeof TIMED_OUT>((r) => setTimeout(() => r(TIMED_OUT), 12000)),
+      ]);
+      if (race !== TIMED_OUT) {
+        profile = race.ok ? (race.data?.profile ?? null) : null;
+      }
+    } catch {
+      profile = null;
+    }
+
+    // A newer loadProfile() has taken over — it owns the outcome, including
+    // loadingProfile. Do nothing.
+    if (gen !== profileLoadGen) return;
+
+    // We ARE the latest call, so we must always clear loadingProfile. If the
+    // account changed under us mid-fetch, this profile is for the wrong user —
+    // keep whatever is there, but never leave the flag stuck.
+    const stillSameUser = get().session?.user.id === uid;
+    set({ loadingProfile: false, ...(stillSameUser ? { profile } : {}) });
+
+    // Record this account in the multi-account book so the switcher can list
+    // it. Best-effort, non-blocking — a failure here never affects the app.
+    const session = get().session;
+    if (stillSameUser && session && profile) {
+      void recordSignIn(session, {
+        email: profile.email,
+        name: profile.name ?? null,
+        role: profile.role ?? null,
+        avatarUrl: profile.avatar_url ?? profile.logo_url ?? null,
+      });
+    }
   },
 
   signOut: async () => {
@@ -186,7 +259,20 @@ export const useSession = create<SessionState>((set, get) => ({
         // The screen cache is keyed by screen, not by user, so leaving it
         // populated would paint the previous account's data to the next one.
         clearFetchCache();
+        resetEntitlements();
         set({ session: null, profile: null });
+
+        // Multi-account: signing out REMOVES this account from the device
+        // (product decision 2026-08-31 — it is not left as a re-login entry).
+        // If another account remains, switch straight into it rather than
+        // dropping the user on Welcome.
+        try {
+          const next = await removeActive();
+          if (next) await get().switchAccount(next.userId);
+        } catch (err) {
+          logger.warn('[session] post-signout account switch failed', { err });
+        }
+
         signOutInFlight = null;
       }
     })();
@@ -195,25 +281,140 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   /**
+   * Switch the app to another signed-in account.
+   *
+   * Tears the current account's background work down (WITHOUT revoking its
+   * session — it may still be in the book), installs the target's stored
+   * session, and re-initialises. `/` (app/index.tsx) re-routes on the new
+   * session, same as any other sign-in.
+   */
+  activateSession: async (session: Session, replacingLive: boolean) => {
+    if (replacingLive) {
+      // Another account was active a moment ago. Stop its background work (no
+      // revoke — it stays in the book), drop its cached screens and
+      // entitlements, and null the session so the tab tree unmounts. `switching`
+      // keeps the route mapper from reading that null as a sign-out.
+      set({ switching: true });
+      stopNotificationSummary();
+      stopRealtime();
+      await withTimeout(disconnectStream(), TEARDOWN_TIMEOUT_MS);
+      clearFetchCache();
+      resetEntitlements();
+      set({ session: null, profile: null });
+    }
+    try {
+      set({ session });
+      await get().loadProfile();
+    } finally {
+      if (replacingLive) set({ switching: false });
+    }
+  },
+
+  switchAccount: async (userId: string) => {
+    const stored = await getStoredSession(userId);
+    if (!stored?.access_token || !stored?.refresh_token) {
+      return { ok: false, error: 'That account is no longer available. Sign in again.' };
+    }
+
+    set({ switching: true });
+    try {
+      // Stop the outgoing account's background work — mirrors signOut() minus
+      // the auth.signOut() revoke (the account stays in the book).
+      stopNotificationSummary();
+      stopRealtime();
+      await withTimeout(disconnectStream(), TEARDOWN_TIMEOUT_MS);
+      clearFetchCache();
+      resetEntitlements();
+
+      // Null the session first so the tab tree unmounts — `switching` keeps the
+      // route mapper from treating that as a sign-out. It remounts fresh on the
+      // new session below.
+      set({ session: null, profile: null });
+
+      // setSession has NO timeout of its own and will refresh over the network
+      // if the stored access token is stale — on a dead connection that hangs,
+      // and because `switching` gates the whole app on a spinner, a hang here
+      // is a brick. Bound it. On timeout we fall through to the error return,
+      // `finally` clears `switching`, and the app lands on Welcome.
+      const TIMEOUT = Symbol('timeout');
+      const result = await Promise.race([
+        supabase.auth.setSession({
+          access_token: stored.access_token,
+          refresh_token: stored.refresh_token,
+        }),
+        new Promise<typeof TIMEOUT>((r) => setTimeout(() => r(TIMEOUT), 8000)),
+      ]);
+
+      if (result === TIMEOUT || result.error || !result.data.session) {
+        return {
+          ok: false,
+          error:
+            result === TIMEOUT
+              ? 'Switching timed out. Check your connection and try again.'
+              : (result.error?.message ?? 'Could not switch to that account.'),
+        };
+      }
+
+      set({ session: result.data.session, profile: null });
+      await get().loadProfile(); // also re-records the account as active in the book
+      return { ok: true };
+    } catch (err) {
+      logger.error('[session] switchAccount threw', { err });
+      return { ok: false, error: 'Could not switch to that account.' };
+    } finally {
+      set({ switching: false });
+    }
+  },
+
+  /**
    * Subscribe to auth changes. onAuthStateChange fires once with the restored
    * session on startup, which is also what flips `ready` — so there's no
    * separate getSession() race to manage.
    */
   init: () => {
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       const had = get().session?.user.id;
+      // Mid-switch the session briefly goes null on purpose — don't let the
+      // library's own SIGNED_OUT for that flip `ready`-gated screens.
+      if (get().switching && !session) return;
       set({ session, ready: true });
       if (session && session.user.id !== had) void get().loadProfile();
       if (!session) set({ profile: null });
+      // supabase-js rotates the refresh token on every refresh; keep the
+      // active account's stored copy current so a later switch back still works.
+      if (event === 'TOKEN_REFRESHED' && session) void syncActive(session).catch(() => {});
     });
 
-    // If there is no stored session, onAuthStateChange still fires (with null),
-    // but guard against a cold start that somehow doesn't.
-    void supabase.auth.getSession().then(({ data: d }) => {
-      if (!get().ready) set({ session: d.session, ready: true });
-    });
+    // Read the stored session directly too. onAuthStateChange USUALLY fires on
+    // startup, but a corrupt auth-storage value (a half-written session from a
+    // failed add-account) makes getSession() reject and the listener silent —
+    // and then `ready` never flips and the app hangs on the splash. So: catch
+    // the rejection, wipe the poisoned storage, and proceed signed-out.
+    void supabase.auth
+      .getSession()
+      .then(({ data: d }) => {
+        if (!get().ready) set({ session: d.session, ready: true });
+      })
+      .catch(async (err) => {
+        logger.error('[session] getSession() failed on init — clearing auth storage', { err });
+        await clearPersistedAuth().catch(() => {});
+        if (!get().ready) set({ session: null, ready: true });
+      });
 
-    return () => data.subscription.unsubscribe();
+    // Last-resort watchdog: whatever happened above, the splash must not sit
+    // forever. If nothing has flipped `ready` within 8s, force it — index.tsx
+    // then routes on whatever session state we have (usually null → Welcome).
+    const watchdog = setTimeout(() => {
+      if (!get().ready) {
+        logger.warn('[session] init watchdog fired — forcing ready');
+        set({ ready: true });
+      }
+    }, 8000);
+
+    return () => {
+      clearTimeout(watchdog);
+      data.subscription.unsubscribe();
+    };
   },
 }));
 

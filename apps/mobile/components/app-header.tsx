@@ -5,6 +5,7 @@ import { Bell, Search } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { Avatar, Txt } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
+import { GuideLauncherButton } from '@/components/guides/guide-launcher';
 
 /** Large-title header with the notification bell. Used on tab roots. */
 export function AppHeader({
@@ -35,9 +36,17 @@ export function AppHeader({
   return (
     <View
       style={{
-        // Tight to the status bar. The large title carries the weight here, so
-        // extra padding above it just pushed content down the screen.
-        paddingTop: insets.top + 2,
+        /**
+         * Clear of the status bar, not tight to it.
+         *
+         * This was `insets.top + 2`, on the reasoning that the large title
+         * carries the weight so padding above it is wasted height. On a device
+         * with a notch that is true; on the many Android phones whose top inset
+         * is a bare status-bar height, the title lands hard against the clock
+         * and the signal bars and the screen reads as clipped rather than as
+         * dense. A fixed 10pt is the smallest gap that survives both.
+         */
+        paddingTop: insets.top + 10,
         paddingBottom: t.spacing.sm,
         paddingHorizontal: t.spacing.screen,
         flexDirection: 'row',
@@ -79,6 +88,8 @@ export function AppHeader({
           <Search size={22} color={t.color.contentSoft} />
         </Pressable>
       ) : null}
+
+      <GuideLauncherButton />
 
       {showBell ? (
         <Pressable

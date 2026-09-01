@@ -43,6 +43,19 @@ export async function GET(req: Request) {
       if (convError) return jsonError(500, 'Failed to fetch conversations', convError);
       conversations = convData || [];
 
+      // The caller's own pins (migration 138). Missing table = feature not
+      // rolled here yet — every row just reads as unpinned.
+      try {
+        const { data: pins } = await supabase
+          .from('conversation_pins')
+          .select('conversation_id')
+          .eq('user_id', user.id);
+        const pinnedIds = new Set((pins ?? []).map((p: any) => p.conversation_id));
+        for (const c of conversations) c.pinned = pinnedIds.has(c.id);
+      } catch {
+        for (const c of conversations) c.pinned = false;
+      }
+
       // Enrich conversation previews with Stream Chat latest messages if available
       try {
         if (process.env.NEXT_PUBLIC_STREAM_API_KEY && process.env.STREAM_API_SECRET && conversations.length > 0) {

@@ -10,6 +10,7 @@ import { StreamChat } from "stream-chat";
 import { apiFetch } from "@/lib/api-client";
 import DashboardSidebar from "@/components/dashboard/sidebar";
 import DashboardHeader from "@/components/dashboard/header";
+import { GuideRoot } from "@/components/guides/guide-root";
 import { useNotificationStore, NotificationItem } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
 import type { UserRole } from "@/types";
@@ -402,6 +403,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           {children}
         </main>
       </div>
+      {role !== "admin" && <GuideRoot role={role} />}
     </div>
   );
 }

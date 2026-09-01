@@ -29,6 +29,9 @@ interface ProfileResponse {
   logo_url?: string | null;
   company_name?: string | null;
   industry?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
   bio?: string | null;
   headline?: string | null;
   instagram_handle?: string | null;
@@ -58,6 +61,9 @@ export default function EditProfileScreen() {
   const [companyName, setCompanyName] = useState('');
   const [industry, setIndustry] = useState('');
   const [city, setCity] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
 
   // creator
   const [headline, setHeadline] = useState('');
@@ -84,6 +90,9 @@ export default function EditProfileScreen() {
       setAvatarUrl((p.role === 'business_owner' ? p.logo_url : p.avatar_url) ?? '');
       setCompanyName(p.company_name ?? '');
       setIndustry(p.industry ?? '');
+      setContactName(p.contact_name ?? '');
+      setContactPhone(p.contact_phone ?? '');
+      setContactEmail(p.contact_email ?? '');
       setCity('');
       setHeadline(p.headline ?? '');
       setBio(p.bio ?? '');
@@ -137,6 +146,9 @@ export default function EditProfileScreen() {
     if (isBusiness) {
       payload.company_name = companyName.trim();
       payload.industry = industry.trim() || undefined;
+      payload.contact_name = contactName.trim();
+      payload.contact_phone = contactPhone.trim();
+      payload.contact_email = contactEmail.trim();
       if (city.trim()) payload.city = city.trim();
       if (avatarUrl) payload.logo_url = avatarUrl;
       if (username.trim()) payload.username = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -254,6 +266,17 @@ export default function EditProfileScreen() {
             <Field label="Company name" value={companyName} onChangeText={setCompanyName} placeholder="Your company" />
             <Field label="Industry" value={industry} onChangeText={setIndustry} placeholder="e.g. Fashion, Tech, Food" />
             <CityField label="City" value={city} onChangeText={setCity} placeholder="Your city" />
+          </Card>
+
+          <SectionLabel>Contact details</SectionLabel>
+          <Card style={{ gap: t.spacing.md }}>
+            <Txt variant="caption" tone="muted">
+              Shown to a creator only after they choose to reveal it (or on Pro) —
+              never on your public profile.
+            </Txt>
+            <Field label="Contact person" value={contactName} onChangeText={setContactName} placeholder="Who creators should reach" />
+            <Field label="Phone" value={contactPhone} onChangeText={setContactPhone} placeholder="+91…" keyboardType="phone-pad" />
+            <Field label="Email" value={contactEmail} onChangeText={setContactEmail} placeholder="you@company.com" autoCapitalize="none" keyboardType="email-address" />
           </Card>
         </>
       ) : null}

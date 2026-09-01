@@ -8,6 +8,7 @@ import { sanitizePhoneInput } from "@influnet/core";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
+import { Switch } from "@/components/ui/switch";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
@@ -16,6 +17,7 @@ import { VerificationPanel } from "@/components/dashboard/verification-panel";
 import { BlockedAccountsPanel } from "@/components/dashboard/blocked-accounts-panel";
 import { EmailPreferencesPanel } from "@/components/dashboard/email-preferences-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
+import { GuideReplayControl } from "@/components/guides/guide-replay-control";
 import { PortfolioEditor } from "@/components/dashboard/portfolio-editor";
 import { ProfileVisibilityEditor } from "@/components/dashboard/profile-visibility-editor";
 import { publicProfileUrlDisplay } from "@/lib/site";
@@ -212,6 +214,10 @@ export default function SettingsPage() {
   const [location, setLocation] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [industry, setIndustry] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [nudgesOptOut, setNudgesOptOut] = useState(false);
   const [bio, setBio] = useState("");
   const [headline, setHeadline] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -244,6 +250,10 @@ export default function SettingsPage() {
         setCoverImageUrl(p.cover_image_url || "");
         setCompanyName(p.company_name || "");
         setIndustry(p.industry || "");
+        setContactName((p as any).contact_name || "");
+        setContactPhone((p as any).contact_phone || "");
+        setContactEmail((p as any).contact_email || "");
+        setNudgesOptOut(Boolean((p as any).nudges_opt_out));
         setBio(p.bio || "");
         setUsername(p.username || "");
         setHeadline(p.headline || "");
@@ -271,10 +281,13 @@ export default function SettingsPage() {
     setSuccess("");
     setError("");
     try {
-      const payload: Record<string, unknown> = { name, phone, location };
+      const payload: Record<string, unknown> = { name, phone, location, nudges_opt_out: nudgesOptOut };
       if (profile?.role === "business_owner") {
         payload.company_name = companyName;
         payload.industry = industry;
+        payload.contact_name = contactName;
+        payload.contact_phone = contactPhone;
+        payload.contact_email = contactEmail;
         if (avatarUrl) payload.logo_url = avatarUrl;
         if (coverImageUrl) payload.cover_image_url = coverImageUrl;
         if (username) payload.username = username;
@@ -464,6 +477,24 @@ export default function SettingsPage() {
               <Input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="e.g. Fashion, Tech, Food" />
             </Field>
           </div>
+
+          <div className="mt-5 border-t border-hairline pt-5">
+            <p className="text-sm font-bold text-content">Contact details</p>
+            <p className="mb-3 text-xs text-content-muted">
+              Shown to a creator only after they choose to reveal it (or on Pro). Never on your public profile.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Contact person">
+                <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Who creators should reach" />
+              </Field>
+              <Field label="Phone">
+                <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+91…" />
+              </Field>
+              <Field label="Email">
+                <Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="you@company.com" />
+              </Field>
+            </div>
+          </div>
         </SectionCard>
       )}
 
@@ -591,6 +622,23 @@ export default function SettingsPage() {
         </SectionCard>
       )}
 
+      <SectionCard title="Notifications">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-content">Reminders when you&apos;re away</p>
+            <p className="text-xs text-content-muted">
+              Unread messages, projects waiting on you, and new campaigns since your
+              last visit — in-app and on your phone. Never email.
+            </p>
+          </div>
+          <Switch
+            checked={!nudgesOptOut}
+            onCheckedChange={(on) => setNudgesOptOut(!on)}
+            label="Reminders when you're away"
+          />
+        </div>
+      </SectionCard>
+
       <div className="flex justify-end">
         <Button variant="brand" size="xl" onClick={handleSave} disabled={saving}>
           {saving ? (
@@ -608,6 +656,12 @@ export default function SettingsPage() {
       <div className="mt-8">
         <SectionCard eyebrow="Notifications" title="Email preferences">
           <EmailPreferencesPanel />
+        </SectionCard>
+      </div>
+
+      <div className="mt-8">
+        <SectionCard eyebrow="Help" title="Product guides">
+          <GuideReplayControl />
         </SectionCard>
       </div>
 

@@ -1,106 +1,32 @@
 /**
- * A creator's public profile, rendered natively.
+ * A creator's public profile.
  *
- * This deliberately does NOT embed the web page (apps/web/src/app/c/[username])
- * in a WebView: that needs react-native-webview, a native module, so every
- * already-installed build without it renders a blank screen. Native rendering
- * works on the builds people already have, and reuses the same view model the
- * web page is built from (/api/creators/[username]), so the numbers can't drift.
+ * The body is the REAL web `/<username>` page in a WebView (see
+ * components/profile-web-view.tsx) — the client wanted the app to show exactly
+ * what a visitor sees on the site, not a native re-render that can drift from
+ * it. This needs react-native-webview, so a build without it renders a blank
+ * body; every current build ships with it.
+ *
+ * What stays native: the action footer. A business viewer gets "Work with me" /
+ * "View project"; a creator viewer gets "Request to collaborate" (peer collab,
+ * metered on Free). Both come from /api/creators/[username], the same endpoint
+ * the web overlay uses, so the gate can't be bypassed from the client.
  */
-import { View } from 'react-native';
+import { useState } from 'react';
+import { Alert, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-import { Globe, Star } from 'lucide-react-native';
+import { Handshake } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-// Lucide ships no brand marks, so channels used to be a grey @ and a grey
-// chain link — Instagram and YouTube as the same row with different words.
-// PlatformMark draws the real coloured marks, same table as the web app.
-import { PlatformMark } from '@/components/platform-mark';
+import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
-import { API_BASE_URL } from '@/lib/supabase';
 import { useFetch } from '@/lib/use-fetch';
-import { PostGrid, VideoList } from '@/components/content-grid';
-import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Chip,
-  ChipWrap,
-  ErrorState,
-  ListGroup,
-  ListRow,
-  ScreenScroll,
-  SectionLabel,
-  SkeletonCard,
-  StickyFooter,
-  Txt,
-  VerifiedBadge,
-} from '@/components/ui';
-
-/** Subset of apps/web's CreatorProfileView actually rendered here. */
-interface CreatorProfileView {
-  name: string;
-  username: string;
-  avatarUrl: string | null;
-  location: string | null;
-  niches: string[];
-  isVerified: boolean;
-  /** Proven the handle is theirs — distinct from `isVerified`, which also
-   *  needs the trust-pipeline score to clear. See migration 095. */
-  ownershipVerified?: boolean;
-  subtitleLead: string;
-  subtitleAccent: string;
-  tagline: string;
-  heroStats: { label: string; value: string }[];
-  /** S1 — derived from audience size, computed once server-side so the
-   *  boundary can never disagree between platforms. */
-  creatorLevel?: { tier: string; label: string; isSelfReported: boolean } | null;
-  /** S5 — never synthesised client-side; null (not zero) means no reviews yet. */
-  reviews?: { count: number; average: number | null } | null;
-  /** S2 — the year this creator started, if they set one. */
-  creatingSince?: number | null;
-  instagramHandle?: string | null;
-  youtubeHandle?: string | null;
-  /** Instagram posts. `views` arrives pre-formatted, e.g. "1.2K". */
-  featured?: {
-    imageUrl?: string | null;
-    views: string;
-    href?: string | null;
-    isVideo?: boolean;
-  }[];
-  /** YouTube uploads, newest first. */
-  videos?: {
-    url: string;
-    title: string;
-    thumbUrl: string | null;
-    views: string | null;
-    publishedAt: string | null;
-  }[];
-  /**
-   * Chosen work, already filtered to what this creator's toggles allow and
-   * (for manual items) to what they've left visible — the API applies both
-   * before this ever reaches the client, same as the web page.
-   */
-  portfolio?: {
-    id: string;
-    source: 'manual' | 'platform';
-    verified: boolean;
-    title: string;
-    brandName: string | null;
-    platform: 'instagram' | 'youtube' | 'other';
-    contentUrl: string | null;
-    thumbnailUrl: string | null;
-    views: number | null;
-    happenedAt: string | null;
-  }[];
-}
+import { ProfileWebView } from '@/components/profile-web-view';
+import { Button, StickyFooter } from '@/components/ui';
 
 type CtaAction = 'edit' | 'work_with_me' | 'request_sent' | 'view_project' | 'view_only';
 
 interface CreatorProfileResponse {
-  data: CreatorProfileView;
+  data: { name: string; username: string };
   isOwner: boolean;
   ctaLabel: string;
   ctaAction: CtaAction;
@@ -113,294 +39,64 @@ export default function CreatorDetail() {
   const t = useTheme();
   const router = useRouter();
   const { username } = useLocalSearchParams<{ username: string }>();
+  const myRole = useSession((s) => s.profile?.role);
+  const [sendingPeer, setSendingPeer] = useState(false);
 
-  // Same view model and RPC as the web page (/api/creators/[username]) — one
-  // profile, rendered natively instead of opening a web link out of the app.
-  const { data: res, error, loading, refreshing, refresh } = useFetch(
+  // Only used for the action footer — the profile itself is the WebView.
+  const { data: res } = useFetch(
     () => endpoints.getCreatorProfile<CreatorProfileResponse>(username),
-    { cacheKey: `creator:${username}` },
+    { cacheKey: `creator-cta:${username}` },
   );
-
-  const creator = res?.data;
-
-  /**
-   * A tap on any of this creator's outbound links counts toward the reach
-   * figure on their Home — the app's visitors are as real as the website's.
-   *
-   * Fire-and-forget by design: the link opens on the same tap and must not wait
-   * for, or be affected by, this request. The owner's own taps are never sent.
-   */
-  const trackOpen = (linkType: string) => {
-    if (!res || res.isOwner || !username) return;
-    void endpoints.recordLinkClick(username, linkType).catch(() => {});
-  };
-
-  // The web view model formats counts server-side and keys posts by permalink;
-  // the shared grid takes raw rows, so map rather than re-format.
-  const posts = (creator?.featured ?? [])
-    .filter((p) => p.imageUrl)
-    .map((p, i) => ({
-      url: p.href || `post-${i}`,
-      thumbUrl: p.imageUrl ?? null,
-      metricLabel: p.views || null,
-      type: p.isVideo ? 'Video' : undefined,
-    }));
-
-  const videos = (creator?.videos ?? []).map((v) => ({
-    url: v.url,
-    title: v.title,
-    thumbUrl: v.thumbUrl,
-    viewsLabel: v.views,
-    publishedAt: v.publishedAt,
-  }));
-
-  // The web view model's field names (contentUrl, brandName, happenedAt) are
-  // JS-idiomatic camelCase; PortfolioGrid takes the raw RPC shape the mobile
-  // owner screens already consume (content_url, brand_name, happened_at). One
-  // small remap here rather than two field-naming conventions inside the grid.
-  const portfolio: PortfolioItem[] = (creator?.portfolio ?? []).map((p) => ({
-    id: p.id,
-    source: p.source,
-    verified: p.verified,
-    title: p.title,
-    brand_name: p.brandName,
-    description: null,
-    platform: p.platform,
-    content_url: p.contentUrl,
-    thumbnail_url: p.thumbnailUrl,
-    views: p.views,
-    likes: null,
-    happened_at: p.happenedAt,
-  }));
-  const hasPortfolio = portfolio.length > 0;
+  const name = res?.data?.name;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.color.surface }}>
-      <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
-        {loading ? (
-          <SkeletonCard />
-        ) : error ? (
-          <ErrorState message={error} onRetry={refresh} />
-        ) : !creator || !res ? (
-          <ErrorState message="This creator is no longer listed." />
-        ) : (
-          <>
-            <Card raised style={{ gap: t.spacing.md, alignItems: 'center' }}>
-              <Avatar uri={creator.avatarUrl} name={creator.name} size={76} />
-              <View style={{ alignItems: 'center', gap: 3 }}>
-                <Txt variant="title1">{creator.name}</Txt>
-                <Txt variant="callout" tone="muted">
-                  @{creator.username}
-                  {creator.location ? ` · ${creator.location}` : ''}
-                </Txt>
-              </View>
+      <ProfileWebView username={username} title={name} />
 
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.xs, justifyContent: 'center' }}>
-                {res.availabilityStatus ? (
-                  <Badge
-                    label={
-                      res.availabilityStatus === 'open'
-                        ? 'Open to collaborations'
-                        : res.availabilityStatus === 'limited'
-                          ? 'Limited availability'
-                          : 'Not taking work'
-                    }
-                    tone={
-                      res.availabilityStatus === 'open'
-                        ? 'ok'
-                        : res.availabilityStatus === 'limited'
-                          ? 'warn'
-                          : 'neutral'
-                    }
-                  />
-                ) : null}
-                <Badge
-                  label={
-                    creator.isVerified
-                      ? 'Verified creator'
-                      : creator.ownershipVerified
-                        ? 'Verification in progress'
-                        : 'Ownership not verified'
-                  }
-                  tone={creator.isVerified ? 'verified' : 'neutral'}
-                  icon={creator.isVerified ? <VerifiedBadge size={13} /> : undefined}
-                />
-                {creator.creatorLevel ? (
-                  <Badge
-                    label={
-                      creator.creatorLevel.isSelfReported
-                        ? `${creator.creatorLevel.label} (self-reported)`
-                        : creator.creatorLevel.label
-                    }
-                    tone="neutral"
-                  />
-                ) : null}
-                {creator.creatingSince ? (
-                  <Badge label={`Creating since ${creator.creatingSince}`} tone="neutral" />
-                ) : null}
-              </View>
-
-              {creator.subtitleLead || creator.subtitleAccent ? (
-                <Txt variant="body" tone="soft" center>
-                  {[creator.subtitleLead, creator.subtitleAccent].filter(Boolean).join(' · ')}
-                </Txt>
-              ) : null}
-
-              {res.isOwner ? (
-                <Badge label="This is what others see on your profile" tone="brand" />
-              ) : null}
-            </Card>
-
-            {creator.tagline ? (
-              <Card style={{ gap: t.spacing.sm }}>
-                <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  About
-                </Txt>
-                <Txt variant="body" tone="soft">
-                  {creator.tagline}
-                </Txt>
-              </Card>
-            ) : null}
-
-            {creator.niches?.length ? (
-              <Card style={{ gap: t.spacing.md }}>
-                <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  Works in
-                </Txt>
-                <ChipWrap>
-                  {creator.niches.map((n) => (
-                    <Chip key={n} label={n} />
-                  ))}
-                </ChipWrap>
-              </Card>
-            ) : null}
-
-            {creator.heroStats?.length ? (
-              <Card style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                {creator.heroStats.map((s) => (
-                  <View key={s.label} style={{ gap: 2 }}>
-                    <Txt variant="caption" tone="muted">
-                      {s.label}
-                    </Txt>
-                    <Txt variant="title3" style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.3 }}>
-                      {s.value}
-                    </Txt>
-                  </View>
-                ))}
-              </Card>
-            ) : null}
-
-            {creator.reviews && creator.reviews.count > 0 ? (
-              <Card style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
-                <Star size={16} color={t.color.warn} fill={t.color.warn} />
-                <Txt variant="body" style={{ fontWeight: '700' }}>
-                  {creator.reviews.average?.toFixed(1) ?? '—'}
-                </Txt>
-                <Txt variant="caption" tone="muted">
-                  ({creator.reviews.count} {creator.reviews.count === 1 ? 'review' : 'reviews'})
-                </Txt>
-              </Card>
-            ) : null}
-
-            {/* Chosen work leads, exactly like the web page — Recent posts and
-                Latest videos are its fallback, not a second copy shown
-                alongside it. See /c/[username] for the full reasoning. */}
-            {hasPortfolio ? (
-              <>
-                <SectionLabel>Selected work</SectionLabel>
-                <Card>
-                  <PortfolioGrid items={portfolio} onOpen={trackOpen} />
-                </Card>
-              </>
-            ) : null}
-
-            {/* The actual work, not just the numbers — same thumbnails the web
-                profile shows, tapping through to the original post. */}
-            {!hasPortfolio && posts.some((p) => p.thumbUrl) ? (
-              <>
-                <SectionLabel>Recent posts</SectionLabel>
-                <Card>
-                  <PostGrid posts={posts} onOpen={trackOpen} />
-                </Card>
-              </>
-            ) : null}
-
-            {!hasPortfolio && videos.some((v) => v.thumbUrl) ? (
-              <>
-                <SectionLabel>Latest videos</SectionLabel>
-                <Card>
-                  <VideoList videos={videos} onOpen={trackOpen} />
-                </Card>
-              </>
-            ) : null}
-
-            {creator.instagramHandle || creator.youtubeHandle ? (
-              <Card style={{ gap: t.spacing.md }}>
-                <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  Channels
-                </Txt>
-                <View style={{ gap: t.spacing.md }}>
-                  {creator.instagramHandle ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
-                      <PlatformMark platform="instagram" size={28} />
-                      <View style={{ flex: 1 }}>
-                        <Txt variant="callout">@{creator.instagramHandle}</Txt>
-                        <Txt variant="caption" tone="muted">
-                          Instagram
-                        </Txt>
-                      </View>
-                    </View>
-                  ) : null}
-                  {creator.youtubeHandle ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
-                      <PlatformMark platform="youtube" size={28} />
-                      <View style={{ flex: 1 }}>
-                        <Txt variant="callout">{creator.youtubeHandle}</Txt>
-                        <Txt variant="caption" tone="muted">
-                          YouTube
-                        </Txt>
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-              </Card>
-            ) : null}
-
-            {/* The web page carries more than this screen does — pricing
-                packages, the media kit, the share sheet — so it stays one tap
-                away rather than becoming a second entry point people have to
-                choose between before they've seen anything. */}
-            <ListGroup>
-              <ListRow
-                title="Open web version"
-                subtitle="Packages, media kit and the full brand-facing page"
-                left={<Globe size={19} color={t.color.contentSoft} />}
-                onPress={() =>
-                  WebBrowser.openBrowserAsync(
-                    `${API_BASE_URL}/${encodeURIComponent(creator.username)}`,
-                  )
-                }
-              />
-            </ListGroup>
-          </>
-        )}
-      </ScreenScroll>
-
-      {/* Only a business account viewing someone else ever gets an actionable
-          CTA — same restriction the web overlay enforces server-side (see
-          apps/web/src/app/api/creators/[username]/route.ts). Previewing your
-          own profile, or any other viewer/role, is read-only. */}
-      {creator && res && !res.isOwner && res.ctaAction !== 'view_only' ? (
+      {/* Business viewer → work-with-me / view-project. Owner and view-only get
+          nothing here. */}
+      {res && !res.isOwner && res.ctaAction !== 'view_only' && res.ctaAction !== 'edit' ? (
         <StickyFooter>
           <Button
             label={res.ctaLabel}
             disabled={res.ctaAction === 'request_sent'}
             onPress={() => {
               if (res.ctaAction === 'work_with_me') {
-                router.push({ pathname: '/requests/new', params: { to: res.userId, name: creator.name } });
+                router.push({ pathname: '/requests/new', params: { to: res.userId, name: name ?? username } });
               } else if (res.ctaAction === 'view_project' && res.ctaProjectId) {
                 router.push({ pathname: '/projects/[id]', params: { id: res.ctaProjectId } });
               }
+            }}
+          />
+        </StickyFooter>
+      ) : res && !res.isOwner && myRole === 'influencer' ? (
+        <StickyFooter>
+          <Button
+            label={sendingPeer ? 'Sending…' : 'Request to collaborate'}
+            loading={sendingPeer}
+            icon={<Handshake size={16} color={t.color.white} />}
+            onPress={() => {
+              Alert.alert(
+                `Collaborate with ${name ?? 'this creator'}?`,
+                'They get a request they can accept to open a conversation with you.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Send request',
+                    onPress: async () => {
+                      setSendingPeer(true);
+                      const r = await endpoints.createPeerCollab({ to_user_id: res.userId });
+                      setSendingPeer(false);
+                      Alert.alert(
+                        r.ok ? 'Request sent' : r.status === 402 ? 'Monthly limit reached' : 'Could not send',
+                        r.ok
+                          ? `${name ?? 'The creator'} will see your request.`
+                          : r.error ?? 'Please try again.',
+                      );
+                    },
+                  },
+                ],
+              );
             }}
           />
         </StickyFooter>

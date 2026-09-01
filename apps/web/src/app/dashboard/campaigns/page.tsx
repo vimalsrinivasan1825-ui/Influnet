@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Calendar, Clock, MapPin, Megaphone, Plus, Sparkles,
-  ExternalLink, Users, Tag,
-} from "lucide-react";
+import { Calendar, Clock, MapPin, Megaphone, Plus, Users } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CoverArt } from "@/components/ui/cover-art";
+import { PlatformMark } from "@/components/dashboard/platform-mark";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -218,118 +217,110 @@ export default function CampaignsPage() {
           />
         </Card>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((c) => {
             const daysLeft = daysUntil(c.expires_at);
             const isClosingSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
+            const primaryPlatform = c.platforms[0] || "other";
             return (
               <Card
                 key={c.id}
                 interactive
                 onClick={() => router.push(`/dashboard/campaigns/${c.id}`)}
-                className="cursor-pointer p-5 sm:p-6"
+                className="flex cursor-pointer flex-col overflow-hidden p-0"
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
-                        {c.business_user?.name || "Brand"}
-                      </span>
-                      {isClosingSoon && (
-                        <Badge variant="warning" size="sm">
-                          <Clock size={10} /> Closing soon
-                        </Badge>
+                {/* Generated cover, seeded on the campaign id — the same art it
+                    wears on Home and on its own page. No image column exists. */}
+                <CoverArt seed={c.id} className="h-24 w-full">
+                  <PlatformMark platform={primaryPlatform} size={40} />
+                  {daysLeft !== null && (
+                    <span
+                      className={cn(
+                        "absolute right-2 top-2 rounded-full px-2 py-0.5 text-[0.625rem] font-bold backdrop-blur",
+                        daysLeft <= 0
+                          ? "bg-danger/90 text-white"
+                          : isClosingSoon
+                            ? "bg-warn/90 text-white"
+                            : "bg-black/35 text-white",
                       )}
-                      {view === "mine" && c.status !== "live" && (
-                        <Badge variant="neutral" size="sm">{c.status}</Badge>
-                      )}
-                    </div>
-                    <h3 className="mt-1 text-lg font-extrabold tracking-tight text-content">
-                      {c.title}
-                    </h3>
-                    {c.description && (
-                      <p className="mt-1 text-sm leading-relaxed text-content-soft line-clamp-2">
-                        {c.description}
-                      </p>
-                    )}
-                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-content-muted">
-                      {c.budget_min != null || c.budget_max != null ? (
-                        <span className="flex items-center gap-1 font-semibold">
-                          {formatBudget(c.budget_min, c.budget_max)}
-                        </span>
-                      ) : null}
-                      {c.delivery_by && (
-                        <span className="flex items-center gap-1">
-                          <Calendar size={12} />
-                          Delivery by {new Date(c.delivery_by).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                        </span>
-                      )}
-                      {c.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin size={12} />
-                          {c.location}
-                        </span>
-                      )}
-                      {c.follower_min != null && (
-                        <span className="flex items-center gap-1">
-                          <Users size={12} />
-                          {c.follower_min.toLocaleString()}+ followers
-                        </span>
-                      )}
-                    </div>
-                    {c.categories.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {c.categories.map((cat) => (
-                          <span
-                            key={cat}
-                            className="rounded-md bg-surface-muted px-2 py-0.5 text-[0.625rem] font-semibold text-content-muted"
-                          >
-                            {cat}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    {daysLeft !== null && (
-                      <span
-                        className={cn(
-                          "text-xs font-bold",
-                          daysLeft <= 0
-                            ? "text-danger"
-                            : isClosingSoon
-                            ? "text-warn"
-                            : "text-content-muted",
-                        )}
-                      >
-                        {daysLeft <= 0
-                          ? "Expired"
-                          : daysLeft === 1
+                    >
+                      {daysLeft <= 0
+                        ? "Expired"
+                        : daysLeft === 1
                           ? "1 day left"
                           : `${daysLeft} days left`}
+                    </span>
+                  )}
+                </CoverArt>
+
+                <div className="flex flex-1 flex-col gap-2 p-4">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="truncate text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
+                      {c.business_user?.name || "Brand"}
+                    </span>
+                    {isClosingSoon && (
+                      <Badge variant="warning" size="sm">
+                        <Clock size={10} /> Closing soon
+                      </Badge>
+                    )}
+                    {view === "mine" && c.status !== "live" && (
+                      <Badge variant="neutral" size="sm">{c.status}</Badge>
+                    )}
+                  </div>
+
+                  <h3 className="line-clamp-1 text-base font-extrabold tracking-tight text-content">
+                    {c.title}
+                  </h3>
+
+                  {c.description && (
+                    <p className="line-clamp-2 text-sm leading-relaxed text-content-soft">
+                      {c.description}
+                    </p>
+                  )}
+
+                  <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-content-muted">
+                    {(c.budget_min != null || c.budget_max != null) && (
+                      <span className="font-semibold text-content-soft">
+                        {formatBudget(c.budget_min, c.budget_max)}
                       </span>
                     )}
-                    {c.platforms.length > 0 && (
-                      <div className="flex gap-1">
-                        {c.platforms.slice(0, 3).map((p) => (
-                          <span
-                            key={p}
-                            className="rounded-md bg-brand-soft px-2 py-0.5 text-[0.625rem] font-bold text-brand-strong"
-                          >
-                            {p}
-                          </span>
-                        ))}
-                        {c.platforms.length > 3 && (
-                          <span className="text-[0.625rem] text-content-muted">
-                            +{c.platforms.length - 3}
-                          </span>
-                        )}
-                      </div>
+                    {c.delivery_by && (
+                      <span className="flex items-center gap-1">
+                        <Calendar size={12} />
+                        {new Date(c.delivery_by).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      </span>
                     )}
-                    <Button variant="surface" size="sm">
-                      View <ExternalLink size={12} />
-                    </Button>
+                    {c.location && (
+                      <span className="flex items-center gap-1">
+                        <MapPin size={12} />
+                        {c.location}
+                      </span>
+                    )}
+                    {c.follower_min != null && (
+                      <span className="flex items-center gap-1">
+                        <Users size={12} />
+                        {c.follower_min.toLocaleString()}+
+                      </span>
+                    )}
                   </div>
+
+                  {c.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {c.categories.slice(0, 3).map((cat) => (
+                        <span
+                          key={cat}
+                          className="rounded-md bg-surface-muted px-2 py-0.5 text-[0.625rem] font-semibold text-content-muted"
+                        >
+                          {cat}
+                        </span>
+                      ))}
+                      {c.categories.length > 3 && (
+                        <span className="text-[0.625rem] text-content-muted">
+                          +{c.categories.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </Card>
             );

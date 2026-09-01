@@ -20,6 +20,13 @@ export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> 
   /** Full-width by default — the usual mobile case. */
   inline?: boolean;
   icon?: React.ReactNode;
+  /**
+   * Which side the icon sits on. Left by default, which is right for icons
+   * that CLASSIFY the action (a trash can, a plus). Right is for icons that
+   * describe its DIRECTION — an arrow means "and then you go there", and an
+   * arrow before the label points back at the screen you are already on.
+   */
+  iconPosition?: 'left' | 'right';
   style?: ViewStyle;
   /** Fires a light tap on press. On for primary actions, off for list rows. */
   haptic?: boolean;
@@ -32,6 +39,7 @@ export function Button({
   loading,
   inline,
   icon,
+  iconPosition = 'left',
   style,
   haptic = true,
   disabled,
@@ -89,10 +97,11 @@ export function Button({
         <ActivityIndicator color={fg[variant]} size="small" />
       ) : (
         <>
-          {icon ? <View>{icon}</View> : null}
+          {icon && iconPosition === 'left' ? <View>{icon}</View> : null}
           <Txt variant="bodyStrong" style={{ color: fg[variant] }}>
             {label}
           </Txt>
+          {icon && iconPosition === 'right' ? <View>{icon}</View> : null}
         </>
       )}
     </Pressable>

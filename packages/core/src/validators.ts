@@ -235,6 +235,8 @@ export const ProfileUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   phone: PhoneSchema,
   location: z.string().optional(),
+  /** Turn off "you've been away" re-engagement nudges (migration 142). */
+  nudges_opt_out: z.boolean().optional(),
   bio: z.string().max(2000).optional(),
   niche: z.array(z.string()).optional(),
   username: UsernameSchema.optional(),
@@ -292,6 +294,8 @@ export const BusinessProfileUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   phone: PhoneSchema,
   location: z.string().optional(),
+  /** Turn off "you've been away" re-engagement nudges (migration 142). */
+  nudges_opt_out: z.boolean().optional(),
   username: UsernameSchema.optional(),
   company_name: z.string().min(1).optional(),
   industry: z.string().optional(),
@@ -305,6 +309,12 @@ export const BusinessProfileUpdateSchema = z.object({
   collab_preferences: z.array(z.string()).optional(),
   tagline: z.string().max(160).optional(),
   company_description: z.string().max(2000).optional(),
+  // Direct contact details — shown to a creator only after they spend a
+  // contact reveal (migration 141). Stored on business_profiles, never in a
+  // public RPC.
+  contact_name: z.string().max(120).optional().or(z.literal('')),
+  contact_phone: z.string().max(30).optional().or(z.literal('')),
+  contact_email: z.string().email().max(200).optional().or(z.literal('')),
   instagram_handle: z.string().optional(),
   facebook_handle: z.string().optional(),
   linkedin_handle: z.string().optional(),

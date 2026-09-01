@@ -1,38 +1,64 @@
 /**
- * Collaboration requests — redesigned with filter tabs and offer cards.
+ * Collaboration requests.
  *
  * A request only ever travels one way — a brand asks a creator — so the two
  * roles need opposite halves of the same list and never both. Creators see what
  * came in; brands see what they sent. The Incoming/Sent toggle that used to sit
  * here was offering everyone a tab that was always empty for them.
  *
- * UI changes (2026-08):
- *  - Filter chip rail: All / Pending / In Progress / Completed
- *  - Action-required (pending) requests shown as full offer cards with a CTA
- *  - Completed & cancelled requests collapsed into a tappable "Show N" row
+ * ── THE SCREEN SCALES WITH THE ACCOUNT ────────────────────────────────
+ *
+ * Three shapes, and which one you get is decided by how much there is, not by
+ * a setting:
+ *
+ *   nothing      A destination, not an apology: what a request is, and the one
+ *                action that produces the first one. No filter rail, no
+ *                summary — four counters reading zero above an empty list is
+ *                the wall-of-zeros problem the Home redesign exists to kill.
+ *   one or two   The cards, at the top, and nothing else. A four-column
+ *                summary above a single card says "1 / 1 / 0 / 0": three zeros
+ *                and a restatement of the card underneath it.
+ *   several      The full screen — summary, filter rail, grouped sections.
+ *
+ * The thresholds live in the components that own them (OVERVIEW_MIN_ROWS in
+ * requests-overview.tsx) so the rule sits with the thing it governs.
+ *
+ * ── ONE CARD SHAPE ────────────────────────────────────────────────────
+ *
+ * Every request draws as the same `RequestCard`, whatever state it is in. This
+ * screen used to render a pending request as a full card with a budget panel
+ * and a CTA, and a live one as a bare list row — the same object from the same
+ * endpoint in two layouts, so scanning meant re-learning the screen halfway
+ * down. What varies now is what the card CONTAINS: a live collaboration shows
+ * its stage strip, an unanswered one has no stage to show.
  */
-import { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronDown, ChevronUp, Inbox } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ChevronDown, ChevronUp, Search, Send } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import { useLiveRefresh } from '@/lib/realtime';
-import { formatCurrency, timeAgo } from '@/lib/format';
 import { AppHeader } from '@/components/app-header';
 import { ApprovalBanner } from '@/components/approval-banner';
+import { RequestCard, type RequestCardData } from '@/components/request-card';
 import {
-  Avatar,
-  Badge,
+  OVERVIEW_MIN_ROWS,
+  RequestsOverview,
+  RequestsTip,
+} from '@/components/requests-overview';
+import {
+  Appear,
+  Button,
   Card,
   Chip,
   ChipRail,
-  EmptyState,
+  DashedRule,
   ErrorState,
-  ListGroup,
-  ListRow,
+  PressableScale,
   Screen,
   ScreenScroll,
   SectionLabel,
@@ -58,7 +84,18 @@ interface CollabRow {
   sender?: { name: string | null; role: string | null } | null;
   receiver?: { name: string | null; role: string | null } | null;
   deal_state?: string;
-  project: { id: string; title: string; status: string } | null;
+  /**
+   * `current_stage` and `flow_key` are absent on an older backend, and both
+   * readers below tolerate that by drawing no strip — which is correct, since
+   * a strip with no stage would claim the work had not started.
+   */
+  project: {
+    id: string;
+    title: string;
+    status: string;
+    current_stage?: string | null;
+    flow_key?: string | null;
+  } | null;
   /** Only set when the sender is a business; null once Influnet approves them. */
   sender_business_approval_status?: string | null;
 }
@@ -85,13 +122,6 @@ const STATE_LABEL: Record<string, string> = {
 
 type FilterKey = 'all' | 'pending' | 'active' | 'closed';
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'active', label: 'In Progress' },
-  { key: 'closed', label: 'Completed' },
-];
-
 function isActionRequired(state: string) {
   return state === 'pending' || state === 'in_discussion';
 }
@@ -101,52 +131,154 @@ function isActive(state: string) {
 }
 
 function isClosed(state: string) {
-  return state === 'completed' || state === 'declined' || state === 'cancelled' || state === 'project_cancelled';
+  return (
+    state === 'completed' ||
+    state === 'declined' ||
+    state === 'cancelled' ||
+    state === 'project_cancelled'
+  );
 }
+
+/** Dismissed once, per account — the tip explains the screen, which is news once. */
+const TIP_DISMISSED_PREFIX = 'influnet:requests-tip-dismissed:';
 
 export default function RequestsScreen() {
   const t = useTheme();
   const router = useRouter();
   const me = useSession((s) => s.profile?.id);
+  const userId = useSession((s) => s.session?.user.id);
   const isCreator = useSession((s) => s.profile?.role) === 'influencer';
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const [closedExpanded, setClosedExpanded] = useState(false);
 
-  const { data, error, loading, refreshing, refresh, revalidate } = useFetch(() =>
-    endpoints.listCollabs<{ collabs: CollabRow[] }>(), { cacheKey: 'requests' }
+  // `null` while unread: rendering the tip before storage answers flashes it at
+  // someone who dismissed it weeks ago. Same pattern as the verification nudge.
+  const [tipDismissed, setTipDismissed] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) {
+      setTipDismissed(null);
+      return;
+    }
+    void (async () => {
+      const seen = await AsyncStorage.getItem(TIP_DISMISSED_PREFIX + userId).catch(() => null);
+      if (!cancelled) setTipDismissed(seen === '1');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const dismissTip = useCallback(() => {
+    setTipDismissed(true);
+    if (userId) void AsyncStorage.setItem(TIP_DISMISSED_PREFIX + userId, '1').catch(() => {});
+  }, [userId]);
+
+  const { data, error, loading, refreshing, refresh, revalidate } = useFetch(
+    () => endpoints.listCollabs<{ collabs: CollabRow[] }>(),
+    { cacheKey: 'requests' },
   );
 
   // A request answered on the other side (or a new one arriving) repaints this
   // list while the user is looking at it, instead of on the next navigation.
   useLiveRefresh('requests', revalidate);
 
-  const rows = (data?.collabs ?? []).filter((c) =>
-    isCreator ? c.to_user_id === me : c.from_user_id === me
+  const rows = useMemo(
+    () =>
+      (data?.collabs ?? []).filter((c) => (isCreator ? c.to_user_id === me : c.from_user_id === me)),
+    [data, isCreator, me],
   );
 
-  const { actionItems, activeItems, closedItems, filteredRows } = useMemo(() => {
-    const actionItems = rows.filter((c) => isActionRequired(c.deal_state ?? c.status));
-    const activeItems = rows.filter((c) => isActive(c.deal_state ?? c.status));
-    const closedItems = rows.filter((c) => isClosed(c.deal_state ?? c.status));
+  const { actionItems, activeItems, closedItems } = useMemo(() => {
+    const stateOf = (c: CollabRow) => c.deal_state ?? c.status;
+    return {
+      actionItems: rows.filter((c) => isActionRequired(stateOf(c))),
+      activeItems: rows.filter((c) => isActive(stateOf(c))),
+      closedItems: rows.filter((c) => isClosed(stateOf(c))),
+    };
+  }, [rows]);
 
-    let filteredRows: CollabRow[];
+  /** Map a row onto everything the card needs, so the JSX below stays flat. */
+  const toCard = useCallback(
+    (c: CollabRow): RequestCardData => {
+      const other = isCreator ? c.sender : c.receiver;
+      const state = c.deal_state ?? c.status;
+      return {
+        id: c.id,
+        budget: c.budget,
+        created_at: c.created_at,
+        partnerName: other?.name ?? null,
+        state,
+        stateLabel: STATE_LABEL[state] ?? state,
+        stateTone: STATE_TONE[state] ?? 'neutral',
+        project: c.project
+          ? {
+              title: c.project.title,
+              current_stage: c.project.current_stage,
+              flow_key: c.project.flow_key,
+            }
+          : null,
+        // Creator-side only, and it fails safe: /api/collabs reports 'unknown'
+        // rather than null when it cannot read the status, and anything that is
+        // not 'approved' shows the warning.
+        unverifiedSender:
+          isCreator &&
+          !!c.sender_business_approval_status &&
+          c.sender_business_approval_status !== 'approved',
+      };
+    },
+    [isCreator],
+  );
+
+  const openRequest = useCallback(
+    (id: string) => router.push({ pathname: '/requests/[id]', params: { id } }),
+    [router],
+  );
+
+  // ── How much screen this account has earned ─────────────────────
+  // See the note at the top of the file. Both are about whether a control has
+  // anything to control, not about taste.
+  const showOverview = rows.length >= OVERVIEW_MIN_ROWS;
+  const groupsWithRows = [actionItems, activeItems, closedItems].filter((g) => g.length > 0).length;
+  const showFilters = groupsWithRows >= 2;
+
+  // A filter that is no longer offered must not still be applied — hiding the
+  // rail while `filter` is stuck on 'closed' would leave the list empty with no
+  // visible way to fix it.
+  useEffect(() => {
+    if (!showFilters && filter !== 'all') setFilter('all');
+  }, [showFilters, filter]);
+
+  const visible = useMemo(() => {
     switch (filter) {
       case 'pending':
-        filteredRows = actionItems;
-        break;
+        return actionItems;
       case 'active':
-        filteredRows = activeItems;
-        break;
+        return activeItems;
       case 'closed':
-        filteredRows = closedItems;
-        break;
+        return closedItems;
       default:
-        filteredRows = rows;
+        return rows;
     }
+  }, [filter, rows, actionItems, activeItems, closedItems]);
 
-    return { actionItems, activeItems, closedItems, filteredRows };
-  }, [rows, filter]);
+  // Sections only when the list is grouped AND unfiltered. Under a filter the
+  // heading would name the filter back at you.
+  const grouped = filter === 'all' && showFilters;
+
+  let step = 0;
+  const nextStep = () => step++;
+
+  const cardsFor = (list: CollabRow[]) =>
+    list.map((c) => (
+      <RequestCard
+        key={c.id}
+        data={toCard(c)}
+        isCreator={isCreator}
+        onPress={() => openRequest(c.id)}
+      />
+    ));
 
   return (
     <Screen padded={false}>
@@ -159,7 +291,6 @@ export default function RequestsScreen() {
         }
         refreshing={refreshing}
         onRefresh={refresh}
-        centerShort={rows.length <= 3}
       >
         {loading ? (
           <>
@@ -169,187 +300,259 @@ export default function RequestsScreen() {
         ) : error ? (
           <ErrorState message={error} onRetry={refresh} />
         ) : rows.length === 0 ? (
-          <EmptyState
-            icon={<Inbox size={24} color={t.color.brand} />}
-            title={isCreator ? 'No requests yet' : "You haven't sent any requests"}
-            body={
-              isCreator
-                ? 'When a brand wants to work with you, it lands here.'
-                : 'Requests you send to creators will show up here, with their replies.'
-            }
-          />
+          <EmptyRequests isCreator={isCreator} />
         ) : (
           <>
-            {/* Filter rail */}
-            <ChipRail>
-              {FILTERS.map((f) => (
-                <Chip
-                  key={f.key}
-                  label={f.key === 'all' ? `${f.label} (${rows.length})` : f.key === 'pending' ? `${f.label} (${actionItems.length})` : f.key === 'active' ? `${f.label} (${activeItems.length})` : `${f.label} (${closedItems.length})`}
-                  selected={filter === f.key}
-                  onPress={() => setFilter(f.key)}
+            {showFilters ? (
+              <Appear index={nextStep()}>
+                <ChipRail>
+                  <Chip
+                    label={`All (${rows.length})`}
+                    selected={filter === 'all'}
+                    onPress={() => setFilter('all')}
+                  />
+                  {actionItems.length > 0 ? (
+                    <Chip
+                      label={`Pending (${actionItems.length})`}
+                      selected={filter === 'pending'}
+                      onPress={() => setFilter('pending')}
+                    />
+                  ) : null}
+                  {activeItems.length > 0 ? (
+                    <Chip
+                      label={`In progress (${activeItems.length})`}
+                      selected={filter === 'active'}
+                      onPress={() => setFilter('active')}
+                    />
+                  ) : null}
+                  {closedItems.length > 0 ? (
+                    <Chip
+                      label={`Completed (${closedItems.length})`}
+                      selected={filter === 'closed'}
+                      onPress={() => setFilter('closed')}
+                    />
+                  ) : null}
+                </ChipRail>
+              </Appear>
+            ) : null}
+
+            {showOverview ? (
+              <Appear index={nextStep()}>
+                <RequestsOverview
+                  total={rows.length}
+                  pending={actionItems.length}
+                  active={activeItems.length}
+                  closed={closedItems.length}
+                  isCreator={isCreator}
                 />
-              ))}
-            </ChipRail>
+              </Appear>
+            ) : null}
 
-            {/* Action Required — full offer cards */}
-            {(filter === 'all' || filter === 'pending') && actionItems.length > 0 ? (
+            {showOverview && tipDismissed === false ? (
+              <Appear index={nextStep()}>
+                <RequestsTip isCreator={isCreator} onDismiss={dismissTip} />
+              </Appear>
+            ) : null}
+
+            {grouped ? (
               <>
-                {filter === 'all' ? <SectionLabel>Action required</SectionLabel> : null}
-                <View style={{ gap: t.spacing.md }}>
-                  {actionItems.map((c) => {
-                    const other = isCreator ? c.sender : c.receiver;
-                    const state = c.deal_state ?? c.status;
-                    const unverifiedSender =
-                      isCreator && c.sender_business_approval_status && c.sender_business_approval_status !== 'approved';
+                {/* Live work first. It is the half of this screen with
+                    something happening on it, and the pending half is one
+                    scroll away either way. */}
+                {activeItems.length > 0 ? (
+                  <Appear index={nextStep()}>
+                    <SectionLabel>In progress</SectionLabel>
+                    <View style={{ gap: t.spacing.md }}>{cardsFor(activeItems)}</View>
+                  </Appear>
+                ) : null}
 
-                    return (
-                      <Card key={c.id} style={{ gap: t.spacing.md }}>
-                        {/* Header row */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
-                          <Avatar name={other?.name ?? undefined} />
-                          <View style={{ flex: 1 }}>
-                            <Txt variant="bodyStrong" numberOfLines={1}>
-                              {other?.name || 'Someone'}
-                            </Txt>
-                            <Txt variant="caption" tone="muted">
-                              {timeAgo(c.created_at)}
-                              {unverifiedSender ? ' · Not yet verified' : ''}
-                            </Txt>
-                          </View>
-                          <Badge label={STATE_LABEL[state] ?? state} tone={STATE_TONE[state] ?? 'neutral'} />
-                        </View>
+                {actionItems.length > 0 ? (
+                  <Appear index={nextStep()}>
+                    <SectionLabel>
+                      {isCreator ? 'Waiting on you' : 'Pending response'}
+                    </SectionLabel>
+                    <View style={{ gap: t.spacing.md }}>{cardsFor(actionItems)}</View>
+                  </Appear>
+                ) : null}
 
-                        {/* Budget highlight */}
-                        {c.budget ? (
-                          <View
-                            style={{
-                              backgroundColor: t.color.brandSoft,
-                              borderRadius: t.radii.md,
-                              paddingHorizontal: t.spacing.md,
-                              paddingVertical: t.spacing.sm,
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <Txt variant="caption" tone="soft">Proposed budget</Txt>
-                            <Txt variant="bodyStrong" style={{ color: t.color.brand }}>
-                              {formatCurrency(c.budget)}
-                            </Txt>
-                          </View>
-                        ) : null}
-
-                        {/* Project name */}
-                        {c.project?.title ? (
-                          <Txt variant="footnote" tone="muted" numberOfLines={1}>
-                            Project: {c.project.title}
-                          </Txt>
-                        ) : null}
-
-                        {/* CTA */}
-                        <Pressable
-                          onPress={() => router.push({ pathname: '/requests/[id]', params: { id: c.id } })}
-                          style={({ pressed }) => ({
-                            backgroundColor: t.color.brand,
-                            borderRadius: t.radii.md,
-                            paddingVertical: t.spacing.md,
-                            alignItems: 'center',
-                            opacity: pressed ? 0.9 : 1,
-                          })}
-                        >
-                          <Txt variant="bodyStrong" tone="inverse">Review offer →</Txt>
-                        </Pressable>
-
-                        {unverifiedSender ? (
-                          <Badge label="Unverified sender" tone="warn" />
-                        ) : null}
+                {/* Finished work stays collapsed. It is the largest group on a
+                    mature account and the least likely to be what anyone came
+                    for, so it costs one row until asked for. */}
+                {closedItems.length > 0 ? (
+                  <Appear index={nextStep()}>
+                    <PressableScale
+                      onPress={() => setClosedExpanded((prev) => !prev)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${closedItems.length} finished requests`}
+                    >
+                      <Card
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingVertical: t.spacing.md,
+                        }}
+                      >
+                        <Txt variant="footnote" tone="soft">
+                          {closedItems.length} finished
+                        </Txt>
+                        {closedExpanded ? (
+                          <ChevronUp size={16} color={t.color.contentMuted} />
+                        ) : (
+                          <ChevronDown size={16} color={t.color.contentMuted} />
+                        )}
                       </Card>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
+                    </PressableScale>
 
-            {/* In Progress */}
-            {(filter === 'all' || filter === 'active') && activeItems.length > 0 ? (
-              <>
-                {filter === 'all' ? <SectionLabel>In progress</SectionLabel> : null}
-                <ListGroup>
-                  {activeItems.map((c, i) => {
-                    const other = isCreator ? c.sender : c.receiver;
-                    const state = c.deal_state ?? c.status;
-                    return (
-                      <ListRow
-                        key={c.id}
-                        title={other?.name || 'Someone'}
-                        subtitle={`${c.budget ? `${formatCurrency(c.budget)} · ` : ''}${timeAgo(c.created_at)}`}
-                        left={<Avatar name={other?.name ?? undefined} />}
-                        right={
-                          <Badge label={STATE_LABEL[state] ?? state} tone={STATE_TONE[state] ?? 'neutral'} />
-                        }
-                        index={i}
-                        style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
-                        onPress={() => router.push({ pathname: '/requests/[id]', params: { id: c.id } })}
-                      />
-                    );
-                  })}
-                </ListGroup>
-              </>
-            ) : null}
-
-            {/* Closed — collapsed by default */}
-            {(filter === 'all' || filter === 'closed') && closedItems.length > 0 ? (
-              <>
-                <Pressable
-                  onPress={() => setClosedExpanded((prev) => !prev)}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingHorizontal: t.spacing.screen,
-                    paddingVertical: t.spacing.md,
-                    backgroundColor: pressed ? t.color.surfaceMuted : 'transparent',
-                    borderRadius: t.radii.md,
-                  })}
-                >
-                  <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                    {closedItems.length} completed / cancelled
-                  </Txt>
-                  {closedExpanded ? (
-                    <ChevronUp size={14} color={t.color.contentMuted} />
-                  ) : (
-                    <ChevronDown size={14} color={t.color.contentMuted} />
-                  )}
-                </Pressable>
-
-                {closedExpanded ? (
-                  <ListGroup>
-                    {closedItems.map((c, i) => {
-                      const other = isCreator ? c.sender : c.receiver;
-                      const state = c.deal_state ?? c.status;
-                      return (
-                        <ListRow
-                          key={c.id}
-                          title={other?.name || 'Someone'}
-                          subtitle={`${c.budget ? `${formatCurrency(c.budget)} · ` : ''}${timeAgo(c.created_at)}`}
-                          left={<Avatar name={other?.name ?? undefined} />}
-                          right={
-                            <Badge label={STATE_LABEL[state] ?? state} tone={STATE_TONE[state] ?? 'neutral'} />
-                          }
-                          index={i}
-                          style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
-                          onPress={() => router.push({ pathname: '/requests/[id]', params: { id: c.id } })}
-                        />
-                      );
-                    })}
-                  </ListGroup>
+                    {closedExpanded ? (
+                      <View style={{ gap: t.spacing.md, marginTop: t.spacing.md }}>
+                        {cardsFor(closedItems)}
+                      </View>
+                    ) : null}
+                  </Appear>
                 ) : null}
               </>
-            ) : null}
+            ) : (
+              <Appear index={nextStep()}>
+                <View style={{ gap: t.spacing.md }}>{cardsFor(visible)}</View>
+              </Appear>
+            )}
+
+            <Appear index={nextStep()}>
+              <FindCreators isCreator={isCreator} />
+            </Appear>
           </>
         )}
       </ScreenScroll>
     </Screen>
+  );
+}
+
+/**
+ * Nothing has been sent, or nothing has come in.
+ *
+ * Not an `EmptyState` with a shrug icon. The two roles are in genuinely
+ * different situations and the same words serve neither: a brand with no
+ * requests has an action available right now, while a creator with none cannot
+ * make a brand write to them and has to be told the thing that actually moves
+ * the odds — which, per the verification work, is the badge and a connected
+ * channel.
+ */
+function EmptyRequests({ isCreator }: { isCreator: boolean }) {
+  const t = useTheme();
+  const router = useRouter();
+
+  return (
+    <View style={{ gap: t.spacing.md, marginTop: t.spacing.xl }}>
+      <Card style={{ alignItems: 'center', gap: t.spacing.md, paddingVertical: t.spacing['2xl'] }}>
+        {/* The same three-node diagram as the empty pipeline on Home: a shape
+            that says "this is a thing that moves" before there is anything to
+            move. */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: t.spacing.xs,
+          }}
+        >
+          <EmptyNode size={38} opacity={0.35} />
+          <EmptyConnector />
+          <EmptyNode size={50} opacity={1} />
+          <EmptyConnector />
+          <EmptyNode size={38} opacity={0.35} />
+        </View>
+
+        <Txt variant="title3" center>
+          {isCreator ? 'No requests yet' : 'No requests sent yet'}
+        </Txt>
+        <Txt variant="footnote" tone="muted" center style={{ maxWidth: 280 }}>
+          {isCreator
+            ? 'Get verified and connect a channel — brands filter for both before they ever message.'
+            : 'Find a creator whose audience fits, and the request you send them starts here.'}
+        </Txt>
+
+        <Button
+          label={isCreator ? 'Get verified' : 'Find a creator'}
+          onPress={() => router.push(isCreator ? '/verification' : '/search')}
+          icon={
+            isCreator ? undefined : <Search size={16} color={t.color.white} />
+          }
+          inline
+          size="md"
+          style={{ marginTop: t.spacing.sm }}
+        />
+      </Card>
+
+      <FindCreators isCreator={isCreator} />
+    </View>
+  );
+}
+
+function EmptyNode({ size, opacity }: { size: number; opacity: number }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: t.color.brandSoft,
+        borderWidth: 1,
+        borderColor: t.color.brandRing,
+        opacity,
+      }}
+    >
+      <Send size={Math.round(size * 0.42)} color={t.color.brand} />
+    </View>
+  );
+}
+
+function EmptyConnector() {
+  const t = useTheme();
+  return (
+    <View style={{ width: 26 }}>
+      <DashedRule color={t.color.brandRing} />
+    </View>
+  );
+}
+
+/**
+ * The campaigns nudge that closes the screen.
+ *
+ * Present in every state including the full one, because "who else could I be
+ * working with" is a live question at any list length — and it is the one route
+ * off this screen that leads somewhere new rather than back into a request
+ * that already exists.
+ */
+function FindCreators({ isCreator }: { isCreator: boolean }) {
+  const t = useTheme();
+  const router = useRouter();
+
+  return (
+    <PressableScale
+      onPress={() => router.push('/campaigns' as never)}
+      accessibilityRole="button"
+      accessibilityLabel={isCreator ? 'Browse open campaigns' : 'Browse campaigns and find creators'}
+    >
+      <Card style={{ backgroundColor: t.color.brandSoft, borderColor: t.color.brandRing, gap: 4 }}>
+        <Txt variant="bodyStrong" style={{ fontSize: 15 }}>
+          {isCreator ? 'Want more requests?' : 'Looking for the right creator?'}
+        </Txt>
+        <Txt variant="footnote" tone="soft">
+          {isCreator
+            ? 'Open campaigns are the fastest way to be found by brands who are hiring now.'
+            : 'Browse open campaigns and connect with creators who match your brand.'}
+        </Txt>
+        <Txt
+          variant="footnote"
+          style={{ color: t.color.brand, fontWeight: '700', marginTop: t.spacing.sm }}
+        >
+          Browse campaigns →
+        </Txt>
+      </Card>
+    </PressableScale>
   );
 }

@@ -106,22 +106,41 @@ export function ListRow({
 }
 
 /** Groups rows into one rounded card with hairlines between them. */
+/**
+ * A stack of rows on one card.
+ *
+ * Two views, and it has to be two for the same reason `Card` is: rows run edge
+ * to edge, so the group needs `overflow: 'hidden'` to keep their press states
+ * inside its rounded corners — and on iOS that clips the view's own shadow to
+ * nothing. Shadow outside, clipping inside.
+ *
+ * This was the odd one out on Home. It is a card by every visual measure, but
+ * because it builds its own box instead of using `Card` it kept a hairline and
+ * no elevation after the flat redesign, so "Waiting on others" sat flat on the
+ * page while every card around it lifted off it.
+ */
 export function ListGroup({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   const t = useTheme();
   return (
     <View
       style={[
-        {
-          backgroundColor: t.color.surfaceCard,
-          borderRadius: t.radii.lg,
-          borderWidth: 1,
-          borderColor: t.color.hairline,
-          overflow: 'hidden',
-        },
+        { borderRadius: t.radii.lg, backgroundColor: t.color.surfaceCard },
+        t.shadows.card,
         style,
       ]}
     >
-      {children}
+      <View
+        style={{
+          backgroundColor: t.color.surfaceCard,
+          borderRadius: t.radii.lg,
+          // Transparent, matching Card: the shadow is the edge now.
+          borderWidth: 1,
+          borderColor: 'transparent',
+          overflow: 'hidden',
+        }}
+      >
+        {children}
+      </View>
     </View>
   );
 }

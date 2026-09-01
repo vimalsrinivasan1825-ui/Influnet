@@ -6,6 +6,7 @@ import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { requireVerifiedOwnership } from '@/lib/ownership-gate';
 import { ensureStageItems } from '@/lib/stage-items-gate';
+import { resolveEntitlements } from '@/lib/entitlements';
 import { flowOf } from '@influnet/core';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -86,7 +87,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     // NULL, and looking them up by request made completed work invisible here.
     const { data: projects, error: projErr } = await supabase
       .from('campaign_projects')
-      .select('id, title, description, budget, advance_amount, due_date, status, current_stage, created_by_user_id, collab_request_id, owner_user_id, counterparty_user_id, created_at')
+      .select('id, title, description, budget, advance_amount, due_date, status, current_stage, flow_key, created_by_user_id, collab_request_id, owner_user_id, counterparty_user_id, created_at')
       .or(
         `and(owner_user_id.eq.${user.id},counterparty_user_id.eq.${otherUserId}),` +
         `and(owner_user_id.eq.${otherUserId},counterparty_user_id.eq.${user.id})`,
@@ -419,18 +420,43 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     //
     // Non-fatal by design: the project exists either way, and the gate will
     // seed it on first use if this fails.
+    let createdOwnerUserId: string | null = null;
     if (accepting && result?.project_id) {
       try {
         // Read the project's flow to seed the right checklist stages.
         const { data: createdProject } = await supabase
           .from('campaign_projects')
-          .select('flow_key')
+          .select('flow_key, owner_user_id')
           .eq('id', result.project_id)
           .maybeSingle();
+        createdOwnerUserId = (createdProject as { owner_user_id?: string } | null)?.owner_user_id ?? null;
         const projectFlow = flowOf(createdProject ?? {});
         await ensureStageItems(supabase, result.project_id as number, projectFlow);
       } catch (seedErr) {
         console.error('[deal] stage checklist seeding failed (gate will retry):', seedErr);
+      }
+    }
+
+    /**
+     * Positive confirmation of where the brand now stands on the free project
+     * cap — the "you've used 2 of 5" card the client shows right after a
+     * project is created. Only meaningful to the OWNER (the brand always owns
+     * the row), so it is resolved from the caller's own entitlements and left
+     * null when the caller is the creator who accepted, or when the caller is
+     * not on a metered Free plan. The creator never needs this — the cap isn't
+     * theirs — and the brand still gets the near/at-limit nudge on their
+     * dashboard on the creator-accepts path.
+     */
+    let conversions: { used: number; limit: number } | null = null;
+    if (accepting && result?.project_id && createdOwnerUserId === user.id) {
+      try {
+        const ent = await resolveEntitlements(supabase, user.id);
+        const limit = ent.limits.projectConversions;
+        if (ent.subscriptionsEnabled && ent.tier === 'free' && typeof limit === 'number') {
+          conversions = { used: ent.usage.projectConversions, limit };
+        }
+      } catch {
+        /* best-effort — the card just doesn't show */
       }
     }
 
@@ -490,6 +516,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       ok: true,
       accepted: accepting,
       project_id: result?.project_id ?? null,
+      conversions,
     });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);

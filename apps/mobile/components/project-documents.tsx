@@ -9,12 +9,13 @@
  * THAT — good for one document, for ten minutes, and useless afterwards.
  */
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { FileText } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
+import { useEntitlements } from '@/lib/use-entitlements';
 import { Button, Card, ListRow, SectionLabel, Txt } from '@/components/ui';
 
 interface ProjectDocument {
@@ -33,14 +34,30 @@ export function ProjectDocuments({ projectId }: { projectId: string }) {
   );
   const [issuingKind, setIssuingKind] = useState<'proforma' | 'tax_invoice' | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const { entitlements, refresh: refreshEnt } = useEntitlements();
 
   const documents = data?.documents ?? [];
 
+  const invoiceLimit =
+    entitlements?.subscriptionsEnabled && typeof entitlements.limits.invoicesPerMonth === 'number'
+      ? entitlements.limits.invoicesPerMonth
+      : null;
+  const invoicesUsed = entitlements?.usage.invoicesThisMonth ?? 0;
+  const atCap = invoiceLimit !== null && invoicesUsed >= invoiceLimit;
+
   async function issue(kind: 'proforma' | 'tax_invoice') {
     setIssuingKind(kind);
-    await endpoints.issueProjectDocument(projectId, kind);
+    const res = await endpoints.issueProjectDocument(projectId, kind);
     setIssuingKind(null);
+    if (!res.ok) {
+      Alert.alert(
+        res.status === 402 ? 'Invoice limit reached' : 'Could not issue document',
+        res.error ?? 'Please try again.',
+      );
+      return;
+    }
     refresh();
+    refreshEnt();
   }
 
   async function view(doc: ProjectDocument) {
@@ -64,6 +81,7 @@ export function ProjectDocuments({ projectId }: { projectId: string }) {
             icon={<FileText size={14} color={t.color.content} />}
             loading={issuingKind === 'proforma'}
             onPress={() => issue('proforma')}
+            disabled={atCap}
             inline
           />
           <Button
@@ -73,10 +91,18 @@ export function ProjectDocuments({ projectId }: { projectId: string }) {
             icon={<FileText size={14} color={t.color.content} />}
             loading={issuingKind === 'tax_invoice'}
             onPress={() => issue('tax_invoice')}
+            disabled={atCap}
             inline
           />
         </View>
       </View>
+
+      {invoiceLimit !== null && (
+        <Txt variant="caption" tone={atCap ? 'warn' : 'muted'}>
+          {invoicesUsed} of {invoiceLimit} invoices this month
+          {atCap ? ' · upgrade to Pro for unlimited' : ''}
+        </Txt>
+      )}
 
       {documents.length === 0 ? (
         <Card>
