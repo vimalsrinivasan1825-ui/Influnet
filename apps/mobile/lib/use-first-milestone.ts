@@ -35,6 +35,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { formatCurrency } from './format';
 
 /** Ordered by significance, most significant first — see `pick` below. */
 export type MilestoneKey = 'first_payment' | 'first_project' | 'first_request' | 'first_view';
@@ -46,6 +47,12 @@ export interface Milestone {
   /** Where the card sends them. Always somewhere that shows more of the thing. */
   href: string;
   cta: string;
+  /**
+   * 'wallet' picks the illustrated first-payment card (see
+   * components/home-milestone-card.tsx). Set only for a creator's first
+   * payment; every other milestone, and the business side, uses the default.
+   */
+  visual?: 'wallet';
 }
 
 /**
@@ -59,6 +66,14 @@ export interface MilestoneFacts {
   projects?: number | null;
   earned?: number | null;
   isCreator: boolean;
+  /**
+   * The most recent settled payment, for the first-payment card's body. Both
+   * come from the same payment row server-side (see /api/home `money.last_payment`)
+   * so the amount and the brand cannot disagree. Either may be absent on an
+   * older backend — the copy degrades a step at a time rather than breaking.
+   */
+  paymentAmount?: number | null;
+  paymentFrom?: string | null;
 }
 
 const STORAGE_PREFIX = 'influnet:milestones-seen:';
@@ -71,7 +86,8 @@ const STORAGE_PREFIX = 'influnet:milestones-seen:';
  * and stopped to look" is why it matters, and the second half is the part that
  * makes it feel like progress rather than a log line.
  */
-function describe(key: MilestoneKey, isCreator: boolean): Milestone {
+function describe(key: MilestoneKey, facts: MilestoneFacts): Milestone {
+  const isCreator = facts.isCreator;
   switch (key) {
     case 'first_view':
       return {
@@ -101,16 +117,26 @@ function describe(key: MilestoneKey, isCreator: boolean): Milestone {
         href: '/projects',
         cta: 'Open the project',
       };
-    case 'first_payment':
+    case 'first_payment': {
+      // Amount from the named payment row, falling back to lifetime `earned`
+      // (identical at the first payment) and then to the fixed sentence.
+      const amount = facts.paymentAmount ?? facts.earned ?? null;
+      let creatorBody =
+        'Money has settled through Influnet for the first time. It shows in Earnings from now on.';
+      if (isCreator && amount != null && amount > 0) {
+        creatorBody = facts.paymentFrom
+          ? `${formatCurrency(amount)} was added to your wallet from ${facts.paymentFrom} collaboration.`
+          : `${formatCurrency(amount)} was added to your wallet.`;
+      }
       return {
         key,
         title: isCreator ? 'You got paid' : 'Your first payment cleared',
-        body: isCreator
-          ? 'Money has settled through Influnet for the first time. It shows in Earnings from now on.'
-          : 'The payment cleared and the creator has been notified.',
+        body: isCreator ? creatorBody : 'The payment cleared and the creator has been notified.',
         href: '/projects',
-        cta: 'See the details',
+        cta: isCreator ? 'View details' : 'See the details',
+        ...(isCreator ? { visual: 'wallet' as const } : {}),
       };
+    }
   }
 }
 
@@ -133,7 +159,7 @@ function pick(facts: MilestoneFacts, seen: Set<string>): Milestone | null {
   if ((facts.profileViews ?? 0) > 0) reached.push('first_view');
 
   const next = reached.find((k) => !seen.has(k));
-  return next ? describe(next, facts.isCreator) : null;
+  return next ? describe(next, facts) : null;
 }
 
 export function useFirstMilestone(

@@ -438,7 +438,7 @@ export async function GET(req: Request) {
       projectIds.length
         ? supabase
             .from('project_payments')
-            .select('amount, status, paid_at, created_at')
+            .select('amount, status, paid_at, created_at, project_id')
             .in('project_id', projectIds)
         : Promise.resolve({ data: [], error: null } as any),
     ]);
@@ -509,12 +509,38 @@ export async function GET(req: Request) {
       amount: number;
       status: string;
       paid_at: string | null;
+      project_id: string;
     }[];
     const toRupees = (paise: number) => Math.round((paise || 0) / 100);
     const paid = paymentRows.filter((p) => p.status === 'paid');
 
+    /**
+     * The most recent settled payment, named. The first-payment milestone card
+     * on Home reads this to say "₹X was added to your wallet from <brand>"
+     * rather than a fixed string — the amount and the partner have to come from
+     * the same row or the two can disagree. `partner` is the OTHER side's name
+     * for whichever side the caller is on, matching `ongoingRows` above.
+     */
+    const lastPaid = [...paid]
+      .filter((p) => p.paid_at)
+      .sort((a, b) => Date.parse(b.paid_at!) - Date.parse(a.paid_at!))[0];
+    const lastPaidProject = lastPaid
+      ? all.find((p: any) => p.id === lastPaid.project_id)
+      : null;
+    const lastPayment = lastPaid
+      ? {
+          amount: toRupees(lastPaid.amount),
+          partner: lastPaidProject
+            ? (lastPaidProject.owner_user_id === user.id
+                ? lastPaidProject.counterparty?.name
+                : lastPaidProject.owner?.name) ?? null
+            : null,
+        }
+      : null;
+
     const money = {
       earned: paid.reduce((sum, p) => sum + toRupees(p.amount), 0),
+      last_payment: lastPayment,
       pending: paymentRows
         .filter((p) => p.status === 'created')
         .reduce((sum, p) => sum + toRupees(p.amount), 0),

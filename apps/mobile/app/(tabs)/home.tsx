@@ -231,6 +231,11 @@ interface HomeReach {
 /** Settled and outstanding money, in rupees. */
 interface HomeMoney {
   earned: number;
+  /**
+   * The most recent settled payment, named — the first-payment milestone card
+   * reads this for its body. Absent on an older backend. See /api/home.
+   */
+  last_payment?: { amount: number; partner: string | null } | null;
   pending: number;
   windows: { week: number; month: number; year: number };
   /**
@@ -612,6 +617,8 @@ export default function HomeScreen() {
     requestsReceived: funnel?.received ?? null,
     projects: (counts?.ongoing ?? 0) + (counts?.completed ?? 0),
     earned: money?.earned ?? null,
+    paymentAmount: money?.last_payment?.amount ?? null,
+    paymentFrom: money?.last_payment?.partner ?? null,
     isCreator,
   });
 
