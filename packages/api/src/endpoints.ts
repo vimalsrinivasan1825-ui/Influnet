@@ -80,9 +80,17 @@ export function createEndpoints(api: ApiClient) {
     // ── Campaigns ──────────────────────────────────────────────────
     /** `mine: true` lists every campaign the caller owns, any status — the
      *  live board otherwise never shows a draft, even to its own owner. */
-    campaigns: <T = unknown>(opts?: { mine?: boolean; category?: string; sort?: 'newest' | 'closing_soon' }) => {
+    campaigns: <T = unknown>(opts?: {
+      mine?: boolean;
+      /** Free-text keyword search over the board. Campaigns only — nothing to
+       *  do with discover(), which searches creators. */
+      q?: string;
+      category?: string;
+      sort?: 'newest' | 'closing_soon';
+    }) => {
       const params = new URLSearchParams();
       if (opts?.mine) params.set('mine', 'true');
+      if (opts?.q) params.set('q', opts.q);
       if (opts?.category) params.set('category', opts.category);
       if (opts?.sort) params.set('sort', opts.sort);
       const qs = params.toString();
