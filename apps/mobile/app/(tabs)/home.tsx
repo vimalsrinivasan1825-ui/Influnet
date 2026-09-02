@@ -434,7 +434,6 @@ export default function HomeScreen() {
     .slice(0, 8);
   const counts = home?.counts;
   const isCreator = (home?.role ?? profile?.role) === 'influencer';
-  const avatar = isCreator ? profile?.avatar_url : profile?.logo_url;
 
   // ── Verification ────────────────────────────────────────────────
   // An older backend sends only the badge bit. Reconstructing the summary from
@@ -632,7 +631,6 @@ export default function HomeScreen() {
     <Screen padded={false}>
       <HomeHeader
         name={home?.profile.name ?? profile?.name ?? null}
-        avatarUri={avatar}
         greeting={greeting()}
         mood={mood}
         pending={pendingTotal + yourMove.length}

@@ -31,9 +31,10 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Search } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-import { Avatar, Txt } from '@/components/ui';
+import { Txt } from '@/components/ui';
 import { Appear } from '@/components/ui/motion';
 import { GuideLauncherButton } from '@/components/guides/guide-launcher';
+import { ProfileAvatarButton } from '@/components/profile-avatar-button';
 
 export type HomeMood = 'first-run' | 'waiting' | 'active' | 'clear';
 
@@ -71,7 +72,6 @@ function headline(mood: HomeMood, pending: number, isCreator: boolean): [string,
 
 export function HomeHeader({
   name,
-  avatarUri,
   greeting,
   mood,
   pending,
@@ -79,7 +79,6 @@ export function HomeHeader({
   unread,
 }: {
   name: string | null;
-  avatarUri?: string | null;
   greeting: string;
   mood: HomeMood;
   /** Total decisions waiting. Only read when `mood` is 'waiting'. */
@@ -173,13 +172,7 @@ export function HomeHeader({
           ) : null}
         </Pressable>
 
-        <Pressable
-          onPress={() => router.push('/profile')}
-          accessibilityRole="button"
-          accessibilityLabel="Your profile"
-        >
-          <Avatar uri={avatarUri} name={name} size={40} />
-        </Pressable>
+        <ProfileAvatarButton size={40} />
       </View>
 
       {/* ── The headline ─────────────────────────────────────────────

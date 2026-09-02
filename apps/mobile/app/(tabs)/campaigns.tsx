@@ -1,7 +1,9 @@
 /**
  * Campaigns — browse open campaigns and manage applications.
  *
- * Pushed screen from Home; not a tab (5-tab ceiling is deliberate).
+ * A bottom tab as of the nav rework: it took the Profile tab's slot (Profile
+ * moved to the avatar top-right). Web has the campaign board too, so mobile is
+ * no longer ahead of it here.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Pressable, View, RefreshControl } from 'react-native';
@@ -12,6 +14,7 @@ import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { formatCount } from '@/lib/format';
 import { Badge, Button, Screen, ScreenScroll, Card, CoverArt, Txt, EmptyState, ErrorState, SkeletonCard } from '@/components/ui';
+import { AppHeader } from '@/components/app-header';
 import { PlatformMark } from '@/components/platform-mark';
 
 /**
@@ -70,26 +73,33 @@ export default function CampaignsScreen() {
 
   useEffect(() => { setLoading(true); fetchCampaigns(view); }, [fetchCampaigns, view]);
 
+  const header = <AppHeader title="Campaigns" showBell={false} />;
+
   if (loading) {
     return (
-      <Screen>
-        <SkeletonCard />
-        <SkeletonCard />
+      <Screen padded={false}>
+        <ScreenScroll header={header}>
+          <SkeletonCard />
+          <SkeletonCard />
+        </ScreenScroll>
       </Screen>
     );
   }
 
   if (error) {
     return (
-      <Screen>
-        <ErrorState message={error} onRetry={() => { setLoading(true); fetchCampaigns(view); }} />
+      <Screen padded={false}>
+        <ScreenScroll header={header}>
+          <ErrorState message={error} onRetry={() => { setLoading(true); fetchCampaigns(view); }} />
+        </ScreenScroll>
       </Screen>
     );
   }
 
   return (
-    <Screen>
+    <Screen padded={false}>
       <ScreenScroll
+        header={header}
         refreshing={refreshing}
         onRefresh={() => { setRefreshing(true); fetchCampaigns(view); }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCampaigns(view); }} />}

@@ -1,32 +1,42 @@
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, Search } from 'lucide-react-native';
+import { ArrowLeft, Bell, Search } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-import { Avatar, Txt } from '@/components/ui';
+import { Txt } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { GuideLauncherButton } from '@/components/guides/guide-launcher';
+import { ProfileAvatarButton } from '@/components/profile-avatar-button';
 
 /** Large-title header with the notification bell. Used on tab roots. */
 export function AppHeader({
   title,
   subtitle,
-  avatarUri,
-  avatarName,
   showBell = true,
   showSearch = true,
   showLogo = true,
+  showAvatar = true,
+  showBack = false,
   unread,
 }: {
   title: string;
   subtitle?: string | null;
-  avatarUri?: string | null;
-  avatarName?: string | null;
   showBell?: boolean;
   /** Look up a creator by username and view their public profile in-app. */
   showSearch?: boolean;
   /** The mark on the left. On by default — it's how the app signs its screens. */
   showLogo?: boolean;
+  /**
+   * The profile avatar on the right. On by default — since the Profile tab was
+   * removed, this is how every tab root reaches Profile (tap) and the account
+   * switcher (long-press). Off on Profile itself.
+   */
+  showAvatar?: boolean;
+  /**
+   * A back chevron on the far left, for screens pushed over the tabs that own
+   * their header instead of the native Stack bar (Profile).
+   */
+  showBack?: boolean;
   unread?: number;
 }) {
   const t = useTheme();
@@ -56,6 +66,18 @@ export function AppHeader({
         // straight through the screen's gradient wash.
       }}
     >
+      {showBack ? (
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={{ padding: 4, marginLeft: -4 }}
+        >
+          <ArrowLeft size={24} color={t.color.content} />
+        </Pressable>
+      ) : null}
+
       {showLogo ? <Logo size={38} /> : null}
 
       <View style={{ flex: 1, gap: 2 }}>
@@ -131,11 +153,7 @@ export function AppHeader({
         </Pressable>
       ) : null}
 
-      {avatarName !== undefined || avatarUri ? (
-        <Pressable onPress={() => router.push('/profile')} accessibilityLabel="Your profile">
-          <Avatar uri={avatarUri} name={avatarName} size={38} />
-        </Pressable>
-      ) : null}
+      {showAvatar ? <ProfileAvatarButton size={38} /> : null}
     </View>
   );
 }

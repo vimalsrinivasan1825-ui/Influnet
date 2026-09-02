@@ -1,37 +1,43 @@
 /**
  * Bottom tabs, resolved by role.
  *
- * The web sidebar shows eight destinations. Five is the mobile ceiling, so the
- * daily drivers get tabs and the maintenance surfaces (connections, activity,
- * settings, verification) live under Profile as pushed screens.
+ * Five destinations, the mobile ceiling: Home, Campaigns, Requests, Messages,
+ * Projects. Profile is no longer a tab — it is reached from the avatar
+ * top-right on every tab root (tap → Profile, long-press → account switcher),
+ * which freed the fifth slot for Campaigns. The maintenance surfaces
+ * (connections, activity, settings, verification) stay under Profile as pushed
+ * screens.
  *
- * Both roles get the same five, because a collaboration request is one object
- * seen from two ends — creators read the inbox, brands read the outbox. There
- * is no Discover tab: the web has that feature switched off too (see
- * business-home.tsx), and shipping a search surface here that the product
- * doesn't stand behind would put mobile ahead of web on the one flow they
- * must agree on.
+ * Both roles get the same five: a collaboration request is one object seen from
+ * two ends — creators read the inbox, brands read the outbox — and the campaign
+ * board is live on web now too, so surfacing it here no longer puts mobile
+ * ahead of web.
+ *
+ * The bar itself is components/floating-tab-bar.tsx: a detached rounded bar,
+ * not a full-width strip. Not glassmorphic — that needs a native module and the
+ * flat redesign is otherwise intact.
+ *
+ * `Tabs` is imported from `expo-router/js-tabs`; the bare `expo-router` export
+ * is deprecated.
  */
 import { useEffect } from 'react';
-import { Pressable, type GestureResponderEvent } from 'react-native';
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect } from 'expo-router';
+import { Tabs } from 'expo-router/js-tabs';
 import * as Haptics from 'expo-haptics';
 import {
   FolderKanban,
   Home,
+  Megaphone,
   MessageSquare,
   Send,
-  UserRound,
 } from 'lucide-react-native';
-import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { useNotificationSummary } from '@/lib/notification-summary';
-import { useAccountSheet } from '@/lib/use-account-sheet';
 import { AccountSwitcher } from '@/components/account-switcher';
+import { FloatingTabBar } from '@/components/floating-tab-bar';
 import { startRealtime, stopRealtime } from '@/lib/realtime';
 
 export default function TabsLayout() {
-  const t = useTheme();
   const role = useSession((s) => s.profile?.role);
   const ready = useSession((s) => s.ready);
   const session = useSession((s) => s.session);
@@ -86,92 +92,66 @@ export default function TabsLayout() {
 
   return (
     <>
-    <Tabs
-      // A tick under the thumb on every tab change. Selection feedback is the
-      // lightest haptic there is — right for something you do constantly.
-      screenListeners={{
-        tabPress: () => {
-          void Haptics.selectionAsync();
-        },
-      }}
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: t.color.brand,
-        tabBarInactiveTintColor: t.color.contentMuted,
-        tabBarStyle: {
-          backgroundColor: t.color.surfaceCard,
-          borderTopColor: t.color.hairline,
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
-        tabBarBadgeStyle: {
-          backgroundColor: t.color.brand,
-          color: t.color.white,
-          fontSize: 11,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+      <Tabs
+        // A tick under the thumb on every tab change. Selection feedback is the
+        // lightest haptic there is — right for something you do constantly.
+        screenListeners={{
+          tabPress: () => {
+            void Haptics.selectionAsync();
+          },
         }}
-      />
+        tabBar={(props) => <FloatingTabBar {...props} />}
+        screenOptions={{ headerShown: false }}
+      >
+        <Tabs.Screen
+          name="home"
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+          }}
+        />
 
-      <Tabs.Screen
-        name="requests"
-        options={{
-          title: isCreator ? 'Requests' : 'Sent',
-          // Both roles get this tab now that Discover has gone: creators read
-          // the inbox, brands read their outbox. The badge stays creator-only —
-          // it counts requests awaiting *your* reply, and a brand's own
-          // outgoing requests are never waiting on them.
-          tabBarBadge: isCreator ? badge(summary?.pending_requests_count) : undefined,
-          tabBarIcon: ({ color, size }) => <Send color={color} size={size} />,
-        }}
-      />
+        <Tabs.Screen
+          name="campaigns"
+          options={{
+            title: 'Campaigns',
+            tabBarIcon: ({ color, size }) => <Megaphone color={color} size={size} />,
+          }}
+        />
 
-      <Tabs.Screen
-        name="messages"
-        options={{
-          title: 'Messages',
-          tabBarBadge: badge(summary?.unread_messages_count),
-          tabBarIcon: ({ color, size }) => <MessageSquare color={color} size={size} />,
-        }}
-      />
+        <Tabs.Screen
+          name="requests"
+          options={{
+            title: isCreator ? 'Requests' : 'Sent',
+            // The badge stays creator-only — it counts requests awaiting *your*
+            // reply, and a brand's own outgoing requests never wait on them.
+            tabBarBadge: isCreator ? badge(summary?.pending_requests_count) : undefined,
+            tabBarIcon: ({ color, size }) => <Send color={color} size={size} />,
+          }}
+        />
 
-      <Tabs.Screen
-        name="projects"
-        options={{
-          title: 'Projects',
-          tabBarIcon: ({ color, size }) => <FolderKanban color={color} size={size} />,
-        }}
-      />
+        <Tabs.Screen
+          name="messages"
+          options={{
+            title: 'Messages',
+            tabBarBadge: badge(summary?.unread_messages_count),
+            tabBarIcon: ({ color, size }) => <MessageSquare color={color} size={size} />,
+          }}
+        />
 
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <UserRound color={color} size={size} />,
-          // Long-press the Profile tab → open the account switcher, wherever
-          // you are. A normal tap still navigates to the tab.
-          tabBarButton: (props) => (
-            <Pressable
-              {...(props as any)}
-              onLongPress={(e: GestureResponderEvent) => {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                useAccountSheet.getState().open();
-              }}
-              delayLongPress={300}
-            />
-          ),
-        }}
-      />
-    </Tabs>
+        <Tabs.Screen
+          name="projects"
+          options={{
+            title: 'Projects',
+            tabBarIcon: ({ color, size }) => <FolderKanban color={color} size={size} />,
+          }}
+        />
+      </Tabs>
 
-    {/* Mounted once, driven by useAccountSheet — opened from here (long-press
-        Profile) and from the "Switch account" row in Profile. */}
-    <AccountSwitcher />
+      {/* Mounted once, driven by useAccountSheet — opened from the long-press on
+          the avatar (components/profile-avatar-button.tsx) and from the "Switch
+          account" row in Profile. */}
+      <AccountSwitcher />
     </>
   );
 }

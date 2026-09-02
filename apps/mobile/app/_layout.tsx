@@ -155,6 +155,9 @@ export default function RootLayout() {
               <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="(auth)" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              {/* Pushed over the tabs from the avatar top-right — owns its own
+                  header (AppHeader with a back chevron), so no native bar. */}
+              <Stack.Screen name="profile" options={{ headerShown: false }} />
               <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
               <Stack.Screen name="activity" options={{ title: 'My activity' }} />
               <Stack.Screen name="connections" options={{ title: 'Connections' }} />
