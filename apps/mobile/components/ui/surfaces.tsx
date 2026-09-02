@@ -1,7 +1,7 @@
 /**
  * Screen / Card / SectionCard / Divider — the containers everything sits in.
  */
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -13,6 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
 import { useTheme } from '@/lib/theme';
 import { useKeyboard } from '@/lib/use-keyboard';
 import { Txt } from './text';
@@ -120,6 +121,18 @@ export function ScreenScroll({
   const insets = useSafeAreaInsets();
   const kb = useKeyboard();
 
+  /**
+   * How much of the bottom of the screen the floating tab bar covers.
+   *
+   * The bar is absolutely positioned (components/floating-tab-bar.tsx), so the
+   * scene runs underneath it and the last card would sit behind it. This is the
+   * bar's real measured height — including its own safe-area cushion — reported
+   * by the navigator. Zero on every pushed screen, which lives outside the tab
+   * navigator and has no bar to clear.
+   */
+  const tabBarHeight = useContext(BottomTabBarHeightContext) ?? 0;
+  const bottomClearance = (tabBarHeight || insets.bottom) + t.spacing['4xl'];
+
   const scrollRef = useRef<ScrollView>(null);
   const viewportRef = useRef<View>(null);
   // Live scroll position. Kept in a ref rather than state because the reveal
@@ -174,8 +187,8 @@ export function ScreenScroll({
       contentContainerStyle={[
         {
           paddingHorizontal: padded ? t.spacing.screen : 0,
-          // Clear the tab bar so the last card isn't trapped under it.
-          paddingBottom: insets.bottom + t.spacing['4xl'],
+          // Clear the floating tab bar so the last card isn't trapped under it.
+          paddingBottom: bottomClearance,
           gap: t.spacing.md,
         },
         centerShort
@@ -185,7 +198,7 @@ export function ScreenScroll({
               // Bias the block above true centre. Dead centre reads as low,
               // because the eye weights the empty space below more heavily
               // than the same gap above.
-              paddingBottom: insets.bottom + t.spacing['4xl'] * 3,
+              paddingBottom: bottomClearance + t.spacing['4xl'] * 2,
             }
           : null,
         contentContainerStyle,
