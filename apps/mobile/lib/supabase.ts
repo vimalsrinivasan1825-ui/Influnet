@@ -90,6 +90,47 @@ export const API_BASE_URL = apiBaseUrl;
  */
 export const AUTH_STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
 
+/**
+ * Every network call supabase-js makes on mobile is an AUTH call — token
+ * refresh, sign-in, sign-out, getUser. There is no `supabase.from()` /
+ * `.storage` / `.functions` here; product data goes through `/api/*` and image
+ * uploads use XMLHttpRequest (see lib/upload.ts).
+ *
+ * auth-js's own fetch (`_handleRequest` in @supabase/auth-js) has NO timeout
+ * and NO abort signal. On React Native a `fetch` against a black-holed network
+ * — a captive-portal, or the radio still waking on a cold start after the app
+ * was killed and left overnight — hangs for the platform default, which is
+ * effectively forever. And a hung `POST /token?grant_type=refresh_token` is
+ * the worst one: auth-js parks every concurrent and subsequent `getSession()`
+ * behind the same `refreshingDeferred` promise, so `getToken()` on every API
+ * request, the auth listener, and the entry gate's profile load all hang with
+ * it. The user sees a permanent "Getting things ready…" that only a second
+ * force-kill clears — a fresh process drops the stuck promise and by then the
+ * radio is warm.
+ *
+ * Bounding the fetch is what breaks that: an abort throws, auth-js turns it
+ * into a retryable error, backs off, and — crucially — RESOLVES
+ * `refreshingDeferred`, so everything waiting on it unblocks with "no session,
+ * try again" instead of nothing. 15s is longer than a cold-radio refresh ever
+ * legitimately needs and far short of the platform hang.
+ */
+const AUTH_FETCH_TIMEOUT_MS = 15_000;
+
+const timeoutFetch: typeof fetch = (input, init) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUTH_FETCH_TIMEOUT_MS);
+
+  // Respect a signal auth-js passes of its own (getUser can abort) — abort our
+  // controller when theirs fires, so either reason stops the request.
+  const upstream = init?.signal;
+  if (upstream) {
+    if (upstream.aborted) controller.abort();
+    else upstream.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: secureAdapter,
@@ -98,6 +139,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  global: { fetch: timeoutFetch },
 });
 
 /**
@@ -116,4 +158,22 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export async function clearPersistedAuth(): Promise<void> {
   await secureAdapter.removeItem(AUTH_STORAGE_KEY).catch(() => {});
   await secureAdapter.removeItem(`${AUTH_STORAGE_KEY}-code-verifier`).catch(() => {});
+}
+
+/**
+ * True when a stored session blob exists on this device.
+ *
+ * `supabase.auth.getSession()` returns `null` both for "signed out" and for
+ * "have credentials, but the refresh to revive them just failed on the
+ * network". The entry gate needs to tell those apart — one goes to the login
+ * screen, the other to a "Reconnecting" retry screen — and this is the
+ * distinguishing read.
+ */
+export async function hasPersistedAuth(): Promise<boolean> {
+  try {
+    const raw = await secureAdapter.getItem(AUTH_STORAGE_KEY);
+    return !!raw && raw.length > 2; // not null, not "{}"
+  } catch {
+    return false;
+  }
 }

@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { Redirect } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { palette, spacing } from '@influnet/tokens';
 import { useSession, useSignOutAction } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -15,11 +15,23 @@ import { Button, Screen, Txt } from '@/components/ui';
 type Recovery = 'idle' | 'running' | 'failed';
 
 export default function Index() {
-  const { session, profile, ready, loadingProfile, switching, loadProfile } = useSession();
+  const {
+    session,
+    profile,
+    ready,
+    authStranded,
+    loadingProfile,
+    switching,
+    loadProfile,
+    retryAuth,
+    discardStrandedAuth,
+  } = useSession();
   const { signOut, signingOut } = useSignOutAction();
+  const router = useRouter();
 
   const [recovery, setRecovery] = useState<Recovery>('idle');
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   /**
    * Signed in with no profile row — repair it rather than routing into an app
@@ -85,6 +97,55 @@ export default function Index() {
       cancelled = true;
     };
   }, [ready, session, profile, loadingProfile, recovery, loadProfile]);
+
+  /**
+   * Stranded auth: credentials on disk, no live session — a refresh that could
+   * not get through on a cold network. supabase-js holds a 60s cooldown after a
+   * failed refresh (keyed by the refresh token, so it survives inside this
+   * process), which is why an instant retry no-ops and why the fastest real
+   * fix is still a force-close: a fresh process has no cooldown. We retry once
+   * automatically just past that window; the background auto-refresh ticker
+   * also keeps trying. A success from either path flips `authStranded` off
+   * through the auth listener and this screen routes on by itself.
+   */
+  useEffect(() => {
+    if (!authStranded || session) return;
+    const timer = setTimeout(() => {
+      void retryAuth();
+    }, 63_000);
+    return () => clearTimeout(timer);
+  }, [authStranded, session, retryAuth]);
+
+  const onRetry = async () => {
+    if (retrying) return;
+    setRetrying(true);
+    await retryAuth();
+    setRetrying(false);
+  };
+
+  if (ready && !session && authStranded) {
+    return (
+      <Screen>
+        <View style={{ flex: 1, justifyContent: 'center', gap: spacing.lg }}>
+          <Txt variant="title1">Reconnecting…</Txt>
+          <Txt variant="body" tone="soft">
+            You’re still signed in — we just couldn’t reach the server. Check
+            your connection. If this sticks, fully close the app and open it
+            again.
+          </Txt>
+          <Button label="Try again" onPress={onRetry} loading={retrying} />
+          <Button
+            label="Sign in instead"
+            variant="ghost"
+            onPress={() => {
+              void discardStrandedAuth();
+              router.replace('/welcome');
+            }}
+          />
+        </View>
+      </Screen>
+    );
+  }
 
   if (recovery === 'failed') {
     return (
