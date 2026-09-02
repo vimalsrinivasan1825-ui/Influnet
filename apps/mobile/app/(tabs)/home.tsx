@@ -484,9 +484,10 @@ export default function HomeScreen() {
     counts?.awaiting_me
       ? {
           key: 'awaiting',
-          icon: <Handshake size={23} color={t.color.brand} />,
+          icon: <Handshake size={20} color={t.color.brand} />,
           count: counts.awaiting_me,
           title: `${counts.awaiting_me} ${counts.awaiting_me === 1 ? 'proposal' : 'proposals'} to review`,
+          short: `${counts.awaiting_me} ${counts.awaiting_me === 1 ? 'proposal' : 'proposals'}`,
           body: 'Accept the terms or send changes.',
           tone: 'brand' as const,
           onPress: () => router.push('/projects'),
@@ -495,9 +496,10 @@ export default function HomeScreen() {
     counts?.pending_requests
       ? {
           key: 'requests',
-          icon: <Inbox size={23} color={t.color.warn} />,
+          icon: <Inbox size={20} color={t.color.warn} />,
           count: counts.pending_requests,
           title: `${counts.pending_requests} collaboration ${counts.pending_requests === 1 ? 'request' : 'requests'}`,
+          short: `${counts.pending_requests} ${counts.pending_requests === 1 ? 'request' : 'requests'}`,
           body: isCreator ? 'A brand wants to work with you.' : 'Waiting for your reply.',
           tone: 'warn' as const,
           onPress: () => router.push('/requests'),
@@ -506,9 +508,10 @@ export default function HomeScreen() {
     unreadMessages
       ? {
           key: 'messages',
-          icon: <MessageCircle size={23} color={t.color.brand} />,
+          icon: <MessageCircle size={20} color={t.color.brand} />,
           count: unreadMessages,
           title: `${unreadMessages} unread ${unreadMessages === 1 ? 'message' : 'messages'}`,
+          short: `${unreadMessages} ${unreadMessages === 1 ? 'message' : 'messages'}`,
           body: 'Someone is waiting on a reply.',
           tone: 'brand' as const,
           onPress: () => router.push('/messages'),
@@ -520,9 +523,10 @@ export default function HomeScreen() {
     isCreator && nudge === 'action'
       ? {
           key: 'verify',
-          icon: <BadgeCheck size={23} color={t.color.brand} />,
+          icon: <BadgeCheck size={20} color={t.color.brand} />,
           count: 1,
           title: 'Verify your Instagram',
+          short: 'Verify',
           body: 'Verified creators get more requests.',
           tone: 'brand' as const,
           onPress: () => router.push('/verification'),
