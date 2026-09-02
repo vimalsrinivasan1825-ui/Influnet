@@ -67,6 +67,16 @@ export interface ApiClientOptions {
 
 export type ApiClient = ReturnType<typeof createApiClient>;
 
+/**
+ * Hard ceiling on any single request. React Native's `fetch` has no default
+ * timeout, so a connection that stalls — the everyday case when the app resumes
+ * from the background onto a half-alive network — hangs forever, and with it
+ * anything awaiting the call (the entry gate's profile load and its recovery
+ * `register({})`, which is otherwise unbounded). 15s is well past a slow-but-real
+ * response and short enough that a dead network surfaces as an error, not a freeze.
+ */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiClientOptions) {
   async function request<T = unknown>(
     path: string,
@@ -85,13 +95,20 @@ export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiC
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     let res: Response;
     try {
-      res = await fetch(`${baseUrl}${path}`, { ...options, headers });
+      res = await fetch(`${baseUrl}${path}`, {
+        ...options,
+        headers,
+        signal: options.signal ?? controller.signal,
+      });
     } catch {
-      // Offline, DNS failure, server unreachable. On mobile this is common
-      // enough that it needs to be a normal result, not a thrown exception
-      // every caller has to wrap.
+      // Offline, DNS failure, server unreachable, or our own timeout aborted it.
+      // On mobile this is common enough that it needs to be a normal result, not
+      // a thrown exception every caller has to wrap.
       return {
         ok: false,
         status: 0,
@@ -99,6 +116,8 @@ export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiC
         error: 'No connection. Check your network.',
         payload: null,
       };
+    } finally {
+      clearTimeout(timer);
     }
 
     let data: unknown = null;

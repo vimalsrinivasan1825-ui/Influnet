@@ -6,11 +6,12 @@
  * a shape the server doesn't speak.
  */
 import { useCallback, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { create } from 'zustand';
 import { useRouter } from 'expo-router';
 import type { Session } from '@supabase/supabase-js';
 import type { UserRole, ApprovalStatus } from '@influnet/types';
-import { supabase, clearPersistedAuth } from './supabase';
+import { supabase, clearPersistedAuth, hasPersistedAuth } from './supabase';
 import { endpoints } from './api';
 import { clearFetchCache } from './use-fetch';
 import { logger } from './logger';
@@ -67,6 +68,15 @@ interface SessionState {
   profile: MeProfile | null;
   /** False until the stored session has been read once — gates the splash. */
   ready: boolean;
+  /**
+   * True when there ARE credentials on disk but they could not be turned into
+   * a live session on startup — almost always a token refresh that failed on a
+   * cold, radio-not-yet-awake network. Distinct from signed-out: the refresh
+   * token is intact and the next attempt (a retry, an auto-refresh tick, or
+   * the next app open) usually succeeds. The entry gate shows a "Reconnecting"
+   * screen for this instead of dumping the user at a login form.
+   */
+  authStranded: boolean;
   loadingProfile: boolean;
   /** True while switchAccount() is mid-flight — the session briefly goes null
    *  to force the tab tree to remount, and this stops that being read as a
@@ -85,6 +95,14 @@ interface SessionState {
   activateSession: (session: Session, replacingLive: boolean) => Promise<void>;
   /** Switch the app to another signed-in account (multi-account book). */
   switchAccount: (userId: string) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Retry restoring a stranded session (see `authStranded`). Resolves true when
+   * a live session came back. Safe to call repeatedly — supabase-js holds a 60s
+   * cooldown after a failed refresh, so an immediate retry may no-op.
+   */
+  retryAuth: () => Promise<boolean>;
+  /** Give up on a stranded session and fall through to the login screen. */
+  discardStrandedAuth: () => Promise<void>;
   init: () => () => void;
 }
 
@@ -129,10 +147,32 @@ export const useSession = create<SessionState>((set, get) => ({
   session: null,
   profile: null,
   ready: false,
+  authStranded: false,
   loadingProfile: false,
   switching: false,
 
   setSession: (session) => set({ session }),
+
+  retryAuth: async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error || !data.session) return false;
+      // onAuthStateChange fires TOKEN_REFRESHED/SIGNED_IN and does the rest
+      // (set session, clear authStranded, load the profile).
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  discardStrandedAuth: async () => {
+    // No network — the whole point is that the network is why we are here.
+    // Drop the on-disk credentials and the flag so the gate falls through to
+    // the login screen. If the refresh token was actually still good, the user
+    // just has to sign in again; that beats an inescapable "Reconnecting".
+    await clearPersistedAuth().catch(() => {});
+    set({ authStranded: false, session: null, profile: null });
+  },
 
   loadProfile: async () => {
     const uid = get().session?.user.id;
@@ -260,7 +300,7 @@ export const useSession = create<SessionState>((set, get) => ({
         // populated would paint the previous account's data to the next one.
         clearFetchCache();
         resetEntitlements();
-        set({ session: null, profile: null });
+        set({ session: null, profile: null, authStranded: false });
 
         // Multi-account: signing out REMOVES this account from the device
         // (product decision 2026-08-31 — it is not left as a re-login entry).
@@ -372,12 +412,35 @@ export const useSession = create<SessionState>((set, get) => ({
    * separate getSession() race to manage.
    */
   init: () => {
+    /**
+     * supabase-js's `autoRefreshToken` runs on a background timer that keeps
+     * ticking while the app is suspended. If the OS freezes the process
+     * mid-refresh, the client comes back with a refresh promise / internal lock
+     * that never settles — and then every `getSession()` (so every API call's
+     * `getToken()`, and the entry gate's profile load) hangs forever. The user
+     * sees a permanent "Getting things ready…" on resume that only a force-kill
+     * clears.
+     *
+     * The fix the Supabase RN docs mandate: only auto-refresh while the app is
+     * foregrounded. `startAutoRefresh()` also kicks an immediate refresh if the
+     * token is stale, which is exactly what a resume needs.
+     */
+    const syncAutoRefresh = (status: AppStateStatus) => {
+      if (status === 'active') void supabase.auth.startAutoRefresh().catch(() => {});
+      else void supabase.auth.stopAutoRefresh().catch(() => {});
+    };
+    syncAutoRefresh(AppState.currentState);
+    const appStateSub = AppState.addEventListener('change', syncAutoRefresh);
+
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       const had = get().session?.user.id;
       // Mid-switch the session briefly goes null on purpose — don't let the
       // library's own SIGNED_OUT for that flip `ready`-gated screens.
       if (get().switching && !session) return;
       set({ session, ready: true });
+      // A live session is the end of any "stranded" state, however it arrived
+      // (retry button, an auto-refresh tick that finally got through).
+      if (session) set({ authStranded: false });
       if (session && session.user.id !== had) void get().loadProfile();
       if (!session) set({ profile: null });
       // supabase-js rotates the refresh token on every refresh; keep the
@@ -392,8 +455,13 @@ export const useSession = create<SessionState>((set, get) => ({
     // the rejection, wipe the poisoned storage, and proceed signed-out.
     void supabase.auth
       .getSession()
-      .then(({ data: d }) => {
-        if (!get().ready) set({ session: d.session, ready: true });
+      .then(async ({ data: d }) => {
+        if (get().ready) return;
+        // Null session but credentials still on disk => a refresh that could
+        // not complete (dead/slow network on a cold start), NOT a sign-out.
+        // Flag it so the gate shows "Reconnecting", not the login form.
+        const stranded = !d.session && (await hasPersistedAuth());
+        set({ session: d.session, ready: true, authStranded: stranded });
       })
       .catch(async (err) => {
         logger.error('[session] getSession() failed on init — clearing auth storage', { err });
@@ -403,16 +471,29 @@ export const useSession = create<SessionState>((set, get) => ({
 
     // Last-resort watchdog: whatever happened above, the splash must not sit
     // forever. If nothing has flipped `ready` within 8s, force it — index.tsx
-    // then routes on whatever session state we have (usually null → Welcome).
+    // then routes on whatever session state we have. Credential-aware: if the
+    // token blob is on disk but no session materialised, that is "reconnecting"
+    // (a stuck refresh), not "signed out" — sending the user to Welcome there
+    // strands a perfectly good session behind a login form.
     const watchdog = setTimeout(() => {
-      if (!get().ready) {
-        logger.warn('[session] init watchdog fired — forcing ready');
-        set({ ready: true });
-      }
+      if (get().ready) return;
+      // `ready` flips FIRST and unconditionally. This is the last-resort net;
+      // making it wait on a storage read would put the one thing guaranteed to
+      // un-stick the splash behind the layer most likely to be stuck.
+      logger.warn('[session] init watchdog fired — forcing ready');
+      set({ ready: true });
+      // Then refine: creds on disk but no session means "reconnecting", not
+      // "signed out". Best-effort — a failure here just leaves it as signed out.
+      void hasPersistedAuth()
+        .then((blob) => {
+          if (blob && !get().session) set({ authStranded: true });
+        })
+        .catch(() => {});
     }, 8000);
 
     return () => {
       clearTimeout(watchdog);
+      appStateSub.remove();
       data.subscription.unsubscribe();
     };
   },

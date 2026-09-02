@@ -1,27 +1,39 @@
 /**
- * A small, real, brand-colored glyph for one of the destinations a profile link
- * can point at — the React Native twin of apps/web's
+ * A small, real, brand mark for one of the destinations a profile link can
+ * point at — the React Native twin of apps/web's
  * `components/dashboard/platform-mark.tsx`.
  *
  * Home's reach breakdown used to draw every channel as a grey lucide outline
  * next to a grey bar, so Instagram and "a website someone typed in" read as the
- * same row with different words. Web fixed that with colored roundels; this is
- * the same table of colors and the same glyph shapes, so the two apps cannot
- * describe the same channel differently.
+ * same row with different words.
  *
- * Drawn with react-native-svg rather than added as PNG assets, deliberately, for
- * the reason spelled out on SnapchatIcon in components/social-icons.tsx: a new
- * binary asset only reaches a phone through a native build, so an `eas update`
- * to an already-installed binary would render a missing image. Vectors arrive
- * with the JS bundle.
+ * ── THE REAL LOGOS, NOT APPROXIMATIONS ────────────────────────────────
  *
- * `social-icons.tsx` still owns the *official* full-color marks used in the
- * social input rows, where recoloring a brand's own logo isn't ours to do. This
- * file is for the opposite case: a uniform roundel, sized for a data row, where
- * consistency of shape is what makes a list scannable.
+ * Instagram, YouTube, Facebook, X and Snapchat now render their OFFICIAL marks
+ * from components/social-icons.tsx (the PNGs in assets/social/, plus Snapchat's
+ * vector). This file used to redraw each of them as a white glyph inside a
+ * flat-coloured roundel — a hand-approximation of somebody else's logo, which
+ * is both wrong to do and visibly not the thing users recognise. Instagram in
+ * particular is a gradient in real life and was being flattened to one pink.
+ *
+ * NOTE those PNGs are binary assets, so they only reach a phone in a NATIVE
+ * build — an `eas update` to an already-installed binary renders a missing
+ * image. That is the trade the founder accepted on 2026-09-02: real logos from
+ * the next build onward.
+ *
+ * The roundel survives for the cases that are not brands and have no official
+ * mark — LinkedIn (no bundled asset), a plain website, a generic link — because
+ * those still need a uniform shape to sit beside the real ones in a list.
  */
 import { View } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
+import {
+  FacebookIcon,
+  InstagramIcon,
+  SnapchatIcon,
+  XIcon,
+  YoutubeIcon,
+} from '@/components/social-icons';
 
 export type PlatformKey =
   | 'instagram'
@@ -52,54 +64,28 @@ function keyOf(platform: string): PlatformKey {
   return (platform as PlatformKey) in PLATFORM_META ? (platform as PlatformKey) : 'other';
 }
 
+/**
+ * Platforms whose official mark we bundle. These bypass the roundel entirely —
+ * the logo IS the mark, at full colour, exactly as its owner draws it.
+ */
+const OFFICIAL: Partial<Record<PlatformKey, (p: { size?: number }) => React.ReactElement>> = {
+  instagram: InstagramIcon,
+  youtube: YoutubeIcon,
+  facebook: FacebookIcon,
+  twitter: XIcon,
+  snapchat: SnapchatIcon,
+};
+
+/** The fallback glyph, for the keys with no official mark of their own. */
 function Glyph({ platform, size }: { platform: PlatformKey; size: number }) {
-  // Snapchat's yellow is the one roundel a white glyph disappears against.
-  const ink = platform === 'snapchat' ? '#000000' : '#FFFFFF';
+  const ink = '#FFFFFF';
 
   switch (platform) {
-    case 'instagram':
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Rect x={3.5} y={3.5} width={17} height={17} rx={5} fill="none" stroke={ink} strokeWidth={2} />
-          <Circle cx={12} cy={12} r={4} fill="none" stroke={ink} strokeWidth={2} />
-          <Circle cx={17.6} cy={6.4} r={1.1} fill={ink} />
-        </Svg>
-      );
-    case 'youtube':
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M8 5v14l11-7z" fill={ink} />
-        </Svg>
-      );
-    case 'facebook':
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path
-            d="M13.5 21v-7.6h2.6l.4-3h-3v-1.9c0-.9.2-1.5 1.5-1.5h1.6V4.3c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H7.9v3h2.5V21h3.1z"
-            fill={ink}
-          />
-        </Svg>
-      );
     case 'linkedin':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Path
             d="M6.9 8.4H3.6V20h3.3V8.4zM5.3 3.5a1.9 1.9 0 1 0 0 3.9 1.9 1.9 0 0 0 0-3.9zM20.4 20h-3.3v-6.3c0-1.5-.5-2.5-1.9-2.5-1 0-1.6.7-1.9 1.4-.1.2-.1.6-.1.9V20H10s.1-10.6 0-11.6h3.3v1.6c.4-.7 1.2-1.7 3-1.7 2.2 0 3.9 1.4 3.9 4.5V20z"
-            fill={ink}
-          />
-        </Svg>
-      );
-    case 'twitter':
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M18.9 2H22l-7.6 8.7L23 22h-6.9l-5.4-6.9L4.5 22H1.4l8.1-9.3L1 2h7l4.9 6.3zm-1.2 18h1.9L7.4 4H5.4z" fill={ink} />
-        </Svg>
-      );
-    case 'snapchat':
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path
-            d="M12 3c2.9 0 4.6 2.1 4.6 4.9 0 1 .1 1.9.2 2.5.6.2 1.4.1 1.9-.2.3-.1.7 0 .8.4.1.4-.1.7-.4.9-.4.2-1 .5-1.7.7.1.6.5 1.1 1.4 1.6.3.2.4.6.2.9-.4.6-1.3.9-2.5 1-.1.4-.3.9-.8 1-.6.2-1.4-.1-2.2-.1-.8 0-1.3.6-2.4.6s-1.6-.6-2.4-.6c-.8 0-1.6.3-2.2.1-.5-.1-.7-.6-.8-1-1.2-.1-2.1-.4-2.5-1-.2-.3-.1-.7.2-.9.9-.5 1.3-1 1.4-1.6-.7-.2-1.3-.5-1.7-.7-.3-.2-.5-.5-.4-.9.1-.4.5-.5.8-.4.5.3 1.3.4 1.9.2.1-.6.2-1.5.2-2.5C7.4 5.1 9.1 3 12 3z"
             fill={ink}
           />
         </Svg>
@@ -140,6 +126,12 @@ export function PlatformMark({
   glyphSize?: number;
 }) {
   const key = keyOf(platform);
+
+  // The official mark, at full colour and full size. No roundel: a brand's own
+  // logo already carries its identity, and boxing it in our tint undoes that.
+  const Official = OFFICIAL[key];
+  if (Official) return <Official size={size} />;
+
   return (
     <View
       accessibilityLabel={PLATFORM_META[key].label}

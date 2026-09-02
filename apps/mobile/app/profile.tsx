@@ -1,7 +1,11 @@
 /**
  * Profile.
  *
- * This tab used to be an account menu: name, avatar, a share button and three
+ * Reached from the avatar top-right on every tab root (the Profile tab was
+ * removed to make room for Campaigns) — a pushed screen over the tabs, not a
+ * tab itself, so it owns its header and shows a back chevron.
+ *
+ * It used to be an account menu: name, avatar, a share button and three
  * links. Everything a creator's public page shows a brand — the follower and
  * engagement numbers, the recent posts, the videos, the ratings, the brands
  * they've delivered for — existed only on the web. So the answer to "how does
@@ -390,7 +394,7 @@ export default function ProfileScreen() {
 
   return (
     <Screen padded={false}>
-      <AppHeader title="Profile" showBell={false} />
+      <AppHeader title="Profile" showBell={false} showAvatar={false} showBack />
 
       <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
         <Card raised style={{ gap: t.spacing.md, alignItems: 'center' }}>

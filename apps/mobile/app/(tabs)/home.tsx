@@ -231,6 +231,11 @@ interface HomeReach {
 /** Settled and outstanding money, in rupees. */
 interface HomeMoney {
   earned: number;
+  /**
+   * The most recent settled payment, named — the first-payment milestone card
+   * reads this for its body. Absent on an older backend. See /api/home.
+   */
+  last_payment?: { amount: number; partner: string | null } | null;
   pending: number;
   windows: { week: number; month: number; year: number };
   /**
@@ -429,7 +434,6 @@ export default function HomeScreen() {
     .slice(0, 8);
   const counts = home?.counts;
   const isCreator = (home?.role ?? profile?.role) === 'influencer';
-  const avatar = isCreator ? profile?.avatar_url : profile?.logo_url;
 
   // ── Verification ────────────────────────────────────────────────
   // An older backend sends only the badge bit. Reconstructing the summary from
@@ -480,9 +484,10 @@ export default function HomeScreen() {
     counts?.awaiting_me
       ? {
           key: 'awaiting',
-          icon: <Handshake size={17} color={t.color.brand} />,
+          icon: <Handshake size={20} color={t.color.brand} />,
           count: counts.awaiting_me,
           title: `${counts.awaiting_me} ${counts.awaiting_me === 1 ? 'proposal' : 'proposals'} to review`,
+          short: `${counts.awaiting_me} ${counts.awaiting_me === 1 ? 'proposal' : 'proposals'}`,
           body: 'Accept the terms or send changes.',
           tone: 'brand' as const,
           onPress: () => router.push('/projects'),
@@ -491,9 +496,10 @@ export default function HomeScreen() {
     counts?.pending_requests
       ? {
           key: 'requests',
-          icon: <Inbox size={17} color={t.color.warn} />,
+          icon: <Inbox size={20} color={t.color.warn} />,
           count: counts.pending_requests,
           title: `${counts.pending_requests} collaboration ${counts.pending_requests === 1 ? 'request' : 'requests'}`,
+          short: `${counts.pending_requests} ${counts.pending_requests === 1 ? 'request' : 'requests'}`,
           body: isCreator ? 'A brand wants to work with you.' : 'Waiting for your reply.',
           tone: 'warn' as const,
           onPress: () => router.push('/requests'),
@@ -502,9 +508,10 @@ export default function HomeScreen() {
     unreadMessages
       ? {
           key: 'messages',
-          icon: <MessageCircle size={17} color={t.color.brand} />,
+          icon: <MessageCircle size={20} color={t.color.brand} />,
           count: unreadMessages,
           title: `${unreadMessages} unread ${unreadMessages === 1 ? 'message' : 'messages'}`,
+          short: `${unreadMessages} ${unreadMessages === 1 ? 'message' : 'messages'}`,
           body: 'Someone is waiting on a reply.',
           tone: 'brand' as const,
           onPress: () => router.push('/messages'),
@@ -516,9 +523,10 @@ export default function HomeScreen() {
     isCreator && nudge === 'action'
       ? {
           key: 'verify',
-          icon: <BadgeCheck size={17} color={t.color.brand} />,
+          icon: <BadgeCheck size={20} color={t.color.brand} />,
           count: 1,
           title: 'Verify your Instagram',
+          short: 'Verify',
           body: 'Verified creators get more requests.',
           tone: 'brand' as const,
           onPress: () => router.push('/verification'),
@@ -612,6 +620,8 @@ export default function HomeScreen() {
     requestsReceived: funnel?.received ?? null,
     projects: (counts?.ongoing ?? 0) + (counts?.completed ?? 0),
     earned: money?.earned ?? null,
+    paymentAmount: money?.last_payment?.amount ?? null,
+    paymentFrom: money?.last_payment?.partner ?? null,
     isCreator,
   });
 
@@ -625,7 +635,6 @@ export default function HomeScreen() {
     <Screen padded={false}>
       <HomeHeader
         name={home?.profile.name ?? profile?.name ?? null}
-        avatarUri={avatar}
         greeting={greeting()}
         mood={mood}
         pending={pendingTotal + yourMove.length}

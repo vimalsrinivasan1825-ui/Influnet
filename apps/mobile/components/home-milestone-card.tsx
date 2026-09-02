@@ -25,9 +25,18 @@
  * celebration with a reject affordance reads as an ad. The quiet option is
  * "Got it", the loud one takes them to the thing, and either way the milestone
  * is marked seen.
+ *
+ * ── THE FIRST-PAYMENT VARIANT ─────────────────────────────────────────
+ *
+ * `first_payment` is the one milestone that gets its own treatment: the 3D
+ * wallet illustration bleeding off the bottom-right corner, matching the
+ * reference the founder signed off. Everything else keeps the animated
+ * Sparkles roundel below. The card colours are still the role token
+ * (`brand` / `brandSoft` / `brandRing`), not a hard-coded purple.
  */
 import { useEffect } from 'react';
 import { View } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import Animated, {
   Easing,
@@ -43,6 +52,10 @@ import { useTheme } from '@/lib/theme';
 import type { Milestone } from '@/lib/use-first-milestone';
 import { Button, Card, Txt } from '@/components/ui';
 
+const WALLET = require('../assets/wallet-image.png');
+/** Intrinsic aspect of wallet-image.png (trimmed), width ÷ height. */
+const WALLET_RATIO = 760 / 514;
+
 export function HomeMilestoneCard({
   milestone,
   onAcknowledge,
@@ -52,6 +65,144 @@ export function HomeMilestoneCard({
 }) {
   const t = useTheme();
   const router = useRouter();
+
+  const goToThing = () => {
+    // Acknowledge on the way out. Someone who followed the card to the thing it
+    // is about has unambiguously seen it, and leaving it un-acknowledged would
+    // greet them with it again on the way back.
+    onAcknowledge();
+    router.push(milestone.href as never);
+  };
+
+  const goButton = (
+    <Button label={milestone.cta} size="md" onPress={goToThing} style={{ flex: 1 }} />
+  );
+  const gotItButton = (
+    <Button
+      label="Got it"
+      variant="secondary"
+      size="md"
+      onPress={onAcknowledge}
+      style={{ flex: 1 }}
+    />
+  );
+
+  // ── First payment: the wallet card ───────────────────────────────
+  // `visual` is set only for a creator's first payment; the business side and
+  // every other milestone fall through to the Sparkles card below.
+  if (milestone.visual === 'wallet') {
+    // Positive action leads, matching the signed-off reference.
+    const actions = (
+      <View style={{ flexDirection: 'row', gap: t.spacing.md }}>
+        {goButton}
+        {gotItButton}
+      </View>
+    );
+    return (
+      <Card
+        raised
+        style={{
+          gap: t.spacing.lg,
+          backgroundColor: t.color.brandSoft,
+          borderColor: t.color.brandRing,
+        }}
+      >
+        {/* Bleeds off the bottom-right; the Card's inner view already clips to
+            the radius. Behind the content and non-interactive. */}
+        <Image
+          source={WALLET}
+          contentFit="contain"
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            right: -18,
+            bottom: -14,
+            width: 146,
+            height: 146 / WALLET_RATIO,
+          }}
+        />
+        {/* A couple of floating dots, in the role accent — the reference has
+            them and they cost nothing. */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 18,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: t.color.brand,
+            opacity: 0.35,
+          }}
+        />
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 30,
+            right: 44,
+            width: 6,
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: t.color.brand,
+            opacity: 0.22,
+          }}
+        />
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: t.color.brand,
+            }}
+          >
+            <Txt style={{ color: t.color.white, fontSize: 21, fontWeight: '700' }}>₹</Txt>
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Txt variant="title3">{milestone.title} 🎉</Txt>
+            <Txt variant="footnote" tone="soft" style={{ paddingRight: 72 }}>
+              {milestone.body}
+            </Txt>
+          </View>
+        </View>
+
+        {/* Kept off the full width so the wallet stays visible to their right. */}
+        <View style={{ maxWidth: '74%' }}>{actions}</View>
+      </Card>
+    );
+  }
+
+  // Every other milestone keeps the original order: quiet option first.
+  return (
+    <MilestoneSparklesCard
+      milestone={milestone}
+      actions={
+        <View style={{ flexDirection: 'row', gap: t.spacing.md }}>
+          {gotItButton}
+          {goButton}
+        </View>
+      }
+    />
+  );
+}
+
+/**
+ * The original design — an animated Sparkles roundel — for every milestone
+ * except the first payment.
+ */
+function MilestoneSparklesCard({
+  milestone,
+  actions,
+}: {
+  milestone: Milestone;
+  actions: React.ReactNode;
+}) {
+  const t = useTheme();
 
   // Two motions, both on the icon and neither on the card. Animating the whole
   // card would move the text under a reading eye; confining it to a 46pt
@@ -140,27 +291,7 @@ export function HomeMilestoneCard({
         </View>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: t.spacing.md }}>
-        <Button
-          label="Got it"
-          variant="secondary"
-          size="md"
-          onPress={onAcknowledge}
-          style={{ flex: 1 }}
-        />
-        <Button
-          label={milestone.cta}
-          size="md"
-          onPress={() => {
-            // Acknowledge on the way out. Someone who followed the card to the
-            // thing it is about has unambiguously seen it, and leaving it
-            // un-acknowledged would greet them with it again on the way back.
-            onAcknowledge();
-            router.push(milestone.href as never);
-          }}
-          style={{ flex: 1 }}
-        />
-      </View>
+      {actions}
     </Card>
   );
 }
