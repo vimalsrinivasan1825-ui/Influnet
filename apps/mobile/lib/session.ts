@@ -477,16 +477,18 @@ export const useSession = create<SessionState>((set, get) => ({
     // strands a perfectly good session behind a login form.
     const watchdog = setTimeout(() => {
       if (get().ready) return;
+      // `ready` flips FIRST and unconditionally. This is the last-resort net;
+      // making it wait on a storage read would put the one thing guaranteed to
+      // un-stick the splash behind the layer most likely to be stuck.
+      logger.warn('[session] init watchdog fired — forcing ready');
+      set({ ready: true });
+      // Then refine: creds on disk but no session means "reconnecting", not
+      // "signed out". Best-effort — a failure here just leaves it as signed out.
       void hasPersistedAuth()
         .then((blob) => {
-          if (!get().ready) {
-            logger.warn('[session] init watchdog fired — forcing ready', { stranded: blob });
-            set({ ready: true, authStranded: blob });
-          }
+          if (blob && !get().session) set({ authStranded: true });
         })
-        .catch(() => {
-          if (!get().ready) set({ ready: true });
-        });
+        .catch(() => {});
     }, 8000);
 
     return () => {
