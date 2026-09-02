@@ -16,13 +16,18 @@ const QuerySchema = z.object({
   id: z.string().uuid().optional(),
 });
 
-// Creator lookup, open to any signed-in role (used by the topbar command palette
-// and the mobile search screen). Deliberately a lookup, not a discovery/browse
-// tool — the client wants this reachable only by someone who already knows the
-// creator's username or Instagram handle, not a way to stumble onto creators
-// via name/niche/bio. The RPC (migration 048, extended by 102) matches broader
-// fields for its other callers, so results are filtered down to a
-// username-or-instagram-handle substring match here before they reach the client.
+// Creator search, open to any signed-in role (used by the topbar command
+// palette and the mobile search screen).
+//
+// It was a strict LOOKUP until 2026-09-02: the RPC matched broadly but this
+// route then discarded everything that had not matched a username or Instagram
+// handle, so you could only find a creator you could already name. A brand
+// searching "food" found nobody, however carefully those creators had tagged
+// themselves. It is a real search now — name, username, handle, headline, bio
+// and niche tag, per the RPC (migration 048, extended by 102 and 145).
+//
+// The paid line moved rather than disappeared. See the plan gate below: typing
+// a query is free, browsing the roster with filters and NO query is Pro.
 
 // Pasted-URL handling (Instagram links and our own profile links) lives in
 // lib/search-query.ts so it can be unit tested — route files can only export
@@ -86,16 +91,21 @@ export async function GET(req: Request) {
     });
     if (error) return jsonError(500, 'Failed to fetch creators', error);
 
-    let results = (data as any[]) || [];
-    // Username-or-handle lookup: drop any row that only matched on name/headline/bio.
-    if (q && !id) {
-      const needle = (searchHandle ?? q).trim().toLowerCase();
-      results = results.filter(
-        (r) =>
-          (r.username ?? '').toLowerCase().includes(needle) ||
-          (r.instagram_handle ?? '').toLowerCase().replace(/^@/, '').includes(needle),
-      );
-    }
+    /**
+     * The RPC's own matching now stands as the answer.
+     *
+     * This used to re-filter the results down to username-or-handle hits,
+     * throwing away every row that had matched on name, headline, bio or (as of
+     * migration 145) a niche tag. That made the search a strict lookup: you
+     * could find a creator only if you already knew their handle, which is not
+     * a search, and it meant a brand hunting for "food" creators found nobody
+     * however well those creators had tagged themselves.
+     *
+     * The plan gate above is untouched and is where the paid line still sits:
+     * typing a query is free, browsing the roster with only filter dropdowns
+     * and no query is Pro.
+     */
+    const results = (data as any[]) || [];
     return NextResponse.json({
       userRole: role,
       results,
