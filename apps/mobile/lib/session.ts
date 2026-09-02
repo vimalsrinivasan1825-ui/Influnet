@@ -6,6 +6,7 @@
  * a shape the server doesn't speak.
  */
 import { useCallback, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { create } from 'zustand';
 import { useRouter } from 'expo-router';
 import type { Session } from '@supabase/supabase-js';
@@ -372,6 +373,26 @@ export const useSession = create<SessionState>((set, get) => ({
    * separate getSession() race to manage.
    */
   init: () => {
+    /**
+     * supabase-js's `autoRefreshToken` runs on a background timer that keeps
+     * ticking while the app is suspended. If the OS freezes the process
+     * mid-refresh, the client comes back with a refresh promise / internal lock
+     * that never settles — and then every `getSession()` (so every API call's
+     * `getToken()`, and the entry gate's profile load) hangs forever. The user
+     * sees a permanent "Getting things ready…" on resume that only a force-kill
+     * clears.
+     *
+     * The fix the Supabase RN docs mandate: only auto-refresh while the app is
+     * foregrounded. `startAutoRefresh()` also kicks an immediate refresh if the
+     * token is stale, which is exactly what a resume needs.
+     */
+    const syncAutoRefresh = (status: AppStateStatus) => {
+      if (status === 'active') void supabase.auth.startAutoRefresh().catch(() => {});
+      else void supabase.auth.stopAutoRefresh().catch(() => {});
+    };
+    syncAutoRefresh(AppState.currentState);
+    const appStateSub = AppState.addEventListener('change', syncAutoRefresh);
+
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       const had = get().session?.user.id;
       // Mid-switch the session briefly goes null on purpose — don't let the
@@ -413,6 +434,7 @@ export const useSession = create<SessionState>((set, get) => ({
 
     return () => {
       clearTimeout(watchdog);
+      appStateSub.remove();
       data.subscription.unsubscribe();
     };
   },
