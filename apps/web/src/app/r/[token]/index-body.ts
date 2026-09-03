@@ -46,6 +46,18 @@ ${REPORT_HEAD}
     <span class="go">Open the review →</span>
   </a>
 
+  <a class="doccard primary" href="${base}/test-run">
+    <p class="kicker"><span class="date">QA runbook</span> <span class="tag t-new">Live checklist</span></p>
+    <h3>Two-Phone Test Run</h3>
+    <p>A brand on one phone, a creator on the other — 206 steps from signup through every stage of the pipeline to a signed-off, rated project. Mark pass, issue or blocked as you go.</p>
+    <ul>
+      <li>Every stage of the twelve-stage pipeline, including both payment gates</li>
+      <li>Your run is private to your device — nobody else can see or edit it</li>
+      <li>Copy your issues out as a ready-to-paste bug list when you're done</li>
+    </ul>
+    <span class="go">Start testing →</span>
+  </a>
+
 </div>
 
 <div class="call" style="margin-top:34px">

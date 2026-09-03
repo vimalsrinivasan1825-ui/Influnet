@@ -7,6 +7,7 @@
 import { checkAccess, baseFor, htmlResponse, notFound } from '../gate';
 import { planBody } from '../plan-body';
 import { releaseBody } from '../release-body';
+import { testRunBody } from '../test-run-body';
 
 // The gate must be evaluated per request, never prerendered at build time.
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,7 @@ export const dynamic = 'force-dynamic';
 const DOCS: Record<string, (base: string) => string> = {
   'release-1': releaseBody,
   plan: planBody,
+  'test-run': testRunBody,
 };
 
 export async function GET(
