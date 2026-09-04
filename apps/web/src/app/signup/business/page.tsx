@@ -127,6 +127,12 @@ function BusinessSignupContent() {
   const emailValid = EMAIL_RE.test(email);
   const passwordOk = password.length >= 8;
   // Both fields are optional, so blank stays valid — only a filled-in value is checked.
+  //
+  // Both feed their own inline error message ONLY — neither may gate
+  // canProceed(). They used to: a website not yet resolving as one, or a
+  // GSTIN not yet at its full 15 characters, blocked Next on a step whose
+  // fields are labelled optional — someone who merely hadn't finished typing
+  // could not get past step 2 or step 3 at all.
   const websiteValid = isValidWebsite(website);
   const gstValid = !gstNumber.trim() || isValidGstin(gstNumber);
 
@@ -138,8 +144,8 @@ function BusinessSignupContent() {
         !!fullName && !!companyName && !!username && usernameOk && emailValid && emailOk && passwordOk &&
         (!phoneOtpEnabled || !!phoneToken)
       );
-    if (step === 2) return !!businessType && !!industry && websiteValid;
-    if (step === 3) return !!city && !!state && !!registeredAddress && gstValid;
+    if (step === 2) return !!businessType && !!industry;
+    if (step === 3) return !!city && !!state && !!registeredAddress;
     if (step === 4) return !!marketingBudget;
     return false;
   };
@@ -157,11 +163,15 @@ function BusinessSignupContent() {
         phone,
         businessType,
         industry,
-        website: normalizeWebsite(website),
+        // Only sent when actually valid — an incomplete value is treated the
+        // same as blank rather than reaching the server to fail validation
+        // there instead (WebsiteSchema / GstNumberSchema both enforce the
+        // same rule), now that it can no longer block Next.
+        website: websiteValid && website.trim() ? normalizeWebsite(website) : undefined,
         city,
         state,
         registeredAddress,
-        gstNumber: gstNumber.trim().toUpperCase(),
+        gstNumber: gstValid && gstNumber.trim() ? gstNumber.trim().toUpperCase() : undefined,
         marketingBudget,
         location: `${city}, ${state}`,
       };
