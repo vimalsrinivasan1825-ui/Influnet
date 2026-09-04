@@ -12,9 +12,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Clipboard from 'expo-clipboard';
 import {
   BellOff,
+  Check,
+  CheckCheck,
   ChevronRight,
+  Copy,
   CornerUpLeft,
   FileText,
   Handshake,
@@ -439,6 +443,15 @@ export default function ConversationScreen() {
   /** Live messages from the Stream channel. */
   const [live, setLive] = useState<ChatMessage[]>([]);
   const [chatError, setChatError] = useState<string | null>(null);
+  /**
+   * The other side's last-read timestamp for this channel — what turns a
+   * sent tick into a seen one. Sourced from Stream's own read receipts
+   * (channel.state.read), not invented locally: Stream does not expose a
+   * distinct "delivered" signal separate from "sent" for a plain channel, so
+   * there are two tick states here, not three — a single tick means the
+   * message reached Stream, a double one means the other person has read it.
+   */
+  const [otherRead, setOtherRead] = useState<Date | null>(null);
 
   const [deal, setDeal] = useState<DealSummary | null>(null);
   const [partner, setPartner] = useState<DealPayload['partner']>(null);
@@ -530,6 +543,7 @@ export default function ConversationScreen() {
       connectingRef.current = false;
       setChatError(null);
       setLive((channel.state.messages ?? []).map(fromStream));
+      setOtherRead(channel.state.read[otherUserId]?.last_read ?? null);
 
       // Reading the screen IS reading the messages.
       void markConversationRead(channel);
@@ -559,6 +573,13 @@ export default function ConversationScreen() {
         channel.on('reaction.new', applyUpdatedMessage),
         channel.on('reaction.updated', applyUpdatedMessage),
         channel.on('reaction.deleted', applyUpdatedMessage),
+        // The SDK updates channel.state.read BEFORE dispatching this event,
+        // so re-reading it here rather than trusting the event payload is
+        // always at least as fresh.
+        channel.on('message.read', (event) => {
+          if (event.user?.id !== otherUserId) return;
+          setOtherRead(channel.state.read[otherUserId]?.last_read ?? null);
+        }),
       ];
       unsubscribeRef.current = () => subs.forEach((s) => s.unsubscribe());
     },
@@ -599,6 +620,7 @@ export default function ConversationScreen() {
       if (channel) {
         void channel.watch().then(() => {
           setLive((channel.state.messages ?? []).map(fromStream));
+          if (partner?.id) setOtherRead(channel.state.read[partner.id]?.last_read ?? null);
           void markConversationRead(channel);
         });
       }
@@ -607,7 +629,7 @@ export default function ConversationScreen() {
       return () => {
         void useNotificationSummary.getState().refresh();
       };
-    }, [load])
+    }, [load, partner?.id])
   );
 
   // Leave the channel behind on the way out so its socket handlers don't
@@ -778,6 +800,15 @@ export default function ConversationScreen() {
 
   function startReply(message: ChatMessage) {
     setReplyTo(message);
+    actionSheet.current?.close();
+  }
+
+  /** Copy a bubble's text. Media-only messages have nothing to copy, so the
+   *  sheet leaves the option out rather than copying an empty string. */
+  async function copyMessage(message: ChatMessage) {
+    if (!message.body) return;
+    await Clipboard.setStringAsync(message.body);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     actionSheet.current?.close();
   }
 
@@ -1151,17 +1182,45 @@ export default function ConversationScreen() {
                 </View>
               ) : null}
 
-              <Txt
-                variant="caption"
-                tone="muted"
+              <View
                 style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 3,
                   alignSelf: mine ? 'flex-end' : 'flex-start',
-                  fontSize: 11 * scale,
-                  lineHeight: 15 * scale,
                 }}
               >
-                {formatMessageTime(message.created_at)}
-              </Txt>
+                <Txt
+                  variant="caption"
+                  tone="muted"
+                  style={{
+                    fontSize: 11 * scale,
+                    lineHeight: 15 * scale,
+                  }}
+                >
+                  {formatMessageTime(message.created_at)}
+                </Txt>
+                {/* Read receipt — only ever on your own bubbles, since seeing a
+                   tick under the other person's message would claim to know
+                   whether THEY have read something, which we have no way to
+                   tell them. Two states, not three — see the otherRead note
+                   above for why there is no separate "delivered" tick. */}
+                {mine && !message.deleted ? (
+                  otherRead && new Date(message.created_at) <= otherRead ? (
+                    <CheckCheck
+                      size={13}
+                      color={t.color.brand}
+                      accessibilityLabel="Seen"
+                    />
+                  ) : (
+                    <Check
+                      size={13}
+                      color={t.color.contentMuted}
+                      accessibilityLabel="Sent"
+                    />
+                  )
+                ) : null}
+              </View>
             </Pressable>
           );
         }}
@@ -1570,6 +1629,14 @@ export default function ConversationScreen() {
           icon={<CornerUpLeft size={16} color={t.color.brand} />}
           onPress={() => actionTarget && startReply(actionTarget)}
         />
+        {actionTarget?.body ? (
+          <Button
+            label="Copy text"
+            variant="secondary"
+            icon={<Copy size={16} color={t.color.brand} />}
+            onPress={() => actionTarget && void copyMessage(actionTarget)}
+          />
+        ) : null}
       </Sheet>
 
       {/* Attach: photo now, document once this build is rebuilt with
