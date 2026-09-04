@@ -413,10 +413,67 @@ const CHECKLIST_STYLE = `
 .empty{font-size:13.5px; color:var(--content-muted); background:var(--card); border:1px dashed var(--hairline-strong);
   border-radius:14px; padding:18px; text-align:center}
 
+/* --- Sharing (migration 147) --------------------------------------------- */
+
+/* Several things toggled by the hidden attribute below are flex containers,
+   and a display:flex rule beats the UA stylesheet's own hidden rule. Without
+   this the share link row and the read-only banner would be laid out the
+   moment they exist, whatever the attribute says. */
+.checklist [hidden]{display:none !important}
+
+/* The owner's control. Lives in the active bar, folded away until pressed:
+   sharing is a thing you do once at the end of a run, not a setting you look
+   at while working through 206 steps. */
+.sharebar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px;
+  background:var(--card); border:1px solid var(--hairline-strong); border-radius:12px; padding:11px 14px}
+.sharebar .st{font-size:12.5px; color:var(--content-soft); flex:1; min-width:180px}
+.sharebar .st b{color:var(--content)}
+.sharebar button{border:1px solid var(--hairline-strong); background:var(--surface); border-radius:999px;
+  padding:6px 14px; font-size:12.5px; font-weight:700; color:var(--content); cursor:pointer; white-space:nowrap}
+.sharebar button.on{background:var(--content); color:var(--surface); border-color:var(--content)}
+.sharebar button:hover{border-color:var(--brand)}
+.sharelink{display:flex; gap:8px; width:100%; margin-top:2px}
+.sharelink input{flex:1; min-width:0; font:inherit; font-size:12.5px; padding:7px 10px; border-radius:8px;
+  border:1px solid var(--hairline-strong); background:var(--surface); color:var(--content-soft)}
+
+/* Somebody else's run, opened read-only. Coloured unlike anything else on the
+   page so there is no moment where a reader believes they are marking steps. */
+.robanner{display:flex; gap:12px; align-items:flex-start; background:var(--webSoft); border:1px solid var(--webLine);
+  border-radius:14px; padding:14px 16px; margin-bottom:20px; font-size:13.5px; color:var(--content-soft); line-height:1.55}
+.robanner b{color:var(--content)}
+.robanner .mine{margin-left:auto; white-space:nowrap; border:1px solid var(--hairline-strong); background:var(--surface);
+  border-radius:999px; padding:6px 14px; font-size:12.5px; font-weight:700; color:var(--content); cursor:pointer;
+  text-decoration:none; display:inline-block}
+
+/* Read-only marks: the same four states, stated rather than offered. */
+.verdict{display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:3px 11px; font-size:11.5px;
+  font-weight:800; letter-spacing:.02em; color:#fff; text-transform:uppercase}
+.verdict.v-pass{background:var(--pass)} .verdict.v-issue{background:var(--issue)}
+.verdict.v-block{background:var(--block)} .verdict.v-na{background:var(--na)}
+.verdict.v-none{background:none; color:var(--content-muted); border:1px dashed var(--hairline-strong)}
+.ronote{margin-top:9px; font-size:13.5px; color:var(--content); background:var(--card-2); border-left:2px solid var(--issue);
+  border-radius:0 6px 6px 0; padding:9px 12px; white-space:pre-wrap; line-height:1.55}
+.ronote b{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--content-muted);
+  font-weight:800; display:block; margin-bottom:3px}
+
+/* The index of runs other people have shared. */
+.runs{margin-top:14px}
+.runs .lbl{display:block; margin-bottom:9px}
+.runlist{display:flex; flex-direction:column; gap:8px}
+.runrow{display:flex; align-items:center; gap:12px; flex-wrap:wrap; text-decoration:none; color:inherit;
+  background:var(--card); border:1px solid var(--hairline-strong); border-radius:12px; padding:11px 14px}
+.runrow:hover{border-color:var(--brand)}
+.runrow .rn{font-size:13.5px; font-weight:700; color:var(--content)}
+.runrow .rb{font-size:12px; color:var(--content-muted)}
+.runrow .rc{margin-left:auto; display:flex; gap:9px; font-size:12px; font-weight:700; white-space:nowrap}
+.runrow .rc .p{color:var(--pass)} .runrow .rc .i{color:var(--issue)} .runrow .rc .b{color:var(--block)}
+
 @media (max-width:640px){
   .step{padding:12px 14px} .phase-head{padding:12px 14px}
   .marks .addnote{margin-left:0}
   .activebar .switchout{margin-left:0}
+  .runrow .rc{margin-left:0; width:100%}
+  .robanner .mine{margin-left:0}
 }
 </style>`;
 
@@ -436,7 +493,9 @@ ${CHECKLIST_STYLE}
   <p class="standfirst">One full pass through the product with a brand on one handset and a creator on the other — signup to signed-off completion. ${total} steps across 24 phases, each with what to do and exactly what should happen.</p>
 </header>
 
-<div class="privacy"><span>🔒</span><span><b>Your run is private to this device.</b> Starting a session below creates a key that only this browser holds. Nobody else who opens this link can see or change your run, and you cannot see theirs — there is no shared dashboard here.</span></div>
+<div class="privacy"><span>🔒</span><span><b>Your run is private to this device until you share it.</b> Starting a session below creates a key that only this browser holds — nobody else who opens this link can see or change your run. When you are ready to hand it to the rest of the team, share it: that publishes a <b>read-only</b> copy anyone with this link can open, while editing stays with your device alone.</span></div>
+
+<div id="ro-banner" class="robanner" hidden></div>
 
 <section id="session" class="session">
   <div id="session-start" class="session-card">
@@ -455,6 +514,12 @@ ${CHECKLIST_STYLE}
     <p class="session-say" id="ts-say" role="status" aria-live="polite"></p>
     <p class="session-note">This device will remember your run. Come back to this same link on the same browser any time to pick up where you left off.</p>
   </div>
+
+  <div class="runs" id="runs" hidden>
+    <span class="lbl">Runs the team has shared</span>
+    <div class="runlist" id="runlist"></div>
+    <p class="session-note">Open one to read what was tested and what was found, without starting a run of your own. You cannot change someone else&rsquo;s run — only the device that made it can.</p>
+  </div>
 </section>
 
 <div id="checklist-app" hidden>
@@ -464,6 +529,15 @@ ${CHECKLIST_STYLE}
     <input class="inline" id="ab-build" placeholder="Build">
     <span class="savestate" id="savestate">saving…</span>
     <button type="button" class="switchout" id="ab-switch">Not you? Start a different run</button>
+  </div>
+
+  <div class="sharebar" id="sharebar" hidden>
+    <span class="st" id="share-state"></span>
+    <button type="button" id="share-toggle">Share read-only</button>
+    <div class="sharelink" id="share-link-row" hidden>
+      <input type="text" id="share-link" readonly aria-label="Read-only link to this run">
+      <button type="button" id="share-copy">Copy</button>
+    </div>
   </div>
 
   <div class="meter" id="meter" role="img" aria-label="Run progress">
@@ -493,7 +567,7 @@ ${CHECKLIST_STYLE}
 </div>
 
 <footer>
-  <p>Phases and expected results are derived from the shipped app — the twelve-stage pipeline, the payment gates, the plan caps and the flag-gated steps all match what is in the code today. Sessions are stored in report_test_sessions (migration 146) and are reachable only by the device holding the matching key.</p>
+  <p>Phases and expected results are derived from the shipped app — the twelve-stage pipeline, the payment gates, the plan caps and the flag-gated steps all match what is in the code today. Sessions are stored in report_test_sessions (migration 146) and are reachable only by the device holding the matching key, or — once their owner shares them — read-only through a separate handle that carries no write access (migration 147).</p>
 </footer>
 
 ${REPORT_THEMER}
@@ -519,11 +593,19 @@ ${REPORT_THEMER}
     for (var si = 0; si < ph.steps.length; si++) ALL_STEPS.push(ph.steps[si]);
   }
 
-  var session = null;      // { id, secret }
+  var session = null;      // { id, secret } — null in read-only mode
   var results = {};        // { "1.1": {s, n}, ... }
   var filter = "all";
   var openPhases = { "00": true };
   var saveTimer = null;
+  /**
+   * True when this page is showing somebody else's shared run. Every write
+   * path checks it, but it is not what makes the run safe - the API simply has
+   * no way to write without the secret, which a shared link never carries.
+   */
+  var readOnly = false;
+  var shareId = null;      // this device's own share handle, when sharing is on
+  var STATUS_LABEL = { pass:"Pass", issue:"Issue", block:"Blocked", na:"N/A" };
 
   function esc(v){
     return String(v == null ? "" : v).replace(/[&<>"']/g, function(c){
@@ -554,10 +636,10 @@ ${REPORT_THEMER}
   }
 
   function tally(){
-    var t = { pass:0, issue:0, block:0, na:0, todo:0 };
+    var t = { pass:0, issue:0, block:0, na:0, todo:0, recorded:0 };
     for (var i = 0; i < ALL_STEPS.length; i++){
       var r = results[ALL_STEPS[i].id];
-      if (r && r.s) t[r.s] = (t[r.s]||0) + 1; else t.todo++;
+      if (r && r.s){ t[r.s] = (t[r.s]||0) + 1; t.recorded++; } else t.todo++;
     }
     return t;
   }
@@ -592,6 +674,24 @@ ${REPORT_THEMER}
     el.className = "step" + (r.s ? " s-" + r.s : "");
     var dev = DEV[s.d];
     var hasNote = !!(r.n && r.n.trim());
+
+    // Read-only: state the verdict and the note as text. Deliberately not
+    // disabled buttons and a disabled textarea — a greyed-out control still
+    // reads as "yours, currently unavailable", and a reader should never spend
+    // a moment wondering why their tap did nothing.
+    if (readOnly){
+      el.innerHTML =
+        '<span class="rail"></span>' +
+        '<div class="sbody">' +
+          '<div class="sline"><span class="sid">' + esc(s.id) + '</span><span class="dev ' + dev.cls + '">' + dev.label + '</span>' +
+            '<span class="verdict ' + (r.s ? "v-" + r.s : "v-none") + '">' + esc(r.s ? STATUS_LABEL[r.s] || r.s : "Not run") + '</span></div>' +
+          '<p class="act">' + esc(s.a) + '</p>' +
+          '<p class="exp"><b>Expect</b>' + esc(s.e) + '</p>' +
+          (s.n ? '<p class="watch"><b>Watch out:</b> ' + esc(s.n) + '</p>' : '') +
+          (hasNote ? '<div class="ronote"><b>Tester\\u2019s note</b>' + esc(r.n) + '</div>' : '') +
+        '</div>';
+      return el;
+    }
 
     el.innerHTML =
       '<span class="rail"></span>' +
@@ -681,6 +781,7 @@ ${REPORT_THEMER}
   function renderAll(){ updateHeader(); renderPhases(); }
 
   function scheduleSave(){
+    if (readOnly) return;
     setSaveState("saving…", "");
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(pushSave, 700);
@@ -711,8 +812,113 @@ ${REPORT_THEMER}
     who.textContent = tester || "Unnamed tester";
     who.dataset.tester = tester || "";
     document.getElementById("ab-build").value = build || "";
+    document.getElementById("sharebar").hidden = false;
+    renderShare();
     renderAll();
-    setSaveState("saved \\u00b7 private to this device", "ok");
+    setSaveState(shareId ? "saved \\u00b7 shared read-only" : "saved \\u00b7 private to this device", "ok");
+  }
+
+  /**
+   * Somebody else's run. The whole editing apparatus — the active bar, the
+   * share control, the mark buttons — is left out rather than switched off.
+   */
+  function startReadOnly(tester, build, initialResults){
+    readOnly = true;
+    results = initialResults || {};
+    document.getElementById("session").hidden = true;
+    document.getElementById("checklist-app").hidden = false;
+    document.querySelector(".activebar").hidden = true;
+    document.getElementById("sharebar").hidden = true;
+    document.querySelector(".privacy").hidden = true;
+
+    // The active bar is hidden, but "Copy full run" still reads these — a
+    // reader forwarding someone else's findings should get their name and
+    // build on the export, not "unnamed".
+    var who = document.getElementById("ab-who");
+    who.textContent = tester || "Unnamed tester";
+    who.dataset.tester = tester || "";
+    document.getElementById("ab-build").value = build || "";
+
+    var t = tally();
+    var banner = document.getElementById("ro-banner");
+    banner.hidden = false;
+    banner.innerHTML =
+      '<span>\\ud83d\\udc41\\ufe0f</span>' +
+      '<span>You are reading <b>' + esc(tester || "an unnamed tester") + '\\u2019s</b> run' +
+      (build ? ' on build <b>' + esc(build) + '</b>' : '') + ', shared read-only. ' +
+      t.recorded + ' of ' + TOTAL + ' steps recorded \\u2014 ' + t.issue + ' issue' + (t.issue === 1 ? '' : 's') +
+      ' and ' + t.block + ' blocked. Nothing here can be changed from this device; ' +
+      'start your own run to record your own results.</span>' +
+      '<a class="mine" href="' + esc(location.pathname) + '">Start my own run</a>';
+
+    renderAll();
+  }
+
+  /** Paint the owner's share control from the current shareId. */
+  function renderShare(){
+    var state = document.getElementById("share-state");
+    var toggle = document.getElementById("share-toggle");
+    var row = document.getElementById("share-link-row");
+    if (shareId){
+      state.innerHTML = '<b>Shared with the team.</b> Anyone with this link can read your run \\u2014 your marks and notes \\u2014 but only this device can change it.';
+      toggle.textContent = "Stop sharing";
+      toggle.className = "on";
+      row.hidden = false;
+      document.getElementById("share-link").value =
+        location.origin + location.pathname + "?run=" + shareId;
+    } else {
+      state.innerHTML = '<b>This run is private to this device.</b> Share it to give the other testers a read-only copy of what you have covered and what you found.';
+      toggle.textContent = "Share read-only";
+      toggle.className = "";
+      row.hidden = true;
+    }
+  }
+
+  function toggleShare(){
+    if (!session || readOnly) return;
+    var toggle = document.getElementById("share-toggle");
+    var want = !shareId;
+    if (!want && !confirm("Stop sharing this run? The link you sent out stops working immediately, and sharing again later issues a different one.")) return;
+    toggle.disabled = true;
+    fetch(API + "?session=" + encodeURIComponent(session.id) + "&secret=" + encodeURIComponent(session.secret), {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ share: want })
+    }).then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(d){
+        shareId = d.shareId || null;
+        renderShare();
+        setSaveState(shareId ? "saved \\u00b7 shared read-only" : "saved \\u00b7 private to this device", "ok");
+      })
+      .catch(function(){ setSaveState("could not change sharing \\u2014 try again", "bad"); })
+      .then(function(){ toggle.disabled = false; });
+  }
+
+  /** The index of shared runs, shown under the start card. */
+  function loadSharedRuns(){
+    fetch(API + "?shared=1")
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(d){
+        var runs = (d && d.runs) || [];
+        if (!runs.length) return;
+        var host = document.getElementById("runlist");
+        host.innerHTML = "";
+        runs.forEach(function(run){
+          var a = document.createElement("a");
+          a.className = "runrow";
+          a.href = location.pathname + "?run=" + encodeURIComponent(run.shareId);
+          var c = run.counts || { pass:0, issue:0, block:0, recorded:0 };
+          a.innerHTML =
+            '<span class="rn">' + esc(run.tester || "Unnamed tester") + '</span>' +
+            '<span class="rb">' + esc(run.build || "build not noted") + ' \\u00b7 ' + c.recorded + '/' + TOTAL + ' steps</span>' +
+            '<span class="rc"><span class="p">' + c.pass + ' pass</span>' +
+              '<span class="i">' + c.issue + ' issue' + (c.issue === 1 ? '' : 's') + '</span>' +
+              '<span class="b">' + c.block + ' blocked</span></span>';
+          host.appendChild(a);
+        });
+        document.getElementById("runs").hidden = false;
+      })
+      .catch(function(){});
   }
 
   function beginFromForm(){
@@ -811,17 +1017,62 @@ ${REPORT_THEMER}
   document.getElementById("copy-issues").addEventListener("click", function(e){ copyReport(true, e.target); });
   document.getElementById("copy-all").addEventListener("click", function(e){ copyReport(false, e.target); });
 
-  // Resume an existing session on this device, if there is one.
-  var existing = loadLocal();
-  if (existing){
-    fetch(API + "?session=" + encodeURIComponent(existing.id) + "&secret=" + encodeURIComponent(existing.secret))
+  document.getElementById("share-toggle").addEventListener("click", toggleShare);
+
+  document.getElementById("share-copy").addEventListener("click", function(e){
+    var input = document.getElementById("share-link");
+    var btn = e.target;
+    var original = btn.textContent;
+    function done(ok){ btn.textContent = ok ? "Copied" : "Copy failed"; setTimeout(function(){ btn.textContent = original; }, 1800); }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(input.value).then(function(){ done(true); }, function(){ done(false); });
+    } else {
+      input.select();
+      try { done(document.execCommand("copy")); } catch (err) { done(false); }
+    }
+  });
+
+  /**
+   * Boot, most specific first.
+   *
+   * The run query parameter wins over this device's own session on purpose:
+   * following a link to a colleague's run should show that run, not silently
+   * swap you back into your own because you happen to have one open. "Start my
+   * own run" in the banner drops the query string and lands on the normal path.
+   */
+  var sharedParam = new URLSearchParams(location.search).get("run");
+
+  if (sharedParam){
+    fetch(API + "?share=" + encodeURIComponent(sharedParam))
       .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function(d){
-        startApp(existing, d.session.tester, d.session.build, d.session.results || {});
+        startReadOnly(d.session.tester, d.session.build, d.session.results || {});
       })
       .catch(function(){
-        clearLocal();
+        // A revoked or mistyped link. Say so, then behave like a normal visit
+        // rather than leaving a dead page.
+        var say = document.getElementById("ts-say");
+        say.className = "session-say bad";
+        say.textContent = "That shared run is no longer available — it may have been unshared.";
+        loadSharedRuns();
       });
+  } else {
+    // Resume an existing session on this device, if there is one.
+    var existing = loadLocal();
+    if (existing){
+      fetch(API + "?session=" + encodeURIComponent(existing.id) + "&secret=" + encodeURIComponent(existing.secret))
+        .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function(d){
+          shareId = d.session.shareId || null;
+          startApp(existing, d.session.tester, d.session.build, d.session.results || {});
+        })
+        .catch(function(){
+          clearLocal();
+          loadSharedRuns();
+        });
+    } else {
+      loadSharedRuns();
+    }
   }
 })();
 </script>

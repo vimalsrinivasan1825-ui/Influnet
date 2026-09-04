@@ -68,7 +68,33 @@ function sessionNotFound(): NextResponse {
   return NextResponse.json({ error: 'Not found' }, { status: 404 });
 }
 
-/** GET /r/<token>/test-sessions?session=<id>&secret=<secret> — read one session. */
+/**
+ * Counts for the shared-runs list, computed here so the listing does not have
+ * to ship every note of every run to render one line each.
+ */
+function summarise(results: unknown): { pass: number; issue: number; block: number; na: number; recorded: number } {
+  const out = { pass: 0, issue: 0, block: 0, na: 0, recorded: 0 };
+  if (typeof results !== 'object' || results === null) return out;
+  for (const value of Object.values(results as Record<string, unknown>)) {
+    const s = (value as { s?: unknown } | null)?.s;
+    if (typeof s !== 'string' || !s) continue;
+    out.recorded += 1;
+    if (s === 'pass' || s === 'issue' || s === 'block' || s === 'na') out[s] += 1;
+  }
+  return out;
+}
+
+/**
+ * GET /r/<token>/test-sessions — three reads, told apart by query string:
+ *
+ *   ?session=<id>&secret=<secret>  the owning device reads its own run (r/w)
+ *   ?share=<share_id>              anyone with the document token reads a
+ *                                  SHARED run (read-only, migration 147)
+ *   ?shared=1                      list the runs that have been shared
+ *
+ * The share paths deliberately never look at `secret` and never return it, so
+ * no amount of replaying a shared link yields write access.
+ */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ token: string }> }
@@ -80,7 +106,8 @@ export async function GET(
   const url = new URL(req.url);
   const id = url.searchParams.get('session') ?? '';
   const secret = url.searchParams.get('secret') ?? '';
-  if (!id || !secret) return sessionNotFound();
+  const share = url.searchParams.get('share') ?? '';
+  const wantsList = url.searchParams.get('shared') === '1';
 
   const limited = await enforceRateLimit(req, {
     bucket: 'report:test-session:read',
@@ -90,9 +117,67 @@ export async function GET(
   if (limited) return limited;
 
   const supabase = serviceClient();
+
+  // The index of shared runs — what makes "see what someone else already
+  // tested" possible. Only ever rows that opted in; an unshared run is not
+  // named, counted or hinted at here.
+  if (wantsList) {
+    const { data, error } = await supabase
+      .from('report_test_sessions')
+      .select('share_id, tester, build, results, started_at, updated_at, shared_at')
+      .not('share_id', 'is', null)
+      .order('shared_at', { ascending: false })
+      .limit(50);
+
+    if (error) return NextResponse.json({ runs: [] }, { status: 200 });
+
+    return NextResponse.json(
+      {
+        runs: (data ?? []).map((row: Record<string, any>) => ({
+          shareId: row.share_id,
+          tester: row.tester,
+          build: row.build,
+          startedAt: row.started_at,
+          updatedAt: row.updated_at,
+          counts: summarise(row.results),
+        })),
+      },
+      { headers: { 'cache-control': 'private, no-store' } }
+    );
+  }
+
+  // A shared run, read-only. `readOnly` is advisory for the UI; the actual
+  // guarantee is that PATCH accepts nothing but the secret.
+  if (share) {
+    const { data, error } = await supabase
+      .from('report_test_sessions')
+      .select('tester, build, results, started_at, updated_at, share_id')
+      .eq('share_id', share)
+      .maybeSingle();
+
+    if (error || !data) return sessionNotFound();
+
+    return NextResponse.json(
+      {
+        session: {
+          id: null,
+          tester: data.tester,
+          build: data.build,
+          results: data.results ?? {},
+          startedAt: data.started_at,
+          updatedAt: data.updated_at,
+        },
+        readOnly: true,
+      },
+      { headers: { 'cache-control': 'private, no-store' } }
+    );
+  }
+
+  if (!id || !secret) return sessionNotFound();
+
   const { data, error } = await supabase
     .from('report_test_sessions')
-    .select('id, tester, build, results, started_at, updated_at, secret_hash')
+    .select('id, tester, build, results, started_at, updated_at, secret_hash, share_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -107,6 +192,7 @@ export async function GET(
         results: data.results ?? {},
         startedAt: data.started_at,
         updatedAt: data.updated_at,
+        shareId: data.share_id ?? null,
       },
     },
     { headers: { 'cache-control': 'private, no-store' } }
@@ -176,7 +262,7 @@ export async function PATCH(
   const supabase = serviceClient();
   const { data: existing, error: readError } = await supabase
     .from('report_test_sessions')
-    .select('id, secret_hash')
+    .select('id, secret_hash, share_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -195,6 +281,26 @@ export async function PATCH(
     update.results = results;
   }
 
+  // Sharing is only ever toggled by the secret holder — the same check that
+  // guards a write, because publishing someone's run IS a write to it.
+  //
+  // Turning sharing on twice keeps the existing id rather than minting a new
+  // one, so a link already sent to the team does not quietly stop working
+  // because someone pressed the button again. Turning it off clears both
+  // columns, which retires that id permanently: the partial unique index would
+  // let it be reissued, but nothing here ever reuses one.
+  if (payload.share !== undefined) {
+    if (payload.share === true) {
+      update.share_id = existing.share_id ?? randomUUID().replace(/-/g, '');
+      update.shared_at = new Date().toISOString();
+    } else if (payload.share === false) {
+      update.share_id = null;
+      update.shared_at = null;
+    } else {
+      return NextResponse.json({ error: 'share must be true or false.' }, { status: 400 });
+    }
+  }
+
   const { error: writeError } = await supabase
     .from('report_test_sessions')
     .update(update)
@@ -204,5 +310,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Could not save that.' }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, updatedAt: update.updated_at });
+  return NextResponse.json({
+    ok: true,
+    updatedAt: update.updated_at,
+    // Only reported when this request actually touched sharing — a plain save
+    // should not have to think about it.
+    ...(payload.share !== undefined ? { shareId: (update.share_id as string | null) ?? null } : {}),
+  });
 }
