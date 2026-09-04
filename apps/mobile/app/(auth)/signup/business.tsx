@@ -60,6 +60,13 @@ export default function BusinessSignup() {
 
   // Both optional, so blank stays valid — only a filled-in value is checked.
   // Mirrors the web wizard's gstValid / websiteValid.
+  //
+  // gstValid and websiteValid feed their fields' inline error messages
+  // ONLY — neither may gate the step below. This is the wizard's last step,
+  // so "valid" controls the Create Account button: gating it on either one
+  // meant typing a value that was merely incomplete (not yet 15 characters
+  // of GSTIN, or a website not yet resolving as one) blocked account
+  // creation outright, on fields labelled optional.
   const gstValid = !gstNumber.trim() || isValidGstin(gstNumber);
   const websiteValid = !website.trim() || isValidWebsite(website);
 
@@ -82,10 +89,16 @@ export default function BusinessSignup() {
         marketingBudget: budget || undefined,
         collabPreferences,
         // Normalised the same way web does, so the stored value has a scheme and
-        // passes the WebsiteSchema transform server-side.
-        website: website.trim() ? normalizeWebsite(website) : undefined,
+        // passes the WebsiteSchema transform server-side. Only sent when valid —
+        // same reasoning as gstNumber below: an incomplete value must not turn
+        // into a server-side 400 now that it no longer blocks Continue.
+        website: websiteValid && website.trim() ? normalizeWebsite(website) : undefined,
         registeredAddress: registeredAddress.trim() || undefined,
-        gstNumber: gstNumber.trim() ? gstNumber.trim().toUpperCase() : undefined,
+        // Only a COMPLETE, valid GSTIN is sent — a half-typed one is treated
+        // the same as blank rather than failing the whole signup server-side
+        // (register also validates via GstNumberSchema). It can always be
+        // added properly later from Settings.
+        gstNumber: gstValid && gstNumber.trim() ? gstNumber.trim().toUpperCase() : undefined,
         city: city.trim() || undefined,
         state: state || undefined,
         location: [city.trim(), state].filter(Boolean).join(', ') || undefined,
@@ -304,8 +317,9 @@ export default function BusinessSignup() {
       title: 'Where are you based?',
       subtitle: 'Your account goes to our team for a quick review after this.',
       // Registered address is required on web too — it is what the review team
-      // checks the business against.
-      valid: !!state && !!city.trim() && !!registeredAddress.trim() && gstValid && websiteValid,
+      // checks the business against. GST and website are deliberately NOT in
+      // this list — see the note on gstValid above.
+      valid: !!state && !!city.trim() && !!registeredAddress.trim(),
       body: (
         <View style={{ gap: t.spacing.xl }}>
           <Field
