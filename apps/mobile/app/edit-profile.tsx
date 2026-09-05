@@ -29,6 +29,7 @@ interface ProfileResponse {
   logo_url?: string | null;
   company_name?: string | null;
   industry?: string | null;
+  city?: string | null;
   contact_name?: string | null;
   contact_phone?: string | null;
   contact_email?: string | null;
@@ -93,7 +94,12 @@ export default function EditProfileScreen() {
       setContactName(p.contact_name ?? '');
       setContactPhone(p.contact_phone ?? '');
       setContactEmail(p.contact_email ?? '');
-      setCity('');
+      // Was hardcoded to '' regardless of what GET /api/profile actually
+      // returned — city IS correctly written at signup and IS in the
+      // response (biz.city in the route), this screen just never read it.
+      // The city typed at signup read back as blank here even though it was
+      // never lost from the database.
+      setCity(p.city ?? '');
       setHeadline(p.headline ?? '');
       setBio(p.bio ?? '');
       setInstagram(p.instagram_handle ?? '');
