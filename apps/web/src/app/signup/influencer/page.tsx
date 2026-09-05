@@ -36,16 +36,15 @@ import { SocialDisclosure } from "@/components/signup/social-disclosure";
 import { PhoneOtpField, usePhoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { cn } from "@/lib/utils";
 import { publicProfileUrl, publicProfileUrlDisplay } from "@/lib/site";
+import { isStrongEnoughPassword, passwordStrengthScore } from "@influnet/core";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** 0–4 password strength score with a matching label + bar color. */
+/** Label + bar color for a score from the shared passwordStrengthScore — kept
+ *  local since it's presentation only (Tailwind classes), unlike the score
+ *  itself, which mobile and web now share and gate signup on identically. */
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
-  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+  const score = passwordStrengthScore(pw);
   const meta = [
     { label: "Too short", color: "bg-danger" },
     { label: "Weak", color: "bg-danger" },
@@ -350,7 +349,10 @@ function InfluencerSignupContent() {
   const usernameOk = usernameStatus === "available" || usernameStatus === "error";
   const emailOk = emailStatus === "available" || emailStatus === "error";
   const emailValid = EMAIL_RE.test(email);
-  const passwordOk = password.length >= 8;
+  // "Fair" (score 2) or better — see isStrongEnoughPassword. Used to be a
+  // bare length >= 8, which accepted a password built from one character
+  // class outright (e.g. '12345678').
+  const passwordOk = isStrongEnoughPassword(password);
   const cleanInstagramHandle = instagramHandle.trim().replace(/^@/, "").toLowerCase();
   // Fail open on the availability check same as username/email, and on a
   // provider outage ('error') now that Instagram is mandatory — an Apify
@@ -766,7 +768,12 @@ function InfluencerSignupContent() {
                         ))}
                       </div>
                       <p className="mt-1 text-xs font-semibold text-content-muted">
-                        {passwordOk ? `Password strength: ${s.label}` : "Use at least 8 characters"}
+                        {/* Always the real label — a password can be exactly
+                           8 characters and still read "Weak" now that passwordOk
+                           requires more than bare length, so a fallback fixed
+                           string here would tell someone who already typed 8
+                           characters to do the thing they just did. */}
+                        {`Password strength: ${s.label}`}
                       </p>
                     </div>
                   );

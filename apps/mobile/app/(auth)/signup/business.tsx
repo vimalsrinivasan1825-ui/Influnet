@@ -11,6 +11,8 @@ import {
   isValidGstin,
   isValidWebsite,
   normalizeWebsite,
+  isStrongEnoughPassword,
+  passwordStrengthScore,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from '@/lib/use-signup';
@@ -198,7 +200,7 @@ export default function BusinessSignup() {
     },
     {
       title: 'Create your login',
-      valid: /\S+@\S+\.\S+/.test(email) && password.length >= 8 && emailOk,
+      valid: /\S+@\S+\.\S+/.test(email) && isStrongEnoughPassword(password) && emailOk,
       body: (
         <View style={{ gap: t.spacing.lg }}>
           <Field
@@ -229,7 +231,18 @@ export default function BusinessSignup() {
             secureTextEntry
             autoCapitalize="none"
             autoComplete="new-password"
-            hint="At least 8 characters."
+            // Real-time strength feedback rather than a single static
+            // "8 characters" line — the wizard now actually enforces
+            // more than length (see isStrongEnoughPassword), so a
+            // password can be 8 characters and still not pass.
+            error={
+              password.length > 0 && !isStrongEnoughPassword(password)
+                ? passwordStrengthScore(password) === 0
+                  ? 'At least 8 characters.'
+                  : 'Add a number, a symbol, or a longer phrase.'
+                : null
+            }
+            hint="At least 8 characters, mixing in a number or a symbol."
             placeholder="Create a password"
           />
         </View>
