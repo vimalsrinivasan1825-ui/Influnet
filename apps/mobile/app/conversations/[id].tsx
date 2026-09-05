@@ -44,7 +44,7 @@ import {
   type ChatTextSize,
 } from '@/lib/use-chat-display';
 import { ChatPaper } from '@/components/chat-paper';
-import { flowOf } from '@influnet/core';
+import { dealStateOf, DEAL_STATE_LABEL, flowOf } from '@influnet/core';
 
 /**
  * " · Step 2 of 12", or nothing.
@@ -370,10 +370,25 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
     };
   }
 
-  const live = payload.projects?.[0];
+  // `payload.projects` is every non-pending_acceptance project between this
+  // pair, NEWEST FIRST — it can hold more than one once a finished project
+  // is followed by a new one. Picking [0] blindly meant a just-completed or
+  // cancelled project (the newest row) shadowed an OLDER project that was
+  // still genuinely active: the pinned card read "Project in progress" for
+  // a project that had already finished, and tapping it opened that wrong
+  // project instead of the one actually being worked. An open project — if
+  // one exists — is always the one worth pinning here.
+  const live =
+    payload.projects?.find((p) => p.status !== 'completed' && p.status !== 'cancelled') ??
+    payload.projects?.[0];
   if (live) {
     return {
-      status: 'Project in progress',
+      // Reflects the actual row instead of asserting "in progress" for
+      // whatever this happened to be — the same status→label mapping the
+      // Projects tab uses (dealStateOf), so a completed or cancelled project
+      // surfaced here (no open one exists) reads accurately rather than as
+      // live work.
+      status: DEAL_STATE_LABEL[dealStateOf(live.status)],
       budget: live.budget,
       deliverables: live.title,
       projectId: live.id,
