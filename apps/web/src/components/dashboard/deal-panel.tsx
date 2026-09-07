@@ -148,12 +148,18 @@ export function DealPanel({
 
   // This panel had NO realtime of its own — it loaded once on mount and
   // nothing told it the other side had acted. respond_to_proposal's accept
-  // path inserts the new campaign_projects row, which is what actually wakes
-  // this up; declining or withdrawing a proposal doesn't touch a published
-  // table at all (project_proposals isn't in supabase_realtime), so those
-  // still need a manual reload — a separate, deeper gap than this one.
-  // collab_requests is watched too since it's what "awaiting reply" reflects
-  // before any proposal exists.
+  // path inserts the new campaign_projects row, which is what wakes this up
+  // for an accept; collab_requests is watched too since it's what "awaiting
+  // reply" reflects before any proposal exists.
+  //
+  // project_proposals is filtered on conversation_id, not a participant's
+  // user id like the other two: the only party recorded directly on that
+  // table is proposed_by (the sender), so a filter keyed on the RECIPIENT's
+  // id could never match — and withdrawing is only ever done by the
+  // proposer, so it is specifically the recipient's panel that needs to see
+  // it disappear. conversation_id is the column every row carries for both
+  // sides, and this panel already has it. Migration 148 covers why a
+  // conversation_id filter doesn't widen access (RLS still gates delivery).
   useRealtimeRefresh({
     channelName: "dashboard-deal-panel-live",
     enabled: !!userId,
@@ -161,6 +167,7 @@ export function DealPanel({
       ? [
           { table: "collab_requests", filters: [`from_user_id=eq.${userId}`, `to_user_id=eq.${userId}`] },
           { table: "campaign_projects", filters: [`owner_user_id=eq.${userId}`, `counterparty_user_id=eq.${userId}`] },
+          { table: "project_proposals", filters: [`conversation_id=eq.${conversationId}`] },
         ]
       : [],
     onChange: load,
