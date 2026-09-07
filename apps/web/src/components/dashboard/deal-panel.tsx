@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 import { VerifiedMark } from "@/components/icons/verified-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,9 +116,12 @@ const money = (v: unknown) =>
  */
 export function DealPanel({
   conversationId,
+  userId,
   onProjectCreated,
 }: {
   conversationId: string;
+  /** Needed only to scope the realtime watch below to this viewer's own rows. */
+  userId?: string | null;
   onProjectCreated?: () => void;
 }) {
   const [deal, setDeal] = useState<DealState | null>(null);
@@ -141,6 +145,26 @@ export function DealPanel({
     setPrefill(null);
     load();
   }, [load]);
+
+  // This panel had NO realtime of its own — it loaded once on mount and
+  // nothing told it the other side had acted. respond_to_proposal's accept
+  // path inserts the new campaign_projects row, which is what actually wakes
+  // this up; declining or withdrawing a proposal doesn't touch a published
+  // table at all (project_proposals isn't in supabase_realtime), so those
+  // still need a manual reload — a separate, deeper gap than this one.
+  // collab_requests is watched too since it's what "awaiting reply" reflects
+  // before any proposal exists.
+  useRealtimeRefresh({
+    channelName: "dashboard-deal-panel-live",
+    enabled: !!userId,
+    watches: userId
+      ? [
+          { table: "collab_requests", filters: [`from_user_id=eq.${userId}`, `to_user_id=eq.${userId}`] },
+          { table: "campaign_projects", filters: [`owner_user_id=eq.${userId}`, `counterparty_user_id=eq.${userId}`] },
+        ]
+      : [],
+    onChange: load,
+  });
 
   const respondToRequest = async (status: "accepted" | "declined" | "cancelled") => {
     if (!deal?.request) return;

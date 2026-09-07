@@ -507,6 +507,7 @@ function MessagesContent() {
           <DealPanel
             key={activeConvId}
             conversationId={activeConvId}
+            userId={userId}
             onProjectCreated={fetchConversations}
           />
         )}
