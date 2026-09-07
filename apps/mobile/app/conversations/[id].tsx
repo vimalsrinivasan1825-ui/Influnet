@@ -36,7 +36,7 @@ import { endpoints } from '@/lib/api';
 import { getConversationChannel, getLastStreamFailureReason, isStreamConfigured } from '@/lib/stream';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { useNotificationToast } from '@/lib/notification-toast';
-import { useLiveRefresh } from '@/lib/realtime';
+import { useLiveRefresh, useProposalLive } from '@/lib/realtime';
 import { formatCurrency, formatDayLabel, formatMessageTime, timeAgo } from '@/lib/format';
 import {
   TEXT_SCALE as TEXT_SCALE_PREVIEW,
@@ -636,13 +636,16 @@ export default function ConversationScreen() {
   // accepted kept seeing "awaiting reply" until they left the screen and came
   // back — respond_to_proposal's accept path inserts the new campaign_projects
   // row, which is what wakes this up.
-  //
-  // Declining or withdrawing a proposal is NOT fixed by this: those only
-  // touch project_proposals, which isn't in the supabase_realtime publication
-  // at all (unlike collab_requests/campaign_projects) — a separate, deeper
-  // gap than the missing subscription this fixes.
   useLiveRefresh('requests', load);
   useLiveRefresh('projects', load);
+  // Declining or withdrawing a proposal is a separate case from the two
+  // above: neither touches collab_requests or campaign_projects, only
+  // project_proposals — published to Realtime in migration 148, specifically
+  // because withdraw sends no notification at all (decline at least notifies
+  // the proposer) and had no backstop whatsoever without this. See
+  // useProposalLive for why this is keyed on conversation id rather than a
+  // participant's user id.
+  useProposalLive(id, load);
 
   // Anything that landed while this screen was backgrounded — or while the
   // socket was down on a flaky connection — is only picked up by re-reading.
