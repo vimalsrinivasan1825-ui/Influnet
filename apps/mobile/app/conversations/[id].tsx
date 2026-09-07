@@ -36,6 +36,7 @@ import { endpoints } from '@/lib/api';
 import { getConversationChannel, getLastStreamFailureReason, isStreamConfigured } from '@/lib/stream';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { useNotificationToast } from '@/lib/notification-toast';
+import { useLiveRefresh } from '@/lib/realtime';
 import { formatCurrency, formatDayLabel, formatMessageTime, timeAgo } from '@/lib/format';
 import {
   TEXT_SCALE as TEXT_SCALE_PREVIEW,
@@ -625,6 +626,23 @@ export default function ConversationScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The other side accepting a proposal, or the underlying request changing,
+  // used to be invisible on this screen while it was open: the only refetch
+  // was useFocusEffect below, which never fires for a screen you're already
+  // sitting on, and there was no realtime subscription behind this deal card
+  // at all (unlike the Projects and Requests tabs, which already use this
+  // same hook). A brand who stayed in the conversation while the creator
+  // accepted kept seeing "awaiting reply" until they left the screen and came
+  // back — respond_to_proposal's accept path inserts the new campaign_projects
+  // row, which is what wakes this up.
+  //
+  // Declining or withdrawing a proposal is NOT fixed by this: those only
+  // touch project_proposals, which isn't in the supabase_realtime publication
+  // at all (unlike collab_requests/campaign_projects) — a separate, deeper
+  // gap than the missing subscription this fixes.
+  useLiveRefresh('requests', load);
+  useLiveRefresh('projects', load);
 
   // Anything that landed while this screen was backgrounded — or while the
   // socket was down on a flaky connection — is only picked up by re-reading.
