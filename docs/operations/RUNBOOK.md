@@ -111,3 +111,21 @@ mistake.
 
 Add a line to [INCIDENTS.md](INCIDENTS.md). One line. It takes thirty seconds
 and in a year it is worth more than any tool on this page.
+
+---
+
+## The destructive-operation rule
+
+Before any purge, truncate, bulk delete, or `supabase db reset`:
+
+1. **Say the project ref out loud** and check it against
+   `/dashboard/admin/health` on the deployment you think you are targeting.
+2. `dev` and `staging` are different projects with similar-looking data. The
+   fixture `qacreator` on staging is load-bearing for deploy smoke tests —
+   never purge it.
+3. If the operation is irreversible and the target is not dev, write down what
+   you expect to happen first. If you cannot state the expected row counts,
+   you do not understand the operation well enough to run it.
+
+This project has an incident on record from exactly this mistake, which is why
+it is a rule and not a suggestion.
