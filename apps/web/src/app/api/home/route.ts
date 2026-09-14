@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { projectTurn, STAGE_PHASES, phaseOf } from '@influnet/core';
 import { withAuth, jsonError } from '@/lib/api';
+import { settleAll } from '@/lib/settle';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
@@ -186,13 +187,22 @@ export async function GET(req: Request) {
       // Everything a brand sees on /c/[username], read from the same sources.
       // A creator's own dashboard showing a different set of numbers than their
       // public page is the fastest way to make both look untrustworthy.
-      const [ig, yt, revs, collabs] = await Promise.all([
-        getInstagramSnapshot(user.id),
-        getYouTubeSnapshot(user.id),
-        getPublicReviews(user.id),
-        // Cast: the RPC (migration 067) is newer than the generated types.
-        (supabase.rpc as any)('get_creator_collaborations', { p_user_id: user.id }),
-      ]);
+      // Four independent enrichments of the same profile. None of them is
+      // load-bearing: the Home screen renders perfectly with any of them
+      // missing, so a throw in one must not cost the other three.
+      const [ig, yt, revs, collabs] = await settleAll(
+        [
+          getInstagramSnapshot(user.id),
+          getYouTubeSnapshot(user.id),
+          getPublicReviews(user.id),
+          // Cast: the RPC (migration 067) is newer than the generated types.
+          (supabase.rpc as any)('get_creator_collaborations', { p_user_id: user.id }),
+        ],
+        {
+          route: '/api/home',
+          labels: ['instagram', 'youtube', 'reviews', 'past_collaborations'],
+        },
+      );
       social = ig;
       youtube = yt;
       reviews = revs;
@@ -409,7 +419,10 @@ export async function GET(req: Request) {
     // for after launch and its budget is round trips, not queries.
     const projectIds = all.map((p: any) => p.id);
 
-    const [viewsRes, businessViewersRes, reach, paymentsRes] = await Promise.all([
+    // settleAll: these are four independent stat tiles. Reach failing should
+    // blank the reach tile, not the whole Home screen — which is the first
+    // thing the app asks for after launch.
+    const [viewsRes, businessViewersRes, reach, paymentsRes] = await settleAll([
       // Rolling 60 days: the last 30 are the figure, the 30 before it are the
       // baseline the delta is measured against.
       isCreator
@@ -441,7 +454,10 @@ export async function GET(req: Request) {
             .select('amount, status, paid_at, created_at, project_id')
             .in('project_id', projectIds)
         : Promise.resolve({ data: [], error: null } as any),
-    ]);
+    ], {
+      route: '/api/home',
+      labels: ['profile_views', 'business_viewers', 'reach', 'payments'],
+    });
 
     /**
      * Views, split into the two windows. A missing table (an environment behind

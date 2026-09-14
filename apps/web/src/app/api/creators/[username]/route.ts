@@ -15,6 +15,7 @@ import { isSectionVisible } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
 import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
 import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
+import { settleAll } from '@/lib/settle';
 
 // Same view model as /c/[username] (see that page for the canonical, full-page
 // version), reshaped as JSON so the topbar search can render a creator's public
@@ -98,18 +99,29 @@ export async function GET(
   });
   const autoCollaborations = Array.isArray(autoCollabs) ? (autoCollabs as string[]) : [];
 
-  const [instagram, youtube, reviews, portfolio, visibility, collabStats] = await Promise.all([
-    getInstagramSnapshot(profile.userId),
-    getYouTubeSnapshot(profile.userId),
-    getPublicReviews(profile.userId),
-    getCreatorPortfolio(supabase, profile.userId),
-    getProfileVisibility(supabase, profile.userId),
-    // Migration 113. Counts only — how many brands this creator has actually
-    // worked with, and how many of those finished. Follower count says how many
-    // people watch; this says whether anyone has hired them, which is the thing
-    // a brand is really trying to judge.
-    (supabase.rpc as any)('get_collaboration_stats', { p_user_id: profile.userId }),
-  ]);
+  // settleAll, not Promise.all: this is a PUBLIC profile, the page a brand
+  // judges a creator on. Six independent enrichments, and a throw in any one
+  // of them used to 500 the entire profile — so an Instagram rate-limit could
+  // make a creator look like they do not exist. Each slot now degrades on its
+  // own and the rest of the profile still renders.
+  const [instagram, youtube, reviews, portfolio, visibility, collabStats] = await settleAll(
+    [
+      getInstagramSnapshot(profile.userId),
+      getYouTubeSnapshot(profile.userId),
+      getPublicReviews(profile.userId),
+      getCreatorPortfolio(supabase, profile.userId),
+      getProfileVisibility(supabase, profile.userId),
+      // Migration 113. Counts only — how many brands this creator has actually
+      // worked with, and how many of those finished. Follower count says how many
+      // people watch; this says whether anyone has hired them, which is the thing
+      // a brand is really trying to judge.
+      (supabase.rpc as any)('get_collaboration_stats', { p_user_id: profile.userId }),
+    ],
+    {
+      route: '/api/creators/[username]',
+      labels: ['instagram', 'youtube', 'reviews', 'portfolio', 'visibility', 'collab_stats'],
+    },
+  );
 
   const hdrs = await headers();
   const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host');
@@ -123,7 +135,10 @@ export async function GET(
     reviews,
     origin,
     autoCollaborations,
-    portfolio,
+    // `?? undefined`: the builder distinguishes "no portfolio" (undefined)
+    // from a portfolio, and settleAll yields null when the fetch threw. Both
+    // mean "do not render a portfolio", so they collapse to the same thing.
+    portfolio: portfolio ?? undefined,
   });
 
   // Same gating as /c/[username] (the canonical page) — this route feeds the
