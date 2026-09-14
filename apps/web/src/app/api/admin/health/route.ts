@@ -18,8 +18,33 @@ import { isObservabilityEnabled } from '@/lib/observability';
  * APIs, and turning a status page into a billing line item is a bad trade.
  */
 
-/** Migrations whose absence changes behaviour, newest first. */
+/**
+ * Migrations whose absence changes behaviour, newest first.
+ *
+ * Every RPC listed here must stay callable with ZERO arguments — see the probe
+ * loop below for why. That rules out most of the write RPCs (record_stage_signoff,
+ * propose_project, reveal_business_contact, accept_campaign_application and
+ * friends all take required arguments), so where a migration ships both a table
+ * and a function, the table is the probe. A few migrations are deliberately not
+ * probed at all because they create nothing selectable: 148 only adds an
+ * existing table to a publication, and 144/147 alter columns on tables that
+ * already existed, so a probe would report "applied" either way. A probe that
+ * cannot fail is worse than no probe.
+ */
 const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: 'rpc' | 'table' }[] = [
+  { migration: '146', label: 'Test-run sessions', probe: 'report_test_sessions', kind: 'table' },
+  { migration: '142', label: 'Re-engagement nudges', probe: 'nudge_candidates', kind: 'rpc' },
+  { migration: '138', label: 'Free-tier ceilings', probe: 'get_entitlements', kind: 'rpc' },
+  { migration: '137', label: 'Runtime feature flags', probe: 'feature_flags', kind: 'table' },
+  { migration: '135', label: 'Tax invoice numbering', probe: 'invoice_number_counters', kind: 'table' },
+  { migration: '126', label: 'Campaign applications', probe: 'campaign_applications', kind: 'table' },
+  { migration: '125', label: 'Campaigns', probe: 'campaigns', kind: 'table' },
+  { migration: '124', label: 'Project documents', probe: 'project_documents', kind: 'table' },
+  { migration: '123', label: 'Saved items', probe: 'saved_items', kind: 'table' },
+  { migration: '118', label: 'Report remarks', probe: 'report_remarks', kind: 'table' },
+  { migration: '116', label: 'Profile link clicks', probe: 'get_profile_link_reach', kind: 'rpc' },
+  { migration: '115', label: 'Billing foundation', probe: 'billing_settings', kind: 'table' },
+  { migration: '113', label: 'Collaboration & view stats', probe: 'get_profile_view_stats', kind: 'rpc' },
   { migration: '109', label: 'Rate-limit visibility', probe: 'rate_limit_stats', kind: 'table' },
   { migration: '108', label: 'Admin user activity', probe: 'admin_get_user_activity', kind: 'rpc' },
   { migration: '099', label: 'Live activity feed', probe: 'get_platform_activity', kind: 'rpc' },
