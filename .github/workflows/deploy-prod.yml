@@ -1,16 +1,39 @@
 name: Deploy to Production (Azure)
 
-# NOTE ON MIGRATIONS — there is deliberately no `supabase db push` here.
+# ── Rewritten 2026-09-14. The previous version could not have worked. ──────
 #
-# As of 2026-08-04 this workflow's app tier and the staging tier point at the
-# SAME Supabase project (aokdansyqxracuwsosji), so deploy-staging.yml has
-# already applied every pending migration by the time anything reaches `main`.
-# Adding a second push here would be a no-op at best.
+# It had never fired (there is no `main` on origin), so nothing in it was ever
+# exercised. Four defects, in rough order of severity:
 #
-# When production is split onto its own database, this workflow needs its own
-# migrate job — and unlike dev/staging it should stay gated behind the
-# `environment: production` approval below, because at that point the target
-# really is customer data.
+#  1. IT PROMOTED THE STAGING IMAGE. NEXT_PUBLIC_* values are inlined into the
+#     browser bundle at BUILD time, so the staging image's bundle points at the
+#     staging Supabase project permanently. Promoting it to production would
+#     have put real users' browsers on staging's database while the server half
+#     talked to production's — the single worst outcome available. Production
+#     must BUILD, with its own build args. That is why this file no longer has
+#     a promote step.
+#
+#  2. It pulled `influnet-web:staging-latest`, a tag nothing has ever pushed.
+#     deploy-staging.yml tags by `github.sha` only, so the first command would
+#     have failed on a missing manifest.
+#
+#  3. It deployed to Azure App Service (`azure/webapps-deploy`) while dev and
+#     staging both run on Container Apps. Different product, different secret
+#     (`AZURE_APP_SERVICE_PROD_NAME`) that does not exist.
+#
+#  4. It set NO runtime environment variables. Per AGENTS.md this is the
+#     documented way to boot a container that throws in `register()` before
+#     serving a request, which Azure's ingress then reports as a bare 500 on
+#     every path — reading exactly like a bad image or a wrong port.
+#
+# It also ran smoke tests without waiting for the revision to serve traffic,
+# so a pass would have been testing the OLD revision.
+#
+# ── Still untested, and honest about it ───────────────────────────────────
+# Nothing here has run. It cannot run until HANDOVER P0.1–P0.4 exist: `main`
+# on origin, the production Supabase project, the production Container App,
+# and the `production` GitHub Environment. What this commit buys is that the
+# first attempt fails for real reasons rather than on line 1.
 
 on:
   push:
@@ -19,45 +42,254 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/**'
+      - 'supabase/migrations/**'
       - '.github/workflows/deploy-prod.yml'
       - 'package.json'
       - 'package-lock.json'
       - 'turbo.json'
+  workflow_dispatch: {}
+
+env:
+  ACR_LOGIN_SERVER: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+  ACR_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+  ACR_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+  CONTAINER_APP_NAME: "influnet-prod"
+  RESOURCE_GROUP: "influnet-rg"
+  IMAGE_NAME: "influnet-web-prod"
+  # Two URLs, same reasoning as dev/staging: the container origin always
+  # resolves, so a failed health check means the app is down rather than DNS
+  # or the certificate being wrong.
+  APP_CONTAINER_URL: ${{ vars.PROD_CONTAINER_URL }}
+  NEXT_PUBLIC_APP_URL: "https://influnet.io"
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
 
 jobs:
-  promote-and-deploy:
-    name: Promote Staging Image & Deploy to Production
+  # Schema first, app second — same ordering as dev/staging, and for the same
+  # reason: migrations here are additive, so the OLD app keeps working against
+  # the NEW schema for the minute between the two jobs. The reverse order runs
+  # new code against a schema that has not caught up.
+  #
+  # Unlike dev/staging this job is gated behind `environment: production`,
+  # which is where GitHub's manual approval applies. At this point the target
+  # is real customer data and a migration is not something to apply on a push.
+  migrate:
+    name: Apply pending migrations to the production database
     runs-on: ubuntu-latest
-    environment: production # Triggers manual approval gating in GitHub
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_PROD_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Log in to Azure
+      # Refuse rather than silently migrate the wrong database. Without this,
+      # an unset PROJECT_REF in a fresh environment would make `supabase link`
+      # fail with something far less obvious — and a WRONG one would migrate
+      # staging while the log said production.
+      - name: Refuse to run against an unknown project
+        run: |
+          if [ -z "$PROJECT_REF" ]; then
+            echo "::error::vars.SUPABASE_PROJECT_REF is empty in the 'production' environment."
+            exit 1
+          fi
+          if [ "$PROJECT_REF" = "aokdansyqxracuwsosji" ]; then
+            echo "::error::PROJECT_REF points at the STAGING project. Production must have its own Supabase project (HANDOVER P0.2)."
+            exit 1
+          fi
+          echo "Migrating project: $PROJECT_REF"
+
+      # PINNED — see deploy-dev.yml. 2.112.0 broke `supabase link`.
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      - name: Link to the production project
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Show migration state before applying
+        run: supabase migration list
+
+      - name: Apply pending migrations
+        run: supabase db push --include-all
+
+      - name: Confirm migration state after applying
+        run: supabase migration list
+
+  build-and-deploy:
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
+
+      # Fail fast and say why, rather than discovering it as a bare 500 five
+      # minutes later. Same guard as dev/staging, plus one production-only
+      # check: these values must not be staging's.
+      - name: Check the production Supabase credentials are present
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          fail=0
+          [ -z "$SUPABASE_URL" ] && { echo "::error::vars.SUPABASE_URL is empty in the 'production' environment."; fail=1; }
+          [ -z "$ANON_KEY" ] && { echo "::error::vars.SUPABASE_ANON_KEY is empty in the 'production' environment."; fail=1; }
+          [ -z "$SERVICE_KEY" ] && { echo "::error::secrets.SUPABASE_SERVICE_ROLE_KEY is empty in the 'production' environment."; fail=1; }
+          case "$SERVICE_KEY" in
+            sbp_*) echo "::error::SUPABASE_SERVICE_ROLE_KEY is a management token (sbp_...), not a service-role JWT (eyJ...)."; fail=1 ;;
+          esac
+          case "$SUPABASE_URL" in
+            *aokdansyqxracuwsosji*) echo "::error::SUPABASE_URL points at the STAGING project. See HANDOVER P0.2."; fail=1 ;;
+          esac
+          [ -z "${{ env.APP_CONTAINER_URL }}" ] && { echo "::error::vars.PROD_CONTAINER_URL is empty — the health gate below has nothing to probe."; fail=1; }
+          [ "$fail" = "0" ] && echo "Production Supabase credentials present."
+          exit $fail
+
+      # Builder stage on its own, so source maps can be lifted out before the
+      # runner stage deletes them. Identical --build-arg list to the full build
+      # below, or the layer cache misses and this genuinely builds twice.
+      - name: Build the builder stage (for source maps)
+        run: |
+          docker build -f apps/web/Dockerfile --target builder \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ vars.SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ vars.SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ vars.STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ env.NEXT_PUBLIC_APP_URL }}" \
+            --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ vars.PHONE_OTP_ENABLED }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
+            --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_RELEASE="${{ github.sha }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_KEY="${{ vars.POSTHOG_KEY }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_HOST="${{ vars.POSTHOG_HOST }}" \
+            -t influnet-web-builder:${{ github.sha }} .
+
+      - name: Upload source maps to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          scripts/upload-sentry-sourcemaps.sh \
+            influnet-web-builder:${{ github.sha }} \
+            ${{ github.sha }}
+
+      # BUILDS, never promotes. See the header: the staging image has staging's
+      # Supabase URL baked into its browser bundle and can never be production.
+      - name: Build and Push Docker Image
+        run: |
+          docker build -f apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ vars.SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ vars.SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ vars.STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ env.NEXT_PUBLIC_APP_URL }}" \
+            --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ vars.PHONE_OTP_ENABLED }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
+            --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_RELEASE="${{ github.sha }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_KEY="${{ vars.POSTHOG_KEY }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_HOST="${{ vars.POSTHOG_HOST }}" \
+            -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Log in to Azure Container Registry (ACR)
-        uses: azure/docker-login@v2
+      - name: Deploy to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
         with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          containerAppName: ${{ env.CONTAINER_APP_NAME }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          imageToDeploy: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          registryUrl: ${{ env.ACR_LOGIN_SERVER }}
+          registryUsername: ${{ env.ACR_USERNAME }}
+          registryPassword: ${{ env.ACR_PASSWORD }}
 
-      - name: Promote Staging Image to Production
+      # The duplication with the build args above is REQUIRED, not redundant.
+      # The build arg is what the browser bundle gets; the runtime var is what
+      # the server reads, because describeEnv() looks values up with
+      # process.env[k] — a dynamic lookup Next's build-time inlining cannot
+      # substitute. Miss these and instrumentation.ts throws in register()
+      # before the server accepts a request. See AGENTS.md.
+      #
+      # EMAIL_ALLOWLIST is set to a real value here, unlike dev. Production
+      # points at real users' addresses and an empty allowlist means "mail
+      # anyone" — which is correct for dev and dangerous here.
+      - name: Set Backend Environment Variables on Container App
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --set-env-vars \
+                "NEXT_PUBLIC_SUPABASE_URL=${{ vars.SUPABASE_URL }}" \
+                "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}" \
+                "SUPABASE_URL=${{ vars.SUPABASE_URL }}" \
+                "NEXT_PUBLIC_APP_URL=${{ env.NEXT_PUBLIC_APP_URL }}" \
+                "NEXT_PUBLIC_APP_ENV=production" \
+                "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+                "STREAM_API_KEY=${{ vars.STREAM_API_KEY }}" \
+                "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}" \
+                "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" \
+                "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" \
+                "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" \
+                "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" \
+                "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" \
+                "RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}" \
+                "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" \
+                "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
+                "EMAIL_ALLOWLIST=${{ vars.EMAIL_ALLOWLIST }}" \
+                "EMAIL_TEST_SECRET=${{ secrets.EMAIL_TEST_SECRET }}" \
+                "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
+                "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
+                "SENTRY_RELEASE=${{ github.sha }}" \
+                "NEXT_PUBLIC_POSTHOG_KEY=${{ vars.POSTHOG_KEY }}" \
+                "NEXT_PUBLIC_POSTHOG_HOST=${{ vars.POSTHOG_HOST }}" \
+                "UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" \
+                "UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" \
+                "APP_ENV=production" \
+                "PHONE_OTP_ENABLED=${{ vars.PHONE_OTP_ENABLED }}" \
+                "NOTIFY_EMAILS_ENABLED=${{ vars.NOTIFY_EMAILS_ENABLED }}" \
+                "SUBSCRIPTIONS_ENABLED=${{ vars.SUBSCRIPTIONS_ENABLED }}" \
+                "OWNERSHIP_GATE_ENABLED=${{ vars.OWNERSHIP_GATE_ENABLED }}"
+
+      # Before the smoke tests, not after. The previous version tested
+      # immediately after asking for a deploy, so a pass proved the OLD
+      # revision was healthy.
+      - name: Wait for the new revision to serve traffic
         run: |
-          docker pull ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:staging-latest
-          docker tag ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:staging-latest ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-${{ github.sha }}
-          docker tag ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:staging-latest ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-latest
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-${{ github.sha }}
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-latest
-
-      - name: Deploy to Azure App Service (Production)
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ secrets.AZURE_APP_SERVICE_PROD_NAME }}
-          images: '${{ secrets.ACR_LOGIN_SERVER }}/influnet-web:prod-${{ github.sha }}'
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 10 "${{ env.APP_CONTAINER_URL }}/api/health" > /dev/null; then
+              echo "Healthy after ${i} attempt(s)."
+              exit 0
+            fi
+            echo "Not ready yet (attempt ${i}/30); retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::Revision did not become healthy within 5 minutes."
+          exit 1
 
       - name: Run Smoke Tests
-        run: node scripts/smoke.mjs ${{ secrets.PRODUCTION_APP_URL }}
+        env:
+          SMOKE_CREATOR: ${{ vars.SMOKE_CREATOR_USERNAME }}
+        run: |
+          ARGS=""
+          [ -n "$SMOKE_CREATOR" ] && ARGS="$ARGS --creator $SMOKE_CREATOR"
+          node scripts/smoke.mjs "${{ env.APP_CONTAINER_URL }}" $ARGS
