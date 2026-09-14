@@ -157,6 +157,8 @@ jobs:
             --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
             --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
             --build-arg NEXT_PUBLIC_SENTRY_RELEASE="${{ github.sha }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_KEY="${{ vars.POSTHOG_KEY }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_HOST="${{ vars.POSTHOG_HOST }}" \
             -t influnet-web-builder:${{ github.sha }} .
 
       # Runs on every deploy; no-ops with a log line until the three Sentry
@@ -172,6 +174,14 @@ jobs:
             influnet-web-builder:${{ github.sha }} \
             ${{ github.sha }}
 
+      # PostHog is a `vars.` variable, not a `secrets.` one, for the same reason
+      # SUPABASE_ANON_KEY is: a PostHog project key (phc_...) is designed to sit
+      # in the browser bundle, so hiding it buys nothing and makes it harder to
+      # confirm at a glance. Both are passed as a BUILD arg (what the browser
+      # gets) and a RUNTIME var (what /api/admin/health reads to tell you
+      # whether analytics is on) — see the note on the env-var step below for
+      # why that duplication is not redundant. Unset is fine: with no key,
+      # lib/analytics.ts never loads posthog-js and nothing is sent.
       - name: Build and Push Docker Image
         run: |
           docker build -f apps/web/Dockerfile \
@@ -183,6 +193,8 @@ jobs:
             --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
             --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
             --build-arg NEXT_PUBLIC_SENTRY_RELEASE="${{ github.sha }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_KEY="${{ vars.POSTHOG_KEY }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_HOST="${{ vars.POSTHOG_HOST }}" \
             -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
           docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
@@ -284,6 +296,8 @@ jobs:
                 "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
                 "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
                 "SENTRY_RELEASE=${{ github.sha }}" \
+                "NEXT_PUBLIC_POSTHOG_KEY=${{ vars.POSTHOG_KEY }}" \
+                "NEXT_PUBLIC_POSTHOG_HOST=${{ vars.POSTHOG_HOST }}" \
                 "APP_ENV=dev" \
                 "PHONE_OTP_ENABLED=${{ vars.PHONE_OTP_ENABLED }}" \
                 "NOTIFY_EMAILS_ENABLED=${{ vars.NOTIFY_EMAILS_ENABLED }}" \
