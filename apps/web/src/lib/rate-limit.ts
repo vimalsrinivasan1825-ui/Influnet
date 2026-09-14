@@ -16,6 +16,7 @@
  *   if (limited) return limited;
  */
 import { NextResponse } from 'next/server';
+import { captureException } from './observability';
 import { jsonError } from './api';
 import { recordRateLimitHit } from './rate-limit-log';
 
@@ -101,13 +102,44 @@ export async function checkRateLimit(opts: {
   key: string;
   limit: number;
   windowMs: number;
+  /**
+   * Fail CLOSED when the distributed store is configured but unreachable.
+   *
+   * The default (fail to the local counter) is right for abuse guards: a
+   * limiter is a cost control, not an auth control, and locking every user out
+   * because Upstash blipped is a worse outcome than briefly allowing more
+   * requests than intended.
+   *
+   * It is the wrong default for MONEY. The local fallback is per-instance, so
+   * with N replicas the effective limit becomes N× what was asked for — and
+   * "we accidentally allowed 10× the intended order-creation rate" is not a
+   * trade you want made silently on your behalf. On those buckets, refusing
+   * with a 429 the user can retry in a minute is strictly better.
+   *
+   * Only meaningful when Upstash is configured. With no distributed store at
+   * all there is nothing to be unreachable, and this changes nothing.
+   */
+  strict?: boolean;
 }): Promise<RateLimitResult> {
   const fullKey = `${opts.bucket}:${opts.key}`;
   const result = await (async () => {
     if (isDistributedRateLimit()) {
       try {
         return await upstashHit(fullKey, opts.limit, opts.windowMs);
-      } catch {
+      } catch (err) {
+        if (opts.strict) {
+          // Deliberate fail-closed. Reported, because a money limiter falling
+          // back is an infrastructure event, not a user event.
+          captureException(err, {
+            tags: { bucket: opts.bucket, rate_limit: 'strict_fail_closed' },
+          });
+          return {
+            ok: false,
+            remaining: 0,
+            limit: opts.limit,
+            resetAt: Date.now() + opts.windowMs,
+          } satisfies RateLimitResult;
+        }
         // Distributed store unreachable — fall back to the local floor rather
         // than fail open entirely.
         return memHit(fullKey, opts.limit, opts.windowMs);
@@ -162,10 +194,16 @@ export function clientKey(req: Request): string {
  */
 export async function enforceRateLimit(
   req: Request,
-  opts: { bucket: string; limit: number; windowMs: number; key?: string },
+  opts: { bucket: string; limit: number; windowMs: number; key?: string; strict?: boolean },
 ): Promise<NextResponse | null> {
   const key = opts.key ?? clientKey(req);
-  const result = await checkRateLimit({ bucket: opts.bucket, key, limit: opts.limit, windowMs: opts.windowMs });
+  const result = await checkRateLimit({
+    bucket: opts.bucket,
+    key,
+    limit: opts.limit,
+    windowMs: opts.windowMs,
+    strict: opts.strict,
+  });
   if (result.ok) return null;
 
   const retryAfter = Math.max(1, Math.ceil((result.resetAt - Date.now()) / 1000));

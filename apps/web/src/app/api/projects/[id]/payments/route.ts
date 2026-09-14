@@ -70,7 +70,17 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       return jsonError(503, 'In-app payments are not enabled. Record the payment manually (off-platform).');
     }
 
-    const limited = await enforceRateLimit(req, { bucket: 'payments:create', limit: 12, windowMs: 60_000, key: user.id });
+    // strict: this is the money path. If Upstash is configured but unreachable,
+    // refuse rather than drop to the per-instance counter — with N replicas
+    // that silently becomes an N× limit. A 429 the user retries in a minute is
+    // a far better failure than an unbounded order-creation rate.
+    const limited = await enforceRateLimit(req, {
+      bucket: 'payments:create',
+      limit: 12,
+      windowMs: 60_000,
+      key: user.id,
+      strict: true,
+    });
     if (limited) return limited;
 
     const { id } = await context.params;
