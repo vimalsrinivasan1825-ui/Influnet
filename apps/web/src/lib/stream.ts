@@ -1,4 +1,6 @@
 import { StreamChat } from 'stream-chat';
+import { vendorEnabled } from './feature-flags';
+import { withBreaker } from './circuit-breaker';
 
 let serverClient: StreamChat | null = null;
 
@@ -21,6 +23,13 @@ export function getStreamClient(): StreamChat {
  * Call this server-side when a user needs to chat.
  */
 export async function ensureStreamUser(userId: string, name?: string | null) {
+  if (!vendorEnabled('vendor_stream')) {
+    throw new Error('Chat is temporarily unavailable');
+  }
+  return withBreaker('stream', () => ensureStreamUserRequest(userId, name));
+}
+
+async function ensureStreamUserRequest(userId: string, name?: string | null) {
   const client = getStreamClient();
 
   // Never overwrite a good display name with the raw UUID. Callers that don't

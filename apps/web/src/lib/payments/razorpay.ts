@@ -10,6 +10,8 @@
  * currency unit (paise for INR), per Razorpay's API.
  */
 import crypto from 'node:crypto';
+import { vendorEnabled } from '../feature-flags';
+import { withBreaker } from '../circuit-breaker';
 import { appEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
@@ -60,6 +62,32 @@ export async function createRazorpayOrder(params: {
     throw new RazorpayError(400, 'Amount must be a positive integer in paise');
   }
 
+  if (!vendorEnabled('vendor_razorpay')) {
+    // Operator-driven stop. Deliberate, durable, and reported as a 503 rather
+    // than a hang — a user retrying in five minutes is a far better outcome
+    // than a spinner that never resolves.
+    throw new RazorpayError(503, 'Payments are temporarily paused');
+  }
+
+  return withBreaker(
+    'razorpay',
+    () => createOrderRequest(params),
+    {
+      // A 4xx means OUR request was malformed. Counting it would let a bug in
+      // our own code trip the breaker and take payments down — the breaker is
+      // for "the vendor is unwell", not "we sent nonsense".
+      shouldCount: (err) => !(err instanceof RazorpayError && err.status >= 400 && err.status < 500),
+    },
+  );
+}
+
+/** The bare HTTP call, wrapped by createRazorpayOrder above. */
+async function createOrderRequest(params: {
+  amount: number;
+  currency?: string;
+  receipt?: string;
+  notes?: Record<string, string>;
+}): Promise<RazorpayOrder> {
   const res = await fetch('https://api.razorpay.com/v1/orders', {
     method: 'POST',
     headers: { Authorization: basicAuth(), 'Content-Type': 'application/json' },

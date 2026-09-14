@@ -8,6 +8,8 @@
 // SERVER-ONLY: APIFY_TOKEN must never reach the client.
 
 import { logger } from '../logger';
+import { vendorEnabled } from '../feature-flags';
+import { withBreaker } from '../circuit-breaker';
 import { SocialProviderError, type SocialPlatform } from './types';
 
 const APIFY_BASE = 'https://api.apify.com/v2';
@@ -55,6 +57,26 @@ export async function runActor(
   if (!token) {
     throw new SocialProviderError(platform, 'unauthorized', 'APIFY_TOKEN is not configured');
   }
+
+  // Operator kill switch, then the breaker. Scraping is the most expendable
+  // thing this app does — every caller already treats "no data" as normal —
+  // so it is the first thing to take out of the request path when it misbehaves.
+  if (!vendorEnabled('vendor_apify')) {
+    // 'network' rather than a new kind: it means "we did not reach the vendor",
+    // which is true, and every caller already degrades on it. A new kind would
+    // have to be handled at every switch that consumes these.
+    throw new SocialProviderError(platform, 'network', 'Scraping is temporarily disabled');
+  }
+
+  return withBreaker('apify', () => runActorRequest(platform, actor, input, token));
+}
+
+async function runActorRequest(
+  platform: SocialPlatform,
+  actor: string,
+  input: Record<string, unknown>,
+  token: string,
+): Promise<any[]> {
 
   const url = `${APIFY_BASE}/acts/${actor}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}`;
   const controller = new AbortController();

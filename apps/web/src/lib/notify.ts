@@ -1,5 +1,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { fetchWithTimeout, TIMEOUT } from './fetch-timeout';
+import { vendorEnabled } from './feature-flags';
+import { withBreaker } from './circuit-breaker';
 import { deliverEmail } from './email/policy';
 import type { EmailCategory, TemplateId } from './email/templates';
 
@@ -125,10 +127,13 @@ async function sendPush(
     const token = (data as { expo_push_token?: string | null } | null)?.expo_push_token;
     if (!token) return;
 
-    // Deadline: Expo is a best-effort side channel. A hung push must not hold
-    // the request that triggered it — the user's actual action already
-    // succeeded by this point.
-    const res = await fetchWithTimeout('https://exp.host/--/api/v2/push/send', {
+    // Push is a best-effort side channel: the user's action already succeeded
+    // by this point, so neither the kill switch nor the breaker nor a deadline
+    // may hold up the request that triggered it.
+    if (!vendorEnabled('vendor_expo_push')) return;
+
+    const res = await withBreaker('expo_push', () =>
+      fetchWithTimeout('https://exp.host/--/api/v2/push/send', {
       timeoutMs: TIMEOUT.PUSH,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -148,7 +153,8 @@ async function sendPush(
         // lib/notification-link.ts's toMobileHref().
         data: link ? { link } : undefined,
       }),
-    });
+      }),
+    );
     if (!res.ok) {
       console.error('[notify] Expo push request failed:', res.status, await res.text().catch(() => ''));
       return;

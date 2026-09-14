@@ -1,4 +1,6 @@
 import { Resend } from 'resend';
+import { vendorEnabled } from '../feature-flags';
+import { withBreaker, isCircuitOpen } from '../circuit-breaker';
 import { supportEmail } from './theme';
 import { flag } from '../feature-flags';
 
@@ -92,6 +94,15 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
     return { sent: false, reason: 'not_allowlisted' };
   }
 
+  // Separate from emailsEnabled() above on purpose. That one is the PRODUCT
+  // decision ("should this app email people"); this is the OPERATIONAL one
+  // ("is Resend healthy right now"). Keeping them apart means pausing the
+  // vendor for an hour does not quietly lose the product setting.
+  if (!vendorEnabled('vendor_resend')) {
+    console.info('[email] skipped — vendor_resend is switched off', { subject: input.subject });
+    return { sent: false, reason: 'disabled' };
+  }
+
   const api = resend();
   if (!api) {
     console.warn('[email] RESEND_API_KEY missing — nothing sent');
@@ -111,7 +122,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
   }
 
   try {
-    const { data, error } = await api.emails.send({
+    const { data, error } = await withBreaker('resend', () => api.emails.send({
       from: fromAddress(),
       to: [input.to],
       subject: input.subject,
@@ -126,7 +137,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
             value: String(value).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 256),
           }))
         : undefined,
-    });
+    }));
 
     if (error) {
       console.error('[email] Resend rejected the send:', error.message);
@@ -135,6 +146,14 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
     return { sent: true, id: data?.id ?? null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown error';
+    if (isCircuitOpen(err)) {
+      // Not an exception worth an error line — the breaker is working as
+      // designed and we deliberately did not call. Says so plainly, because
+      // "exception while sending" for a call we never made is misleading at
+      // 2am.
+      console.warn('[email] skipped — Resend circuit is open', { subject: input.subject });
+      return { sent: false, reason: 'error', error: message };
+    }
     console.error('[email] exception while sending:', message);
     return { sent: false, reason: 'error', error: message };
   }

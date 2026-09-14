@@ -10,6 +10,8 @@
 // so verification-live.ts can consume either provider without branching.
 
 import { logger } from './logger';
+import { vendorEnabled } from './feature-flags';
+import { withBreaker } from './circuit-breaker';
 import {
   HikerApiError,
   normalizeHandle,
@@ -69,6 +71,19 @@ export async function getInstagramUser(username: string): Promise<HikerInstagram
 
   const token = process.env.APIFY_TOKEN?.trim();
   if (!token) throw new HikerApiError('unauthorized', 'APIFY_TOKEN is not configured');
+
+  if (!vendorEnabled('vendor_apify')) {
+    // 'network' — see the note in social/apify.ts for why not a new kind.
+    throw new HikerApiError('network', 'Instagram lookups are temporarily disabled');
+  }
+
+  return withBreaker('apify', () => getInstagramUserRequest(handle, token));
+}
+
+async function getInstagramUserRequest(
+  handle: string,
+  token: string,
+): Promise<HikerInstagramUser | null> {
 
   const url = `${APIFY_BASE}/acts/${ACTOR}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}`;
   const controller = new AbortController();
