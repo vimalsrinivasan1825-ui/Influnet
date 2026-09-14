@@ -92,14 +92,22 @@ async function main() {
   });
 
   await runner.step('Step 2 → Continue to Step 3 (Profile)', page, async ({ note }) => {
-    // KNOWN APP BUG (see final report): use-username-availability.ts treats
-    // any non-2xx /api/auth/check-username response as "taken" instead of
-    // "error" (jsonError() bodies have no `available`/`valid` keys, so the
-    // hook's `else` branch fires). A transient network blip (observed live:
-    // ECONNRESET talking to Supabase) permanently disables "Continue" with a
-    // false "username taken" message. Retrying re-fires the debounced check,
-    // which succeeds once the transient condition clears — this keeps the
-    // audit moving without patching the app's source mid-audit.
+    // WAS a known app bug; FIXED, and this comment corrected 2026-09-14.
+    //
+    // use-availability.ts used to treat any non-2xx /api/auth/check-username
+    // response as "taken" rather than "error", so a transient blip (observed
+    // live: ECONNRESET talking to Supabase) permanently disabled "Continue"
+    // behind a false "username taken".
+    //
+    // Both halves are now correct: the hook returns 'error' for a non-2xx or
+    // a body with no boolean `available`, and signup/influencer treats
+    // 'error' as OK to proceed (`usernameOk` accepts it) because the server
+    // validates the username again on submit anyway.
+    //
+    // The retry stays, but it is now ordinary flakiness tolerance rather than
+    // a workaround for a known defect — a real regression here would fail all
+    // three attempts. Saying which it is matters: a stale "KNOWN BUG" comment
+    // is how a passing suite starts lying about what it proves.
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         await clickWhenEnabled(page, 'Continue', { timeout: 12000 });
