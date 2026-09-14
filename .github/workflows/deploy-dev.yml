@@ -148,6 +148,7 @@ jobs:
             --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ vars.PHONE_OTP_ENABLED }}" \
             --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
             --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_RELEASE="${{ github.sha }}" \
             -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
           docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
@@ -248,6 +249,7 @@ jobs:
                 "EMAIL_TEST_SECRET=${{ secrets.EMAIL_TEST_SECRET }}" \
                 "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
                 "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
+                "SENTRY_RELEASE=${{ github.sha }}" \
                 "APP_ENV=dev" \
                 "PHONE_OTP_ENABLED=${{ vars.PHONE_OTP_ENABLED }}" \
                 "NOTIFY_EMAILS_ENABLED=${{ vars.NOTIFY_EMAILS_ENABLED }}" \

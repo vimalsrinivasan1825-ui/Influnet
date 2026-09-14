@@ -13,6 +13,15 @@
 
 const RAW_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
+/**
+ * Which build this event came from — the deploy's git SHA, inlined at build
+ * time because the browser bundle cannot read a runtime env var. The server
+ * half reads `SENTRY_RELEASE` from the live process instead; both are set to
+ * the same `github.sha` by the deploy workflows, so a browser error and the
+ * server error it caused land on the same release in Sentry.
+ */
+const RELEASE = process.env.NEXT_PUBLIC_SENTRY_RELEASE || undefined;
+
 function parseDsn(dsn: string): string | null {
   try {
     const u = new URL(dsn);
@@ -120,6 +129,7 @@ export function captureBrowserError(
       platform: 'javascript',
       level: 'error',
       environment: process.env.NEXT_PUBLIC_APP_ENV || 'unknown',
+      release: RELEASE,
       request: { url: safeUrl() },
       exception: {
         values: [
