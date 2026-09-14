@@ -33,6 +33,7 @@ import {
   CreditCard,
   Sparkles,
   type LucideIcon,
+  PlugZap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -74,6 +75,9 @@ const ADMIN_NAV: NavItem[] = [
   { label: "Live activity", href: "/dashboard/admin/activity", icon: Activity },
   { label: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
   { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
+  // Next to System health on purpose: that screen says whether WE are well,
+  // this one says whether the people we depend on are.
+  { label: "Vendors", href: "/dashboard/admin/vendors", icon: PlugZap },
   { label: "Rate limits", href: "/dashboard/admin/rate-limits", icon: Gauge },
   { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
   { label: "Campaigns", href: "/dashboard/admin/campaigns", icon: Sparkles },
