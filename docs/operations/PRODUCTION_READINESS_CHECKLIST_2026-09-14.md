@@ -23,8 +23,8 @@ never put into the deploy pipeline, alerts that nobody configured, and a
 restore that was never tested. The genuine *engineering* gap is different and
 narrower than you'd expect: **fault isolation**. Composite endpoints use
 `Promise.all` 20 times and `Promise.allSettled` zero times, roughly half of
-outbound HTTP calls have no timeout, and every feature switch is an environment
-variable — which means you cannot turn a broken module off without a redeploy.
+outbound HTTP calls have no timeout, and the runtime kill switch that does exist
+(migration 137) covers four product flags but none of the third parties.
 
 ---
 
@@ -74,20 +74,27 @@ vendor did.
 
 **Fix shape:** every outbound call gets an explicit deadline. No exceptions.
 
-### 2.3 No runtime kill switch
-Flags live in `apps/web/src/lib/feature-flags.ts` and read `process.env`:
-`PHONE_OTP_ENABLED`, `NOTIFY_EMAILS_ENABLED`, `SUBSCRIPTIONS_ENABLED`,
-`OWNERSHIP_GATE_ENABLED`. Turning one off requires a redeploy; the
-`NEXT_PUBLIC_` ones require a full **rebuild** (see AGENTS.md — inlining is
-frozen at build time, server-side too).
+### 2.3 The runtime kill switch exists, but only covers four product flags
+*Corrected 2026-09-14 — an earlier draft of this document said there was no
+runtime kill switch at all. That was wrong, and the correction matters because
+it makes this a much smaller job than it first looked.*
 
-So at 2am, when Apify is down and the verification flow is throwing, you cannot
-switch it off. You can only redeploy — which is the one thing you least want to
-do while something is already broken.
+`public.feature_flags` (migration **137**) is already the authoritative source
+for `phone_otp`, `notify_emails`, `subscriptions` and `ownership_gate`.
+`apps/web/src/lib/feature-flags.ts` keeps a process-wide snapshot on a 45s TTL,
+falls back to the env var when a key has no row and to `false` when there is no
+env var either, treats a missing table as "not an error", and exposes
+`flagSources()` so you can see whether a value came from the row, the env or the
+default. `deploy-dev.yml` documents the whole arrangement. Flip a boolean in the
+dev Supabase project and the app picks it up in about 45 seconds, no deploy.
 
-**Fix shape:** a `runtime_flags` table read server-side with a short cache,
-served through an endpoint like the existing `/api/auth/config` precedent. This
-is the break-glass mechanism HANDOVER Part 2 assumes you have.
+So the mechanism is built, correct, and live. What it does **not** cover is the
+third parties: there is no row you can flip when Apify starts timing out,
+Razorpay is refusing, Stream is down or Resend is bouncing. That is the 2am
+scenario, and it is still a redeploy today.
+
+**Fix shape:** add integration keys to the existing table and check them at each
+outbound boundary. Extending something proven, not building a system.
 
 ### 2.4 No circuit breakers
 When a third party is failing, every request still tries it, waits, and fails.
@@ -151,9 +158,11 @@ passwords, billing). 💻 = a developer task.
 - [ ] **1.2 💻 Put a deadline on every outbound call.** One shared
       `fetchWithTimeout` helper; audit all 29 `fetch(` sites. Suggested: 5s for
       Razorpay/Stream, 10s for Apify/scrapers, 3s for Resend.
-- [ ] **1.3 💻 Build the runtime flag table** (`runtime_flags`) + a cached
-      server read + an admin toggle screen. Migrate the four existing flags onto
-      it, keeping env vars as the fallback default.
+- [ ] **1.3 💻 Extend the existing `feature_flags` table (137) to the third
+      parties** — apify, razorpay, stream, resend — and check the flag at each
+      outbound boundary. The table, the 45s snapshot and the env fallback are
+      already built and live; this adds rows and call sites, not a system. An
+      admin toggle screen on top of it is the other half.
 - [ ] **1.4 💻 Add a simple circuit breaker** per third party: N consecutive
       failures → skip the call and return the degraded path for M seconds.
 - [ ] **1.5 💻 Review every fail-open default** and decide each deliberately,
