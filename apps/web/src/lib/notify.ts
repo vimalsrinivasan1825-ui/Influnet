@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { fetchWithTimeout, TIMEOUT } from './fetch-timeout';
 import { deliverEmail } from './email/policy';
 import type { EmailCategory, TemplateId } from './email/templates';
 
@@ -124,7 +125,11 @@ async function sendPush(
     const token = (data as { expo_push_token?: string | null } | null)?.expo_push_token;
     if (!token) return;
 
-    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+    // Deadline: Expo is a best-effort side channel. A hung push must not hold
+    // the request that triggered it — the user's actual action already
+    // succeeded by this point.
+    const res = await fetchWithTimeout('https://exp.host/--/api/v2/push/send', {
+      timeoutMs: TIMEOUT.PUSH,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({

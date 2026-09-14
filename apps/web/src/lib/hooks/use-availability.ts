@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchWithTimeout, TIMEOUT } from '../fetch-timeout';
 import { isValidIndianPhone } from '@influnet/core';
 
 export type AvailabilityStatus =
@@ -34,7 +35,7 @@ export function useUsernameAvailability(username: string, debounceMs = 450): Ava
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(value)}`);
+        const res = await fetchWithTimeout(`/api/auth/check-username?username=${encodeURIComponent(value)}`, { timeoutMs: TIMEOUT.INTERNAL });
         const data = (await res.json()) as { available?: boolean; valid?: boolean; reason?: string; };
         if (id !== requestId.current) return;
 
@@ -99,7 +100,7 @@ export function useEmailAvailability(email: string, debounceMs = 600): Availabil
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/check-email?email=${encodeURIComponent(value)}`);
+        const res = await fetchWithTimeout(`/api/auth/check-email?email=${encodeURIComponent(value)}`, { timeoutMs: TIMEOUT.INTERNAL });
         const data = (await res.json()) as { available?: boolean; valid?: boolean; reason?: string; };
         if (id !== requestId.current) return;
 
@@ -163,7 +164,7 @@ export function useInstagramAvailability(handle: string, debounceMs = 600): Avai
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/check-instagram?handle=${encodeURIComponent(value)}`);
+        const res = await fetchWithTimeout(`/api/auth/check-instagram?handle=${encodeURIComponent(value)}`, { timeoutMs: TIMEOUT.INTERNAL });
         const data = (await res.json()) as { available?: boolean; valid?: boolean; reason?: string; };
         if (id !== requestId.current) return;
 
@@ -333,8 +334,11 @@ export function useSocialConnect(platform: string, handle: string): SocialConnec
 
     (async () => {
       try {
-        const res = await fetch(
+        // This one hits a scraper behind our own API, so it gets the longer
+        // budget — but it still gets one.
+        const res = await fetchWithTimeout(
           `/api/auth/social-preview?platform=${encodeURIComponent(platform)}&handle=${encodeURIComponent(value)}`,
+          { timeoutMs: TIMEOUT.SCRAPE },
         );
         if (id !== requestId.current) return;
 
@@ -406,7 +410,7 @@ export function usePhoneAvailability(phone: string, debounceMs = 600): Availabil
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/check-phone?phone=${encodeURIComponent(value)}`);
+        const res = await fetchWithTimeout(`/api/auth/check-phone?phone=${encodeURIComponent(value)}`, { timeoutMs: TIMEOUT.INTERNAL });
         const data = (await res.json()) as { available?: boolean; valid?: boolean; reason?: string; };
         if (id !== requestId.current) return;
 
@@ -469,7 +473,7 @@ export function useUsernameSuggestions(name: string, isUsernameEmpty: boolean, d
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/suggest-username?name=${encodeURIComponent(value)}`);
+        const res = await fetchWithTimeout(`/api/auth/suggest-username?name=${encodeURIComponent(value)}`, { timeoutMs: TIMEOUT.INTERNAL });
         const data = (await res.json()) as { suggestions?: string[] };
         if (id !== requestId.current) return;
         
