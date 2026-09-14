@@ -81,6 +81,17 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 
+# Source maps stop here.
+#
+# next.config.ts turns them on so the deploy can upload them to Sentry
+# (scripts/upload-sentry-sourcemaps.sh, which reads them out of the BUILDER
+# stage). Serving them as well would publish the original TypeScript to
+# anyone who opens devtools, so the deployed image carries none.
+#
+# `-exec rm` rather than `-delete`: busybox find on alpine does not carry
+# -delete in every build, and a silent failure here is a source leak.
+RUN find ./apps/web/.next -name '*.map' -type f -exec rm -f {} +
+
 USER nextjs
 
 EXPOSE 3000

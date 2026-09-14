@@ -132,6 +132,40 @@ jobs:
           exit $fail
 
       # Build-time: NEXT_PUBLIC_* vars are baked into the frontend JS
+      # The builder stage, on its own, so the source maps can be lifted out of
+      # it before the runner stage deletes them (see apps/web/Dockerfile).
+      #
+      # This is not a second build: the full build below is the SAME Dockerfile
+      # with the SAME build args, so every layer through `builder` comes back
+      # from Docker's layer cache. Keep the two argument lists identical — a
+      # difference in any one of them invalidates the cache and genuinely does
+      # build twice.
+      - name: Build the builder stage (for source maps)
+        run: |
+          docker build -f apps/web/Dockerfile --target builder \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ vars.SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ vars.SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ vars.STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ env.STAGING_PUBLIC_URL }}" \
+            --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="true" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
+            --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_RELEASE="${{ github.sha }}" \
+            -t influnet-web-builder:${{ github.sha }} .
+
+      # Runs on every deploy; no-ops with a log line until the three Sentry
+      # values exist. The auth token stays in this step's environment and
+      # never reaches `docker build`, so it cannot land in an image layer.
+      - name: Upload source maps to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          scripts/upload-sentry-sourcemaps.sh \
+            influnet-web-builder:${{ github.sha }} \
+            ${{ github.sha }}
+
       - name: Build and Push Docker Image
         run: |
           docker build -f apps/web/Dockerfile \
