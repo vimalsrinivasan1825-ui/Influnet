@@ -41,6 +41,37 @@ export const FLAG_KEYS: readonly FlagKey[] = [
 ] as const;
 
 /**
+ * Vendor kill switches (migration 149).
+ *
+ * These live in the same table but obey the OPPOSITE default, and the
+ * difference is load-bearing:
+ *
+ *   a product flag  defaults to FALSE — turning a restriction on is deliberate
+ *   a vendor flag   defaults to TRUE  — a missing row must never silently
+ *                                        disable payments
+ *
+ * They are therefore read through `vendorEnabled()` and never through `flag()`,
+ * so the two defaults cannot be confused. Keeping them in one table is worth
+ * it: one place to look at 2am, one cache, one propagation delay.
+ */
+export type VendorKey =
+  | 'vendor_apify'
+  | 'vendor_hikerapi'
+  | 'vendor_razorpay'
+  | 'vendor_stream'
+  | 'vendor_resend'
+  | 'vendor_expo_push';
+
+export const VENDOR_KEYS: readonly VendorKey[] = [
+  'vendor_apify',
+  'vendor_hikerapi',
+  'vendor_razorpay',
+  'vendor_stream',
+  'vendor_resend',
+  'vendor_expo_push',
+] as const;
+
+/**
  * The env var each key falls back to. `phone_otp` accepts either name during
  * the transition off the build-time `NEXT_PUBLIC_` flag — the runtime
  * `PHONE_OTP_ENABLED` wins where both are set.
@@ -64,7 +95,7 @@ interface Row {
 
 const TTL_MS = 45_000;
 
-let snapshot: Partial<Record<FlagKey, boolean>> = {};
+let snapshot: Partial<Record<FlagKey | VendorKey, boolean>> = {};
 let fetchedAt = 0;
 let inflight: Promise<void> | null = null;
 
@@ -93,10 +124,11 @@ async function load(): Promise<void> {
       }
       return;
     }
-    const next: Partial<Record<FlagKey, boolean>> = {};
+    const next: Partial<Record<FlagKey | VendorKey, boolean>> = {};
+    const known = [...FLAG_KEYS, ...VENDOR_KEYS] as readonly string[];
     for (const row of (data ?? []) as Row[]) {
-      if ((FLAG_KEYS as readonly string[]).includes(row.key)) {
-        next[row.key as FlagKey] = row.enabled === true;
+      if (known.includes(row.key)) {
+        next[row.key as FlagKey | VendorKey] = row.enabled === true;
       }
     }
     snapshot = next;
@@ -166,4 +198,35 @@ export function flagSources(): Record<FlagKey, 'db' | 'env' | 'default'> {
 export async function explicitlyDisabled(): Promise<FlagKey[]> {
   await load();
   return FLAG_KEYS.filter((k) => snapshot[k] === false);
+}
+
+/**
+ * Is this third party allowed in the request path right now?
+ *
+ * Defaults to TRUE when there is no row, when the table is missing, and when
+ * the snapshot has not loaded yet. Every one of those is "we do not know", and
+ * the only safe answer to "should payments work?" when you do not know is yes.
+ * Turning a vendor off is always an explicit `enabled = false` row.
+ *
+ * Synchronous for the same reason `flag()` is: these are checked inline in
+ * request paths that are not async-friendly, and a stale-by-45s answer is
+ * fine for an operational switch.
+ */
+export function vendorEnabled(key: VendorKey): boolean {
+  maybeRefresh();
+  return snapshot[key] ?? true;
+}
+
+/** Every vendor switch's resolved state — for the admin screen. */
+export function allVendors(): Record<VendorKey, boolean> {
+  maybeRefresh();
+  const out = {} as Record<VendorKey, boolean>;
+  for (const key of VENDOR_KEYS) out[key] = snapshot[key] ?? true;
+  return out;
+}
+
+/** Vendors explicitly switched OFF right now. Empty is the healthy state. */
+export function disabledVendors(): VendorKey[] {
+  maybeRefresh();
+  return VENDOR_KEYS.filter((k) => snapshot[k] === false);
 }
