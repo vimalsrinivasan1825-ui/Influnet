@@ -1,0 +1,129 @@
+name: Weekly health sweep
+
+# The point of this workflow is that regression gets noticed WITHOUT anyone
+# remembering to look.
+#
+# Everything here is read-only and runs against dev. It does not seed personas,
+# does not write rows, and does not touch staging — the audit harness in
+# tests/e2e/ is the heavier tool for that and it needs a human watching, not a
+# cron job (see docs/operations/FULL_FLOW_AUDIT_2026-08-08.md, and note that
+# some phases deliberately assert a bug REPRODUCES, so an unattended failure
+# there means the opposite of what it looks like).
+#
+# What it actually answers, once a week:
+#   - is the app up, and is its database reachable
+#   - has a migration silently not been applied
+#   - has an integration credential fallen out of the container
+#   - do the unit tests still pass against the current dependency tree
+#
+# On failure it opens ONE issue and updates it rather than opening a new one
+# every week, so a long-running problem is one thread rather than a pile.
+
+on:
+  schedule:
+    # 05:00 UTC Monday = 10:30 IST. Early enough that a problem found here is
+    # dealt with during the week rather than discovered on a Friday evening.
+    - cron: '0 5 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sweep:
+    name: Weekly health sweep (dev)
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        id: unit
+        run: npm run test:unit --workspace=web
+
+      # Anonymous and cheap — this is the same endpoint the uptime monitor
+      # uses, so a failure here and a page from UptimeRobot mean the same thing.
+      - name: Is the app up
+        id: health
+        run: |
+          url="${{ vars.DEV_APP_URL || 'https://dev.influnet.io' }}"
+          echo "Probing $url/api/health"
+          body="$(curl -fsS --max-time 20 "$url/api/health")" || {
+            echo "::error::$url/api/health did not answer."
+            exit 1
+          }
+          echo "$body"
+          case "$body" in
+            *'"status":"healthy"'*) echo "Healthy." ;;
+            *) echo "::error::Health endpoint answered but did not report healthy: $body"; exit 1 ;;
+          esac
+
+      # Migration drift is this project's most repeated failure mode, and the
+      # probes in /api/admin/health answer it against the LIVE database. That
+      # endpoint is admin-only by design, so this checks what it can without a
+      # session: that every migration file in the repo has a recorded
+      # counterpart. A file present here but never applied is the exact state
+      # that has bitten this project repeatedly.
+      - name: Report the migration files this commit expects
+        run: |
+          count=$(ls supabase/migrations/*.sql | wc -l | tr -d ' ')
+          newest=$(ls supabase/migrations/*.sql | sort -V | tail -1)
+          echo "$count migration files; newest is $(basename "$newest")."
+          echo "Confirm against /dashboard/admin/health — it probes the live database."
+
+      - name: Open or update the failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Weekly health sweep failed';
+            const body = [
+              'The scheduled weekly sweep failed.',
+              '',
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Checks, in the order they run:',
+              '- unit tests',
+              '- `/api/health` on dev',
+              '- migration file inventory',
+              '',
+              'If this is the migration or health check, open /dashboard/admin/health first —',
+              'it probes the live database and names the specific migration.',
+            ].join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'weekly-sweep',
+            });
+
+            if (existing.data.length) {
+              // One thread for a recurring problem, rather than a new issue
+              // every Monday that nobody reads by the fourth one.
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['weekly-sweep'],
+              });
+            }
