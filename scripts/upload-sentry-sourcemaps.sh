@@ -73,6 +73,15 @@ fi
 
 echo "Uploading $MAP_COUNT source map(s) for release $RELEASE..."
 
+# `sourcemaps upload` (the modern artifact-bundle flow) associates a bundle
+# with a release STRING — it does not create the Release resource itself.
+# Skip this and `releases finalize` fails with "Release not found" even
+# though the upload above it succeeded (confirmed live on 2026-09-15: 84
+# maps uploaded fine, finalize errored, swallowed by `|| true` so the deploy
+# never noticed). `releases new` is idempotent — safe to call on a release
+# that already exists — so this always runs, not just on first deploy.
+npx --yes "$SENTRY_CLI" releases new "$RELEASE" || true
+
 # `~` means "any host", so one upload covers the container URL and the custom
 # domain both — which matters here because CI probes the azurecontainerapps.io
 # origin while real users arrive on dev.influnet.io.
