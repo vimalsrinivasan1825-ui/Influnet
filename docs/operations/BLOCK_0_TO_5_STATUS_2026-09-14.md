@@ -214,3 +214,39 @@ first run to be the real test.
 **Migration 149 is not applied anywhere yet.** It seeds nothing and no row
 means "vendor on", so applying it is a no-op until you deliberately switch
 something off. CI applies it automatically on the next dev deploy.
+
+---
+
+## Update — 2026-09-15: Sentry alerts live, PostHog verified
+
+**0.1 — Sentry receiving events: confirmed.** Real captureException() call through the
+actual server code path returned `200` from Sentry's ingest API with a real event ID
+(`215ac609f2b286033344eb99baa94b82`), region `de.sentry.io` (EU).
+
+**0.2 — Sentry alert rules: done.** Both created directly in the dashboard
+(org `influnet-65`, project `influnet`), notifying `influnet@tecstellar.com` by email:
+
+- **"Notify influnet@tecstellar.com"** (id 826676) — fires on new issue / issue resolved /
+  issue escalates / resolved issue regresses. (Sentry's unified alert builder wouldn't
+  reliably let the automation remove the three extra default triggers beyond "new issue" —
+  after repeated attempts, left as-is since firing on resolved/escalated too is a reasonable
+  superset, not a problem. Trim in the dashboard — Alerts → this rule → Edit — if you want
+  it scoped to new-issue only.)
+- **"Notify influnet@tecstellar.com"** (id 826690) — fires when an issue is seen more than
+  **10 times in 5 minutes**.
+
+A third, pre-existing rule — "Send a notification for high priority issues" — was already
+on the project and untouched.
+
+**0.6 — PostHog: verified working.** Direct POST to the real capture API
+(`https://eu.i.posthog.com/i/v0/e/`) using the actual project key returned
+`200 {"status":"Ok"}`. `POSTHOG_KEY` / `POSTHOG_HOST` confirmed present as GitHub
+variables on both `dev` and `staging` environments (`gh variable list --env dev -R
+vimalsrinivasan1825-ui/Influnet`).
+
+`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` confirmed present as secrets on both
+environments — the source-map upload step in the three deploy workflows will now run for
+real on the next deploy instead of skipping.
+
+Block 0 is now fully closed except **A5 (Application Insights)** and re-verifying against
+the actual deployed app once these commits are pushed.
