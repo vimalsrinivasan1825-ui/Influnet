@@ -250,3 +250,47 @@ real on the next deploy instead of skipping.
 
 Block 0 is now fully closed except **A5 (Application Insights)** and re-verifying against
 the actual deployed app once these commits are pushed.
+
+---
+
+## Update — 2026-09-16: staging adopted as production, not a separate tier
+
+**Decision (owner, not a default):** rather than standing up Block 2's separate
+production Supabase project / Container App / `main` branch, `staging` will
+serve real users directly. This supersedes Block 2 and Section C above — do
+not act on those; they describe a path that was deliberately not taken.
+
+What that decision changes, and what it does not:
+
+- **Branch protection on `staging` hardened** (done, via `gh api`): required PR
+  review (1 approval), stale reviews dismissed on new pushes, last-push
+  approval required, conversation resolution required, force-push and branch
+  deletion blocked. **Required status checks were deliberately NOT added** —
+  `CICD_INSTRUCTIONS_2026-08-06.md` §T7 documents that `ci.yml` does not run
+  against PRs into `staging`, so any required check listed here would never
+  report and every PR would hang at "Expected — waiting for status". If you
+  want real required checks on staging, a staging-scoped CI job needs to exist
+  first — ask for that separately, it wasn't done here.
+- **Migration 137's own comment already anticipated this**: "Staging is meant
+  to run all four [flags] ON at all times... instrumentation.ts refuses to
+  boot staging if any row here is explicitly false." Subscriptions-ON at
+  launch (owner decision, 2026-09-16) matches that design intent exactly —
+  nothing to reconcile.
+- **Legal pages (`apps/web/src/app/legal/legal-content.ts`) drafted**: every
+  *policy* placeholder (platform fee 10% at final payment, payout timing,
+  content licence, liability cap, refund rules, no pro-rata subscription
+  refunds) now has a specific draft, each still wrapped in `[[DRAFT — REVIEW
+  BEFORE PUBLISHING ...]]` so the page's own `unresolved()` guard keeps it
+  unpublished (noindex + banner) until a human clears each one. **Identity
+  facts were deliberately left untouched** — legal entity name, registered
+  address, GSTIN, grievance officer name/email — an agent cannot supply real
+  facts about your business, and guessing here would be actively wrong on a
+  page that takes money from strangers.
+- **What did NOT change**: nothing account-level. Sentry alert tuning is
+  already done (see 2026-09-15 update above). Still outstanding, all 👤-only:
+  Application Insights toggle, Supabase email-confirmation toggle, Razorpay
+  live credentials + one real rupee end-to-end, staging phone-OTP template
+  fix, a real restore drill, `feature_flags` row seeding on staging (needs a
+  service-role write — see migration 137's own seed snippet), and filling
+  `ACCESS_INVENTORY.md`. None of these are reachable without dashboard logins
+  this session doesn't have.
