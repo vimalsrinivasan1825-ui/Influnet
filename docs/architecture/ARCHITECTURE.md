@@ -606,17 +606,26 @@ On mount:
 
 ### 3.8 Admin Module
 
-**Purpose:** Platform administration — user management, business approval, data oversight.
+**Purpose:** Platform administration — user management, business approval, data oversight, split into dual tiers:
+1. **Business / Client Admin**: Non-technical platform operations (Overview, Live Activity, Platform Analytics, Approvals, Campaigns, Support & Queries, Reports, Feedback, Users, Projects, Requests).
+2. **Developer / Super Admin**: Unrestricted system administration with full access to internal developer infrastructure (System Health, Vendors & Circuit Breakers, Rate Limits, Email Delivery, Audit Trail, Issues & Fixes Tracker). Protected via `withSuperAdmin` API wrapper and client-side `<DeveloperGate>`.
 
 **Files:**
+- `src/lib/api.ts` — `withAdmin`, `withSuperAdmin`, `isSuperAdminEmail`
+- `src/components/dashboard/admin/developer-gate.tsx` — Client-side protection for developer tools
 - `src/app/api/admin/dashboard/route.ts` — Platform stats
+- `src/app/api/admin/health/route.ts` — System health & integration diagnostics (Developer only)
+- `src/app/api/admin/vendors/route.ts` — Third-party vendor circuit breakers & kill-switches (Developer only)
+- `src/app/api/admin/rate-limits/route.ts` — Rate limit monitoring & top callers (Developer only)
+- `src/app/api/admin/emails/route.ts` — Email delivery logs & preview test console (Developer only)
+- `src/app/api/admin/audit/route.ts` — Append-only security audit log (Developer only)
+- `src/app/api/admin/issues/route.ts` — Issue & bug fix tracking (Developer only)
 - `src/app/api/admin/businesses/route.ts` — List + approve/reject businesses
 - `src/app/api/admin/users/route.ts` — List all users with role data
 - `src/app/api/admin/projects/route.ts` — List + force-delete projects
 - `src/app/api/admin/collabs/route.ts` — List + force-delete + override collabs
-- `src/app/api/admin/seed/route.ts` — Create admin user (dev only)
-- `src/app/dashboard/admin/page.tsx` — Admin home dashboard
-- `src/app/dashboard/admin/approvals/page.tsx` — Business approval UI
+- `src/app/dashboard/admin/page.tsx` — Admin home dashboard (adapts for Super Admin vs Business Admin)
+- `src/app/dashboard/admin/approvals/page.tsx` — Verification & business approval UI
 - `src/app/dashboard/admin/users/page.tsx` — User management UI
 - `src/app/dashboard/admin/projects/page.tsx` — Project management UI
 - `src/app/dashboard/admin/collabs/page.tsx` — Collab management UI

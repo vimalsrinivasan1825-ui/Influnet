@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DeveloperGate } from "@/components/dashboard/admin/developer-gate";
 
 interface Vendor {
   key: string;
@@ -97,7 +98,8 @@ export default function AdminVendorsPage() {
   const degraded = (vendors ?? []).filter((v) => v.configured && !v.serving);
 
   return (
-    <div className="space-y-6">
+    <DeveloperGate>
+      <div className="space-y-6">
       <PageHeader
         title="Vendors"
         subtitle="Which third parties are in the request path right now, and why any of them are not."
@@ -223,5 +225,6 @@ export default function AdminVendorsPage() {
         </>
       )}
     </div>
+    </DeveloperGate>
   );
 }

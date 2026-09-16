@@ -34,34 +34,35 @@ import {
   Sparkles,
   type LucideIcon,
   PlugZap,
+  Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 import { useEntitlements } from "@/lib/hooks/use-entitlements";
 
-type NavItem = {
+interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
   badge?: "unread" | "pending";
-};
+}
 
 const CREATOR_NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard/home", icon: Home },
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
+  { label: "Explore Brands", href: "/dashboard/explore-brands", icon: Compass },
+  { label: "Find Campaigns", href: "/dashboard/campaigns/explore", icon: Sparkles },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
   { label: "Campaigns", href: "/dashboard/campaigns", icon: Sparkles },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
+  { label: "Profile", href: "/dashboard/profile", icon: UserRound },
   { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
 
 const BUSINESS_NAV: NavItem[] = [
-  { label: "Home", href: "/dashboard/home", icon: Home },
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
+  { label: "Discover Creators", href: "/dashboard/discover", icon: Compass },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
@@ -70,20 +71,32 @@ const BUSINESS_NAV: NavItem[] = [
   { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
 
-const ADMIN_NAV: NavItem[] = [
+/** Business / Client Admin: strictly non-technical platform operations */
+const BUSINESS_ADMIN_NAV: NavItem[] = [
+  { label: "Overview", href: "/dashboard/admin", icon: Shield },
+  { label: "Live activity", href: "/dashboard/admin/activity", icon: Activity },
+  { label: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
+  { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
+  { label: "Campaigns", href: "/dashboard/admin/campaigns", icon: Sparkles },
+  { label: "Support", href: "/dashboard/admin/support", icon: Inbox },
+  { label: "Reports", href: "/dashboard/admin/reports", icon: ShieldAlert },
+  { label: "Feedback", href: "/dashboard/admin/feedback", icon: MessageSquareHeart },
+  { label: "Users", href: "/dashboard/admin/users", icon: Users },
+  { label: "Projects", href: "/dashboard/admin/projects", icon: FolderKanban },
+  { label: "Requests", href: "/dashboard/admin/collabs", icon: Send },
+];
+
+/** Developer / Super Admin: full access including technical infrastructure */
+const DEV_ADMIN_NAV: NavItem[] = [
   { label: "Overview", href: "/dashboard/admin", icon: Shield },
   { label: "Live activity", href: "/dashboard/admin/activity", icon: Activity },
   { label: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
   { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
-  // Next to System health on purpose: that screen says whether WE are well,
-  // this one says whether the people we depend on are.
   { label: "Vendors", href: "/dashboard/admin/vendors", icon: PlugZap },
   { label: "Rate limits", href: "/dashboard/admin/rate-limits", icon: Gauge },
   { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
   { label: "Campaigns", href: "/dashboard/admin/campaigns", icon: Sparkles },
   { label: "Support", href: "/dashboard/admin/support", icon: Inbox },
-  // Reports had a working API since migration 056 and no screen at all — every
-  // harassment report filed by a user went into a table nobody could read.
   { label: "Reports", href: "/dashboard/admin/reports", icon: ShieldAlert },
   { label: "Feedback", href: "/dashboard/admin/feedback", icon: MessageSquareHeart },
   { label: "Users", href: "/dashboard/admin/users", icon: Users },
@@ -100,7 +113,7 @@ const ROLE_META: Record<
 > = {
   influencer: { label: "Creator", short: "C", nav: CREATOR_NAV, icon: Users },
   business_owner: { label: "Business", short: "B", nav: BUSINESS_NAV, icon: Building2 },
-  admin: { label: "Admin", short: "A", nav: ADMIN_NAV, icon: Shield },
+  admin: { label: "Admin", short: "A", nav: BUSINESS_ADMIN_NAV, icon: Shield },
 };
 
 function NavList({
@@ -182,9 +195,24 @@ function Brand({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-function RolePill({ role, collapsed }: { role: UserRole; collapsed: boolean }) {
+function RolePill({
+  role,
+  isSuperAdmin,
+  collapsed,
+}: {
+  role: UserRole;
+  isSuperAdmin?: boolean;
+  collapsed: boolean;
+}) {
   const meta = ROLE_META[role];
-  const Icon = meta.icon;
+  const Icon = role === "admin" && isSuperAdmin ? Terminal : meta.icon;
+  const label =
+    role === "admin"
+      ? isSuperAdmin
+        ? "Developer workspace"
+        : "Admin workspace"
+      : `${meta.label} workspace`;
+
   return (
     <div className="px-3 pt-3">
       {/* Brand-soft everywhere — the role color still differs (pink for
@@ -199,7 +227,7 @@ function RolePill({ role, collapsed }: { role: UserRole; collapsed: boolean }) {
         <Icon className="size-3.5 shrink-0" />
         {!collapsed && (
           <span className="text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
-            {meta.label} workspace
+            {label}
           </span>
         )}
       </div>
@@ -209,6 +237,7 @@ function RolePill({ role, collapsed }: { role: UserRole; collapsed: boolean }) {
 
 interface SidebarProps {
   role: UserRole;
+  isSuperAdmin?: boolean;
   unreadMessages?: number;
   pendingRequests?: number;
   collapsed: boolean;
@@ -219,6 +248,7 @@ interface SidebarProps {
 
 export default function DashboardSidebar({
   role,
+  isSuperAdmin = false,
   unreadMessages = 0,
   pendingRequests = 0,
   collapsed,
@@ -227,6 +257,12 @@ export default function DashboardSidebar({
   onCloseMobile,
 }: SidebarProps) {
   const meta = ROLE_META[role] ?? ROLE_META.influencer;
+  const navItems =
+    role === "admin"
+      ? isSuperAdmin
+        ? DEV_ADMIN_NAV
+        : BUSINESS_ADMIN_NAV
+      : meta.nav;
 
   return (
     <>
@@ -258,9 +294,9 @@ export default function DashboardSidebar({
           </button>
         </div>
 
-        <RolePill role={role} collapsed={collapsed} />
+        <RolePill role={role} isSuperAdmin={isSuperAdmin} collapsed={collapsed} />
         <NavList
-          items={meta.nav}
+          items={navItems}
           collapsed={collapsed}
           unreadMessages={unreadMessages}
           pendingRequests={pendingRequests}
@@ -302,9 +338,9 @@ export default function DashboardSidebar({
               <X className="size-5" />
             </button>
           </div>
-          <RolePill role={role} collapsed={false} />
+          <RolePill role={role} isSuperAdmin={isSuperAdmin} collapsed={false} />
           <NavList
-            items={meta.nav}
+            items={navItems}
             collapsed={false}
             unreadMessages={unreadMessages}
             pendingRequests={pendingRequests}

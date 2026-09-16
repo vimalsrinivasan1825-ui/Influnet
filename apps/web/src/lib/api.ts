@@ -116,6 +116,54 @@ export async function withAdmin(
 }
 
 /**
+ * Known developer/super admin emails.
+ */
+export function isSuperAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  const configured = (process.env.DEV_ADMIN_EMAILS || 'dev.admin@influnet.io')
+    .toLowerCase()
+    .split(',')
+    .map((e) => e.trim());
+  return configured.includes(normalized) || normalized === 'dev.admin@influnet.io';
+}
+
+/**
+ * Developer / Super Admin guard.
+ *
+ * Refuses Business / Client admins with 403 Forbidden.
+ * Grants access only if caller has role='admin' AND is designated as a Developer / Super Admin.
+ */
+export async function withSuperAdmin(
+  req: Request
+): Promise<
+  | { ok: true; supabase: any; user: User }
+  | { ok: false; res: NextResponse }
+> {
+  const auth = await withAdmin(req);
+  if (!auth.ok) return auth;
+
+  if (isSuperAdminEmail(auth.user.email)) {
+    return auth;
+  }
+
+  const { data: profile } = await auth.supabase
+    .from('profiles')
+    .select('is_super_admin')
+    .eq('id', auth.user.id)
+    .single();
+
+  if (profile?.is_super_admin === true) {
+    return auth;
+  }
+
+  return {
+    ok: false,
+    res: jsonError(403, 'Developer access required. This technical section is restricted to super administrators.'),
+  };
+}
+
+/**
  * A Supabase client bound to the CALLER's JWT.
  *
  * Needed because `withAdmin` hands back a SERVICE-ROLE client, which has no
@@ -169,7 +217,7 @@ export async function withAuth(
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_super_admin')
       .eq('id', user.id)
       .single();
 
@@ -178,6 +226,9 @@ export async function withAuth(
     }
 
     const userRole = profile.role as UserRole;
+    if (profile.is_super_admin != null) {
+      (user as any).is_super_admin = profile.is_super_admin;
+    }
 
     if (opts?.role && userRole !== opts.role) {
       return { ok: false, res: jsonError(403, `Forbidden: Requires ${opts.role} role`) };

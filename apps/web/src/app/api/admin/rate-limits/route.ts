@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { jsonError, withSuperAdmin } from '@/lib/api';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -22,7 +22,7 @@ interface StatRow {
  */
 export async function GET(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase } = auth;
 

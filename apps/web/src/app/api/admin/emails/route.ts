@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAdmin, jsonError } from '@/lib/api';
+import { withSuperAdmin, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getTemplate, listTemplates } from '@/lib/email/templates';
 import { emailsEnabled, emailConfigured, fromAddress, isValidEmail } from '@/lib/email/client';
@@ -23,7 +23,7 @@ import { supportEmail } from '@/lib/email/theme';
  */
 
 export async function GET(req: Request) {
-  const auth = await withAdmin(req);
+  const auth = await withSuperAdmin(req);
   if (!auth.ok) return auth.res;
 
   const { supabase } = auth;
@@ -33,20 +33,16 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: false })
     .limit(20);
 
+  const templates = listTemplates();
+
   return NextResponse.json({
-    templates: listTemplates(),
+    templates,
     config: {
       enabled: emailsEnabled(),
-      apiKeyPresent: emailConfigured(),
+      configured: emailConfigured(),
       from: fromAddress(),
-      replyTo: supportEmail(),
-      appUrl: process.env.NEXT_PUBLIC_APP_URL || null,
+      supportEmail: supportEmail(),
       allowlist: process.env.EMAIL_ALLOWLIST || null,
-      requireVerified: (process.env.EMAIL_REQUIRE_VERIFIED || 'true').trim() !== 'false',
-      dailyCap: Number(process.env.EMAIL_DAILY_CAP || 6),
-      // Surfaced because this console exists to answer "why did nothing
-      // arrive?" — a silenced template with no visible cause is the worst
-      // possible version of that question.
       disabledTemplates: process.env.EMAIL_DISABLED_TEMPLATES || null,
       webhookConfigured: !!process.env.RESEND_WEBHOOK_SECRET,
       environment: process.env.APP_ENV || process.env.NODE_ENV || 'local',
@@ -58,7 +54,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = await withAdmin(req);
+  const auth = await withSuperAdmin(req);
   if (!auth.ok) return auth.res;
 
   let payload: { action?: string; templateId?: string; data?: Record<string, unknown>; to?: string };

@@ -2,6 +2,56 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-16: Dual-Tier Admin System & Developer Super Admin Credentials
+
+**Branch**: `dev`
+
+### Scope
+- **Database Super Admin Column & Provisioning (Migration 150)**:
+  - Added `is_super_admin BOOLEAN NOT NULL DEFAULT false` to `public.profiles`.
+  - Added index `profiles_super_admin_idx` on `(role, is_super_admin) WHERE role = 'admin'`.
+  - Updated RPC `public.provision_admin(UUID, TEXT, TEXT, BOOLEAN)` with backward-compatible 3-arg overload.
+  - Applied migration 150 cleanly to dev database via `scripts/apply-migration.mjs 150`.
+  - Enhanced `scripts/create-admin.mjs` with `--super` / `--developer` flags and updated `--list` to differentiate Developer/Super Admins from Business/Client Admins.
+  - Successfully provisioned developer super admin: `dev.admin@influnet.io` / `Vimalsri718` (ID: `b8c98d86-b23d-4856-aa13-b22571007ea4`).
+- **Server API Route Guarding (`apps/web/src/lib/api.ts`)**:
+  - Implemented `isSuperAdminEmail(email)` recognizing developer accounts and fallback config list.
+  - Implemented `withSuperAdmin(req)` returning `403 Forbidden` (`Developer privileges required`) for non-super admins.
+  - Updated `withAuth` to select `is_super_admin` from `profiles`.
+  - Enforced `withSuperAdmin` on 6 technical backend routes:
+    - `/api/admin/health`
+    - `/api/admin/vendors`
+    - `/api/admin/rate-limits`
+    - `/api/admin/emails`
+    - `/api/admin/audit`
+    - `/api/admin/issues`
+- **Frontend Dashboard Gating & Navigation**:
+  - Created `<DeveloperGate>` client component in `apps/web/src/components/dashboard/admin/developer-gate.tsx` with fallback UX and link back to business admin home.
+  - Wrapped 6 technical admin pages with `<DeveloperGate>`:
+    - `/dashboard/admin/health`
+    - `/dashboard/admin/vendors`
+    - `/dashboard/admin/rate-limits`
+    - `/dashboard/admin/emails`
+    - `/dashboard/admin/audit`
+    - `/dashboard/admin/issues`
+  - Divided sidebar navigation into `BUSINESS_ADMIN_NAV` (11 business oversight items) and `DEV_ADMIN_NAV` (17 total items including technical observability).
+  - Added dynamic `RolePill` indicator showing "Developer workspace" (`Terminal` icon) vs "Admin workspace" (`Shield` icon).
+  - Updated `shell.tsx` to load `is_super_admin` on profile load and pass it to sidebar and page views.
+  - Updated `admin-home.tsx` to conditionally display technical quick-action shortcuts and developer header badge for super admins only.
+
+### Broken & Resolved
+- **Postgres Error `42P13` on Function Parameter Defaults**: When running migration 150, PostgreSQL failed with `cannot change name of input parameter "p_role" or alter defaults`. Resolved by adding `DROP FUNCTION IF EXISTS public.provision_admin(UUID, TEXT, TEXT);` prior to declaring the new 4-parameter overload.
+- **ButtonLink Prop Type Error**: In `admin-home.tsx`, `<ButtonLink size="md">` failed typecheck because `ButtonLink` accepts `"default" | "sm" | "lg" | "xl" | "xs"`. Fixed to `size="sm"`.
+
+### Key Lessons
+- Dual-tier role separation in single-role systems (`role: 'admin'`) is best handled by pairing a boolean flag (`is_super_admin`) with email-based fallback check (`isSuperAdminEmail`) so existing RLS policies (`role = 'admin'`) continue to work seamlessly without database breaking changes.
+- Defense-in-depth requires both server-side route guards (`withSuperAdmin`) and client-side view gates (`<DeveloperGate>`), ensuring non-super admins cannot access technical capabilities via direct URL navigation or API calls.
+
+### Next Target
+- Test both admin logins (`dev.admin@influnet.io` and `admin@influnet.com`) on web dev server.
+
+---
+
 ### Session — 2026-09-16: End-to-End Multi-Flow Project Creation & Lifecycle Parity (Full, Deliver First, Pay First)
 
 **Branch**: `dev`

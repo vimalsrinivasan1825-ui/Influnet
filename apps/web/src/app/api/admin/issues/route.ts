@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { jsonError, withSuperAdmin } from '@/lib/api';
 
 /**
  * The admin issue/fix tracker (see migration 101_admin_issue_tracker.sql).
@@ -52,7 +52,7 @@ function parseImages(value: unknown): string[] | null {
 
 export async function GET(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase } = auth;
 
@@ -80,7 +80,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
 
@@ -138,7 +138,7 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase, user } = auth;
 
@@ -215,7 +215,7 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase } = auth;
 

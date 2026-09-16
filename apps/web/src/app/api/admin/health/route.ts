@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { callerClient, jsonError, withAdmin } from '@/lib/api';
+import { callerClient, jsonError, withSuperAdmin } from '@/lib/api';
 import { appEnv } from '@/lib/env';
 import { isDistributedRateLimit } from '@/lib/rate-limit';
 import { isObservabilityEnabled } from '@/lib/observability';
@@ -57,7 +57,7 @@ const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: '
 
 export async function GET(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase } = auth;
     const scoped = callerClient(req);

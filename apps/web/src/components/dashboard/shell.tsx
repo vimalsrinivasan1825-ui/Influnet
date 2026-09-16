@@ -106,15 +106,15 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
           const { data: profile } = await sb
             .from("profiles")
-            .select("role, name")
+            .select("role, name, is_super_admin")
             .eq("id", session.user.id)
             .single();
 
           if (profile) {
-            const p = profile as { role: UserRole; name: string | null };
+            const p = profile as { role: UserRole; name: string | null; is_super_admin?: boolean };
             setRole(p.role);
             setUserName(p.name || "User");
-            setUser({ ...session.user, role: p.role, name: p.name } as any);
+            setUser({ ...session.user, role: p.role, name: p.name, is_super_admin: p.is_super_admin } as any);
 
             if (p.role === "business_owner") {
               // Must go through the RPC: migration 053 revoked direct selects on
@@ -344,10 +344,16 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     );
   }
 
+  const isSuperAdmin = Boolean(
+    (user as any)?.is_super_admin ||
+    (user?.email && (user.email.toLowerCase() === "dev.admin@influnet.io" || user.email.toLowerCase().startsWith("dev.admin@")))
+  );
+
   return (
     <div className={`${themeClass} flex min-h-screen bg-surface text-content`}>
       <DashboardSidebar
         role={role || "influencer"}
+        isSuperAdmin={isSuperAdmin}
         unreadMessages={summary.unread_messages_count || 0}
         pendingRequests={summary.pending_requests_count || 0}
         collapsed={collapsed}

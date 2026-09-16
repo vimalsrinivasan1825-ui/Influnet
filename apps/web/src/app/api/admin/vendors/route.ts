@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { jsonError, withSuperAdmin } from '@/lib/api';
 import { VENDOR_KEYS, allVendors, type VendorKey } from '@/lib/feature-flags';
 import { breakerStatus } from '@/lib/circuit-breaker';
 
@@ -58,7 +58,7 @@ const BREAKER_OF: Record<VendorKey, string> = {
 
 export async function GET(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
 
     const switches = allVendors();

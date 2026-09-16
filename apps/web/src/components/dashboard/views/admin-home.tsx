@@ -9,6 +9,11 @@ import {
   Shield,
   Star,
   Users,
+  Terminal,
+  HeartPulse,
+  PlugZap,
+  ClipboardList,
+  Inbox,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -16,6 +21,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { Reveal, Stagger } from "@/components/ui/motion";
 import { DonutChart } from "@/components/ui/chart";
+import { useAuthStore } from "@/store/auth-store";
 import type { AdminHomeData } from "./types";
 
 function Row({
@@ -39,6 +45,12 @@ function Row({
 }
 
 export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
+  const { user } = useAuthStore();
+  const isSuperAdmin = Boolean(
+    (user as any)?.is_super_admin ||
+    (user?.email && (user.email.toLowerCase() === "dev.admin@influnet.io" || user.email.toLowerCase().startsWith("dev.admin@")))
+  );
+
   const audience = [
     { name: "Businesses", value: s.total_businesses, fill: "#6366f1" },
     { name: "Influencers", value: s.total_influencers, fill: "#f26e59" },
@@ -50,14 +62,14 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
       <Reveal className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_6px_16px_-6px_var(--brand-ring)]">
-            <Shield className="size-5" />
+            {isSuperAdmin ? <Terminal className="size-5" /> : <Shield className="size-5" />}
           </span>
           <div>
             <p className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
-              Platform admin
+              {isSuperAdmin ? "Developer Super Admin" : "Platform Admin"}
             </p>
             <h1 className="text-xl font-extrabold tracking-tight text-content sm:text-2xl">
-              Control center
+              {isSuperAdmin ? "Control Center & Systems" : "Control Center"}
             </h1>
           </div>
         </div>
@@ -156,6 +168,28 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
           <ButtonLink href="/dashboard/admin/collabs" variant="ghost" size="sm">
             Inspect requests
           </ButtonLink>
+          {isSuperAdmin ? (
+            <>
+              <ButtonLink href="/dashboard/admin/health" variant="ghost" size="sm">
+                <HeartPulse className="size-3.5 mr-1" /> System health
+              </ButtonLink>
+              <ButtonLink href="/dashboard/admin/vendors" variant="ghost" size="sm">
+                <PlugZap className="size-3.5 mr-1" /> Vendors & breakers
+              </ButtonLink>
+              <ButtonLink href="/dashboard/admin/issues" variant="ghost" size="sm">
+                <ClipboardList className="size-3.5 mr-1" /> Issues & fixes
+              </ButtonLink>
+            </>
+          ) : (
+            <>
+              <ButtonLink href="/dashboard/admin/support" variant="ghost" size="sm">
+                <Inbox className="size-3.5 mr-1" /> Support tickets
+              </ButtonLink>
+              <ButtonLink href="/dashboard/admin/feedback" variant="ghost" size="sm">
+                Feedback
+              </ButtonLink>
+            </>
+          )}
         </div>
       </Reveal>
     </div>
