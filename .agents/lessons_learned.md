@@ -2,6 +2,42 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-16: End-to-End Multi-Flow Project Creation & Lifecycle Parity (Full, Deliver First, Pay First)
+
+**Branch**: `dev`
+
+### Scope
+- **Project Proposal Flow (Web & Mobile)**:
+  - Enabled all three lifecycle flows across Web (`apps/web/src/components/dashboard/deal-panel.tsx`) and Mobile (`apps/mobile/app/conversations/[id].tsx`):
+    1. Full project (`full`, 12-stage guided pipeline with advance & final split)
+    2. Short-term deliver first (`short_pay_after`: agreement → delivery → payment → completed)
+    3. Short-term pay first (`short_pay_before`: agreement → payment → delivery → completed)
+  - Synchronized client-side validation rules across both platforms (due date, budget or barter requirement, advance restrictions).
+- **Web Project Workspace (`apps/web/src/app/dashboard/projects/[id]/page.tsx`, `project-flow.tsx`, `payment-gate.tsx`)**:
+  - Dynamically derived `stageConfig` from `flowOf({ flow_key })` via `stageConfigFor(flow)`.
+  - Resolved `currentStageActor` via `flow.actor[currentStage]`.
+  - Added `PaymentGate` support for `stageKey="quick_payment"` with single full-budget payment.
+  - Updated `ProjectFlow` SVG node layout to consume `flow.stages` and `flow.labels`.
+- **Mobile Project & Home Lifecycle Parity (`apps/mobile/app/projects/[id]/stage/[stage].tsx`, `index.tsx`, `deleted.tsx`, `(tabs)/home.tsx`)**:
+  - Fixed stage actor resolution to use `flow.actor[stageKey]` instead of full-only `STAGE_ACTOR`.
+  - Scoped dual-confirm `isCompletionStage` to `final_payment` (full flow), ensuring short-flow terminal stages use bilateral `signoff`.
+  - Handled `quick_payment` status in `paidAmount` calculation.
+  - Updated `api/home/route.ts` and `home.tsx` to include `flow_key`, pass `flow` to `projectTurn`, and render flow-accurate progress indicators.
+- **Core LifeCycle Actions (`packages/core/src/project-turn.ts`)**:
+  - Added imperatives for short stages (`quick_agreement`, `quick_delivery`, `quick_payment`) to `TURN_ACTION`.
+
+### Broken & Resolved
+- **Short Flow Buttons & Gates Unreachable**: Short-flow projects previously failed in UI because `STAGE_CONFIG`, `STAGE_ACTOR`, and `TURN_ACTION` were hardcoded 12-stage constants lacking `quick_*` keys. Resolved by deriving configuration dynamically from `flowOf(project)` and `flow.actor`.
+- **Completion vs Signoff Conflict in Short Flows**: Attempting `confirm_completion` on `quick_delivery` produced a 400 error because short flows terminate via mutual signoff. Resolved by restricting `isCompletionStage` to `final_payment`.
+
+### Key Lessons
+- Never import static full-flow stage lists (`STAGES`, `STAGE_CONFIG`, `STAGE_ACTOR`) for runtime stage evaluation without passing through `flowOf(project)`.
+- When adding new flow types to the backend, audit every place where `flow_key` is fetched in database queries (`.select(...)`) to avoid silent fallback to `'full'`.
+
+### Next Target
+- Perform manual end-to-end testing across web and mobile simulator for all 3 project types (creating, paying, delivering, completing).
+
+
 ### Session — 2026-08-15: Mobile & Staging Stream API Key Configuration & Sanitization
 
 **Branch**: `dev`

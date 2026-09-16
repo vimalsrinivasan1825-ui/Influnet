@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
-import { STAGES, type Stage } from '@influnet/core';
+import { flowOf, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -35,6 +35,7 @@ interface ProjectRow {
   title: string;
   status: string;
   current_stage: string;
+  flow_key?: string | null;
   budget: number | null;
   updated_at: string;
   owner_user_id: string;
@@ -92,12 +93,14 @@ export default function DeletedProjectsScreen() {
               const s = styleForStatus(p.status, t.color);
               const isOwner = p.owner_user_id === me;
               const partner = (isOwner ? p.counterparty?.name : p.owner?.name) ?? 'Partner';
-              const stageIndex = STAGES.indexOf(p.current_stage as Stage);
+              const flow = flowOf(p);
+              const stageIndex = flow.stages.indexOf(p.current_stage);
+              const stepLabel = stageIndex >= 0 ? ` · step ${stageIndex + 1} of ${flow.stages.length}` : '';
               return (
                 <ListRow
                   key={p.id}
                   title={p.title}
-                  subtitle={`${partner} · ${humanizeStage(p.current_stage)} · step ${stageIndex + 1} of ${STAGES.length}`}
+                  subtitle={`${partner} · ${humanizeStage(p.current_stage)}${stepLabel}`}
                   index={i}
                   style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
                   onPress={() => router.push(`/projects/${p.id}`)}

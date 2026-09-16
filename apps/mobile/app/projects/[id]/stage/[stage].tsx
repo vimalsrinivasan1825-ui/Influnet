@@ -180,14 +180,10 @@ export default function StageScreen() {
   );
   const paymentsConfigured = !!paymentConfig?.configured;
 
-  // Completion is its own control, not a sign-off (NON_SIGNOFF_STAGES). Without
-  // this branch the final stage rendered NO footer at all, so a project started
-  // on the phone could be carried all the way to final payment and then never
-  // finished — 'signoff' is rejected outright by the API for this stage.
-  // Completion is the stage just before project_completed — 'final_payment' for full flow, 'quick_payment' for short flows.
-  const completedIdx = flow ? flow.stages.indexOf('project_completed') : -1;
-  const terminalStage = completedIdx > 0 ? flow!.stages[completedIdx - 1] : 'final_payment';
-  const isCompletionStage = stageKey === terminalStage;
+  // Completion is its own control, not a sign-off (NON_SIGNOFF_STAGES).
+  // On the full flow, 'final_payment' is non-signoff and requires dual-confirm
+  // completion. Short flows use bilateral sign-off on every stage.
+  const isCompletionStage = stageKey === 'final_payment';
 
   // The review fork. `sent_for_review` is in NON_SIGNOFF_STAGES, so it is
   // neither a sign-off stage nor the completion stage — which is exactly how it
@@ -205,7 +201,7 @@ export default function StageScreen() {
   // say is the re-review it goes back to.
   const isResubmit = stageKey === 'revisions';
 
-  const stageActor = STAGE_ACTOR[stageKey as Stage];
+  const stageActor = flow.actor[stageKey] || STAGE_ACTOR[stageKey as Stage];
   const myRoleKey: 'business' | 'creator' = isOwner ? 'business' : 'creator';
   const iAmActor = stageActor === 'either' || stageActor === myRoleKey;
   const iAmReviewer = iAmActor;

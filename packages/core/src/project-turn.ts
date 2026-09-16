@@ -81,6 +81,18 @@ const TURN_ACTION: Record<Stage, Record<Side, string>> = {
     business: 'Release the final payment',
     creator: 'Confirm the payment once it lands',
   },
+  quick_agreement: {
+    business: 'Confirm the agreement and brief',
+    creator: 'Confirm the deliverables and timeline',
+  },
+  quick_delivery: {
+    business: 'Confirm the delivered content',
+    creator: 'Deliver the finished content',
+  },
+  quick_payment: {
+    business: 'Release the project payment',
+    creator: 'Confirm receipt of payment',
+  },
   project_completed: {
     business: 'Leave a review for the creator',
     creator: 'Leave a review for the brand',

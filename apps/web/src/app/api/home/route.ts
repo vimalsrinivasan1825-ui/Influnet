@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { projectTurn, STAGE_PHASES, phaseOf } from '@influnet/core';
+import { projectTurn, STAGE_PHASES, phaseOf, flowOf } from '@influnet/core';
 import { withAuth, jsonError } from '@/lib/api';
 import { settleAll } from '@/lib/settle';
 import { enforceRateLimit } from '@/lib/rate-limit';
@@ -244,7 +244,7 @@ export async function GET(req: Request) {
     const { data: projects } = await supabase
       .from('campaign_projects')
       .select(`
-        id, title, status, current_stage, budget, created_at, updated_at, stage_progress,
+        id, title, status, current_stage, flow_key, budget, created_at, updated_at, stage_progress,
         owner_user_id, counterparty_user_id,
         owner:profiles!campaign_projects_owner_user_id_fkey(id, name),
         counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name)
@@ -262,10 +262,12 @@ export async function GET(req: Request) {
     // owner is always the paying brand, the counterparty the creator.
     const ongoingRows = ongoing.map((p: any) => {
       const side = p.owner_user_id === user.id ? 'business' : 'creator';
+      const flow = flowOf(p);
       const { turn, action } = projectTurn({
         stage: p.current_stage,
         side,
         stageProgress: p.stage_progress,
+        flow,
       });
 
       return {
@@ -273,6 +275,7 @@ export async function GET(req: Request) {
         title: p.title,
         status: p.status,
         current_stage: p.current_stage,
+        flow_key: p.flow_key ?? 'full',
         budget: p.budget,
         updated_at: p.updated_at,
         partner: side === 'business' ? p.counterparty?.name ?? null : p.owner?.name ?? null,

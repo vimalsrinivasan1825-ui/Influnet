@@ -92,7 +92,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react-native';
-import { STAGES, type Stage } from '@influnet/core';
+import { STAGES, flowOf, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -154,6 +154,7 @@ interface OngoingProject {
   title: string;
   status: string;
   current_stage: string;
+  flow_key?: string | null;
   budget: number | null;
   updated_at: string;
   partner: string | null;
@@ -329,11 +330,12 @@ function greeting() {
   return 'Good evening';
 }
 
-/** 0–1 through the twelve-stage lifecycle. Unknown stages read as not started. */
-function stageProgress(stage: string): { index: number; ratio: number } {
-  const index = STAGES.indexOf(stage as Stage);
-  if (index < 0) return { index: 0, ratio: 0 };
-  return { index, ratio: (index + 1) / STAGES.length };
+/** 0–1 through the project lifecycle. Unknown stages read as not started. */
+function stageProgress(stage: string, flowKey?: string | null): { index: number; ratio: number; total: number } {
+  const flow = flowOf({ flow_key: flowKey });
+  const index = flow.stages.indexOf(stage);
+  if (index < 0) return { index: 0, ratio: 0, total: flow.stages.length };
+  return { index, ratio: (index + 1) / flow.stages.length, total: flow.stages.length };
 }
 
 /**
@@ -725,7 +727,7 @@ export default function HomeScreen() {
                 </SectionLabel>
                 <View style={{ gap: t.spacing.sm }}>
                   {yourMove.map((p) => {
-                    const { index, ratio } = stageProgress(p.current_stage);
+                    const { index, ratio, total } = stageProgress(p.current_stage, p.flow_key);
 
                     return (
                       <PressableScale
@@ -755,7 +757,7 @@ export default function HomeScreen() {
                           <ProgressRing
                             progress={ratio}
                             size={54}
-                            label={`${index + 1}/${STAGES.length}`}
+                            label={`${index + 1}/${total}`}
                           />
                           <View style={{ flex: 1, gap: 3 }}>
                             <Txt variant="bodyStrong" numberOfLines={1}>
@@ -837,7 +839,7 @@ export default function HomeScreen() {
                         }
                         below={
                           <ProgressBar
-                            progress={stageProgress(p.current_stage).ratio}
+                            progress={stageProgress(p.current_stage, p.flow_key).ratio}
                             style={{ marginTop: t.spacing.sm }}
                           />
                         }

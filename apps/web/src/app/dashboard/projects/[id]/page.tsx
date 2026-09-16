@@ -34,7 +34,7 @@ import {
 import type { ProjectCard } from '@/types';
 import { CANCELLATION_REASONS, cancellationReasonLabel, cancellationReasonRequiresText } from '@influnet/core';
 import { blockingItems, type StageItem } from '@/lib/project-stage-items';
-import { ALLOWED_TRANSITIONS, STAGE_ACTOR, type Stage } from '@/lib/project-lifecycle';
+import { ALLOWED_TRANSITIONS, STAGE_ACTOR, flowOf, type Stage, type StageFlow } from '@/lib/project-lifecycle';
 
 /**
  * Where a stage actually leads, for labelling "Advance to X" / "Confirm → X".
@@ -44,9 +44,9 @@ import { ALLOWED_TRANSITIONS, STAGE_ACTOR, type Stage } from '@/lib/project-life
  * the user a destination the server would not send them to. Returns null for a
  * forking stage (sent_for_review), which has no single next step to name.
  */
-function nextStageKey(currentStage: string | undefined): string | null {
+function nextStageKey(currentStage: string | undefined, flow?: StageFlow): string | null {
   if (!currentStage) return null;
-  const allowed = ALLOWED_TRANSITIONS[currentStage as Stage] || [];
+  const allowed = (flow ? flow.transitions[currentStage] : ALLOWED_TRANSITIONS[currentStage as Stage]) || [];
   return allowed.length === 1 ? allowed[0] : null;
 }
 import { STAGE_GUIDE, isMutualSignoffStage, stageSignoffAt, isSkippableStage, stageSkipProposal } from '@/lib/project-stage-guide';
@@ -72,7 +72,7 @@ const STAGE_ICONS: Record<string, React.ComponentType<any>> = {
   final_payment: CreditCard, project_completed: Award,
 };
 
-const STAGE_CONFIG: { key: string; label: string; color: string }[] = [
+const FULL_STAGE_CONFIG: { key: string; label: string; color: string }[] = [
   { key: 'collaboration_started', label: 'Started', color: '#3b82f6' },
   { key: 'project_discussion', label: 'Discussion', color: '#6366f1' },
   { key: 'advance_payment', label: 'Deposit', color: '#10b981' },
@@ -86,6 +86,46 @@ const STAGE_CONFIG: { key: string; label: string; color: string }[] = [
   { key: 'final_payment', label: 'Payment', color: '#10b981' },
   { key: 'project_completed', label: 'Completed', color: '#16a34a' },
 ];
+
+/**
+ * Colours for the two short-flow stages the full list above doesn't have.
+ * `quick_agreement` echoes `collaboration_started` (Setup), `quick_payment`
+ * echoes the payment stages (Payment/green), `quick_delivery` echoes the
+ * production stages (Production/purple) — same phase, same colour family,
+ * so a short project's pills read consistently with a full one's.
+ */
+const SHORT_STAGE_COLOR: Record<string, string> = {
+  quick_agreement: '#3b82f6',
+  quick_payment: '#10b981',
+  quick_delivery: '#a855f7',
+  project_completed: '#16a34a',
+};
+
+/**
+ * The stage list this PROJECT actually has, not "the" stage list.
+ *
+ * `STAGE_CONFIG` used to be a single hardcoded 12-entry constant, and every
+ * lookup against it (`findIndex`, `.find`, `.map`) silently returned -1 /
+ * undefined for a short-flow project's real stage keys (`quick_agreement`,
+ * `quick_payment`, `quick_delivery`) — which is what made a short-term
+ * project's Guided tab render an empty shell: `stage &&` further down
+ * short-circuited on that `undefined` and the whole actionable card (guide
+ * text, checklist, sign-off button, PaymentGate) never rendered. Found and
+ * fixed 2026-09-16, building a project through it end-to-end.
+ *
+ * `flow.labels` already carries the right label for every key in every
+ * flow (it's the same object the server itself resolves stage names from),
+ * so this only has to add colour.
+ */
+function stageConfigFor(flow: StageFlow): { key: string; label: string; color: string }[] {
+  const colorByKey: Record<string, string> = {};
+  for (const s of FULL_STAGE_CONFIG) colorByKey[s.key] = s.color;
+  return flow.stages.map((key) => ({
+    key,
+    label: flow.labels[key] || key,
+    color: colorByKey[key] || SHORT_STAGE_COLOR[key] || '#64748b',
+  }));
+}
 
 // In-app payments enabled? Mirrors PaymentGate — presence of the public key.
 // When true, payment gate items are opened only by a confirmed payment, never
@@ -318,7 +358,7 @@ function DraggableCard({ card, onOpen, isDragging, top, dates, onResizeEnd }: {
 
 // ─── Column ───
 function Column({ stage, cards, dates, onOpenCard, onAddCard, onClearColumn, activeCardId, onResizeEnd }: {
-  stage: typeof STAGE_CONFIG[number];
+  stage: typeof FULL_STAGE_CONFIG[number];
   cards: ProjectCard[];
   dates: Date[];
   onOpenCard: (c: ProjectCard) => void;
@@ -591,8 +631,13 @@ function StagePipeline({
   advancing, advanceError, onToggleItem, onAdvance,
   isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
   projectId, budget, advanceAmount, paymentsConfigured, paymentKeyId, onPaid,
+  flow,
 }: {
   currentStage?: string;
+  /** This project's actual stage list — full flow, or one of the two short
+   *  ones. Every stage lookup below goes through this, never the module-level
+   *  full-flow-only constant. */
+  flow: StageFlow;
   items: StageItem[];
   userRole: 'business' | 'creator' | null;
   canToggleStage: boolean;
@@ -612,15 +657,18 @@ function StagePipeline({
   paymentKeyId: string | null;
   onPaid: () => void;
 }) {
-  // Payment stages carry a money gate — advance_payment always, and
-  // final_payment (which also drives the dual-confirm completion).
-  const isPaymentStage = currentStage === 'advance_payment' || currentStage === 'final_payment';
+  // Payment stages carry a money gate — advance_payment and final_payment on
+  // the full flow, quick_payment on both short flows. quick_payment has no
+  // advance/final split: the whole budget is due at the one payment stage.
+  const isPaymentStage =
+    currentStage === 'advance_payment' || currentStage === 'final_payment' || currentStage === 'quick_payment';
   const paymentGateItem = isPaymentStage
     ? items.find((it) => it.stage_key === currentStage && it.is_gate)
     : undefined;
-  const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
-  const stage = STAGE_CONFIG[currentIdx];
-  const nextStage = STAGE_CONFIG.find((s) => s.key === nextStageKey(currentStage));
+  const stageConfig = stageConfigFor(flow);
+  const currentIdx = stageConfig.findIndex((s) => s.key === currentStage);
+  const stage = stageConfig[currentIdx];
+  const nextStage = stageConfig.find((s) => s.key === nextStageKey(currentStage, flow));
   const isComplete = currentStage === 'project_completed';
   // 'sent_for_review' forks: the reviewer either sends the draft back for
   // revisions or approves it straight to final approval.
@@ -634,7 +682,7 @@ function StagePipeline({
     <div className="flex-shrink-0 border-b border-hairline bg-surface-card">
       {/* Tracker — full labelled pill strip on desktop */}
       <div className="hidden items-center gap-1 overflow-x-auto px-4 py-2.5 lg:flex">
-        {STAGE_CONFIG.map((s, i) => {
+        {stageConfig.map((s, i) => {
           const state = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'upcoming';
           return (
             <div key={s.key} className="flex items-center gap-1">
@@ -651,7 +699,7 @@ function StagePipeline({
                 {state === 'done' ? <Check size={11} /> : state === 'current' ? <Circle size={9} fill="currentColor" /> : <Circle size={9} />}
                 {s.label}
               </div>
-              {i < STAGE_CONFIG.length - 1 && <ChevronRight size={12} className="shrink-0 text-content-muted" />}
+              {i < stageConfig.length - 1 && <ChevronRight size={12} className="shrink-0 text-content-muted" />}
             </div>
           );
         })}
@@ -661,7 +709,7 @@ function StagePipeline({
       <div className="px-4 py-2.5 lg:hidden">
         <div className="mb-1.5 flex items-center gap-2">
           <span className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
-            Stage {currentIdx + 1}/{STAGE_CONFIG.length}
+            Stage {currentIdx + 1}/{stageConfig.length}
           </span>
           <span className="truncate text-sm font-extrabold text-content">
             {isComplete ? 'Completed' : stage?.label}
@@ -672,10 +720,10 @@ function StagePipeline({
           role="progressbar"
           aria-valuenow={currentIdx + 1}
           aria-valuemin={1}
-          aria-valuemax={STAGE_CONFIG.length}
-          aria-label={`Stage ${currentIdx + 1} of ${STAGE_CONFIG.length}`}
+          aria-valuemax={stageConfig.length}
+          aria-label={`Stage ${currentIdx + 1} of ${stageConfig.length}`}
         >
-          {STAGE_CONFIG.map((s, i) => {
+          {stageConfig.map((s, i) => {
             const filled = i <= currentIdx;
             const active = i === currentIdx && !isComplete;
             return (
@@ -746,6 +794,21 @@ function StagePipeline({
                 projectId={projectId}
                 stageKey="advance_payment"
                 amountRupees={advanceAmount != null && advanceAmount !== '' ? Number(advanceAmount) : budget != null && budget !== '' ? Number(budget) : null}
+                userRole={userRole}
+                isDone={!!paymentGateItem?.done_at}
+                configured={paymentsConfigured}
+                keyId={paymentKeyId}
+                onPaid={onPaid}
+              />
+            )}
+
+            {/* Short-flow payment stage. No advance/final split — the whole
+                budget is due here (see /api/projects/[id]/payments). */}
+            {isPaymentStage && (currentStage as string) === 'quick_payment' && (
+              <PaymentGate
+                projectId={projectId}
+                stageKey="quick_payment"
+                amountRupees={budget != null && budget !== '' ? Number(budget) : null}
                 userRole={userRole}
                 isDone={!!paymentGateItem?.done_at}
                 configured={paymentsConfigured}
@@ -1285,8 +1348,11 @@ function GuidedFlow({
   entries, onOpenCompose, onDeleteEntry,
   isFinalPayment, myConfirmed, otherConfirmed, onConfirmCompletion,
   projectId, budget, advanceAmount, paymentsConfigured, paymentKeyId, onPaid, onPreviewImage,
+  flow,
 }: {
   project: any;
+  /** See the same prop on StagePipeline — this project's real stage list. */
+  flow: StageFlow;
   userId: string | null;
   userRole: 'business' | 'creator' | null;
   currentStage?: string;
@@ -1317,15 +1383,21 @@ function GuidedFlow({
   onPreviewImage: (url: string) => void;
 }) {
   const roleLabel = (r: string) => (r === 'business' ? 'Brand' : r === 'creator' ? 'Creator' : 'Both');
-  const currentIdx = STAGE_CONFIG.findIndex((s) => s.key === currentStage);
-  const stage = STAGE_CONFIG[currentIdx];
-  const nextStage = STAGE_CONFIG.find((s) => s.key === nextStageKey(currentStage));
+  const stageConfig = stageConfigFor(flow);
+  const currentIdx = stageConfig.findIndex((s) => s.key === currentStage);
+  const stage = stageConfig[currentIdx];
+  const nextStage = stageConfig.find((s) => s.key === nextStageKey(currentStage, flow));
   const isComplete = currentStage === 'project_completed';
   const isReviewFork = currentStage === 'sent_for_review';
   // One-sided rework: the brand already decided when it asked for changes.
   const isResubmit = currentStage === 'revisions';
   const isAdvancePayment = currentStage === 'advance_payment';
-  const mutual = !!currentStage && isMutualSignoffStage(currentStage) && !isFinalPayment;
+  const isQuickPayment = currentStage === 'quick_payment';
+  // Explicit `flow` argument, not the no-arg overload: the no-arg default
+  // reads the FULL flow's non-signoff set, and happens to answer correctly
+  // for short-flow stage keys today only because they don't collide with any
+  // full-flow key. That coincidence is not something to depend on.
+  const mutual = !!currentStage && isMutualSignoffStage(currentStage, flow) && !isFinalPayment;
   const guide = currentStage ? STAGE_GUIDE[currentStage as Stage] : undefined;
 
   const otherRole = userRole === 'business' ? 'creator' : 'business';
@@ -1334,7 +1406,7 @@ function GuidedFlow({
   const otherSignoff = currentStage ? stageSignoffAt(sp, currentStage, otherRole) : null;
 
   // Skip-by-consent state for the current stage.
-  const skippable = !!currentStage && isSkippableStage(currentStage) && !isComplete;
+  const skippable = !!currentStage && isSkippableStage(currentStage, flow) && !isComplete;
   const skipProposal = currentStage ? stageSkipProposal(sp, currentStage) : null;
   const iProposedSkip = !!skipProposal && skipProposal.by === userId;
 
@@ -1345,7 +1417,7 @@ function GuidedFlow({
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 p-4 sm:p-6">
       {/* Stepper — all 12 stages, wrapped (never horizontally scrolling) */}
       <div className="flex flex-wrap gap-2 rounded-2xl border border-hairline bg-surface-card p-4">
-        {STAGE_CONFIG.map((s, i) => {
+        {stageConfig.map((s, i) => {
           const state = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'upcoming';
           return (
             <div
@@ -1376,7 +1448,7 @@ function GuidedFlow({
           <div>
             <div className="mb-1.5 flex items-center gap-2.5">
               <span className="text-xs font-bold uppercase tracking-[0.08em] text-brand">
-                Step {currentIdx + 1} of {STAGE_CONFIG.length}
+                Step {currentIdx + 1} of {stageConfig.length}
               </span>
               <span className="text-xl font-extrabold text-content">{stage.label}</span>
             </div>
@@ -1469,7 +1541,8 @@ function GuidedFlow({
                 const done = !!it.done_at;
                 // Only PAYMENT gate items open via a confirmed payment. Approval
                 // gates (concept / final approval) are ticked by hand as normal.
-                const isPaymentStage = currentStage === 'advance_payment' || currentStage === 'final_payment';
+                const isPaymentStage =
+                  currentStage === 'advance_payment' || currentStage === 'final_payment' || currentStage === 'quick_payment';
                 const paymentLocked = it.is_gate && isPaymentStage && paymentsConfigured && !done;
                 const canToggleThis = (it.owner_role === 'both' || it.owner_role === userRole) && !paymentLocked;
                 return (
@@ -1501,6 +1574,21 @@ function GuidedFlow({
               projectId={projectId}
               stageKey="advance_payment"
               amountRupees={advanceAmount != null && advanceAmount !== '' ? Number(advanceAmount) : budget != null && budget !== '' ? Number(budget) : null}
+              userRole={userRole}
+              isDone={items.some((it) => it.is_gate && !!it.done_at)}
+              configured={paymentsConfigured}
+              keyId={paymentKeyId}
+              onPaid={onPaid}
+            />
+          )}
+
+          {/* Payment gate on a short flow's one payment stage — the whole
+              budget, no advance/final split. */}
+          {isQuickPayment && (
+            <PaymentGate
+              projectId={projectId}
+              stageKey="quick_payment"
+              amountRupees={budget != null && budget !== '' ? Number(budget) : null}
               userRole={userRole}
               isDone={items.some((it) => it.is_gate && !!it.done_at)}
               configured={paymentsConfigured}
@@ -1918,6 +2006,16 @@ export default function ProjectKanbanPage() {
     notifyTypes: ['project_stage', 'project_cancel'],
   });
 
+  // This project's real stage list — computed once, up here, so the effect
+  // and memo just below (which both run before the rest of the component's
+  // stage-derived state) already see it. Threaded down to both
+  // StagePipeline and GuidedFlow rather than each guessing from the
+  // full-flow-only STAGE_ACTOR/STAGE_CONFIG constants. flowOf() defaults to
+  // 'full' for a null/missing flow_key, which is every project before
+  // migration 119 and is the correct default (see project-lifecycle.ts).
+  const flow: StageFlow = useMemo(() => flowOf({ flow_key: project?.flow_key }), [project?.flow_key]);
+  const stageConfig = useMemo(() => stageConfigFor(flow), [flow]);
+
   // Celebrate whenever the project moves forward to a new stage.
   const prevStageRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1925,22 +2023,22 @@ export default function ProjectKanbanPage() {
     if (!cs) return;
     const prev = prevStageRef.current;
     if (prev && prev !== cs) {
-      const prevIdx = STAGE_CONFIG.findIndex((s) => s.key === prev);
-      const nextIdx = STAGE_CONFIG.findIndex((s) => s.key === cs);
-      if (nextIdx > prevIdx) setCelebrateLabel(STAGE_CONFIG[nextIdx]?.label || cs);
+      const prevIdx = stageConfig.findIndex((s) => s.key === prev);
+      const nextIdx = stageConfig.findIndex((s) => s.key === cs);
+      if (nextIdx > prevIdx) setCelebrateLabel(stageConfig[nextIdx]?.label || cs);
     }
     prevStageRef.current = cs;
-  }, [project?.current_stage]);
+  }, [project?.current_stage, stageConfig]);
 
   const cardsByStage = useMemo(() => {
     const grouped: Record<string, ProjectCard[]> = {};
-    for (const stage of STAGE_CONFIG) {
+    for (const stage of stageConfig) {
       const sc = cards.filter(c => c.stage_key === stage.key);
       sc.sort((a, b) => getDateRowIndex(a, dates) - getDateRowIndex(b, dates));
       grouped[stage.key] = sc;
     }
     return grouped;
-  }, [cards, dates]);
+  }, [cards, dates, stageConfig]);
 
   // ─── Stage pipeline (gated checklist) ───
   const userRole: 'business' | 'creator' | null = project
@@ -1951,7 +2049,13 @@ export default function ProjectKanbanPage() {
     () => stageItems.filter((it) => it.stage_key === currentStage).sort((a, b) => a.position - b.position),
     [stageItems, currentStage],
   );
-  const currentStageActor = currentStage ? STAGE_ACTOR[currentStage as Stage] : undefined;
+  // flow.actor, not STAGE_ACTOR: the latter is STAGE_FLOWS.full.actor and has
+  // no entry for quick_agreement/quick_payment/quick_delivery, which made
+  // every checklist item on a short-flow project permanently untoggleable —
+  // canToggleStage was false for both participants, always, because the
+  // lookup returned undefined and undefined matches neither role. Found and
+  // fixed 2026-09-16 alongside the stage-list bug, same root cause.
+  const currentStageActor = currentStage ? flow.actor[currentStage] : undefined;
   const gateBlocking = currentStage ? blockingItems(currentStage, stageItems) : [];
   const canToggleStage = !!currentStage && (currentStageActor === 'either' || currentStageActor === userRole);
   const canAdvance = gateBlocking.length === 0 && canToggleStage && currentStage !== 'project_completed';
@@ -2298,7 +2402,7 @@ export default function ProjectKanbanPage() {
             </div>
             {/* Stage badge rides along on the identity row (mobile only) */}
             <Badge variant="neutral" size="sm" className="ml-auto shrink-0 lg:hidden">
-              {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
+              {stageConfig.findIndex((s) => s.key === project?.current_stage) + 1}/{stageConfig.length}
             </Badge>
           </div>
         </div>
@@ -2371,7 +2475,7 @@ export default function ProjectKanbanPage() {
             </Button>
           )}
           <Badge variant="neutral" size="md" className="hidden lg:inline-flex">
-            Stage {STAGE_CONFIG.findIndex((s) => s.key === project?.current_stage) + 1}/{STAGE_CONFIG.length}
+            Stage {stageConfig.findIndex((s) => s.key === project?.current_stage) + 1}/{stageConfig.length}
           </Badge>
         </div>
       </div>
@@ -2470,6 +2574,7 @@ export default function ProjectKanbanPage() {
       {view === 'board' && !loading && !error && project && project.status !== 'cancelled' && (
         <StagePipeline
           currentStage={currentStage}
+          flow={flow}
           items={currentStageItems}
           userRole={userRole}
           canToggleStage={canToggleStage}
@@ -2530,6 +2635,7 @@ export default function ProjectKanbanPage() {
           )}
           <GuidedFlow
             project={project}
+            flow={flow}
             userId={userId}
             userRole={userRole}
             currentStage={currentStage}
@@ -2611,7 +2717,7 @@ export default function ProjectKanbanPage() {
           {/* Columns */}
           <div style={{ display: 'flex', gap: 10, paddingRight: 10 }}>
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              {STAGE_CONFIG.map(stage => (
+              {stageConfig.map(stage => (
                 <Column
                   key={stage.key}
                   stage={stage}
@@ -2675,7 +2781,7 @@ export default function ProjectKanbanPage() {
 
       {composeOpen && (
         <StageUpdateModal
-          stageLabel={STAGE_CONFIG.find((s) => s.key === currentStage)?.label || 'Stage'}
+          stageLabel={stageConfig.find((s) => s.key === currentStage)?.label || 'Stage'}
           onClose={() => setComposeOpen(false)}
           onSubmit={handlePostUpdate}
           busy={entryBusy}

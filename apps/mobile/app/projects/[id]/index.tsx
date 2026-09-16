@@ -283,7 +283,7 @@ export default function ProjectDetailScreen() {
   const stageStatus = (stage: string) =>
     (project?.stage_progress?.[stage] as { status?: string } | undefined)?.status;
   const paidAmount = project
-    ? stageStatus('final_payment') === 'completed'
+    ? stageStatus('final_payment') === 'completed' || stageStatus('quick_payment') === 'completed'
       ? Number(project.budget || 0)
       : stageStatus('advance_payment') === 'completed'
         ? Number(project.advance_amount || project.budget || 0)

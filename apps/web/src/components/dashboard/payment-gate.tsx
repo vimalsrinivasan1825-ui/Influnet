@@ -29,13 +29,21 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 
 /**
- * Payment gate for a project's advance/final payment stage.
+ * Payment gate for a project's advance/final/quick payment stage.
  *
  * Two modes, chosen at build time by NEXT_PUBLIC_RAZORPAY_KEY_ID:
  *  - MANUAL (default): honest notice that money moves off-platform; the business
  *    marks the checklist item done above once paid. Influnet processes nothing.
  *  - RAZORPAY (configured): the business sees a real "Pay securely" button that
  *    opens Razorpay Checkout; the signed webhook records payment + opens the gate.
+ *
+ * `quick_payment` (short-flow projects) was added to the API's accepted
+ * stage_key values and to the E2E suite long before any caller ever rendered
+ * this component for it — found 2026-09-16 trying to actually run a
+ * short-term project through the dashboard: the checklist item was a locked
+ * `Gate` with no way to open it, because nothing put a PaymentGate on screen
+ * at that stage. The server was always correct; this component just never
+ * got the third case.
  */
 export function PaymentGate({
   projectId,
@@ -48,7 +56,7 @@ export function PaymentGate({
   keyId,
 }: {
   projectId: number | string;
-  stageKey: 'advance_payment' | 'final_payment';
+  stageKey: 'advance_payment' | 'final_payment' | 'quick_payment';
   amountRupees?: number | null;
   userRole: 'business' | 'creator' | null;
   isDone: boolean;
@@ -125,7 +133,8 @@ export function PaymentGate({
         amount: res.data.amount,
         currency: res.data.currency,
         name: 'Influnet',
-        description: stageKey === 'advance_payment' ? 'Advance / deposit' : 'Final payment',
+        description:
+          stageKey === 'advance_payment' ? 'Advance / deposit' : stageKey === 'final_payment' ? 'Final payment' : 'Project payment',
         handler: () => {
           // The webhook is the source of truth for marking the gate paid; this
           // just refreshes the view so the user sees it update shortly after.
