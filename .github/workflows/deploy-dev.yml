@@ -85,6 +85,22 @@ jobs:
       - name: Confirm migration state after applying
         run: supabase migration list
 
+      # Nothing else deployed these. `supabase functions deploy` was documented
+      # as a MANUAL command in four different docs going back to July and never
+      # once automated — which is exactly how the retired Login_Verification_OTP
+      # template stayed live on staging's phone-otp function after the code had
+      # already moved to Authentication_OTP: the source was right, the RUNNING
+      # function just never heard about it. Deploying on every push, the same
+      # way migrations already are, closes that class of bug for good rather
+      # than relying on someone remembering the command from a doc.
+      #
+      # Idempotent and cheap even when the function didn't change — add a new
+      # function's directory name here when one is added.
+      - name: Deploy Edge Functions
+        run: |
+          supabase functions deploy phone-otp --project-ref "$PROJECT_REF"
+          supabase functions deploy auth-signup --project-ref "$PROJECT_REF"
+
   build-and-deploy:
     needs: migrate
     runs-on: ubuntu-latest
