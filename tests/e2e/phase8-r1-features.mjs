@@ -686,10 +686,19 @@ async function main() {
   // ══════════════════════════════════════════════════════════════════════
   s.section('S2 — creating_since and S1 — creatorLevel actually reach the profile view');
 
+  // This check must set its own fixture. It used to assert a hardcoded 2019
+  // that had been poked into the DB by hand in an earlier session — invisible
+  // dependency on state nothing in this repo creates, so the very next
+  // seed-personas.mjs run (which deletes and recreates every persona) wiped
+  // it and turned a passing check into a false CRITICAL with no code at fault.
+  // AGENTS.md's own rule for this harness: "every phase runs standalone and
+  // re-runs cleanly" — that means each phase brings its own fixtures.
+  await sql(`update profiles set creating_since = 2019 where id = ${lit(uid('sourav'))}`);
+
   const profileView = await A.boat.get(`/api/creators/souravjoshi`);
   s.check('public profile view responds', profileView.status === 200, { severity: 'HIGH', observed: profileView.status });
   s.check('creatingSince reaches the shared profile view (web + mobile both read this)', profileView.body?.data?.creatingSince === 2019, {
-    severity: 'CRITICAL', observed: profileView.body?.data?.creatingSince, note: 'was set earlier this session; was previously stripped by the free-tier tier-projection allow-list',
+    severity: 'CRITICAL', observed: profileView.body?.data?.creatingSince,
   });
   s.check('creatorLevel also reaches it (was ALSO stripped by the same allow-list until this session)', profileView.body?.data?.creatorLevel !== undefined, {
     severity: 'HIGH', observed: profileView.body?.data?.creatorLevel,
