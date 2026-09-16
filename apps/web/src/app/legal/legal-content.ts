@@ -92,15 +92,15 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: 'Fees and payment',
         body: [
           'Campaign payments are made through our payment provider, Razorpay. Amounts are calculated from the terms the two parties agreed and are never taken from the browser.',
-          '[[STATE YOUR PLATFORM FEE HERE: the percentage or flat fee, when it is charged, and who pays it. If there is no fee today, say so plainly.]]',
-          '[[STATE WHEN A CREATOR IS PAID OUT and how long settlement takes.]]',
+          '[[DRAFT — REVIEW BEFORE PUBLISHING: Influnet charges a platform fee of 10% of the campaign value, deducted from the amount released to the creator at final payment. The brand pays the agreed campaign amount in full; no additional fee is added on top.]]',
+          '[[DRAFT — REVIEW BEFORE PUBLISHING: A creator is paid out once both parties confirm completion of the final stage. Funds are released to the creator’s registered payout method within 5–7 business days of confirmation.]]',
           'Subscription plans, where offered, are billed in advance and described at the point of purchase.',
         ],
       },
       {
         heading: 'Content and ownership',
         body: [
-          '[[DECIDE AND STATE: who owns content a creator delivers, and what licence the brand receives. This is the clause most likely to cause a dispute — do not leave it vague.]]',
+          '[[DRAFT — REVIEW BEFORE PUBLISHING: The creator retains copyright in the content they deliver. On confirmation of final payment, the creator grants the brand a non-exclusive, worldwide licence to use, reproduce and distribute the delivered content for the purposes agreed in the campaign brief (including paid promotion of that content), for 12 months from delivery unless the two parties agree a longer term in the brief. Any use beyond what was agreed — a different campaign, a different brand, or use after the licence period — requires the creator’s separate consent.]]',
           'You keep ownership of what you upload to your own profile. You grant us a limited licence to display it on the platform for the purpose of operating it.',
           'Creators must disclose paid partnerships as the law and the relevant platform require. That obligation is yours, not ours.',
         ],
@@ -125,7 +125,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: 'Liability',
         body: [
           'The platform is provided as-is. We do not warrant that it will be uninterrupted or error-free.',
-          '[[LIABILITY CAP — have this reviewed. A common formulation is to limit liability to the fees we received from you in the preceding twelve months. Do not copy that blindly; it needs to suit your actual exposure.]]',
+          '[[DRAFT — REVIEW BEFORE PUBLISHING (have a lawyer confirm this fits your actual exposure): to the fullest extent permitted by law, our total liability to you arising out of or relating to your use of Influnet is limited to the platform fees we received from you in the twelve months before the claim arose.]]',
           'Nothing here limits liability that cannot lawfully be limited.',
         ],
       },
@@ -189,7 +189,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       {
         heading: 'Where it is stored',
         body: [
-          '[[CONFIRM AND STATE YOUR SUPABASE AND AZURE REGIONS. If data leaves India, say so here — it is a question people do ask.]]',
+          'Our application hosting (Microsoft Azure) is in the South India region. [[CONFIRM YOUR SUPABASE PROJECT REGION here — could not be verified from the codebase in this session. If any data leaves India, say so plainly.]]',
         ],
       },
       {
@@ -246,13 +246,13 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: 'Cancelling before work starts',
         body: [
           'Either party may withdraw before both sides have signed off on the agreed terms. Nothing is owed.',
-          '[[STATE YOUR POLICY: if an advance has already been paid and the project is cancelled before the creator begins, is it refunded in full? This is the single most-asked question — answer it plainly.]]',
+          '[[DRAFT — REVIEW BEFORE PUBLISHING: if an advance has already been paid and either party withdraws before the creator has started work, it is refunded to the brand in full, minus any payment-gateway processing fee that is not refundable to us.]]',
         ],
       },
       {
         heading: 'Cancelling once work is under way',
         body: [
-          '[[STATE YOUR POLICY. A common approach: the advance is non-refundable once the creator has begun, because it compensates work already done. Decide, state it, and apply it consistently.]]',
+          '[[DRAFT — REVIEW BEFORE PUBLISHING: once a creator has begun work (marked as such in the project stages), the advance is non-refundable, because it compensates work already under way. If the creator has delivered only part of the agreed work when the project is cancelled, we will mediate a fair partial payment based on the stage record.]]',
           'Where the two parties agree a different outcome between themselves, we will honour it.',
         ],
       },
@@ -260,7 +260,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: 'If the work is not delivered',
         body: [
           'If a creator does not deliver what was agreed, raise it at ' + E.email + ' with the project reference. We will review the project record — the agreed terms, the stage history and the sign-offs — and mediate.',
-          '[[STATE WHAT YOU WILL ACTUALLY DO: under what circumstances will you refund an advance when a creator fails to deliver? Razorpay will ask. So will the first user it happens to.]]',
+          '[[DRAFT — REVIEW BEFORE PUBLISHING: if a creator does not deliver the agreed work by the agreed deadline and has not begun it, we will refund the brand’s advance in full. If work was partly delivered, we will mediate a fair partial refund based on what the stage record shows was actually completed.]]',
         ],
       },
       {
@@ -273,7 +273,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: 'Subscriptions',
         body: [
           'Paid plans are billed in advance. You can cancel at any time and keep access until the end of the period you have paid for.',
-          '[[STATE WHETHER PART-PERIODS ARE REFUNDED. "No pro-rata refunds" is acceptable if you say it up front.]]',
+          '[[DRAFT — REVIEW BEFORE PUBLISHING: we do not refund part of a billing period. If you cancel, you keep access until the end of the period you already paid for, and you will not be charged again.]]',
         ],
       },
       {
