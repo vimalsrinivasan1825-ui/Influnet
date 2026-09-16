@@ -709,11 +709,20 @@ function ProposalForm({
           maxLength={4000}
         />
 
-        {/* Flow kind selector */}
+        {/* Flow kind selector.
+            All three flow_key values the backend actually supports (see
+            packages/core/src/project-lifecycle.ts and migration 119) belong
+            here. short_pay_before existed as a full, tested lifecycle —
+            propose_project() validated it, the E2E suite covered it — with
+            no way for a real user to ever pick it: `flowKey`'s state type
+            already listed it, but this options array stopped at two, so it
+            was reachable only by editing a prefilled proposal that already
+            carried it. Found 2026-09-16 checking this flow end-to-end. */}
         <div className="flex gap-2">
           {([
             { key: "full" as const, label: "Full project", desc: "12-stage guided pipeline" },
             { key: "short_pay_after" as const, label: "Short-term", desc: "Deliver then get paid" },
+            { key: "short_pay_before" as const, label: "Pay first", desc: "Get paid, then deliver" },
           ]).map((opt) => (
             <button
               key={opt.key}

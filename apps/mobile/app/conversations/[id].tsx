@@ -72,6 +72,7 @@ import {
   Card,
   Field,
   KeyboardAvoider,
+  SegmentedControl,
   Sheet,
   Txt,
   VerifiedBadge,
@@ -484,6 +485,17 @@ export default function ConversationScreen() {
   const [pDescription, setPDescription] = useState('');
   const [pBudget, setPBudget] = useState('');
   const [pAdvance, setPAdvance] = useState('');
+  // Flow choice. The web propose form already had this; this screen had no
+  // way to reach short_pay_after or short_pay_before at all — every mobile
+  // proposal silently landed on 'full' regardless of what the business
+  // actually wanted, forcing a one-off deal through the 12-stage pipeline.
+  // Found and fixed 2026-09-16.
+  const [pFlowKey, setPFlowKey] = useState<'full' | 'short_pay_after' | 'short_pay_before'>('full');
+  const [pDueDate, setPDueDate] = useState('');
+  const [pDeliverables, setPDeliverables] = useState('');
+  const [pIsBarter, setPIsBarter] = useState(false);
+  const [pBarterDetails, setPBarterDetails] = useState('');
+  const pIsShort = pFlowKey !== 'full';
   const [proposeBusy, setProposeBusy] = useState(false);
   const [proposeError, setProposeError] = useState<string | null>(null);
 
@@ -754,6 +766,21 @@ export default function ConversationScreen() {
       setProposeError('The advance can’t be more than the total budget.');
       return;
     }
+    // Same three rules the server enforces (propose_project(), migration 121)
+    // — checked here too so the error reads as a form problem, not a failed
+    // request, and matching web's copy exactly.
+    if (pIsShort && !pDueDate.trim()) {
+      setProposeError('A short-term project needs a delivery date.');
+      return;
+    }
+    if (pIsShort && (!budget || budget <= 0) && !pIsBarter) {
+      setProposeError('A short-term project needs a budget or must be marked as barter.');
+      return;
+    }
+    if (pIsBarter && !pBarterDetails.trim()) {
+      setProposeError('Barter projects need a description of what is being exchanged.');
+      return;
+    }
 
     setProposeBusy(true);
     setProposeError(null);
@@ -762,8 +789,16 @@ export default function ConversationScreen() {
       collab_request_id: deal.collabRequestId,
       title,
       description: pDescription.trim() || undefined,
-      budget,
-      advance_amount: advance,
+      flow_key: pFlowKey,
+      budget: pIsBarter ? 0 : budget,
+      // short_flow_no_advance: an advance only means something in the full
+      // flow's separate advance/final split. Short flows pay the whole
+      // budget at their one payment stage.
+      advance_amount: pIsShort ? undefined : advance,
+      due_date: pIsShort && pDueDate.trim() ? pDueDate.trim() : undefined,
+      deliverables: pIsShort && pDeliverables.trim() ? pDeliverables.trim() : undefined,
+      is_barter: pIsShort && pIsBarter ? true : undefined,
+      barter_details: pIsShort && pIsBarter ? pBarterDetails.trim() : undefined,
     });
     setProposeBusy(false);
 
@@ -777,6 +812,11 @@ export default function ConversationScreen() {
     setPDescription('');
     setPBudget('');
     setPAdvance('');
+    setPFlowKey('full');
+    setPDueDate('');
+    setPDeliverables('');
+    setPIsBarter(false);
+    setPBarterDetails('');
     void load();
   }
 
@@ -1600,30 +1640,113 @@ export default function ConversationScreen() {
           hint="Scope, deliverables and timing — the clearer this is, the fewer change requests later."
         />
 
+        <Txt variant="footnote" tone="muted" style={{ marginTop: 4, marginBottom: 6 }}>
+          Project type
+        </Txt>
+        <SegmentedControl
+          segments={[
+            { value: 'full', label: 'Full' },
+            { value: 'short_pay_after', label: 'Deliver first' },
+            { value: 'short_pay_before', label: 'Pay first' },
+          ]}
+          value={pFlowKey}
+          onChange={(v) => {
+            setPFlowKey(v);
+            if (v !== 'full') setPAdvance('');
+            if (proposeError) setProposeError(null);
+          }}
+        />
+        <Txt variant="caption" tone="muted" style={{ marginTop: 4 }}>
+          {pFlowKey === 'full'
+            ? 'The 12-stage guided pipeline — for an ongoing campaign.'
+            : pFlowKey === 'short_pay_after'
+              ? 'A quick one-off: agree, deliver, then get paid.'
+              : 'A quick one-off: agree, get paid, then deliver.'}
+        </Txt>
+
         <Field
-          label="Total budget (optional)"
-          placeholder="50000"
-          value={pBudget}
+          label={pIsShort ? 'Budget (₹) *' : 'Total budget (optional)'}
+          placeholder={pIsBarter ? '0 (barter)' : '50000'}
+          value={pIsBarter ? '0' : pBudget}
+          editable={!pIsBarter}
           onChangeText={(v) => {
             setPBudget(v);
             if (proposeError) setProposeError(null);
           }}
           keyboardType="number-pad"
-          hint="Leave blank if you've already settled it in chat."
+          hint={pIsShort ? undefined : "Leave blank if you've already settled it in chat."}
         />
 
-        <Field
-          label="Advance (optional)"
-          placeholder="15000"
-          value={pAdvance}
-          onChangeText={(v) => {
-            setPAdvance(v);
-            if (proposeError) setProposeError(null);
-          }}
-          keyboardType="number-pad"
-          hint="Paid up front at the deposit stage. Must not exceed the total."
-          error={proposeError}
-        />
+        {pIsShort ? (
+          <>
+            <Field
+              label="Delivery date *"
+              placeholder="YYYY-MM-DD"
+              value={pDueDate}
+              onChangeText={(v) => {
+                setPDueDate(v);
+                if (proposeError) setProposeError(null);
+              }}
+            />
+            <Field
+              label="Deliverables (optional)"
+              placeholder="Specific deliverables for this short project…"
+              value={pDeliverables}
+              onChangeText={setPDeliverables}
+              multiline
+            />
+            <Pressable
+              onPress={() => {
+                setPIsBarter((b) => !b);
+                if (!pIsBarter) setPBudget('0');
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}
+            >
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 4,
+                  borderWidth: 1.5,
+                  borderColor: pIsBarter ? t.color.brand : t.color.hairlineStrong,
+                  backgroundColor: pIsBarter ? t.color.brand : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {pIsBarter ? <Check size={14} color={t.color.white} /> : null}
+              </View>
+              <Txt variant="footnote">This is a barter (no cash payment)</Txt>
+            </Pressable>
+            {pIsBarter ? (
+              <Field
+                label="What's being exchanged? *"
+                placeholder="e.g. product for content"
+                value={pBarterDetails}
+                onChangeText={setPBarterDetails}
+                multiline
+              />
+            ) : null}
+          </>
+        ) : (
+          <Field
+            label="Advance (optional)"
+            placeholder="15000"
+            value={pAdvance}
+            onChangeText={(v) => {
+              setPAdvance(v);
+              if (proposeError) setProposeError(null);
+            }}
+            keyboardType="number-pad"
+            hint="Paid up front at the deposit stage. Must not exceed the total."
+          />
+        )}
+
+        {proposeError ? (
+          <Txt variant="footnote" tone="danger" style={{ marginTop: 2 }}>
+            {proposeError}
+          </Txt>
+        ) : null}
 
         <Button
           label="Send these terms"
