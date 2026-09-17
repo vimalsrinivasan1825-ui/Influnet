@@ -50,6 +50,14 @@ This file tracks the current implementation state of each system module, issues 
 ### Next Target
 - Test both admin logins (`dev.admin@influnet.io` and `admin@influnet.com`) on web dev server.
 
+### Correction — 2026-09-17 (go-live audit)
+The session above shipped a lockout and two of its "Key Lessons" were wrong. Read these instead:
+- **`withAuth` selecting `is_super_admin` 403'd every API call for every user.** `authenticated` has column-level SELECT grants on `profiles`; an ungranted column fails the whole query (42501). Unit tests mock the DB and passed. Fixed in `757563cf`; `tests/unit/column-grants.test.ts` now catches the class. Prove DB reads with a real persona JWT, never the service key.
+- **Do not pair the flag with an email fallback.** Signup does not verify addresses, so `dev.admin@…` proves nothing. The tier is `profiles.is_super_admin` only, read server-side; the browser asks `GET /api/admin/tier`.
+- **A "backwards-compatible" overload broke compatibility.** `provision_admin(uuid,text,text)` next to `(uuid,text,text,boolean DEFAULT …)` makes every 3-arg call fail with 42725 "not unique". Migration 151 keeps one function.
+- **The client gate is presentation.** `<DeveloperGate>` decides what renders; `withSuperAdmin` is the control.
+- **Never write a password into this file.** One was, and is still in commit `2d91fb65` — squash before pushing, and rotate it.
+
 ---
 
 ### Session — 2026-09-16: End-to-End Multi-Flow Project Creation & Lifecycle Parity (Full, Deliver First, Pay First)

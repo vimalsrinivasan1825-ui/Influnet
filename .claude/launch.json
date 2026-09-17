@@ -4,15 +4,35 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace=apps/web"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace=apps/web"
+      ],
       "port": 3000
     },
     {
       "name": "landing",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace=apps/landing"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace=apps/landing"
+      ],
       "port": 3001,
       "autoPort": true
+    },
+    {
+      "name": "web-e2e",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NOTIFY_EMAILS_ENABLED=false",
+        "npm",
+        "run",
+        "dev",
+        "--workspace=apps/web"
+      ],
+      "port": 3000
     }
   ]
 }
