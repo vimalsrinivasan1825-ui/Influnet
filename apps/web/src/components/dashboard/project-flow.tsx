@@ -7,10 +7,10 @@ import {
   type Node, type Edge, type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Check, Circle, SkipForward, Link2, Download, ChevronDown } from 'lucide-react';
+import { Check, SkipForward, Link2, Download, ChevronDown } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Handle, Position } from '@xyflow/react';
-import { STAGE_LABELS, STAGES, flowOf, type Stage } from '@/lib/project-lifecycle';
+import { STAGE_LABELS, flowOf, type Stage } from '@/lib/project-lifecycle';
 import { STAGE_GUIDE } from '@/lib/project-stage-guide';
 
 type StageStatus = 'done' | 'skipped' | 'current' | 'upcoming';
@@ -80,7 +80,11 @@ export function ProjectFlow({ project, entries, userId, onPreviewImage }: { proj
   // the Guided tab.
   const flow = flowOf(project ?? {});
   const currentIdx = flow.stages.indexOf(project?.current_stage as Stage);
-  const sp = (project?.stage_progress || {}) as Record<string, any>;
+  // Memoised: `|| {}` minted a fresh object every render for a project with no
+  // progress yet, which re-created statusOf → the nodes → setNodes below on
+  // every render.
+  const rawProgress = project?.stage_progress;
+  const sp = useMemo(() => (rawProgress || {}) as Record<string, any>, [rawProgress]);
   // Which side of STAGE_GUIDE to show for an unreached stage — the whole
   // point of showing it is telling THIS viewer what they'll need to do.
   const userRole: 'business' | 'creator' = project?.owner_user_id === userId ? 'business' : 'creator';
@@ -104,7 +108,7 @@ export function ProjectFlow({ project, entries, userId, onPreviewImage }: { proj
     position: { x: i * 280, y: (i % 2) * 120 },
     data: { label: flow.labels[key] || STAGE_LABELS[key] || key, status: statusOf(key, i), count: entries.filter((e) => e.stage_key === key).length, index: i },
     deletable: false,
-  })), [allStages, statusOf, entries]);
+  })), [allStages, statusOf, entries, flow.labels]);
 
   const initialEdges: Edge[] = useMemo(() => allStages.slice(1).map((key: Stage, i: number) => ({
     id: `${allStages[i]}-${key}`,
