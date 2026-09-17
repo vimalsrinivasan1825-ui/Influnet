@@ -13,7 +13,7 @@ This file tracks the current implementation state of each system module, issues 
   - Updated RPC `public.provision_admin(UUID, TEXT, TEXT, BOOLEAN)` with backward-compatible 3-arg overload.
   - Applied migration 150 cleanly to dev database via `scripts/apply-migration.mjs 150`.
   - Enhanced `scripts/create-admin.mjs` with `--super` / `--developer` flags and updated `--list` to differentiate Developer/Super Admins from Business/Client Admins.
-  - Successfully provisioned developer super admin: `dev.admin@influnet.io` / `Vimalsri718` (ID: `b8c98d86-b23d-4856-aa13-b22571007ea4`).
+  - Successfully provisioned developer super admin: `dev.admin@influnet.io` (credentials live in the password manager, never in the repo; ID: `b8c98d86-b23d-4856-aa13-b22571007ea4`).
 - **Server API Route Guarding (`apps/web/src/lib/api.ts`)**:
   - Implemented `isSuperAdminEmail(email)` recognizing developer accounts and fallback config list.
   - Implemented `withSuperAdmin(req)` returning `403 Forbidden` (`Developer privileges required`) for non-super admins.
