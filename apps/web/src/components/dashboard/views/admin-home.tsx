@@ -14,6 +14,7 @@ import {
   PlugZap,
   ClipboardList,
   Inbox,
+  Bug,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -168,6 +169,9 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
             <>
               <ButtonLink href="/dashboard/admin/health" variant="ghost" size="sm">
                 <HeartPulse className="size-3.5 mr-1" /> System health
+              </ButtonLink>
+              <ButtonLink href="/dashboard/admin/observability" variant="ghost" size="sm">
+                <Bug className="size-3.5 mr-1" /> Observability
               </ButtonLink>
               <ButtonLink href="/dashboard/admin/vendors" variant="ghost" size="sm">
                 <PlugZap className="size-3.5 mr-1" /> Vendors & breakers

@@ -616,6 +616,7 @@ On mount:
 - `src/components/dashboard/admin/developer-gate.tsx` — Client-side protection for developer tools
 - `src/app/api/admin/dashboard/route.ts` — Platform stats
 - `src/app/api/admin/health/route.ts` — System health & integration diagnostics (Developer only)
+- `src/app/api/admin/observability/route.ts` + `src/lib/observability-dashboard.ts` — Sentry issues + PostHog usage/funnel/web vitals (Developer only)
 - `src/app/api/admin/vendors/route.ts` — Third-party vendor circuit breakers & kill-switches (Developer only)
 - `src/app/api/admin/rate-limits/route.ts` — Rate limit monitoring & top callers (Developer only)
 - `src/app/api/admin/emails/route.ts` — Email delivery logs & preview test console (Developer only)

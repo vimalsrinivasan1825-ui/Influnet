@@ -34,10 +34,13 @@ import {
   type LucideIcon,
   PlugZap,
   Terminal,
+  Bug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 import { useEntitlements } from "@/lib/hooks/use-entitlements";
+
+const SECTION_ROOTS = new Set(["/dashboard", "/dashboard/admin"]);
 
 interface NavItem {
   label: string;
@@ -92,6 +95,7 @@ const DEV_ADMIN_NAV: NavItem[] = [
   { label: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
   { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
   { label: "Vendors", href: "/dashboard/admin/vendors", icon: PlugZap },
+  { label: "Observability", href: "/dashboard/admin/observability", icon: Bug },
   { label: "Rate limits", href: "/dashboard/admin/rate-limits", icon: Gauge },
   { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
   { label: "Campaigns", href: "/dashboard/admin/campaigns", icon: Sparkles },
@@ -132,9 +136,11 @@ function NavList({
   return (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
       {items.map((item) => {
+        // Section roots (/dashboard, /dashboard/admin) match only exactly —
+        // as prefixes they lit up alongside every page beneath them.
         const active =
           pathname === item.href ||
-          (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
+          (!SECTION_ROOTS.has(item.href) && pathname.startsWith(item.href + "/"));
         const count =
           item.badge === "unread"
             ? unreadMessages

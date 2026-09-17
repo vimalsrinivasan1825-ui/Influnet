@@ -291,6 +291,32 @@ jobs:
                 "SUBSCRIPTIONS_ENABLED=true" \
                 "OWNERSHIP_GATE_ENABLED=true"
 
+      # Read-side credentials for /dashboard/admin/observability. Optional,
+      # and set ONLY when the secret exists: `${{ secrets.X }}` expands to "" for
+      # a missing secret, and `--set-env-vars X=` would then blank a value set
+      # by hand on the container. SENTRY_API_TOKEN (event:read) is not
+      # SENTRY_AUTH_TOKEN (source-map upload). See lib/observability-dashboard.ts.
+      - name: Set observability dashboard credentials (when present)
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            ARGS=()
+            add() { if [ -n "$2" ]; then ARGS+=("$1=$2"); fi; }
+            add SENTRY_API_TOKEN "${{ secrets.SENTRY_API_TOKEN }}"
+            add SENTRY_ORG "${{ secrets.SENTRY_ORG }}"
+            add SENTRY_PROJECT "${{ secrets.SENTRY_PROJECT }}"
+            add POSTHOG_PERSONAL_API_KEY "${{ secrets.POSTHOG_PERSONAL_API_KEY }}"
+            add POSTHOG_PROJECT_ID "${{ vars.POSTHOG_PROJECT_ID }}"
+            if [ ${#ARGS[@]} -eq 0 ]; then
+              echo "No observability read credentials configured; dashboard will show setup steps."
+              exit 0
+            fi
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --set-env-vars "${ARGS[@]}"
+
       # Staging serves real users (2026-09-16), so it never scales to zero.
       # At min 0 the first visitor after a quiet spell waited ~20s for a cold
       # Next.js container (measured on /api/health, 2026-09-16) — exactly when

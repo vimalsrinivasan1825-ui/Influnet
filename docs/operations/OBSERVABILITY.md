@@ -113,6 +113,31 @@ traffic, check the Sentry project shows events tagged `environment: staging`.
 **If nothing arrives, the DSN is wrong** — every reporter fails silently by
 design, so silence is not proof it works.
 
+### 3.5 Connect the Observability dashboard (read-side keys)
+`/dashboard/admin/observability` (super admins) shows Sentry's unresolved
+issues and PostHog's active users, collaboration funnel and real-user web
+vitals on one screen. The DSN and the `phc_` project key only **send**; reading
+back needs separate credentials. Until they are set the page shows these steps.
+
+| Variable | Where it comes from | Kind |
+|---|---|---|
+| `SENTRY_API_TOKEN` | Sentry → Settings → Auth Tokens, scope **`event:read`**. Not `SENTRY_AUTH_TOKEN`, which only uploads source maps. | GitHub env **secret** |
+| `SENTRY_ORG`, `SENTRY_PROJECT` | Slugs from the Sentry URL — already present for source maps. | GitHub env secret |
+| `POSTHOG_PERSONAL_API_KEY` | PostHog → Settings → Personal API keys, scope **Query Read** (`phx_…`). | GitHub env **secret** |
+| `POSTHOG_PROJECT_ID` | The number in the PostHog project URL. | GitHub env **variable** |
+
+```bash
+gh secret set SENTRY_API_TOKEN --env staging -R vimalsrinivasan1825-ui/Influnet
+gh secret set POSTHOG_PERSONAL_API_KEY --env staging -R vimalsrinivasan1825-ui/Influnet
+gh variable set POSTHOG_PROJECT_ID --env staging -R vimalsrinivasan1825-ui/Influnet
+```
+
+Repeat with `--env dev`. The deploy workflows pass each one through **only when
+it exists**, so an unset secret never blanks a value set by hand. The EU region
+is handled automatically (API calls go to `de.sentry.io` / `eu.posthog.com`).
+Results are cached 60s per instance; the Refresh button is limited to 6/min
+because each refresh spends PostHog query budget.
+
 ---
 
 ## 4. Daily routine during a tester round
@@ -125,7 +150,8 @@ design, so silence is not proof it works.
    only sign up? Watch **stalled creators**: signed up but never verified is the
    clearest signal that onboarding is leaking.
 3. `/dashboard/admin/support` — anything waiting on us.
-4. Sentry — new issues since yesterday.
+4. `/dashboard/admin/observability` — new Sentry issues, and whether active
+   users and the funnel moved.
 
 **When a tester reports a problem:**
 

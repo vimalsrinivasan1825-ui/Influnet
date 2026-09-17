@@ -83,6 +83,18 @@ export async function GET(req: Request) {
       { name: 'Email sending ON', configured: process.env.NOTIFY_EMAILS_ENABLED === 'true', required: false },
       { name: 'Sentry', configured: isObservabilityEnabled(), required: false },
       { name: 'PostHog analytics', configured: Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY), required: false },
+      // Read-side keys for /dashboard/admin/observability. The send keys above
+      // cannot read anything back.
+      {
+        name: 'Sentry read API (dashboard)',
+        configured: Boolean(process.env.SENTRY_API_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT),
+        required: false,
+      },
+      {
+        name: 'PostHog read API (dashboard)',
+        configured: Boolean(process.env.POSTHOG_PERSONAL_API_KEY && process.env.POSTHOG_PROJECT_ID),
+        required: false,
+      },
       { name: 'Distributed rate limiting', configured: isDistributedRateLimit(), required: false },
       { name: 'Phone OTP gate', configured: process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === 'true', required: false },
     ];
