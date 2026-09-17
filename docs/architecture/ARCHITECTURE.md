@@ -608,10 +608,11 @@ On mount:
 
 **Purpose:** Platform administration — user management, business approval, data oversight, split into dual tiers:
 1. **Business / Client Admin**: Non-technical platform operations (Overview, Live Activity, Platform Analytics, Approvals, Campaigns, Support & Queries, Reports, Feedback, Users, Projects, Requests).
-2. **Developer / Super Admin**: Unrestricted system administration with full access to internal developer infrastructure (System Health, Vendors & Circuit Breakers, Rate Limits, Email Delivery, Audit Trail, Issues & Fixes Tracker). Protected via `withSuperAdmin` API wrapper and client-side `<DeveloperGate>`.
+2. **Developer / Super Admin**: Unrestricted system administration with full access to internal developer infrastructure (System Health, Vendors & Circuit Breakers, Rate Limits, Email Delivery, Audit Trail, Issues & Fixes Tracker). Tier is `profiles.is_super_admin` and nothing else (never an email pattern). Enforced server-side by `withSuperAdmin`; the browser learns its tier from `GET /api/admin/tier` via `useAdminTier()` and uses it only to choose what to render (`<DeveloperGate>`, the sidebar). The browser cannot read the column directly — `authenticated` has no SELECT grant on it. Grant it with `scripts/create-admin.mjs --super`; `--no-super` revokes; omitting both keeps the current tier.
 
 **Files:**
-- `src/lib/api.ts` — `withAdmin`, `withSuperAdmin`, `isSuperAdminEmail`
+- `src/lib/api.ts` — `withAdmin`, `withSuperAdmin`, `isSuperAdmin`
+- `src/app/api/admin/tier/route.ts` + `src/lib/hooks/use-admin-tier.ts` — which admin workspace to render
 - `src/components/dashboard/admin/developer-gate.tsx` — Client-side protection for developer tools
 - `src/app/api/admin/dashboard/route.ts` — Platform stats
 - `src/app/api/admin/health/route.ts` — System health & integration diagnostics (Developer only)

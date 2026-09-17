@@ -13,6 +13,7 @@ import DashboardHeader from "@/components/dashboard/header";
 import { GuideRoot } from "@/components/guides/guide-root";
 import { useNotificationStore, NotificationItem } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
+import { useAdminTier } from "@/lib/hooks/use-admin-tier";
 import type { UserRole } from "@/types";
 
 const THEME_CLASS: Record<UserRole, string> = {
@@ -106,15 +107,15 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
           const { data: profile } = await sb
             .from("profiles")
-            .select("role, name, is_super_admin")
+            .select("role, name")
             .eq("id", session.user.id)
             .single();
 
           if (profile) {
-            const p = profile as { role: UserRole; name: string | null; is_super_admin?: boolean };
+            const p = profile as { role: UserRole; name: string | null };
             setRole(p.role);
             setUserName(p.name || "User");
-            setUser({ ...session.user, role: p.role, name: p.name, is_super_admin: p.is_super_admin } as any);
+            setUser({ ...session.user, role: p.role, name: p.name } as any);
 
             if (p.role === "business_owner") {
               // Must go through the RPC: migration 053 revoked direct selects on
@@ -326,6 +327,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     (approvalStatus === "pending_review" || approvalStatus === "rejected") &&
     !bannerDismissed;
   const isRejected = approvalStatus === "rejected";
+  const { isSuperAdmin } = useAdminTier(role === "admin");
 
   if (!isLoaded) {
     return (
@@ -343,11 +345,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </div>
     );
   }
-
-  const isSuperAdmin = Boolean(
-    (user as any)?.is_super_admin ||
-    (user?.email && (user.email.toLowerCase() === "dev.admin@influnet.io" || user.email.toLowerCase().startsWith("dev.admin@")))
-  );
 
   return (
     <div className={`${themeClass} flex min-h-screen bg-surface text-content`}>

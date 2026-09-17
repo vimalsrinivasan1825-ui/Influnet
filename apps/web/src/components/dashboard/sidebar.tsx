@@ -12,7 +12,6 @@ import {
   Settings,
   Shield,
   BadgeCheck,
-  Compass,
   Building2,
   PanelLeftClose,
   PanelLeft,
@@ -48,21 +47,21 @@ interface NavItem {
 }
 
 const CREATOR_NAV: NavItem[] = [
+  { label: "Home", href: "/dashboard/home", icon: Home },
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Explore Brands", href: "/dashboard/explore-brands", icon: Compass },
-  { label: "Find Campaigns", href: "/dashboard/campaigns/explore", icon: Sparkles },
+  { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },
   { label: "Campaigns", href: "/dashboard/campaigns", icon: Sparkles },
   { label: "Connections", href: "/dashboard/connections", icon: Users },
-  { label: "Profile", href: "/dashboard/profile", icon: UserRound },
   { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
 
 const BUSINESS_NAV: NavItem[] = [
+  { label: "Home", href: "/dashboard/home", icon: Home },
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Discover Creators", href: "/dashboard/discover", icon: Compass },
+  { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
   { label: "Projects", href: "/dashboard/projects", icon: FolderKanban },

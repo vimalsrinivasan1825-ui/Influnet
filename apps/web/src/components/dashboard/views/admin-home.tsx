@@ -21,7 +21,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { Reveal, Stagger } from "@/components/ui/motion";
 import { DonutChart } from "@/components/ui/chart";
-import { useAuthStore } from "@/store/auth-store";
+import { useAdminTier } from "@/lib/hooks/use-admin-tier";
 import type { AdminHomeData } from "./types";
 
 function Row({
@@ -45,11 +45,7 @@ function Row({
 }
 
 export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
-  const { user } = useAuthStore();
-  const isSuperAdmin = Boolean(
-    (user as any)?.is_super_admin ||
-    (user?.email && (user.email.toLowerCase() === "dev.admin@influnet.io" || user.email.toLowerCase().startsWith("dev.admin@")))
-  );
+  const { isSuperAdmin } = useAdminTier();
 
   const audience = [
     { name: "Businesses", value: s.total_businesses, fill: "#6366f1" },

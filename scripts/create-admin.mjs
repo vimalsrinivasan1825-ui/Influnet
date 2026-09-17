@@ -37,6 +37,13 @@
  *
  *   node --env-file=apps/web/.env.local scripts/create-admin.mjs --list
  *
+ * ── Admin tier (migration 150/151) ────────────────────────────────────────
+ *   --super (alias --developer)  grant Developer / Super Admin: health, vendors,
+ *                                rate limits, emails, audit, issues.
+ *   --no-super                   explicitly revoke it (Business / Client Admin).
+ *   neither                      keep the account's current tier; a new admin
+ *                                starts as Business / Client Admin.
+ *
  * Requires SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL in the env.
  * The service-role key is a full-database credential: run this from a trusted
  * machine, never from CI logs or a shared terminal.
@@ -167,7 +174,9 @@ async function main() {
     console.log(`• auth user created (${userId}).`);
   }
 
-  const isSuper = flag('super') || flag('developer');
+  // null = keep the current tier. Re-running this for an existing super admin
+  // without a flag must not quietly demote them.
+  const isSuper = flag('no-super') ? false : flag('super') || flag('developer') ? true : null;
 
   // Promote through the guarded RPC so the audit trail is written.
   const { data: result, error: rpcErr } = await sb.rpc('provision_admin', {
@@ -182,7 +191,7 @@ async function main() {
         '  If this says the function does not exist, apply migration 070_admin_hardening.sql first.',
     );
   }
-  console.log(`• profile promoted to admin (previous role: ${result?.previous_role ?? 'none'}, super_admin: ${isSuper}).`);
+  console.log(`• profile promoted to admin (previous role: ${result?.previous_role ?? 'none'}, super_admin: ${result?.is_super_admin}).`);
 
   // Verify rather than trust the write.
   const { data: check } = await sb.from('profiles').select('role, is_super_admin').eq('id', userId).single();

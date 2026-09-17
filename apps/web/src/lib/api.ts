@@ -116,23 +116,33 @@ export async function withAdmin(
 }
 
 /**
- * Known developer/super admin emails.
+ * Whether an admin is a Developer / Super Admin (migration 150).
+ *
+ * Read ONLY through the service-role client `withAdmin` hands back.
+ * `authenticated` has column-level SELECT grants on profiles and
+ * `is_super_admin` is deliberately not one of them — naming it in a query made
+ * with the caller's JWT fails the WHOLE statement with 42501, which is how this
+ * flag once took down `withAuth` for every user.
+ *
+ * The flag is the only source of truth. An email pattern is not: signup does
+ * not prove ownership of an address, so "dev.admin@..." proves nothing.
  */
-export function isSuperAdminEmail(email?: string | null): boolean {
-  if (!email) return false;
-  const normalized = email.trim().toLowerCase();
-  const configured = (process.env.DEV_ADMIN_EMAILS || 'dev.admin@influnet.io')
-    .toLowerCase()
-    .split(',')
-    .map((e) => e.trim());
-  return configured.includes(normalized) || normalized === 'dev.admin@influnet.io';
+export async function isSuperAdmin(serviceClient: any, userId: string): Promise<boolean> {
+  const { data, error } = await serviceClient
+    .from('profiles')
+    .select('is_super_admin')
+    .eq('id', userId)
+    .maybeSingle();
+  // Fail closed: an unreadable flag is not a granted one.
+  if (error || !data) return false;
+  return data.is_super_admin === true;
 }
 
 /**
  * Developer / Super Admin guard.
  *
  * Refuses Business / Client admins with 403 Forbidden.
- * Grants access only if caller has role='admin' AND is designated as a Developer / Super Admin.
+ * Grants access only if caller has role='admin' AND profiles.is_super_admin.
  */
 export async function withSuperAdmin(
   req: Request
@@ -143,17 +153,7 @@ export async function withSuperAdmin(
   const auth = await withAdmin(req);
   if (!auth.ok) return auth;
 
-  if (isSuperAdminEmail(auth.user.email)) {
-    return auth;
-  }
-
-  const { data: profile } = await auth.supabase
-    .from('profiles')
-    .select('is_super_admin')
-    .eq('id', auth.user.id)
-    .single();
-
-  if (profile?.is_super_admin === true) {
+  if (await isSuperAdmin(auth.supabase, auth.user.id)) {
     return auth;
   }
 
@@ -217,7 +217,9 @@ export async function withAuth(
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role, is_super_admin')
+      // Only columns `authenticated` holds a SELECT grant on — one ungranted
+      // column fails the whole query and locks every user out.
+      .select('role')
       .eq('id', user.id)
       .single();
 
@@ -226,9 +228,6 @@ export async function withAuth(
     }
 
     const userRole = profile.role as UserRole;
-    if (profile.is_super_admin != null) {
-      (user as any).is_super_admin = profile.is_super_admin;
-    }
 
     if (opts?.role && userRole !== opts.role) {
       return { ok: false, res: jsonError(403, `Forbidden: Requires ${opts.role} role`) };

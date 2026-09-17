@@ -33,16 +33,20 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: false })
     .limit(20);
 
-  const templates = listTemplates();
-
   return NextResponse.json({
-    templates,
+    templates: listTemplates(),
     config: {
       enabled: emailsEnabled(),
-      configured: emailConfigured(),
+      apiKeyPresent: emailConfigured(),
       from: fromAddress(),
-      supportEmail: supportEmail(),
+      replyTo: supportEmail(),
+      appUrl: process.env.NEXT_PUBLIC_APP_URL || null,
       allowlist: process.env.EMAIL_ALLOWLIST || null,
+      requireVerified: (process.env.EMAIL_REQUIRE_VERIFIED || 'true').trim() !== 'false',
+      dailyCap: Number(process.env.EMAIL_DAILY_CAP || 6),
+      // Surfaced because this console exists to answer "why did nothing
+      // arrive?" — a silenced template with no visible cause is the worst
+      // possible version of that question.
       disabledTemplates: process.env.EMAIL_DISABLED_TEMPLATES || null,
       webhookConfigured: !!process.env.RESEND_WEBHOOK_SECRET,
       environment: process.env.APP_ENV || process.env.NODE_ENV || 'local',
