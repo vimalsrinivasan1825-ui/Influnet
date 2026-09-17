@@ -6,8 +6,13 @@
  * needs different credentials — the send keys (DSN, `phc_` project key) are
  * write-only by design:
  *
- *   SENTRY_API_TOKEN          org auth token with `event:read`. Distinct from
- *                             SENTRY_AUTH_TOKEN, which CI uses to upload
+ *   SENTRY_API_TOKEN          a USER auth token (Settings → Account → API →
+ *                             Auth Tokens) with `event:read`. NOT an
+ *                             Organization Token (Settings → Auth Tokens) —
+ *                             Sentry restricted those to the fixed `org:ci`
+ *                             scope (source maps / releases only), so
+ *                             `event:read` isn't offered there. Also distinct
+ *                             from SENTRY_AUTH_TOKEN, which CI uses to upload
  *                             source maps and holds only project:releases.
  *   SENTRY_ORG, SENTRY_PROJECT slugs (the same values CI already has).
  *   POSTHOG_PERSONAL_API_KEY  `phx_` personal key with "Query Read".

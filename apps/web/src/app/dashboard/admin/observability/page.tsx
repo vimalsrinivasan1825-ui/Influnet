@@ -215,7 +215,7 @@ function ObservabilityContent() {
                 vendor="Sentry"
                 status={s!}
                 setup={[
-                  "Sentry → Settings → Auth Tokens → create an org token with the event:read scope.",
+                  "Sentry → click your avatar → User settings → Auth Tokens (a USER token, not an Organization Token — those are now restricted to org:ci and won't offer event:read) → create one with the event:read scope.",
                   "SENTRY_ORG and SENTRY_PROJECT are the slugs in your Sentry URL (CI already has them).",
                   "This token is separate from SENTRY_AUTH_TOKEN, which only uploads source maps.",
                 ]}

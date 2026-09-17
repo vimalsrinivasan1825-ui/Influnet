@@ -121,7 +121,7 @@ back needs separate credentials. Until they are set the page shows these steps.
 
 | Variable | Where it comes from | Kind |
 |---|---|---|
-| `SENTRY_API_TOKEN` | Sentry → Settings → Auth Tokens, scope **`event:read`**. Not `SENTRY_AUTH_TOKEN`, which only uploads source maps. | GitHub env **secret** |
+| `SENTRY_API_TOKEN` | Sentry → your avatar → User settings → Auth Tokens (a **user** token — Organization Tokens under Settings → Auth Tokens are restricted to `org:ci` and can't grant `event:read`), scope **`event:read`**. Not `SENTRY_AUTH_TOKEN`, which only uploads source maps. | GitHub env **secret** |
 | `SENTRY_ORG`, `SENTRY_PROJECT` | Slugs from the Sentry URL — already present for source maps. | GitHub env secret |
 | `POSTHOG_PERSONAL_API_KEY` | PostHog → Settings → Personal API keys, scope **Query Read** (`phx_…`). | GitHub env **secret** |
 | `POSTHOG_PROJECT_ID` | The number in the PostHog project URL. | GitHub env **variable** |
