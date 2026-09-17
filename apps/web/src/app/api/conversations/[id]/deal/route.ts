@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
+import { businessCards } from '@/lib/business-cards';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
@@ -59,12 +60,11 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     // relationship-gated) business profile straight from the chat.
     let partnerSlug: string | null = null;
     if (partner?.role === 'business_owner') {
-      const { data: biz } = await supabase
-        .from('business_profiles')
-        .select('username')
-        .eq('user_id', otherUserId)
-        .maybeSingle();
-      partnerSlug = biz?.username ?? null;
+      // The caller's client cannot read business_profiles.username (column
+      // grants, migration 053) — the query failed and the link never showed.
+      // Safe to resolve server-side: otherUserId is this conversation's
+      // verified partner, and /b/<slug> enforces its own relationship gate.
+      partnerSlug = (await businessCards([otherUserId])).get(otherUserId)?.username ?? null;
     }
 
     // Every collaboration request between this pair, newest first. A brand and

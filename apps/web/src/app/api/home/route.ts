@@ -222,11 +222,19 @@ export async function GET(req: Request) {
         avatar_url: social?.profilePicUrl ?? null,
       };
     } else if (role === 'business_owner') {
-      const { data: biz } = await supabase
-        .from('business_profiles')
-        .select('username, company_name, industry, website, city, state, logo_url, approval_status')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Through the RPC, never a direct select: `authenticated` has column
+      // grants on business_profiles for only four columns (migration 053), and
+      // naming username/logo_url here failed the whole query — every brand's
+      // Home card rendered empty.
+      const { data: bizJson } = await supabase.rpc('get_own_business_profile');
+      const biz = bizJson as {
+        username?: string | null;
+        company_name?: string | null;
+        industry?: string | null;
+        website?: string | null;
+        logo_url?: string | null;
+        approval_status?: string | null;
+      } | null;
 
       publicPath = biz?.username ? `/b/${biz.username}` : null;
       publicProfile = {

@@ -30,6 +30,26 @@ anyone noticed the shapes didn't match.
 - `public.connections` exists and is **dead** — built in migration 029 for
   counters nothing ever wrote. Use `get_collaboration_stats()` (113) instead.
 
+## Column-level grants fail the whole query
+
+`authenticated` has **no table-level SELECT** on `profiles` or
+`business_profiles` — only a column allow-list. Naming one ungranted column in
+a query made with the caller's JWT does not return null for it: PostgREST fails
+the **entire statement** with 42501.
+
+That has shipped three ways: `withAuth` selecting `profiles.is_super_admin`
+403'd every API call for every user; `/api/profile/viewers` selecting
+`business_profiles.logo_url` rendered every viewer nameless; `/api/home`
+selecting `business_profiles.username` blanked every brand's Home card. Unit
+tests mock the database, so none of them noticed.
+
+Read your own business row through `get_own_business_profile()`; read other
+businesses' display fields through `lib/business-cards.ts`; read anything else
+through a service-role client after an explicit authorisation check.
+`tests/unit/column-grants.test.ts` scans for violations — keep its grant list
+in step with migrations. To prove a query works, run it as a real persona's
+JWT, not the service key.
+
 ## `NEXT_PUBLIC_*` is frozen at build time
 
 It is inlined into the JavaScript bundle. Changing it in a dashboard or a

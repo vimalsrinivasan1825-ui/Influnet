@@ -36,11 +36,10 @@ export default async function MyPublicProfilePage() {
   // Brands have a private, relationship-gated profile rather than a public
   // page, so they get a pointer to it instead of the creator view.
   if (role !== 'influencer') {
-    const { data: biz } = await rsc
-      .from('business_profiles')
-      .select('username, company_name')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    // RPC, not a direct select: `username` is not in the column grants on
+    // business_profiles, so selecting it failed the query and the page never
+    // found the brand's slug.
+    const { data: biz } = await rsc.rpc('get_own_business_profile');
     const slug = (biz as { username?: string } | null)?.username;
 
     return (

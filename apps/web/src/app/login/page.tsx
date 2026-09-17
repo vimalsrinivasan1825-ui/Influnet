@@ -148,17 +148,21 @@ function LoginContent() {
         // Remember this account so the switcher can list it and switch back to
         // it without a password. `name` is a second read rather than folded
         // into the one above so the recovery branch keeps its narrow select.
+        // profiles has no avatar column (it lives on influencer_profiles /
+        // business_profiles) — asking for one failed the whole read, so no
+        // account ever got its name here. The account menu fills the avatar in
+        // once the dashboard has loaded it.
         try {
           const { data: full } = await sb
             .from("profiles")
-            .select("name, avatar_url")
+            .select("name")
             .eq("id", data.user.id)
             .maybeSingle();
-          const f = full as { name?: string | null; avatar_url?: string | null } | null;
+          const f = full as { name?: string | null } | null;
           recordWebSignIn(data.session, {
             email: data.user.email ?? email,
             name: f?.name ?? null,
-            avatarUrl: f?.avatar_url ?? null,
+            avatarUrl: null,
           });
         } catch {
           /* the switcher just won't have this account until next sign-in */
