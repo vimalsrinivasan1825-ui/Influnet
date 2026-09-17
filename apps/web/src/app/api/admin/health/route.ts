@@ -29,9 +29,15 @@ import { isObservabilityEnabled } from '@/lib/observability';
  * probed at all because they create nothing selectable: 148 only adds an
  * existing table to a publication, and 144/147 alter columns on tables that
  * already existed, so a probe would report "applied" either way. A probe that
- * cannot fail is worse than no probe.
+ * cannot fail is worse than no probe. 149 only seeds nothing and changes a
+ * constraint, and 151 redefines functions that already existed, for the same
+ * reason.
+ *
+ * `column` probes are `table.column`, selected through the service-role client
+ * — a missing column fails the select, which is exactly the signal.
  */
-const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: 'rpc' | 'table' }[] = [
+const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: 'rpc' | 'table' | 'column' }[] = [
+  { migration: '150', label: 'Super-admin tier', probe: 'profiles.is_super_admin', kind: 'column' },
   { migration: '146', label: 'Test-run sessions', probe: 'report_test_sessions', kind: 'table' },
   { migration: '142', label: 'Re-engagement nudges', probe: 'nudge_candidates', kind: 'rpc' },
   { migration: '138', label: 'Free-tier ceilings', probe: 'get_entitlements', kind: 'rpc' },
@@ -95,6 +101,11 @@ export async function GET(req: Request) {
         try {
           if (f.kind === 'table') {
             const { error } = await supabase.from(f.probe).select('*').limit(0);
+            return { ...f, applied: !error };
+          }
+          if (f.kind === 'column') {
+            const [table, column] = f.probe.split('.');
+            const { error } = await supabase.from(table).select(column).limit(0);
             return { ...f, applied: !error };
           }
           // An RPC that exists but rejects us (e.g. 'forbidden') still proves

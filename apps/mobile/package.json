@@ -20,7 +20,8 @@
     "typecheck": "tsc --noEmit",
     "check:push": "node ../../scripts/check-push-tokens.mjs",
     "setup:webhook": "node ../../scripts/setup-stream-webhook.mjs",
-    "check:prod-target": "node ../../scripts/check-mobile-production-target.mjs"
+    "check:prod-target": "node ../../scripts/check-mobile-production-target.mjs",
+    "eas-build-pre-install": "node ../../scripts/check-mobile-production-target.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.6",

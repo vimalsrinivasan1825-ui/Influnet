@@ -244,10 +244,11 @@ jobs:
       # demo. These env vars are the fallback floor (all hard-coded `true` here,
       # not from a variable, so nobody can weaken staging by editing a GitHub
       # setting). The authoritative value is still the `feature_flags` table in
-      # the staging Supabase project — but instrumentation.ts refuses to boot
-      # staging if any row there is explicitly `false`, so a stray dashboard
-      # toggle fails the next deploy's health check rather than silently opening
-      # a gate. After migration 137 first reaches staging, seed the table once:
+      # the staging Supabase project. Since staging became production
+      # (2026-09-16) an explicitly-`false` row no longer blocks boot — those
+      # rows are break-glass switches, and refusing to start would turn an
+      # incident into an outage; instrumentation.ts logs it loudly instead.
+      # After migration 137 first reaches staging, seed the table once:
       #   insert into public.feature_flags (key, enabled) values
       #     ('phone_otp',true),('notify_emails',true),
       #     ('subscriptions',true),('ownership_gate',true)
@@ -289,6 +290,21 @@ jobs:
                 "NOTIFY_EMAILS_ENABLED=true" \
                 "SUBSCRIPTIONS_ENABLED=true" \
                 "OWNERSHIP_GATE_ENABLED=true"
+
+      # Staging serves real users (2026-09-16), so it never scales to zero.
+      # At min 0 the first visitor after a quiet spell waited ~20s for a cold
+      # Next.js container (measured on /api/health, 2026-09-16) — exactly when
+      # traffic is thin and first impressions count. One idle replica is the
+      # cost of that not happening. Max replicas is left as configured.
+      - name: Keep one replica warm
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --min-replicas 1
 
       - name: Wait for the new revision to serve traffic
         run: |
