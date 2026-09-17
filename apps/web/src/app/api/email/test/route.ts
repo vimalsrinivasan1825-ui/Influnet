@@ -1,19 +1,34 @@
 import { NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 import { emailsEnabled, emailConfigured, isValidEmail } from '@/lib/email/client';
 import { getTemplate } from '@/lib/email/templates';
 import { renderAndSend } from '@/lib/email/policy';
+import { appEnv } from '@/lib/env';
 
 /**
- * Test email endpoint — only works in dev/staging environments.
+ * Test email endpoint — local and dev only.
  * Requires a secret key (EMAIL_TEST_SECRET) to prevent abuse.
  * Uses the delivery_test template with sample data.
+ *
+ * An allow-list, not "anything but production": staging serves real users
+ * (decision of 2026-09-16), and a deny-list keyed on the word "production"
+ * left this open there — a leaked secret would have let anyone send mail from
+ * the verified domain to any address.
  */
+const ALLOWED_ENVS = new Set(['local', 'dev']);
+
+function sameSecret(given: string | null, expected: string): boolean {
+  if (!given) return false;
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export async function GET(req: Request) {
-  const env = process.env.APP_ENV || process.env.NODE_ENV || 'local';
-  
-  // Only allow in non-production environments
-  if (env === 'production') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+  const env = appEnv;
+
+  if (!ALLOWED_ENVS.has(env)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   // Require secret key for authentication
@@ -25,7 +40,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'EMAIL_TEST_SECRET not configured on server' }, { status: 500 });
   }
   
-  if (key !== expectedKey) {
+  if (!sameSecret(key, expectedKey)) {
     return NextResponse.json({ error: 'Invalid or missing key parameter' }, { status: 401 });
   }
 
