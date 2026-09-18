@@ -237,7 +237,7 @@ export async function withAuth(
     // nudge job (migration 142). Fire-and-forget and throttled in-process to
     // once/hour/user, so an active session doesn't write on every request; the
     // RPC itself also no-ops if the column was touched in the last 30 min.
-    touchLastActive(supabase, user.id);
+    touchLastActive(supabase, user.id, parseClientHeader(req));
 
     return { ok: true, supabase, user, role: userRole };
   } catch (error) {
@@ -245,20 +245,48 @@ export async function withAuth(
   }
 }
 
-// ── last_active_at bump (re-engagement nudges, migration 142) ────────────────
-const lastActiveTouchedAt = new Map<string, number>();
-const TOUCH_THROTTLE_MS = 60 * 60 * 1000;
+// ── Activity bump (nudges 142, daily activity history 152) ───────────────────
+/**
+ * `X-Influnet-Client: ios/1.4.2` (mobile, packages/api) or `web` (apiFetch).
+ * Client-controlled, so it is only ever a LABEL for analytics — never used for
+ * a decision. Anything unrecognised becomes `unknown`.
+ */
+export function parseClientHeader(req: Request): { platform: string; version: string | null } {
+  const raw = (req.headers.get('x-influnet-client') ?? '').trim().toLowerCase();
+  const [platform, version] = raw.split('/', 2);
+  const known = platform === 'web' || platform === 'ios' || platform === 'android';
+  const cleanVersion = version && /^[0-9a-z.\-+]{1,32}$/.test(version) ? version : null;
+  return { platform: known ? platform : 'unknown', version: known ? cleanVersion : null };
+}
 
-function touchLastActive(supabase: SupabaseClient, userId: string): void {
+const lastActiveTouchedAt = new Map<string, number>();
+// 30 min: frequent enough that the hour-of-day heatmap sees most active hours,
+// rare enough that an active session writes ~2 rows an hour, not one per call.
+const TOUCH_THROTTLE_MS = 30 * 60 * 1000;
+
+function touchLastActive(
+  supabase: SupabaseClient,
+  userId: string,
+  client: { platform: string; version: string | null },
+): void {
   const now = Date.now();
-  const prev = lastActiveTouchedAt.get(userId) ?? 0;
+  const key = `${userId}:${client.platform}`;
+  const prev = lastActiveTouchedAt.get(key) ?? 0;
   if (now - prev < TOUCH_THROTTLE_MS) return;
-  lastActiveTouchedAt.set(userId, now);
+  lastActiveTouchedAt.set(key, now);
   if (lastActiveTouchedAt.size > 5000) lastActiveTouchedAt.clear();
-  // Fire-and-forget: never blocks or fails a request. A missing RPC (migration
-  // not applied here yet) is swallowed like any other error.
-  void (supabase.rpc as any)('touch_last_active').then(
-    () => {},
+  // Fire-and-forget: never blocks or fails a request. touch_activity (152) also
+  // bumps last_active_at; if it is missing (database behind), fall back to the
+  // older touch_last_active (142) so nudges keep working.
+  void (supabase.rpc as any)('touch_activity', {
+    p_platform: client.platform,
+    p_app_version: client.version,
+  }).then(
+    (res: { error?: { message?: string } | null }) => {
+      if (res?.error?.message?.includes('does not exist')) {
+        void (supabase.rpc as any)('touch_last_active').then(() => {}, () => {});
+      }
+    },
     () => {},
   );
 }
