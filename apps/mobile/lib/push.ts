@@ -90,6 +90,17 @@ async function getExpoPushToken(): Promise<string | null> {
   }
 }
 
+/** The token this install last registered, so sign-out can switch off only this device. */
+let registeredToken: string | null = null;
+
+function deviceMeta() {
+  return {
+    platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined,
+    appVersion: Constants.expoConfig?.version ?? undefined,
+    osVersion: Device.osVersion ?? undefined,
+  } as const;
+}
+
 /** Registers this device's token with the server. Safe to call repeatedly — e.g. on every app open. */
 export async function syncPushToken(): Promise<void> {
   const token = await getExpoPushToken();
@@ -98,17 +109,22 @@ export async function syncPushToken(): Promise<void> {
   // The result was previously discarded, which hid the case where the column
   // is missing server-side — the app looked registered while the server had
   // nothing to push to.
-  const res = await endpoints.registerPushToken<{ ok?: boolean; reason?: string }>(token);
+  const res = await endpoints.registerPushToken<{ ok?: boolean; reason?: string }>(token, {
+    ...deviceMeta(),
+    permission: 'granted',
+  });
   if (!res.ok || res.data?.ok !== true) {
     console.warn('[push] server did not store the push token:', res.data?.reason ?? res.error);
     return;
   }
+  registeredToken = token;
   console.log('[push] registered device token with the server');
 }
 
 /**
- * Clears the server-side token on sign-out, so a shared or reset device stops
- * receiving the previous account's pushes.
+ * Switches off THIS device server-side on sign-out, so a shared or reset
+ * device stops receiving the previous account's pushes — without silencing the
+ * same account's other phones (migration 156).
  *
  * Awaitable on purpose. Fired and forgotten, this request raced
  * supabase.auth.signOut() and usually reached the network *after* the token was
@@ -116,7 +132,8 @@ export async function syncPushToken(): Promise<void> {
  * resulting 401 was one of the strays that kept re-triggering sign-out.
  */
 export async function clearPushToken(): Promise<void> {
-  await endpoints.registerPushToken(null);
+  await endpoints.registerPushToken(null, registeredToken ? { deviceToken: registeredToken } : undefined);
+  registeredToken = null;
 }
 
 /**
@@ -136,19 +153,26 @@ export function usePushNotificationRouting(router: ImperativeRouter, ready: bool
   useEffect(() => {
     if (!ready) return;
 
-    // Cold start: the app was launched BY tapping a notification.
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      const link = response?.notification.request.content.data?.link;
+    const handle = (response: Notifications.NotificationResponse | null) => {
+      const data = response?.notification.request.content.data as
+        | { link?: unknown; delivery_id?: unknown }
+        | undefined;
+      // Broadcast opens are reported back so the admin can see whether anyone
+      // actually tapped (migration 157). Best-effort, never blocks navigation.
+      const deliveryId = Number(data?.delivery_id);
+      if (Number.isFinite(deliveryId) && deliveryId > 0) {
+        void endpoints.markNotificationOpened(deliveryId).catch(() => {});
+      }
+      const link = data?.link;
       const href = typeof link === 'string' ? toMobileHref(link) : null;
       if (href) routerRef.current.push(href);
-    });
+    };
+
+    // Cold start: the app was launched BY tapping a notification.
+    void Notifications.getLastNotificationResponseAsync().then(handle);
 
     // Warm: the app was already running (foreground or background).
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const link = response.notification.request.content.data?.link;
-      const href = typeof link === 'string' ? toMobileHref(link) : null;
-      if (href) routerRef.current.push(href);
-    });
+    const subscription = Notifications.addNotificationResponseReceivedListener(handle);
     return () => subscription.remove();
   }, [ready]);
 }
