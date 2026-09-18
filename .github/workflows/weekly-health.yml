@@ -3,12 +3,18 @@ name: Weekly health sweep
 # The point of this workflow is that regression gets noticed WITHOUT anyone
 # remembering to look.
 #
-# Everything here is read-only and runs against dev. It does not seed personas,
-# does not write rows, and does not touch staging — the audit harness in
-# tests/e2e/ is the heavier tool for that and it needs a human watching, not a
-# cron job (see docs/operations/FULL_FLOW_AUDIT_2026-08-08.md, and note that
-# some phases deliberately assert a bug REPRODUCES, so an unattended failure
-# there means the opposite of what it looks like).
+# Everything here is read-only. It does not seed personas, does not write
+# rows, and does not touch any database — the audit harness in tests/e2e/ is
+# the heavier tool for that and it needs a human watching, not a cron job (see
+# docs/operations/FULL_FLOW_AUDIT_2026-08-08.md, and note that some phases
+# deliberately assert a bug REPRODUCES, so an unattended failure there means
+# the opposite of what it looks like).
+#
+# F5 (launch audit 2026-09-18): it used to probe dev only. Since 2026-09-16
+# staging IS production (staging.influnet.io), so an outage there must fail
+# this sweep too. Both environments are probed and either failing fails the
+# job; the app URL per environment comes from the matching repo variable
+# (DEV_APP_URL / PROD_APP_URL) with the known value as the default.
 #
 # What it actually answers, once a week:
 #   - is the app up, and is its database reachable
@@ -32,7 +38,7 @@ permissions:
 
 jobs:
   sweep:
-    name: Weekly health sweep (dev)
+    name: Weekly health sweep (dev + production)
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -54,12 +60,35 @@ jobs:
 
       # Anonymous and cheap — this is the same endpoint the uptime monitor
       # uses, so a failure here and a page from UptimeRobot mean the same thing.
-      - name: Is the app up
-        id: health
+      # Probed per environment; a failure of EITHER fails the sweep.
+      - name: Is the app up (dev)
+        id: health_dev
+        env:
+          DEV_APP_URL: ${{ vars.DEV_APP_URL }}
         run: |
-          url="${{ vars.DEV_APP_URL || 'https://dev.influnet.io' }}"
+          url="${DEV_APP_URL_OVERRIDE:-${DEV_APP_URL:-}}"
+          [ -n "$url" ] || url=https://dev.influnet.io
           echo "Probing $url/api/health"
           body="$(curl -fsS --max-time 20 "$url/api/health")" || {
+            echo "::error::$url/api/health did not answer."
+            exit 1
+          }
+          echo "$body"
+          case "$body" in
+            *'"status":"healthy"'*) echo "Healthy." ;;
+            *) echo "::error::Health endpoint answered but did not report healthy: $body"; exit 1 ;;
+          esac
+
+      - name: Is the app up (production — staging.influnet.io)
+        id: health_prod
+        env:
+          DEV_APP_URL: ${{ vars.DEV_APP_URL }}
+          PROD_APP_URL: ${{ vars.PROD_APP_URL }}
+        run: |
+          url="${PROD_APP_URL_OVERRIDE:-${PROD_APP_URL:-}}"
+          [ -n "$url" ] || url=https://staging.influnet.io
+          echo "Probing $url/api/health"
+          body="$(curl -fsS --max-time 30 "$url/api/health")" || {
             echo "::error::$url/api/health did not answer."
             exit 1
           }
@@ -96,6 +125,7 @@ jobs:
               'Checks, in the order they run:',
               '- unit tests',
               '- `/api/health` on dev',
+              '- `/api/health` on production (staging.influnet.io)',
               '- migration file inventory',
               '',
               'If this is the migration or health check, open /dashboard/admin/health first —',
