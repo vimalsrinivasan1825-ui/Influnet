@@ -47,6 +47,9 @@ export type BreakerName =
   | 'stream'
   | 'resend'
   | 'expo_push'
+  // Bulk admin broadcasts (lib/broadcasts.ts). Separate so a large send that
+  // trips it cannot block transactional pushes on `expo_push`.
+  | 'expo_push_broadcast'
   | 'cloudinary';
 
 export interface BreakerPolicy {
@@ -69,6 +72,7 @@ const POLICY: Record<BreakerName, BreakerPolicy> = {
   stream: { threshold: 6, cooldownMs: 20_000 },
   resend: { threshold: 5, cooldownMs: 30_000 },
   expo_push: { threshold: 5, cooldownMs: 30_000 },
+  expo_push_broadcast: { threshold: 3, cooldownMs: 60_000 },
   cloudinary: { threshold: 5, cooldownMs: 30_000 },
   apify: { threshold: 4, cooldownMs: 60_000 },
   hikerapi: { threshold: 4, cooldownMs: 60_000 },
