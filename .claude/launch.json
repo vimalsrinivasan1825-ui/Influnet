@@ -27,6 +27,8 @@
       "runtimeExecutable": "env",
       "runtimeArgs": [
         "NOTIFY_EMAILS_ENABLED=false",
+        "BROADCAST_DRY_RUN=true",
+        "CRON_SECRET=e2e-local-secret",
         "npm",
         "run",
         "dev",
