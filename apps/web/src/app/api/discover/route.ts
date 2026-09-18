@@ -106,6 +106,22 @@ export async function GET(req: Request) {
      * and no query is Pro.
      */
     const results = (data as any[]) || [];
+
+    /**
+     * Match analytics (migration 160). Structured filters and a result count
+     * only — the typed query is NEVER stored, it routinely contains a person's
+     * name or handle. Fire-and-forget: a logging failure must not fail a search.
+     */
+    void (supabase.rpc as any)('log_search_event', {
+      p_surface: 'discover',
+      p_has_query: Boolean(q || searchHandle),
+      p_query_length: (q ?? '').length,
+      p_niche: niche ?? null,
+      p_industry: industry ?? null,
+      p_location: location ?? null,
+      p_result_count: results.length,
+    }).then(() => {}, () => {});
+
     return NextResponse.json({
       userRole: role,
       results,
