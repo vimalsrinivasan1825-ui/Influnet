@@ -1,0 +1,41 @@
+# Daily admin maintenance (/api/cron/maintenance)
+#
+#   • purges OTP sessions and audit rows older than 90 days (migration 154 —
+#     phone numbers are personal data with no reporting value after that)
+#   • sends Pro renewal reminders at 7 / 3 / 1 days before expiry, and once
+#     just after (migration 155)
+#
+# DISABLED until MAINTENANCE_ENDPOINT and CRON_SECRET exist, like the other two
+# scheduled workflows.
+
+name: admin-maintenance
+
+on:
+  schedule:
+    # 10:30 IST = 05:00 UTC — after the nudge job, well inside waking hours.
+    - cron: '0 5 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: admin-maintenance
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run daily maintenance
+        env:
+          MAINTENANCE_ENDPOINT: ${{ secrets.MAINTENANCE_ENDPOINT }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$MAINTENANCE_ENDPOINT" ] || [ -z "$CRON_SECRET" ]; then
+            echo "MAINTENANCE_ENDPOINT / CRON_SECRET not set — skipping (see docs/operations/ADMIN_CRM.md)"
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/out.json -w '%{http_code}' \
+            -X POST "$MAINTENANCE_ENDPOINT" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          echo "HTTP $code"
+          cat /tmp/out.json || true
+          test "$code" = "200"

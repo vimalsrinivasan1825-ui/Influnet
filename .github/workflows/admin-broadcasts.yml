@@ -1,0 +1,47 @@
+# Admin broadcasts — the send loop (migration 157 + /api/cron/broadcasts)
+#
+# Every 5 minutes: create runs for broadcasts that are due, send queued push /
+# in-app / email deliveries, poll Expo receipts, refresh run stats. The cycle is
+# idempotent, so an overlapping or repeated run cannot double-send.
+#
+# DISABLED until the founder wires it — it needs two secrets that do not exist
+# yet, exactly like reengagement-nudges.yml:
+#   BROADCAST_ENDPOINT  e.g. https://dev.influnet.io/api/cron/broadcasts
+#   CRON_SECRET         the same value set as CRON_SECRET on the container
+#
+# Without them the step is a no-op. GitHub's scheduler is also best-effort and
+# can skip or delay a tick under load; that is fine here (a late send is still
+# correct), but if minute-accuracy ever matters, move this to Supabase pg_cron
+# calling the same route.
+
+name: admin-broadcasts
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+# A slow cycle must never overlap with the next tick from the same workflow.
+concurrency:
+  group: admin-broadcasts
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run one broadcast cycle
+        env:
+          BROADCAST_ENDPOINT: ${{ secrets.BROADCAST_ENDPOINT }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$BROADCAST_ENDPOINT" ] || [ -z "$CRON_SECRET" ]; then
+            echo "BROADCAST_ENDPOINT / CRON_SECRET not set — skipping (see docs/operations/ADMIN_CRM.md)"
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/out.json -w '%{http_code}' \
+            -X POST "$BROADCAST_ENDPOINT" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          echo "HTTP $code"
+          cat /tmp/out.json || true
+          test "$code" = "200"
