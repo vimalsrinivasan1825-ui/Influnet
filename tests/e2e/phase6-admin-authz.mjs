@@ -72,6 +72,22 @@ async function main() {
     '/api/admin/observability',
   ];
 
+  // The admin CRM (migrations 152–160). Reports go through ONE dispatch route
+  // with the module whitelisted server-side, so each module is checked here
+  // rather than each having its own route.
+  const INSIGHT_MODULES = [
+    'founder', 'daily', 'product', 'customers', 'incomplete', 'deleted', 'app',
+    'marketplace', 'engagement', 'search', 'payments', 'subscribers',
+    'push_devices', 'otp', 'leads',
+  ];
+  const crmRoutes = [
+    ...INSIGHT_MODULES.map((m) => `/api/admin/insights/${m}?days=7`),
+    '/api/admin/broadcasts',
+    '/api/admin/errors',
+    '/api/admin/reports/saved',
+    '/api/admin/reports/dataset?dataset=users&days=7',
+  ];
+
   const adminResults = {};
   for (const route of adminRoutes) {
     const r = await admin.get(route);
@@ -86,6 +102,48 @@ async function main() {
   s.check('a business-tier admin is told it is not a super admin',
     tierBefore.status === 200 && tierBefore.body?.isSuperAdmin === false,
     { severity: 'HIGH', observed: `${tierBefore.status} ${JSON.stringify(tierBefore.body)}`, expected: '200 {isSuperAdmin:false}' });
+  s.section('Admin CRM — reports, broadcasts and the report builder');
+
+  for (const route of crmRoutes) {
+    const r = await admin.get(route);
+    s.check(`admin GET ${route}`, r.status === 200, {
+      severity: 'HIGH',
+      observed: `${r.status} ${JSON.stringify(r.body).slice(0, 200)}`,
+      expected: 200,
+    });
+  }
+
+  // An unknown report name must 404, not reach the database.
+  {
+    const r = await admin.get('/api/admin/insights/profiles');
+    s.check('unknown insight module is refused', r.status === 404, {
+      severity: 'HIGH', observed: r.status, expected: 404,
+    });
+  }
+  // …and so must an unknown report-builder dataset.
+  {
+    const r = await admin.get('/api/admin/reports/dataset?dataset=phone_otp_sessions');
+    s.check('unknown report dataset is refused', r.status === 400, {
+      severity: 'HIGH', observed: r.status, expected: 400,
+    });
+  }
+  // A creator must not be able to read any of it.
+  {
+    const creatorKey = Object.keys(A).find((k) => A[k].persona?.role === 'influencer');
+    if (creatorKey) {
+      const r = await A[creatorKey].get('/api/admin/insights/payments?days=7');
+      s.check('creator cannot read admin insights', r.status === 401 || r.status === 403, {
+        severity: 'CRITICAL', observed: r.status, expected: '401/403',
+      });
+      const p = await A[creatorKey].post('/api/admin/broadcasts', {
+        name: 'nope', kind: 'promo', title: 'nope', body: 'nope', channels: ['push'],
+      });
+      s.check('creator cannot create a broadcast', p.status === 401 || p.status === 403, {
+        severity: 'CRITICAL', observed: p.status, expected: '401/403',
+      });
+    }
+  }
+
   for (const route of developerRoutes) {
     const r = await admin.get(route);
     s.check(`business-tier admin is refused ${route}`, r.status === 403,
