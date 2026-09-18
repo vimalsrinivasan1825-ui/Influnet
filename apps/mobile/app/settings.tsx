@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Platform, Switch, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, Switch, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
@@ -8,6 +8,8 @@ import * as Notifications from 'expo-notifications';
 import {
   Bell,
   CirclePlay,
+  Lightbulb,
+  Megaphone,
   LifeBuoy,
   LogOut,
   Mail,
@@ -15,6 +17,7 @@ import {
   PlayCircle,
   RotateCcw,
   ShieldOff,
+  Sparkles,
   Trash2,
 } from 'lucide-react-native';
 import { useGuides } from '@/components/guides/use-guides';
@@ -49,6 +52,30 @@ export default function SettingsScreen() {
   const { profile } = useSession();
   const { signOut, signingOut } = useSignOutAction();
   const deleteSheet = useRef<SheetRef>(null);
+  const [deleteReason, setDeleteReason] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  /**
+   * In-app account deletion (App Store guideline 5.1.1(v): an account created
+   * in the app has to be deletable in the app). The server records a tombstone
+   * before the delete and refuses while a project is still active — that 409 is
+   * shown here rather than treated as a failure.
+   */
+  const confirmDelete = async () => {
+    setDeleting(true);
+    setDeleteError('');
+    const res = await endpoints.deleteAccount<{ ok?: boolean }>(
+      deleteReason ? { reason_code: deleteReason } : undefined,
+    );
+    setDeleting(false);
+    if (!res.ok) {
+      setDeleteError(res.error || 'We could not delete your account. Please try again.');
+      return;
+    }
+    deleteSheet.current?.close();
+    await signOut();
+  };
   const [testingPush, setTestingPush] = useState(false);
   // Re-engagement nudges opt-out (migration 142). Optimistic — the Switch
   // shows the new state immediately and reconciles if the PATCH fails.
@@ -62,6 +89,29 @@ export default function SettingsScreen() {
     const res = await endpoints.updateProfile({ nudges_opt_out: next });
     if (!res.ok) {
       setNudgesOff(!next);
+      Alert.alert('Could not save', res.error ?? 'Please try again.');
+    }
+  }
+
+  /**
+   * Per-category opt-out for admin broadcasts (migration 157). Transactional
+   * notifications — stage changes, payments, messages — are deliberately not
+   * listed: switching those off would break the product, not reduce noise.
+   */
+  const [prefs, setPrefs] = useState<Record<string, { push: boolean; email: boolean }>>({});
+  useEffect(() => {
+    void (async () => {
+      const res = await endpoints.notificationPreferences<{ preferences: Record<string, { push: boolean; email: boolean }> }>();
+      if (res.ok && res.data?.preferences) setPrefs(res.data.preferences);
+    })();
+  }, []);
+
+  async function togglePref(category: 'announcements' | 'promotions' | 'tips', push: boolean) {
+    const previous = prefs[category] ?? { push: true, email: true };
+    setPrefs((p) => ({ ...p, [category]: { ...previous, push } }));
+    const res = await endpoints.setNotificationPreference({ category, push });
+    if (!res.ok) {
+      setPrefs((p) => ({ ...p, [category]: previous }));
       Alert.alert('Could not save', res.error ?? 'Please try again.');
     }
   }
@@ -217,7 +267,28 @@ export default function SettingsScreen() {
               />
             }
           />
+          {BROADCAST_PREFS.map((pref) => (
+            <ListRow
+              key={pref.category}
+              title={pref.title}
+              subtitle={pref.subtitle}
+              left={<pref.icon size={19} color={t.color.contentSoft} />}
+              right={
+                <Switch
+                  value={prefs[pref.category]?.push ?? true}
+                  onValueChange={(on) => togglePref(pref.category, on)}
+                  trackColor={{ true: t.color.brand, false: t.color.hairlineStrong }}
+                  thumbColor={t.color.white}
+                  style={{ transform: [{ scale: 0.85 }] }}
+                  accessibilityLabel={pref.title}
+                />
+              }
+            />
+          ))}
         </ListGroup>
+        <Txt variant="caption" tone="muted" style={{ marginTop: -6, paddingHorizontal: 4 }}>
+          Messages, project updates and payment alerts always come through — those are the product working.
+        </Txt>
 
         <SectionLabel>Privacy</SectionLabel>
         <ListGroup>
@@ -301,16 +372,63 @@ export default function SettingsScreen() {
           one. */}
       <Sheet ref={deleteSheet} title="Delete your account?">
         <Txt variant="body" tone="soft">
-          This removes your profile, your projects and your messages. Active
-          projects with money still in flight have to be settled first.
+          This permanently removes your profile, your projects and your messages.
+          It cannot be undone. Active projects have to be completed or cancelled
+          first, so nobody is left mid-deal.
         </Txt>
         <Txt variant="footnote" tone="muted">
-          Deletion is handled by our team so we can check nothing is left open.
-          Email us and we'll confirm within two working days.
+          Tell us why, if you like — it is the only thing we keep, and it is not
+          linked to your name or email.
         </Txt>
+
+        <View style={{ gap: 8, marginTop: 4 }}>
+          {DELETE_REASONS.map((r) => (
+            <Pressable
+              key={r.code}
+              onPress={() => setDeleteReason(r.code)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: deleteReason === r.code ? t.color.brand : t.color.hairline,
+                backgroundColor: deleteReason === r.code ? t.color.brandSoft : t.color.surfaceCard,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+              }}
+            >
+              <Txt variant="body">{r.label}</Txt>
+            </Pressable>
+          ))}
+        </View>
+
+        {deleteError ? (
+          <Txt variant="footnote" style={{ color: t.color.danger }}>
+            {deleteError}
+          </Txt>
+        ) : null}
+
         <Button
-          label="Email support"
-          icon={<Mail size={16} color={t.color.white} />}
+          label={deleting ? 'Deleting…' : 'Delete my account'}
+          variant="danger"
+          loading={deleting}
+          icon={<Trash2 size={16} color={t.color.white} />}
+          onPress={() => {
+            Alert.alert(
+              'Delete your account?',
+              'Everything is removed permanently. This cannot be undone.',
+              [
+                { text: 'Keep my account', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => void confirmDelete() },
+              ],
+            );
+          }}
+        />
+        <Button
+          label="Email support instead"
+          variant="ghost"
+          icon={<Mail size={16} color={t.color.content} />}
           onPress={() => {
             void Linking.openURL(
               `mailto:support@influnet.in?subject=Delete my account&body=Please delete the account for ${profile?.email ?? ''}.`
@@ -322,3 +440,25 @@ export default function SettingsScreen() {
     </View>
   );
 }
+
+/** Why people leave. Kept short — a long list gets skipped entirely. */
+const DELETE_REASONS: { code: string; label: string }[] = [
+  { code: 'not_useful', label: "It wasn't useful for me" },
+  { code: 'privacy', label: 'Privacy concerns' },
+  { code: 'duplicate', label: 'I have another account' },
+  { code: 'found_alternative', label: 'I found another platform' },
+  { code: 'bad_experience', label: 'I had a bad experience' },
+  { code: 'other', label: 'Something else' },
+];
+
+/** Marketing-ish notification categories a person may switch off (migration 157). */
+const BROADCAST_PREFS: {
+  category: 'announcements' | 'promotions' | 'tips';
+  title: string;
+  subtitle: string;
+  icon: typeof Bell;
+}[] = [
+  { category: 'announcements', title: 'Product announcements', subtitle: 'New features and important changes', icon: Megaphone },
+  { category: 'promotions', title: 'Offers', subtitle: 'Discounts and Pro offers', icon: Sparkles },
+  { category: 'tips', title: 'Tips and guides', subtitle: 'Ideas for getting more out of Influnet', icon: Lightbulb },
+];
