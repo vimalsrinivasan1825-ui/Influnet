@@ -20,7 +20,22 @@ export type AdminAction =
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'
-  | 'user_updated';
+  | 'user_updated'
+  // Admin CRM (migrations 152–160)
+  | 'report_exported'
+  | 'broadcast_created'
+  | 'broadcast_updated'
+  | 'broadcast_scheduled'
+  | 'broadcast_sent'
+  | 'broadcast_test_sent'
+  | 'broadcast_paused'
+  | 'broadcast_cancelled'
+  | 'broadcast_approved'
+  | 'broadcast_deleted'
+  | 'lead_created'
+  | 'lead_updated'
+  | 'lead_note_added'
+  | 'user_nudged';
 
 export interface AuditInput {
   actorId: string;
