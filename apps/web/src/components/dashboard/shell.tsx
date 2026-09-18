@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/api-client";
 import DashboardSidebar from "@/components/dashboard/sidebar";
 import DashboardHeader from "@/components/dashboard/header";
 import { GuideRoot } from "@/components/guides/guide-root";
+import { AnnouncementHost } from "@/components/dashboard/announcement-host";
 import { useNotificationStore, NotificationItem } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useAdminTier } from "@/lib/hooks/use-admin-tier";
@@ -366,6 +367,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           onOpenMobile={() => setMobileOpen(true)}
         />
         <main className="flex-1">
+          {/* Admin broadcasts shown in-app (migration 157). */}
+          <AnnouncementHost />
           {showVerifBanner && (
             <div className="px-4 pt-4 sm:px-6 lg:px-8">
               <div
