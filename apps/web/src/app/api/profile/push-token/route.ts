@@ -4,19 +4,32 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 
 /**
- * Register (or clear) this device's Expo push token on the caller's profile.
+ * Register (or clear) this device's Expo push token.
  *
- * notifyUser() (lib/notify.ts) reads this column to fan a notification out as
- * a push, not just a row the user finds next time they happen to open the
- * app. One token per account — a second device signing in replaces it, which
- * is the same tradeoff most single-token push setups make; multi-device
- * fan-out would need a separate token table and isn't needed for v1.
+ * POST { token: string, platform?, appVersion?, osVersion?, permission? }
+ *   → register this device (migration 156, one row per device)
+ * POST { token: null, deviceToken?: string }
+ *   → sign-out: disable just `deviceToken`, or — for older app builds that send
+ *     only `null` — every device of the caller
+ *   ← { ok: boolean, reason?: string, device_id?: string }
+ *
+ * notifyUser() (lib/notify.ts) fans a notification out to every active device.
+ * profiles.expo_push_token is still mirrored by the RPCs so any old reader keeps
+ * working; if the database predates 156, this falls back to writing that column.
  */
 const BodySchema = z.object({
-  // Expo tokens look like "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]". Null
-  // clears the token (sign-out, permission revoked).
+  // Expo tokens look like "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]".
   token: z.string().min(1).max(200).nullable(),
+  deviceToken: z.string().min(1).max(200).optional(),
+  platform: z.enum(['ios', 'android']).optional(),
+  appVersion: z.string().max(32).optional(),
+  osVersion: z.string().max(32).optional(),
+  permission: z.enum(['granted', 'denied', 'undetermined']).optional(),
 });
+
+function missingFunction(err: { message?: string; code?: string } | null): boolean {
+  return !!err && (err.code === 'PGRST202' || /does not exist|Could not find the function/i.test(err.message ?? ''));
+}
 
 export async function POST(req: Request) {
   try {
@@ -35,34 +48,44 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
+    const body = parsed.data;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ expo_push_token: parsed.data.token })
-      .eq('id', user.id)
-      .select('id');
+    const { data, error } =
+      body.token === null
+        ? await supabase.rpc('unregister_push_device', { p_token: body.deviceToken ?? null })
+        : await supabase.rpc('register_push_device', {
+            p_token: body.token,
+            p_platform: body.platform ?? 'unknown',
+            p_app_version: body.appVersion ?? null,
+            p_os_version: body.osVersion ?? null,
+            p_permission: body.permission ?? 'granted',
+          });
 
-    /**
-     * Never fail the request — a push token is a bonus, not a precondition for
-     * using the app — but do report honestly whether it was STORED.
-     *
-     * This used to return only `{ ok: false, migration_pending: true }`, which
-     * left every cause looking like a pending migration and, because the HTTP
-     * status stayed 200, let callers that only check `res.ok` report a
-     * successful registration when nothing had been written.
-     */
-    if (error) {
-      console.error('[push-token] failed to store token for', user.id, error.message);
+    if (!error) {
+      return NextResponse.json({ ok: true, device_id: (data as any)?.device_id ?? null });
+    }
+
+    if (!missingFunction(error)) {
+      // Never fail the request — a push token is a bonus, not a precondition
+      // for using the app — but report honestly that nothing was stored.
+      console.error('[push-token] device registration failed for', user.id, error.message);
       return NextResponse.json({ ok: false, reason: 'write_failed' });
     }
 
-    // Zero rows means RLS silently filtered the update — the row exists but the
-    // session isn't allowed to touch it, which returns no error at all.
-    if (!data || data.length === 0) {
-      console.error('[push-token] update matched no rows for', user.id, '— RLS or missing profile');
+    // Database behind migration 156: the single-column path (079).
+    const legacy = await supabase
+      .from('profiles')
+      .update({ expo_push_token: body.token })
+      .eq('id', user.id)
+      .select('id');
+    if (legacy.error) {
+      console.error('[push-token] failed to store token for', user.id, legacy.error.message);
+      return NextResponse.json({ ok: false, reason: 'write_failed' });
+    }
+    // Zero rows means RLS silently filtered the update.
+    if (!legacy.data || legacy.data.length === 0) {
       return NextResponse.json({ ok: false, reason: 'no_rows_updated' });
     }
-
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
