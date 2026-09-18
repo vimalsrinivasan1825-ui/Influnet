@@ -1,7 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { fetchWithTimeout, TIMEOUT } from './fetch-timeout';
 import { vendorEnabled } from './feature-flags';
-import { withBreaker } from './circuit-breaker';
+import { sendExpoBatch } from './expo-push';
 import { deliverEmail } from './email/policy';
 import type { EmailCategory, TemplateId } from './email/templates';
 
@@ -23,7 +22,11 @@ export type NotificationType =
   | 'message'
   | 'verification'
   | 'nudge'
-  | 'upsell';
+  | 'upsell'
+  // Admin broadcast shown in-app (migration 157) — written by lib/broadcasts.ts.
+  | 'announcement'
+  // Pro renewal reminder (migration 155) — /api/cron/maintenance.
+  | 'reminder';
 
 /**
  * Which opt-out category each notification type falls under, so a user who
@@ -43,6 +46,8 @@ const CATEGORY_BY_TYPE: Record<NotificationType, EmailCategory> = {
   verification: 'account',
   nudge: 'account',
   upsell: 'account',
+  announcement: 'marketing',
+  reminder: 'payment',
 };
 
 export interface NotifyEmailOptions {
@@ -99,14 +104,14 @@ function serviceClient() {
 }
 
 /**
- * Push the notification to the recipient's phone, if they have one registered
- * (migration 079's `profiles.expo_push_token`, set by the mobile app on
- * launch — see apps/mobile/lib/push.ts).
+ * Push the notification to every active device the recipient has registered
+ * (migration 156's `push_devices`; falls back to 079's single
+ * `profiles.expo_push_token` on a database that predates it).
  *
  * Without this, `notifications` rows only reach someone who happens to open
  * the app — for a turn-based product ("waiting on the creator") that means
  * the other side finds out only on their next visit. This is best-effort in
- * every sense: no token, missing migration, or a failed Expo request all just
+ * every sense: no device, missing migration, or a failed Expo request all just
  * log and return — a push is a bonus, never a dependency of the action that
  * triggered it.
  */
@@ -118,64 +123,59 @@ async function sendPush(
   link: string | null,
 ): Promise<void> {
   try {
-    const { data, error } = await sb
-      .from('profiles')
-      .select('expo_push_token')
-      .eq('id', userId)
-      .maybeSingle();
-    if (error) return; // migration 079 not applied yet — no column to read
-    const token = (data as { expo_push_token?: string | null } | null)?.expo_push_token;
-    if (!token) return;
-
     // Push is a best-effort side channel: the user's action already succeeded
     // by this point, so neither the kill switch nor the breaker nor a deadline
     // may hold up the request that triggered it.
     if (!vendorEnabled('vendor_expo_push')) return;
 
-    const res = await withBreaker('expo_push', () =>
-      fetchWithTimeout('https://exp.host/--/api/v2/push/send', {
-      timeoutMs: TIMEOUT.PUSH,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        to: token,
+    let tokens: string[] = [];
+    const devices = await sb
+      .from('push_devices')
+      .select('expo_token')
+      .eq('user_id', userId)
+      .is('disabled_at', null)
+      .eq('permission', 'granted')
+      .order('last_seen_at', { ascending: false })
+      .limit(10);
+    if (!devices.error) {
+      tokens = (devices.data ?? []).map((d: { expo_token: string }) => d.expo_token);
+    } else {
+      const { data } = await sb.from('profiles').select('expo_push_token').eq('id', userId).maybeSingle();
+      const token = (data as { expo_push_token?: string | null } | null)?.expo_push_token;
+      if (token) tokens = [token];
+    }
+    if (tokens.length === 0) return;
+
+    const tickets = await sendExpoBatch(
+      tokens.map((to) => ({
+        to,
         title,
         body,
-        sound: 'default',
-        // Android routes by channel; 'default' is the one the app creates at
-        // MAX importance (apps/mobile/lib/push.ts). Without naming it here the
-        // notification can land on a lower-importance fallback channel and
-        // never show a heads-up banner. `priority: high` is the FCM-side
-        // equivalent — it also lets the message wake a dozing device.
-        channelId: 'default',
-        priority: 'high',
         // The mobile app reads this on tap to deep-link — see
         // lib/notification-link.ts's toMobileHref().
         data: link ? { link } : undefined,
-      }),
-      }),
+      })),
+      'expo_push',
     );
-    if (!res.ok) {
-      console.error('[notify] Expo push request failed:', res.status, await res.text().catch(() => ''));
-      return;
-    }
 
     /**
-     * Expo answers 200 even when it refuses the message — the verdict is in
-     * the ticket. DeviceNotRegistered (app uninstalled, token rotated) is the
-     * common one, and left in place it means every later push for this user is
-     * silently dropped, so the dead token is cleared here.
+     * DeviceNotRegistered (app uninstalled, token rotated) is the common
+     * refusal, and left in place it means every later push to that device is
+     * silently dropped, so the dead device is switched off here.
      */
-    const ticket = (await res.json().catch(() => null)) as
-      | { data?: { status?: string; message?: string; details?: { error?: string } } }
-      | null;
-    const status = ticket?.data?.status;
-    if (status && status !== 'ok') {
-      console.error('[notify] Expo push ticket error:', ticket?.data?.message, ticket?.data?.details);
-      if (ticket?.data?.details?.error === 'DeviceNotRegistered') {
-        await sb.from('profiles').update({ expo_push_token: null }).eq('id', userId);
-      }
-    }
+    await Promise.all(
+      tickets.map(async (ticket, i) => {
+        if (ticket.status === 'ok') return;
+        console.error('[notify] Expo push ticket error:', ticket.message, ticket.details);
+        if (ticket.details?.error !== 'DeviceNotRegistered') return;
+        const dead = tokens[i];
+        await sb
+          .from('push_devices')
+          .update({ disabled_at: new Date().toISOString(), disabled_reason: 'DeviceNotRegistered' })
+          .eq('expo_token', dead);
+        await sb.from('profiles').update({ expo_push_token: null }).eq('id', userId).eq('expo_push_token', dead);
+      }),
+    );
   } catch (err) {
     console.error('[notify] exception while sending push:', err);
   }
