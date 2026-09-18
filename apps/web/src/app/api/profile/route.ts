@@ -1,5 +1,7 @@
 import { NextResponse, after } from 'next/server';
-import { withAuth, jsonError } from '@/lib/api';
+import { z } from 'zod';
+import { withAuth, jsonError, parseClientHeader } from '@/lib/api';
+import { DELETION_REASONS, activeProjectCount, hardDeleteAccount, recordAccountDeletion } from '@/lib/account-deletion';
 import { ProfileUpdateSchema, BusinessProfileUpdateSchema } from '@/lib/validators';
 import { refreshYouTubeSnapshot } from '@/lib/youtube';
 
@@ -240,7 +242,20 @@ export async function PATCH(req: Request) {
   }
 }
 
-// DELETE to completely remove the user account
+/**
+ * DELETE — the signed-in user removes their own account.
+ *
+ * Body (optional): `{ reason_code, reason_text }` from the in-app reason picker.
+ *
+ * Order matters (migration 153): refuse while a project is still active, write
+ * the tombstone, THEN hard-delete. A tombstone that can't be written stops the
+ * deletion — the admin "Deleted users" report must not silently miss anyone.
+ */
+const DeleteBodySchema = z.object({
+  reason_code: z.enum(DELETION_REASONS).optional(),
+  reason_text: z.string().max(500).optional(),
+});
+
 export async function DELETE(req: Request) {
   try {
     const auth = await withAuth(req);
@@ -252,18 +267,53 @@ export async function DELETE(req: Request) {
       return jsonError(500, 'Server misconfigured: missing service role key');
     }
 
+    const parsed = DeleteBodySchema.safeParse(await req.json().catch(() => ({})));
+    const body = parsed.success ? parsed.data : {};
+
     // Must use the service_role client to delete users from auth.users
     const { createClient } = await import('@supabase/supabase-js');
-    const supabaseAdmin = createClient(
+    const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       serviceKey,
       { auth: { persistSession: false, autoRefreshToken: false } }
     );
 
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id);
-    
-    if (error) {
-      return jsonError(500, 'Failed to delete user account', error);
+    const active = await activeProjectCount(serviceClient, user.id);
+    if (active > 0) {
+      return NextResponse.json(
+        {
+          error: Number.isFinite(active)
+            ? `You have ${active} active project${active === 1 ? '' : 's'}. Complete or cancel ${active === 1 ? 'it' : 'them'} before deleting your account.`
+            : 'We could not check your active projects. Please try again.',
+          activeProjects: Number.isFinite(active) ? active : null,
+        },
+        { status: 409 },
+      );
+    }
+
+    const { data: row } = await serviceClient
+      .from('profiles')
+      .select('email, phone')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const platform = parseClientHeader(req).platform;
+    const tomb = await recordAccountDeletion(serviceClient, {
+      userId: user.id,
+      via: platform === 'ios' || platform === 'android' ? 'self_mobile' : 'self_web',
+      deletedBy: user.id,
+      reasonCode: body.reason_code ?? null,
+      reasonText: body.reason_text ?? null,
+      email: (row as any)?.email ?? user.email ?? null,
+      phone: (row as any)?.phone ?? null,
+    });
+    if (!tomb.ok) {
+      return jsonError(500, 'Could not delete your account right now. Please try again.', tomb.error);
+    }
+
+    const result = await hardDeleteAccount(serviceClient, user.id);
+    if (!result.ok) {
+      return jsonError(500, 'Failed to delete user account', result.error);
     }
 
     return NextResponse.json({ ok: true });
