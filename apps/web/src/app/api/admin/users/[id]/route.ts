@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { jsonError, withAdmin, callerClient } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 import { logger } from '@/lib/logger';
+import { hardDeleteAccount, recordAccountDeletion } from '@/lib/account-deletion';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -189,7 +190,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
     // reason to be deleting. When it does, block deleting another admin.
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, role, email, name')
+      .select('id, role, email, name, phone')
       .eq('id', id)
       .maybeSingle();
 
@@ -197,45 +198,32 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
       return jsonError(403, 'Revoke this admin through the provisioning script before deleting.');
     }
 
-    // Which conversations this user is in — nothing points a FK at conversations,
-    // so they outlive their participants unless we sweep them.
-    const { data: parts } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', id);
-    const convIds = [...new Set((parts ?? []).map((p: any) => p.conversation_id))];
-
-    // Clear the one blocking FK. The document rows survive with their frozen
-    // snapshot; only the "issued by" pointer goes.
-    const { error: docErr } = await supabase
-      .from('project_documents')
-      .update({ issued_by: null })
-      .eq('issued_by', id);
-    if (docErr) {
-      logger.warn('[admin/users DELETE] could not null project_documents.issued_by', {
-        id,
-        err: docErr.message,
-      });
+    // Tombstone first (migration 153) — after the cascade there is nothing
+    // left to summarise, so a failed write stops the delete.
+    let reasonText: string | null = null;
+    try {
+      const body = await req.json();
+      if (typeof body?.reason === 'string') reasonText = body.reason.slice(0, 500);
+    } catch {
+      /* DELETE without a body is fine */
+    }
+    const tomb = await recordAccountDeletion(supabase, {
+      userId: id,
+      via: 'admin',
+      deletedBy: admin.id,
+      reasonCode: 'admin_action',
+      reasonText,
+      email: profile?.email ?? null,
+      phone: (profile as any)?.phone ?? null,
+    });
+    if (!tomb.ok) {
+      return jsonError(500, 'Could not record this deletion, so nothing was deleted. Try again.', tomb.error);
     }
 
-    const { error: delErr } = await supabase.auth.admin.deleteUser(id);
-    if (delErr) {
-      return jsonError(500, `Could not delete this user: ${delErr.message}`);
+    const result = await hardDeleteAccount(supabase, id);
+    if (!result.ok) {
+      return jsonError(500, `Could not delete this user: ${result.error}`);
     }
-
-    // Sweep conversations that now have no participants.
-    if (convIds.length > 0) {
-      const { data: still } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .in('conversation_id', convIds);
-      const stillActive = new Set((still ?? []).map((p: any) => p.conversation_id));
-      const dead = convIds.filter((c) => !stillActive.has(c));
-      if (dead.length > 0) {
-        await supabase.from('conversations').delete().in('id', dead);
-      }
-    }
-
     await auditAdmin({
       actorId: admin.id,
       actorEmail: admin.email ?? null,
@@ -246,7 +234,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
         email: profile?.email ?? null,
         name: profile?.name ?? null,
         role: profile?.role ?? 'orphan',
-        conversationsSwept: convIds.length,
+        conversationsSwept: result.conversationsSwept,
       },
       req,
     });
