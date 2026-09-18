@@ -6,6 +6,8 @@
  * audit logging — lives in those route handlers, and a second client reaching
  * past them would be a second place to get it wrong.
  */
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { createApiClient, createEndpoints } from '@influnet/api';
 import { API_BASE_URL, supabase } from './supabase';
 
@@ -31,6 +33,8 @@ export const api = createApiClient({
     return data.session?.access_token ?? null;
   },
   onUnauthorized: (token) => onUnauthorizedHandler?.(token),
+  // Analytics label for the admin's platform / app-version split (152).
+  clientLabel: `${Platform.OS}/${Constants.expoConfig?.version ?? 'unknown'}`,
 });
 
 export const endpoints = createEndpoints(api);
