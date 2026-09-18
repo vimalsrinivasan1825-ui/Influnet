@@ -1,50 +1,51 @@
 import { NextResponse } from 'next/server';
 import { jsonError, withAdmin } from '@/lib/api';
 
+/**
+ * GET /api/admin/dashboard → { stats: AdminHomeData }
+ *
+ * Every number is a `count: 'exact', head: true` query, so Postgres does the
+ * counting and no rows come back. This used to select whole tables and count
+ * them in JS — PostgREST caps a response at the project's Max Rows (1000 by
+ * default), so past that size every tile silently froze at the cap.
+ *
+ * A failed count is a 500, not a 0: a tile reading "0 pending approvals" when
+ * the query actually failed tells the admin there is nothing to review.
+ */
 export async function GET(req: Request) {
   try {
     const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase } = auth;
 
-    // Fetch aggregated stats
-    const [profilesRes, businessesRes, influencersRes, collabsRes, projectsRes] = await Promise.all([
-      supabase.from('profiles').select('role'),
-      supabase.from('business_profiles').select('approval_status'),
-      supabase.from('influencer_profiles').select('user_id'),
-      supabase.from('collab_requests').select('status'),
-      supabase.from('campaign_projects').select('status'),
-    ]);
+    const count = (table: string) =>
+      supabase.from(table).select('*', { count: 'exact', head: true });
 
-    const allProfiles = profilesRes.data || [];
-    const businesses = businessesRes.data || [];
-    const influencers = influencersRes.data || [];
-    const collabs = collabsRes.data || [];
-    const projects = projectsRes.data || [];
+    const queries = {
+      total_users: count('profiles'),
+      total_businesses: count('profiles').eq('role', 'business_owner'),
+      total_influencers: count('profiles').eq('role', 'influencer'),
+      pending_approvals: count('business_profiles').eq('approval_status', 'pending_review'),
+      total_collabs: count('collab_requests'),
+      active_collabs: count('collab_requests').eq('status', 'accepted'),
+      pending_collabs: count('collab_requests').eq('status', 'pending'),
+      active_projects: count('campaign_projects').eq('status', 'active'),
+      completed_projects: count('campaign_projects').eq('status', 'completed'),
+    };
 
-    const totalUsers = allProfiles.length;
-    const totalBusinesses = allProfiles.filter((p: any) => p.role === 'business_owner').length;
-    const totalInfluencers = allProfiles.filter((p: any) => p.role === 'influencer').length;
-    const pendingApprovals = businesses.filter((b: any) => b.approval_status === 'pending_review').length;
-    const totalCollabs = collabs.length;
-    const activeCollabs = collabs.filter((c: any) => c.status === 'accepted').length;
-    const pendingCollabs = collabs.filter((c: any) => c.status === 'pending').length;
-    const activeProjects = projects.filter((p: any) => p.status === 'active').length;
-    const completedProjects = projects.filter((p: any) => p.status === 'completed').length;
+    const keys = Object.keys(queries) as (keyof typeof queries)[];
+    const results = await Promise.all(keys.map((k) => queries[k]));
 
-    return NextResponse.json({
-      stats: {
-        total_users: totalUsers,
-        total_businesses: totalBusinesses,
-        total_influencers: totalInfluencers,
-        pending_approvals: pendingApprovals,
-        total_collabs: totalCollabs,
-        active_collabs: activeCollabs,
-        pending_collabs: pendingCollabs,
-        active_projects: activeProjects,
-        completed_projects: completedProjects,
-      }
-    });
+    const failed = results.find((r: any) => r.error || r.count == null);
+    if (failed) {
+      return jsonError(500, 'Could not load the admin dashboard', (failed as any).error);
+    }
+
+    const stats = Object.fromEntries(
+      keys.map((k, i) => [k, (results[i] as any).count as number])
+    ) as Record<keyof typeof queries, number>;
+
+    return NextResponse.json({ stats });
   } catch (error) {
     return jsonError(500, 'Could not load the admin dashboard', error);
   }
