@@ -28,9 +28,38 @@ export function createEndpoints(api: ApiClient) {
     /** Who viewed your profile. Free sees the most-recent few + a locked count. */
     profileViewers: <T = unknown>() => api.get<T>('/api/profile/viewers'),
     dismissWelcome: <T = unknown>() => api.post<T>('/api/profile/welcome'),
-    /** Registers (token) or clears (null) this device's Expo push token. */
-    registerPushToken: <T = unknown>(token: string | null) =>
-      api.post<T>('/api/profile/push-token', { token }),
+    /**
+     * Registers (token) or clears (null) this device's Expo push token.
+     * `meta` describes the device (migration 156); on clear, `meta.deviceToken`
+     * switches off just this device instead of every device on the account.
+     */
+    registerPushToken: <T = unknown>(
+      token: string | null,
+      meta?: {
+        platform?: 'ios' | 'android';
+        appVersion?: string;
+        osVersion?: string;
+        permission?: 'granted' | 'denied' | 'undetermined';
+        deviceToken?: string;
+      },
+    ) => api.post<T>('/api/profile/push-token', { token, ...(meta ?? {}) }),
+    /** Broadcast push/in-app open tracking (migration 157). */
+    markNotificationOpened: <T = unknown>(deliveryId: number) =>
+      api.post<T>('/api/notifications/opened', { deliveryId }),
+    /** In-app announcements (banners/pop-ups) the admin has broadcast. */
+    announcements: <T = unknown>() => api.get<T>('/api/announcements'),
+    markAnnouncement: <T = unknown>(broadcastId: string, action: 'seen' | 'dismissed' | 'clicked') =>
+      api.post<T>('/api/announcements', { broadcastId, action }),
+    /** Per-category opt-out for announcements, promotions and tips. */
+    notificationPreferences: <T = unknown>() => api.get<T>('/api/profile/notification-preferences'),
+    setNotificationPreference: <T = unknown>(body: {
+      category: 'announcements' | 'promotions' | 'tips';
+      push?: boolean;
+      email?: boolean;
+    }) => api.put<T>('/api/profile/notification-preferences', body),
+    /** Deletes the signed-in account (with an optional reason). */
+    deleteAccount: <T = unknown>(body?: { reason_code?: string; reason_text?: string }) =>
+      api.del<T>('/api/profile', body),
     checkUsername: <T = unknown>(username: string) =>
       api.get<T>(`/api/auth/check-username?username=${encodeURIComponent(username)}`),
     checkEmail: <T = unknown>(email: string) =>

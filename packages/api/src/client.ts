@@ -63,6 +63,12 @@ export interface ApiClientOptions {
    * still type-checks and still behaves exactly as before.
    */
   onUnauthorized?: (token: string) => void;
+  /**
+   * Sent as `X-Influnet-Client` on every request, e.g. `ios/1.4.2`. The server
+   * records it as an analytics label only (daily activity by platform/app
+   * version, migration 152) — never as an authorisation input.
+   */
+  clientLabel?: string;
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
@@ -77,7 +83,7 @@ export type ApiClient = ReturnType<typeof createApiClient>;
  */
 const REQUEST_TIMEOUT_MS = 15_000;
 
-export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiClientOptions) {
+export function createApiClient({ baseUrl = '', getToken, onUnauthorized, clientLabel }: ApiClientOptions) {
   async function request<T = unknown>(
     path: string,
     options: RequestInit = {}
@@ -94,6 +100,7 @@ export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiC
 
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    if (clientLabel && !headers['X-Influnet-Client']) headers['X-Influnet-Client'] = clientLabel;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -157,6 +164,9 @@ export function createApiClient({ baseUrl = '', getToken, onUnauthorized }: ApiC
       request<T>(path, { method: 'PATCH', ...(body === undefined ? {} : json(body)) }),
     put: <T = unknown>(path: string, body?: unknown) =>
       request<T>(path, { method: 'PUT', ...(body === undefined ? {} : json(body)) }),
-    del: <T = unknown>(path: string) => request<T>(path, { method: 'DELETE' }),
+    // A DELETE may carry a body — account deletion sends the reason the person
+    // picked, which the tombstone records (migration 153).
+    del: <T = unknown>(path: string, body?: unknown) =>
+      request<T>(path, { method: 'DELETE', ...(body === undefined ? {} : { body: JSON.stringify(body) }) }),
   };
 }
