@@ -1,10 +1,21 @@
 name: Deploy Mobile OTA Update
 
+# OTA publishes go only where they are safe to be automatic:
+#   - preview channel ← pushes to dev (dev is the test environment)
+#   - production channel ← MANUAL ONLY (workflow_dispatch), behind the
+#     `production` GitHub Environment so the owner can require reviewers on it.
+#
+# F3 (launch audit 2026-09-18): this job used to fire on every push to
+# `staging` — staging is production since 2026-09-16 — so merging to staging
+# pushed new JS straight to every installed app with no approval and no
+# rollout. It now runs only when a human starts it, and can roll out to a
+# percentage of users first (--rollout-percentage, verified against
+# eas-cli 21+; see `eas update --help`). Partial rollouts are reverted with
+# `eas update:revert-update-rollout` if something goes wrong.
+
 on:
   push:
     branches:
-      - main
-      - staging
       - dev
     paths:
       - 'apps/mobile/**'
@@ -12,6 +23,17 @@ on:
       - '.github/workflows/mobile-update.yml'
       - 'package.json'
       - 'package-lock.json'
+  workflow_dispatch:
+    inputs:
+      rollout_percentage:
+        description: 'Percentage of production users to roll the update out to (1-100). Start low; revert with `eas update:revert-update-rollout` if anything breaks.'
+        required: true
+        default: '10'
+        type: string
+      message:
+        description: 'Update message shown in the EAS dashboard.'
+        required: false
+        default: 'Manual production OTA update'
 
 jobs:
   update-preview:
@@ -44,13 +66,28 @@ jobs:
           EXPO_PUBLIC_STREAM_API_KEY: ${{ vars.STREAM_API_KEY || '2rpeptjh9ug8' }}
 
   update-production:
-    name: Publish OTA Update (Production Channel)
-    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main'
+    name: Publish OTA Update (Production Channel — manual)
+    # Manual only. A push to staging must never reach installed apps by itself.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: staging
+    # The owner adds required reviewers to the `production` GitHub Environment
+    # (Settings → Environments → production). The job waits for approval there.
+    environment: production
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Validate rollout percentage
+        run: |
+          p="${{ inputs.rollout_percentage }}"
+          case "$p" in
+            ''|*[!0-9]*) echo "::error::rollout_percentage must be a whole number, got '$p'"; exit 1 ;;
+          esac
+          if [ "$p" -lt 1 ] || [ "$p" -gt 100 ]; then
+            echo "::error::rollout_percentage must be between 1 and 100, got '$p'"
+            exit 1
+          fi
+          echo "Rolling out to $p% of production users."
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -64,7 +101,11 @@ jobs:
 
       - name: Publish to Production Channel
         working-directory: ./apps/mobile
-        run: npx eas-cli update --channel production --message "Production automated update (${{ github.sha }})" --non-interactive
+        run: >-
+          npx eas-cli update --channel production
+          --rollout-percentage ${{ inputs.rollout_percentage }}
+          --message "${{ inputs.message }} (${{ github.sha }})"
+          --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://aokdansyqxracuwsosji.supabase.co' }}
