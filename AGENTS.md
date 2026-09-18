@@ -148,6 +148,38 @@ webhook confirms a real payment. Amounts are derived server-side from the
 agreed terms and never taken from the client. Don't add a bypass "for testing";
 the audit suite drives real test-mode orders and signs its own webhooks.
 
+## The admin CRM can message real people
+
+`/dashboard/admin/broadcasts` sends real push notifications, in-app pop-ups and
+email to real accounts (migration 157, `lib/broadcasts.ts`). **Dev holds real
+push tokens belonging to real testers**, so before running anything that could
+send:
+
+- set **`BROADCAST_DRY_RUN=true`** (records everything, calls nothing), or
+- flip the `vendor_expo_push` kill switch off, or
+- target a segment of only your own test devices.
+
+The same rule as `NOTIFY_EMAILS_ENABLED`, for the same reason. `.claude/launch.json`'s
+`web-e2e` profile sets both.
+
+Other things that are easy to get wrong here:
+
+- **Reports go through ONE route**, `/api/admin/insights/<module>`, with the module
+  whitelisted in `lib/admin-insights.ts`. A new report is a row there plus a page —
+  never a query built from a client-supplied table or column name.
+- **`withAdmin` returns a service-role client with no `auth.uid()`.** Every
+  `admin_*` RPC guards itself with `is_admin()`, so it must be called through
+  `callerClient(req)` or it raises `forbidden`.
+- **Never count rows in Node.** PostgREST caps a response at Max Rows (1000),
+  which silently froze the Overview tiles. Count in SQL.
+- **All admin reporting is IST.** Bucket by
+  `(created_at AT TIME ZONE 'Asia/Kolkata')::date`, never `created_at::date`.
+- **Deletion is fail-closed:** the tombstone (153) is written *before*
+  `auth.admin.deleteUser`, and if it cannot be written the account is not deleted.
+- **History starts at the migration.** DAU, cohorts, app versions, search and push
+  delivery only exist from 152/156/157/160 onward; the screens say so rather than
+  drawing an empty chart that reads as "the business died".
+
 ## Testing
 
 `tests/e2e/` holds an API-level multi-account harness — far faster than the
