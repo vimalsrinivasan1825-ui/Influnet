@@ -1,0 +1,1976 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Generated 2026-09-18. Online copy: https://claude.ai/artifact/LfHKzaFY5fQHG5J4VW1LLU -->
+<title>Influnet Module Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#fbf8fa; --surface:#ffffff; --sunk:#f4eef2; --ink:#1d1720; --muted:#6b5f68; --line:#e6dce3;
+  --brand:#c42a78; --brand-fill:#ee3e96; --brand-soft:#fdeef6;
+  --crit:#b8232b; --crit-soft:#fcebeb; --warn:#9a5a0c; --warn-soft:#fbf1e1; --ok:#276f45; --ok-soft:#e5f3ea;
+  --info:#3b5bb5; --info-soft:#eaeffb;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Instrument Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --mono:"Spline Sans Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151116; --surface:#1e1920; --sunk:#262028; --ink:#f1eaf0; --muted:#a99ca6; --line:#3a3039;
+    --brand:#ff72b4; --brand-soft:#3a1a2c; --crit:#ff8078; --crit-soft:#3d1a1c; --warn:#f0b35a; --warn-soft:#3a2b14; --ok:#72d19a; --ok-soft:#16301f; --info:#9db4ff; --info-soft:#1c2440;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151116; --surface:#1e1920; --sunk:#262028; --ink:#f1eaf0; --muted:#a99ca6; --line:#3a3039;
+  --brand:#ff72b4; --brand-soft:#3a1a2c; --crit:#ff8078; --crit-soft:#3d1a1c; --warn:#f0b35a; --warn-soft:#3a2b14; --ok:#72d19a; --ok-soft:#16301f; --info:#9db4ff; --info-soft:#1c2440;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1100px;margin:0 auto}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(34px,5vw,52px);font-weight:700;letter-spacing:-.02em}
+h2{font-size:28px;font-weight:700;letter-spacing:-.01em}
+h3{font-size:19px;font-weight:700}
+h4{font-size:15px;font-weight:600;font-family:var(--body)}
+p{margin:0;max-width:70ch}
+code,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--sunk);padding:1px 5px;border-radius:4px}
+a{color:var(--brand)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sub{color:var(--muted)}
+
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px;overflow-x:auto;white-space:nowrap}
+nav.toc .wrap{display:flex;gap:18px;align-items:center}
+nav.toc a{color:var(--muted);text-decoration:none;font-size:13.5px;font-weight:500}
+nav.toc a:hover{color:var(--ink)}
+nav.toc strong{font-family:var(--display);font-size:15px;margin-right:6px}
+nav.toc strong span{color:var(--brand-fill)}
+.theme{margin-left:auto;display:flex;gap:2px;border:1px solid var(--line);border-radius:99px;padding:2px;flex-shrink:0}
+.theme button{font:500 12px var(--mono);background:none;border:0;color:var(--muted);padding:4px 10px;border-radius:99px;cursor:pointer}
+.theme button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+section{padding-top:56px;display:grid;gap:20px}
+header.hero{padding-top:44px;display:grid;gap:18px}
+.lede{font-size:18px}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.facts div{background:var(--surface);padding:14px 16px;display:grid;gap:2px}
+.facts b{font:700 26px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.facts span{font-size:13px;color:var(--muted)}
+
+figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:12px}
+.scroll{overflow-x:auto}
+figure svg{display:block;width:100%;height:auto;min-width:760px;color:var(--ink)}
+figcaption{color:var(--muted);font-size:14px;max-width:84ch}
+svg text{fill:var(--ink);font-family:var(--body)}
+svg .col{font:500 11.5px var(--mono);fill:var(--muted);letter-spacing:.06em}
+svg .dim{fill:var(--muted);font-size:13px}
+svg .pick{font-size:13.5px;font-weight:600;fill:var(--ink)}
+svg .pickbox{fill:var(--brand-soft);stroke:var(--brand-fill);stroke-width:1.5}
+svg .node{fill:var(--surface);stroke:var(--muted);stroke-width:1}
+svg .node.hot{stroke:var(--brand-fill);stroke-width:2}
+svg .t{font-size:14px;font-weight:600}
+svg .s{font-size:12px;fill:var(--muted)}
+svg .m{font-size:11.5px;font-family:var(--mono);fill:var(--muted)}
+svg .lbl{font-size:11.5px;fill:var(--muted);font-family:var(--mono)}
+svg .lbl.hot{fill:var(--brand)}
+svg .e{stroke:var(--muted);stroke-width:1.4;fill:none}
+svg .e.hot{stroke:var(--brand-fill);stroke-width:2}
+svg .ah{fill:var(--muted)}
+svg .ah.hot{fill:var(--brand-fill)}
+svg .pill{fill:var(--surface);stroke:var(--muted);stroke-width:1.2}
+svg .pill.adv{stroke-dasharray:4 3}
+svg .pill.pay{fill:var(--brand-soft);stroke:var(--brand-fill);stroke-width:1.6}
+svg .pill.end{fill:var(--sunk);stroke:var(--line)}
+svg .pt{font-size:11.5px;font-weight:500}
+svg .lane{font-size:13px;font-weight:600}
+
+/* loop */
+.loop{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;counter-reset:step}
+.loop li{list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:4px;align-content:start}
+.loop li::before{counter-increment:step;content:counter(step);font:700 22px/1 var(--display);color:var(--brand-fill)}
+.loop ol{margin:0;padding:0;display:contents}
+.loop b{font-weight:600}
+.loop span{color:var(--muted);font-size:14px}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.rule{border-left:3px solid var(--ink);padding:4px 0 4px 14px;display:grid;gap:4px}
+.rule p{color:var(--muted);font-size:14px}
+
+/* order */
+.tracks{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+.track{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:10px;align-content:start}
+.track ol{margin:0;padding-left:0;list-style:none;display:grid;gap:0}
+.track li{display:grid;grid-template-columns:30px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.track li:first-child{border-top:0}
+.track li .n{font:700 17px/1.3 var(--display);color:var(--muted);font-variant-numeric:tabular-nums}
+.track li b{font-weight:600}
+.track li span.why{display:block;color:var(--muted);font-size:13.5px}
+.track li.first .n{color:var(--brand-fill)}
+@media (max-width:760px){.tracks{grid-template-columns:1fr}}
+
+/* status pills */
+.pill{display:inline-block;font:600 11px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:5px 8px;border-radius:99px;white-space:nowrap}
+.st-blocker{background:var(--crit-soft);color:var(--crit)}
+.st-gaps{background:var(--warn-soft);color:var(--warn)}
+.st-unproven{background:var(--info-soft);color:var(--info)}
+.st-proven{background:var(--ok-soft);color:var(--ok)}
+.st-notlive{background:var(--sunk);color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13.5px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+
+/* focus bar */
+.focusbar{position:sticky;top:calc(env(safe-area-inset-top,0px) + 46px);z-index:5;background:var(--ink);color:var(--bg);border-radius:10px;padding:12px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.focusbar .lab{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.focusbar b{font-weight:600}
+.focusbar .path{opacity:.75;font-size:13.5px}
+.focusbar button{margin-left:auto;background:transparent;border:1px solid currentColor;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer;color:inherit}
+.focusbar a{color:inherit}
+
+/* filters */
+.filters{display:flex;flex-wrap:wrap;gap:16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.fg{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.fg .fl{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:99px;padding:4px 11px;font-size:13px;cursor:pointer;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.filters input[type=search]{flex:1;min-width:180px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px}
+.filters label.tog{display:flex;gap:6px;align-items:center;font-size:13.5px;cursor:pointer}
+.count{font:500 12.5px var(--mono);color:var(--muted)}
+
+/* modules */
+.mods{display:grid;gap:12px}
+details.mod{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.mod > summary{list-style:none;cursor:pointer;padding:16px 18px;display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center}
+details.mod > summary::-webkit-details-marker{display:none}
+details.mod > summary .num{font:700 20px/1 var(--display);color:var(--muted);font-variant-numeric:tabular-nums}
+details.mod[open] > summary .num{color:var(--brand-fill)}
+details.mod > summary .ttl{display:grid;gap:3px}
+details.mod > summary .ttl p{font-size:13.5px;color:var(--muted)}
+.mbar{display:flex;height:6px;width:140px;border-radius:99px;overflow:hidden;background:var(--sunk)}
+.mbar i{display:block;height:100%}
+.mmeta{display:grid;gap:6px;justify-items:end;font:500 12px var(--mono);color:var(--muted)}
+.mbody{padding:0 18px 16px;display:grid;gap:14px}
+.area{display:grid;gap:0}
+.area > h4{font:500 11.5px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:10px 0 6px;border-bottom:1px solid var(--line)}
+details.unit{border-bottom:1px solid var(--line)}
+details.unit > summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:92px 1fr auto;gap:12px;align-items:center;padding:10px 2px}
+details.unit > summary::-webkit-details-marker{display:none}
+details.unit > summary .un{font-weight:600}
+details.unit > summary .tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.tag{font:500 11px var(--mono);color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+.prog{font:500 12px var(--mono);color:var(--muted);min-width:38px;text-align:right}
+details.unit.done > summary .un{color:var(--ok)}
+details.unit.done > summary .prog{color:var(--ok)}
+details.unit.focused{background:var(--brand-soft);margin-inline:-18px;padding-inline:18px}
+.ubody{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:4px 2px 18px}
+.ubody .full{grid-column:1/-1}
+.kv{display:grid;gap:6px;font-size:14px}
+.kv dt{font:500 11px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.kv dd{margin:0}
+.kv ul{margin:0;padding-left:18px}
+.kv li{margin:3px 0}
+.where{font-family:var(--mono);font-size:12.5px;color:var(--muted);display:grid;gap:3px}
+.where span b{color:var(--ink);font-weight:500}
+.checks{display:grid;gap:6px}
+.checks label{display:grid;grid-template-columns:20px 1fr;gap:8px;font-size:14px;cursor:pointer;align-items:start}
+.checks input{width:16px;height:16px;margin-top:3px;accent-color:var(--brand-fill)}
+.checks input:checked + span{color:var(--muted);text-decoration:line-through}
+.fbtn{justify-self:start;background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:7px 12px;font-size:13.5px;font-weight:600;cursor:pointer}
+.fbtn.on{background:var(--brand-fill);color:#fff}
+.empty{padding:24px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:10px}
+@media (max-width:700px){
+  .ubody{grid-template-columns:1fr}
+  details.unit > summary{grid-template-columns:1fr auto;}
+  details.unit > summary .pill{grid-column:1/-1;justify-self:start}
+  details.unit > summary .tags{display:none}
+  details.mod > summary{grid-template-columns:28px 1fr}
+  .mmeta{grid-column:2;justify-items:start}
+}
+footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+
+/* app tree */
+.tbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.tbar .fg .chip{font-size:12.5px}
+.tbar input[type=search]{flex:1;min-width:200px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px}
+.tstats{font:500 12.5px var(--mono);color:var(--muted)}
+.tgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.treewrap{overflow:auto;max-height:78vh;min-height:360px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overscroll-behavior:contain}
+.treewrap svg{display:block}
+.tpanel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 60px);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:10px}
+.tpanel .crumbs{font:500 11.5px var(--mono);color:var(--muted);line-height:1.5}
+.tpanel .route code{font-size:12.5px;word-break:break-all}
+.tpanel .note{font-size:14px;color:var(--muted)}
+.tpanel .acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tpanel .acts label{display:flex;gap:6px;align-items:center;font-size:14px;cursor:pointer}
+.tpanel .acts input{accent-color:var(--ok);width:16px;height:16px}
+.tpanel button.go{background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.tpanel .kids{font-size:13.5px;color:var(--muted)}
+.tlegend{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted);align-items:center}
+.tlegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:1.5px solid var(--muted)}
+@media (max-width:860px){.tgrid{grid-template-columns:1fr}.tpanel{position:static;order:-1}}
+svg.tree .lk{fill:none;stroke:var(--line);stroke-width:1.5}
+svg.tree .nl{font:500 13px var(--body);fill:var(--ink)}
+svg.tree .d0 .nl{font:700 16px var(--display)}
+svg.tree .d1 .nl{font:700 15px var(--display)}
+svg.tree .d2 .nl{font-weight:600}
+svg.tree .more{fill:var(--muted);font:500 11.5px var(--mono)}
+svg.tree .rv{fill:var(--ok);font-weight:700}
+svg.tree .miss .nl{fill:var(--crit)}
+svg.tree .hit .nl{fill:var(--brand);font-weight:700}
+svg.tree .sel .nl{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+svg.tree .node{cursor:pointer}
+svg.tree .node:focus{outline:none}
+svg.tree .node:focus-visible circle{stroke-width:3.5}
+svg.tree circle{fill:var(--surface);stroke:var(--muted);stroke-width:1.6}
+svg.tree .s-blocker circle{stroke:var(--crit)} svg.tree .s-gaps circle{stroke:var(--warn)} svg.tree .s-unproven circle{stroke:var(--info)} svg.tree .s-proven circle{stroke:var(--ok)} svg.tree .s-notlive circle{stroke:var(--muted)}
+svg.tree .d0 circle,svg.tree .d1 circle{stroke:var(--brand-fill)}
+svg.tree .closed circle,svg.tree .leaf circle{fill:var(--muted)}
+svg.tree .closed.s-blocker circle,svg.tree .leaf.s-blocker circle{fill:var(--crit)}
+svg.tree .closed.s-gaps circle,svg.tree .leaf.s-gaps circle{fill:var(--warn)}
+svg.tree .closed.s-unproven circle,svg.tree .leaf.s-unproven circle{fill:var(--info)}
+svg.tree .closed.s-proven circle,svg.tree .leaf.s-proven circle{fill:var(--ok)}
+svg.tree .d0.closed circle,svg.tree .d1.closed circle{fill:var(--brand-fill)}
+svg.tree .miss circle{stroke:var(--crit);fill:var(--crit-soft)}
+</style>
+
+<nav class="toc" aria-label="Sections">
+  <div class="wrap">
+    <strong>Influnet<span>.</span></strong>
+    <a href="#app-tree">App tree</a>
+    <a href="#narrowing">The narrowing</a>
+    <a href="#projects">Projects, drawn out</a>
+    <a href="#loop">Hardening loop</a>
+    <a href="#order">Focus order</a>
+    <a href="#explorer">All modules</a>
+    <a href="launch-blueprint.html">← Launch blueprint</a>
+    <div class="theme" role="group" aria-label="Colour theme"><button type="button" data-t="auto">Auto</button><button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button></div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Companion to the Launch Blueprint · 18 September 2026</div>
+  <h1>Influnet Module Map</h1>
+  <p class="lede">The whole app, broken down level by level: web or mobile, creator or brand, then the module, the area inside it, and finally the smallest unit you can finish. Each unit has a status, the gaps we know about and a clear finish line. <b>Work on one unit at a time until every check passes, then move to the next.</b></p>
+  <div class="facts">
+    <div><b id="f-mods">14</b><span>modules</span></div>
+    <div><b id="f-units">–</b><span>units, the smallest piece of work</span></div>
+    <div><b id="f-checks">–</b><span>finish-line checks</span></div>
+    <div><b id="f-block">–</b><span>units blocking launch</span></div>
+    <div><b id="f-proven">–</b><span>already proven end to end</span></div>
+  </div>
+</header>
+
+<!-- APP TREE -->
+<section id="app-tree">
+  <div class="eyebrow">Everything, as a tree</div>
+  <h2>App tree: every screen, for every role, on every device</h2>
+  <p>Start from Influnet's three applications and click to open the next level to the right: <b>app → who uses it → section → every screen and action inside</b>. Every web page (75), mobile screen (42), admin page (38) and landing section is in here, taken from the code. Dots take the colour of the unit's status in the explorer. Red names are things that should exist and don't. Click a node to see its route, mark it reviewed, or jump to its unit.</p>
+  <div class="tbar" role="group" aria-label="Tree controls">
+    <div class="fg"><span class="fl">Open to</span>
+      <button type="button" class="chip" data-lv="1" aria-pressed="true">Apps</button>
+      <button type="button" class="chip" data-lv="2" aria-pressed="false">Who</button>
+      <button type="button" class="chip" data-lv="3" aria-pressed="false">Sections</button>
+      <button type="button" class="chip" data-lv="99" aria-pressed="false">Everything</button>
+    </div>
+    <input type="search" id="t-q" placeholder="Find in tree: invoice, OTP, skip, settings…" aria-label="Find in tree">
+    <span class="tstats" id="t-stats"></span>
+  </div>
+  <div class="tlegend">
+    <span><i style="background:var(--crit);border-color:var(--crit)"></i>Blocker</span>
+    <span><i style="background:var(--warn);border-color:var(--warn)"></i>Gaps</span>
+    <span><i style="background:var(--info);border-color:var(--info)"></i>Unproven</span>
+    <span><i style="background:var(--ok);border-color:var(--ok)"></i>Proven</span>
+    <span><i style="background:var(--muted)"></i>Not linked / not live</span>
+    <span>Filled dot = has hidden children (+N) · hollow = open</span>
+  </div>
+  <div class="tgrid">
+    <div class="treewrap" id="treewrap"><div id="tree" aria-label="Application tree"></div>
+      <p id="tree-fallback" class="sub" style="padding:18px" hidden>The tree needs the D3 library, which didn't load. Reload the page to try again.</p>
+    </div>
+    <aside class="tpanel" id="tpanel" aria-live="polite">
+      <div class="crumbs" id="tp-crumbs">Influnet</div>
+      <h3 id="tp-name">Click any node</h3>
+      <div id="tp-body" class="note">The panel shows where it lives in the code, which unit it belongs to, and how many screens sit under it.</div>
+      <div class="acts" id="tp-acts" hidden>
+        <label for="tp-rev"><input type="checkbox" id="tp-rev"> Reviewed</label>
+        <button type="button" class="go" id="tp-open" hidden>Open its unit ↓</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- NARROWING -->
+<section id="narrowing">
+  <div class="eyebrow">How to pick what to work on</div>
+  <h2>Go down one level at a time, choosing just one thing at each step</h2>
+  <p>Every piece of work starts at the top and narrows to a single unit you can finish. The example below follows your question about projects: web → creator → Projects → Stage machine → the review-and-revisions loop. Everything shown faded is left alone until that unit is strong.</p>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1100 300" role="img" aria-label="Narrowing from surface to who to module to area to unit to finish-line checks, choosing one item at each level: Web app, Creator, Projects, Stage machine, Review and revisions loop.">
+      <defs><marker id="n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah hot"/></marker></defs>
+      <text x="20" y="22" class="col">SURFACE</text>
+      <text x="200" y="22" class="col">WHO</text>
+      <text x="345" y="22" class="col">MODULE</text>
+      <text x="530" y="22" class="col">AREA</text>
+      <text x="715" y="22" class="col">UNIT</text>
+      <text x="905" y="22" class="col">FINISH LINE</text>
+
+      <rect x="14" y="36" width="140" height="28" rx="6" class="pickbox"/>
+      <text x="26" y="55" class="pick">Web app</text>
+      <text x="26" y="88" class="dim">Mobile app</text>
+      <text x="26" y="114" class="dim">Admin CRM</text>
+      <text x="26" y="140" class="dim">Monitoring</text>
+      <text x="26" y="166" class="dim">Database</text>
+      <text x="26" y="192" class="dim">Delivery</text>
+
+      <text x="200" y="88" class="dim">Brand</text>
+      <rect x="194" y="36" width="110" height="28" rx="6" class="pickbox"/>
+      <text x="206" y="55" class="pick">Creator</text>
+      <text x="200" y="114" class="dim">Admin</text>
+
+      <text x="345" y="55" class="dim">Accounts</text>
+      <rect x="339" y="68" width="150" height="28" rx="6" class="pickbox"/>
+      <text x="351" y="87" class="pick">Projects</text>
+      <text x="345" y="119" class="dim">Requests &amp; deals</text>
+      <text x="345" y="145" class="dim">Messaging</text>
+      <text x="345" y="171" class="dim">Campaigns</text>
+      <text x="345" y="197" class="dim">Profiles</text>
+      <text x="345" y="223" class="dim">Billing &amp; Pro</text>
+      <text x="345" y="249" class="dim">… 7 more</text>
+
+      <text x="530" y="55" class="dim">Creation</text>
+      <text x="530" y="81" class="dim">Project types</text>
+      <rect x="524" y="94" width="150" height="28" rx="6" class="pickbox"/>
+      <text x="536" y="113" class="pick">Stage machine</text>
+      <text x="530" y="145" class="dim">Money</text>
+      <text x="530" y="171" class="dim">Changes &amp; exits</text>
+      <text x="530" y="197" class="dim">Close-out</text>
+
+      <text x="715" y="55" class="dim">Mutual sign-off</text>
+      <text x="715" y="81" class="dim">Checklist items</text>
+      <text x="715" y="107" class="dim">Skipping stages</text>
+      <rect x="709" y="120" width="170" height="28" rx="6" class="pickbox"/>
+      <text x="721" y="139" class="pick">Review ⇄ revisions</text>
+      <text x="715" y="171" class="dim">Updates &amp; files</text>
+
+      <rect x="899" y="100" width="190" height="112" rx="8" class="node hot"/>
+      <text x="911" y="124" class="s">□ loop walks on web + phone</text>
+      <text x="911" y="148" class="s">□ only brand can send back</text>
+      <text x="911" y="172" class="s">□ 3 rounds stay consistent</text>
+      <text x="911" y="196" class="s">□ creator notified each time</text>
+
+      <path d="M154 50 H194" class="e hot" marker-end="url(#n)"/>
+      <path d="M304 50 C322 50 322 82 337 82" class="e hot" marker-end="url(#n)"/>
+      <path d="M489 82 C507 82 507 108 522 108" class="e hot" marker-end="url(#n)"/>
+      <path d="M674 108 C692 108 692 134 707 134" class="e hot" marker-end="url(#n)"/>
+      <path d="M879 134 C889 134 889 150 897 150" class="e hot" marker-end="url(#n)"/>
+      <text x="20" y="282" class="lbl">Role and surface are lenses, not separate products: the same unit usually serves both roles on both web and phone, and is finished once for all of them.</text>
+    </svg>
+    </div>
+    <figcaption>In the explorer below, the <b>Who</b> and <b>Surface</b> filters are the first two steps. Opening a module is the third, and each unit lists its own finish line.</figcaption>
+  </figure>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="eyebrow">The deepest module, drawn out</div>
+  <h2>How a project comes to exist, and the three shapes it can take</h2>
+  <p>There are three ways a deal starts, and all of them end up in the same place: an accepted request and a 1-to-1 conversation. Accepting a request only opens the chat; it does not create a project. Terms are agreed in the chat, then both sides accept a proposal, and <em>that</em> creates the project. The proposal fixes which of the three flows the project runs.</p>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1120 560" role="img" aria-label="Brand request, creator-to-creator request, or an accepted campaign application each become an accepted collab request, which opens a conversation; a proposal accepted by both creates a project that runs one of three flows: full 12 stages, short pay-after, or short pay-before.">
+      <defs>
+        <marker id="p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+        <marker id="ph" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah hot"/></marker>
+      </defs>
+      <!-- entry doors -->
+      <text x="20" y="20" class="col">HOW IT STARTS</text>
+      <rect x="20" y="32" width="210" height="52" rx="8" class="node"/>
+      <text x="34" y="54" class="t">Brand sends a request</text>
+      <text x="34" y="73" class="m">POST /api/collabs</text>
+      <rect x="20" y="96" width="210" height="52" rx="8" class="node"/>
+      <text x="34" y="118" class="t">Creator ↔ creator</text>
+      <text x="34" y="137" class="m">POST /api/collabs/peer</text>
+      <rect x="20" y="160" width="210" height="52" rx="8" class="node"/>
+      <text x="34" y="182" class="t">Campaign application</text>
+      <text x="34" y="201" class="m">accept_campaign_application()</text>
+
+      <path d="M230 58 C252 58 252 110 272 116" class="e" marker-end="url(#p)"/>
+      <path d="M230 122 H270" class="e" marker-end="url(#p)"/>
+      <path d="M230 186 C252 186 252 134 272 128" class="e" marker-end="url(#p)"/>
+
+      <rect x="274" y="92" width="180" height="62" rx="8" class="node"/>
+      <text x="288" y="116" class="t">Request accepted</text>
+      <text x="288" y="137" class="m">collab_requests</text>
+
+      <line x1="454" y1="123" x2="508" y2="123" class="e" marker-end="url(#p)"/>
+      <text x="481" y="114" text-anchor="middle" class="lbl">opens</text>
+
+      <rect x="510" y="92" width="180" height="62" rx="8" class="node"/>
+      <text x="524" y="116" class="t">Conversation</text>
+      <text x="524" y="137" class="s">Stream chat + deal card</text>
+
+      <line x1="690" y1="123" x2="744" y2="123" class="e" marker-end="url(#p)"/>
+      <text x="717" y="114" text-anchor="middle" class="lbl">terms</text>
+
+      <rect x="746" y="92" width="170" height="62" rx="8" class="node"/>
+      <text x="760" y="116" class="t">Proposal</text>
+      <text x="760" y="137" class="m">project_proposals</text>
+
+      <line x1="916" y1="123" x2="958" y2="123" class="e hot" marker-end="url(#ph)"/>
+      <text x="937" y="114" text-anchor="middle" class="lbl hot">both</text>
+      <text x="937" y="146" text-anchor="middle" class="lbl hot">accept</text>
+
+      <rect x="960" y="92" width="150" height="62" rx="8" class="node hot"/>
+      <text x="974" y="116" class="t">Project</text>
+      <text x="974" y="137" class="m">campaign_projects</text>
+
+      <text x="510" y="186" class="s">Accepting a request only opens the chat. Free plan: 5 project conversions, lifetime.</text>
+
+      <path d="M1035 154 V222 H80 V246" class="e hot" marker-end="url(#ph)"/>
+      <text x="560" y="216" text-anchor="middle" class="lbl hot">the proposal picks one of three flows · checklist seeded at creation</text>
+
+      <!-- lane 1 -->
+      <text x="20" y="276" class="lane">Full</text>
+      <text x="20" y="293" class="m">12 stages</text>
+      <g>
+        <rect x="140" y="262" width="74" height="34" rx="17" class="pill"/><text x="177" y="283" text-anchor="middle" class="pt">Started</text>
+        <rect x="220" y="262" width="74" height="34" rx="17" class="pill"/><text x="257" y="283" text-anchor="middle" class="pt">Discussion</text>
+        <rect x="300" y="262" width="74" height="34" rx="17" class="pill pay"/><text x="337" y="283" text-anchor="middle" class="pt">Advance ₹</text>
+        <rect x="380" y="262" width="74" height="34" rx="17" class="pill"/><text x="417" y="283" text-anchor="middle" class="pt">Planning</text>
+        <rect x="460" y="262" width="74" height="34" rx="17" class="pill"/><text x="497" y="283" text-anchor="middle" class="pt">Confirm</text>
+        <rect x="540" y="262" width="74" height="34" rx="17" class="pill"/><text x="577" y="283" text-anchor="middle" class="pt">Shooting</text>
+        <rect x="620" y="262" width="74" height="34" rx="17" class="pill"/><text x="657" y="283" text-anchor="middle" class="pt">Editing</text>
+        <rect x="700" y="262" width="74" height="34" rx="17" class="pill adv"/><text x="737" y="283" text-anchor="middle" class="pt">Review</text>
+        <rect x="780" y="262" width="74" height="34" rx="17" class="pill adv"/><text x="817" y="283" text-anchor="middle" class="pt">Revisions</text>
+        <rect x="860" y="262" width="74" height="34" rx="17" class="pill"/><text x="897" y="283" text-anchor="middle" class="pt">Approval</text>
+        <rect x="940" y="262" width="74" height="34" rx="17" class="pill pay"/><text x="977" y="283" text-anchor="middle" class="pt">Final ₹</text>
+        <rect x="1020" y="262" width="74" height="34" rx="17" class="pill end"/><text x="1057" y="283" text-anchor="middle" class="pt">Done</text>
+      </g>
+      <path d="M817 262 C817 238 737 238 737 260" class="e" marker-end="url(#p)"/>
+      <text x="777" y="236" text-anchor="middle" class="lbl">send back</text>
+      <path d="M737 296 C737 330 897 330 897 298" class="e" marker-end="url(#p)"/>
+      <text x="817" y="343" text-anchor="middle" class="lbl">approve (fork)</text>
+      <text x="337" y="316" text-anchor="middle" class="lbl">brand pays</text>
+      <text x="977" y="316" text-anchor="middle" class="lbl">confirm</text>
+      <text x="977" y="330" text-anchor="middle" class="lbl">completion</text>
+      <text x="140" y="330" class="lbl">Setup → Production → Review → Payment</text>
+
+      <!-- lane 2 -->
+      <text x="20" y="394" class="lane">Short</text>
+      <text x="20" y="411" class="m">pay after</text>
+      <rect x="140" y="380" width="110" height="34" rx="17" class="pill"/><text x="195" y="401" text-anchor="middle" class="pt">Agreement</text>
+      <rect x="270" y="380" width="110" height="34" rx="17" class="pill"/><text x="325" y="401" text-anchor="middle" class="pt">Delivery</text>
+      <rect x="400" y="380" width="110" height="34" rx="17" class="pill pay"/><text x="455" y="401" text-anchor="middle" class="pt">Payment ₹</text>
+      <rect x="530" y="380" width="110" height="34" rx="17" class="pill end"/><text x="585" y="401" text-anchor="middle" class="pt">Done</text>
+      <line x1="250" y1="397" x2="268" y2="397" class="e" marker-end="url(#p)"/>
+      <line x1="380" y1="397" x2="398" y2="397" class="e" marker-end="url(#p)"/>
+      <line x1="510" y1="397" x2="528" y2="397" class="e" marker-end="url(#p)"/>
+
+      <!-- lane 3 -->
+      <text x="20" y="460" class="lane">Short</text>
+      <text x="20" y="477" class="m">pay before</text>
+      <rect x="140" y="446" width="110" height="34" rx="17" class="pill"/><text x="195" y="467" text-anchor="middle" class="pt">Agreement</text>
+      <rect x="270" y="446" width="110" height="34" rx="17" class="pill pay"/><text x="325" y="467" text-anchor="middle" class="pt">Payment ₹</text>
+      <rect x="400" y="446" width="110" height="34" rx="17" class="pill"/><text x="455" y="467" text-anchor="middle" class="pt">Delivery</text>
+      <rect x="530" y="446" width="110" height="34" rx="17" class="pill end"/><text x="585" y="467" text-anchor="middle" class="pt">Done</text>
+      <line x1="250" y1="463" x2="268" y2="463" class="e" marker-end="url(#p)"/>
+      <line x1="380" y1="463" x2="398" y2="463" class="e" marker-end="url(#p)"/>
+      <line x1="510" y1="463" x2="528" y2="463" class="e" marker-end="url(#p)"/>
+
+      <text x="680" y="394" class="s">Barter deals run these flows with no cash, so the</text>
+      <text x="680" y="412" class="s">payment step must never become a gate (E2E A4).</text>
+      <text x="680" y="460" class="s">Delivery can't start before payment here;</text>
+      <text x="680" y="478" class="s">a database trigger enforces it (migration 120).</text>
+
+      <!-- legend -->
+      <rect x="20" y="516" width="44" height="22" rx="11" class="pill"/>
+      <text x="72" y="532" class="lbl">both sides sign off to move on</text>
+      <rect x="320" y="516" width="44" height="22" rx="11" class="pill adv"/>
+      <text x="372" y="532" class="lbl">one side moves it (advance)</text>
+      <rect x="600" y="516" width="44" height="22" rx="11" class="pill pay"/>
+      <text x="652" y="532" class="lbl">opens only on a signed Razorpay webhook</text>
+    </svg>
+    </div>
+    <figcaption>The flows are defined in one place, <code>packages/core/src/project-lifecycle.ts</code> (<code>STAGE_FLOWS</code>), and web and mobile both read it. The legal moves are <em>not</em> the array order: Revisions can only go back to Review. Stages other than payment can be skipped if both sides agree (propose → confirm). Inside any stage, both sides post updates and files, and a stage's checklist must be complete before it can move on.</figcaption>
+  </figure>
+</section>
+
+<!-- LOOP -->
+<section id="loop">
+  <div class="eyebrow">What “make it strong” means</div>
+  <h2>The hardening loop: seven steps for every unit</h2>
+  <p>Run the same seven steps on every unit you pick. A unit counts as <b>strong</b> only when every check on its finish line passes. The explorer tracks that for you.</p>
+  <div class="loop"><ol>
+    <li><b>Map it</b><span>List its screens (web and phone), API routes and tables. The explorer already has a first draft; correct it where the code disagrees.</span></li>
+    <li><b>Walk it</b><span>Use it by hand as a creator and as a brand, on web and on a phone, the way a new user would. Write down every confusing moment.</span></li>
+    <li><b>Break it</b><span>Wrong role, two people clicking at once, a vendor switched off, slow network, empty and huge inputs, a blocked user, the Free plan limit.</span></li>
+    <li><b>Lock it</b><span>Add an E2E or unit test that fails if the unit regresses. Tests must assert the correct behaviour, not reproduce the bug.</span></li>
+    <li><b>Match it</b><span>The phone does what the web does, with the same wording, limits and errors. Differences are decided on purpose, not left by accident.</span></li>
+    <li><b>Watch it</b><span>Errors from this unit reach Sentry, its main action is a PostHog event, and admin can see its state.</span></li>
+    <li><b>Sign it off</b><span>Tick every finish-line check, add one line to the module's log, and only then move to the next unit.</span></li>
+  </ol></div>
+  <div class="rules">
+    <div class="rule"><h4>One unit in focus</h4><p>Only one unit is “in focus” at a time; the explorer enforces it. Bugs found elsewhere go on a list, not into this unit's work.</p></div>
+    <div class="rule"><h4>Finish downward, not sideways</h4><p>Finish every unit in an area before starting the next area, and every area in a module before the next module.</p></div>
+    <div class="rule"><h4>Fix it at the source</h4><p>If a unit's fix belongs in <code>packages/core</code> or the database, fix it there once. Web and phone then get it together.</p></div>
+  </div>
+</section>
+
+<!-- ORDER -->
+<section id="order">
+  <div class="eyebrow">The waterfall</div>
+  <h2>Focus order: two tracks</h2>
+  <p>The <b>product track</b> is the one-module-at-a-time waterfall and needs a developer. The <b>platform track</b> is mostly configuration from the Launch Blueprint. It runs in parallel because it doesn't touch the same code.</p>
+  <div class="tracks">
+    <div class="track">
+      <h3>Product track: one module at a time</h3>
+      <ol id="order-list"></ol>
+    </div>
+    <div class="track">
+      <h3>Platform track: in parallel</h3>
+      <ol>
+        <li><span class="n">A</span><div><b>Monitoring</b><span class="why">Alarms first: an unwatched unit can't be called strong. Blueprint Phase 0.</span></div></li>
+        <li><span class="n">B</span><div><b>Delivery &amp; infrastructure</b><span class="why">Gate the mobile OTA, get production current. Blueprint Phase 1.</span></div></li>
+        <li><span class="n">C</span><div><b>Database</b><span class="why">Cascade fix, backups, restore drill. Blueprint Phases 0 and 2.</span></div></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- EXPLORER -->
+<section id="explorer">
+  <div class="eyebrow">Every module, every unit</div>
+  <h2>Explorer</h2>
+  <p>Filter down, open a module, open a unit. <b>Set as focus</b> pins that unit to the bar below. Ticks and focus are saved in this browser only. The statuses are my assessment on 18 Sep from the code, the test suites and the earlier audits. Not every unit was walked by hand again, which is exactly what step 2 of the loop is for.</p>
+  <div class="legend">
+    <span><span class="pill st-blocker">Blocker</span> must fix before real users</span>
+    <span><span class="pill st-gaps">Gaps</span> works, known weaknesses</span>
+    <span><span class="pill st-unproven">Unproven</span> built, no end-to-end test</span>
+    <span><span class="pill st-proven">Proven</span> tested end to end, nothing open</span>
+    <span><span class="pill st-notlive">Not live</span> switched off or dev only</span>
+  </div>
+
+  <div class="focusbar" id="focusbar" aria-live="polite">
+    <span class="lab">In focus</span><span id="focus-text">Nothing yet. Pick a unit below, or start with the first item in the focus order.</span>
+    <button type="button" id="focus-clear" hidden>Clear focus</button>
+  </div>
+
+  <div class="filters" role="group" aria-label="Filters">
+    <div class="fg" id="f-who"><span class="fl">Who</span>
+      <button type="button" class="chip" data-v="" aria-pressed="true">Everyone</button>
+      <button type="button" class="chip" data-v="C" aria-pressed="false">Creator</button>
+      <button type="button" class="chip" data-v="B" aria-pressed="false">Brand</button>
+      <button type="button" class="chip" data-v="A" aria-pressed="false">Admin</button>
+    </div>
+    <div class="fg" id="f-surf"><span class="fl">Surface</span>
+      <button type="button" class="chip" data-v="" aria-pressed="true">All</button>
+      <button type="button" class="chip" data-v="W" aria-pressed="false">Web</button>
+      <button type="button" class="chip" data-v="M" aria-pressed="false">Mobile</button>
+      <button type="button" class="chip" data-v="P" aria-pressed="false">Platform</button>
+    </div>
+    <label class="tog" for="f-open"><input type="checkbox" id="f-open"> Blockers &amp; gaps only</label>
+    <input type="search" id="f-q" placeholder="Search: payment, OTP, invoice…" aria-label="Search units">
+    <span class="count" id="f-count"></span>
+  </div>
+
+  <div class="mods" id="mods"></div>
+</section>
+
+<footer>
+  Built from the code on <code>dev</code> at 3cd1ef51: <code>apps/web/src/app</code> (75 pages, 114 API routes), <code>apps/mobile/app</code> (42 screens), <code>packages/core</code>, and 156 migrations. Also from test suites (49 unit files, E2E phases 3–8) and earlier audits in <code>docs/operations/</code>. Where a unit says “no E2E found”, it means no end-to-end phase section covers it by name; it may still have been tested by hand before.
+</footer>
+</div>
+
+<script>
+/* ---------- data ---------- */
+/* r: roles C creator, B brand, A admin · s: surfaces W web, M mobile, P platform */
+var MODS = [
+{id:"acc", name:"Accounts & sign-in", why:"Every user passes through it, and it holds three store and launch blockers.", areas:[
+ {name:"Getting in", units:[
+  {id:"acc-csignup", name:"Creator signup", r:"C", s:"WM", st:"blocker",
+   what:"The multi-step creator wizard: details, username, socials, phone OTP.",
+   where:["web /signup/influencer","mobile (auth)/signup/creator","api /api/auth/register · check-username · check-email · check-instagram · social-preview","db profiles · influencer_profiles · pending_registrations"],
+   tests:"registration-recovery.test, social-platforms.test; seed-personas creates 12 accounts",
+   gaps:["No Terms/Privacy acceptance and no 18+ confirmation (both stores reject)","Production doesn't confirm the email address; minimum password is 6"],
+   checks:["Signup can't finish without Terms + 18+ ticked; both timestamps are stored","The confirmation email arrives from influnet.io and sign-in waits for the click","Leaving mid-wizard and coming back resumes the same step","Instagram connect still completes (as pending) with the Apify switch off"]},
+  {id:"acc-bsignup", name:"Brand signup & approval", r:"BA", s:"WM", st:"gaps",
+   what:"Brand wizard, then an admin approves the business before it can reach creators.",
+   where:["web /signup/business · admin /dashboard/admin/approvals","mobile (auth)/signup/business","api /api/auth/register · approval check in POST /api/collabs","db business_profiles.approval_status"],
+   tests:"E2E phase 3 “Unapproved business — the approval gate”",
+   gaps:["Approval is enforced by the API only; no database policy backs it up","Same consent and confirm-email gaps as creator signup"],
+   checks:["A pending brand can browse, but every send path refuses with a clear reason","Approving in admin notifies the brand by push and email","A rejected brand sees why and what to do next"]},
+  {id:"acc-otp", name:"Phone OTP", r:"CB", s:"WMP", st:"blocker",
+   what:"SMS code at signup through 2Factor, switched on and off by a runtime flag.",
+   where:["edge function phone-otp","api /api/phone-otp/send · verify · /api/auth/config","db phone_otp_sessions · phone_otp_audit_log","admin /dashboard/admin/otp"],
+   tests:"phone-normalisation.test",
+   gaps:["Production edge function uses the retired template, so codes arrive as voice calls","Web reads the flag at build time; only mobile reads it live","India-only numbers, so store reviewers can't sign up (use review accounts)"],
+   checks:["A code arrives as an SMS on production","Flipping the flag changes web signup without a rebuild","Every attempt appears in admin → OTP logs","Resend is throttled and the wording says when to retry"]},
+  {id:"acc-login", name:"Log in, sessions, password reset", r:"CB", s:"WM", st:"blocker",
+   what:"Email + password login, keeping people signed in, and recovering a forgotten password.",
+   where:["web /login · /reset-password","mobile (auth)/login · (auth)/forgot-password","Supabase Auth settings"],
+   tests:"No E2E covers reset",
+   gaps:["Production Site URL is localhost, so reset links go nowhere","No redirect allow-list"],
+   checks:["A reset link opens staging.influnet.io and sets a new password","Repeated wrong passwords are rate-limited with clear wording","An expired phone session signs out once, with no request storm"]}
+ ]},
+ {name:"Leaving", units:[
+  {id:"acc-delete", name:"Account deletion", r:"CB", s:"WM", st:"wip",
+   what:"Self-service delete from settings, with reason, active-project guard and tombstone. Shared projects now survive (161): the other party keeps the project, payments and invoices, shown as “Deleted account”.",
+   where:["web /delete-account · settings","mobile settings.tsx","api DELETE /api/profile · lib/account-deletion.ts","db deleted_accounts","db 161 participant FKs SET NULL"],
+   tests:"E2E self-delete phase (161)",
+   gaps:["F6: Stream user and chat history survive","mailto:support@influnet.in still shown; that domain has no mailbox"],
+   checks:["After deleting, the other party still opens the shared invoice","The Stream user is gone","A tombstone row appears in admin → Deleted","The public deletion page works without the app"]}
+ ]}
+]},
+{id:"prj", name:"Projects", why:"The product itself, and the only place money moves.", areas:[
+ {name:"Creation", units:[
+  {id:"prj-create", name:"From deal to project", r:"CB", s:"WM", st:"proven",
+   what:"Terms agreed in chat become a proposal; the project exists only when both accept.",
+   where:["web deal card in /dashboard/messages","mobile conversations/[id]","api /api/conversations/[id]/deal (GET/POST/PATCH)","db project_proposals → campaign_projects"],
+   tests:"E2E phase 4 “Deal negotiation → project creation”",
+   gaps:["Free plan caps conversions at 5, lifetime. The database enforces this from billing_settings even while the app treats everyone as Pro"],
+   checks:["Only a proposal both sides accepted creates a project","If one side edits the proposal, the other must accept again","A double click creates exactly one project","The Free-limit message names the limit and the next step"]},
+  {id:"prj-types", name:"Project types (three flows)", r:"CB", s:"WM", st:"proven",
+   what:"Full 12-stage, short pay-after, short pay-before; any of them can be barter.",
+   where:["core packages/core/src/project-lifecycle.ts STAGE_FLOWS","db migrations 120 (pay-before guard), 132"],
+   tests:"E2E phase 8 A (both short flows, barter A4); stage-transition-integrity.test",
+   gaps:[],
+   checks:["Each flow walks start → done on web and on a phone","Barter never shows a payment gate","Pay-before can't reach delivery unpaid, even through the API"]}
+ ]},
+ {name:"Stage machine", units:[
+  {id:"prj-signoff", name:"Mutual sign-off", r:"CB", s:"WM", st:"proven",
+   what:"Both sides confirm a stage; the second confirmation moves the project on.",
+   where:["api PATCH /api/projects/[id] action signoff / revoke_signoff","db record_stage_signoff() · revoke_stage_signoff() (114)"],
+   tests:"E2E sign-off race, 20 rounds; project-journey.test",
+   gaps:[],
+   checks:["Simultaneous clicks never lose one side","Revoking before the other signs works and notifies them","The other side sees “your turn” within seconds (Realtime)"]},
+  {id:"prj-checklist", name:"Stage checklist items", r:"CB", s:"WM", st:"proven",
+   what:"Per-stage checklist that must be complete before the stage can move.",
+   where:["api /api/projects/[id]/stage-items","lib apps/web/src/lib/stage-items-gate.ts (fails closed)","db project_stage_items"],
+   tests:"flow-stage-items.test, project-stage-items.test; E2E checklist-gate regression",
+   gaps:[],
+   checks:["A project nobody has opened still has its gates closed","An unreadable checklist stops progress rather than skipping it"]},
+  {id:"prj-review", name:"Review ⇄ revisions loop", r:"CB", s:"WM", st:"proven",
+   what:"Brand reviews, then approves (fork) or sends back; revisions return only to review.",
+   where:["api action advance with stage_key","core ALLOWED_TRANSITIONS"],
+   tests:"E2E phase 4 “Revision loop”",
+   gaps:[],
+   checks:["The loop walks on web and phone","Only the brand can approve or send back","Three rounds in a row keep the history consistent","The creator is notified on every send-back"]},
+  {id:"prj-skip", name:"Skipping stages", r:"CB", s:"WM", st:"unproven",
+   what:"One side proposes skipping a non-payment stage; the other confirms or declines.",
+   where:["api actions propose_skip · confirm_skip · cancel_skip"],
+   tests:"stage-action-coverage.test; no E2E phase found",
+   gaps:["No end-to-end walk of skipping"],
+   checks:["Payment stages can never be skipped, even through the API","A pending skip is visible to both sides and can be cancelled","A skipped stage shows as skipped in the timeline"]},
+  {id:"prj-updates", name:"Stage updates & files", r:"CB", s:"WM", st:"unproven",
+   what:"Posted updates, drafts, links and files inside each stage; project cards.",
+   where:["api /api/projects/[id]/stage-entries · cards · /api/uploads/sign","db project_stage_entries · project_assets · project_cards"],
+   tests:"No E2E phase found",
+   gaps:["No end-to-end test of posting and viewing updates"],
+   checks:["An upload that fails can be retried without losing text","Only the two parties can see a project's files","The other side is notified of a new update"]}
+ ]},
+ {name:"Money", units:[
+  {id:"prj-pay", name:"Advance & final payment", r:"CB", s:"WMP", st:"blocker",
+   what:"The brand pays through Razorpay; the gate opens only on a signed webhook.",
+   where:["web Razorpay checkout · mobile in-app browser","api /api/projects/[id]/payments · /api/payments/webhook","db project_payments"],
+   tests:"E2E phase 5, 43/43 (real test-mode orders, forged webhooks refused); razorpay.test",
+   gaps:["Live keys have never moved a real rupee","Nothing pays the creator; payout mechanism undecided (RBI implications)","F2 cascade deletes the ledger on account deletion"],
+   checks:["One real ₹ payment opens the gate on its own","A replayed webhook doesn't double-count","Refund and payout paths are defined and match the terms","Manual (off-platform) mode works when Razorpay is off"]}
+ ]},
+ {name:"Changes & exits", units:[
+  {id:"prj-change", name:"Change requests", r:"CB", s:"WM", st:"unproven",
+   what:"Edit agreed terms mid-project: one side proposes, the other confirms.",
+   where:["web project page","mobile projects/[id]/change-requests","api /api/projects/[id]/change-requests","db project_change_requests"],
+   tests:"No E2E phase found",
+   gaps:["No end-to-end test of propose → confirm → terms updated"],
+   checks:["Declined changes leave terms untouched","An amount change recalculates the payment gates","Both sides see the before and after"]},
+  {id:"prj-cancel", name:"Cancellation", r:"CB", s:"WM", st:"proven",
+   what:"Request, accept or decline cancellation, with a reason category.",
+   where:["api actions request_cancellation · accept · decline","core project-cancellation.ts"],
+   tests:"project-cancellation-consent.test; E2E phase 5 “Cancellation & the payment ledger”",
+   gaps:[],
+   checks:["Cancelling after a payment keeps the ledger","“Other” requires written text","Neither side can cancel alone once work has started"]},
+  {id:"prj-delete", name:"Delete & restore", r:"CB", s:"WM", st:"unproven",
+   what:"Hide a project from your list and bring it back.",
+   where:["api actions delete_project · restore_project","mobile projects/deleted"],
+   tests:"No E2E phase found",
+   gaps:["No end-to-end test"],
+   checks:["Deleting only hides it for you, never for the other party","Restore returns it exactly as it was"]}
+ ]},
+ {name:"Close-out", units:[
+  {id:"prj-docs", name:"Documents & invoices", r:"CB", s:"WM", st:"blocker",
+   what:"Generated agreements and tax invoices (bill of supply or tax invoice), downloadable.",
+   where:["api /api/projects/[id]/documents/[docId]/token","db project_documents · invoice_number_counters (135)"],
+   tests:"E2E phase 8 B and B4",
+   gaps:["F2: deleted when either party deletes their account"],
+   checks:["Invoice numbers never repeat, even under parallel generation","Download links expire and work only for the parties","Documents survive either party leaving"]},
+  {id:"prj-complete", name:"Completion & reviews", r:"CB", s:"WM", st:"proven",
+   what:"Confirm completion after final payment, then both sides review each other.",
+   where:["api action confirm_completion · /api/projects/[id]/reviews","db reviews · business_reviews"],
+   tests:"E2E phase 5 completion; phase 8 S5 criteria scores",
+   gaps:[],
+   checks:["advance is refused on final payment; only confirm_completion works","A review can be left once per side","Reviews show on the public profile"]}
+ ]},
+ {name:"Visibility", units:[
+  {id:"prj-turn", name:"Whose turn, activity & timeline", r:"CB", s:"WM", st:"proven",
+   what:"Every screen says whose move it is; full history per project.",
+   where:["core project-turn.ts projectTurn()","api /api/projects/[id]/activity","mobile projects/[id]/timeline · activity","db project_activity"],
+   tests:"project-turn.test",
+   gaps:[],
+   checks:["Home, project list and project page always agree on whose turn it is","Every stage change appears in the timeline with who and when"]},
+  {id:"prj-views", name:"Board view & guided view", r:"CB", s:"WM", st:"proven",
+   what:"Web: all-stages board plus one-step-at-a-time guided mode. Mobile: per-stage screen.",
+   where:["web /dashboard/projects/[id]","mobile projects/[id] · stage/[stage]"],
+   tests:"Mobile full-project walk 31/31 (8 Aug)",
+   gaps:[],
+   checks:["Every stage action on web is reachable on the phone","Stage instructions read the same on both"]}
+ ]}
+]},
+{id:"req", name:"Requests & deals", why:"The only doors into a project.", areas:[
+ {name:"Sending", units:[
+  {id:"req-brand", name:"Brand → creator request", r:"B", s:"WM", st:"proven",
+   what:"A brand picks a creator and sends a collaboration request with a brief and budget.",
+   where:["web /dashboard/requests/new","mobile requests/new","api POST /api/collabs","db collab_requests"],
+   tests:"E2E phase 3: 5 brands → 1 creator at once, guards, blocks (44/44)",
+   gaps:[],
+   checks:["Blocked users can't be requested","A duplicate open request is refused","The Free monthly limit message is clear"]},
+  {id:"req-peer", name:"Creator ↔ creator request", r:"C", s:"WM", st:"unproven",
+   what:"Creators ask each other to collaborate; accepting opens chat only.",
+   where:["api POST /api/collabs/peer","db collab_requests"],
+   tests:"No E2E phase found",
+   gaps:["No end-to-end test; Free limit 10 a month"],
+   checks:["Accepting opens a conversation and no project","The 10-a-month Free limit counts correctly","Blocks apply the same as brand requests"]},
+  {id:"req-saved", name:"Saved creators & shortlists", r:"B", s:"WM", st:"proven",
+   what:"Brands save creators to come back to.",
+   where:["api /api/saved-items","db saved_items · influencer_shortlists"],
+   tests:"E2E phase 8 S3",
+   gaps:[],
+   checks:["Saved state matches on web and phone","A creator who blocks you disappears from your saved list"]}
+ ]},
+ {name:"Receiving", units:[
+  {id:"req-respond", name:"Accept / decline", r:"C", s:"WM", st:"gaps",
+   what:"The creator answers a request; accepting opens the conversation.",
+   where:["web /dashboard/requests","mobile (tabs)/requests · requests/[id]","api /api/collabs/[id]"],
+   tests:"E2E phase 3 accept/decline races",
+   gaps:["No report or block on the request screen (store requirement)"],
+   checks:["Report and block are available on the request detail","A decline can't be reversed into an accept","The brand is told the outcome by push"]},
+  {id:"req-campaign", name:"Campaign application hand-off", r:"CB", s:"WM", st:"proven",
+   what:"Accepting an application creates a normal request and opens chat.",
+   where:["api PATCH /api/campaigns/[id]/applications/[appId]","db accept_campaign_application() (129)"],
+   tests:"E2E phase 8 C4",
+   gaps:[],
+   checks:["Accept creates exactly one request and one conversation","A withdrawn application can't be accepted"]},
+  {id:"req-deal", name:"Deal card in chat", r:"CB", s:"WM", st:"proven",
+   what:"The card above the chat: the latest request between the pair, the proposal, and whose turn it is.",
+   where:["api /api/conversations/[id]/deal","web + mobile conversation header"],
+   tests:"E2E phase 4",
+   gaps:[],
+   checks:["With several past deals, the card shows the most recent one","“Create project” is enabled only for the right person at the right time"]}
+ ]}
+]},
+{id:"msg", name:"Messaging", why:"Where every deal is actually agreed.", areas:[
+ {name:"Chat", units:[
+  {id:"msg-chat", name:"Conversations & chat", r:"CB", s:"WM", st:"proven",
+   what:"Live 1-to-1 chat on Stream; list of conversations with unread counts.",
+   where:["web /dashboard/messages","mobile (tabs)/messages · conversations/[id]","api /api/stream/token · /api/stream/channel · /api/conversations"],
+   tests:"E2E phase 4 “Messaging”",
+   gaps:[],
+   checks:["Messages appear on the other device within 2 s","Unread counts match on web and phone","A lost connection recovers without an app restart"]},
+  {id:"msg-alerts", name:"New-message alerts", r:"CB", s:"MP", st:"unproven",
+   what:"Stream webhook → push to the other person. Chat never sends email.",
+   where:["api /api/stream/webhook (gzip-signed)","push via Expo"],
+   tests:"No E2E phase found",
+   gaps:["Webhook must be configured on the production Stream app"],
+   checks:["A push arrives within 10 s on iOS and on Android","A blocked user never triggers a push","Tapping the push opens that conversation"]},
+  {id:"msg-pins", name:"Pinned conversations", r:"CB", s:"WM", st:"unproven",
+   what:"Pin important chats to the top (limited on Free).",
+   where:["api /api/conversations/[id]/pin","db conversation_pins"],
+   tests:"No E2E phase found",
+   gaps:[],
+   checks:["Pin order matches on web and phone","The Free limit message appears at the limit"]}
+ ]},
+ {name:"Safety", units:[
+  {id:"msg-safety", name:"Chat safety & moderation", r:"CBA", s:"WMP", st:"blocker",
+   what:"Block and report inside chat, filtering offensive content, and removing chat on account deletion.",
+   where:["mobile conversations/[id] (block + report)","Stream moderation settings","lib/account-deletion.ts"],
+   tests:"E2E phase 3 blocks",
+   gaps:["Stream moderation is off, and there's no content filter (Apple 1.2)","A deleted user's Stream account and history survive (F6)"],
+   checks:["Stream blocklist / moderation on for production","Blocked users can't message and don't appear","Deleting an account removes the Stream user"]}
+ ]}
+]},
+{id:"ntf", name:"Notifications", why:"How people find out it's their move. Without them, projects stall silently.", areas:[
+ {name:"Channels", units:[
+  {id:"ntf-inapp", name:"In-app notifications", r:"CB", s:"WM", st:"unproven",
+   what:"The bell and notifications list, unread summary, and marking as opened.",
+   where:["web header bell","mobile notifications.tsx","api /api/notifications · summary · opened","db notifications"],
+   tests:"No E2E phase found",
+   gaps:[],
+   checks:["Every stage change creates exactly one notification for the other side","Tapping one opens the right screen","Unread count matches after reading on the other device"]},
+  {id:"ntf-push", name:"Push notifications", r:"CB", s:"MP", st:"gaps",
+   what:"Expo push to APNs and FCM; device registration, open tracking.",
+   where:["mobile lib/push.ts · _layout.tsx","api /api/profile/push-token","db push_devices (156)"],
+   tests:"No E2E phase found",
+   gaps:["Permission is asked at first launch, before the user knows why","Dev holds real testers' tokens, so broadcasts from dev reach real phones"],
+   checks:["The permission prompt comes after a meaningful moment","A sign-out removes the device token","A push arrives on a real iPhone and Android build"]},
+  {id:"ntf-email", name:"Email", r:"CB", s:"WMP", st:"gaps",
+   what:"Product email through Resend: templates, preferences, unsubscribe, suppression, kill switches.",
+   where:["lib/email · api /api/email/unsubscribe · /api/webhooks/resend · /api/profile/email-preferences","db email_deliveries · email_preferences · email_suppressions"],
+   tests:"email.test",
+   gaps:["Bounce webhook secret missing on production","No email-preferences screen on mobile"],
+   checks:["A hard bounce gets suppressed automatically","Unsubscribe works from the email without signing in","Mobile can change email preferences"]}
+ ]},
+ {name:"Outbound programmes", units:[
+  {id:"ntf-nudge", name:"Re-engagement nudges", r:"CB", s:"P", st:"notlive",
+   what:"Daily job reminding inactive users of pending moves.",
+   where:["api /api/cron/nudges","workflow reengagement-nudges.yml"],
+   tests:"No E2E phase found",
+   gaps:["Endpoint secret not pointed at production"],
+   checks:["The job logs a 200 against production daily","Nobody gets more than one nudge a day","Opted-out users get none"]},
+  {id:"ntf-bcast", name:"Announcements (user side)", r:"CB", s:"WM", st:"notlive",
+   what:"Banners and pop-ups that admin broadcasts show inside the apps.",
+   where:["api /api/announcements","mobile banners and pop-ups","db announcement_views"],
+   tests:"admin-crm.test",
+   gaps:["Dev only until the merge"],
+   checks:["A pop-up shows once per user","Dismissal is remembered across devices"]}
+ ]}
+]},
+{id:"prf", name:"Profiles & verification", why:"Trust: what brands judge creators by.", areas:[
+ {name:"Profiles", units:[
+  {id:"prf-public", name:"Creator public profile & media kit", r:"CB", s:"WM", st:"proven",
+   what:"Public page and media kit; the phone shows the same web page in a WebView.",
+   where:["web /c/[username] · /[username] · /media-kit","mobile creator/[username] (WebView)","api /api/creators/[username] · link-click"],
+   tests:"public-profile.test, media-kit.test, profile-visibility.test",
+   gaps:[],
+   checks:["Private fields never appear in the page HTML","A view is counted once per viewer per day","Loads in under 2 s on a mid-range phone"]},
+  {id:"prf-business", name:"Business profile", r:"BC", s:"WM", st:"gaps",
+   what:"Brand page for signed-in users, with contact reveal limited by plan.",
+   where:["web /b/[username]","mobile business/[username] (native)","api /api/businesses/[username] · reveal-contact","db business_contact_reveals"],
+   tests:"No E2E phase found",
+   gaps:["Column-grant bugs blanked it once (fixed 17 Sep); no end-to-end test"],
+   checks:["Opening it signed out asks the visitor to sign in","Contact reveal counts against the right limit","Brand logo and name render for every viewer role"]},
+  {id:"prf-edit", name:"Edit profile & portfolio", r:"CB", s:"WM", st:"unproven",
+   what:"Edit details, photos (Cloudinary) and portfolio items with Instagram thumbnails.",
+   where:["web /dashboard/profile","mobile edit-profile · portfolio/add","api /api/profile · /api/portfolio · /api/uploads/sign"],
+   tests:"portfolio-link.test, portfolio-thumbnail.test, portfolio-view.test",
+   gaps:[],
+   checks:["A failed upload keeps the form and offers retry","Invalid portfolio links are refused with a reason","Changes show on the public profile immediately"]}
+ ]},
+ {name:"Proof", units:[
+  {id:"prf-stats", name:"Social stats", r:"C", s:"WMP", st:"gaps",
+   what:"Follower and engagement numbers pulled from Instagram (Apify/HikerAPI) and YouTube (public feed).",
+   where:["api /api/profile/refresh","db social_snapshots"],
+   tests:"social-snapshot.test, youtube.test",
+   gaps:["Instagram data has no real view counts","X lookups fail on Apify's free plan"],
+   checks:["A vendor outage shows the last good numbers with their date","Refresh is rate-limited per creator","Numbers never display as 0 when unknown (show --)"]},
+  {id:"prf-verify", name:"Ownership & Verified badge", r:"CA", s:"WMP", st:"unproven",
+   what:"Creator puts a one-time code in their bio; the pipeline confirms and awards the badge.",
+   where:["web + mobile verification screens","api /api/verification · /api/verification/ownership","db verification_jobs · verification_checks · social_account_claims (058, 083)"],
+   tests:"verification*.test, ownership-endpoints.test",
+   gaps:["Code → badge has never run on a real account the tester owns","Self-awarding the badge was closed in 083; recheck after the merge"],
+   checks:["A real owned Instagram gets the badge end to end","A creator can't set is_verified through any API","Admin can revoke, and the badge disappears everywhere"]}
+ ]},
+ {name:"Finding people", units:[
+  {id:"prf-search", name:"Search", r:"B", s:"WM", st:"gaps",
+   what:"The Discover page is off for V1 (client decision); search lives in the command palette, the request picker and mobile search.",
+   where:["web command palette · /dashboard/requests/new","mobile search.tsx","api /api/discover","db search_events"],
+   tests:"search-query.test",
+   gaps:["Decide whether Discover stays off for launch"],
+   checks:["Results exclude blocked and private accounts","No-result and error states say what to try","Search is logged for admin → Search"]},
+  {id:"prf-viewers", name:"Profile viewers", r:"C", s:"WM", st:"gaps",
+   what:"Who viewed your profile (Pro feature).",
+   where:["web /dashboard/profile-viewers","mobile profile-viewers","api /api/profile/viewers"],
+   tests:"No E2E phase found",
+   gaps:["Showed every viewer as nameless until 17 Sep (column grants); not yet live"],
+   checks:["Brand viewers show name and logo","Free users see the upsell, not an empty list","Store builds show no purchase path"]},
+  {id:"prf-conn", name:"Connections", r:"CB", s:"WM", st:"proven",
+   what:"Your network: who you've worked with, with collaboration stats.",
+   where:["web /dashboard/connections","mobile connections.tsx","db get_collaboration_stats() (113)"],
+   tests:"E2E phase 8 S4",
+   gaps:[],
+   checks:["Numbers match the projects list","Blocked users don't appear"]}
+ ]}
+]},
+{id:"cmp", name:"Campaigns", why:"Open briefs: the one-to-many way brands find creators.", areas:[
+ {name:"Brand side", units:[
+  {id:"cmp-manage", name:"Create, publish, close", r:"B", s:"WM", st:"proven",
+   what:"Write a brief, publish it, edit, close.",
+   where:["web /dashboard/campaigns/new · [id]","mobile campaigns/new · campaigns/[id]","api /api/campaigns · /api/campaigns/[id]","db campaigns"],
+   tests:"E2E phase 8 C1–C6",
+   gaps:["No content filter on campaign text"],
+   checks:["An unapproved brand can't publish","Closing stops new applications","Offensive text is caught before publishing"]},
+  {id:"cmp-review", name:"Review applicants", r:"B", s:"WM", st:"proven",
+   what:"Shortlist, decline or accept applicants; accepting hands off to a request.",
+   where:["api /api/campaigns/[id]/applications/[appId]","db campaign_applications"],
+   tests:"E2E phase 8 C",
+   gaps:[],
+   checks:["Each applicant is told the outcome","Shortlist state matches on web and phone"]}
+ ]},
+ {name:"Creator side", units:[
+  {id:"cmp-apply", name:"Browse & apply", r:"C", s:"WM", st:"gaps",
+   what:"Find open campaigns and apply; withdraw an application.",
+   where:["web /dashboard/campaigns","mobile (tabs)/campaigns · campaigns/[id]","api /api/campaigns/[id]/applications"],
+   tests:"E2E phase 8 C",
+   gaps:["No report or block on campaign detail (store requirement)"],
+   checks:["Report is available on every campaign","You can't apply twice","Closed campaigns say so instead of erroring"]}
+ ]}
+]},
+{id:"set", name:"Settings, safety & support", why:"What the app stores check first.", areas:[
+ {name:"Account settings", units:[
+  {id:"set-prefs", name:"Settings & preferences", r:"CB", s:"WM", st:"gaps",
+   what:"Profile settings, notification and email preferences, password.",
+   where:["web /dashboard/settings","mobile settings.tsx","api /api/profile/notification-preferences · email-preferences"],
+   tests:"No E2E phase found",
+   gaps:["Mobile has no Legal section (Terms, Privacy, Refunds, Contact)","Mobile has no email preferences"],
+   checks:["Legal section with all four links + delete account on mobile","Every preference saved on one device shows on the other"]}
+ ]},
+ {name:"Trust & safety", units:[
+  {id:"set-block", name:"Block & report everywhere", r:"CBA", s:"WM", st:"blocker",
+   what:"Block or report a person from anywhere you meet them; admin works the queue.",
+   where:["mobile blocked-accounts.tsx · project + chat screens","api /api/blocks · /api/reports","admin /dashboard/admin/reports","db user_blocks · user_reports · report_remarks"],
+   tests:"E2E phase 3 “Blocks”",
+   gaps:["Missing on creator profile, business profile, campaign detail and request detail"],
+   checks:["Report and block on all four missing screens, web and mobile","A report reaches admin within a minute","Blocking hides the person across every list"]},
+  {id:"set-legal", name:"Legal pages", r:"CB", s:"WM", st:"blocker",
+   what:"Terms, Privacy, Refunds, Contact.",
+   where:["web /legal/[slug] · apps/web/src/app/legal/legal-content.ts"],
+   tests:"legal-content.test",
+   gaps:["24 [[placeholders]]; they 404 on production until the merge"],
+   checks:["No placeholders left; the draft banner is gone","Linked from signup, settings, landing footer and store listings"]}
+ ]},
+ {name:"Help", units:[
+  {id:"set-support", name:"Support tickets & feedback", r:"CBA", s:"WM", st:"gaps",
+   what:"In-app tickets with replies, plus product feedback.",
+   where:["web /dashboard/support","mobile support/ · feedback.tsx","api /api/support/tickets · /api/feedback","admin support · feedback"],
+   tests:"support-context.test",
+   gaps:["No named person or response time for answering"],
+   checks:["A reply from admin reaches the user by push","A written response-time promise, and it's met"]}
+ ]}
+]},
+{id:"home", name:"Home, activity & guides", why:"The first screen every day. It decides whether the app feels alive.", areas:[
+ {name:"Daily surfaces", units:[
+  {id:"home-console", name:"Home console", r:"CB", s:"WM", st:"unproven",
+   what:"Whose move is it, with reach, views, money and pipeline from real rows.",
+   where:["web /dashboard/home","mobile (tabs)/home","api /api/home"],
+   tests:"No E2E phase found",
+   gaps:[],
+   checks:["A brand-new account shows first steps, not zeros","Every card links to the thing it counts","Loads in under 1.5 s warm"]},
+  {id:"home-dash", name:"Role dashboards", r:"CB", s:"W", st:"unproven",
+   what:"Creator and brand dashboard numbers.",
+   where:["web /dashboard/influencer","api /api/influencer/dashboard · /api/business/dashboard"],
+   tests:"No E2E phase found",
+   gaps:[],
+   checks:["Numbers match the underlying lists","Unknown values show as --, never 0"]},
+  {id:"home-activity", name:"Activity feed", r:"CB", s:"WM", st:"unproven",
+   what:"Your own timeline, built from existing rows (not a separate log).",
+   where:["web /dashboard/activity","mobile activity.tsx","api /api/activity","db get_user_activity() (073)"],
+   tests:"No E2E phase found",
+   gaps:[],
+   checks:["Every project event appears once","Items link to where they happened"]},
+  {id:"home-guides", name:"Guided tours", r:"CB", s:"WM", st:"proven",
+   what:"Short step-by-step guides that play the first time you open each section.",
+   where:["core packages/core/src/guides (18 scripts)","mobile guides.tsx"],
+   tests:"guides.test",
+   gaps:[],
+   checks:["Each guide plays once and can be replayed","No guide points at a screen that has moved"]}
+ ]}
+]},
+{id:"bil", name:"Billing & Pro", why:"Launching free is recommended, so harden this last.", areas:[
+ {name:"Plans", units:[
+  {id:"bil-limits", name:"Free limits", r:"CB", s:"WMP", st:"gaps",
+   what:"Eight Free-plan ceilings, stored in the database, not in code.",
+   where:["api /api/billing/entitlements","core entitlements.ts","db billing_settings · plan_usage (138+)"],
+   tests:"entitlements.test; E2E phase 7",
+   gaps:["Database triggers enforce limits from billing_settings, not the SUBSCRIPTIONS switch, so the app and the database can disagree"],
+   checks:["The app and the database agree on every limit under both switch settings","Every limit message names the limit"]},
+  {id:"bil-checkout", name:"Pro checkout (web)", r:"CB", s:"W", st:"notlive",
+   what:"Buy Pro with Razorpay on the web.",
+   where:["web /checkout/pro","api /api/billing/checkout","db pro_orders · subscriptions · billing_events"],
+   tests:"No E2E phase found",
+   gaps:["Off in production (SUBSCRIPTIONS_ENABLED=false); subscription webhook gap noted 27 Aug"],
+   checks:["A test purchase upgrades the account on web and phone within a minute","Renewal and failure paths are handled"]},
+  {id:"bil-mobile", name:"Mobile billing screen", r:"CB", s:"M", st:"gaps",
+   what:"Plan status on the phone; no purchase in store builds.",
+   where:["mobile billing.tsx · lib/use-upgrade.ts","eas.json EXPO_PUBLIC_HIDE_PRO_PURCHASE"],
+   tests:"No tests",
+   gaps:["Hiding purchase is uncommitted work in progress"],
+   checks:["A store build shows no price, button or link to checkout","Pro bought on the web shows as Pro on the phone"]}
+ ]}
+]},
+{id:"adm", name:"Admin CRM", why:"How you run the business. It can message real people.", areas:[
+ {name:"Running the marketplace", units:[
+  {id:"adm-people", name:"People", r:"A", s:"W", st:"notlive",
+   what:"Users, a user's full record, approvals, incomplete signups, deleted accounts, customers.",
+   where:["admin users · users/[id] · approvals · incomplete · deleted · customers"],
+   tests:"E2E phase 6 authz sweep",
+   gaps:["Dev only until the merge"],
+   checks:["Lists paginate past 1,000 rows (PostgREST caps responses)","Every edit writes to the audit log"]},
+  {id:"adm-ops", name:"Marketplace operations", r:"A", s:"W", st:"notlive",
+   what:"Requests, projects, campaigns, payments and subscribers.",
+   where:["admin collabs · projects · projects/[id] · campaigns · payments · subscribers"],
+   tests:"E2E phase 6: admin numbers vs database",
+   gaps:["Dev only"],
+   checks:["Admin never edits stage_progress by hand; it uses the sign-off RPCs","Payment totals match Razorpay"]},
+  {id:"adm-trust", name:"Trust & support desk", r:"A", s:"W", st:"notlive",
+   what:"Reports, tickets, feedback, issues, audit log.",
+   where:["admin reports · support · feedback · issues · audit"],
+   tests:"E2E phase 6",
+   gaps:["No owner or response time yet"],
+   checks:["Reports are answered within 24 h","Every action is attributed in the audit log"]}
+ ]},
+ {name:"Talking to users", units:[
+  {id:"adm-bcast", name:"Broadcasts, email & OTP logs", r:"A", s:"WP", st:"notlive",
+   what:"Push, in-app pop-up and email campaigns to segments; delivery logs.",
+   where:["admin broadcasts · broadcasts/[id] · emails · otp","api /api/cron/broadcasts","db broadcasts · broadcast_runs · broadcast_deliveries"],
+   tests:"admin-crm.test",
+   gaps:["Sends to real people; dev holds real tokens"],
+   checks:["BROADCAST_DRY_RUN=true until a self-only test is sent","Kill switch vendor_expo_push works mid-send"]}
+ ]},
+ {name:"Understanding the business", units:[
+  {id:"adm-insights", name:"Analytics, CRM & reports", r:"A", s:"W", st:"notlive",
+   what:"Analytics, metrics, engagement, marketplace, app, product, founder, activity, search, leads, report builder.",
+   where:["admin 11 pages","api /api/admin/insights/[module] (whitelisted)"],
+   tests:"admin-crm.test",
+   gaps:["History only exists from migrations 152–160 onward"],
+   checks:["Every number is counted in SQL, bucketed in IST","Screens say when history starts instead of drawing an empty chart"]}
+ ]},
+ {name:"Admin access", units:[
+  {id:"adm-access", name:"Admin tiers & MFA", r:"A", s:"WP", st:"gaps",
+   what:"Business-tier vs super-admin; provision script; MFA switch.",
+   where:["api /api/admin/tier","scripts create-admin.mjs --super","env ADMIN_REQUIRE_MFA"],
+   tests:"E2E phase 6: both tiers, every route vs anon/outsider/wrong role (63/63)",
+   gaps:["MFA not enforced","A leaked admin password is in git history (F4)"],
+   checks:["The password is rotated","MFA is enforced for every admin","A business-tier admin gets 403 on technical pages"]}
+ ]}
+]},
+{id:"mon", name:"Monitoring", why:"Error monitoring tells you what broke; user monitoring tells you what people actually do.", areas:[
+ {name:"Error monitoring", units:[
+  {id:"mon-web", name:"Web & API errors", r:"A", s:"WP", st:"gaps",
+   what:"Sentry with release SHA and source maps; admin error log.",
+   where:["Sentry project","admin /dashboard/admin/errors"],
+   tests:"observability.test",
+   gaps:["No alert rules; production DSN unverified"],
+   checks:["A test error reaches your phone within 5 min","Stack traces are readable (source maps)"]},
+  {id:"mon-mobile", name:"Mobile crashes", r:"A", s:"MP", st:"blocker",
+   what:"JS-level crash reporting from the app.",
+   where:["mobile lib/analytics.ts","eas.json production profile"],
+   tests:"observability-client.test",
+   gaps:["The store build has no Sentry key, so crashes are invisible"],
+   checks:["A forced crash in a store build appears in Sentry","Crash-free sessions are tracked per release"]}
+ ]},
+ {name:"User monitoring", units:[
+  {id:"mon-usage", name:"Behaviour & funnels", r:"A", s:"WMP", st:"gaps",
+   what:"PostHog events and funnels; admin DAU, cohorts and app versions.",
+   where:["PostHog","admin observability · engagement · app","api /api/stats/funnel","db user_daily_activity (152)"],
+   tests:"analytics.test, observability-dashboard.test",
+   gaps:["Keys not set on production or the store build"],
+   checks:["Signup → first request → first project funnel visible","Web and mobile events share names"]}
+ ]},
+ {name:"System health", units:[
+  {id:"mon-uptime", name:"Uptime & speed", r:"A", s:"P", st:"blocker",
+   what:"Is the site up, and how fast is it?",
+   where:["UptimeRobot","Azure Application Insights","/api/health"],
+   tests:"weekly-health.yml (dev only)",
+   gaps:["No uptime check on production","23 s cold start measured today"],
+   checks:["A paused monitor texts you","p95 latency per endpoint visible","First request under 2 s"]},
+  {id:"mon-vendors", name:"Vendor health & kill switches", r:"A", s:"P", st:"notlive",
+   what:"Circuit breakers and on/off switches for Razorpay, Stream, Resend, Expo push, Apify, HikerAPI.",
+   where:["admin /dashboard/admin/vendors","db feature_flags (137, 149)"],
+   tests:"circuit-breaker.test, vendor-flags.test",
+   gaps:["Dev only"],
+   checks:["Switching a vendor off degrades gracefully, with a clear message","A tripped breaker shows on the vendors page"]},
+  {id:"mon-recon", name:"Email & money reconciliation", r:"A", s:"P", st:"gaps",
+   what:"Bounce and complaint rate; every Razorpay capture matched by an opened gate.",
+   where:["Resend dashboard","Razorpay dashboard · admin payments"],
+   tests:"—",
+   gaps:["Resend webhook secret missing on production"],
+   checks:["A weekly check is written down and done","A mismatch has a documented fix path"]}
+ ]}
+]},
+{id:"db", name:"Database", why:"Everything else stands on it.", areas:[
+ {name:"Schema", units:[
+  {id:"db-mig", name:"Migrations & drift", r:"A", s:"P", st:"gaps",
+   what:"156 migration files; dev at 160, production at 147.",
+   where:["supabase/migrations","scripts/apply-migration.mjs","admin /dashboard/admin/health"],
+   tests:"verify-151.mjs, verify-113.mjs",
+   gaps:["Production 13 migrations behind"],
+   checks:["Health shows 0 pending on production","Every new migration adds a health probe"]},
+  {id:"db-access", name:"Access rules", r:"A", s:"P", st:"proven",
+   what:"RLS on all 72 tables; column allow-lists on profiles and business_profiles.",
+   where:["tests/unit/column-grants.test.ts","migration 151 (privilege guard fix)"],
+   tests:"column-grants.test; E2E phase 6",
+   gaps:[],
+   checks:["Every new table ships with RLS and a policy","Queries are proven with a real persona token, not the service key"]},
+  {id:"db-integrity", name:"Integrity rules", r:"A", s:"P", st:"done",
+   what:"Foreign keys, consent and quota triggers, atomic stage writes. Migration 161 moved the two project participant FKs to ON DELETE SET NULL — a deleted user never destroys the other party's records.",
+   where:["006 · 059 · 124 foreign keys","161 participant FKs","enforce_project_consent · quota triggers"],
+   tests:"E2E phases 4–5 · 161 rollback proof",
+   gaps:[],
+   checks:["Deleting a user never deletes records the other party or the tax law needs","Triggers and app agree on limits"]}
+ ]},
+ {name:"Safety net", units:[
+  {id:"db-backup", name:"Backups & retention", r:"A", s:"P", st:"blocker",
+   what:"Point-in-time restore, a tested restore, and how long data is kept.",
+   where:["Supabase Pro plan","docs/operations/RUNBOOK.md"],
+   tests:"Never restored",
+   gaps:["No restore drill ever done","No data-retention policy (DPDP Act)"],
+   checks:["The restore time is written down","A retention period for each data type is set and enforced"]},
+  {id:"db-capacity", name:"Capacity", r:"A", s:"P", st:"unproven",
+   what:"Egress and realtime connections bind before database size does.",
+   where:["Supabase → Reports"],
+   tests:"—",
+   gaps:[],
+   checks:["Weekly numbers recorded","An alert or plan before 70% of any limit"]}
+ ]}
+]},
+{id:"dlv", name:"Delivery & infrastructure", why:"How changes reach users without breaking them.", areas:[
+ {name:"Code to users", units:[
+  {id:"dlv-branch", name:"Branches & CI", r:"A", s:"P", st:"gaps",
+   what:"dev → PR → staging (production); CI and CodeQL on dev.",
+   where:[".github/workflows/ci.yml · codeql.yml"],
+   tests:"—",
+   gaps:["129 commits waiting; dev is the only test environment"],
+   checks:["git log origin/staging..origin/dev is short, always","Every promotion follows a written checklist"]},
+  {id:"dlv-web", name:"Web deploys", r:"A", s:"P", st:"gaps",
+   what:"Docker image to Azure Container Apps; env vars at runtime and at build time.",
+   where:["deploy-dev.yml · deploy-staging.yml · Dockerfile"],
+   tests:"Deploy smoke test (qacreator)",
+   gaps:["Container secrets set by hand; min replicas fix not deployed"],
+   checks:["Rollback to the previous image is rehearsed once","Config is in a committed script"]},
+  {id:"dlv-mobile", name:"Mobile releases", r:"A", s:"MP", st:"blocker",
+   what:"EAS store builds plus over-the-air JS updates.",
+   where:["mobile-update.yml · eas.json · settings LAST_COMMIT_TIME"],
+   tests:"expo export in CI",
+   gaps:["F3: staging push = instant OTA to every app","iOS distribution certificate revoked"],
+   checks:["Production OTA needs approval and rolls out by percentage","An iOS store build signs","Every update bumps the release stamp"]},
+  {id:"dlv-cron", name:"Scheduled jobs", r:"A", s:"P", st:"gaps",
+   what:"Broadcasts every 5 min, daily maintenance, nudges, weekly health.",
+   where:["admin-broadcasts.yml · admin-maintenance.yml · reengagement-nudges.yml · weekly-health.yml"],
+   tests:"—",
+   gaps:["Each job targets one endpoint secret; health checks dev only"],
+   checks:["All four point at production","A failing job alerts someone"]},
+  {id:"dlv-secrets", name:"Secrets & access", r:"A", s:"P", st:"gaps",
+   what:"GitHub Environments, vendor accounts, who owns what.",
+   where:["docs/operations/ACCESS_INVENTORY.md","scripts/setup-environment-secrets.sh"],
+   tests:"—",
+   gaps:["Inventory unfilled; admin password leaked (F4)"],
+   checks:["Every account has an owner and a vault entry","Rotation done after any exposure"]}
+ ]}
+]}
+];
+
+var ORDER = [
+ {id:"acc", why:"Store blockers, and every user passes through. Start with account deletion (F2)."},
+ {id:"prj", why:"The product and the money. Most units are already proven; close the four unproven ones."},
+ {id:"req", why:"The doors into projects. Small, mostly proven."},
+ {id:"msg", why:"Chat safety is a store blocker."},
+ {id:"ntf", why:"Without alerts, a strong project flow still stalls."},
+ {id:"set", why:"Report/block everywhere and legal: the stores check these."},
+ {id:"prf", why:"Trust: verification end to end on a real account."},
+ {id:"cmp", why:"Nearly proven; add safety to campaign pages."},
+ {id:"home", why:"Polish the daily surface once what it shows is solid."},
+ {id:"adm", why:"Harden as it goes live with the merge; dry-run first."},
+ {id:"bil", why:"Last, if launching free."}
+];
+
+/* ---------- state ---------- */
+var KEY="influnet-modmap-v1", S={checks:{},focus:null};
+try{var raw=JSON.parse(localStorage.getItem(KEY)||"null"); if(raw&&typeof raw==="object"){S.checks=raw.checks||{};S.focus=raw.focus||null;}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+var F={who:"",surf:"",open:false,q:""};
+
+var ST={blocker:"Blocker",gaps:"Gaps",unproven:"Unproven",proven:"Proven",notlive:"Not live"};
+var STC={blocker:"var(--crit)",gaps:"var(--warn)",unproven:"var(--info)",proven:"var(--ok)",notlive:"var(--line)"};
+var ROLE={C:"Creator",B:"Brand",A:"Admin"}, SURF={W:"Web",M:"Mobile",P:"Platform"};
+
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+function allUnits(){var out=[];MODS.forEach(function(m,mi){m.areas.forEach(function(a){a.units.forEach(function(u){out.push({m:m,mi:mi,a:a,u:u});});});});return out;}
+function done(u){return u.checks.length>0 && u.checks.every(function(_,i){return S.checks[u.id+":"+i];});}
+function ticked(u){return u.checks.filter(function(_,i){return S.checks[u.id+":"+i];}).length;}
+function match(u,m,a){
+  if(F.who && u.r.indexOf(F.who)<0) return false;
+  if(F.surf && u.s.indexOf(F.surf)<0) return false;
+  if(F.open && !(u.st==="blocker"||u.st==="gaps")) return false;
+  if(F.q){var hay=(m.name+" "+a.name+" "+u.name+" "+u.what+" "+u.where.join(" ")+" "+u.gaps.join(" ")+" "+u.tests).toLowerCase(); if(hay.indexOf(F.q)<0) return false;}
+  return true;
+}
+
+/* ---------- render ---------- */
+var openMods={}, openUnits={};
+function render(){
+  var host=document.getElementById("mods"), html="", shown=0;
+  MODS.forEach(function(m,mi){
+    var units=[], counts={blocker:0,gaps:0,unproven:0,proven:0,notlive:0}, strong=0, total=0;
+    m.areas.forEach(function(a){a.units.forEach(function(u){total++;counts[u.st]++;if(done(u))strong++;});});
+    var areasHtml="";
+    m.areas.forEach(function(a){
+      var rows=a.units.filter(function(u){return match(u,m,a);});
+      if(!rows.length) return;
+      areasHtml+='<div class="area"><h4>'+esc(a.name)+'</h4>';
+      rows.forEach(function(u){
+        shown++;
+        var isF=S.focus===u.id, isOpen=openUnits[u.id]||isF&&openUnits[u.id]!==false;
+        var tags=u.r.split("").map(function(c){return '<span class="tag">'+ROLE[c]+'</span>';}).join("")+u.s.split("").map(function(c){return '<span class="tag">'+SURF[c]+'</span>';}).join("");
+        areasHtml+='<details class="unit'+(done(u)?' done':'')+(isF?' focused':'')+'" data-u="'+u.id+'"'+(isOpen?' open':'')+'>'
+          +'<summary><span class="pill st-'+u.st+'">'+ST[u.st]+'</span><span class="un">'+esc(u.name)+(isF?' · in focus':'')+'</span><span class="tags">'+tags+'<span class="prog">'+ticked(u)+'/'+u.checks.length+'</span></span></summary>'
+          +'<div class="ubody">'
+          +'<dl class="kv full"><dt>What it is</dt><dd>'+esc(u.what)+'</dd></dl>'
+          +'<dl class="kv"><dt>Where it lives</dt><dd class="where">'+u.where.map(function(w){var i=w.indexOf(" ");return '<span><b>'+esc(w.slice(0,i))+'</b> '+esc(w.slice(i+1))+'</span>';}).join("")+'</dd>'
+          +'<dt style="margin-top:10px">Tested by</dt><dd>'+esc(u.tests)+'</dd></dl>'
+          +'<dl class="kv"><dt>Known gaps</dt><dd>'+(u.gaps.length?'<ul>'+u.gaps.map(function(g){return '<li>'+esc(g)+'</li>';}).join("")+'</ul>':'<span class="sub">None open in the audits. Walk it anyway (step 2).</span>')+'</dd></dl>'
+          +'<dl class="kv full"><dt>Strong when</dt><dd class="checks">'+u.checks.map(function(c,i){var id="c-"+u.id+"-"+i;return '<label for="'+id+'"><input type="checkbox" id="'+id+'" data-k="'+u.id+':'+i+'"'+(S.checks[u.id+":"+i]?' checked':'')+'><span>'+esc(c)+'</span></label>';}).join("")+'</dd></dl>'
+          +'<button type="button" class="fbtn'+(isF?' on':'')+'" data-focus="'+u.id+'">'+(isF?'In focus':'Set as focus')+'</button>'
+          +'</div></details>';
+      });
+      areasHtml+='</div>';
+    });
+    if(!areasHtml) return;
+    var bar=["blocker","gaps","unproven","notlive","proven"].map(function(k){return counts[k]?'<i style="width:'+(counts[k]/total*100)+'%;background:'+STC[k]+'" title="'+ST[k]+': '+counts[k]+'"></i>':'';}).join("");
+    var forceOpen = !!F.q || openMods[m.id] || (S.focus && m.areas.some(function(a){return a.units.some(function(u){return u.id===S.focus;});}) && openMods[m.id]!==false);
+    html+='<details class="mod" data-m="'+m.id+'"'+(forceOpen?' open':'')+'><summary><span class="num">'+String(mi+1).padStart(2,"0")+'</span>'
+      +'<span class="ttl"><h3>'+esc(m.name)+'</h3><p>'+esc(m.why)+'</p></span>'
+      +'<span class="mmeta"><span class="mbar" aria-hidden="true">'+bar+'</span><span>'+total+' units · '+strong+' strong</span></span></summary>'
+      +'<div class="mbody">'+areasHtml+'</div></details>';
+  });
+  host.innerHTML = html || '<div class="empty">No units match these filters.</div>';
+  document.getElementById("f-count").textContent = shown+" unit"+(shown===1?"":"s");
+  renderFocus(); renderFacts();
+}
+function renderFocus(){
+  var t=document.getElementById("focus-text"), b=document.getElementById("focus-clear");
+  var hit=allUnits().filter(function(x){return x.u.id===S.focus;})[0];
+  if(!hit){ t.innerHTML='Nothing yet. Pick a unit below, or start with the first item in the focus order.'; b.hidden=true; return; }
+  t.innerHTML='<b>'+esc(hit.u.name)+'</b> <span class="path">'+esc(hit.m.name)+' › '+esc(hit.a.name)+' · '+ticked(hit.u)+' of '+hit.u.checks.length+' checks</span> <a href="#explorer" data-jump="'+hit.u.id+'">open</a>';
+  b.hidden=false;
+}
+function renderFacts(){
+  var all=allUnits(), checks=0;
+  all.forEach(function(x){checks+=x.u.checks.length;});
+  document.getElementById("f-units").textContent=all.length;
+  document.getElementById("f-checks").textContent=checks;
+  document.getElementById("f-block").textContent=all.filter(function(x){return x.u.st==="blocker";}).length;
+  document.getElementById("f-proven").textContent=all.filter(function(x){return x.u.st==="proven";}).length;
+}
+function renderOrder(){
+  var ol=document.getElementById("order-list");
+  ol.innerHTML=ORDER.map(function(o,i){
+    var m=MODS.filter(function(x){return x.id===o.id;})[0], n=0, b=0;
+    m.areas.forEach(function(a){a.units.forEach(function(u){n++; if(u.st==="blocker")b++;});});
+    return '<li'+(i===0?' class="first"':'')+'><span class="n">'+(i+1)+'</span><div><b>'+esc(m.name)+'</b> <span class="count">'+n+' units'+(b?' · '+b+' blocking':'')+'</span><span class="why">'+esc(o.why)+'</span></div></li>';
+  }).join("");
+}
+
+/* ---------- events ---------- */
+document.getElementById("mods").addEventListener("change",function(e){
+  var k=e.target.getAttribute("data-k"); if(!k) return;
+  S.checks[k]=e.target.checked; save();
+  var d=e.target.closest("details.unit"), id=d.getAttribute("data-u"), u=allUnits().filter(function(x){return x.u.id===id;})[0].u;
+  d.querySelector(".prog").textContent=ticked(u)+"/"+u.checks.length;
+  d.classList.toggle("done",done(u));
+  renderFocus();
+});
+document.getElementById("mods").addEventListener("click",function(e){
+  var f=e.target.closest("[data-focus]"); if(!f) return;
+  var id=f.getAttribute("data-focus");
+  S.focus = S.focus===id ? null : id; save(); openUnits[id]=true; render();
+});
+document.getElementById("mods").addEventListener("toggle",function(e){
+  var t=e.target; if(t.matches("details.unit")) openUnits[t.getAttribute("data-u")]=t.open; else if(t.matches("details.mod")) openMods[t.getAttribute("data-m")]=t.open;
+},true);
+document.getElementById("focus-clear").addEventListener("click",function(){S.focus=null;save();render();});
+document.getElementById("focusbar").addEventListener("click",function(e){
+  var j=e.target.closest("[data-jump]"); if(!j) return;
+  var el=document.querySelector('details.unit[data-u="'+j.getAttribute("data-jump")+'"]');
+  if(el){e.preventDefault(); el.open=true; el.scrollIntoView({block:"center"});}
+});
+function chips(id,key){
+  var g=document.getElementById(id);
+  g.addEventListener("click",function(e){var c=e.target.closest(".chip"); if(!c) return;
+    [].forEach.call(g.querySelectorAll(".chip"),function(x){x.setAttribute("aria-pressed",String(x===c));});
+    F[key]=c.getAttribute("data-v"); render();});
+}
+chips("f-who","who"); chips("f-surf","surf");
+document.getElementById("f-open").addEventListener("change",function(e){F.open=e.target.checked;render();});
+document.getElementById("f-q").addEventListener("input",function(e){F.q=e.target.value.trim().toLowerCase();render();});
+
+renderOrder(); render();
+
+/* ---------- theme ---------- */
+(function(){
+  var K="influnet-theme", root=document.documentElement, host=root.getAttribute("data-theme");
+  var btns=[].slice.call(document.querySelectorAll(".theme button"));
+  function apply(t){
+    if(t==="light"||t==="dark") root.setAttribute("data-theme",t);
+    else if(host) root.setAttribute("data-theme",host); else root.removeAttribute("data-theme");
+    btns.forEach(function(b){b.setAttribute("aria-pressed",String(b.getAttribute("data-t")===t));});
+  }
+  var t="auto"; try{t=localStorage.getItem(K)||"auto";}catch(e){}
+  apply(t);
+  btns.forEach(function(b){b.addEventListener("click",function(){var v=b.getAttribute("data-t");try{localStorage.setItem(K,v);}catch(e){}apply(v);});});
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+/* ================= APP TREE =================
+   Outline format: two spaces per level.
+   "Name @route #unit — note"   ·   "%BLOCK" inserts a shared block at that level.  */
+var BLOCKS = {
+WEVERY: `
+Search / command palette #prf-search
+Notifications bell #ntf-inapp
+Account menu & switch account
+Announcements — banner and pop-up #ntf-bcast
+Feedback widget #set-support
+Guided tours launcher #home-guides
+Plan nudges & upgrade card #bil-limits — only when plans are on`,
+WMSG: `
+Conversation list — search, unread, online #msg-chat
+Chat thread #msg-chat
+  Send messages and files #msg-chat
+  New-message push to the other person #msg-alerts
+Pin a conversation #msg-pins
+Deal panel (top of chat) #req-deal
+  The request card #req-deal
+  Propose project terms #prj-create
+  Accept / decline / withdraw terms #prj-create
+  Create project — both accept #prj-create
+Report / block from chat #msg-safety`,
+FLOWS: `
+Flows — picked in the proposal #prj-types
+  Full · 12 stages #prj-types
+    1 Collaboration started #prj-signoff
+    2 Project discussion #prj-signoff
+    3 Advance payment — gate #prj-pay
+    4 Content planning #prj-signoff
+    5 Content confirmation #prj-signoff
+    6 Shooting in progress #prj-signoff
+    7 Editing in progress #prj-signoff
+    8 Sent for review — fork #prj-review
+    9 Revisions — back to review #prj-review
+    10 Final approval #prj-signoff
+    11 Final payment — gate #prj-pay
+    12 Project completed #prj-complete
+  Short · pay after #prj-types
+    Agreement #prj-signoff
+    Delivery #prj-signoff
+    Payment — gate #prj-pay
+    Completed #prj-complete
+  Short · pay before #prj-types
+    Agreement #prj-signoff
+    Payment — gate #prj-pay
+    Delivery — locked until paid #prj-types
+    Completed #prj-complete
+  Barter — no cash, no payment gate #prj-types`,
+WPROJ: `
+Views
+  Schedule board #prj-views
+  Step-by-step guided flow #prj-views
+  Stage-by-stage recap #prj-views
+  Activity timeline #prj-turn
+  Whose turn it is #prj-turn
+%FLOWS
+Inside every stage
+  Confirm stage (sign-off) #prj-signoff
+  Undo my confirmation #prj-signoff
+  Stage checklist #prj-checklist
+  Post an update, files, links #prj-updates
+  Propose / confirm / cancel a skip #prj-skip
+Cards on the board — add, clear #prj-updates
+Payments & gate status #prj-pay
+Propose a change #prj-change
+Cancel the project #prj-cancel
+  Request cancellation + reason #prj-cancel
+  Accept or decline their request #prj-cancel
+  Withdraw your request #prj-cancel
+Documents & invoices #prj-docs
+Reviews #prj-complete
+Report this user #set-block
+Delete / restore #prj-delete`,
+WSUP: `
+New request — account, bug, payment, project, verification, other #set-support
+My tickets & replies #set-support`,
+SIGNUPC: `
+Account details — name, email, password #acc-csignup
+Username — live availability check #acc-csignup
+Social accounts — connect on tap #prf-stats
+Phone OTP (India) #acc-otp
+Resume an unfinished signup #acc-csignup
+Missing: Terms, Privacy & 18+ consent #acc-csignup`,
+SIGNUPB: `
+Business details #acc-bsignup
+Phone OTP (India) #acc-otp
+Waits for admin approval #acc-bsignup
+Missing: Terms, Privacy & 18+ consent #acc-bsignup`,
+MTOP: `
+Top bar
+  Your avatar → Profile @app/profile
+  Notifications @app/notifications #ntf-inapp
+  Announcements — banner and pop-up #ntf-bcast
+  Guided tours #home-guides`,
+MMSG: `
+Conversation list — search @app/(tabs)/messages #msg-chat
+Start a new conversation → search @app/search #prf-search
+Conversation @app/conversations/[id] #msg-chat
+  Send, reply, copy text, seen #msg-chat
+  Attach photo or document #msg-chat
+  Display options #msg-chat
+  Deal terms #req-deal
+    Propose project terms — title, what, deliverables, date, advance #prj-create
+    Send / withdraw terms #prj-create
+    Accept / decline terms #prj-create
+    Open the project #prj-create
+  Report / block #msg-safety
+New-message push #msg-alerts`,
+MPROJ: `
+Projects list @app/(tabs)/projects #prj-views
+Deleted projects — nothing is ever lost @app/projects/deleted #prj-delete
+Project page @app/projects/[id] #prj-views
+  Activity @app/projects/[id]/activity #prj-turn
+  Full timeline @app/projects/[id]/timeline #prj-turn
+  Change requests @app/projects/[id]/change-requests #prj-change
+  Request cancellation #prj-cancel
+    Accept & cancel / decline / withdraw #prj-cancel
+  Report this user #set-block
+  More options #prj-views
+  %FLOWS
+  Stage screen @app/projects/[id]/stage/[stage] #prj-signoff
+    Confirm this stage #prj-signoff
+    Undo my confirmation #prj-signoff
+    Gate checklist #prj-checklist
+    Post an update (+ link) #prj-updates
+    Propose / confirm / keep / cancel a skip #prj-skip
+    Upcoming and active stages #prj-views`,
+MSET: `
+Help & support @app/support #set-support
+  Ticket thread @app/support/[id] #set-support
+Send feedback @app/feedback #set-support
+Replay product guides @app/guides #home-guides
+Blocked accounts @app/blocked-accounts #set-block
+Reminders (notification settings) #ntf-push
+Test push notifications #ntf-push
+Delete account #acc-delete
+Sign out #acc-login
+Missing: Legal — Terms, Privacy, Refunds, Contact #set-legal
+Missing: Email preferences #ntf-email`
+};
+
+var OUTLINE = `
+Web app @apps/web — Next.js in any browser; also serves every API route for web and mobile
+  Signed-out visitor
+    Log in @/login #acc-login
+      Email + password #acc-login
+      Forgot password → email link #acc-login
+      Reset password @/reset-password #acc-login
+    Sign up @/signup #acc-csignup — choose creator or brand
+      Creator signup @/signup/influencer #acc-csignup
+        %SIGNUPC
+      Brand signup @/signup/business #acc-bsignup
+        %SIGNUPB
+    Creator public profile @/c/[username] #prf-public
+      Same page at @/[username] #prf-public
+      Stats, portfolio, reviews #prf-public
+      Media kit @/c/[username]/media-kit #prf-public
+        Same media kit at @/[username]/media-kit #prf-public
+      Open-in-app banner (phones) #prf-public
+    Link-in-bio page @/influnet/[slug] #prf-public
+    Business profile @/b/[username] #prf-business — asks visitors to sign in
+    Legal pages @/legal #set-legal
+      Terms @/legal/terms #set-legal
+      Privacy @/legal/privacy #set-legal
+      Refunds @/legal/refunds #set-legal
+      Contact @/legal/contact #set-legal
+    Delete-account page @/delete-account #acc-delete
+    Old verification links @/vf/[code] #prf-verify — legacy, kept so old links land
+    Pro checkout @/checkout/pro #bil-checkout
+    Team only
+      Internal docs & test-run checklist @/r/[token] — token-gated
+      UI preview @/ui-preview — design sandbox
+  Creator
+    On every page
+      %WEVERY
+    Home @/dashboard/home #home-console
+      Needs you #home-console
+      Awaiting them #home-console
+      Ongoing #home-console
+      Completed #home-console
+      Reach — followers, posts, avg views, engagement, subscribers #prf-stats
+      Nudges — verify ownership, media kit #prf-verify
+      First-run welcome #home-console
+    Dashboard @/dashboard/influencer #home-dash
+    Public profile @/dashboard/profile #prf-edit
+      Preview as others see it #prf-public
+      Profile visibility #prf-public
+      Portfolio editor #prf-edit
+      Verification panel #prf-verify
+      Instagram ownership — bio code #prf-verify
+      Verification guide #prf-verify
+    Messages @/dashboard/messages #msg-chat
+      %WMSG
+      Brand profile & contact reveal #prf-business
+    Requests @/dashboard/requests #req-respond
+      From brands #req-respond
+        Accept → opens chat #req-respond
+        Decline #req-respond
+        Undo #req-respond
+        Missing: Report / block on a request #set-block
+      From other creators #req-peer
+      Send a request to a creator #req-peer
+      Status filters — awaiting reply, in discussion, ongoing, completed, declined, cancelled #req-respond
+    Projects @/dashboard/projects #prj-views
+      Active / Deleted lists #prj-delete
+      Project page @/dashboard/projects/[id] #prj-views
+        %WPROJ
+        Only the creator
+          Post drafts and resubmit for review #prj-review
+          Work on revisions #prj-review
+          Receive advance and final payment #prj-pay
+    Campaigns @/dashboard/campaigns #cmp-apply
+      Browse & search #cmp-apply
+      Campaign page @/dashboard/campaigns/[id] #cmp-apply
+        Apply — pitch and rate #cmp-apply
+        Your application status #cmp-apply
+        Withdraw #cmp-apply
+        Missing: Report a campaign #set-block
+    Connections @/dashboard/connections #prf-conn
+    My activity @/dashboard/activity #home-activity
+      Requests sent · accepted · became projects · completed #home-activity
+    Profile viewers @/dashboard/profile-viewers #prf-viewers — Pro
+    Plan & billing @/dashboard/billing #bil-limits — only when plans are on
+      Free limits & usage #bil-limits
+      Upgrade to Pro @/checkout/pro #bil-checkout
+    Help & support @/dashboard/support #set-support
+      %WSUP
+    Settings @/dashboard/settings #set-prefs
+      Profile information #set-prefs
+      Creator profile #set-prefs
+      Media kit details #prf-public
+      Notifications #ntf-push
+      Email preferences #ntf-email
+      Product guides #home-guides
+      Blocked accounts #set-block
+      Account settings — password #acc-login
+      Danger zone — delete account #acc-delete
+  Brand
+    On every page
+      %WEVERY
+    Home @/dashboard/home #home-console
+      Needs you #home-console
+      Awaiting them #home-console
+      Ongoing #home-console
+      Completed #home-console
+      Spend & pipeline chart #home-console
+      First-run welcome #home-console
+    Dashboard @/dashboard #home-dash
+    Public profile — business page preview @/dashboard/profile #prf-business
+    Find creators #prf-search
+      Search / command palette #prf-search
+      Creator profile overlay #prf-public
+      Save / favourite a creator #req-saved
+      Discover page @/dashboard/discover #prf-search — off for V1 (client decision); URL answers 404
+      Missing: Report / block on a creator profile #set-block
+    Messages @/dashboard/messages #msg-chat
+      %WMSG
+    Requests — sent @/dashboard/requests #req-brand
+      New request @/dashboard/requests/new #req-brand
+        Pick the creator #req-brand
+        Brief, deliverables, budget #req-brand
+        "Request already sent" guard #req-brand
+        Blocked until the business is approved #acc-bsignup
+      Status filters #req-brand
+      Cancel a request #req-brand
+    Projects @/dashboard/projects #prj-views
+      Active / Deleted lists #prj-delete
+      Project page @/dashboard/projects/[id] #prj-views
+        %WPROJ
+        Only the brand
+          Pay advance — Razorpay #prj-pay
+          Approve draft or request revisions #prj-review
+          Final approval #prj-review
+          Pay final — Razorpay #prj-pay
+          Confirm completion #prj-complete
+    Campaigns @/dashboard/campaigns #cmp-manage
+      My campaigns #cmp-manage
+      New campaign @/dashboard/campaigns/new #cmp-manage
+      Campaign page @/dashboard/campaigns/[id] #cmp-manage
+        Edit / publish / close #cmp-manage
+        Applications #cmp-review
+          Shortlist #cmp-review
+          Decline #cmp-review
+          Accept & message → request + chat #req-campaign
+    Connections @/dashboard/connections #prf-conn
+    My activity @/dashboard/activity #home-activity
+    Plan & billing @/dashboard/billing #bil-limits — only when plans are on
+      Free limits & usage #bil-limits
+      Upgrade to Pro @/checkout/pro #bil-checkout
+    Help & support @/dashboard/support #set-support
+      %WSUP
+    Settings @/dashboard/settings #set-prefs
+      Profile information #set-prefs
+      Business details #set-prefs
+      Notifications #ntf-push
+      Email preferences #ntf-email
+      Product guides #home-guides
+      Blocked accounts #set-block
+      Account settings — password #acc-login
+      Danger zone — delete account #acc-delete
+  Admin — web only
+    Business-tier admin — six groups #adm-access
+      Workspace
+        Overview @/dashboard/admin #adm-insights
+        Founder dashboard @/dashboard/admin/founder #adm-insights
+        Live activity @/dashboard/admin/activity #adm-insights
+        Analytics @/dashboard/admin/analytics #adm-insights
+        Daily metrics @/dashboard/admin/metrics #adm-insights
+        Product analytics @/dashboard/admin/product #mon-usage
+        Customer tracking @/dashboard/admin/customers #adm-people
+        Incomplete signups @/dashboard/admin/incomplete #adm-people
+        Deleted users @/dashboard/admin/deleted #adm-people
+        App activity @/dashboard/admin/app #mon-usage
+      Marketplace
+        Campaigns @/dashboard/admin/campaigns #adm-ops
+        Projects @/dashboard/admin/projects #adm-ops
+          Project page @/dashboard/admin/projects/[id] #adm-ops
+        Requests @/dashboard/admin/collabs #adm-ops
+        Marketplace analytics @/dashboard/admin/marketplace #adm-insights
+        Engagement @/dashboard/admin/engagement #adm-insights
+        Match system @/dashboard/admin/search #adm-insights
+      Payments
+        Payments @/dashboard/admin/payments #adm-ops
+        Pro subscribers @/dashboard/admin/subscribers #adm-ops
+      Engagement
+        Broadcasts @/dashboard/admin/broadcasts #adm-bcast
+          Composer & preview #adm-bcast
+          Broadcast page @/dashboard/admin/broadcasts/[id] #adm-bcast
+        Leads (CRM) @/dashboard/admin/leads #adm-insights
+      People & support
+        Approvals @/dashboard/admin/approvals #acc-bsignup
+          Business approvals #acc-bsignup
+          Verification queue #prf-verify
+        Users @/dashboard/admin/users #adm-people
+          User page @/dashboard/admin/users/[id] #adm-people
+        Support @/dashboard/admin/support #adm-trust
+        Reports @/dashboard/admin/reports #adm-trust
+        Feedback @/dashboard/admin/feedback #adm-trust
+      Reports & logs
+        Report builder @/dashboard/admin/report-builder #adm-insights
+        Error log @/dashboard/admin/errors #mon-web
+        OTP logs @/dashboard/admin/otp #acc-otp
+    Super admin — everything above, plus System #adm-access
+      System health @/dashboard/admin/health #db-mig
+      Vendors @/dashboard/admin/vendors #mon-vendors
+      Observability @/dashboard/admin/observability #mon-usage
+      Rate limits @/dashboard/admin/rate-limits #mon-uptime
+      Email @/dashboard/admin/emails #ntf-email
+      Audit log @/dashboard/admin/audit #adm-trust
+      Issues & fixes @/dashboard/admin/issues #adm-trust
+    How admins get in #adm-access
+      Same /login page; the admin role is set by a script #adm-access
+      MFA switch — not enforced yet #adm-access
+      No settings or billing pages for admins #adm-access
+Mobile app @apps/mobile — one codebase for iPhone and Android
+  Devices & releases #dlv-mobile
+    iPhone — App Store, com.influnet.app #dlv-mobile — signing certificate revoked
+    Android — Google Play app bundle #dlv-mobile
+    Over-the-air updates — preview and production channels #dlv-mobile
+    Store builds hide Pro purchase #bil-mobile
+    Push — APNs and FCM #ntf-push
+    Crash reporting #mon-mobile — keys missing in store build
+  Signed-out
+    Startup — routes you by role @app/index #acc-login
+    Welcome @app/(auth)/welcome #acc-login
+    Log in @app/(auth)/login #acc-login
+    Forgot password @app/(auth)/forgot-password #acc-login
+    Sign up — pick a role @app/(auth)/signup #acc-csignup
+      Creator signup @app/(auth)/signup/creator #acc-csignup
+        %SIGNUPC
+      Brand signup @app/(auth)/signup/business #acc-bsignup
+        %SIGNUPB
+  Creator
+    %MTOP
+    Tab · Home @app/(tabs)/home #home-console
+      Needs your move #home-console
+      Profile views #prf-viewers
+      Brands who looked #prf-viewers
+      Collab requests #req-respond
+      Projects #prj-views
+      Completed #home-console
+      Verification nudge #prf-verify
+    Tab · Campaigns @app/(tabs)/campaigns #cmp-apply
+      Browse & search #cmp-apply
+      Campaign page @app/campaigns/[id] #cmp-apply
+        Submit application — pitch, proposed rate #cmp-apply
+        Withdraw #cmp-apply
+        Missing: Report a campaign #set-block
+    Tab · Requests @app/(tabs)/requests #req-respond
+      Request page @app/requests/[id] #req-respond
+        Accept and start talking #req-respond
+        Decline #req-respond
+        Changed your mind? Reopen #req-respond
+        Missing: Report / block on a request #set-block
+      Request another creator #req-peer
+    Tab · Messages #msg-chat
+      %MMSG
+      Brand profile @app/business/[username] #prf-business
+    Tab · Projects #prj-views
+      %MPROJ
+      Only the creator
+        Resubmit for review #prj-review
+        Work on revisions #prj-review
+    Profile @app/profile #prf-edit
+      Edit profile @app/edit-profile #prf-edit
+      Add past work @app/portfolio/add #prf-edit
+      Share your profile #prf-public
+      Preview public profile — web page in the app @app/creator/[username] #prf-public
+      Verification & Trust Badge @app/verification #prf-verify
+      How to verify @app/verification-guide #prf-verify
+      My activity @app/activity #home-activity
+      Connections @app/connections #prf-conn
+      Plan & billing @app/billing #bil-mobile
+      Profile viewers @app/profile-viewers #prf-viewers
+      Switch account #acc-login
+      Settings @app/settings #set-prefs
+        %MSET
+        How to verify @app/verification-guide #prf-verify
+      Sign out #acc-login
+  Brand
+    %MTOP
+    Tab · Home @app/(tabs)/home #home-console
+      Needs your move #home-console
+      Projects #prj-views
+      Completed #home-console
+    Tab · Campaigns — yours @app/(tabs)/campaigns #cmp-manage
+      New campaign @app/campaigns/new #cmp-manage
+        Title, description, deliverables #cmp-manage
+        Save draft / publish #cmp-manage
+      Campaign page @app/campaigns/[id] #cmp-manage
+        Applications #cmp-review
+          Shortlist #cmp-review
+          Decline #cmp-review
+          Accept & message #req-campaign
+        Close campaign #cmp-manage
+    Tab · Sent @app/(tabs)/requests #req-brand
+      New request @app/requests/new #req-brand
+      Request page @app/requests/[id] #req-brand
+    Find creators #prf-search
+      Search @app/search #prf-search
+      Creator profile — web page in the app @app/creator/[username] #prf-public
+      Save a creator #req-saved
+      Missing: Report / block on a creator profile #set-block
+    Tab · Messages #msg-chat
+      %MMSG
+    Tab · Projects #prj-views
+      %MPROJ
+      Only the brand
+        Pay on web — opens the browser #prj-pay
+        Approve draft #prj-review
+        Request revisions #prj-review
+        Confirm completion #prj-complete
+    Profile @app/profile #prf-edit
+      Edit profile — business details @app/edit-profile #prf-edit
+      Business page @app/business/[username] #prf-business
+      My activity @app/activity #home-activity
+      Connections @app/connections #prf-conn
+      Plan & billing — no purchase in store builds @app/billing #bil-mobile
+      Switch account #acc-login
+      Settings @app/settings #set-prefs
+        %MSET
+      Sign out #acc-login
+  Admin — not on mobile (web only) #adm-access
+Landing site @apps/landing — influnet.io, Azure Static Web Apps
+  Header — log in / sign up links, baked in at build #dlv-web
+  Hero
+  Reply gap — chart
+  How it works
+  Trust & verification #prf-verify
+  Creator carousel
+  Trust carousel
+  Vision
+  Call to action
+  Footer
+    Missing: links to Terms, Privacy, Refunds, Contact #set-legal
+  Built but not on the page
+    Creator economy
+    Opportunities
+    Why it exists
+    Verified
+    Orbiting circles`;
+
+(function(){
+  if(!window.d3){ document.getElementById("tree-fallback").hidden=false; return; }
+
+  /* ---- parse ---- */
+  function expand(lines){
+    var out=[];
+    lines.forEach(function(l){
+      var m=l.match(/^(\s*)%(\w+)\s*$/);
+      if(m){ expand(BLOCKS[m[2]].split("\n")).forEach(function(b){ out.push(m[1]+b); }); }
+      else if(l.trim()) out.push(l);
+    });
+    return out;
+  }
+  function parseLine(t){
+    var path=null,u=null,note=null;
+    t=t.replace(/\s@(\S+)/,function(_,p){path=p;return "";}).replace(/\s#([a-z-]+)/,function(_,x){u=x;return "";}).replace(/\s{2,}/g," ").trim();
+    var i=t.indexOf(" — ");
+    if(i>=0){ note=t.slice(i+3).trim(); t=t.slice(0,i).trim(); }
+    return {name:t,path:path,u:u,note:note};
+  }
+  var data={name:"Influnet",note:"Three applications, one backend and one database.",children:[]}, stack=[{n:data,lv:-1}];
+  expand(OUTLINE.split("\n")).forEach(function(l){
+    var lv=l.match(/^ */)[0].length/2, n=parseLine(l.trim());
+    while(stack[stack.length-1].lv>=lv) stack.pop();
+    var p=stack[stack.length-1].n; (p.children=p.children||[]).push(n); stack.push({n:n,lv:lv});
+  });
+
+  var UNIT={}; MODS.forEach(function(m){m.areas.forEach(function(a){a.units.forEach(function(u){UNIT[u.id]={u:u,m:m,a:a};});});});
+
+  /* ---- hierarchy ---- */
+  var root=d3.hierarchy(data), seen={};
+  root.each(function(d){
+    var id=(d.parent?d.parent.id+"/":"")+d.data.name; if(seen[id]){seen[id]++; id+="#"+seen[id];} else seen[id]=1;
+    d.id=id; d._all=d.children||null; d.total=d.descendants().length-1;
+    d.st=d.data.u&&UNIT[d.data.u]?UNIT[d.data.u].u.st:null;
+    d.miss=/^Missing:/.test(d.data.name);
+  });
+  var ALL=root.descendants(), LEAVES=ALL.filter(function(d){return !d._all;}).length;
+
+  var RKEY="influnet-tree-reviewed-v1", REV={};
+  try{REV=JSON.parse(localStorage.getItem(RKEY)||"{}")||{};}catch(e){REV={};}
+  function saveRev(){try{localStorage.setItem(RKEY,JSON.stringify(REV));}catch(e){}}
+
+  function openTo(level){ ALL.forEach(function(d){ d.children = d._all && d.depth<level ? d._all : null; }); }
+  openTo(1);
+
+  /* ---- drawing ---- */
+  var ROWH=27, GAP=58, PAD=18, reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches, DUR=reduce?0:260;
+  var wrap=document.getElementById("treewrap");
+  var svg=d3.select("#tree").append("svg").attr("class","tree").attr("role","tree");
+  var g=svg.append("g"), gl=g.append("g"), gn=g.append("g");
+  var meas=svg.append("text").attr("class","nl").attr("visibility","hidden").attr("x",-9999);
+  var wc={};
+  function tw(s,cls){ var k=(cls||"")+"|"+s; if(wc[k]!=null) return wc[k]; meas.attr("class","nl "+(cls||"")); meas.text(s); return wc[k]=meas.node().getComputedTextLength(); }
+  function label(d){ var s=d.data.name; return s.length>46? s.slice(0,45)+"…" : s; }
+  function more(d){ return d._all&&!d.children ? " +"+d.total : ""; }
+  function fontCls(d){ return d.depth===0?"d0f":d.depth===1?"d1f":d.depth===2?"d2f":""; }
+  function nodeW(d){
+    var w=tw(label(d)); if(d.depth===0) w*=16/13*1.05; else if(d.depth===1) w*=15/13*1.05; else if(d.depth===2) w*=1.03;
+    return w+(more(d)?tw(more(d))*0.9+4:0)+(REV[d.id]?14:0);
+  }
+  var selected=null;
+
+  function update(src){
+    d3.tree().nodeSize([ROWH,1]).separation(function(a,b){return a.parent===b.parent?1:1.35;})(root);
+    var nodes=root.descendants(), links=root.links(), colW=[], colX=[0];
+    nodes.forEach(function(d){ d.w=nodeW(d); colW[d.depth]=Math.max(colW[d.depth]||0,d.w); });
+    for(var i=1;i<colW.length;i++) colX[i]=colX[i-1]+colW[i-1]+16+GAP;
+    nodes.forEach(function(d){ d.yy=colX[d.depth]; });
+    var minX=d3.min(nodes,function(d){return d.x;}), maxX=d3.max(nodes,function(d){return d.x;});
+    var W=colX[colX.length-1]+colW[colW.length-1]+60+PAD*2, H=maxX-minX+ROWH+PAD*2;
+    svg.attr("width",W).attr("height",H).attr("viewBox",[0,0,W,H]);
+    g.attr("transform","translate("+(PAD+10)+","+(PAD+ROWH/2-minX)+")");
+    var sx=src.yy0!=null?src.yy0:src.yy, sy=src.x0!=null?src.x0:src.x;
+
+    var node=gn.selectAll("g.node").data(nodes,function(d){return d.id;});
+    var ne=node.enter().append("g").attr("class","node").attr("tabindex",0).attr("role","treeitem")
+      .attr("transform","translate("+sx+","+sy+")").style("opacity",0)
+      .on("click",function(e,d){ act(d); })
+      .on("keydown",function(e,d){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); act(d); } });
+    ne.append("circle"); ne.append("text").attr("class","nl").attr("x",11).attr("dy","0.35em");
+    ne.append("title");
+    var nm=ne.merge(node);
+    nm.attr("class",function(d){ return "node d"+Math.min(d.depth,3)+(d.st?" s-"+d.st:"")+(d._all?(d.children?" open":" closed"):" leaf")+(d.miss?" miss":"")+(d.hit?" hit":"")+(selected===d?" sel":""); })
+      .attr("aria-expanded",function(d){return d._all?String(!!d.children):null;})
+      .attr("aria-label",function(d){return d.data.name+(d._all?", "+d.total+" inside":"");});
+    nm.select("circle").attr("r",function(d){return d.depth===0?7.5:d.depth===1?6.5:d._all?5:4;});
+    nm.select("title").text(function(d){return d.data.name+(d.data.path?"  ·  "+d.data.path:"");});
+    nm.select("text").each(function(d){
+      var t=d3.select(this); t.selectAll("tspan").remove(); t.text(null);
+      t.append("tspan").text(label(d));
+      if(more(d)) t.append("tspan").attr("class","more").attr("dx",4).text(more(d));
+      if(REV[d.id]) t.append("tspan").attr("class","rv").attr("dx",5).text("✓");
+    });
+    nm.transition().duration(DUR).attr("transform",function(d){return "translate("+d.yy+","+d.x+")";}).style("opacity",1);
+    node.exit().transition().duration(DUR).attr("transform","translate("+src.yy+","+src.x+")").style("opacity",0).remove();
+
+    function lp(s,t){ var x1=s.yy+12+s.w+6, x2=t.yy-9, m=(x1+x2)/2; return "M"+x1+","+s.x+"C"+m+","+s.x+" "+m+","+t.x+" "+x2+","+t.x; }
+    function lp0(){ var p={yy:sx,x:sy,w:0}; return "M"+(sx+12)+","+sy+"C"+(sx+12)+","+sy+" "+(sx+12)+","+sy+" "+(sx+12)+","+sy; }
+    var link=gl.selectAll("path.lk").data(links,function(d){return d.target.id;});
+    link.enter().append("path").attr("class","lk").attr("d",lp0).merge(link)
+      .transition().duration(DUR).attr("d",function(d){return lp(d.source,d.target);});
+    link.exit().transition().duration(DUR).attr("d",function(){ var x=src.yy+12,y=src.x; return "M"+x+","+y+"C"+x+","+y+" "+x+","+y+" "+x+","+y; }).remove();
+
+    nodes.forEach(function(d){ d.yy0=d.yy; d.x0=d.x; });
+    g.attr("data-minx",minX); stats();
+    return {minX:minX};
+  }
+
+  function reveal(d,info){
+    var left=d.yy+PAD+10-wrap.clientWidth*0.28, top=d.x-info.minX+PAD+ROWH/2-wrap.clientHeight*0.4;
+    wrap.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:reduce?"auto":"smooth"});
+  }
+  function act(d){
+    if(d._all){ d.children = d.children ? null : d._all; }
+    selected=d; var info=update(d); showPanel(d); reveal(d,info);
+  }
+
+  /* ---- panel ---- */
+  var P={crumbs:document.getElementById("tp-crumbs"),name:document.getElementById("tp-name"),body:document.getElementById("tp-body"),acts:document.getElementById("tp-acts"),rev:document.getElementById("tp-rev"),open:document.getElementById("tp-open")};
+  function escH(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+  function showPanel(d){
+    P.crumbs.textContent=d.ancestors().reverse().slice(0,-1).map(function(a){return a.data.name;}).join(" › ")||"Influnet";
+    P.name.textContent=d.data.name;
+    var h="";
+    if(d.data.path) h+='<div class="route"><code>'+escH(d.data.path)+'</code></div>';
+    if(d.data.note) h+='<div>'+escH(d.data.note)+'</div>';
+    if(d.data.u&&UNIT[d.data.u]){ var x=UNIT[d.data.u]; h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="pill st-'+x.u.st+'">'+ST[x.u.st]+'</span><span style="color:var(--ink)">'+escH(x.m.name)+' › '+escH(x.u.name)+'</span></div>'; if(x.u.gaps.length) h+='<div>'+escH(x.u.gaps[0])+'</div>'; }
+    if(d._all) h+='<div class="kids">'+d._all.length+' direct, '+d.total+' in total underneath.</div>';
+    P.body.innerHTML=h||'<div>No further detail.</div>';
+    P.acts.hidden=false; P.rev.checked=!!REV[d.id];
+    P.open.hidden=!(d.data.u&&UNIT[d.data.u]);
+  }
+  P.rev.addEventListener("change",function(){ if(!selected) return; if(P.rev.checked) REV[selected.id]=1; else delete REV[selected.id]; saveRev(); update(selected); });
+  P.open.addEventListener("click",function(){
+    if(!selected||!UNIT[selected.data.u]) return;
+    var id=selected.data.u, x=UNIT[id];
+    F.who="";F.surf="";F.open=false;F.q="";
+    ["f-who","f-surf"].forEach(function(gid){[].forEach.call(document.querySelectorAll("#"+gid+" .chip"),function(c){c.setAttribute("aria-pressed",String(c.getAttribute("data-v")===""));});});
+    document.getElementById("f-open").checked=false; document.getElementById("f-q").value="";
+    openMods[x.m.id]=true; openUnits[id]=true; render();
+    var el=document.querySelector('details.unit[data-u="'+id+'"]'); if(el) el.scrollIntoView({block:"center",behavior:reduce?"auto":"smooth"});
+  });
+
+  /* ---- controls ---- */
+  function stats(){
+    var r=Object.keys(REV).length;
+    document.getElementById("t-stats").textContent=ALL.length-1+" nodes · "+LEAVES+" screens & actions · "+r+" reviewed";
+  }
+  var lvBtns=[].slice.call(document.querySelectorAll("#app-tree [data-lv]"));
+  lvBtns.forEach(function(b){ b.addEventListener("click",function(){
+    lvBtns.forEach(function(x){x.setAttribute("aria-pressed",String(x===b));});
+    ALL.forEach(function(d){d.hit=false;}); document.getElementById("t-q").value="";
+    openTo(+b.getAttribute("data-lv")); selected=null; update(root); wrap.scrollTo({left:0,top:0});
+  }); });
+  document.getElementById("t-q").addEventListener("input",function(e){
+    var q=e.target.value.trim().toLowerCase(), n=0;
+    ALL.forEach(function(d){d.hit=false;});
+    if(!q){ openTo(1); update(root); return; }
+    openTo(1);
+    ALL.forEach(function(d){
+      if(d.depth===0) return;
+      var hay=(d.data.name+" "+(d.data.path||"")+" "+(d.data.note||"")).toLowerCase();
+      if(hay.indexOf(q)>=0){ d.hit=true; n++; d.ancestors().slice(1).forEach(function(a){ a.children=a._all; }); }
+    });
+    lvBtns.forEach(function(x){x.setAttribute("aria-pressed","false");});
+    update(root);
+    document.getElementById("t-stats").textContent=n+" match"+(n===1?"":"es")+" for “"+e.target.value.trim()+"”";
+  });
+
+  update(root);
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ wc={}; update(root); });
+})();
+</script>

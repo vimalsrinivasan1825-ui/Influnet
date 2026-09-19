@@ -50,6 +50,8 @@ Before signing the project off to real users, or handing the codebase to another
 ### operations/ — *running, securing, deploying, testing*
 | Doc | What's in it |
 |---|---|
+| [launch-blueprint.html](operations/launch-blueprint.html) | **Launch audit 2026-09-18, as a page.** Architecture diagram (web, admin, mobile, Supabase, nine vendors), environments map, all 72 tables grouped, new findings F1–F7, and the tickable six-phase work order to real users. Open straight from the repo. |
+| [module-map.html](operations/module-map.html) | **The app broken down to its smallest units.** Surface → role → module → area → unit (14 modules, 79 units), each with status, known gaps and "strong when" checks; one unit in focus at a time. Opens with an expandable App tree: 3 apps → role → section → every screen and action (617 nodes). Companion to launch-blueprint.html. |
 | [handover-checklist.html](operations/handover-checklist.html) | **The interactive version of HANDOVER.md.** Tickable, collapsible checklist — click an item to see the detail. Open it straight from the repo; nothing is published or hosted. Ticks persist per browser. |
 | [HANDOVER.md](operations/HANDOVER.md) | **Canonical sign-off doc.** Verified current state, the remaining go-live blockers (all infrastructure/paperwork, no code), the weekly operating routine and break-glass switches for the first months, the access/rotation inventory a new developer needs, and the accepted risks they must not "fix" naively. |
 | [SECURITY.md](operations/SECURITY.md) | **Canonical.** Auth/data-access model, PII column lockdown, RLS conventions, and the full security-audit history (every finding + status). |
