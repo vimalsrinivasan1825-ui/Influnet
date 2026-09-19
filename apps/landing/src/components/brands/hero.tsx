@@ -232,7 +232,7 @@ export default function BrandHero() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1320px] items-center gap-14 px-4 sm:px-8 lg:min-h-[100svh] lg:grid-cols-[minmax(0,1fr)_600px] lg:gap-10">
+      <div className="mx-auto grid max-w-[1320px] grid-cols-[minmax(0,1fr)] items-center gap-14 px-4 sm:px-8 lg:min-h-[100svh] lg:grid-cols-[minmax(0,1fr)_600px] lg:gap-10">
         <div className="flex flex-col gap-7">
           <div data-hero-eyebrow data-reveal className="font-mono text-xs uppercase tracking-[0.16em] text-night-soft">
             [ For brands ]

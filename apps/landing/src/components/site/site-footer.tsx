@@ -69,7 +69,7 @@ export default function SiteFooter({ role = 'creator' }: Props) {
 
   return (
     <footer ref={root} data-tone="dark" className={`relative overflow-hidden border-t ${c.shell}`}>
-      <div className="mx-auto grid max-w-[1320px] gap-14 px-4 pt-20 sm:px-8 sm:pt-24 lg:grid-cols-[1fr_minmax(0,460px)] lg:gap-12 xl:grid-cols-[1fr_minmax(0,520px)] xl:gap-20">
+      <div className="mx-auto grid max-w-[1320px] grid-cols-[minmax(0,1fr)] gap-14 px-4 pt-20 sm:px-8 sm:pt-24 lg:grid-cols-[1fr_minmax(0,460px)] lg:gap-12 xl:grid-cols-[1fr_minmax(0,520px)] xl:gap-20">
         {/* Left: pitch, link columns, support */}
         <div className="flex flex-col gap-12">
           <div>
