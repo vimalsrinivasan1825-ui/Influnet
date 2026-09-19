@@ -167,6 +167,13 @@ export const RegisterProfileSchema = z.object({
   // this against phone_otp_sessions only when phoneOtpEnabled(), and strips it
   // either way before the RPC.
   phoneVerificationToken: z.string().uuid().nullable().optional(),
+  // Consent, recorded server-side in signup_consents (migration 162) by the
+  // register route, which REFUSES a signup without both. Optional in the schema
+  // only so the route can answer with a specific 422 instead of a generic 400;
+  // the route strips all three before the payload reaches register_profile.
+  termsAccepted: z.boolean().optional(),
+  ageConfirmed: z.boolean().optional(),
+  termsVersion: z.string().max(40).optional(),
   // business fields
   companyName: z.string().optional(),
   businessType: z.string().optional(),

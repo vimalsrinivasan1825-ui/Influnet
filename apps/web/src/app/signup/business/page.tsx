@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { CityInput } from "@/components/ui/city-input";
 import { PhoneOtpField, usePhoneOtpEnabled } from "@/components/signup/phone-otp-field";
+import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from "@/components/signup/consent-fields";
 import { cn } from "@/lib/utils";
 import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
 import { Check, X } from "lucide-react";
@@ -137,6 +138,8 @@ function BusinessSignupContent() {
   const websiteValid = isValidWebsite(website);
   const gstValid = !gstNumber.trim() || isValidGstin(gstNumber);
 
+  const [consent, setConsent] = useState<ConsentState>(NO_CONSENT);
+
   const canProceed = (): boolean => {
     // Mobile OTP is a hard gate when enabled — the server rejects an unverified
     // number anyway, so don't let the wizard advance past it.
@@ -147,7 +150,7 @@ function BusinessSignupContent() {
       );
     if (step === 2) return !!businessType && !!industry;
     if (step === 3) return !!city && !!state && !!registeredAddress;
-    if (step === 4) return !!marketingBudget;
+    if (step === 4) return !!marketingBudget && consentComplete(consent);
     return false;
   };
 
@@ -175,6 +178,9 @@ function BusinessSignupContent() {
         gstNumber: gstValid && gstNumber.trim() ? gstNumber.trim().toUpperCase() : undefined,
         marketingBudget,
         location: `${city}, ${state}`,
+        // Recorded server-side (signup_consents, migration 162); the server refuses
+        // a signup without both, and it rides in auth metadata so the recovery path has it.
+        ...consentPayload(consent),
       };
 
       const { data, error: authError } = await sb.auth.signUp({
@@ -192,6 +198,7 @@ function BusinessSignupContent() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-Influnet-Client": "web",
             Authorization: `Bearer ${data.session.access_token}`,
           },
           // The OTP token is deliberately NOT part of `payload` — that object
@@ -567,6 +574,7 @@ function BusinessSignupContent() {
                   Your account will be reviewed by our team. Outbound campaign requests unlock once approved.
                 </p>
               </div>
+              <ConsentFields value={consent} onChange={setConsent} disabled={isLoading} />
             </div>
           )}
 

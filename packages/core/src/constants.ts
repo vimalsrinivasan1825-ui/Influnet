@@ -106,3 +106,16 @@ export const BUDGET_RANGES = [
  * never type the address.
  */
 export const SUPPORT_EMAIL = 'support@influnet.io';
+
+/**
+ * Version of the Terms of Service + Privacy Policy a person accepted at signup.
+ * Stored beside the acceptance time (signup_consents, migration 162) so we can
+ * always say WHICH text someone agreed to. Bump it whenever the legal text
+ * changes materially; existing accounts keep the version they accepted.
+ * The current value marks the unreviewed draft: set a dated version when the
+ * founder publishes the lawyer-reviewed text.
+ */
+export const TERMS_VERSION = '2026-09-draft-1';
+
+/** The minimum age to hold an account. The Terms say 18+, and signup now enforces it. */
+export const MINIMUM_AGE = 18;

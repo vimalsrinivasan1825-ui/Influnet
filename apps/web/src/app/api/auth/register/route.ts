@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { jsonError } from '@/lib/api';
+import { jsonError, parseClientHeader } from '@/lib/api';
 import { RegisterProfileSchema } from '@/lib/validators';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { phoneOtpEnabled, validatePhoneVerification } from '@/lib/phone-otp';
 import { deliverEmail } from '@/lib/email/policy';
+import { consentProblem, consentVersion, stripConsentFields } from '@/lib/signup-consent';
 
 export async function POST(req: Request) {
   try {
@@ -134,6 +135,17 @@ export async function POST(req: Request) {
       delete (payload as Record<string, unknown>).approvalStatus;
     }
 
+    // Consent is enforced here for the same reason: a client that skips the
+    // checkboxes (or POSTs directly) still cannot open an account. Checked
+    // BEFORE the OTP token is spent or anything is written, so a refusal costs
+    // the person nothing and the same signup can simply be resubmitted.
+    const consent = consentProblem(payload as Record<string, unknown>);
+    if (consent) {
+      return NextResponse.json({ error: consent.error, reason: consent.reason }, { status: consent.status });
+    }
+    const termsVersion = consentVersion(payload as Record<string, unknown>);
+    stripConsentFields(payload as Record<string, unknown>);
+
     // SECURITY: mobile verification is enforced HERE, not in the wizard UI.
     // The client sends a token minted by the phone-otp Edge Function after a
     // real 2Factor match; we re-check it against phone_otp_sessions so a caller
@@ -160,6 +172,24 @@ export async function POST(req: Request) {
     // the three shapes ('+91 8270942966' / '8270942966' / '+918270942966')
     // that let the same person register the same number twice under different
     // strings. Migration 107 normalises the rows written before this existed.
+    // Record the consent BEFORE the profile: the row keys on the auth user (which
+    // exists), so a failed profile write leaves true evidence and a retry is
+    // idempotent (the first acceptance is kept). The timestamps are the
+    // database's clock, never the client's. If this cannot be written the
+    // signup is refused — an account without consent evidence is the very gap
+    // this closes.
+    const { error: consentErr } = await supabase.rpc('record_signup_consent', {
+      p_terms_version: termsVersion,
+      p_source: parseClientHeader(req).platform,
+    });
+    if (consentErr) {
+      console.error('[register] record_signup_consent failed (is migration 162 applied?):', consentErr.message);
+      return NextResponse.json(
+        { error: 'We could not record your acceptance of the Terms. Please try again.', reason: 'consent_not_recorded' },
+        { status: 500 },
+      );
+    }
+
     const { data, error } = await supabase.rpc('register_profile', { payload });
 
     if (error) {

@@ -24,6 +24,7 @@ import { SocialDisclosure } from '@/components/social-disclosure';
 import { BioVerifyStep, useBioVerification } from '@/components/bio-verify-step';
 import { Button, Chip, ChipWrap, Field, Txt } from '@/components/ui';
 import { CityField } from '@/components/city-field';
+import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from '@/components/consent-fields';
 
 /** Toggle a value in a multi-select list. */
 function toggle(list: string[], value: string) {
@@ -53,6 +54,7 @@ export default function CreatorSignup() {
 
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [consent, setConsent] = useState<ConsentState>(NO_CONSENT);
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState('');
@@ -174,6 +176,9 @@ export default function CreatorSignup() {
         city: city.trim() || undefined,
         state: state || undefined,
         location: [city.trim(), state].filter(Boolean).join(', ') || undefined,
+        // The server refuses a signup without both and records the time itself
+        // (signup_consents, migration 162); they ride in auth metadata too.
+        ...consentPayload(consent),
       });
 
       if (!result.ok) {
@@ -552,7 +557,7 @@ export default function CreatorSignup() {
     {
       title: 'Rate and location',
       subtitle: 'You can change these any time.',
-      valid: !!priceRange && !!state && !!gender,
+      valid: !!priceRange && !!state && !!gender && consentComplete(consent),
       body: (
         <View style={{ gap: t.spacing.xl }}>
           <View style={{ gap: t.spacing.sm }}>
@@ -599,6 +604,8 @@ export default function CreatorSignup() {
               ))}
             </ChipWrap>
           </View>
+
+          <ConsentFields value={consent} onChange={setConsent} />
         </View>
       ),
     },

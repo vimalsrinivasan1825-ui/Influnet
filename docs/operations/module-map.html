@@ -594,17 +594,17 @@ svg.tree .miss circle{stroke:var(--crit);fill:var(--crit-soft)}
 var MODS = [
 {id:"acc", name:"Accounts & sign-in", why:"Every user passes through it, and it holds three store and launch blockers.", areas:[
  {name:"Getting in", units:[
-  {id:"acc-csignup", name:"Creator signup", r:"C", s:"WM", st:"blocker",
+  {id:"acc-csignup", name:"Creator signup", r:"C", s:"WM", st:"gaps",
    what:"The multi-step creator wizard: details, username, socials, phone OTP.",
    where:["web /signup/influencer","mobile (auth)/signup/creator","api /api/auth/register · check-username · check-email · check-instagram · social-preview","db profiles · influencer_profiles · pending_registrations"],
-   tests:"registration-recovery.test, social-platforms.test; seed-personas creates 12 accounts",
-   gaps:["No Terms/Privacy acceptance and no 18+ confirmation (both stores reject)","Production doesn't confirm the email address; minimum password is 6"],
+   tests:"verify-162.mjs (13/13 through the real endpoint); signup-consent.test; prove-162-rollback.mjs; registration-recovery.test, social-platforms.test",
+   gaps:["Production doesn't confirm the email address; minimum password is 6 (Supabase dashboard, owner task)"],
    checks:["Signup can't finish without Terms + 18+ ticked; both timestamps are stored","The confirmation email arrives from influnet.io and sign-in waits for the click","Leaving mid-wizard and coming back resumes the same step","Instagram connect still completes (as pending) with the Apify switch off"]},
   {id:"acc-bsignup", name:"Brand signup & approval", r:"BA", s:"WM", st:"gaps",
    what:"Brand wizard, then an admin approves the business before it can reach creators.",
    where:["web /signup/business · admin /dashboard/admin/approvals","mobile (auth)/signup/business","api /api/auth/register · approval check in POST /api/collabs","db business_profiles.approval_status"],
-   tests:"E2E phase 3 “Unapproved business — the approval gate”",
-   gaps:["Approval is enforced by the API only; no database policy backs it up","Same consent and confirm-email gaps as creator signup"],
+   tests:"E2E phase 3 'Unapproved business — the approval gate'; verify-162.mjs (consent)",
+   gaps:["Approval is enforced by the API only; no database policy backs it up", "Production doesn't confirm the email address (owner task)"],
    checks:["A pending brand can browse, but every send path refuses with a clear reason","Approving in admin notifies the brand by push and email","A rejected brand sees why and what to do next"]},
   {id:"acc-otp", name:"Phone OTP", r:"CB", s:"WMP", st:"blocker",
    what:"SMS code at signup through 2Factor, switched on and off by a runtime flag.",
@@ -1400,12 +1400,12 @@ Username — live availability check #acc-csignup
 Social accounts — connect on tap #prf-stats
 Phone OTP (India) #acc-otp
 Resume an unfinished signup #acc-csignup
-Missing: Terms, Privacy & 18+ consent #acc-csignup`,
+Terms, Privacy & 18+ consent — required, recorded server-side #acc-csignup
 SIGNUPB: `
 Business details #acc-bsignup
 Phone OTP (India) #acc-otp
 Waits for admin approval #acc-bsignup
-Missing: Terms, Privacy & 18+ consent #acc-bsignup`,
+Terms, Privacy & 18+ consent — required, recorded server-side #acc-bsignup
 MTOP: `
 Top bar
   Your avatar → Profile @app/profile

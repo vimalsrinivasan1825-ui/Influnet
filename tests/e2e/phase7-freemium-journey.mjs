@@ -100,6 +100,8 @@ async function createBusinessAccount() {
       registeredAddress: '12 MG Road, Bengaluru, Karnataka 560001',
       marketingBudget: '1L-5L',
       businessUsername: `lumina${stamp.slice(-4)}`,
+      // Signup requires consent since migration 162.
+      termsAccepted: true, ageConfirmed: true, termsVersion: 'e2e-harness',
     }),
   });
   const body = await res.json().catch(() => ({}));

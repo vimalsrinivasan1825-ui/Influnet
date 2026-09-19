@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api-client";
+import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from "@/components/signup/consent-fields";
 import { NICHES, LANGUAGES, COLLAB_TYPES, PRICE_TIERS, INDIAN_STATES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -392,6 +393,8 @@ function InfluencerSignupContent() {
   const toggleArrayItem = <T,>(arr: T[], item: T): T[] =>
     arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
 
+  const [consent, setConsent] = useState<ConsentState>(NO_CONSENT);
+
   const canProceed = (): boolean => {
     if (step === 1)
       return (
@@ -412,7 +415,7 @@ function InfluencerSignupContent() {
     // Instagram ownership must be proven before moving on — unless there's
     // no Instagram handle to prove (YouTube/Twitter carried step 3 instead).
     if (step === 4) return !cleanInstagramHandle || instagramVerified;
-    if (step === 5) return collabTypes.length > 0 && !!priceRange;
+    if (step === 5) return collabTypes.length > 0 && !!priceRange && consentComplete(consent);
     return true;
   };
 
@@ -495,6 +498,10 @@ function InfluencerSignupContent() {
         youtubeSubscribers: youtubeConnect.profile?.followerCount ?? undefined,
         collabTypes,
         priceRange,
+        // Recorded server-side (signup_consents, migration 162); the server refuses
+        // a signup without both, and rides along in auth metadata so the
+        // "recover from metadata" path carries it too.
+        ...consentPayload(consent),
       };
 
       const { data, error: authError } = await sb.auth.signUp({
@@ -512,6 +519,7 @@ function InfluencerSignupContent() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-Influnet-Client": "web",
             Authorization: `Bearer ${data.session.access_token}`,
           },
           // The OTP token is deliberately NOT part of `payload` — that object
@@ -1002,6 +1010,7 @@ function InfluencerSignupContent() {
                   ))}
                 </div>
               </div>
+              <ConsentFields value={consent} onChange={setConsent} disabled={isLoading} />
             </div>
           )}
 

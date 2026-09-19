@@ -22,6 +22,7 @@ import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
 import { Chip, ChipWrap, Field, Txt } from '@/components/ui';
 import { CityField } from '@/components/city-field';
+import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from '@/components/consent-fields';
 
 function toggle(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -33,6 +34,7 @@ export default function BusinessSignup() {
 
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [consent, setConsent] = useState<ConsentState>(NO_CONSENT);
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState('');
@@ -104,6 +106,9 @@ export default function BusinessSignup() {
         city: city.trim() || undefined,
         state: state || undefined,
         location: [city.trim(), state].filter(Boolean).join(', ') || undefined,
+        // The server refuses a signup without both and records the time itself
+        // (signup_consents, migration 162); they ride in auth metadata too.
+        ...consentPayload(consent),
       });
 
       if (!result.ok) {
@@ -332,7 +337,7 @@ export default function BusinessSignup() {
       // Registered address is required on web too — it is what the review team
       // checks the business against. GST and website are deliberately NOT in
       // this list — see the note on gstValid above.
-      valid: !!state && !!city.trim() && !!registeredAddress.trim(),
+      valid: !!state && !!city.trim() && !!registeredAddress.trim() && consentComplete(consent),
       body: (
         <View style={{ gap: t.spacing.xl }}>
           <Field
@@ -377,6 +382,8 @@ export default function BusinessSignup() {
               ))}
             </ChipWrap>
           </View>
+
+          <ConsentFields value={consent} onChange={setConsent} />
         </View>
       ),
     },
