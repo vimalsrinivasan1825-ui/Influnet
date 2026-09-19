@@ -106,8 +106,11 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       return jsonError(403, 'Forbidden');
     }
 
-    // Determine target user
+    // Determine target user. Gone after migration 161 → no review target: a
+    // review of someone who no longer exists cannot be written (FK would fail
+    // anyway), and the UI hides the review block when the party is gone.
     const to_user_id = project.owner_user_id === user.id ? project.counterparty_user_id : project.owner_user_id;
+    if (!to_user_id) return jsonError(409, 'The other participant no longer has an account.');
 
     // Create review
     const { data: review, error: insertErr } = await supabase

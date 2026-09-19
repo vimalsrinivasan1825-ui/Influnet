@@ -50,6 +50,7 @@ function nextStageKey(currentStage: string | undefined, flow?: StageFlow): strin
   return allowed.length === 1 ? allowed[0] : null;
 }
 import { STAGE_GUIDE, isMutualSignoffStage, stageSignoffAt, isSkippableStage, stageSkipProposal } from '@/lib/project-stage-guide';
+import { otherParticipant, DELETED_PARTICIPANT_LABEL } from '@influnet/core';
 import { Avatar } from '@/components/ui/avatar';
 import { ProjectIcon } from '@/components/dashboard/project-icon';
 import { Badge } from '@/components/ui/badge';
@@ -2396,7 +2397,17 @@ export default function ProjectKanbanPage() {
             <div className="min-w-0">
               <div className="truncate text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">
                 {project && (project.owner_user_id === userId ? 'Client portal' : 'Creator portal')}
-                {project ? ` · With ${(project.owner_user_id === userId ? project.counterparty : project.owner)?.name || 'Partner'}` : ''}
+                {/* The other party may have deleted their account (migration 161):
+                    a null embed then means gone, not hidden — say so. */}
+                {project
+                  ? ` · With ${otherParticipant(
+                      project.owner_user_id === userId,
+                      project.owner_user_id,
+                      project.counterparty_user_id,
+                      project.owner,
+                      project.counterparty,
+                    ).name}`
+                  : ''}
               </div>
               <h1 className="truncate text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || (loading ? 'Loading…' : 'Project')}</h1>
             </div>
@@ -2451,7 +2462,8 @@ export default function ProjectKanbanPage() {
               <MessageSquare size={14} /> <span className="hidden sm:inline">Chat</span>
             </ButtonLink>
           )}
-          {project && (
+          {/* Nobody to report once the other account is deleted (migration 161). */}
+          {project && (project.owner_user_id === userId ? project.counterparty_user_id : project.owner_user_id) && (
             <Button variant="surface" size="icon" onClick={() => setShowReportModal(true)} aria-label="Report this user" title="Report this user" className="shrink-0">
               <Flag size={14} />
             </Button>
@@ -2877,7 +2889,10 @@ export default function ProjectKanbanPage() {
                   disabled={submittingReport}
                   onClick={async () => {
                     if (!project) return;
+                    // A deleted counterparty cannot be reported (there is no one
+                    // behind the row any more) — the id is null after 161.
                     const reportedId = project.owner_user_id === userId ? project.counterparty_user_id : project.owner_user_id;
+                    if (!reportedId) return;
                     setSubmittingReport(true);
                     try {
                       const res = await apiFetch('/api/reports', {

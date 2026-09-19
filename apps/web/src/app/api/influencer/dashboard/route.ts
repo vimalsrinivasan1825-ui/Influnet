@@ -1,6 +1,7 @@
 import { jsonError, withAuth } from '@/lib/api';
 import { NextResponse } from 'next/server';
 import { bucketByCounterparty, bucketWindows, parseEarningsRange } from '@/lib/earnings-buckets';
+import { participantView } from '@influnet/core';
 
 export async function GET(req: Request) {
   try {
@@ -100,7 +101,9 @@ export async function GET(req: Request) {
 
     const active_roster = (activeRosterData || []).map((p: any) => ({
       id: p.id,
-      brand_name: p.owner?.name || 'Brand',
+      // The embed is null when the brand deleted its account (migration 161):
+      // name the hole instead of silently saying "Brand".
+      brand_name: participantView(p.owner_user_id, p.owner).name,
       project_title: p.title || 'Collaboration',
       status: p.status || 'active',
       budget: p.budget ? Number(p.budget) : 0,
@@ -152,7 +155,7 @@ export async function GET(req: Request) {
     const range = parseEarningsRange(new URL(req.url).searchParams.get('range'));
     const windows = bucketWindows(range, now);
     const brandNameByProject = new Map(
-      (projects || []).map((p: any) => [p.id, p.owner?.name || 'Brand']),
+      (projects || []).map((p: any) => [p.id, participantView(p.owner_user_id, p.owner).name]),
     );
     const brandRows = useProjectBudgets
       ? (projects || [])
@@ -160,7 +163,7 @@ export async function GET(req: Request) {
           .map((p: any) => ({
             date: new Date(p.updated_at || p.created_at || now),
             amount: Number(p.budget) || 0,
-            counterparty: p.owner?.name || 'Brand',
+            counterparty: participantView(p.owner_user_id, p.owner).name,
           }))
       : paidPayments
           .filter((p: any) => p.paid_at)

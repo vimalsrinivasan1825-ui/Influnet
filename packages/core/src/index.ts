@@ -6,6 +6,7 @@
 export * from './constants';
 export * from './deal-state';
 export * from './entitlements';
+export * from './participant-display';
 export * from './project-lifecycle';
 export * from './project-stage-guide';
 export * from './project-turn';

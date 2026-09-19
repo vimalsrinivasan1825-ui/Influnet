@@ -8,7 +8,7 @@ import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
 import { logger, requestId } from '@/lib/logger';
-import { CANCELLATION_REASONS, cancellationReasonLabel, flowOf, type StageFlow } from '@influnet/core';
+import { CANCELLATION_REASONS, cancellationReasonLabel, flowOf, participantView, type StageFlow } from '@influnet/core';
 
 const CANCELLATION_REASON_VALUES = CANCELLATION_REASONS.map((r) => r.value) as [string, ...string[]];
 
@@ -65,7 +65,15 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       return jsonError(500, 'Failed to fetch project assets', assetsErr);
     }
 
-    return NextResponse.json({ project, assets: assets || [] });
+    // Additive: who the OTHER party is, with the shared "Deleted account"
+    // label when they are gone (migration 161). `project` keeps its shape.
+    const viewerIsOwner = project.owner_user_id === user.id;
+    const other_party = participantView(
+      viewerIsOwner ? project.counterparty_user_id : project.owner_user_id,
+      viewerIsOwner ? project.counterparty : project.owner,
+    );
+
+    return NextResponse.json({ project, assets: assets || [], other_party });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }
@@ -160,6 +168,16 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // The other participant — the person to notify when this user acts.
     const counterpartyId =
       userRole === 'business' ? project.counterparty_user_id : project.owner_user_id;
+    // The other participant deleted their account (migration 161). The project,
+    // its ledger and its invoices are kept as a record for the survivor, but
+    // nothing can be signed off, paid, cancelled or changed with nobody on the
+    // other side. Hiding it from your own list and restoring it still work.
+    if (!counterpartyId && action !== 'delete_project' && action !== 'restore_project') {
+      return jsonError(
+        409,
+        'The other participant has deleted their account, so this project is now a read-only record.',
+      );
+    }
     const recipientRole = userRole === 'business' ? 'creator' : 'business';
     const projectLabel = project.title ? `“${project.title}”` : 'Your project';
     const projectLink = `/dashboard/projects/${id}`;

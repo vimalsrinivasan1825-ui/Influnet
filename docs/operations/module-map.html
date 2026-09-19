@@ -623,8 +623,8 @@ var MODS = [
   {id:"acc-delete", name:"Account deletion", r:"CB", s:"WM", st:"wip",
    what:"Self-service delete from settings, with reason, active-project guard and tombstone. Shared projects now survive (161): the other party keeps the project, payments and invoices, shown as “Deleted account”.",
    where:["web /delete-account · settings","mobile settings.tsx","api DELETE /api/profile · lib/account-deletion.ts","db deleted_accounts","db 161 participant FKs SET NULL"],
-   tests:"E2E self-delete phase (161)",
-   gaps:["F6: Stream user and chat history survive","mailto:support@influnet.in still shown; that domain has no mailbox"],
+   tests:"verify-161.mjs (34/34): self-delete with a completed paid project; other party keeps project, ledger, invoice",
+   gaps:["F6: Stream user and chat history survive deletion", "mailto:support@influnet.in still shown; that domain has no mailbox"],
    checks:["After deleting, the other party still opens the shared invoice","The Stream user is gone","A tombstone row appears in admin → Deleted","The public deletion page works without the app"]}
  ]}
 ]},
@@ -680,7 +680,7 @@ var MODS = [
    what:"The brand pays through Razorpay; the gate opens only on a signed webhook.",
    where:["web Razorpay checkout · mobile in-app browser","api /api/projects/[id]/payments · /api/payments/webhook","db project_payments"],
    tests:"E2E phase 5, 43/43 (real test-mode orders, forged webhooks refused); razorpay.test",
-   gaps:["Live keys have never moved a real rupee","Nothing pays the creator; payout mechanism undecided (RBI implications)","F2 cascade deletes the ledger on account deletion"],
+   gaps:["Live keys have never moved a real rupee", "Nothing pays the creator; payout mechanism undecided (RBI implications)"],
    checks:["One real ₹ payment opens the gate on its own","A replayed webhook doesn't double-count","Refund and payout paths are defined and match the terms","Manual (off-platform) mode works when Razorpay is off"]}
  ]},
  {name:"Changes & exits", units:[
@@ -704,11 +704,11 @@ var MODS = [
    checks:["Deleting only hides it for you, never for the other party","Restore returns it exactly as it was"]}
  ]},
  {name:"Close-out", units:[
-  {id:"prj-docs", name:"Documents & invoices", r:"CB", s:"WM", st:"blocker",
+  {id:"prj-docs", name:"Documents & invoices", r:"CB", s:"WM", st:"proven",
    what:"Generated agreements and tax invoices (bill of supply or tax invoice), downloadable.",
    where:["api /api/projects/[id]/documents/[docId]/token","db project_documents · invoice_number_counters (135)"],
-   tests:"E2E phase 8 B and B4",
-   gaps:["F2: deleted when either party deletes their account"],
+   tests:"E2E phase 8 B and B4; verify-161.mjs (invoice survives and downloads after the other party deletes)",
+   gaps:[],
    checks:["Invoice numbers never repeat, even under parallel generation","Download links expire and work only for the parties","Documents survive either party leaving"]},
   {id:"prj-complete", name:"Completion & reviews", r:"CB", s:"WM", st:"proven",
    what:"Confirm completion after final payment, then both sides review each other.",
@@ -1106,10 +1106,10 @@ var MODS = [
    tests:"column-grants.test; E2E phase 6",
    gaps:[],
    checks:["Every new table ships with RLS and a policy","Queries are proven with a real persona token, not the service key"]},
-  {id:"db-integrity", name:"Integrity rules", r:"A", s:"P", st:"done",
+  {id:"db-integrity", name:"Integrity rules", r:"A", s:"P", st:"proven",
    what:"Foreign keys, consent and quota triggers, atomic stage writes. Migration 161 moved the two project participant FKs to ON DELETE SET NULL — a deleted user never destroys the other party's records.",
    where:["006 · 059 · 124 foreign keys","161 participant FKs","enforce_project_consent · quota triggers"],
-   tests:"E2E phases 4–5 · 161 rollback proof",
+   tests:"E2E phases 4–5; verify-161.mjs (34/34: a completed paid project + invoice survive either party deleting); prove-161-rollback.mjs",
    gaps:[],
    checks:["Deleting a user never deletes records the other party or the tax law needs","Triggers and app agree on limits"]}
  ]},

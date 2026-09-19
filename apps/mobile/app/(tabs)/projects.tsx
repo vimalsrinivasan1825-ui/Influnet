@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight, FolderKanban, Trash2 } from 'lucide-react-native';
-import { dealStateOf, STAGES, flowOf, type Stage } from '@influnet/core';
+import { dealStateOf, STAGES, flowOf, otherParticipant, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -53,8 +53,8 @@ interface ProjectRow {
   due_date?: string | null;
   created_at?: string | null;
   updated_at: string;
-  owner_user_id: string;
-  counterparty_user_id: string;
+  owner_user_id: string | null;
+  counterparty_user_id: string | null;
   stage_progress?: Record<string, { owner_signoff_at?: string; creator_signoff_at?: string }>;
   owner?: { name?: string } | null;
   counterparty?: { name?: string } | null;
@@ -138,7 +138,15 @@ export default function ProjectsScreen() {
           budget: p.budget,
           due_date: p.due_date,
           created_at: p.created_at,
-          partner: (isOwner ? p.counterparty?.name : p.owner?.name) ?? 'Partner',
+          // Null embed after migration 161 means the other party deleted their
+          // account — shared "Deleted account" wording, never a blank.
+          partner: otherParticipant(
+            isOwner,
+            p.owner_user_id,
+            p.counterparty_user_id,
+            p.owner,
+            p.counterparty,
+          ).name,
           statusLabel: s.label,
           statusFg: s.fg,
           statusBg: s.bg,

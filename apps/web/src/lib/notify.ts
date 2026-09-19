@@ -267,6 +267,9 @@ export async function notifyNewMessage(input: {
  * Returns whether the row was written so callers can log if they care.
  */
 export async function notifyUser(input: NotifyInput): Promise<boolean> {
+  // A project participant can be gone (migration 161 nulls their id). Nobody to
+  // tell is not an error, and inserting a NULL user_id would only fail noisily.
+  if (!input.userId) return false;
   try {
     const sb = serviceClient();
     if (!sb) {

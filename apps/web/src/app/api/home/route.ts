@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { projectTurn, STAGE_PHASES, phaseOf, flowOf } from '@influnet/core';
+import { projectTurn, STAGE_PHASES, phaseOf, flowOf, participantView } from '@influnet/core';
 import { withAuth, jsonError } from '@/lib/api';
 import { settleAll } from '@/lib/settle';
 import { enforceRateLimit } from '@/lib/rate-limit';
@@ -286,7 +286,13 @@ export async function GET(req: Request) {
         flow_key: p.flow_key ?? 'full',
         budget: p.budget,
         updated_at: p.updated_at,
-        partner: side === 'business' ? p.counterparty?.name ?? null : p.owner?.name ?? null,
+        // Null embed after migration 161 means the other party deleted their
+        // account — ship the shared "Deleted account" label, never a blank.
+        partner:
+          participantView(
+            side === 'business' ? p.counterparty_user_id : p.owner_user_id,
+            side === 'business' ? p.counterparty : p.owner,
+          ).name,
         // "Whose move is it" — the one thing Home needs and never had. Computed
         // here rather than on the client because it reads stage_progress, which
         // is far too heavy to ship to a phone for every project.
@@ -557,10 +563,16 @@ export async function GET(req: Request) {
     const lastPayment = lastPaid
       ? {
           amount: toRupees(lastPaid.amount),
-          partner: lastPaidProject
-            ? (lastPaidProject.owner_user_id === user.id
-                ? lastPaidProject.counterparty?.name
-                : lastPaidProject.owner?.name) ?? null
+          partner:
+          lastPaidProject
+            ? participantView(
+                lastPaidProject.owner_user_id === user.id
+                  ? lastPaidProject.counterparty_user_id
+                  : lastPaidProject.owner_user_id,
+                lastPaidProject.owner_user_id === user.id
+                  ? lastPaidProject.counterparty
+                  : lastPaidProject.owner,
+              ).name
             : null,
         }
       : null;
@@ -676,7 +688,10 @@ export async function GET(req: Request) {
         budget: p.budget,
         completed_at: p.updated_at,
         partner:
-          p.owner_user_id === user.id ? p.counterparty?.name ?? null : p.owner?.name ?? null,
+          participantView(
+            p.owner_user_id === user.id ? p.counterparty_user_id : p.owner_user_id,
+            p.owner_user_id === user.id ? p.counterparty : p.owner,
+          ).name,
       })),
       counts: {
         ongoing: ongoing.length,

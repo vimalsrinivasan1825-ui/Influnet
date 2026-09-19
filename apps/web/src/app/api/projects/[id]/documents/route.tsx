@@ -26,6 +26,7 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { requireQuota, releaseQuota } from '@/lib/entitlements';
 import { renderToBuffer } from '@react-pdf/renderer';
+import { DELETED_PARTICIPANT_LABEL } from '@influnet/core';
 import { ReceiptDocument, type ReceiptSnapshot } from '@/lib/documents/receipt-template';
 
 const PostSchema = z.object({
@@ -175,12 +176,26 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     const { data: profiles } = await admin
       .from('profiles')
       .select('id, name, gst_number')
-      .in('id', [project.owner_user_id, project.counterparty_user_id]);
+      .in(
+        'id',
+        [project.owner_user_id, project.counterparty_user_id].filter(
+          (v): v is string => typeof v === 'string',
+        ),
+      );
 
+    // A party that has deleted its account (migration 161) is named on the
+    // frozen snapshot as "Deleted account" — the invoice must still issue; the
+    // ledger and the documents are exactly the records that must survive.
     const ownerRow = profiles?.find((p: { id: string }) => p.id === project.owner_user_id);
     const creatorRow = profiles?.find((p: { id: string }) => p.id === project.counterparty_user_id);
-    const ownerName = ownerRow?.name || 'Brand';
-    const creatorName = creatorRow?.name || 'Creator';
+    const ownerName =
+      project.owner_user_id == null
+        ? DELETED_PARTICIPANT_LABEL
+        : ownerRow?.name || 'Brand';
+    const creatorName =
+      project.counterparty_user_id == null
+        ? DELETED_PARTICIPANT_LABEL
+        : creatorRow?.name || 'Creator';
 
     let taxSnapshot: ReceiptSnapshot['tax'];
     let number: string;
@@ -190,11 +205,13 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       const supplierGstin: string | null = (creatorRow as any)?.gst_number ?? null;
       const isBillOfSupply = !supplierGstin;
 
-      const { data: bizProfile } = await admin
-        .from('business_profiles')
-        .select('gst_number, registered_address, state')
-        .eq('user_id', project.owner_user_id)
-        .maybeSingle();
+      const { data: bizProfile } = project.owner_user_id
+        ? await admin
+            .from('business_profiles')
+            .select('gst_number, registered_address, state')
+            .eq('user_id', project.owner_user_id)
+            .maybeSingle()
+        : { data: null };
 
       const { data: settings } = await admin
         .from('billing_settings')

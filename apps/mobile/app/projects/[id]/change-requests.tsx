@@ -17,6 +17,7 @@
 import { useState, useRef } from 'react';
 import { Pressable, View, ScrollView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { otherParticipant } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -56,8 +57,8 @@ interface ProjectFields {
   deliverables: string | null;
   budget: number | null;
   advance_amount: number | null;
-  owner_user_id: string;
-  counterparty_user_id: string;
+  owner_user_id: string | null;
+  counterparty_user_id: string | null;
   owner?: { name?: string } | null;
   counterparty?: { name?: string } | null;
 }
@@ -132,7 +133,17 @@ export default function ProjectChangeRequestsScreen() {
   );
   const project = projectData?.project;
   const isOwner = project?.owner_user_id === me;
-  const partner = project ? ((isOwner ? project.counterparty?.name : project.owner?.name) ?? 'Partner') : 'Partner';
+  // "Deleted account" when the other party's account is gone (migration 161).
+  const partner =
+    project
+      ? otherParticipant(
+          isOwner,
+          project.owner_user_id,
+          project.counterparty_user_id,
+          project.owner,
+          project.counterparty,
+        ).name
+      : 'Partner';
 
   const { data, error, loading, refreshing, refresh } = useFetch(
     () => endpoints.listChangeRequests<{ change_requests: ChangeRequest[] }>(projectId),

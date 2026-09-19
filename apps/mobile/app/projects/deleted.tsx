@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
-import { flowOf, type Stage } from '@influnet/core';
+import { flowOf, otherParticipant, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -38,7 +38,8 @@ interface ProjectRow {
   flow_key?: string | null;
   budget: number | null;
   updated_at: string;
-  owner_user_id: string;
+  owner_user_id: string | null;
+  counterparty_user_id: string | null;
   owner?: { name?: string } | null;
   counterparty?: { name?: string } | null;
 }
@@ -92,7 +93,14 @@ export default function DeletedProjectsScreen() {
             {rows.map((p, i) => {
               const s = styleForStatus(p.status, t.color);
               const isOwner = p.owner_user_id === me;
-              const partner = (isOwner ? p.counterparty?.name : p.owner?.name) ?? 'Partner';
+              // "Deleted account" when the other party is gone (migration 161).
+              const partner = otherParticipant(
+                isOwner,
+                p.owner_user_id,
+                p.counterparty_user_id,
+                p.owner,
+                p.counterparty,
+              ).name;
               const flow = flowOf(p);
               const stageIndex = flow.stages.indexOf(p.current_stage);
               const stepLabel = stageIndex >= 0 ? ` · step ${stageIndex + 1} of ${flow.stages.length}` : '';

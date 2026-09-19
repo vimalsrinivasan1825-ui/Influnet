@@ -1,6 +1,7 @@
 import { jsonError, withAuth } from '@/lib/api';
 import { NextResponse } from 'next/server';
 import { bucketByCounterparty, bucketWindows, parseEarningsRange } from '@/lib/earnings-buckets';
+import { participantView } from '@influnet/core';
 
 export async function GET(req: Request) {
   try {
@@ -102,7 +103,11 @@ export async function GET(req: Request) {
     const range = parseEarningsRange(new URL(req.url).searchParams.get('range'));
     const windows = bucketWindows(range, now);
     const creatorNameByProject = new Map(
-      (projects || []).map((p: any) => [p.id, p.counterparty?.name || 'Creator']),
+      (projects || []).map((p: any) => [
+        p.id,
+        // Null embed after migration 161 = the creator deleted their account.
+        participantView(p.counterparty_user_id, p.counterparty).name,
+      ]),
     );
     const creatorRows = useProjectBudgets
       ? (projects || [])
@@ -110,7 +115,7 @@ export async function GET(req: Request) {
           .map((p: any) => ({
             date: new Date(p.updated_at || p.created_at || now),
             amount: Number(p.budget) || 0,
-            counterparty: p.counterparty?.name || 'Creator',
+            counterparty: participantView(p.counterparty_user_id, p.counterparty).name,
           }))
       : paidPayments
           .filter((p: any) => p.paid_at)

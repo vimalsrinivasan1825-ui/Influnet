@@ -39,6 +39,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { styleForStatus } from "@/lib/project-status";
+import { DELETED_PARTICIPANT_LABEL } from "@influnet/core";
 import { cn } from "@/lib/utils";
 
 interface PartyRef {
@@ -57,6 +58,8 @@ interface ProjectDetail {
   budget: number | string | null;
   timeline?: string | null;
   created_at: string;
+  owner_user_id?: string | null;
+  counterparty_user_id?: string | null;
   owner: PartyRef | null;
   counterparty: PartyRef | null;
 }
@@ -195,21 +198,30 @@ export default function AdminProjectDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 border-t border-hairline pt-4 text-sm">
-          {project.owner && (
+          {/* A null party after migration 161 means the account was deleted —
+              show the shared "Deleted account" label instead of dropping the
+              row (which would read as if the project had no brand/creator). */}
+          {(project.owner ? (
             <Link href={`/dashboard/admin/users/${project.owner.id}`} className="flex items-center gap-2 hover:underline">
               <Avatar name={project.owner.name} size="xs" square />
               <span className="font-semibold text-content">{project.owner.name || "Unknown"}</span>
               <span className="text-content-muted">(Brand)</span>
             </Link>
-          )}
+          ) : project.owner_user_id == null ? (
+            // The FK is null because the account was deleted (migration 161) —
+            // naming it beats an absent row that reads as data loss.
+            <span className="text-content-muted">{DELETED_PARTICIPANT_LABEL} (Brand)</span>
+          ) : null)}
           <ArrowLeftRight className="size-3.5 text-content-muted" />
-          {project.counterparty && (
+          {(project.counterparty ? (
             <Link href={`/dashboard/admin/users/${project.counterparty.id}`} className="flex items-center gap-2 hover:underline">
               <Avatar name={project.counterparty.name} size="xs" square />
               <span className="font-semibold text-content">{project.counterparty.name || "Unknown"}</span>
               <span className="text-content-muted">(Creator)</span>
             </Link>
-          )}
+          ) : project.counterparty_user_id == null ? (
+            <span className="text-content-muted">{DELETED_PARTICIPANT_LABEL} (Creator)</span>
+          ) : null)}
           <span className="ml-auto text-xs text-content-muted">
             Started {new Date(project.created_at).toLocaleDateString()}
           </span>

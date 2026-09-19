@@ -13,6 +13,7 @@ import {
   isMutualSignoffStage,
   isSkippableStage,
   stageSkipProposal,
+  otherParticipant,
   type Stage,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
@@ -63,8 +64,8 @@ interface ProjectDetail {
   status: string;
   current_stage: string;
   flow_key?: string | null;
-  owner_user_id: string;
-  counterparty_user_id: string;
+  owner_user_id: string | null;
+  counterparty_user_id: string | null;
   stage_progress: Record<string, StageProgressEntry> | null;
   /** Dual-confirm completion flags (migration 056). */
   owner_confirmed_complete?: boolean | null;
@@ -154,7 +155,17 @@ export default function StageScreen() {
 
   const isOwner = project?.owner_user_id === me;
   const entry = project?.stage_progress?.[stageKey];
-  const partner = (isOwner ? project?.counterparty?.name : project?.owner?.name) ?? 'them';
+  // "Deleted account" when the other party's account is gone (migration 161).
+  const partner =
+    project
+      ? otherParticipant(
+          isOwner,
+          project.owner_user_id,
+          project.counterparty_user_id,
+          project.owner,
+          project.counterparty,
+        ).name
+      : 'them';
 
   const mySignoff = isOwner ? entry?.owner_signoff_at : entry?.creator_signoff_at;
   const theirSignoff = isOwner ? entry?.creator_signoff_at : entry?.owner_signoff_at;
