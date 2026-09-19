@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, Spline_Sans_Mono } from "next/font/google";
+import Script from "next/script";
+import { BOOT_SCRIPT } from "@/lib/role";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -43,9 +45,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${bricolage.variable} ${instrument.variable} ${splineMono.variable} antialiased`}
     >
-      <body>{children}</body>
+      <body>
+        {/* Before hydration: returning-visitor redirect and the intro flag. */}
+        <Script id="influnet-boot" strategy="beforeInteractive">
+          {BOOT_SCRIPT}
+        </Script>
+        {children}
+      </body>
     </html>
   );
 }
