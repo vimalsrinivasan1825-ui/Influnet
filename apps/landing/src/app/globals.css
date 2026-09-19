@@ -72,7 +72,8 @@ button {
 :focus-visible {
   outline: 2px solid var(--magenta);
   outline-offset: 2px;
-  border-radius: 2px;
+  /* No border-radius here: outlines already follow each element's own shape,
+     and forcing 2px squared every round button while it had focus. */
 }
 
 /* Mono eyebrow label — the recurring "on the record" device */
