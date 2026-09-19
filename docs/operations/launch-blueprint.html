@@ -177,6 +177,7 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
   <div class="wrap">
     <strong>Influnet<span>.</span></strong>
     <a href="#verdict">Verdict</a>
+    <a href="#status">Status</a>
     <a href="#architecture">Architecture</a>
     <a href="#environments">Environments</a>
     <a href="#database">Database</a>
@@ -198,31 +199,135 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
   <div class="verdict">
     <div class="stamp">NOT YET</div>
     <div style="display:grid;gap:8px">
-      <p><b>The product is strong. The live environment is not ready for real users yet.</b> On the dev branch, the full creator↔brand loop passes 294 of 294 end-to-end checks, including real Razorpay test payments. But production (the <code>staging</code> environment, by your 16 Sep decision) is <b>129 commits behind</b>. Its legal pages return 404, the first visitor after a quiet period waits 23 seconds, and none of the September fixes are live yet.</p>
-      <p class="sub">Most of what remains is configuration, decisions and paperwork only you can do. Four code items are new today (§ New findings); one of them must ship before anyone can delete an account.</p>
+      <p><b>Every code blocker from this audit is now fixed and committed. What still stands between the app and real users is configuration, accounts and paperwork that only you can do.</b> The work is on a local branch, <code>fix/launch-blueprint</code>: 27 commits, 5 new migrations (161–165, applied to the <em>dev</em> database only), nothing pushed and nothing deployed. Production (the <code>staging</code> environment) is still 129+ commits behind, so none of it is live until you merge <code>dev → staging</code>.</p>
+      <p class="sub">Updated 19 September 2026 after implementing the plan. See <a href="#status">Implementation status</a> for what changed, what was found on the way, and the short list that is yours.</p>
     </div>
+  </div>
   </div>
 
   <div class="facts" aria-label="System size">
     <div><b>3</b><span>apps: web, mobile, landing</span></div>
     <div><b>114</b><span>API routes, one backend</span></div>
+    <div><b>727</b><span>unit tests passing</span></div>
     <div><b>75</b><span>web pages · 38 admin</span></div>
     <div><b>42</b><span>mobile screens</span></div>
     <div><b>72</b><span>tables · RLS on all 72</span></div>
-    <div><b>156</b><span>migrations (001–160)</span></div>
+    <div><b>165</b><span>migrations (001–165)</span></div>
     <div><b>9</b><span>third-party services</span></div>
   </div>
 
   <div class="score" aria-label="Readiness by area">
-    <div class="row"><span class="area">Web app (creators, brands)</span><span><span class="pill p-ok">Ready on dev</span></span><span class="sub">E2E 294/294, 532 unit tests, Next 16.3.5 (RCE patch). Blocked only by not being deployed to production.</span></div>
-    <div class="row"><span class="area">Admin CRM</span><span><span class="pill p-warn">Dev only</span></span><span class="sub">38 pages incl. broadcasts, payments, leads, observability. Can send <em>real</em> push and email, so turn it on in production with <code>BROADCAST_DRY_RUN=true</code> first.</span></div>
-    <div class="row"><span class="area">Mobile (iOS + Android)</span><span><span class="pill p-crit">Not store-ready</span></span><span class="sub">2 of 12 store blockers fixed (privacy manifest, permissions), 2 in progress, 8 open. iOS signing certificate revoked. 0 automated tests.</span></div>
-    <div class="row"><span class="area">Database</span><span><span class="pill p-ok">Sound</span></span><span class="sub">RLS on every table; stage machine and payment gates proven under concurrency. One cascade bug destroys invoices when an account is deleted.</span></div>
-    <div class="row"><span class="area">Hosting &amp; delivery</span><span><span class="pill p-crit">Behind</span></span><span class="sub">Production 129 commits behind dev. A staging merge auto-pushes an over-the-air update to every installed app, with no approval step and no rollout.</span></div>
-    <div class="row"><span class="area">Monitoring</span><span><span class="pill p-warn">Wired, switched off</span></span><span class="sub">Sentry, PostHog, health page, vendor kill switches all exist in code. No alert rules, no uptime check on production, and no crash reporting in the mobile store build.</span></div>
-    <div class="row"><span class="area">Legal &amp; money</span><span><span class="pill p-crit">Blocking</span></span><span class="sub">24 placeholders in the legal text, no creator payout mechanism, and Razorpay live keys not yet proven with a real rupee.</span></div>
+    <div class="row"><span class="area">Web app (creators, brands)</span><span><span class="pill p-ok">Ready on dev</span></span><span class="sub">Every E2E phase passes on the finished branch (phases 3–9), 727 unit tests, Next 16.3.5. Signup now requires Terms + 18+, text is filtered, report/block is on every profile, campaign and request. Blocked only by not being deployed to production.</span></div>
+    <div class="row"><span class="area">Admin CRM</span><span><span class="pill p-warn">Dev only</span></span><span class="sub">38 pages. The users list no longer drops the oldest users past 1,000 and CSV exports contain every row. Can send <em>real</em> push and email, so turn it on in production with <code>BROADCAST_DRY_RUN=true</code> first.</span></div>
+    <div class="row"><span class="area">Mobile (iOS + Android)</span><span><span class="pill p-warn">Code ready, owner steps left</span></span><span class="sub">The code for 7 of the 12 store issues is done (Pro purchase hidden, real account deletion, consent + 18+, report/block + content filter, privacy manifest, unused permissions, and the Legal section). The other 5 are yours: iOS certificate, Apple/Google organisation accounts, review accounts, the creator-payout decision, and the toolchain check on the first build. Still no automated mobile tests.</span></div>
+    <div class="row"><span class="area">Database</span><span><span class="pill p-ok">Sound</span></span><span class="sub">The account-deletion cascade is fixed (records survive), and 3 more holes are closed: consent is recorded, approval rules can no longer be skipped by calling the database directly, and a request no longer sends two notifications. Backups still need one real restore drill.</span></div>
+    <div class="row"><span class="area">Hosting &amp; delivery</span><span><span class="pill p-crit">Behind</span></span><span class="sub">Production is still 129+ commits behind dev. The mobile OTA is now manual and approval-gated with a rollout percentage (and keeps the Pro purchase hidden); the weekly health sweep watches production too. Needs: the merge, and required reviewers on the production environment.</span></div>
+    <div class="row"><span class="area">Monitoring</span><span><span class="pill p-warn">Wired, switched off</span></span><span class="sub">Unchanged in what you must do: Sentry alert rules, an uptime monitor on production, and the Sentry/PostHog keys in the mobile store build. The admin health page now also probes migrations 161–165.</span></div>
+    <div class="row"><span class="area">Legal &amp; money</span><span><span class="pill p-crit">Blocking</span></span><span class="sub">24 placeholders in the legal text, no creator payout mechanism, and Razorpay live keys not yet proven with a real rupee. All yours.</span></div>
   </div>
 </header>
+
+
+<!-- ============ IMPLEMENTATION STATUS ============ -->
+<section id="status">
+  <div class="eyebrow">Updated 19 September 2026</div>
+  <h2>Implementation status: what was built, what was found on the way, what is yours</h2>
+  <p>Everything below is on the local branch <code>fix/launch-blueprint</code> (27 commits on top of <code>dev</code>). One fix per commit; each was verified before it was committed. Nothing has been pushed, merged or deployed, and the five new migrations (161–165) are applied to the <em>dev</em> database only. The full checks were re-run on the finished branch: typecheck 7/7, <b>727 unit tests</b>, and every end-to-end phase (3, 4, 5, 6, 7, 8, 9) plus each new verification script, all passing.</p>
+
+  <div class="facts" aria-label="Implementation numbers">
+    <div><b>14 / 15</b><span>plan items done (the 15th, cosmetic wording, was left on purpose)</span></div>
+    <div><b>5</b><span>migrations, 161–165, dev only</span></div>
+    <div><b>6</b><span>real bugs found beyond the audit, all fixed</span></div>
+    <div><b>14 → 8</b><span>units blocking launch (all 8 are yours)</span></div>
+    <div><b>20 → 30</b><span>units proven end to end</span></div>
+  </div>
+
+  <h3>What was implemented</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Item</th><th>Commits</th><th>Proof</th></tr></thead>
+      <tbody>
+        <tr><td>Deleting an account no longer destroys the other person's project, payments and invoices (F2)</td><td><code>37c71faf</code> db · <code>04e74fde</code> web + mobile</td><td>Real paid project, invoice, account deleted through the API: 32/32. Migration proved in a rolled-back transaction.</td></tr>
+        <tr><td>Deleting an account removes the person from Stream chat; one working support address (F6)</td><td><code>967fc35c</code></td><td>Against the real Stream app: user existed, account deleted, user gone (5/5).</td></tr>
+        <tr><td>Mobile OTA to production is manual, approval-gated, with a rollout percentage (F3)</td><td><code>135cf93c</code> · <code>7e710cb0</code></td><td>Flag checked against <code>eas update --help</code>; a config-parity test that I confirmed fails without the fix.</td></tr>
+        <tr><td>Weekly health sweep also watches production, and every probe always runs (F5)</td><td><code>e1f64f8c</code> · <code>54eb68ed</code></td><td>Workflow YAML validated.</td></tr>
+        <tr><td>Signup requires the Terms + Privacy Policy and 18+ (server-enforced, recorded with server time)</td><td><code>4e595fbd</code> db · <code>6fa634d0</code> web + mobile</td><td>13/13 through the real endpoint; brand wizard driven in a browser: the button stays disabled until both boxes are ticked.</td></tr>
+        <tr><td>Store builds show no Pro price, upgrade button or checkout link</td><td><code>dad91c99</code></td><td>Typecheck and both mobile exports.</td></tr>
+        <tr><td>Legal section and email preferences in mobile Settings</td><td><code>3f31f3a3</code></td><td>API contract checked against the real endpoint; both mobile exports.</td></tr>
+        <tr><td>Report or block from creator and business profiles, campaigns and requests</td><td><code>8968ee1e</code> db · <code>295da2d5</code> web + mobile</td><td>14/14 on the API; the four web surfaces driven in a real browser.</td></tr>
+        <tr><td>Objectionable-content filter on profiles, campaigns, requests and project terms</td><td><code>a76c0f60</code></td><td>66 unit tests (including names that must stay allowed) + 18/18 across every guarded route.</td></tr>
+        <tr><td>Push permission asked after a meaningful action, not on launch</td><td><code>a4f976c6</code></td><td>20 unit tests of the rules. <b>Not verified on hardware</b> (simulators have no push).</td></tr>
+        <tr><td>Phone-OTP gate follows the flag at runtime (it already did; corrected the stale note and a wrong health row)</td><td><code>645a2710</code></td><td>Flag flipped while the server ran; config and signup followed both ways (5/5).</td></tr>
+        <tr><td>Business approval enforced in the database</td><td><code>daaa5c05</code> db · <code>05465556</code> web</td><td>Reproduced the bypass first, then 11/11 after; 14 checks in a rolled-back transaction.</td></tr>
+        <tr><td>End-to-end tests for the 8 unproven units (skip, updates, change requests, delete/restore, peer requests, pins, notifications)</td><td><code>a932bba8</code> (+ the fixes below)</td><td>Phase 9: 80/80.</td></tr>
+        <tr><td>Admin lists and CSV exports are complete, not the first page</td><td><code>56b6f6bb</code></td><td>17 unit tests simulating the 1,000-row cap; 16/16 as a real admin.</td></tr>
+        <tr><td>Tracked pages: this blueprint and the module map</td><td><code>a4cc8465</code> · <code>d42846b3</code></td><td>Kept in step with each fix.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Found while implementing (not in the original audit)</h3>
+  <div class="find">
+    <div class="f"><div><span class="pill p-crit">Critical</span></div><div class="body">
+      <h3>F8 · A business could skip the approval rules by calling the database directly</h3>
+      <p class="ev">Reproduced on dev before the fix: a business still awaiting review published a <b>live campaign</b> with one HTTP call, and a <b>rejected</b> business sent a collaboration request the same way. The rules lived only in the API routes; the database policies just said "the owner may write", and every app holds the public key plus the user's own login token.</p>
+      <p class="fix"><b>Fixed</b> in <code>daaa5c05</code> + <code>05465556</code>: database triggers enforce the real rules (a business awaiting review <em>may</em> send requests, as designed; only a rejected one cannot; a campaign needs an approved business). Publishing a draft also had no check at all.</p></div></div>
+    <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
+      <h3>F9 · Every collaboration request produced two identical notifications</h3>
+      <p class="ev">A database trigger from July and the API's own notification both fired, so every request (brand or creator) showed the recipient two items and doubled the unread count. The trigger was also wrong for campaign applications: it told the brand that the creator had accepted, when the brand had just acted.</p>
+      <p class="fix"><b>Fixed</b> in migration 165 (<code>eae454f5</code>) and <code>b8a63906</code>: the routes are now the single source; an accepted application notifies the applicant properly.</p></div></div>
+    <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
+      <h3>F10 · The first mobile OTA update would have switched the Pro purchase back on inside the store apps</h3>
+      <p class="ev">An over-the-air update bundles the app with the <em>workflow's</em> environment, not the store profile's, and the new manual job did not set the hide-Pro flag. The same job also put user-typed inputs straight into shell commands.</p>
+      <p class="fix"><b>Fixed</b> in <code>7e710cb0</code>, with a test that fails if the two ever drift apart.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Medium</span></div><div class="body">
+      <h3>F11 · The admin users list lost users past 1,000 and ran one query per user; CSV exports stopped at 500 rows</h3>
+      <p class="ev">The database silently caps a response at 1,000 rows; the users list is newest-first, so the <em>oldest</em> users would have vanished while the list still looked complete. 40 users already took ~1.9 s. The Customers and Payments export buttons ask for 500 rows and the export used that page.</p>
+      <p class="fix"><b>Fixed</b> in <code>56b6f6bb</code>.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Medium</span></div><div class="body">
+      <h3>F12 · The weekly health sweep would have skipped the production check whenever a test failed</h3>
+      <p class="ev">Actions stops a job at its first failing step, so the production probe added for F5 would not run after a failing unit test or a dev outage.</p>
+      <p class="fix"><b>Fixed</b> in <code>54eb68ed</code>.</p></div></div>
+    <div class="f"><div><span class="pill p-brand">Low</span></div><div class="body">
+      <h3>F13 · Pinning a chat that is already pinned returned an upgrade prompt at the Free limit</h3>
+      <p class="fix"><b>Fixed</b> in <code>79ce24e5</code> (it is now a no-op).</p></div></div>
+  </div>
+
+  <h3>Where the plan turned out to be wrong, and what the code really does</h3>
+  <div class="two">
+    <div class="note"><h4>Corrected in the record</h4>
+      <ul>
+        <li><b>Deleting a project hides it from <em>both</em> lists</b> (and tells the other side); either person can restore it. The module map had said "hides only for you".</li>
+        <li><b>A business awaiting review can send requests</b> by design (July 2026 decision). My brief had assumed "unapproved is blocked". AGENTS.md now says so, so nobody "tightens" it.</li>
+        <li><b>The phone-OTP flag was already read at runtime on web.</b> AGENTS.md had it wrong.</li>
+        <li><b>The creator-to-creator Free cap (10 a month) only applies when subscriptions are on.</b> On the free launch configuration it does not, so it was noted rather than asserted.</li>
+      </ul></div>
+    <div class="note"><h4>Left alone on purpose</h4>
+      <ul>
+        <li><b>Item 14 (wording and empty states):</b> no edits were cheap and safe to make blind.</li>
+        <li><b>Mobile automated tests:</b> still none (F7).</li>
+        <li><b>Skip actions rewrite the whole stage record</b> (the pattern AGENTS.md warns about). 0 lost updates in 80 racing attempts, so it was not "fixed" without evidence.</li>
+        <li><b>Reviews, reports about a user, and what a leaver posted inside a project</b> are still deleted with them. That is a product decision (below).</li>
+        <li><b>Expo SDK patch bump:</b> needs a native build, so it waits for that build.</li>
+      </ul></div>
+  </div>
+
+  <h3>What is yours now, in order</h3>
+  <div class="find">
+    <div class="f"><div><span class="pill p-brand">Step 1</span></div><div class="body"><h3>Read the branch, then push it and merge <code>dev → staging</code></h3>
+      <p class="ev"><code>git log dev..fix/launch-blueprint</code> shows the 27 commits. Nothing reaches users until this merge. The deploy applies migrations 148–165 to production's database on its way. After it, open <code>/dashboard/admin/health</code>: it now probes 161–165 and should show 0 pending.</p></div></div>
+    <div class="f"><div><span class="pill p-crit">Step 2</span></div><div class="body"><h3>Rotate the admin password, then the production Auth settings</h3>
+      <p class="ev">Password (the old one is in GitHub history). Then Site URL, redirect allow-list, Confirm email, minimum password 8, leaked-password check. Details in Phase 1 below.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Step 3</span></div><div class="body"><h3>Container environment, GitHub environment, and monitoring</h3>
+      <p class="ev">Resend webhook secret, <code>CRON_SECRET</code> and the three endpoint secrets, Upstash, Sentry and PostHog keys, <code>BROADCAST_DRY_RUN=true</code> until you have sent yourself one; <b>required reviewers on the <code>production</code> GitHub environment</b> (the manual OTA job and the deploy both wait there); Stream chat moderation on; <code>TWOFACTOR_TEMPLATE</code>; Sentry alert rules; an uptime monitor on the production health URL.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Step 4</span></div><div class="body"><h3>Legal text, creator payouts, Razorpay live</h3>
+      <p class="ev">Fill the 24 placeholders and get a lawyer to review; when you publish, set a dated <code>TERMS_VERSION</code> in <code>packages/core</code> (it says "draft" today). Decide how creators get paid. Live Razorpay keys and one real rupee.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Step 5</span></div><div class="body"><h3>Accounts, certificate, one native build, and the store forms</h3>
+      <p class="ev">Organisation accounts (Apple and Google), regenerate the iOS certificate, put the Sentry/PostHog keys and a 1024 px icon into the store build, create the two review accounts, fill the privacy and age forms, and cut <b>one</b> native build that carries everything (the privacy manifest and permission changes cannot ship over the air). Then <b>walk the push prompt on a real iPhone and Android</b>: it is the one thing here I could not test.</p></div></div>
+    <div class="f"><div><span class="pill p-muted">Step 6</span></div><div class="body"><h3>Two product decisions the code now waits on</h3>
+      <p class="ev"><b>Free-plan limits:</b> the database enforces them even while the app treats everyone as Pro; which should win at launch? <b>Account deletion:</b> should a leaver's reviews and the reports about them survive? Today both are deleted with the account.</p></div></div>
+  </div>
+</section>
 
 <!-- ============ ARCHITECTURE ============ -->
 <section id="architecture">
@@ -290,7 +395,7 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
       <rect x="850" y="132" width="290" height="84" rx="8" class="node hot"/>
       <text x="866" y="157" class="t">Postgres</text>
       <text x="866" y="178" class="s">72 tables · RLS on every one</text>
-      <text x="866" y="198" class="s">153 SQL functions · 156 migrations</text>
+      <text x="866" y="198" class="s">SQL functions · 165 migrations</text>
       <rect x="850" y="228" width="140" height="70" rx="8" class="node"/>
       <text x="864" y="253" class="t">Realtime</text>
       <text x="864" y="273" class="s">live updates</text>
@@ -458,7 +563,7 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
       <text x="316" y="144" class="s">internal test phones</text>
       <rect x="700" y="40" width="380" height="114" rx="8" class="node"/>
       <text x="716" y="66" class="t">Supabase jaajosocopoicmqcffuu</text>
-      <text x="716" y="88" class="s">migrations applied through 160</text>
+      <text x="716" y="88" class="s">migrations applied through 165</text>
       <text x="716" y="108" class="s">E2E personas live here</text>
       <text x="716" y="128" class="s">holds <tspan fill="currentColor" font-weight="600">real testers’ push tokens</tspan></text>
       <line x1="220" y1="65" x2="298" y2="65" class="e" marker-end="url(#b)"/>
@@ -489,7 +594,7 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
       <rect x="700" y="210" width="380" height="114" rx="8" class="node hot"/>
       <text x="716" y="236" class="t">Supabase aokdansyqxracuwsosji</text>
       <text x="716" y="258" class="s">migrations through 147 (last checked 17 Sep)</text>
-      <text x="716" y="278" class="s">148–160 apply on the next merge</text>
+      <text x="716" y="278" class="s">148–165 apply on the next merge</text>
       <text x="716" y="298" class="s">real users · <tspan class="m">qacreator</tspan> smoke fixture</text>
       <line x1="220" y1="235" x2="298" y2="235" class="e" marker-end="url(#b)"/>
       <text x="259" y="228" text-anchor="middle" class="lbl">deploy</text>
@@ -598,7 +703,7 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
   <div class="find">
     <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
       <h3>F1 · Production is 129 commits behind, so the September fixes aren’t live</h3>
-      <p class="ev">Checked live: <code>staging.influnet.io/legal/privacy</code> and <code>/legal/terms</code> → 404. First request 23.4 s, next 0.25 s (the minimum-replica fix is in dev's deploy file but hasn't run). Production database at migration 147; dev at 160.</p>
+      <p class="ev">Checked live: <code>staging.influnet.io/legal/privacy</code> and <code>/legal/terms</code> → 404. First request 23.4 s, next 0.25 s (the minimum-replica fix is in dev's deploy file but hasn't run). Production database at migration 147; dev at 165.</p>
       <p class="fix"><b>Fix:</b> the dev → staging PR, but only after F2 and F3 below are in (Phase 1).</p></div></div>
 
     <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
@@ -648,9 +753,9 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
     <div class="phase-h"><h3>Phase 0 · Protect what’s live</h3><span class="when">this week · ~1 day total</span><span class="why">Small, urgent, and every later step depends on them.</span></div>
     <div class="task"><input type="checkbox" id="t01"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">10 min</span></div><label for="t01" class="what">Rotate the <code>dev.admin@influnet.io</code> password and any admin password that has ever been in a file or chat. Move <code>ADMIN_CREDENTIALS.local.txt</code> into a password manager.</label><div class="done-when"><b>Done when</b> the old password fails to sign in.</div></div></div>
     <div class="task"><input type="checkbox" id="t02"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">20 min</span></div><label for="t02" class="what">Turn on the alarms. Sentry alert rules: “new issue” and “seen more than 10× in 5 min”. UptimeRobot on <code>https://staging.influnet.io/api/health</code> every 5 min, alerting by email and SMS.</label><div class="done-when"><b>Done when</b> a deliberate test error and a paused monitor both reach your phone.</div></div></div>
-    <div class="task"><input type="checkbox" id="t03"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t03" class="what">F2: stop account deletion from cascading through finished projects. Change the project foreign keys to <code>SET NULL</code> and anonymise the leaving party; payments and invoices stay.</label><div class="done-when"><b>Done when</b> an E2E persona with a completed, paid project deletes their account and the other party still opens the invoice.</div></div></div>
-    <div class="task"><input type="checkbox" id="t04"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">2 h</span></div><label for="t04" class="what">F3: make the production OTA job manual, behind the <code>production</code> environment approval, and publish with a percentage rollout.</label><div class="done-when"><b>Done when</b> a merge to staging deploys the web app and leaves installed phones untouched until approved.</div></div></div>
-    <div class="task"><input type="checkbox" id="t05"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">1 h</span></div><label for="t05" class="what">F6: delete the Stream user on account deletion; replace both <code>support@influnet.in</code> links.</label><div class="done-when"><b>Done when</b> a deleted persona no longer appears in the Stream dashboard.</div></div></div>
+    <div class="task"><input type="checkbox" id="t03"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t03" class="what">F2: stop account deletion from cascading through finished projects. Change the project foreign keys to <code>SET NULL</code> and anonymise the leaving party; payments and invoices stay.</label><div class="done-when"><b>Done when</b> an E2E persona with a completed, paid project deletes their account and the other party still opens the invoice.</div></div></div>
+    <div class="task"><input type="checkbox" id="t04"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">2 h</span></div><label for="t04" class="what">F3: make the production OTA job manual, behind the <code>production</code> environment approval, and publish with a percentage rollout.</label><div class="done-when"><b>Done when</b> a merge to staging deploys the web app and leaves installed phones untouched until approved.</div></div></div>
+    <div class="task"><input type="checkbox" id="t05"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">1 h</span></div><label for="t05" class="what">F6: delete the Stream user on account deletion; replace both <code>support@influnet.in</code> links.</label><div class="done-when"><b>Done when</b> a deleted persona no longer appears in the Stream dashboard.</div></div></div>
   </div>
 
   <div class="phase" data-phase>
@@ -658,7 +763,7 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
     <div class="task"><input type="checkbox" id="t11"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">10 min</span></div><label for="t11" class="what">Production Supabase Auth, in this order: Site URL → <code>https://staging.influnet.io</code>; redirect allow-list <code>https://staging.influnet.io/**</code>; <b>then</b> Confirm email ON; minimum password 8; leaked-password protection ON.</label><div class="done-when"><b>Done when</b> a password-reset email for a test account links to staging.influnet.io, not localhost.</div></div></div>
     <div class="task"><input type="checkbox" id="t12"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">30 min</span></div><label for="t12" class="what">Production container settings the deploy never sets: <code>RESEND_WEBHOOK_SECRET</code>, <code>CRON_SECRET</code>, <code>UPSTASH_REDIS_REST_URL</code>/<code>_TOKEN</code>, Sentry and PostHog keys, and <code>BROADCAST_DRY_RUN=true</code> until you've broadcast to yourself once.</label><div class="done-when"><b>Done when</b> <code>/dashboard/admin/health</code> on production shows each one configured.</div></div></div>
     <div class="task"><input type="checkbox" id="t13"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">20 min</span></div><label for="t13" class="what">Production phone OTP: set the <code>TWOFACTOR_TEMPLATE</code> secret and redeploy the <code>phone-otp</code> edge function. Today codes arrive as voice calls.</label><div class="done-when"><b>Done when</b> a signup code arrives as an SMS.</div></div></div>
-    <div class="task"><input type="checkbox" id="t14"><div class="tt"><div class="meta"><span class="pill who-both">Both</span><span class="effort">2 h</span></div><label for="t14" class="what">Open and merge the dev → staging PR (after Phase 0). Watch migrations 148–160 apply, then run <code>tests/e2e/verify-151.mjs</code> against staging.</label><div class="done-when"><b>Done when</b> health shows 0 migrations pending, <code>/legal/privacy</code> returns 200, and a cold request takes under 2 s.</div></div></div>
+    <div class="task"><input type="checkbox" id="t14"><div class="tt"><div class="meta"><span class="pill who-both">Both</span><span class="effort">2 h</span></div><label for="t14" class="what">Open and merge the dev → staging PR (after Phase 0). Watch migrations 148–165 apply, then run <code>tests/e2e/verify-151.mjs</code> against staging.</label><div class="done-when"><b>Done when</b> health shows 0 migrations pending, <code>/legal/privacy</code> returns 200, and a cold request takes under 2 s.</div></div></div>
     <div class="task"><input type="checkbox" id="t15"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">15 min</span></div><label for="t15" class="what">Point <code>BROADCAST_ENDPOINT</code>, <code>MAINTENANCE_ENDPOINT</code> and <code>NUDGE_ENDPOINT</code> (plus <code>CRON_SECRET</code>) at production.</label><div class="done-when"><b>Done when</b> each workflow's next run logs a 200 from staging.influnet.io.</div></div></div>
   </div>
 
@@ -675,10 +780,10 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
 
   <div class="phase" data-phase>
     <div class="phase-h"><h3>Phase 3 · Mobile ready for the stores</h3><span class="when">1–2 weeks of development, in parallel with Phase 2</span><span class="why">One native build carries all of it. OTA can't change permissions, manifests or icons.</span></div>
-    <div class="task"><input type="checkbox" id="t31"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t31" class="what">Finish and commit hiding Pro purchase in store builds (<code>EXPO_PUBLIC_HIDE_PRO_PURCHASE</code>, in progress).</label><div class="done-when"><b>Done when</b> a store build shows no price, upgrade button or checkout link anywhere.</div></div></div>
-    <div class="task"><input type="checkbox" id="t32"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">1 day</span></div><label for="t32" class="what">Signup consent on web and mobile: required “I agree to the Terms and Privacy Policy” and “I am 18 or older”, timestamped server-side. Add Settings → Legal (Terms, Privacy, Refunds, Contact, Delete account).</label><div class="done-when"><b>Done when</b> signup can't finish without both, and the timestamp is on the profile row.</div></div></div>
-    <div class="task"><input type="checkbox" id="t33"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">2–3 days</span></div><label for="t33" class="what">Report/block on creator profiles, business profiles, campaign detail and request detail. Turn on Stream moderation, and add a server word filter for bios, campaign text and request messages.</label><div class="done-when"><b>Done when</b> a report filed from each of the four screens appears in admin → Reports.</div></div></div>
-    <div class="task"><input type="checkbox" id="t34"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t34" class="what">Store build settings: 1024 px icon without transparency; Sentry and PostHog keys in the <code>production</code> profile; Expo SDK patch bump; <code>LAST_COMMIT_TIME</code> bump; Xcode 26 build image; Android target API 36; a Liquid Glass check on a real device.</label><div class="done-when"><b>Done when</b> the TestFlight upload arrives with no warnings email, and a forced crash shows up in Sentry.</div></div></div>
+    <div class="task"><input type="checkbox" id="t31"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t31" class="what">Finish and commit hiding Pro purchase in store builds (<code>EXPO_PUBLIC_HIDE_PRO_PURCHASE</code>, in progress).</label><div class="done-when"><b>Done when</b> a store build shows no price, upgrade button or checkout link anywhere.</div></div></div>
+    <div class="task"><input type="checkbox" id="t32"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">1 day</span></div><label for="t32" class="what">Signup consent on web and mobile: required “I agree to the Terms and Privacy Policy” and “I am 18 or older”, timestamped server-side. Add Settings → Legal (Terms, Privacy, Refunds, Contact, Delete account).</label><div class="done-when"><b>Done when</b> signup can't finish without both, and the timestamp is on the profile row.</div></div></div>
+    <div class="task"><input type="checkbox" id="t33"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">2–3 days</span></div><label for="t33" class="what">Report/block on creator profiles, business profiles, campaign detail and request detail. Turn on Stream moderation, and add a server word filter for bios, campaign text and request messages.</label><div class="done-when"><b>Done when</b> a report filed from each of the four screens appears in admin → Reports.</div></div></div>
+    <div class="task"><input type="checkbox" id="t34"><div class="tt"><div class="meta"><span class="pill p-ok">Code partly done</span><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t34" class="what">Store build settings: 1024 px icon without transparency; Sentry and PostHog keys in the <code>production</code> profile; Expo SDK patch bump; <code>LAST_COMMIT_TIME</code> bump; Xcode 26 build image; Android target API 36; a Liquid Glass check on a real device.</label><div class="done-when"><b>Done when</b> the TestFlight upload arrives with no warnings email, and a forced crash shows up in Sentry.</div></div></div>
     <div class="task"><input type="checkbox" id="t35"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">2 days</span></div><label for="t35" class="what">Mobile smoke tests for five flows: sign in, send request, chat, stage sign-off, reach the payment step. Run them on EAS/cloud devices, not a laptop.</label><div class="done-when"><b>Done when</b> they run on every production-bound build.</div></div></div>
     <div class="task"><input type="checkbox" id="t36"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">1 h</span></div><label for="t36" class="what">Regenerate the iOS distribution certificate (<code>eas credentials</code>) and enable Push on <code>com.influnet.app</code>. Reserve the app name.</label><div class="done-when"><b>Done when</b> an iOS production build signs successfully.</div></div></div>
     <div class="task"><input type="checkbox" id="t37"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">1 day</span></div><label for="t37" class="what">Two review accounts on production (brand pre-approved, with an active project and a chat between them), plus screenshots, the App Privacy and Data safety forms, and an 18+ age rating. India storefront only.</label><div class="done-when"><b>Done when</b> both builds are submitted with the review notes from APP_STORE_READINESS §5.</div></div></div>
@@ -762,7 +867,7 @@ footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid va
 </section>
 
 <footer>
-  Sources: the code on <code>dev</code> at 3cd1ef51; live probes of dev.influnet.io, staging.influnet.io and influnet.io on 18 Sep 2026; the migrations in <code>supabase/migrations</code>; and the earlier audits in <code>docs/operations/</code> (HANDOVER, GO_LIVE_AUDIT_2026-09-17, APP_STORE_READINESS_2026-09-17, BLOCK_0_TO_5_STATUS_2026-09-14). Azure container settings and Supabase Auth settings could not be read from here; their state is as last measured on 16–17 Sep.
+  Updated 19 Sep 2026 after implementation: branch <code>fix/launch-blueprint</code> (27 commits over <code>dev</code>). Original sources: the code on <code>dev</code> at 3cd1ef51; live probes of dev.influnet.io, staging.influnet.io and influnet.io on 18 Sep 2026; the migrations in <code>supabase/migrations</code>; and the earlier audits in <code>docs/operations/</code> (HANDOVER, GO_LIVE_AUDIT_2026-09-17, APP_STORE_READINESS_2026-09-17, BLOCK_0_TO_5_STATUS_2026-09-14). Azure container settings and Supabase Auth settings could not be read from here; their state is as last measured on 16–17 Sep.
 </footer>
 </div>
 
