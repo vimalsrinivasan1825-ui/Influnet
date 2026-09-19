@@ -8,6 +8,7 @@ import {
   csvResponse,
   parseRange,
 } from '@/lib/admin-insights';
+import { collectPagedRows } from '@/lib/paginate';
 
 /**
  * GET /api/admin/insights/<module>?from=&to=|days=&…[&format=csv]
@@ -45,7 +46,28 @@ export async function GET(req: Request, ctx: { params: Promise<{ module: string 
     }
 
     if (q.get('format') === 'csv' && mod.csv) {
-      const rows = mod.csv(data);
+      // An export is the WHOLE list, not the page the button happened to ask for.
+      // The Customers and Payments buttons send limit=500, so a CSV of a longer
+      // list silently stopped at 500 rows. When the report is paged (`rows` +
+      // a `total` counted in SQL) walk every page here, server-side.
+      let exportData: any = data;
+      let truncated = false;
+      const first = data as { rows?: unknown[]; total?: number } | null;
+      if (Array.isArray(first?.rows) && typeof first?.total === 'number' && first.total > first.rows.length) {
+        const client = callerClient(req);
+        const all = await collectPagedRows(async (offset, limit) => {
+          const p = new URLSearchParams(q);
+          p.set('limit', String(limit));
+          p.set('offset', String(offset));
+          const { data: pg, error: pageErr } = await client.rpc(mod.rpc, mod.args(p, range) as any);
+          if (pageErr) throw new Error(pageErr.message);
+          const page = pg as { rows?: unknown[]; total?: number } | null;
+          return { rows: page?.rows ?? [], total: page?.total ?? 0 };
+        });
+        exportData = { ...(data as object), rows: all.rows };
+        truncated = all.truncated;
+      }
+      const rows = mod.csv(exportData);
       // Exporting is a bulk read of personal data: audit it, and keep phone
       // numbers and provider ids out unless the caller is a super admin.
       const superAdmin = await isSuperAdmin(auth.supabase, auth.user.id);
@@ -54,10 +76,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ module: string 
         actorEmail: auth.user.email ?? null,
         action: 'report_exported',
         targetType: 'report',
-        metadata: { module, rows: rows.length, from: range.from, to: range.to },
+        metadata: { module, rows: rows.length, from: range.from, to: range.to, ...(truncated ? { truncated: true } : {}) },
         req,
       });
-      return csvResponse(`influnet-${module}-${range.from}-to-${range.to}.csv`, rows, superAdmin ? [] : CSV_SENSITIVE);
+      const csv = csvResponse(`influnet-${module}-${range.from}-to-${range.to}.csv`, rows, superAdmin ? [] : CSV_SENSITIVE);
+      // Never pretend: a runaway export (over 50,000 rows) is cut and says so.
+      if (truncated) csv.headers.set('X-Export-Truncated', 'true');
+      return csv;
     }
 
     return NextResponse.json(

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { jsonError, withAdmin } from '@/lib/api';
 import { logger } from '@/lib/logger';
+import { chunk, fetchAllRows, mapLimit } from '@/lib/paginate';
 
 /**
  * Last sign-in time per user id, read from `auth.users`.
@@ -68,54 +69,61 @@ export async function GET(req: Request) {
     if (!auth.ok) return auth.res;
     const { supabase } = auth;
 
-    // Fetch all profiles. The auth.users lookup is a separate round trip to a
-    // different API, so run it alongside rather than after.
-    const [{ data: profiles, error }, authUsers] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, role, email, name, phone, location, created_at, updated_at')
-        .order('created_at', { ascending: false }),
+    // Every profile, paged. PostgREST silently stops at 1000 rows, so a single
+    // .select() lost the OLDEST users the moment the platform passed 1000 (the list
+    // is newest-first) while still looking complete. The order carries an `id`
+    // tiebreaker so pages neither repeat nor skip rows. The auth.users lookup is a
+    // separate round trip to a different API, so it runs alongside.
+    const [{ rows: profiles }, authUsers] = await Promise.all([
+      fetchAllRows<any>((from, to) =>
+        supabase
+          .from('profiles')
+          .select('id, role, email, name, phone, location, created_at, updated_at')
+          .order('created_at', { ascending: false })
+          .order('id')
+          .range(from, to),
+      ),
       allAuthUsers(supabase),
     ]);
 
-    if (error) throw error;
-
     const lastSignIn = new Map(authUsers.map((u) => [u.id, u.lastSignInAt]));
-    const profileIds = new Set((profiles || []).map((p: any) => p.id));
+    const profileIds = new Set(profiles.map((p: any) => p.id));
 
-    // For each profile, fetch extended profile data
-    const enrichedUsers = await Promise.all(
-      (profiles || []).map(async (p: any) => {
-        // `undefined` (id absent from auth.users) and `null` (present, never
-        // signed in) both render as "Never" — the distinction isn't actionable.
-        const enriched: any = { ...p, last_sign_in_at: lastSignIn.get(p.id) ?? null };
+    // Role details, BATCHED. This used to issue one query per user (two lookups for
+    // every business and creator): 40 users took ~2 s, and 1000 would have taken
+    // tens of seconds. Now it is one query per 150 ids, four at a time.
+    const readInChunks = async (table: string, columns: string, ids: string[]): Promise<any[]> => {
+      const batches = await mapLimit(chunk(ids, 150), 4, async (group) => {
+        const { data, error: e } = await supabase.from(table).select(columns).in('user_id', group);
+        if (e) throw e;
+        return (data ?? []) as any[];
+      });
+      return batches.flat();
+    };
+    const [bizRows, infRows] = await Promise.all([
+      readInChunks('business_profiles', 'user_id, company_name, industry, approval_status', profiles.filter((p: any) => p.role === 'business_owner').map((p: any) => p.id)),
+      readInChunks('influencer_profiles', 'user_id, username, niche', profiles.filter((p: any) => p.role === 'influencer').map((p: any) => p.id)),
+    ]);
+    const bizById = new Map(bizRows.map((r: any) => [r.user_id, r]));
+    const infById = new Map(infRows.map((r: any) => [r.user_id, r]));
 
-        if (p.role === 'business_owner') {
-          const { data: biz } = await supabase
-            .from('business_profiles')
-            .select('company_name, industry, approval_status')
-            .eq('user_id', p.id)
-            .single();
-          if (biz) {
-            enriched.company_name = biz.company_name;
-            enriched.business_industry = biz.industry;
-            enriched.approval_status = biz.approval_status;
-          }
-        } else if (p.role === 'influencer') {
-          const { data: inf } = await supabase
-            .from('influencer_profiles')
-            .select('username, niche')
-            .eq('user_id', p.id)
-            .single();
-          if (inf) {
-            enriched.username = inf.username;
-            enriched.niche = inf.niche;
-          }
-        }
-
-        return enriched;
-      })
-    );
+    const enrichedUsers = profiles.map((p: any) => {
+      // `undefined` (id absent from auth.users) and `null` (present, never
+      // signed in) both render as "Never": the distinction isn't actionable.
+      const enriched: any = { ...p, last_sign_in_at: lastSignIn.get(p.id) ?? null };
+      const biz = bizById.get(p.id);
+      if (biz) {
+        enriched.company_name = biz.company_name;
+        enriched.business_industry = biz.industry;
+        enriched.approval_status = biz.approval_status;
+      }
+      const inf = infById.get(p.id);
+      if (inf) {
+        enriched.username = inf.username;
+        enriched.niche = inf.niche;
+      }
+      return enriched;
+    });
 
     // Orphaned accounts: an auth user with no profiles row. Almost always a
     // signup that stalled (email confirmed, wizard never finished) — invisible
