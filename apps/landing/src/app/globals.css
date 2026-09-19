@@ -152,7 +152,7 @@ button {
 
 @keyframes beam-flow {
   0% {
-    stroke-dashoffset: 240;
+    stroke-dashoffset: 168;
   }
   100% {
     stroke-dashoffset: 0;
@@ -160,7 +160,8 @@ button {
 }
 
 .flowing-beam {
-  stroke-dasharray: 45 180;
+  /* 36 + 132 = 168: one full pattern per loop, so the beam never jumps. */
+  stroke-dasharray: 36 132;
   animation: beam-flow var(--beam-speed, 2.6s) cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation-delay: var(--beam-delay, 0s);
 }
