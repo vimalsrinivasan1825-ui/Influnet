@@ -142,6 +142,21 @@ which surfaced as a 500 with the user's click silently lost.
 Use `record_stage_signoff()` / `revoke_stage_signoff()` (migration 114). They
 take a row lock and write only the caller's own keys.
 
+## Business approval is enforced by triggers, and the rule is not "approved only"
+
+`approval_status` (`pending_review` / `approved` / `rejected`) is checked in the
+API routes **and** by database triggers (migration 164), because RLS only says
+"the owner may write" and every client holds the anon key plus the user's own JWT,
+so PostgREST can be called directly. Before 164 a pending business could publish a
+live campaign, and a rejected one could send a request, with one HTTP call.
+
+The rules are deliberately different per action: a business **awaiting review may
+send requests** (creators see an "unverified" flag, a July 2026 design decision;
+only `rejected` is blocked), but must be **approved to create or publish a
+campaign**. Do not "tighten" the request rule to approved-only without asking. A
+new write path for either table needs no new check (the triggers cover it), but its
+route should still return a clear 403 rather than surface the trigger's error.
+
 ## Payment gates open only via a signed webhook
 
 When Razorpay is configured, the gate checklist items for `advance_payment` and
