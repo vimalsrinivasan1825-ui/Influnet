@@ -43,12 +43,18 @@ async function run(body) {
   }
 }
 
-const before = await run(phase('before', false));
+// On a database that ALREADY has migration 165 the "before" measurement is meaningless (the
+// triggers are gone), so it is skipped with a note; the after-state proof still runs.
+const applied = await sql(`select 1 from pg_proc where proname = 'collab_notifications_single_source'`);
+const alreadyApplied = applied.length > 0;
+const before = alreadyApplied ? null : await run(phase('before', false));
 const after = await run(`${migration}\n${phase('after', true)}`);
-console.log(`project ${PROJECT_REF}\nbefore: ${JSON.stringify(before)}\nafter:  ${JSON.stringify(after)}\n`);
-if (before.error || after.error) { console.log('proof failed to run'); process.exit(2); }
-check('BEFORE: the database writes its own notification on a request insert (the duplicate)', before.insert_gain >= 1, `+${before.insert_gain}`);
-check('BEFORE: and on an accept, to the sender', before.update_gain >= 1, `+${before.update_gain}`);
+console.log(`project ${PROJECT_REF}\nbefore: ${before ? JSON.stringify(before) : '(skipped: migration 165 is already applied here)'}\nafter:  ${JSON.stringify(after)}\n`);
+if ((before && before.error) || after.error) { console.log('proof failed to run'); process.exit(2); }
+if (before) {
+  check('BEFORE: the database writes its own notification on a request insert (the duplicate)', before.insert_gain >= 1, `+${before.insert_gain}`);
+  check('BEFORE: and on an accept, to the sender', before.update_gain >= 1, `+${before.update_gain}`);
+}
 check('AFTER: a request insert writes no notification from the database', after.insert_gain === 0, `+${after.insert_gain}`);
 check('AFTER: an accept writes none either', after.update_gain === 0, `+${after.update_gain}`);
 check('AFTER: the health probe reports true', after.probe === true);
