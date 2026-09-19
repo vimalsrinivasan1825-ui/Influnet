@@ -24,6 +24,7 @@ import { useGuides } from '@/components/guides/use-guides';
 import { useTheme } from '@/lib/theme';
 import { LAST_COMMIT_TIME } from '@/lib/build-info';
 import { useSession, useSignOutAction } from '@/lib/session';
+import { SUPPORT_EMAIL } from '@influnet/core';
 import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
 import {
@@ -431,7 +432,7 @@ export default function SettingsScreen() {
           icon={<Mail size={16} color={t.color.content} />}
           onPress={() => {
             void Linking.openURL(
-              `mailto:support@influnet.in?subject=Delete my account&body=Please delete the account for ${profile?.email ?? ''}.`
+              `mailto:${SUPPORT_EMAIL}?subject=Delete my account&body=Please delete the account for ${profile?.email ?? ''}.`
             );
             deleteSheet.current?.close();
           }}

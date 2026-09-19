@@ -83,3 +83,67 @@ export async function ensureStreamChannel(
   }
   return channel;
 }
+
+export type StreamRemoval = { ok: true; skipped?: string } | { ok: false; error: string };
+
+/**
+ * Remove a deleted account from Stream Chat (account deletion, self-service
+ * and admin). Without this the person's name, avatar and every message they
+ * sent stay on Stream's servers after the account is gone.
+ *
+ * Their messages are hard-deleted with them. Channels are NOT deleted here:
+ * a 1:1 channel is also the OTHER person's copy of the conversation, so it
+ * stays until nobody is left in it (see deleteStreamChannels).
+ *
+ * Never throws — callers decide what a failure means. Account deletion logs it
+ * and carries on, because a Stream outage must not stop anyone deleting their
+ * account (both app stores require that to work).
+ */
+export async function deleteStreamUser(userId: string): Promise<StreamRemoval> {
+  if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET) {
+    return { ok: true, skipped: 'Stream is not configured in this environment' };
+  }
+  if (!vendorEnabled('vendor_stream')) {
+    return { ok: false, error: 'Stream is switched off (vendor_stream), so the chat user was not removed' };
+  }
+  try {
+    await withBreaker('stream', () =>
+      getStreamClient().deleteUser(userId, { mark_messages_deleted: true, hard_delete: true }),
+    );
+    return { ok: true };
+  } catch (e: unknown) {
+    const err = e as { message?: string; code?: number; status?: number };
+    // Stream answers 400/404 "user not found" for someone who never opened chat.
+    if (err?.status === 404 || err?.code === 16 || /not\s*found|does not exist/i.test(err?.message ?? '')) {
+      return { ok: true, skipped: 'no Stream user existed' };
+    }
+    return { ok: false, error: err?.message ?? 'Stream deleteUser failed' };
+  }
+}
+
+/**
+ * Delete the Stream channels of conversations that no longer have ANY
+ * participant in our database (both people gone). Best-effort, like
+ * deleteStreamUser; returns how many were removed.
+ */
+export async function deleteStreamChannels(conversationIds: string[]): Promise<{ deleted: number; error?: string }> {
+  if (conversationIds.length === 0) return { deleted: 0 };
+  if (!process.env.STREAM_API_KEY || !process.env.STREAM_API_SECRET || !vendorEnabled('vendor_stream')) {
+    return { deleted: 0 };
+  }
+  let deleted = 0;
+  let firstError: string | undefined;
+  for (const id of conversationIds) {
+    try {
+      await withBreaker('stream', () =>
+        getStreamClient().channel('messaging', `conv_${id}`).delete({ hard_delete: true }),
+      );
+      deleted++;
+    } catch (e: unknown) {
+      const err = e as { message?: string; status?: number };
+      if (err?.status === 404 || /not\s*found|does not exist/i.test(err?.message ?? '')) continue;
+      firstError ??= err?.message ?? 'channel delete failed';
+    }
+  }
+  return firstError ? { deleted, error: firstError } : { deleted };
+}

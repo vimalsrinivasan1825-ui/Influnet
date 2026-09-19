@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { logger } from './logger';
+import { deleteStreamChannels, deleteStreamUser } from './stream';
 
 /**
  * Tombstones for deleted accounts (migration 153).
@@ -101,14 +102,25 @@ export async function activeProjectCount(serviceClient: any, userId: string): Pr
  * The hard delete itself, shared by self-service and admin deletion.
  *
  * `auth.admin.deleteUser` cascades through `profiles` and everything that FKs
- * to it. The one blocking FK is `project_documents.issued_by` (NO ACTION): those
- * are immutable legal snapshots, so the pointer is nulled and the documents
- * survive. `conversations` has no FK to a user, so orphaned ones are swept after.
+ * to it. Projects are shared records and survive (migration 161: the participant
+ * columns and `project_documents.issued_by` are ON DELETE SET NULL), so the
+ * other party keeps the project, its ledger and its invoices. `issued_by` is
+ * still nulled here first so a database that predates 161 can still delete.
+ * `conversations` has no FK to a user, so orphaned ones are swept after.
+ *
+ * The person is then removed from Stream Chat. That is best-effort and NEVER
+ * blocks the deletion: the account is already gone, a Stream outage must not
+ * leave anyone unable to delete (both app stores require it to work), and the
+ * failure is returned and logged so admin can clean up rather than lost.
  */
+export type HardDeleteResult =
+  | { ok: true; conversationsSwept: number; stream: { userRemoved: boolean; channelsRemoved: number; error?: string } }
+  | { ok: false; error: string };
+
 export async function hardDeleteAccount(
   serviceClient: any,
   userId: string,
-): Promise<{ ok: true; conversationsSwept: number } | { ok: false; error: string }> {
+): Promise<HardDeleteResult> {
   const { data: parts } = await serviceClient
     .from('conversation_participants')
     .select('conversation_id')
@@ -127,6 +139,7 @@ export async function hardDeleteAccount(
   if (delErr) return { ok: false, error: delErr.message ?? 'deleteUser failed' };
 
   let swept = 0;
+  let deadConversations: string[] = [];
   if (convIds.length > 0) {
     const { data: still } = await serviceClient
       .from('conversation_participants')
@@ -137,7 +150,22 @@ export async function hardDeleteAccount(
     if (dead.length > 0) {
       await serviceClient.from('conversations').delete().in('id', dead);
       swept = dead.length;
+      deadConversations = dead;
     }
   }
-  return { ok: true, conversationsSwept: swept };
+  // Chat comes last: only once the account is really gone.
+  const streamUser = await deleteStreamUser(userId);
+  const streamChannels = await deleteStreamChannels(deadConversations);
+  const streamError = (!streamUser.ok ? streamUser.error : undefined) ?? streamChannels.error;
+  if (streamError) {
+    logger.error('[account-deletion] account deleted but Stream cleanup failed — remove the chat user by hand', {
+      userId,
+      err: streamError,
+    });
+  }
+  return {
+    ok: true,
+    conversationsSwept: swept,
+    stream: { userRemoved: streamUser.ok, channelsRemoved: streamChannels.deleted, ...(streamError ? { error: streamError } : {}) },
+  };
 }

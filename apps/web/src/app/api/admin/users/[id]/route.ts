@@ -165,11 +165,11 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
  *
  * `auth.admin.deleteUser` cascades through `profiles` and everything that FKs
  * to it with ON DELETE CASCADE (requests, projects, messages, notifications,
- * portfolio, pins, …). The ONE foreign key that would block it is
- * `project_documents.issued_by` (NO ACTION) — those rows are immutable legal
- * snapshots with the party names already frozen inside, so `issued_by` is
- * nulled rather than the documents destroyed. `conversations` has no FK to a
- * user, so orphaned ones are swept afterwards.
+ * portfolio, pins, …). Projects, payments and invoices are shared records and
+ * survive (migration 161 makes the participant columns and
+ * `project_documents.issued_by` ON DELETE SET NULL). `conversations` has no FK
+ * to a user, so orphaned ones are swept afterwards, and the person is removed
+ * from Stream Chat (best-effort, reported in the audit entry).
  *
  * Guards: an admin can't delete themselves, and can't delete another admin
  * (revoke that first through the provisioning script). Every delete is audited.
@@ -235,6 +235,9 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
         name: profile?.name ?? null,
         role: profile?.role ?? 'orphan',
         conversationsSwept: result.conversationsSwept,
+        // false = the account is gone but Stream still holds the chat user; clean up by hand.
+        streamUserRemoved: result.stream.userRemoved,
+        ...(result.stream.error ? { streamError: result.stream.error } : {}),
       },
       req,
     });

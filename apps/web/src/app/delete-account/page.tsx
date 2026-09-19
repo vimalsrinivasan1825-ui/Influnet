@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { SUPPORT_EMAIL } from "@influnet/core";
 
 /**
  * Public account-deletion page.
@@ -79,8 +80,8 @@ export default function DeleteAccountPage() {
         <h2 className="text-base font-bold text-content">Need help?</h2>
         <p className="mt-2 text-sm text-content-soft">
           If you cannot sign in, email{" "}
-          <a href="mailto:support@influnet.in" className="font-semibold text-brand hover:underline">
-            support@influnet.in
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-brand hover:underline">
+            {SUPPORT_EMAIL}
           </a>{" "}
           from the address on the account and we will confirm the deletion within two working days.
         </p>

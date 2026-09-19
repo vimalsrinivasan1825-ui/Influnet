@@ -99,3 +99,10 @@ export const BUSINESS_TYPES = [
 export const BUDGET_RANGES = [
   'Under ₹25K/month', '₹25K – ₹50K', '₹50K – ₹1L', '₹1L – ₹5L', '₹5L – ₹10L', '₹10L+', 'Other',
 ];
+
+/**
+ * The one support mailbox. influnet.io has a mail server; influnet.in does NOT
+ * (no MX record), so mail to an @influnet.in address bounces. Import this,
+ * never type the address.
+ */
+export const SUPPORT_EMAIL = 'support@influnet.io';

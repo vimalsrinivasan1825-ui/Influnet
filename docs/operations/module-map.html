@@ -620,11 +620,11 @@ var MODS = [
    checks:["A reset link opens staging.influnet.io and sets a new password","Repeated wrong passwords are rate-limited with clear wording","An expired phone session signs out once, with no request storm"]}
  ]},
  {name:"Leaving", units:[
-  {id:"acc-delete", name:"Account deletion", r:"CB", s:"WM", st:"wip",
+  {id:"acc-delete", name:"Account deletion", r:"CB", s:"WM", st:"proven",
    what:"Self-service delete from settings, with reason, active-project guard and tombstone. Shared projects now survive (161): the other party keeps the project, payments and invoices, shown as “Deleted account”.",
    where:["web /delete-account · settings","mobile settings.tsx","api DELETE /api/profile · lib/account-deletion.ts","db deleted_accounts","db 161 participant FKs SET NULL"],
-   tests:"verify-161.mjs (34/34): self-delete with a completed paid project; other party keeps project, ledger, invoice",
-   gaps:["F6: Stream user and chat history survive deletion", "mailto:support@influnet.in still shown; that domain has no mailbox"],
+   tests:"verify-161.mjs (34/34); verify-stream-delete.mjs (5/5, real Stream); account-deletion-stream.test; support-email.test",
+   gaps:[],
    checks:["After deleting, the other party still opens the shared invoice","The Stream user is gone","A tombstone row appears in admin → Deleted","The public deletion page works without the app"]}
  ]}
 ]},
@@ -800,7 +800,7 @@ var MODS = [
    what:"Block and report inside chat, filtering offensive content, and removing chat on account deletion.",
    where:["mobile conversations/[id] (block + report)","Stream moderation settings","lib/account-deletion.ts"],
    tests:"E2E phase 3 blocks",
-   gaps:["Stream moderation is off, and there's no content filter (Apple 1.2)","A deleted user's Stream account and history survive (F6)"],
+   gaps:["Stream moderation is off, and there's no content filter (Apple 1.2)"],
    checks:["Stream blocklist / moderation on for production","Blocked users can't message and don't appear","Deleting an account removes the Stream user"]}
  ]}
 ]},
