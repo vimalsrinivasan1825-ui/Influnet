@@ -78,6 +78,7 @@ import {
   VerifiedBadge,
   type SheetRef,
 } from '@/components/ui';
+import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
 
 /**
  * Same six types (and same emoji) as the web dashboard's default reaction bar
@@ -726,8 +727,8 @@ export default function ConversationScreen() {
         body:
           left > 0
             ? `You've used ${conv.used} of ${conv.limit} free project conversions — ${left} left.`
-            : `You've used all ${conv.limit} free project conversions. Upgrade to Pro for unlimited.`,
-        link: '/dashboard/billing',
+            : `You've used all ${conv.limit} free project conversions.${HIDE_PRO_PURCHASE ? '' : ' Upgrade to Pro for unlimited.'}`,
+        link: HIDE_PRO_PURCHASE ? null : '/dashboard/billing',
         receivedAt: Date.now(),
       });
     }

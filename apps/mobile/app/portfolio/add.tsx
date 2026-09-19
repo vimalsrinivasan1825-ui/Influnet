@@ -27,6 +27,7 @@ import {
   ScreenScroll,
   Txt,
 } from '@/components/ui';
+import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
 
 /**
  * Mirrors the hosts lib/portfolio-link.ts accepts, for the pre-flight hint.
@@ -188,7 +189,9 @@ export default function AddPortfolioItemScreen() {
               Free portfolio is full ({portfolioLimit} items)
             </Txt>
             <Txt variant="caption" tone="muted">
-              Remove one from your profile, or{isPro ? '' : ' upgrade to Pro to'} add more.
+              {HIDE_PRO_PURCHASE
+                ? 'Remove one from your profile to add another.'
+                : `Remove one from your profile, or${isPro ? '' : ' upgrade to Pro to'} add more.`}
             </Txt>
           </Card>
         )}

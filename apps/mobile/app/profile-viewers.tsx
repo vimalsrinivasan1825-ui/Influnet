@@ -25,6 +25,7 @@ import {
   SkeletonCard,
   Txt,
 } from '@/components/ui';
+import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
 
 interface Viewer {
   businessId: string;
@@ -95,9 +96,9 @@ export default function ProfileViewersScreen() {
               </View>
               <Txt variant="caption" tone="muted">
                 Free shows your {data.shown} most recent viewers.
-                {isPro ? '' : ' Upgrade to Pro to see everyone.'}
+                {isPro || HIDE_PRO_PURCHASE ? '' : ' Upgrade to Pro to see everyone.'}
               </Txt>
-              {!isPro && (
+              {!isPro && !HIDE_PRO_PURCHASE && (
                 <Button
                   label="Upgrade to Pro"
                   size="md"

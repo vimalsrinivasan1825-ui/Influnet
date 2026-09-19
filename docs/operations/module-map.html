@@ -994,11 +994,11 @@ var MODS = [
    tests:"No E2E phase found",
    gaps:["Off in production (SUBSCRIPTIONS_ENABLED=false); subscription webhook gap noted 27 Aug"],
    checks:["A test purchase upgrades the account on web and phone within a minute","Renewal and failure paths are handled"]},
-  {id:"bil-mobile", name:"Mobile billing screen", r:"CB", s:"M", st:"gaps",
+  {id:"bil-mobile", name:"Mobile billing screen", r:"CB", s:"M", st:"unproven",
    what:"Plan status on the phone; no purchase in store builds.",
    where:["mobile billing.tsx · lib/use-upgrade.ts","eas.json EXPO_PUBLIC_HIDE_PRO_PURCHASE"],
-   tests:"No tests",
-   gaps:["Hiding purchase is uncommitted work in progress"],
+   tests:"Typecheck + expo export; no unit tests for mobile screens",
+   gaps:["No automated test; confirm in the next store build that no price, upgrade button or checkout link shows anywhere"],
    checks:["A store build shows no price, button or link to checkout","Pro bought on the web shows as Pro on the phone"]}
  ]}
 ]},

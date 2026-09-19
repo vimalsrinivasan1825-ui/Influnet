@@ -75,6 +75,7 @@ import {
   type RawConversation,
   type RawConversationProject,
 } from '@/lib/conversations';
+import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
 
 interface ProfilePayload {
   role: string;
@@ -835,7 +836,9 @@ export default function ProfileScreen() {
                 isPro
                   ? 'Everything unlocked · manage your plan'
                   : entitlements
-                    ? 'You’re on Free — see what Pro adds'
+                    ? HIDE_PRO_PURCHASE
+                    ? 'You’re on the Free plan'
+                    : 'You’re on Free — see what Pro adds'
                     : 'View your plan'
               }
               left={
