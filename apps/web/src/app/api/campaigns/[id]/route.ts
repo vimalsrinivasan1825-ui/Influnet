@@ -4,6 +4,7 @@
  *
  * Envelope: `campaign`.
  */
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
@@ -79,6 +80,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
+
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['title', 'description', 'deliverables', 'location']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     for (const [k, v] of Object.entries(parsed.data)) {

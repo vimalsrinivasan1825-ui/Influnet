@@ -1,3 +1,4 @@
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { jsonError, parseClientHeader } from '@/lib/api';
@@ -145,6 +146,10 @@ export async function POST(req: Request) {
     }
     const termsVersion = consentVersion(payload as Record<string, unknown>);
     stripConsentFields(payload as Record<string, unknown>);
+
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(payload as Record<string, unknown>, ['name', 'bio', 'companyName', 'location', 'city']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
 
     // SECURITY: mobile verification is enforced HERE, not in the wizard UI.
     // The client sends a token minted by the phone-otp Edge Function after a

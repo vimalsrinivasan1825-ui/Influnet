@@ -1,3 +1,4 @@
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
@@ -38,6 +39,10 @@ export async function POST(req: Request) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError(400, parsed.error.issues[0]?.message ?? 'Validation failed');
     const { to_user_id, message } = parsed.data;
+
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['message']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
 
     if (to_user_id === user.id) return jsonError(400, 'You cannot send a request to yourself.');
 

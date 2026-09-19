@@ -1,3 +1,4 @@
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError, parseClientHeader } from '@/lib/api';
@@ -157,6 +158,10 @@ export async function PATCH(req: Request) {
       // Admins have no extended profile row to edit via this route
       return jsonError(403, 'Only business and influencer profiles can be updated here');
     }
+
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(validatedData, ['name', 'bio', 'company_name', 'company_description', 'contact_name', 'location', 'city']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
 
     // Base profile fields come from the validated payload only
     const { name, phone, location, creating_since, nudges_opt_out } = validatedData;

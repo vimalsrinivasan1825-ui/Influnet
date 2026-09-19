@@ -796,11 +796,11 @@ var MODS = [
    checks:["Pin order matches on web and phone","The Free limit message appears at the limit"]}
  ]},
  {name:"Safety", units:[
-  {id:"msg-safety", name:"Chat safety & moderation", r:"CBA", s:"WMP", st:"blocker",
+  {id:"msg-safety", name:"Chat safety & moderation", r:"CBA", s:"WMP", st:"gaps",
    what:"Block and report inside chat, filtering offensive content, and removing chat on account deletion.",
    where:["mobile conversations/[id] (block + report)","Stream moderation settings","lib/account-deletion.ts"],
-   tests:"E2E phase 3 blocks",
-   gaps:["Stream moderation is off, and there's no content filter (Apple 1.2)"],
+   tests:"E2E phase 3 blocks; verify-163.mjs; content-filter.test (66); verify-content-filter.mjs (18/18)",
+   gaps:["Stream's own chat moderation is still off (Stream dashboard, owner task); chat text is not covered by the server filter"],
    checks:["Stream blocklist / moderation on for production","Blocked users can't message and don't appear","Deleting an account removes the Stream user"]}
  ]}
 ]},
@@ -901,8 +901,8 @@ var MODS = [
   {id:"cmp-manage", name:"Create, publish, close", r:"B", s:"WM", st:"proven",
    what:"Write a brief, publish it, edit, close.",
    where:["web /dashboard/campaigns/new · [id]","mobile campaigns/new · campaigns/[id]","api /api/campaigns · /api/campaigns/[id]","db campaigns"],
-   tests:"E2E phase 8 C1–C6",
-   gaps:["No content filter on campaign text"],
+   tests:"E2E phase 8 C1–C6; verify-content-filter.mjs (campaign create and edit)",
+   gaps:[],
    checks:["An unapproved brand can't publish","Closing stops new applications","Offensive text is caught before publishing"]},
   {id:"cmp-review", name:"Review applicants", r:"B", s:"WM", st:"proven",
    what:"Shortlist, decline or accept applicants; accepting hands off to a request.",

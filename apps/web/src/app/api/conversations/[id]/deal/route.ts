@@ -1,3 +1,4 @@
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
@@ -236,6 +237,10 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['title', 'description', 'deliverables', 'note', 'barter_details']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
+
     const { collab_request_id, title, description, budget, advance_amount, due_date, note, flow_key, deliverables, start_date, is_barter, barter_details } = parsed.data;
 
     // Server-side validation for short flows (defence in depth with the RPC)
@@ -335,6 +340,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['note']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
+
     const { proposal_id, action, note } = parsed.data;
 
     // Accepting is what creates the project — a creator who hasn't proven

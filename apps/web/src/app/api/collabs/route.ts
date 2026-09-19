@@ -1,3 +1,4 @@
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
@@ -195,6 +196,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Validation failed', details: result.error.format() }, { status: 400 });
     }
 
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(result.data, ['project_title', 'project_description', 'message']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
+
     const { to_user_id, project_title, project_description, budget } = result.data;
 
     // A block stops contact in BOTH directions — the RLS RESTRICTIVE policy
@@ -287,7 +292,7 @@ export async function POST(req: Request) {
         return jsonError(404, 'That account no longer exists.');
       }
       if (error.code === '22P05') {
-        // Postgres rejects   in text. Reaching here means an unprintable
+        // Postgres rejects \x00 in text. Reaching here means an unprintable
         // character survived validation; tell the caller rather than 500.
         return jsonError(400, 'That message contains characters we can’t store. Please remove any unusual symbols and try again.');
       }
