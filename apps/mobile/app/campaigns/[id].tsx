@@ -17,6 +17,7 @@ import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar, Check, Heart, MapPin, MessageSquare, Users, X } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+import { maybeAskForPush } from '@/lib/push-prompt';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
@@ -177,6 +178,7 @@ export default function CampaignDetailScreen() {
       setPitch('');
       setRate('');
       refresh();
+      void maybeAskForPush('request_sent');
     }
   }
 

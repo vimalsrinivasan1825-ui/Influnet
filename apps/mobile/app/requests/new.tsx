@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/lib/theme';
+import { maybeAskForPush } from '@/lib/push-prompt';
 import { endpoints } from '@/lib/api';
 import { Button, Card, Field, KeyboardAvoider, ScreenScroll, StickyFooter, Txt } from '@/components/ui';
 
@@ -36,6 +37,8 @@ export default function NewRequest() {
       setError(res.error);
       return;
     }
+    // First-hand proof of why notifications matter: they are now waiting on a reply.
+    void maybeAskForPush('request_sent');
     router.replace('/requests');
   }
 

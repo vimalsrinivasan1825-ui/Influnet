@@ -79,6 +79,8 @@ import {
   type SheetRef,
 } from '@/components/ui';
 import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
+import { maybeAskForPush } from '@/lib/push-prompt';
+
 
 /**
  * Same six types (and same emoji) as the web dashboard's default reaction bar
@@ -713,6 +715,7 @@ export default function ConversationScreen() {
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     dealSheet.current?.close();
+    if (action === 'accept') void maybeAskForPush('project_started');
 
     // Positive confirmation of where the brand now stands on the free project
     // cap — the server only fills this in when the caller owns the new project

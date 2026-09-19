@@ -29,6 +29,7 @@ import { useSession, useSignOutAction } from '@/lib/session';
 import { SUPPORT_EMAIL } from '@influnet/core';
 import { API_BASE_URL } from '@/lib/supabase';
 import { endpoints } from '@/lib/api';
+import { getPushOsStatus, syncPushToken } from '@/lib/push';
 import {
   Button,
   Card,
@@ -116,6 +117,26 @@ export default function SettingsScreen() {
     if (!res.ok) {
       setPrefs((p) => ({ ...p, [category]: previous }));
       Alert.alert('Could not save', res.error ?? 'Please try again.');
+    }
+  }
+
+  /**
+   * This phone's notification permission. The app no longer asks on launch, so
+   * this row is the way back for anyone who tapped "Not now" (or "Don't allow"):
+   * undecided → ask now; denied → the OS will not ask again, so open its Settings.
+   */
+  const [pushStatus, setPushStatus] = useState<'undetermined' | 'granted' | 'denied' | null>(null);
+  useEffect(() => {
+    void getPushOsStatus().then(setPushStatus);
+  }, []);
+  async function onPushRow() {
+    if (pushStatus === 'denied') {
+      void Linking.openSettings();
+      return;
+    }
+    if (pushStatus === 'undetermined') {
+      await syncPushToken({ prompt: true });
+      setPushStatus(await getPushOsStatus());
     }
   }
 
@@ -255,6 +276,20 @@ export default function SettingsScreen() {
 
         <SectionLabel>Notifications</SectionLabel>
         <ListGroup>
+          {pushStatus ? (
+            <ListRow
+              title="Push notifications"
+              subtitle={
+                pushStatus === 'granted'
+                  ? 'On for this phone'
+                  : pushStatus === 'denied'
+                    ? 'Off. Open Settings to turn them on'
+                    : 'Get told when it is your move'
+              }
+              left={<Bell size={19} color={t.color.contentSoft} />}
+              onPress={pushStatus === 'granted' ? undefined : () => void onPushRow()}
+            />
+          ) : null}
           <ListRow
             title="Email"
             subtitle="Choose which emails you get"

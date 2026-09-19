@@ -815,8 +815,8 @@ var MODS = [
   {id:"ntf-push", name:"Push notifications", r:"CB", s:"MP", st:"gaps",
    what:"Expo push to APNs and FCM; device registration, open tracking.",
    where:["mobile lib/push.ts · _layout.tsx","api /api/profile/push-token","db push_devices (156)"],
-   tests:"No E2E phase found",
-   gaps:["Permission is asked at first launch, before the user knows why","Dev holds real testers' tokens, so broadcasts from dev reach real phones"],
+   tests:"push-prompt.test (20: when to ask, when never, backoff); typecheck + expo export",
+   gaps:["Dev holds real testers' tokens, so broadcasts from dev reach real phones", "The prompt flow needs one walk on a physical iPhone and Android (simulators have no push)"],
    checks:["The permission prompt comes after a meaningful moment","A sign-out removes the device token","A push arrives on a real iPhone and Android build"]},
   {id:"ntf-email", name:"Email", r:"CB", s:"WMP", st:"gaps",
    what:"Product email through Resend: templates, preferences, unsubscribe, suppression, kill switches.",
@@ -1451,6 +1451,7 @@ Help & support @app/support #set-support
 Send feedback @app/feedback #set-support
 Replay product guides @app/guides #home-guides
 Blocked accounts @app/blocked-accounts #set-block
+Push notifications — on / ask / open system settings #ntf-push
 Reminders (notification settings) #ntf-push
 Test push notifications #ntf-push
 Email preferences @app/email-preferences #ntf-email

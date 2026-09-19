@@ -17,6 +17,7 @@ import { Alert, Pressable, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Flag, Handshake } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+import { maybeAskForPush } from '@/lib/push-prompt';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
@@ -116,6 +117,8 @@ export default function CreatorDetail() {
                         r.ok
                           ? `${name ?? 'The creator'} will see your request.`
                           : r.error ?? 'Please try again.',
+                        // Ask only after the alert is dismissed, never on top of it.
+                        [{ text: 'OK', onPress: () => { if (r.ok) void maybeAskForPush('request_sent'); } }],
                       );
                     },
                   },

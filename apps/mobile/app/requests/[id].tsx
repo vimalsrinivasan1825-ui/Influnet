@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/lib/theme';
+import { maybeAskForPush } from '@/lib/push-prompt';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
@@ -88,7 +89,10 @@ export default function RequestDetail() {
 
     // Accepting opens a conversation — the deal gets negotiated there before
     // anyone commits to a project. Take the user straight to it.
-    if (status === 'accepted') router.replace('/messages');
+    if (status === 'accepted') {
+      void maybeAskForPush('request_accepted');
+      router.replace('/messages');
+    }
     else refresh();
   }
 

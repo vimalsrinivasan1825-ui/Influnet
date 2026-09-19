@@ -34,7 +34,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-async function getExpoPushToken(): Promise<string | null> {
+async function getExpoPushToken(prompt: boolean): Promise<string | null> {
   // Simulators/emulators have no push service to register with.
   if (!Device.isDevice) {
     console.warn('[push] not a physical device — push tokens are unavailable here');
@@ -56,6 +56,12 @@ async function getExpoPushToken(): Promise<string | null> {
   const existing = await Notifications.getPermissionsAsync();
   let status = existing.status;
   if (status !== 'granted') {
+    // The OS shows its permission prompt ONCE; a "Don't allow" given without
+    // context is permanent. So nothing asks here on app open: only the
+    // explanation in components/push-prompt.tsx (shown after a meaningful
+    // action) or the Settings switch passes `prompt: true`. Everyone who
+    // already granted it, and every Android below 13, still registers silently.
+    if (!prompt) return null;
     const requested = await Notifications.requestPermissionsAsync();
     status = requested.status;
   }
@@ -101,9 +107,14 @@ function deviceMeta() {
   } as const;
 }
 
-/** Registers this device's token with the server. Safe to call repeatedly — e.g. on every app open. */
-export async function syncPushToken(): Promise<void> {
-  const token = await getExpoPushToken();
+/**
+ * Registers this device's token with the server. Safe to call repeatedly — e.g.
+ * on every app open, where it is SILENT: it registers only if permission was
+ * already granted and never shows the OS prompt. Pass `{ prompt: true }` only
+ * from a screen the person chose to turn notifications on from.
+ */
+export async function syncPushToken(opts: { prompt?: boolean } = {}): Promise<void> {
+  const token = await getExpoPushToken(opts.prompt === true);
   if (!token) return;
 
   // The result was previously discarded, which hid the case where the column
@@ -175,4 +186,14 @@ export function usePushNotificationRouting(router: ImperativeRouter, ready: bool
     const subscription = Notifications.addNotificationResponseReceivedListener(handle);
     return () => subscription.remove();
   }, [ready]);
+}
+
+/** The OS-level state, reduced to what the app's rules and Settings row need. */
+export async function getPushOsStatus(): Promise<'undetermined' | 'granted' | 'denied'> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === 'granted' || status === 'denied' ? status : 'undetermined';
+  } catch {
+    return 'undetermined';
+  }
 }

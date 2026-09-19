@@ -15,6 +15,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { AppUpdateBanner } from '@/components/app-update-banner';
 import { NotificationToastHost } from '@/components/notification-toast-host';
 import { AnnouncementHost } from '@/components/announcement-host';
+import { PushPrompt } from '@/components/push-prompt';
 import { GuideRoot } from '@/components/guides/guide-root';
 import { identify, installGlobalErrorHandler, resetIdentity } from '@/lib/analytics';
 
@@ -53,7 +54,9 @@ export default function RootLayout() {
 
   // Register (or re-register) this device's push token whenever a session
   // becomes active — covers first sign-in, a later app open with a stored
-  // session, and switching accounts on the same device.
+  // session, and switching accounts on the same device. SILENT: it registers only
+  // if the person already allowed notifications and never shows the OS prompt;
+  // asking happens later, after a meaningful action (lib/push-prompt.ts).
   useEffect(() => {
     if (session) void syncPushToken();
   }, [session]);
@@ -212,6 +215,10 @@ export default function RootLayout() {
           {/* Admin broadcasts shown in-app: a banner under the header or a
               one-time pop-up (migration 157). */}
           <AnnouncementHost />
+
+          {/* The explanation shown before the OS notification prompt, only after a
+              meaningful action (lib/push-prompt.ts). Nothing asks on app open. */}
+          <PushPrompt />
 
           {/* Contextual guide auto-run + the guide modal. No-ops while signed
               out or for admins. */}
