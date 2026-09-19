@@ -164,6 +164,7 @@ export default function RootLayout() {
               <Stack.Screen name="connections" options={{ title: 'Connections' }} />
               <Stack.Screen name="settings" options={{ title: 'Settings' }} />
               <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
+              <Stack.Screen name="email-preferences" options={{ title: 'Email' }} />
               <Stack.Screen name="verification" options={{ title: 'Verify Instagram' }} />
               <Stack.Screen name="verification-guide" options={{ title: 'How to verify' }} />
               <Stack.Screen name="guides" options={{ title: 'How things work' }} />

@@ -822,7 +822,7 @@ var MODS = [
    what:"Product email through Resend: templates, preferences, unsubscribe, suppression, kill switches.",
    where:["lib/email · api /api/email/unsubscribe · /api/webhooks/resend · /api/profile/email-preferences","db email_deliveries · email_preferences · email_suppressions"],
    tests:"email.test",
-   gaps:["Bounce webhook secret missing on production","No email-preferences screen on mobile"],
+   gaps:["Bounce webhook secret missing on production (owner task)"],
    checks:["A hard bounce gets suppressed automatically","Unsubscribe works from the email without signing in","Mobile can change email preferences"]}
  ]},
  {name:"Outbound programmes", units:[
@@ -922,11 +922,11 @@ var MODS = [
 ]},
 {id:"set", name:"Settings, safety & support", why:"What the app stores check first.", areas:[
  {name:"Account settings", units:[
-  {id:"set-prefs", name:"Settings & preferences", r:"CB", s:"WM", st:"gaps",
+  {id:"set-prefs", name:"Settings & preferences", r:"CB", s:"WM", st:"unproven",
    what:"Profile settings, notification and email preferences, password.",
    where:["web /dashboard/settings","mobile settings.tsx","api /api/profile/notification-preferences · email-preferences"],
-   tests:"No E2E phase found",
-   gaps:["Mobile has no Legal section (Terms, Privacy, Refunds, Contact)","Mobile has no email preferences"],
+   tests:"Typecheck + expo export; the email-preferences API contract checked against the real endpoint (GET/PATCH round trip)",
+   gaps:["No automated test of the mobile settings screens; confirm on a device build"],
    checks:["Legal section with all four links + delete account on mobile","Every preference saved on one device shows on the other"]}
  ]},
  {name:"Trust & safety", units:[
@@ -1453,10 +1453,10 @@ Replay product guides @app/guides #home-guides
 Blocked accounts @app/blocked-accounts #set-block
 Reminders (notification settings) #ntf-push
 Test push notifications #ntf-push
+Email preferences @app/email-preferences #ntf-email
+Legal — Terms, Privacy, Refunds, Contact #set-legal
 Delete account #acc-delete
 Sign out #acc-login
-Missing: Legal — Terms, Privacy, Refunds, Contact #set-legal
-Missing: Email preferences #ntf-email`
 };
 
 var OUTLINE = `

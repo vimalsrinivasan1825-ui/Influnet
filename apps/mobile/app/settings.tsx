@@ -5,9 +5,11 @@ import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import * as WebBrowser from 'expo-web-browser';
 import {
   Bell,
   CirclePlay,
+  FileText,
   Lightbulb,
   Megaphone,
   LifeBuoy,
@@ -254,6 +256,12 @@ export default function SettingsScreen() {
         <SectionLabel>Notifications</SectionLabel>
         <ListGroup>
           <ListRow
+            title="Email"
+            subtitle="Choose which emails you get"
+            left={<Mail size={19} color={t.color.contentSoft} />}
+            onPress={() => router.push('/email-preferences')}
+          />
+          <ListRow
             title="Reminders when you're away"
             subtitle="Unread messages, projects waiting on you, new campaigns"
             left={<Bell size={19} color={t.color.contentSoft} />}
@@ -310,6 +318,19 @@ export default function SettingsScreen() {
             </Txt>
           </Card>
         ) : null}
+
+        <SectionLabel>Legal</SectionLabel>
+        <ListGroup>
+          {LEGAL_LINKS.map((doc) => (
+            <ListRow
+              key={doc.slug}
+              title={doc.title}
+              subtitle={doc.subtitle}
+              left={<FileText size={19} color={t.color.contentSoft} />}
+              onPress={() => void WebBrowser.openBrowserAsync(`${API_BASE_URL}/legal/${doc.slug}`)}
+            />
+          ))}
+        </ListGroup>
 
         <SectionLabel>Danger zone</SectionLabel>
         <ListGroup>
@@ -443,6 +464,14 @@ export default function SettingsScreen() {
 }
 
 /** Why people leave. Kept short — a long list gets skipped entirely. */
+/** The four published legal pages (apps/web/src/app/legal), opened in the in-app browser. */
+const LEGAL_LINKS: { slug: 'terms' | 'privacy' | 'refunds' | 'contact'; title: string; subtitle: string }[] = [
+  { slug: 'terms', title: 'Terms of Service', subtitle: 'The rules for using Influnet' },
+  { slug: 'privacy', title: 'Privacy Policy', subtitle: 'What we collect and why' },
+  { slug: 'refunds', title: 'Refunds & cancellations', subtitle: 'When a payment can be returned' },
+  { slug: 'contact', title: 'Contact us', subtitle: 'Reach the team' },
+];
+
 const DELETE_REASONS: { code: string; label: string }[] = [
   { code: 'not_useful', label: "It wasn't useful for me" },
   { code: 'privacy', label: 'Privacy concerns' },

@@ -57,6 +57,14 @@ export function createEndpoints(api: ApiClient) {
       push?: boolean;
       email?: boolean;
     }) => api.put<T>('/api/profile/notification-preferences', body),
+    /**
+     * Per-category EMAIL opt-outs (migration 100). Read the envelope: both calls
+     * answer `{ preferences: { collab, project, payment, message, marketing } }`,
+     * plus `migration_pending: true` on a database that predates 100.
+     */
+    emailPreferences: <T = unknown>() => api.get<T>('/api/profile/email-preferences'),
+    setEmailPreferences: <T = unknown>(body: Partial<Record<'collab' | 'project' | 'payment' | 'message' | 'marketing', boolean>>) =>
+      api.patch<T>('/api/profile/email-preferences', body),
     /** Deletes the signed-in account (with an optional reason). */
     deleteAccount: <T = unknown>(body?: { reason_code?: string; reason_text?: string }) =>
       api.del<T>('/api/profile', body),
