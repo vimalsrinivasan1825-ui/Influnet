@@ -14,7 +14,7 @@
  * applied to the creator side (see the header note on profile.tsx's
  * "Preview public profile" row for why leaving the app reads as broken).
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Linking, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -34,6 +34,7 @@ import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import { useEntitlements } from '@/lib/use-entitlements';
+import { ReportLink, ReportSheet } from '@/components/report-sheet';
 import {
   Avatar,
   Badge,
@@ -46,6 +47,7 @@ import {
   StickyFooter,
   Txt,
 } from '@/components/ui';
+import type { SheetRef } from '@/components/ui/sheet';
 
 interface BusinessProfileView {
   userId: string;
@@ -86,6 +88,7 @@ export default function BusinessDetail() {
   const { username } = useLocalSearchParams<{ username: string }>();
   const myUserId = useSession((s) => s.session?.user.id);
   const [messaging, setMessaging] = useState(false);
+  const reportSheet = useRef<SheetRef>(null);
   const [revealing, setRevealing] = useState(false);
   const [contact, setContact] = useState<{
     name: string | null;
@@ -368,9 +371,23 @@ export default function BusinessDetail() {
                 ) : null}
               </Card>
             ) : null}
+
+            {/* Report or block this brand (App Store 1.2); not on your own profile. */}
+            {biz && !isOwner ? (
+              <ReportLink name={biz.name || 'this brand'} onPress={() => reportSheet.current?.expand()} />
+            ) : null}
           </>
         )}
       </ScreenScroll>
+
+      {biz && !isOwner ? (
+        <ReportSheet
+          sheetRef={reportSheet}
+          reportedId={biz.userId}
+          reportedName={biz.name || 'this brand'}
+          context={{ kind: 'profile' }}
+        />
+      ) : null}
 
       {biz && res ? (
         <StickyFooter>

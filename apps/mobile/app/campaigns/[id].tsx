@@ -12,7 +12,7 @@
  * conversation everything downstream (terms, project, payments) already
  * knows how to run.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar, Check, Heart, MapPin, MessageSquare, Users, X } from 'lucide-react-native';
@@ -20,6 +20,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
+import { ReportLink, ReportSheet } from '@/components/report-sheet';
 import {
   Badge,
   Button,
@@ -33,6 +34,7 @@ import {
   SkeletonCard,
   Txt,
 } from '@/components/ui';
+import type { SheetRef } from '@/components/ui/sheet';
 
 interface Campaign {
   id: string;
@@ -65,6 +67,7 @@ export default function CampaignDetailScreen() {
   const myUserId = useSession((s) => s.session?.user.id);
   const role = useSession((s) => s.profile?.role ?? null);
 
+  const reportSheet = useRef<SheetRef>(null);
   const [pitch, setPitch] = useState('');
   const [rate, setRate] = useState('');
   const [applying, setApplying] = useState(false);
@@ -210,6 +213,7 @@ export default function CampaignDetailScreen() {
   }
 
   return (
+    <View style={{ flex: 1 }}>
     <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
       <View style={{ gap: t.spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: t.spacing.sm }}>
@@ -428,7 +432,22 @@ export default function CampaignDetailScreen() {
             )}
           </View>
         )}
+
+        {/* Report or block the brand that posted this campaign (App Store 1.2). */}
+        {!isOwner && campaign.business_user?.id ? (
+          <ReportLink name={campaign.business_user.name || 'this brand'} onPress={() => reportSheet.current?.expand()} />
+        ) : null}
       </View>
     </ScreenScroll>
+
+    {!isOwner && campaign.business_user?.id ? (
+      <ReportSheet
+        sheetRef={reportSheet}
+        reportedId={campaign.business_user.id}
+        reportedName={campaign.business_user.name || 'this brand'}
+        context={{ kind: 'campaign', campaignId: campaign.id }}
+      />
+    ) : null}
+    </View>
   );
 }

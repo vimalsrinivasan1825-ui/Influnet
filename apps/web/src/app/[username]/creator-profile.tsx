@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { createRSCClient } from '@/lib/supabase/server-rsc';
 import type { Metadata } from 'next';
+import { ReportButton } from '@/components/safety/report-dialog';
 import CreatorProfileViewComponent from '@/components/public-profile/creator-profile-view';
 import {
   buildCreatorProfileView,
@@ -258,14 +259,26 @@ export async function CreatorProfile({
     : { data: false };
 
   return (
-    <CreatorProfileViewComponent
-      data={viewForViewer}
-      isOwner={isOwner}
-      isPro={Boolean(ownerIsPro)}
-      ctaHref={ctaHref}
-      ctaLabel={ctaLabel}
-      collaborationStats={collaborationStats}
-      embedded={embedded}
-    />
+    <>
+      <CreatorProfileViewComponent
+        data={viewForViewer}
+        isOwner={isOwner}
+        isPro={Boolean(ownerIsPro)}
+        ctaHref={ctaHref}
+        ctaLabel={ctaLabel}
+        collaborationStats={collaborationStats}
+        embedded={embedded}
+      />
+      {/* Report or block: only for a signed-in viewer who is not the owner. The
+          app's WebView (embedded) has a native header action for this instead. */}
+      {user && !isOwner && !embedded && (
+        <ReportButton
+          variant="floating"
+          reportedId={profile.userId}
+          reportedName={viewForViewer.name || 'this creator'}
+          context={{ kind: 'profile' }}
+        />
+      )}
+    </>
   );
 }

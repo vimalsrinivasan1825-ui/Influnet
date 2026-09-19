@@ -11,7 +11,8 @@ export async function GET(req: Request) {
     const { data, error } = await supabase
       .from('user_reports')
       .select(`
-        id, reason, details, status, project_id, created_at,
+        id, reason, details, status, project_id, context, campaign_id, collab_request_id, created_at,
+        campaign:campaigns!user_reports_campaign_id_fkey(id, title),
         reporter:profiles!user_reports_reporter_id_fkey(id, name),
         reported:profiles!user_reports_reported_id_fkey(id, name, verification_status)
       `)

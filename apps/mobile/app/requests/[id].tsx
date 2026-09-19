@@ -6,6 +6,7 @@ import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { ReportLink, ReportSheet } from '@/components/report-sheet';
 import {
   Avatar,
   Badge,
@@ -47,6 +48,7 @@ export default function RequestDetail() {
   const me = useSession((s) => s.profile?.id);
 
   const acceptSheet = useRef<SheetRef>(null);
+  const reportSheet = useRef<SheetRef>(null);
   const declineSheet = useRef<SheetRef>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -59,6 +61,8 @@ export default function RequestDetail() {
   const isIncoming = collab?.to_user_id === me;
   const other = isIncoming ? collab?.sender : collab?.receiver;
   const otherName = other?.name ?? null;
+  // The embedded sender/receiver carry no id; the request's own columns do.
+  const otherId = collab ? (isIncoming ? collab.from_user_id : collab.to_user_id) : null;
   const canAct = isIncoming && collab?.status === 'pending';
   // The one path back for a creator who declined and changed their mind —
   // Discover is business-only, so this is the only way to re-initiate.
@@ -141,6 +145,9 @@ export default function RequestDetail() {
                 </Txt>
               </Card>
             ) : null}
+
+            {/* Report or block whoever this request is with (App Store 1.2). */}
+            {otherId ? <ReportLink name={otherName ?? 'this person'} onPress={() => reportSheet.current?.expand()} /> : null}
           </>
         ) : null}
       </ScreenScroll>
@@ -154,6 +161,15 @@ export default function RequestDetail() {
         <StickyFooter>
           <Button label="Changed your mind? Reopen" onPress={() => setStatus('pending')} loading={busy} />
         </StickyFooter>
+      ) : null}
+
+      {collab && otherId ? (
+        <ReportSheet
+          sheetRef={reportSheet}
+          reportedId={otherId}
+          reportedName={otherName ?? 'this person'}
+          context={{ kind: 'request', requestId: collab.id }}
+        />
       ) : null}
 
       <Sheet ref={acceptSheet} title="Accept this request?">

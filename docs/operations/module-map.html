@@ -754,11 +754,11 @@ var MODS = [
    checks:["Saved state matches on web and phone","A creator who blocks you disappears from your saved list"]}
  ]},
  {name:"Receiving", units:[
-  {id:"req-respond", name:"Accept / decline", r:"C", s:"WM", st:"gaps",
+  {id:"req-respond", name:"Accept / decline", r:"C", s:"WM", st:"proven",
    what:"The creator answers a request; accepting opens the conversation.",
    where:["web /dashboard/requests","mobile (tabs)/requests · requests/[id]","api /api/collabs/[id]"],
    tests:"E2E phase 3 accept/decline races",
-   gaps:["No report or block on the request screen (store requirement)"],
+   gaps:[],
    checks:["Report and block are available on the request detail","A decline can't be reversed into an accept","The brand is told the outcome by push"]},
   {id:"req-campaign", name:"Campaign application hand-off", r:"CB", s:"WM", st:"proven",
    what:"Accepting an application creates a normal request and opens chat.",
@@ -912,11 +912,11 @@ var MODS = [
    checks:["Each applicant is told the outcome","Shortlist state matches on web and phone"]}
  ]},
  {name:"Creator side", units:[
-  {id:"cmp-apply", name:"Browse & apply", r:"C", s:"WM", st:"gaps",
+  {id:"cmp-apply", name:"Browse & apply", r:"C", s:"WM", st:"proven",
    what:"Find open campaigns and apply; withdraw an application.",
    where:["web /dashboard/campaigns","mobile (tabs)/campaigns · campaigns/[id]","api /api/campaigns/[id]/applications"],
    tests:"E2E phase 8 C",
-   gaps:["No report or block on campaign detail (store requirement)"],
+   gaps:[],
    checks:["Report is available on every campaign","You can't apply twice","Closed campaigns say so instead of erroring"]}
  ]}
 ]},
@@ -930,11 +930,11 @@ var MODS = [
    checks:["Legal section with all four links + delete account on mobile","Every preference saved on one device shows on the other"]}
  ]},
  {name:"Trust & safety", units:[
-  {id:"set-block", name:"Block & report everywhere", r:"CBA", s:"WM", st:"blocker",
+  {id:"set-block", name:"Block & report everywhere", r:"CBA", s:"WM", st:"unproven",
    what:"Block or report a person from anywhere you meet them; admin works the queue.",
    where:["mobile blocked-accounts.tsx · project + chat screens","api /api/blocks · /api/reports","admin /dashboard/admin/reports","db user_blocks · user_reports · report_remarks"],
-   tests:"E2E phase 3 “Blocks”",
-   gaps:["Missing on creator profile, business profile, campaign detail and request detail"],
+   tests:"E2E phase 3 'Blocks'; verify-163.mjs (14/14); the four web surfaces driven in a real browser (button shown only to a signed-in non-owner, hidden in the app WebView, rows land with context)",
+   gaps:["Mobile sheets are verified by typecheck + export only; walk them on a device build", "The project and chat screens keep their older copy of the same sheet (same words, same API)", "Someone has to answer reports within 24 h (owner task)"],
    checks:["Report and block on all four missing screens, web and mobile","A report reaches admin within a minute","Blocking hides the person across every list"]},
   {id:"set-legal", name:"Legal pages", r:"CB", s:"WM", st:"blocker",
    what:"Terms, Privacy, Refunds, Contact.",
@@ -1517,7 +1517,7 @@ Web app @apps/web — Next.js in any browser; also serves every API route for we
         Accept → opens chat #req-respond
         Decline #req-respond
         Undo #req-respond
-        Missing: Report / block on a request #set-block
+        Report / block on a request #set-block
       From other creators #req-peer
       Send a request to a creator #req-peer
       Status filters — awaiting reply, in discussion, ongoing, completed, declined, cancelled #req-respond
@@ -1535,7 +1535,7 @@ Web app @apps/web — Next.js in any browser; also serves every API route for we
         Apply — pitch and rate #cmp-apply
         Your application status #cmp-apply
         Withdraw #cmp-apply
-        Missing: Report a campaign #set-block
+        Report a campaign #set-block
     Connections @/dashboard/connections #prf-conn
     My activity @/dashboard/activity #home-activity
       Requests sent · accepted · became projects · completed #home-activity
@@ -1572,7 +1572,7 @@ Web app @apps/web — Next.js in any browser; also serves every API route for we
       Creator profile overlay #prf-public
       Save / favourite a creator #req-saved
       Discover page @/dashboard/discover #prf-search — off for V1 (client decision); URL answers 404
-      Missing: Report / block on a creator profile #set-block
+      Report / block on a creator profile #set-block
     Messages @/dashboard/messages #msg-chat
       %WMSG
     Requests — sent @/dashboard/requests #req-brand
@@ -1705,13 +1705,13 @@ Mobile app @apps/mobile — one codebase for iPhone and Android
       Campaign page @app/campaigns/[id] #cmp-apply
         Submit application — pitch, proposed rate #cmp-apply
         Withdraw #cmp-apply
-        Missing: Report a campaign #set-block
+        Report a campaign #set-block
     Tab · Requests @app/(tabs)/requests #req-respond
       Request page @app/requests/[id] #req-respond
         Accept and start talking #req-respond
         Decline #req-respond
         Changed your mind? Reopen #req-respond
-        Missing: Report / block on a request #set-block
+        Report / block on a request #set-block
       Request another creator #req-peer
     Tab · Messages #msg-chat
       %MMSG
@@ -1760,7 +1760,7 @@ Mobile app @apps/mobile — one codebase for iPhone and Android
       Search @app/search #prf-search
       Creator profile — web page in the app @app/creator/[username] #prf-public
       Save a creator #req-saved
-      Missing: Report / block on a creator profile #set-block
+      Report / block on a creator profile #set-block
     Tab · Messages #msg-chat
       %MMSG
     Tab · Projects #prj-views

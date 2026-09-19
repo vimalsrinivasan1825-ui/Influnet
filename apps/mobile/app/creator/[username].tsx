@@ -12,16 +12,18 @@
  * metered on Free). Both come from /api/creators/[username], the same endpoint
  * the web overlay uses, so the gate can't be bypassed from the client.
  */
-import { useState } from 'react';
-import { Alert, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Handshake } from 'lucide-react-native';
+import { useRef, useState } from 'react';
+import { Alert, Pressable, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Flag, Handshake } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import { ProfileWebView } from '@/components/profile-web-view';
 import { Button, StickyFooter } from '@/components/ui';
+import type { SheetRef } from '@/components/ui/sheet';
+import { ReportSheet } from '@/components/report-sheet';
 
 type CtaAction = 'edit' | 'work_with_me' | 'request_sent' | 'view_project' | 'view_only';
 
@@ -41,6 +43,7 @@ export default function CreatorDetail() {
   const { username } = useLocalSearchParams<{ username: string }>();
   const myRole = useSession((s) => s.profile?.role);
   const [sendingPeer, setSendingPeer] = useState(false);
+  const reportSheet = useRef<SheetRef>(null);
 
   // Only used for the action footer — the profile itself is the WebView.
   const { data: res } = useFetch(
@@ -49,8 +52,29 @@ export default function CreatorDetail() {
   );
   const name = res?.data?.name;
 
+  const canReport = !!res && !res.isOwner && !!res.userId;
+
   return (
     <View style={{ flex: 1, backgroundColor: t.color.surface }}>
+      {/* The profile itself is a web page, so report/block lives in the native
+          header (App Store 1.2) rather than inside the WebView. */}
+      {canReport ? (
+        <Stack.Screen
+          options={{
+            headerRight: () => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Report or block ${name ?? 'this creator'}`}
+                onPress={() => reportSheet.current?.expand()}
+                hitSlop={10}
+                style={{ paddingHorizontal: 8 }}
+              >
+                <Flag size={20} color={t.color.contentSoft} />
+              </Pressable>
+            ),
+          }}
+        />
+      ) : null}
       <ProfileWebView username={username} title={name} />
 
       {/* Business viewer → work-with-me / view-project. Owner and view-only get
@@ -100,6 +124,15 @@ export default function CreatorDetail() {
             }}
           />
         </StickyFooter>
+      ) : null}
+
+      {canReport && res ? (
+        <ReportSheet
+          sheetRef={reportSheet}
+          reportedId={res.userId}
+          reportedName={name ?? 'this creator'}
+          context={{ kind: 'profile' }}
+        />
       ) : null}
     </View>
   );
