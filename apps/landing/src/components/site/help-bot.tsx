@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowUpRight, MessageSquareText, Send, X } from 'lucide-react';
+import { ArrowUpRight, Send, X } from 'lucide-react';
 import LogoMark from '@/components/brand/logo-mark';
 import { answer, byId, STARTERS, type BotAction, type BotEntry, type BotReply } from '@/lib/help-bot';
 import type { Role } from '@/lib/role';
@@ -37,10 +37,15 @@ export default function HelpBot({ role, open, onOpenChange }: { role: Role; open
 
   useEffect(() => {
     if (!open) return;
-    input.current?.focus({ preventScroll: true });
+    // After the panel has started to appear: focusing it while it is still
+    // hidden does nothing.
+    const t = window.setTimeout(() => input.current?.focus({ preventScroll: true }), 60);
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onOpenChange(false);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener('keydown', onKey);
+    };
   }, [open, onOpenChange]);
 
   function ask(text: string, entry?: BotEntry) {
@@ -81,24 +86,46 @@ export default function HelpBot({ role, open, onOpenChange }: { role: Role; open
 
   return (
     <>
+      {/* The launcher: the Influnet mark, which turns into a close button. */}
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
         aria-expanded={open}
         aria-controls="influnet-help"
         aria-label={open ? 'Close help' : 'Questions? Chat with us'}
-        className="fixed bottom-4 right-4 z-[60] flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_16px_40px_-12px_rgba(255,7,142,.8)] transition-transform hover:scale-105 sm:bottom-6 sm:right-6"
+        className="group fixed bottom-4 right-4 z-[60] flex size-14 items-center justify-center rounded-full bg-night text-white shadow-[0_16px_40px_-12px_rgba(255,7,142,.75)] ring-1 ring-white/15 transition-transform duration-300 ease-out hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
       >
-        {open ? <X className="size-6" /> : <MessageSquareText className="size-6" />}
+        <span
+          className={`absolute inset-0 flex items-center justify-center transition-[translate,scale,rotate,opacity] duration-300 ease-out ${
+            open ? 'rotate-90 scale-50 opacity-0' : 'rotate-0 scale-100 opacity-100 group-hover:rotate-45'
+          }`}
+        >
+          <LogoMark size={28} />
+        </span>
+        <span
+          className={`absolute inset-0 flex items-center justify-center transition-[translate,scale,rotate,opacity] duration-300 ease-out ${
+            open ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-50 opacity-0'
+          }`}
+        >
+          <X className="size-6" />
+        </span>
       </button>
 
-      {open && (
-        <div
-          id="influnet-help"
-          role="dialog"
-          aria-label="Influnet help"
-          className="fixed inset-x-3 bottom-[5.25rem] z-[60] flex max-h-[min(640px,calc(100dvh-7rem))] flex-col overflow-hidden rounded-[26px] bg-card text-ink shadow-[0_30px_80px_-20px_rgba(23,20,29,.45)] ring-1 ring-black/5 sm:inset-x-auto sm:bottom-24 sm:right-6 sm:w-[380px]"
-        >
+      {/* Always mounted so it can animate out as well as in. Closed, it is
+          invisible, unclickable and inert (out of the tab order and the
+          accessibility tree). */}
+      <div
+        id="influnet-help"
+        role="dialog"
+        aria-label="Influnet help"
+        aria-hidden={!open}
+        inert={!open}
+        className={`fixed inset-x-3 bottom-[5.25rem] z-[60] flex max-h-[min(640px,calc(100dvh-7rem))] origin-bottom-right flex-col overflow-hidden rounded-[26px] bg-card text-ink shadow-[0_30px_80px_-20px_rgba(23,20,29,.45)] ring-1 ring-black/5 sm:inset-x-auto sm:bottom-24 sm:right-6 sm:w-[380px] ${
+          open
+            ? 'visible translate-y-0 scale-100 opacity-100 transition-[translate,scale,rotate,opacity,visibility] duration-[380ms] ease-[cubic-bezier(.2,.9,.25,1.12)]'
+            : 'invisible pointer-events-none translate-y-4 scale-[0.92] opacity-0 transition-[translate,scale,rotate,opacity,visibility] duration-200 ease-in'
+        }`}
+      >
           <div className="flex items-center gap-3 bg-night px-5 py-4 text-white">
             <span className="flex size-10 items-center justify-center rounded-full bg-white/10">
               <LogoMark size={20} />
@@ -120,18 +147,23 @@ export default function HelpBot({ role, open, onOpenChange }: { role: Role; open
           <div ref={log} data-lenis-prevent aria-live="polite" className="flex-1 space-y-3 overflow-y-auto overscroll-contain bg-paper px-4 py-5">
             {msgs.map((m) =>
               m.from === 'user' ? (
-                <div key={m.id} className="flex justify-end">
+                <div key={m.id} className="flex animate-[msg-in_.28s_ease-out] justify-end">
                   <p className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-[14.5px] leading-snug text-white">
                     {m.text}
                   </p>
                 </div>
               ) : (
-                <div key={m.id} className="space-y-2.5">
-                  <p className="max-w-[92%] rounded-2xl rounded-bl-md bg-card px-4 py-3 text-[14.5px] leading-relaxed ring-1 ring-line">
-                    {m.text}
-                  </p>
+                <div key={m.id} className="animate-[msg-in_.32s_ease-out] space-y-2.5">
+                  <div className="flex items-end gap-2">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-night">
+                      <LogoMark size={14} />
+                    </span>
+                    <p className="max-w-[85%] rounded-2xl rounded-bl-md bg-card px-4 py-3 text-[14.5px] leading-relaxed ring-1 ring-line">
+                      {m.text}
+                    </p>
+                  </div>
                   {m.actions?.length ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 pl-9">
                       {m.actions.map((a) => (
                         <a
                           key={a.label}
@@ -145,7 +177,7 @@ export default function HelpBot({ role, open, onOpenChange }: { role: Role; open
                     </div>
                   ) : null}
                   {m.chips?.length ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 pl-9">
                       {m.chips.map((c) => (
                         <button
                           key={c.id}
@@ -162,7 +194,7 @@ export default function HelpBot({ role, open, onOpenChange }: { role: Role; open
               ),
             )}
             {typing && (
-              <div className="flex w-16 items-center justify-center gap-1 rounded-2xl rounded-bl-md bg-card py-3.5 ring-1 ring-line" aria-label="Typing">
+              <div className="ml-9 flex w-16 animate-[msg-in_.28s_ease-out] items-center justify-center gap-1 rounded-2xl rounded-bl-md bg-card py-3.5 ring-1 ring-line" aria-label="Typing">
                 {[0, 1, 2].map((i) => (
                   <span key={i} className="size-1.5 animate-bounce rounded-full bg-muted" style={{ animationDelay: `${i * 120}ms` }} />
                 ))}
@@ -178,7 +210,7 @@ export default function HelpBot({ role, open, onOpenChange }: { role: Role; open
               maxLength={200}
               placeholder="Ask about payments, verification, the app…"
               aria-label="Your question"
-              className="h-11 min-w-0 flex-1 rounded-full bg-paper-deep px-4 text-[14.5px] outline-none placeholder:text-muted focus:ring-[1.5px] focus:ring-brand"
+              className="h-11 min-w-0 flex-1 rounded-full bg-paper-deep px-4 text-[14.5px] outline-none! placeholder:text-muted focus:ring-[1.5px] focus:ring-brand"
             />
             <button
               type="submit"
@@ -189,8 +221,7 @@ export default function HelpBot({ role, open, onOpenChange }: { role: Role; open
               <Send className="size-[18px]" />
             </button>
           </form>
-        </div>
-      )}
+      </div>
     </>
   );
 }
