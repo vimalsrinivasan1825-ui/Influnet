@@ -50,11 +50,11 @@ const CREATOR_CARDS = [
   {
     id: '01',
     title: 'Get Discovered by the Right Brands',
-    description: 'Create your verified profile and get matched with brands that align with your content and audience values.',
+    description: 'Create a verified profile brands can find, and apply to open campaigns from brands looking for creators like you.',
     bullets: [
-      'Smart brand matching engine',
-      'Verified creator badge builds instant trust',
-      'Increase inbound sponsorship opportunities'
+      'Apply to open brand campaigns',
+      'Verified badge after an Instagram ownership check',
+      'See which businesses viewed your profile'
     ],
     accent: 'from-purple-500 to-pink-500',
     mockupType: 'profile'
@@ -74,23 +74,23 @@ const CREATOR_CARDS = [
   {
     id: '03',
     title: 'Work with Clear Agreements',
-    description: 'Protect your creative freedom with transparent deliverables, timeline schedules, and secure payout terms.',
+    description: 'Protect your creative freedom with clear deliverables, timelines and payment terms that both sides agree before work starts.',
     bullets: [
       'Pre-approved briefs & deliverables',
-      'One-click smart digital contracts',
-      'Zero scope creep or verbal confusion'
+      'Terms both sides agree in writing',
+      'No more promises lost in DMs'
     ],
     accent: 'from-indigo-500 to-blue-500',
     mockupType: 'contract'
   },
   {
     id: '04',
-    title: 'Get Paid On Time, Every Time',
-    description: 'Never chase brands for invoices. Enjoy automatic milestone releases and 100% payment security.',
+    title: 'Paid Work, Not Payment Promises',
+    description: 'The brand pays the agreed advance through Razorpay before content planning starts, and every payment is recorded on the project.',
     bullets: [
-      'Escrow budget funding transparency',
-      'Automated payouts upon work completion',
-      'Direct secure bank disbursements'
+      'Advance paid before the work moves forward',
+      'Amounts fixed by the agreed terms',
+      'Invoices and receipts for every project'
     ],
     accent: 'from-blue-600 to-teal-500',
     mockupType: 'payments'
@@ -98,11 +98,11 @@ const CREATOR_CARDS = [
   {
     id: '05',
     title: 'Track Your Growth & Performance',
-    description: 'Consolidate analytics metrics from all your linked social accounts into one premium creator report.',
+    description: 'Bring your linked social accounts into one profile that shows brands your reach before the first message.',
     bullets: [
-      'Real-time reach & engagement stats',
-      'Historical channel growth timelines',
-      'Exportable verification logs for pitches'
+      'Instagram, YouTube, Facebook, X and Snapchat in one place',
+      'Reach and engagement from your linked accounts',
+      'Share your profile like a digital visiting card'
     ],
     accent: 'from-teal-500 to-emerald-500',
     mockupType: 'analytics'
@@ -110,11 +110,11 @@ const CREATOR_CARDS = [
   {
     id: '06',
     title: 'Build Your Creator Brand & Reputation',
-    description: 'Showcase your portfolio deliverables, collect client feedback, and stand out on the platform feed.',
+    description: 'Showcase your past work, collect reviews from brands you have worked with, and let your track record do the pitching.',
     bullets: [
-      'Featured highlight portfolio showcases',
-      'Verified platform client reviews',
-      'Continuous reputation score growth'
+      'Portfolio of past collaborations',
+      'Reviews from completed projects only',
+      'Collaboration history brands can see'
     ],
     accent: 'from-emerald-500 to-yellow-500',
     mockupType: 'reviews'
@@ -228,18 +228,18 @@ function MockupPayments() {
     <div className="w-full bg-slate-50 rounded-2xl border border-gray-155 p-5 font-sans text-xs flex flex-col justify-between h-full min-h-[260px] shadow-inner">
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
-          <span className="font-extrabold text-gray-800">Payments Ledger</span>
-          <span className="text-[8px] font-bold text-gray-400">Escrow Protected</span>
+          <span className="font-extrabold text-gray-800">Project Payments</span>
+          <span className="text-[8px] font-bold text-gray-400">Via Razorpay</span>
         </div>
         <div className="bg-purple-600 bg-[var(--ink)] text-white p-3 rounded-xl border border-purple-500/10 shadow mb-3 text-center">
-          <div className="text-[8px] text-purple-200 font-bold uppercase">Balance Withdrawn</div>
+          <div className="text-[8px] text-purple-200 font-bold uppercase">Total Paid</div>
           <div className="text-sm font-bold mt-0.5">₹3,45,000</div>
         </div>
         <div className="space-y-2">
           {[
             { label: 'FitLife Brands', type: 'Paid', amt: '₹50,000', labelClass: 'bg-green-50 text-green-700' },
             { label: 'Glow Skincare', type: 'Paid', amt: '₹40,000', labelClass: 'bg-green-50 text-green-700' },
-            { label: 'Urbanic', type: 'In Escrow', amt: '₹35,000', labelClass: 'bg-amber-50 text-amber-700 animate-pulse' }
+            { label: 'Urbanic', type: 'Due', amt: '₹35,000', labelClass: 'bg-amber-50 text-amber-700 animate-pulse' }
           ].map((tx, idx) => (
             <div key={idx} className="bg-white p-2 rounded-lg border border-gray-100 flex justify-between items-center shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
               <div>

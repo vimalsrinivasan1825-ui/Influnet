@@ -48,13 +48,13 @@ const STEPS: StepData[] = [
   {
     number: 6,
     title: 'Payment',
-    description: 'Business approves the submitted deliverables, releasing payment securely from escrow to the creator.',
+    description: 'Business approves the submitted deliverables, and pays the agreed final amount through Razorpay before the project can complete.',
     focus: 'business'
   },
   {
     number: 7,
     title: 'Completed',
-    description: 'The campaign completes. Both review final reach metrics, analytics, and payouts in their dashboard.',
+    description: 'The campaign completes. Both review final reach, the payment record, and leave each other a review.',
     focus: 'both'
   }
 ];
@@ -313,8 +313,8 @@ function BusinessPayment({ focused }: { focused: boolean }) {
             </svg>
           </div>
         </div>
-        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Release Payment</h3>
-        <p className={`text-sm mb-5 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Approve final deliverables and release funds.</p>
+        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Pay Final Amount</h3>
+        <p className={`text-sm mb-5 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Approve final deliverables and pay the agreed amount.</p>
         
         <div className={`p-4 border rounded-2xl mb-5 flex items-center justify-between transition-all duration-300 ${
           focused ? 'bg-gray-50 border-gray-100' : 'bg-gray-50/50 border-gray-100/60'
@@ -338,7 +338,7 @@ function BusinessPayment({ focused }: { focused: boolean }) {
       <button className={`w-full mt-6 font-extrabold text-sm py-4 rounded-2xl transition-all duration-300 ${
         focused ? 'bg-pink-500 hover:bg-pink-600 text-white shadow-md active:scale-[0.98]' : 'bg-gray-100 text-gray-500'
       }`}>
-        Release Payment
+        Pay via Razorpay
       </button>
     </div>
   );
@@ -360,7 +360,7 @@ function BusinessCompleted({ focused }: { focused: boolean }) {
             </svg>
           </div>
         </div>
-        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Campaign ROI</h3>
+        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Campaign Reach</h3>
         <p className={`text-sm mb-6 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Track campaign performance and overall reach.</p>
         
         <div className="grid grid-cols-2 gap-3 mb-5">
@@ -618,7 +618,7 @@ function CreatorPayment({ focused }: { focused: boolean }) {
       <div>
         <div className="flex items-center justify-between mb-5">
           <span className={`text-xs font-bold tracking-widest uppercase transition-colors duration-300 ${focused ? 'text-purple-600' : 'text-gray-500'}`}>
-            Step 6: Payout
+            Step 6: Payment
           </span>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${focused ? 'bg-green-50' : 'bg-gray-50'}`}>
             <svg className={`w-5 h-5 transition-colors duration-300 ${focused ? 'text-green-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -626,8 +626,8 @@ function CreatorPayment({ focused }: { focused: boolean }) {
             </svg>
           </div>
         </div>
-        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Payment Received</h3>
-        <p className={`text-sm mb-6 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Influencer receives payment securely.</p>
+        <h3 className={`text-2xl font-extrabold transition-colors duration-300 ${focused ? 'text-gray-900' : 'text-gray-700'}`}>Payment Confirmed</h3>
+        <p className={`text-sm mb-6 leading-relaxed transition-colors duration-300 ${focused ? 'text-gray-400' : 'text-gray-500'}`}>Influencer sees the brand&apos;s payment confirmed.</p>
         
         <div className={`p-5 rounded-2xl border transition-all duration-300 ${focused ? 'bg-green-50 border-green-100' : 'bg-green-50/40 border-green-100/60'}`}>
           <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${focused ? 'bg-green-100' : 'bg-green-100/80'}`}>
@@ -635,9 +635,9 @@ function CreatorPayment({ focused }: { focused: boolean }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4" />
             </svg>
           </div>
-          <div className={`text-sm font-extrabold mb-1.5 transition-colors duration-300 ${focused ? 'text-green-800' : 'text-green-905'}`}>Payment Received!</div>
+          <div className={`text-sm font-extrabold mb-1.5 transition-colors duration-300 ${focused ? 'text-green-800' : 'text-green-905'}`}>Payment Confirmed!</div>
           <p className={`text-xs leading-relaxed font-medium transition-colors duration-300 ${focused ? 'text-green-600' : 'text-green-700'}`}>
-            ₹50,000 has been credited to your account. Payout completed.
+            The brand paid ₹50,000 for this project. It&apos;s on the record.
           </p>
         </div>
       </div>

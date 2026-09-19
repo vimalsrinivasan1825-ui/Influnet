@@ -99,7 +99,7 @@ export default function Cta() {
             href={`${process.env.NEXT_PUBLIC_APP_URL}/login`}
             className="w-full sm:w-auto min-w-[12rem] h-14 flex items-center justify-center px-8 rounded-2xl text-base font-bold !text-white border border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
           >
-            Book a Demo
+            Log in
           </Link>
         </div>
       </div>

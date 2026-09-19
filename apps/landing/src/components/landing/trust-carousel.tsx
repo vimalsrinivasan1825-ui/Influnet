@@ -6,51 +6,51 @@ import { motion } from 'framer-motion';
 const TRUST_CARDS = [
   {
     id: '01',
-    tag: 'Transparency & Logging',
-    title: 'Every collaboration is fully recorded.',
-    description: 'Chats, contracts, milestones, and sign-offs are locked in a secure audit ledger.',
-    statValue: '100%',
-    statLabel: 'Tracked & Logged',
+    tag: 'Shared Record',
+    title: 'Every step is on the record.',
+    description: 'Agreed terms, stage sign-offs and payments are recorded on the project, so the brand and the creator always see the same history.',
+    statValue: '12',
+    statLabel: 'Tracked Stages',
     accent: 'from-pink-500 to-rose-500',
     mockupType: 'logging'
   },
   {
     id: '02',
-    tag: 'Escrow Payments',
-    title: 'Milestone protection keeps your money safe.',
-    description: 'Funds are secured in escrow before work begins and released upon campaign milestone approval.',
-    statValue: '100%',
-    statLabel: 'Secure Transactions',
+    tag: 'Payment Gates',
+    title: 'Payments are confirmed, not promised.',
+    description: 'The brand pays the agreed advance and final amounts through Razorpay. A project cannot move past a payment stage until that payment is confirmed.',
+    statValue: '2',
+    statLabel: 'Payment Gates',
     accent: 'from-purple-600 to-indigo-600',
     mockupType: 'escrow'
   },
   {
     id: '03',
-    tag: 'Identity Verification',
-    title: 'Advanced verification keeps our network authentic.',
-    description: 'Creators undergo government ID verification, social validation, and quality audits.',
-    statValue: '98%+',
-    statLabel: 'Verified Creators',
+    tag: 'Creator Verification',
+    title: 'Proof they own the account.',
+    description: 'Creators prove ownership by adding a one-time code to their Instagram bio. The Verified badge appears only after that check passes.',
+    statValue: 'Bio code',
+    statLabel: 'Ownership Check',
     accent: 'from-blue-500 to-cyan-500',
     mockupType: 'creator'
   },
   {
     id: '04',
-    tag: 'Company Verification',
-    title: 'Only validated brands can hire creators.',
-    description: 'Brands are verified using tax identifiers, registration checks, and company domains.',
-    statValue: '99%+',
-    statLabel: 'Verified Businesses',
+    tag: 'Business Review',
+    title: 'Every brand is reviewed by our team.',
+    description: 'Businesses are reviewed before they can publish campaigns. Until approved, creators see an "unverified" label on their requests.',
+    statValue: 'Manual',
+    statLabel: 'Team Review',
     accent: 'from-emerald-500 to-teal-500',
     mockupType: 'business'
   },
   {
     id: '05',
-    tag: 'Live Metrics',
-    title: 'Track platform trust metrics in real-time.',
-    description: 'Explore live collaboration counts, secure payments, and global operational uptime.',
-    statValue: '99.99%',
-    statLabel: 'System Uptime',
+    tag: 'Real Reviews',
+    title: 'Reviews only come from finished work.',
+    description: 'Brands and creators can review each other only after a project is completed on Influnet, so every rating is tied to a real collaboration.',
+    statValue: 'Completed',
+    statLabel: 'Projects Only',
     accent: 'from-amber-500 to-orange-500',
     mockupType: 'metrics'
   }
@@ -85,7 +85,7 @@ function LoggingMockup() {
     >
       <div>
         <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
-          <span className="text-[9px] uppercase font-bold tracking-widest text-gray-400">Ledger Index</span>
+          <span className="text-[9px] uppercase font-bold tracking-widest text-gray-400">Project Record</span>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
         </div>
         
@@ -95,8 +95,8 @@ function LoggingMockup() {
             <span className="text-[8px] bg-emerald-55 text-emerald-600 px-1.5 py-0.5 rounded font-bold border border-emerald-100">Locked</span>
           </motion.div>
           <motion.div variants={itemVariants} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-gray-100">
-            <span className="text-[10px] text-gray-700 font-bold">Smart Contract</span>
-            <span className="text-[8px] bg-emerald-55 text-emerald-600 px-1.5 py-0.5 rounded font-bold border border-emerald-100">Verified</span>
+            <span className="text-[10px] text-gray-700 font-bold">Agreed Terms</span>
+            <span className="text-[8px] bg-emerald-55 text-emerald-600 px-1.5 py-0.5 rounded font-bold border border-emerald-100">Signed</span>
           </motion.div>
         </div>
       </div>
@@ -109,7 +109,7 @@ function LoggingMockup() {
   );
 }
 
-// Card 2: Escrow protection (DARK THEMED credit card)
+// Card 2: Payment gate (DARK THEMED credit card)
 function EscrowMockup() {
   return (
     <motion.div 
@@ -122,8 +122,8 @@ function EscrowMockup() {
 
       <div className="flex justify-between items-start">
         <div>
-          <span className="text-[8px] uppercase tracking-wider text-indigo-400 font-bold">Influnet Pay</span>
-          <div className="text-[10px] text-slate-300 font-bold mt-0.5">Escrow Protected</div>
+          <span className="text-[8px] uppercase tracking-wider text-indigo-400 font-bold">Advance Payment</span>
+          <div className="text-[10px] text-slate-300 font-bold mt-0.5">Paid via Razorpay</div>
         </div>
         {/* Golden Microchip */}
         <motion.div 
@@ -136,7 +136,7 @@ function EscrowMockup() {
       </div>
 
       <div className="my-auto py-2">
-        <div className="text-[8px] uppercase tracking-wider text-slate-455 font-bold">Locked Funds</div>
+        <div className="text-[8px] uppercase tracking-wider text-slate-455 font-bold">Agreed Amount</div>
         <div className="text-xl font-bold tracking-tight text-white mt-0.5">₹75,000</div>
       </div>
 
@@ -144,7 +144,7 @@ function EscrowMockup() {
         <span>•••• 9285</span>
         <span className="flex items-center gap-1 text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/10">
           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
-          Active Escrow
+          Confirmed
         </span>
       </div>
     </motion.div>
@@ -162,7 +162,7 @@ function CreatorMockup() {
     >
       {/* Top Banner Verification Badge */}
       <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
-        <span className="text-[9px] uppercase font-bold tracking-widest text-gray-400">ID Verification</span>
+        <span className="text-[9px] uppercase font-bold tracking-widest text-gray-400">Ownership Check</span>
         <span className="text-[8px] bg-purple-50 text-purple-600 border border-purple-100 px-2 py-0.5 rounded-full font-bold">Passed</span>
       </div>
 
@@ -177,7 +177,7 @@ function CreatorMockup() {
           <div className="font-bold text-gray-900 text-sm">Amara Watson</div>
           <div className="text-[10px] text-gray-400 font-semibold">@amara.lifestyle</div>
           <div className="text-[8px] bg-slate-50 border border-gray-100 rounded px-1.5 py-0.5 mt-1.5 inline-block text-gray-500 font-bold">
-            Audience Engagement Audit: 9.2%
+            Bio code matched
           </div>
         </div>
       </div>
@@ -228,30 +228,30 @@ function BusinessMockup() {
     >
       {/* Top Banner Verification Badge */}
       <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-2">
-        <span className="text-[9px] uppercase font-bold tracking-widest text-gray-400">Brand Authenticity</span>
-        <span className="text-[8px] bg-emerald-55 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full font-bold">Verified</span>
+        <span className="text-[9px] uppercase font-bold tracking-widest text-gray-400">Business Review</span>
+        <span className="text-[8px] bg-emerald-55 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full font-bold">Approved</span>
       </div>
 
       <div className="my-auto space-y-2.5">
         <motion.div variants={itemVariants} className="flex justify-between items-center bg-slate-50/50 p-2 rounded-lg border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
-          <span className="text-[10px] text-gray-500 font-semibold">GSTIN Registry Status</span>
-          <span className="text-[8px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Authorized</span>
+          <span className="text-[10px] text-gray-500 font-semibold">Reviewed by</span>
+          <span className="text-[8px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Influnet team</span>
         </motion.div>
         <motion.div variants={itemVariants} className="flex justify-between items-center bg-slate-50/50 p-2 rounded-lg border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
-          <span className="text-[10px] text-gray-500 font-semibold">Domain Ownership</span>
-          <span className="text-[8px] text-gray-800 font-bold">https://fitlife.com</span>
+          <span className="text-[10px] text-gray-500 font-semibold">Campaigns</span>
+          <span className="text-[8px] text-gray-800 font-bold">Can publish</span>
         </motion.div>
       </div>
 
       <div className="flex justify-between items-center border-t border-gray-100 pt-2 text-[8px] text-gray-400 font-bold">
-        <span>EMPLOYER ID: #BR-88301</span>
+        <span>BUSINESS ID: #BR-88301</span>
         <span className="text-emerald-600 font-bold">Approved ✓</span>
       </div>
     </motion.div>
   );
 }
 
-// Card 5: Live Metrics Monitor Dashboard (RESTORED DARK THEMED - Exactly as first version with glowing green bars growing animation)
+// Card 5: Completed-project reviews (RESTORED DARK THEMED - Exactly as first version with glowing green bars growing animation)
 function MetricsMockup() {
   return (
     <motion.div 
@@ -262,18 +262,18 @@ function MetricsMockup() {
     >
       <div>
         <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-          <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400">System Monitoring</span>
-          <span className="text-[8px] bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold">All OK</span>
+          <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400">Project Reviews</span>
+          <span className="text-[8px] bg-emerald-500/25 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold">Completed</span>
         </div>
 
         <div className="flex justify-between items-end my-1">
           <div>
-            <div className="text-[8px] uppercase tracking-wider text-slate-500 font-bold">Platform Uptime</div>
-            <div className="text-lg font-bold text-white mt-0.5">99.991%</div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500 font-bold">Average Rating</div>
+            <div className="text-lg font-bold text-white mt-0.5">4.8 ★</div>
           </div>
           <div className="text-right">
-            <div className="text-[8px] uppercase tracking-wider text-slate-500 font-bold">Response Time</div>
-            <div className="text-[10px] font-bold text-slate-200 mt-0.5">42ms</div>
+            <div className="text-[8px] uppercase tracking-wider text-slate-500 font-bold">Reviews</div>
+            <div className="text-[10px] font-bold text-slate-200 mt-0.5">24</div>
           </div>
         </div>
       </div>
