@@ -15,14 +15,16 @@ const ROWS = [
 ];
 
 const BEATS = [
-  { k: '01', title: 'How many DMs did you get today?', body: 'Greetings. Spam. Friends. "hi". Follow-back requests. Your inbox was never built for business.' },
-  { k: '02', title: 'Somewhere in there is a real brand.', body: 'A genuine paid collaboration, sitting between a "good morning" and a bot selling followers.' },
-  { k: '03', title: 'By the time you find it, they may have moved on.', body: "Brands reach out to several creators at once. Replying to every DM and email the moment it lands isn't your job." },
-  { k: '04', title: 'Influnet pulls it out of the noise.', body: 'Brands reach you through your Influnet profile instead. Every request arrives in one place, with who they are and what they want.' },
+  { k: '01', label: 'The inbox', title: 'How many DMs did you get today?', body: 'Greetings. Spam. Friends. "hi". Follow-back requests. Your inbox was never built for business.' },
+  { k: '02', label: 'The brand', title: 'Somewhere in there is a real brand.', body: 'A genuine paid collaboration, sitting between a "good morning" and a bot selling followers.' },
+  { k: '03', label: 'Too late', title: 'By the time you find it, they may have moved on.', body: "Brands reach out to several creators at once. Replying to every DM and email the moment it lands isn't your job." },
+  { k: '04', label: 'Influnet', title: 'Influnet pulls it out of the noise.', body: 'Brands reach you through your Influnet profile instead. Every request arrives in one place, with who they are and what they want.' },
 ];
 
 export default function DmStory() {
   const root = useRef<HTMLElement>(null);
+  // The desktop film, so a click on a step can jump to it; and where each step starts.
+  const film = useRef<{ tl: gsap.core.Timeline; starts: number[] } | null>(null);
 
   useGSAP(
     () => {
@@ -94,7 +96,44 @@ export default function DmStory() {
       const trigger = { trigger: q('[data-dm-stage]')[0], start: 'top 60%', end: 'bottom 20%', toggleActions: 'play pause resume pause' };
       const mm = gsap.matchMedia();
       mm.add('(min-width: 1024px)', () => {
-        shots(gsap.timeline({ repeat: -1, repeatDelay: 0.3, defaults: { duration: 0.7 }, scrollTrigger: trigger }), true);
+        const tl = shots(gsap.timeline({ repeat: -1, repeatDelay: 0.3, defaults: { duration: 0.7 }, scrollTrigger: trigger }), true);
+
+        // The progress bar: each step's bar fills while its beat is on screen, and
+        // its number lights up. Worked out from the film's own playhead on every
+        // update, rather than tweened alongside it, so seeking to a step or the
+        // loop restarting can never leave it out of step with what is playing.
+        const end = tl.duration();
+        // A step starts when its words start to appear: each beat change first
+        // fades the old one out for 0.5s (see beat() above).
+        const starts = [0, tl.labels.find + 0.5, tl.labels.late + 0.5, tl.labels.pull + 0.5];
+        const fills = q('[data-dm-fill]');
+        const steps = q('[data-dm-step]');
+        let active = -1;
+        const paint = () => {
+          const t = tl.time();
+          starts.forEach((start, i) => {
+            const stop = starts[i + 1] ?? end;
+            const v = Math.min(1, Math.max(0, (t - start) / (stop - start)));
+            fills[i].style.transform = `scaleX(${v})`;
+          });
+          let now = 0;
+          starts.forEach((start, i) => {
+            if (t >= start) now = i;
+          });
+          if (now !== active) {
+            active = now;
+            steps.forEach((el, i) => {
+              el.style.setProperty('--on', i === now ? '1' : '0');
+              el.setAttribute('aria-current', i === now ? 'step' : 'false');
+            });
+          }
+        };
+        tl.eventCallback('onUpdate', paint);
+        paint();
+        film.current = { tl, starts };
+        return () => {
+          film.current = null;
+        };
       });
       mm.add('(max-width: 1023px)', () => {
         shots(gsap.timeline({ repeat: -1, repeatDelay: 0.3, scrollTrigger: trigger }), false);
@@ -109,10 +148,46 @@ export default function DmStory() {
       <div data-dm-stage className="mx-auto grid max-w-[1320px] items-center gap-12 px-4 py-24 sm:px-8 lg:h-[100svh] lg:grid-cols-2 lg:gap-16 lg:py-0">
         <div className="flex flex-col gap-6">
           <div className="font-mono text-xs uppercase tracking-[0.16em] text-ink-soft">[ The problem ]</div>
+
+          {/* Desktop: the story plays one beat at a time, so a progress bar shows
+              there are four and which one is on screen. Each step jumps to its beat. */}
+          <div className="hidden grid-cols-4 gap-3 lg:mb-4 lg:grid" role="group" aria-label="The problem, in four steps">
+            {BEATS.map((b, i) => (
+              <button
+                key={b.k}
+                type="button"
+                data-dm-step
+                aria-label={`Step ${i + 1} of ${BEATS.length}: ${b.label}`}
+                onClick={() => {
+                  const f = film.current;
+                  if (!f) return;
+                  f.tl.seek(f.starts[i] + 0.01).play();
+                }}
+                className="group flex flex-col items-start gap-2 text-left [--on:0]"
+                style={{ ['--on' as string]: i === 0 ? 1 : 0 }}
+              >
+                <span className="flex items-baseline gap-2">
+                  <span className="font-display text-[44px] font-bold leading-none tracking-[-0.04em] text-ink tabular-nums opacity-[calc(0.22+var(--on)*0.78)] transition-opacity duration-300 group-hover:opacity-100">
+                    {b.k}
+                  </span>
+                  <span className="text-[13px] font-semibold text-ink-soft opacity-[calc(0.5+var(--on)*0.5)] transition-opacity duration-300">
+                    {b.label}
+                  </span>
+                </span>
+                <span className="relative h-[3px] w-full overflow-hidden rounded-full bg-line">
+                  {/* Starts empty via transform, the same property the film writes to.
+                      (A scale-x-0 class would set the separate `scale` property,
+                      which multiplies with it and keeps the bar at zero.) */}
+                  <span data-dm-fill className="absolute inset-0 origin-left rounded-full bg-brand" style={{ transform: 'scaleX(0)' }} />
+                </span>
+              </button>
+            ))}
+          </div>
+
           <div className="relative flex flex-col gap-10 lg:h-[300px] lg:gap-0">
             {BEATS.map((b) => (
               <div key={b.k} data-dm-beat className="flex flex-col gap-4 lg:absolute lg:inset-x-0 lg:top-0">
-                <span className="font-mono text-sm text-brand-deep">{b.k}</span>
+                <span className="font-display text-5xl font-bold leading-none tracking-[-0.04em] text-brand lg:hidden">{b.k}</span>
                 <h2 className="font-display text-4xl font-bold leading-[1.02] tracking-[-0.035em] sm:text-5xl xl:text-[56px]">
                   {b.title}
                 </h2>
