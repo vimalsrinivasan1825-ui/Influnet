@@ -68,7 +68,7 @@ jobs:
       # returns. Nothing in this repo changed; the deploy just stopped working.
       # Bump this on purpose, after checking a run passes.
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           version: 2.111.0
 
