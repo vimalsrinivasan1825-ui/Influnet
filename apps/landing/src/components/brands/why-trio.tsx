@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { BadgeCheck, FolderKanban, Lock, LockOpen, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, FolderKanban, Link2, Lock, LockOpen, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { gsap, SplitText, useGSAP, prefersReducedMotion } from '@/components/motion/gsap';
 
 type Card = { n: string; title: string; body: string; icon: LucideIcon; from: string; to: string };
@@ -10,7 +10,7 @@ const CARDS: Card[] = [
   {
     n: '01',
     title: 'Real creators',
-    body: 'Creators prove they own their Instagram with a one-time bio code. Their numbers come from public profiles, not a form.',
+    body: 'Creators put their Influnet profile link in their Instagram bio. That link proves the account is theirs and is how you reach them. Their numbers come from public profiles, not a form.',
     icon: BadgeCheck,
     from: '#ff2d9b',
     to: '#b01e6c',
@@ -33,15 +33,23 @@ const CARDS: Card[] = [
   },
 ];
 
+// A creator's Instagram bio with their Influnet profile link in it: the link is
+// what verification looks for (apps/web lib/verification-ownership.ts), and
+// the same link is how a brand reaches them.
 function VisualVerify() {
   return (
     <div className="flex flex-col gap-2.5">
-      <div className="relative overflow-hidden rounded-xl bg-white/15 px-3 py-2.5 font-mono text-sm">
-        Bio: <span className="font-semibold">INF-4821</span>
+      <div className="relative overflow-hidden rounded-xl bg-white/15 px-3 py-2.5 text-sm">
+        <span className="block font-semibold">@arjun.eats</span>
+        <span className="block text-white/75">Food · Bengaluru</span>
+        <span className="mt-0.5 flex items-center gap-1.5 font-semibold">
+          <Link2 className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+          influnet.io/arjun.eats
+        </span>
         <span data-v1-scan className="absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
       </div>
       <div data-v1-ok className="flex items-center gap-2 self-start rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#0b7a55]">
-        <BadgeCheck className="h-3.5 w-3.5" strokeWidth={2.6} aria-hidden /> Matched · Verified
+        <BadgeCheck className="h-3.5 w-3.5" strokeWidth={2.6} aria-hidden /> Link found · Verified
       </div>
     </div>
   );

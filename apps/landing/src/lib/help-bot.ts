@@ -51,7 +51,7 @@ export const ENTRIES: BotEntry[] = [
   {
     id: 'start-creator',
     q: 'How do I get started?',
-    a: 'Create your free profile, connect your socials and prove your Instagram with a one-time bio code. Then share your Influnet link so brands reach you there instead of your DMs.',
+    a: 'Create your free profile, connect your socials and add your Influnet profile link to your Instagram bio. That link proves the account is yours, and brands reach you through it instead of your DMs.',
     keys: ['start', 'sign up', 'signup', 'register', 'join', 'create account', 'create profile', 'onboard', 'begin'],
     roles: ['creator'],
     actions: [{ label: 'Create your free profile', href: SIGNUP_URL.creator, external: true }],
@@ -90,8 +90,8 @@ export const ENTRIES: BotEntry[] = [
   {
     id: 'verify-me',
     q: 'How do I get verified?',
-    a: 'Add the one-time code Influnet gives you to your Instagram bio. Once we see it there, your account is proven to be yours. We never ask for your password.',
-    keys: ['verify', 'verified', 'badge', 'blue tick', 'tick', 'bio code', 'ownership', 'prove'],
+    a: 'Add your Influnet profile link (influnet.io/your-username) to your Instagram bio. Once we see it there, your account is proven to be yours. Keep it there: it is also how brands find you. We never ask for your password.',
+    keys: ['verify', 'verified', 'badge', 'blue tick', 'tick', 'bio', 'bio link', 'link in bio', 'profile link', 'ownership', 'prove'],
     roles: ['creator'],
   },
   {

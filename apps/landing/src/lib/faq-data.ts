@@ -6,7 +6,7 @@ import type { FaqItem } from '@/components/site/faq';
 
 export const CREATOR_FAQS: FaqItem[] = [
   { q: 'Is Influnet free for creators?', a: 'Yes, creating your profile is free. Set it up, connect your socials and share your link without paying anything.' },
-  { q: 'Do I have to give my Instagram password?', a: 'No. You prove the account is yours by adding a one-time code to your Instagram bio. Influnet never asks for your password.' },
+  { q: 'Do I have to give my Instagram password?', a: 'No. You prove the account is yours by adding your Influnet profile link to your Instagram bio. Influnet never asks for your password.' },
   { q: 'How do I know a brand is genuine?', a: 'Every business is reviewed by the Influnet team. Until a business is approved, its requests carry an "unverified" label, so you always know. You can also report or block any account.' },
   { q: 'How do payments work?', a: 'You and the brand agree the amount and the split before work starts. The brand pays the advance and final amounts through Razorpay on the project, and the project cannot move past a payment stage until that payment is confirmed.' },
   { q: 'Which platforms can I connect?', a: 'Instagram, YouTube, Facebook, X and Snapchat, all shown together on your profile.' },
@@ -16,7 +16,7 @@ export const CREATOR_FAQS: FaqItem[] = [
 export const BUSINESS_FAQS: FaqItem[] = [
   {
     q: 'How do I know a creator is real?',
-    a: 'Creators prove they own their Instagram account by adding a one-time code to their bio. Their follower and engagement numbers come from their public profiles rather than being typed in by hand.',
+    a: 'Creators prove they own their Instagram account by adding their Influnet profile link to their bio. Their follower and engagement numbers come from their public profiles rather than being typed in by hand.',
   },
   {
     q: 'Why does my business need to be reviewed?',
