@@ -58,8 +58,10 @@ read too, not just the browser.
 
 If a value must be changeable at runtime, serve it from an endpoint.
 `/api/auth/config` already does this for the phone-OTP flag, and the comment
-there explains why. Mobile reads it correctly; web still reads the inlined
-constant.
+there explains why. Mobile AND web signup read it at runtime, and the server gate
+(`phoneOtpEnabled()` → `flag('phone_otp')`) reads the same `feature_flags` row, so
+one dashboard toggle reaches every client. The flag is cached per replica for 45s,
+so right after a flip two replicas can briefly disagree.
 
 **Inlining is static, so a container still needs the real env var.** Next
 replaces the literal text `process.env.NEXT_PUBLIC_FOO`. It cannot replace a

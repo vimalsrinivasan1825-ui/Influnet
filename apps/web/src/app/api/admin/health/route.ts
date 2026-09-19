@@ -1,3 +1,4 @@
+import { flag } from '@/lib/feature-flags';
 import { NextResponse } from 'next/server';
 import { callerClient, jsonError, withSuperAdmin } from '@/lib/api';
 import { appEnv } from '@/lib/env';
@@ -99,7 +100,10 @@ export async function GET(req: Request) {
         required: false,
       },
       { name: 'Distributed rate limiting', configured: isDistributedRateLimit(), required: false },
-      { name: 'Phone OTP gate', configured: process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === 'true', required: false },
+      // The RUNTIME flag (feature_flags row, env only as its fallback), i.e. what the
+      // signup gate is actually doing. This used to read NEXT_PUBLIC_PHONE_OTP_ENABLED,
+      // a build-time constant, so it kept saying "off" after the gate was flipped on.
+      { name: 'Phone OTP gate (runtime flag)', configured: flag('phone_otp'), required: false },
     ];
 
     // ── Database reachability + latency ──────────────────────────────────
