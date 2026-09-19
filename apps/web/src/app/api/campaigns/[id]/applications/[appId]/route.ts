@@ -17,6 +17,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
+import { notifyUser } from '@/lib/notify';
 
 const PatchSchema = z.object({
   action: z.enum(['shortlist', 'decline', 'withdraw', 'accept']),
@@ -84,9 +85,31 @@ export async function PATCH(
         .select()
         .eq('id', appId)
         .single();
+      const conversationId = (result as any)?.conversation_id ?? null;
+
+      // Tell the applicant. This used to be a side effect of a database trigger on
+      // collab_requests (migration 047), which said "New Collaboration Request" to
+      // the creator and "Request Accepted" to the BRAND, the person who had just
+      // acted. That trigger is gone (migration 165); the route is the one source.
+      if (application?.creator_user_id) {
+        // The brand's own name, read directly. profileNames() is for email copy and
+        // returns nothing when emails are switched off, which would read "there".
+        const [{ data: campaign }, { data: me }] = await Promise.all([
+          supabase.from('campaigns').select('title').eq('id', campaignId).maybeSingle(),
+          supabase.from('profiles').select('name').eq('id', user.id).maybeSingle(),
+        ]);
+        await notifyUser({
+          userId: application.creator_user_id,
+          type: 'collab_accepted',
+          title: 'Your application was accepted',
+          body: `${me?.name?.trim() || 'A brand'} accepted your application${campaign?.title ? ` to “${campaign.title}”` : ''}. Say hello in the chat to agree the details.`,
+          link: conversationId ? `/dashboard/messages?conv=${conversationId}` : '/dashboard/messages',
+        });
+      }
+
       return NextResponse.json({
         application,
-        conversation_id: (result as any)?.conversation_id ?? null,
+        conversation_id: conversationId,
       });
     }
 
