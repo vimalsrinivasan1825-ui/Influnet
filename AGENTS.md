@@ -13,7 +13,8 @@ needs before they can ship without you.
 There is no shared envelope. `/api/discover` returns `{results}`,
 `/api/collabs` returns `{collabs}`, `/api/blocks` returns `{blocks}`,
 `/api/projects/[id]/stage-items` returns `{items}`, `/api/conversations`
-returns `{conversation}`.
+returns `{conversation}` (POST) / `{conversations, projects}` (GET), and
+`/api/notifications` returns a **bare array**, not an envelope.
 
 **Read the route before consuming it.** Guessing with `body.data ?? body.results ?? []`
 silently yields an empty array, and empty arrays make tests pass and dashboards
