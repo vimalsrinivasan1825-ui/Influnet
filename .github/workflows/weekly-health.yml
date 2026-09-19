@@ -63,6 +63,10 @@ jobs:
       # Probed per environment; a failure of EITHER fails the sweep.
       - name: Is the app up (dev)
         id: health_dev
+        # Every probe runs even if an earlier step failed: GitHub stops a job at its first
+        # failure, so without this a failing unit test or a dev outage would SKIP the
+        # production probe, the one that matters most. The job still fails overall.
+        if: ${{ !cancelled() }}
         env:
           DEV_APP_URL: ${{ vars.DEV_APP_URL }}
         run: |
@@ -81,6 +85,7 @@ jobs:
 
       - name: Is the app up (production — staging.influnet.io)
         id: health_prod
+        if: ${{ !cancelled() }}
         env:
           DEV_APP_URL: ${{ vars.DEV_APP_URL }}
           PROD_APP_URL: ${{ vars.PROD_APP_URL }}
@@ -105,6 +110,7 @@ jobs:
       # counterpart. A file present here but never applied is the exact state
       # that has bitten this project repeatedly.
       - name: Report the migration files this commit expects
+        if: ${{ !cancelled() }}
         run: |
           count=$(ls supabase/migrations/*.sql | wc -l | tr -d ' ')
           newest=$(ls supabase/migrations/*.sql | sort -V | tail -1)
