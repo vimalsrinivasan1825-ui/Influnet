@@ -119,7 +119,7 @@ jobs:
 
       - name: Open or update the failure issue
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const title = 'Weekly health sweep failed';
