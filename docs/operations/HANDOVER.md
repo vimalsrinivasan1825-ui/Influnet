@@ -1,7 +1,9 @@
 # Influnet — Sign-off & Handover
 
 **Living document.** Update it in place; do not date-stamp a copy.
-Last verified against the code: **2026-08-12** (branch `dev`, commit `13d6fc0f`).
+Last verified against the code: **2026-09-19** (branch `dev`, commit `993d1064`;
+see [`LAUNCH_READINESS_AUDIT_2026-09-19.md`](LAUNCH_READINESS_AUDIT_2026-09-19.md)
+for what was checked and how).
 
 **There is an interactive version of this document:
 [`handover-checklist.html`](handover-checklist.html)** — the same content as a
@@ -26,8 +28,8 @@ Checked directly, not recalled:
 | Thing | State |
 |---|---|
 | `npm run typecheck` | ✅ clean, 7/7 workspaces |
-| `npm test` | ✅ 431 passed, 6 skipped (the 6 are `tests/integration/api.test.ts`, skipped without a live env) |
-| `origin/dev` vs `origin/staging` | Trees are **identical** (`git diff origin/dev origin/staging` is empty). Staging is 2 commits "ahead" but both are merge commits from PRs #42/#43 — no staging-only code. Healthy. |
+| `npm test` | ✅ 727 passed, 6 skipped (the 6 are `tests/integration/api.test.ts`, skipped without a live env). Live E2E against the dev database: 302/302 across phases 3–9 and the 161/164/165 verifiers — see the 2026-09-19 audit. |
+| `origin/dev` vs `origin/staging` | **Staging is 156 commits behind** — every fix since the 17 Sep audit is on `dev` only. Nothing reaches users until the dev → staging PR merges (blueprint Phase 1, task t14). No staging-only code exists. |
 | Local `dev` vs `origin/dev` | In sync, working tree clean |
 | dev / staging databases | **Isolated.** Separate Supabase projects (`jaajosocopoicmqcffuu` / `aokdansyqxracuwsosji`) in one Supabase account. This is done — nothing to do here. |
 | Production branch | **`main` does not exist on `origin`.** `deploy-prod.yml` has never fired. |
@@ -35,11 +37,11 @@ Checked directly, not recalled:
 | Production database | **Not provisioned.** Planned as its own Supabase account, separate from the one holding dev and staging. Until then `deploy-prod.yml`'s `production` environment still points at the *staging* project. |
 | Hosting topology | dev + staging share one Azure Container App environment (separate apps and images); dev is mid-migration off Railway. Production gets its own. |
 | Mobile `production` EAS profile | Points at `https://staging.influnet.io` and the **staging** Supabase project (`apps/mobile/eas.json`). |
-| Migrations in repo | 111 files, through `115_billing_foundation.sql` |
+| Migrations in repo | 161 files, through `165_single_source_collab_notifications.sql` |
 | Migration automation | `dev` auto-applies (`migrate-dev.yml`); `staging` applies inside `deploy-staging.yml` before the app deploy. Prod has **no migrate job** by design — it needs one the day it gets its own DB. |
-| Admin health probes | Cover migrations up to **109 only**. 113 / 114 / 115 are invisible to `/dashboard/admin/health` — a green health page does **not** currently prove those are applied. |
-| Legal pages | **None.** No `/privacy`, `/terms`, `/refund`, and the landing footer links to none. |
-| Paid plans | Shipped **off** (`SUBSCRIPTIONS_ENABLED=false`, set explicitly on staging in `cf31faea`). |
+| Admin health probes | ✅ Cover through migration **165** (P0.11 closed 2026-09-19), including the two-stage-signoff and approval-guard RPCs. |
+| Legal pages | **Wired but not publishable.** `/legal/[slug]` exists with real content, but `apps/web/src/app/legal/legal-content.ts` still holds **24 `[[placeholders]]`** and `TERMS_VERSION` in `packages/core` is `2026-09-draft-1`. A lawyer fills the placeholders; then the draft banner comes off. |
+| Paid plans | Decision still open (blueprint t25): recommended launch is free (`SUBSCRIPTIONS_ENABLED=false` on production). Dev's local env currently has it `true` — confirm what production actually gets before users arrive. |
 
 The product code is in good shape. **Every remaining blocker below is
 infrastructure, configuration, or paperwork — not code.** That is worth saying
@@ -48,6 +50,15 @@ plainly, because it changes who has to do the work: mostly you, not a developer.
 ---
 
 ## Part 1 — Go-live blockers
+
+> **Current work order.** The live, ticked-off plan is now
+> [`launch-blueprint.html`](launch-blueprint.html) (Phases 0–5). The list below
+> is kept as the reasoning behind each blocker. Items closed since 2026-08-12:
+> **P0.11** (health probes) is done; the blueprint's Phase 0 code items —
+> account-deletion survival (161), the manual OTA gate, Stream deletion on
+> account removal, single-source notifications (165) — are done and E2E-verified.
+> What remains here that the blueprint does not cover is mostly dashboard work
+> only the owner can do.
 
 Ordered. P0.1–P0.4 build the production tier; nothing else can be verified on
 production until they're done. P0.2 is the one that turns a small mistake into an
@@ -251,18 +262,14 @@ simply never find out.
 **Verify.** `/dashboard/admin/health` — it probes live config, so it tells you what
 is actually true of the running deployment rather than what someone remembers setting.
 
-### P0.11 — Extend the health probes to 113/114/115 💻
+### P0.11 — ~~Extend the health probes to 113/114/115~~ ✅ Done, and then some
 
-**Why.** The probe list in `apps/web/src/app/api/admin/health/route.ts` stops at
-migration 109. The three newest migrations — collaboration stats, atomic stage
-sign-off, and billing — are exactly the ones whose absence is hardest to spot by
-eye, and the health page currently reports green without them.
-
-**Do.** Add probes for `get_collaboration_stats` (113), `record_stage_signoff`
-(114) and `billing_settings` (115).
-
-**Verify.** Health page lists them, and it goes red against a database that is
-deliberately behind.
+The probe list in `apps/web/src/app/api/admin/health/route.ts` now reaches
+migration **165** (single-source request notifications, 2026-09-19). Probes are
+crafted so each can actually fail — RPC probes stay zero-arg and detect PostgREST's
+PGRST202, which an earlier substring check silently never matched. Keep new
+migrations with behaviour worth proving on the list, and keep every probe callable
+with zero arguments.
 
 ### P0.12 — Prove you can restore a backup 👤
 
@@ -348,9 +355,11 @@ Note `EMAIL_UNSUBSCRIBE_SECRET` is different: rotating it invalidates every
 unsubscribe link already sitting in someone's inbox. Rotate that one only if it
 actually leaked.
 
-Also: `ADMIN_CREDENTIALS.local.txt` sits in the repo root and several
-`*-backup-*.json` data dumps sit beside it. Confirm they're gitignored, and delete
-the ones you no longer need before granting anyone repo access.
+Also: `ADMIN_CREDENTIALS.local.txt` sits in the repo root. The `*-backup-*.json`
+data dumps that used to sit beside it were untracked and gitignored on
+2026-09-19 (local copies retained, nothing sensitive in them — audit/test
+personas only — but data dumps never belong in a public repo). Delete local
+copies you no longer need before granting anyone repo access.
 
 ### 3.3 The day-one reading path for a new developer
 
@@ -411,4 +420,5 @@ reading the reason has already cost time in this project.
 | [OBSERVABILITY.md](OBSERVABILITY.md) | Sentry, uptime, App Insights wiring |
 | [SUPABASE_CAPACITY_2026-08-02.md](SUPABASE_CAPACITY_2026-08-02.md) | Which Supabase limit actually binds (it isn't DB size) |
 | [FULL_FLOW_AUDIT_2026-08-08.md](FULL_FLOW_AUDIT_2026-08-08.md) | Before touching the stage machine or payment gates |
+| [LAUNCH_READINESS_AUDIT_2026-09-19.md](LAUNCH_READINESS_AUDIT_2026-09-19.md) | The current state: what passed live (302/302 E2E), what still blocks, and the exact E2E reproduction commands |
 | [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md) | Template ids, kill switches, tiers |

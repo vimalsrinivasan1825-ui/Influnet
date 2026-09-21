@@ -19,8 +19,9 @@ async function main() {
   }
   const uid = (k) => A[k].userId;
 
-  // Phase 3 left five accepted requests against Sourav. Re-establish a clean,
-  // known set here so this phase can run standalone.
+  // Accepted requests against Sourav. Phase3 normally leaves five; whatever
+  // exists is reused, and the fixture-hygiene block below re-establishes any
+  // that are missing so this phase can run standalone after a bare seed.
   const reqs = await sql(
     `select id, from_user_id, to_user_id, status from collab_requests
      where to_user_id = ${lit(uid('sourav'))} and status = 'accepted'`);
@@ -47,6 +48,39 @@ async function main() {
       where proposed_by in (${lit(uid('mamaearth'))}, ${lit(uid('sourav'))});
     commit;
     select 1 as ok;`);
+
+  // Fixture hygiene. This phase was written to follow phase3, which leaves five
+  // accepted requests against Sourav. The hygiene block above makes re-runs
+  // after *this* phase clean, but a standalone run straight after
+  // seed-personas has nothing accepted yet — every negotiation check below
+  // would fail on the missing fixture and read as a product bug. So the phase
+  // re-establishes its own input: any business whose request the deal sections
+  // consume gets an ACCEPTED request against Sourav, created and accepted
+  // through the real API. Idempotent: an already-accepted request is reused,
+  // never duplicated.
+  for (const b of ['mamaearth', 'boat', 'sugar', 'wakefit', 'plum']) {
+    if (byBiz[uid(b)]) continue;
+    const made = await A[b].post('/api/collabs', {
+      to_user_id: uid('sourav'),
+      project_title: `${personaByKey(b).companyName} × Sourav Joshi`,
+      project_description: 'Re-established by phase4 so it can run standalone.',
+      budget: 250000,
+    });
+    const requestId = made.body?.collab?.id;
+    const accepted = requestId
+      ? await A.sourav.patch('/api/collabs', { id: requestId, status: 'accepted' })
+      : null;
+    if (accepted?.ok) {
+      byBiz[uid(b)] = requestId;
+      reqs.push({ id: requestId, from_user_id: uid(b), to_user_id: uid('sourav'), status: 'accepted' });
+      s.note(`  fixture: ${b} → Sourav request accepted`);
+    } else {
+      // The only way here is the API refusing a request phase3 proves works —
+      // which IS a product finding, so record it as one.
+      s.check(`fixture: ${b} → Sourav request could be created and accepted`, false,
+        { severity: 'HIGH', observed: `${made.status} ${JSON.stringify(made.body).slice(0, 120)}` });
+    }
+  }
 
   // ══════════════════════════════════════════════════════════════════════
   s.section('Messaging');
