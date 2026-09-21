@@ -142,11 +142,12 @@ export async function GET(req: Request) {
       );
     }
 
-    // Wrap in a promise with 15s timeout
+    // Wrap in a promise with 28s timeout (Apify cold-starts take 15–25s;
+    // client aborts at 30s so server fires first and returns a clean 504)
     const fetchWithTimeout = Promise.race([
       handler.fetchProfile(handle),
       new Promise<null>((_, reject) =>
-        setTimeout(() => reject(new Error('SCRAPER_TIMEOUT')), 15_000)
+        setTimeout(() => reject(new Error('SCRAPER_TIMEOUT')), 28_000)
       ),
     ]);
 

@@ -14,44 +14,9 @@ interface ScrapedProfile {
   isPrivate: boolean;
 }
 
-const KNOWN_PROFILES: Record<string, Partial<ScrapedProfile>> = {
-  mayachen_creates: {
-    displayName: 'Maya Chen',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    followersStr: '84.5K',
-    postsStr: '240',
-    biography: 'Visual Storyteller & Creator ✦ Mumbai / London ✦ Collabs open',
-    isVerified: true,
-    isPrivate: false,
-  },
-  'virat.kohli': {
-    displayName: 'Virat Kohli',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
-    followersStr: '271M',
-    postsStr: '1,680',
-    biography: 'Athlete. Passion. Purpose. 🏏',
-    isVerified: true,
-    isPrivate: false,
-  },
-  techburner: {
-    displayName: 'Tech Burner',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
-    followersStr: '4.8M',
-    postsStr: '890',
-    biography: 'Making Tech Fun! 🔥 Gadgets & Lifestyle',
-    isVerified: true,
-    isPrivate: false,
-  },
-  mrbeast: {
-    displayName: 'MrBeast',
-    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&auto=format&fit=crop&q=80',
-    followersStr: '62.4M',
-    postsStr: '450',
-    biography: 'I want to make the world a better place before I die',
-    isVerified: true,
-    isPrivate: false,
-  },
-};
+// Client-side mock registry removed — all handles now route through the real
+// /api/auth/social-preview API. Server-side INSTANT_PROFILES handles popular
+// handles instantly (~50ms); real arbitrary handles hit Apify with a 28s budget.
 
 export default function EarlyAccessPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -109,27 +74,9 @@ export default function EarlyAccessPage() {
     setScraping(true);
     setScrapeStatus(`Scanning Instagram: @${clean}...`);
 
-    // Check fast mock/known registry
-    if (KNOWN_PROFILES[clean]) {
-      const k = KNOWN_PROFILES[clean];
-      setScrapedProfile({
-        displayName: k.displayName || name || clean,
-        avatarUrl: k.avatarUrl || null,
-        followerCount: k.followerCount ?? 84500,
-        followersStr: k.followersStr || '84.5K',
-        postsStr: k.postsStr || '240',
-        biography: k.biography || 'Visual Storyteller & Creator ✦ Collabs open',
-        isVerified: k.isVerified ?? true,
-        isPrivate: false,
-      });
-      setScrapeStatus('✓ Verified Public Creator Profile');
-      setScraping(false);
-      return;
-    }
-
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       const res = await fetch(`/api/auth/social-preview?platform=instagram&handle=${encodeURIComponent(clean)}`, {
         signal: controller.signal,
