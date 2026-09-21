@@ -66,12 +66,20 @@ function fail(error: string, status: number, field?: string) {
 
 export async function POST(req: Request) {
   try {
+    // Per IP. Mobile carriers (CGNAT) and venue Wi-Fi put many real people behind
+    // one address, so this is set for bursts; the one-pass-per-phone rule is what
+    // actually stops duplicates.
     const limited = await enforceRateLimit(req, {
       bucket: 'event-pass:register',
-      limit: 10,
+      limit: 40,
       windowMs: 60_000,
     });
-    if (limited) return limited;
+    if (limited) {
+      // Without CORS headers the browser can't read this and the page reports
+      // a network failure instead of "slow down".
+      for (const [k, v] of Object.entries(CORS_HEADERS)) limited.headers.set(k, v);
+      return limited;
+    }
 
     const parsed = Schema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {

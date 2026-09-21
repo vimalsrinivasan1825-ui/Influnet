@@ -351,7 +351,9 @@ function RegisterForm({ onRegistered }: { onRegistered: (p: Pass, already: boole
         setErrors({ form: json?.error || 'Something went wrong. Please try again.' });
       }
     } catch {
-      setErrors({ form: 'No connection. Check your internet and try again.' });
+      // Also what a cross-origin reply without CORS headers looks like (e.g. the web
+      // app mid-deploy), so don't blame the visitor's internet outright.
+      setErrors({ form: 'We couldn’t reach the server. Please check your connection and try again in a moment.' });
     } finally {
       setSubmitting(false);
     }
