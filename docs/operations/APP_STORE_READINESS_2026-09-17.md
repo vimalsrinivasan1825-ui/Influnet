@@ -11,6 +11,43 @@ Store rules were checked against Apple's and Google's current published policy
 
 ---
 
+## Status re-checked 2026-09-21 (read this first)
+
+Every row below was re-checked against `dev` today — code, `expo config --type
+introspect` on the `production` profile, `eas build:list`, `eas env:list
+production`, and a read-only query of the staging database. The original
+report (§0 onward) is kept as the reasoning.
+
+**Code-side, the app is now submittable. What stops a submission today is
+yours: the staging backend is behind, iOS signing is broken, the legal text
+is unfinished, and there are no reviewer accounts.**
+
+| # | Item | 17 Sep | 21 Sep | Evidence / what's left |
+|---|---|---|---|---|
+| 2.1 | Pro sold via Razorpay in app | ❌ | ✅ | `EXPO_PUBLIC_HIDE_PRO_PURCHASE=1` on the production profile hides every buy path. **Fixed today:** the "Upgrade to Pro" video guide (price, "Tap Upgrade") still played in store builds, including auto-running on `/billing` — now hidden (`lib/guide-visibility.ts`). |
+| 2.2 | Account deletion | ❌ | ✅ | In-app delete in Settings → `DELETE /api/profile` (tombstone first, refuses mid-project, keeps ledger/invoices — `verify-161` passes live). Public page `/delete-account` exists for Google's web-deletion URL. |
+| 2.3 | Consent + legal links | ❌ | ⚠️ **you** | Terms + 18+ checkboxes on both mobile wizards, enforced server-side (422 without). Legal links in Settings. **Still blocking:** the pages the app opens (`/legal/*`, `apps/web/src/app/legal/legal-content.ts`) show **24 `[[placeholders]]`** — `[[LEGAL ENTITY NAME]]`, grievance officer, address, GSTIN — under a DRAFT banner, and `TERMS_VERSION` is `2026-09-draft-1`. A reviewer who taps "Privacy Policy" sees that. Separately, the landing site's `influnet.io/privacy` is a **different, complete-looking** text. Pick one binding text with a lawyer, fill it, and make the app and the store listing point at the same URL. |
+| 2.4 | Report / block / filter | ❌ | ✅ | Report/block on creator + business profiles, campaigns, requests, projects. **Fixed today:** chat had none on **either** platform (the mobile code comment claimed it did) — added to the mobile chat ⋮ menu and the web conversation menu. Content filter shipped (`verify-content-filter`). Still yours: commit to a response time in the terms and actually watch `/dashboard/admin/reports`. |
+| 2.5 | Reviewer accounts | ❌ | ❌ **you** | Staging DB has **0** review accounts (12 users total). Create `appreview.brand@…` (pre-approved) and `appreview.creator@…` with a shared mid-stage project, once staging is current. |
+| 2.6 | iOS privacy manifest | ❌ | ✅ | `ios.privacyManifests` with the four required-reason APIs, `NSPrivacyTracking: false`. |
+| 2.7 | Unused permissions | ❌ | ✅ | Introspected: Android = INTERNET, VIBRATE, legacy storage ≤ API 32; `RECORD_AUDIO` + `SYSTEM_ALERT_WINDOW` removed; no `READ_MEDIA_*`. iOS = camera + photos strings only; Face ID + mic off. |
+| 2.8 | iOS signing | ❌ | ❌ **you** | Last iOS `production` build (1 Sep) **ERRORED** at code signing; no iOS build since. Run `eas credentials` (Apple login) → regenerate the distribution certificate, enable Push on `com.influnet.app`, upload an APNs key. Android `production` AAB built fine (1 Sep, versionCode 3). |
+| 2.9 | Toolchain | verify | verify | Confirm Xcode 26 image and target API 36 on the first new build. |
+| 2.10 | Age | ⚠️ | ✅ code / ⚠️ you | 18+ confirmation at signup. You: answer the age-rating questionnaires (18+) and launch in the India storefront only. |
+| 2.11 | Creator payouts | ⚠️ | ⚠️ **decide** | Unchanged — a product/legal decision. |
+| 2.12 | Developer accounts | setup | ❓ **you** | Unknown from the repo. Check organization vs personal on both consoles. |
+| 3.1 | Icon | ⚠️ | ✅ | **Fixed today:** `assets/icon.png` regenerated at 1024×1024, opaque, same artwork and proportions. |
+| 3.4 | Push prompt timing | ⚠️ | ✅ | Pre-prompt after a meaningful moment (`lib/push-prompt.ts`). |
+| 3.5 | Crash visibility | ⚠️ | ❌ **you** | EAS `production` environment holds only the four API/Supabase/Stream vars — **no `EXPO_PUBLIC_SENTRY_DSN` / `EXPO_PUBLIC_POSTHOG_KEY`**. Add them (`eas env:create`) before the store build or review-time crashes are invisible. |
+| — | **Backend the store build talks to** | — | ❌ **you** | The production profile points at `staging.influnet.io`. Staging's DB is at migration **147**; dev is at **172**, and staging's code is ~150 commits behind. Merge dev → staging (blueprint t14) **before** building for the stores. |
+
+**Order for you:** merge dev → staging → regenerate iOS credentials → add
+Sentry/PostHog keys to EAS `production` → legal text final → review accounts
+on staging → `eas build --profile production` (both platforms) → TestFlight /
+internal track → submit with the §5 review notes.
+
+---
+
 ## 0. Verdict
 
 **Neither store would approve the current build.** Six issues are near-certain
@@ -304,8 +341,8 @@ banking feature, so the answer is normally minimal.
 3. **Instagram/YouTube data (Apple 5.2.2).** Follower counts come from Apify
    scraping of public profiles, and YouTube from its public feed. Apple can
    ask whether you're authorised to display third-party platform content.
-   Ownership is verified with a bio code the creator adds themselves, which
-   helps. Say in the review notes that creators connect their own accounts,
+   Ownership is verified with the creator's own profile link in their bio,
+   which helps. Say in the review notes that creators connect their own accounts,
    and keep the displayed data to the creator's own public metrics.
 4. **Push prompt timing.** Today the system prompt fires the moment a session
    exists (`app/_layout.tsx:57` → `lib/push.ts:59`), before the user has seen
@@ -375,8 +412,8 @@ banking feature, so the answer is normally minimal.
 > payment step is at Projects → "…" → Advance payment.
 >
 > **Account connections.** Creators verify that they own an Instagram account
-> by adding a one-time code to their own bio; we show only their public
-> metrics.
+> by adding their Influnet profile link to their own bio; we show only their
+> public metrics.
 >
 > **Safety.** Users can report or block anyone from their profile, a
 > conversation, a request, a campaign or a project. Reports are reviewed

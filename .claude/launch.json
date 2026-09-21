@@ -34,7 +34,23 @@
         "dev",
         "--workspace=apps/web"
       ],
-      "port": 3000
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "web-e2e-prod",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NOTIFY_EMAILS_ENABLED=false",
+        "BROADCAST_DRY_RUN=true",
+        "CRON_SECRET=e2e-local-secret",
+        "npm",
+        "run",
+        "start",
+        "--workspace=apps/web"
+      ],
+      "port": 3100,
+      "autoPort": true
     }
   ]
 }
