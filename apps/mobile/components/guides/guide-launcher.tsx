@@ -9,13 +9,14 @@ import { CirclePlay } from 'lucide-react-native';
 import { GUIDES } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useGuides } from './use-guides';
+import { isGuideVisible } from '@/lib/guide-visibility';
 
 export function GuideLauncherButton({ size = 22 }: { size?: number }) {
   const t = useTheme();
   const router = useRouter();
   const seen = useGuides((s) => s.seen);
   const loaded = useGuides((s) => s.loaded);
-  const hasUnseen = loaded && GUIDES.some((g) => !seen.includes(g.id));
+  const hasUnseen = loaded && GUIDES.some((g) => isGuideVisible(g) && !seen.includes(g.id));
 
   return (
     <Pressable

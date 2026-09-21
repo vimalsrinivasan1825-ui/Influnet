@@ -16,7 +16,7 @@ export function publicProfileUrl(username: string): string {
   return `${API_BASE_URL.replace(/\/$/, '')}/${username}`;
 }
 
-/** Display-only form for hint text: "influnet.in/username". */
+/** Display-only form for hint text, e.g. "influnet.io/username" — whatever host API_BASE_URL is. */
 export function publicProfileUrlDisplay(username: string): string {
   return publicProfileUrl(username).replace(/^https?:\/\//, '');
 }
