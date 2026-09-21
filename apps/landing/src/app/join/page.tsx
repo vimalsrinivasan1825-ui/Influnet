@@ -376,7 +376,7 @@ export default function CreatorJoinPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') nextStep();
                   }}
-                  placeholder="e.g. Vimal Srinivasan"
+                  placeholder="Your name"
                   autoFocus
                   className="w-full h-14 px-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all shadow-sm relative z-20 touch-manipulation cursor-text"
                 />
@@ -452,7 +452,7 @@ export default function CreatorJoinPage() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') nextStep();
                     }}
-                    placeholder="creatorhandle"
+                    placeholder="yourhandle"
                     autoFocus
                     className="w-full h-14 pl-9 pr-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm relative z-20 touch-manipulation cursor-text"
                   />
@@ -545,7 +545,7 @@ export default function CreatorJoinPage() {
                         setEmail(e.target.value);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      placeholder="vimal@influnet.io"
+                      placeholder="you@example.com"
                       autoFocus
                       className="w-full h-14 pl-11 pr-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm relative z-20 touch-manipulation cursor-text"
                     />
@@ -579,7 +579,7 @@ export default function CreatorJoinPage() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') nextStep();
                       }}
-                      placeholder="+91 98765 43210"
+                      placeholder="Enter your WhatsApp number"
                       className="w-full h-14 pl-11 pr-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm relative z-20 touch-manipulation cursor-text"
                     />
                   </div>
