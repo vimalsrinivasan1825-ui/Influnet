@@ -31,50 +31,6 @@ export async function OPTIONS() {
 const PREVIEW_CACHE = new Map<string, { time: number; data: any }>();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-// High-fidelity instant profiles for demo and popular creators
-const INSTANT_PROFILES: Record<string, any> = {
-  mayachen_creates: {
-    displayName: 'Maya Chen',
-    biography: 'Visual Storyteller & Creator ✦ Mumbai / London ✦ Collabs open',
-    followerCount: 84500,
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    isVerified: true,
-    isPrivate: false,
-  },
-  'virat.kohli': {
-    displayName: 'Virat Kohli',
-    biography: 'Athlete. Passion. Purpose. 🏏',
-    followerCount: 271000000,
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
-    isVerified: true,
-    isPrivate: false,
-  },
-  techburner: {
-    displayName: 'Tech Burner',
-    biography: 'Making Tech Fun! 🔥 Gadgets & Lifestyle',
-    followerCount: 4800000,
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
-    isVerified: true,
-    isPrivate: false,
-  },
-  mrbeast: {
-    displayName: 'MrBeast',
-    biography: 'I want to make the world a better place before I die',
-    followerCount: 62400000,
-    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&auto=format&fit=crop&q=80',
-    isVerified: true,
-    isPrivate: false,
-  },
-  instagram: {
-    displayName: 'Instagram',
-    biography: "Discover what's new on Instagram 🔎✨",
-    followerCount: 672000000,
-    avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300&auto=format&fit=crop&q=80',
-    isVerified: true,
-    isPrivate: false,
-  },
-};
-
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -95,20 +51,6 @@ export async function GET(req: Request) {
     const cached = PREVIEW_CACHE.get(cacheKey);
     if (cached && Date.now() - cached.time < CACHE_TTL_MS) {
       return NextResponse.json(cached.data, { headers: CORS_HEADERS });
-    }
-
-    // Check instant pre-cached profiles
-    if (platform === 'instagram' && INSTANT_PROFILES[handle]) {
-      const p = INSTANT_PROFILES[handle];
-      const payload = {
-        status: 'found',
-        platform: 'instagram',
-        handle,
-        url: `https://www.instagram.com/${handle}`,
-        profile: p,
-      };
-      PREVIEW_CACHE.set(cacheKey, { time: Date.now(), data: payload });
-      return NextResponse.json(payload, { headers: CORS_HEADERS });
     }
 
     if (!handler.supported) {
@@ -153,21 +95,44 @@ export async function GET(req: Request) {
 
     const profile = await fetchWithTimeout;
     if (!profile) {
-      return NextResponse.json({ status: 'notfound', platform, handle, profile: null }, { status: 404, headers: CORS_HEADERS });
+      return NextResponse.json({
+        status: 'notfound',
+        platform,
+        handle,
+        isPrivate: false,
+        profile: null,
+        message: `Instagram account @${handle} was not found.`,
+      }, { status: 404, headers: CORS_HEADERS });
+    }
+
+    if (profile.isPrivate) {
+      // Private account: verification succeeds without fetching public media or data
+      const payload = {
+        status: 'private',
+        platform,
+        handle: profile.handle,
+        url: profile.url,
+        isPrivate: true,
+        profile: null,
+      };
+      PREVIEW_CACHE.set(cacheKey, { time: Date.now(), data: payload });
+      return NextResponse.json(payload, { headers: CORS_HEADERS });
     }
 
     const payload = {
-      status: profile.isPrivate ? 'private' : 'found',
+      status: 'found',
       platform,
       handle: profile.handle,
       url: profile.url,
+      isPrivate: false,
       profile: {
-        displayName: profile.displayName,
-        biography: profile.biography,
+        displayName: profile.displayName || profile.handle,
+        biography: profile.biography || '',
         followerCount: profile.followerCount,
         avatarUrl: await inlineAvatar(profile.avatarUrl),
-        isVerified: profile.isVerified,
-        isPrivate: profile.isPrivate,
+        isVerified: Boolean(profile.isVerified),
+        isPrivate: false,
+        postsCount: profile.postsCount,
       },
     };
 

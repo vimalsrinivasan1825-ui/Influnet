@@ -23,25 +23,22 @@ export default function EarlyAccessPage() {
   const [role, setRole] = useState<'creator' | 'business'>('creator');
   const [screen, setScreen] = useState<'s0' | 's1' | 's2' | 's3' | 'sLoading' | 's4'>('s0');
 
-  // Form State
-  const [name, setName] = useState('Maya Chen');
-  const [handle, setHandle] = useState('mayachen_creates');
-  const [email, setEmail] = useState('maya@influnet.dev');
+  // Form State — empty by default, no mock data
+  const [name, setName] = useState('');
+  const [handle, setHandle] = useState('');
+  const [email, setEmail] = useState('');
   const [company, setCompany] = useState('');
 
-  // Scraper State
+  // Scraper & Live Verification State
   const [scraping, setScraping] = useState(false);
-  const [scrapeStatus, setScrapeStatus] = useState<string>('Verified Public Creator Profile');
-  const [scrapedProfile, setScrapedProfile] = useState<ScrapedProfile>({
-    displayName: 'Maya Chen',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    followerCount: 84500,
-    followersStr: '84.5K',
-    postsStr: '240',
-    biography: 'Visual Storyteller & Creator ✦ Mumbai / London ✦ Collabs open',
-    isVerified: true,
-    isPrivate: false,
-  });
+  const [verificationStatus, setVerificationStatus] = useState<
+    'idle' | 'scanning' | 'verified_public' | 'verified_private' | 'not_found' | 'error'
+  >('idle');
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [scrapedProfile, setScrapedProfile] = useState<ScrapedProfile | null>(null);
+  const [isAccountPrivate, setIsAccountPrivate] = useState(false);
+  const [isAccountVerified, setIsAccountVerified] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   // Synthesizer State
   const [synthProgress, setSynthProgress] = useState(0);
@@ -66,13 +63,23 @@ export default function EarlyAccessPage() {
     setTimeout(() => setShakeField(null), 600);
   };
 
-  // Perform Scrape with Caching & Backend API
+  // Perform Live Scrape with Apify via /api/auth/social-preview
   const performScrape = useCallback(async (rawHandle: string) => {
-    const clean = rawHandle.replace(/^@/, '').trim().toLowerCase();
-    if (!clean) return;
+    const clean = rawHandle.replace(/^@+/, '').trim().toLowerCase();
+    if (!clean || clean.length < 2) {
+      setVerificationStatus('idle');
+      setStatusMessage('');
+      setScrapedProfile(null);
+      setIsAccountVerified(false);
+      setIsAccountPrivate(false);
+      setVerificationError(null);
+      return;
+    }
 
     setScraping(true);
-    setScrapeStatus(`Scanning Instagram: @${clean}...`);
+    setVerificationStatus('scanning');
+    setStatusMessage(`Scanning Instagram for @${clean}...`);
+    setVerificationError(null);
 
     try {
       const controller = new AbortController();
@@ -85,10 +92,11 @@ export default function EarlyAccessPage() {
 
       const data = await res.json().catch(() => null);
 
-      if (res.ok && data?.profile) {
+      if (res.ok && data?.status === 'found' && data?.profile) {
+        // Public Instagram Profile found
         const p = data.profile;
         const count = p.followerCount;
-        const formattedFollowers = count
+        const formattedFollowers = count != null
           ? count >= 1_000_000
             ? `${(count / 1_000_000).toFixed(1)}M`
             : count >= 1_000
@@ -97,60 +105,75 @@ export default function EarlyAccessPage() {
           : 'Verified';
 
         setScrapedProfile({
-          displayName: p.displayName || name || clean,
+          displayName: p.displayName || clean,
           avatarUrl: p.avatarUrl || null,
           followerCount: p.followerCount || null,
           followersStr: formattedFollowers,
-          postsStr: p.mediaCount ? String(p.mediaCount) : '120+',
-          biography: p.biography || `Digital Creator ✦ influnet.me/${clean}`,
+          postsStr: p.postsCount != null ? String(p.postsCount) : '—',
+          biography: p.biography || '',
           isVerified: Boolean(p.isVerified),
-          isPrivate: Boolean(p.isPrivate),
-        });
-        setScrapeStatus(p.isPrivate ? '● Private Profile (Limited Data)' : '✓ Verified Public Creator Profile');
-      } else {
-        // High quality fallback data for seamless pass synthesis
-        const randomK = (15 + (clean.length * 7.3) % 180).toFixed(1);
-        const randomPosts = 80 + (clean.length * 13) % 200;
-        setScrapedProfile({
-          displayName: name || (clean.charAt(0).toUpperCase() + clean.slice(1).replace(/[._]/g, ' ')),
-          avatarUrl: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80`,
-          followerCount: Math.round(parseFloat(randomK) * 1000),
-          followersStr: `${randomK}K`,
-          postsStr: `${randomPosts}`,
-          biography: `Digital Creator & Lifestyle ✦ influnet.me/${clean} ✦ Inquiries open`,
-          isVerified: true,
           isPrivate: false,
         });
-        setScrapeStatus('✓ Verified Public Creator Profile');
+        setIsAccountPrivate(false);
+        setIsAccountVerified(true);
+        setVerificationStatus('verified_public');
+        setStatusMessage('✓ Verified Public Creator Profile');
+      } else if (res.ok && (data?.status === 'private' || data?.isPrivate)) {
+        // Private Instagram Account: verify identity without fetching media
+        setScrapedProfile(null);
+        setIsAccountPrivate(true);
+        setIsAccountVerified(true);
+        setVerificationStatus('verified_private');
+        setStatusMessage('✓ Private Instagram Account Verified');
+      } else if (res.status === 404 || data?.status === 'notfound') {
+        // Handle does not exist on Instagram
+        setScrapedProfile(null);
+        setIsAccountPrivate(false);
+        setIsAccountVerified(false);
+        setVerificationStatus('not_found');
+        setStatusMessage(`✕ Profile @${clean} not found`);
+        setVerificationError(`Account @${clean} was not found on Instagram. Please check your spelling.`);
+      } else {
+        // Lookup issue or timeout
+        setScrapedProfile(null);
+        setIsAccountPrivate(false);
+        setIsAccountVerified(false);
+        setVerificationStatus('error');
+        setStatusMessage(data?.message || 'Instagram lookup timed out');
+        setVerificationError(data?.message || 'Verification could not be completed. Please try again.');
       }
     } catch {
-      // Graceful fallback on network timeout
-      const randomK = (25 + (clean.length * 5.5) % 150).toFixed(1);
-      setScrapedProfile({
-        displayName: name || clean,
-        avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80`,
-        followerCount: 50000,
-        followersStr: `${randomK}K`,
-        postsStr: '150',
-        biography: `Digital Creator & Storyteller ✦ influnet.me/${clean}`,
-        isVerified: true,
-        isPrivate: false,
-      });
-      setScrapeStatus('✓ Profile Connected');
+      setScrapedProfile(null);
+      setIsAccountPrivate(false);
+      setIsAccountVerified(false);
+      setVerificationStatus('error');
+      setStatusMessage('Connection timed out');
+      setVerificationError('Verification timed out. Please check your network and retry.');
     } finally {
       setScraping(false);
     }
-  }, [name]);
+  }, []);
 
   // Debounced Instagram Input listener
   const handleHandleChange = (val: string) => {
-    setHandle(val);
+    const clean = val.replace(/^@+/, '');
+    setHandle(clean);
     if (scrapeTimeoutRef.current) clearTimeout(scrapeTimeoutRef.current);
-    const clean = val.replace(/^@/, '').trim();
-    if (clean.length >= 2) {
+    const trimmed = clean.trim();
+    if (trimmed.length >= 2) {
+      setVerificationStatus('scanning');
+      setStatusMessage(`Scanning Instagram for @${trimmed}...`);
+      setVerificationError(null);
       scrapeTimeoutRef.current = setTimeout(() => {
-        performScrape(clean);
-      }, 450);
+        performScrape(trimmed);
+      }, 500);
+    } else {
+      setVerificationStatus('idle');
+      setStatusMessage('');
+      setScrapedProfile(null);
+      setIsAccountVerified(false);
+      setIsAccountPrivate(false);
+      setVerificationError(null);
     }
   };
 
@@ -164,7 +187,7 @@ export default function EarlyAccessPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screen, name, handle, email, role]);
+  }, [screen, name, handle, email, role, isAccountVerified, scraping]);
 
   const handleNext1 = () => {
     if (!name.trim()) {
@@ -172,15 +195,30 @@ export default function EarlyAccessPage() {
       return;
     }
     setScreen('s2');
-    if (role === 'creator') {
-      performScrape(handle);
+    const clean = handle.replace(/^@+/, '').trim();
+    if (role === 'creator' && clean.length >= 2 && !isAccountVerified) {
+      performScrape(clean);
     }
   };
 
   const handleNext2 = () => {
     if (role === 'creator') {
-      const clean = handle.replace(/^@/, '').trim();
+      const clean = handle.replace(/^@+/, '').trim();
       if (!clean) {
+        triggerShake('handle');
+        return;
+      }
+      if (scraping) {
+        // Still verifying handle with Apify
+        return;
+      }
+      if (!isAccountVerified) {
+        triggerShake('handle');
+        setVerificationError('Please verify your Instagram handle before continuing.');
+        return;
+      }
+    } else {
+      if (!handle.trim()) {
         triggerShake('handle');
         return;
       }
@@ -201,6 +239,8 @@ export default function EarlyAccessPage() {
     setScreen('sLoading');
     setSynthProgress(0);
 
+    const cleanHandle = handle.replace(/^@+/, '').trim();
+
     // Call backend API in parallel
     const apiPromise = fetch('/api/early-access', {
       method: 'POST',
@@ -209,11 +249,11 @@ export default function EarlyAccessPage() {
         kind: role,
         name: name.trim(),
         email: email.trim(),
-        handle: role === 'creator' ? handle.replace(/^@/, '').trim() : null,
+        handle: role === 'creator' ? cleanHandle : null,
         company: role === 'business' ? (company.trim() || name.trim()) : null,
-        followers: role === 'creator' ? scrapedProfile.followersStr : null,
-        avatarUrl: role === 'creator' ? scrapedProfile.avatarUrl : null,
-        bio: role === 'creator' ? scrapedProfile.biography : null,
+        followers: role === 'creator' ? (scrapedProfile?.followersStr ?? (isAccountPrivate ? 'PRIVATE' : null)) : null,
+        avatarUrl: role === 'creator' ? (scrapedProfile?.avatarUrl ?? null) : null,
+        bio: role === 'creator' ? (scrapedProfile?.biography ?? (isAccountPrivate ? 'Private Creator Profile' : null)) : null,
       }),
     })
       .then(async (r) => {
@@ -227,7 +267,13 @@ export default function EarlyAccessPage() {
     // Animated multi-step progress forge
     const steps = [
       { p: 25, label: '❖ Querying verified Apify credentials...', ms: 500 },
-      { p: 58, label: `❖ Validating @${handle} with ${scrapedProfile.followersStr} followers...`, ms: 600 },
+      {
+        p: 58,
+        label: isAccountPrivate
+          ? `❖ Enrolling verified private creator @${cleanHandle}...`
+          : `❖ Validating @${cleanHandle} on Instagram...`,
+        ms: 600,
+      },
       { p: 85, label: '❖ Minting Founding Member Token on Genesis Series...', ms: 550 },
       { p: 100, label: '❖ Applying holographic foil & cryptographic seal...', ms: 450 },
     ];
@@ -409,10 +455,13 @@ export default function EarlyAccessPage() {
     drawRoundedRect(ctx, ax - 220, cY + 650, 440, 52, 26);
     ctx.fill();
     ctx.fillStyle = textCol;
-    ctx.font = '700 20px monospace';
     ctx.fillText(
       role === 'creator'
-        ? `★ ${scrapedProfile.followersStr} FOLLOWERS · VERIFIED`
+        ? isAccountPrivate
+          ? '★ PRIVATE CREATOR · VERIFIED'
+          : scrapedProfile?.followersStr
+          ? `★ ${scrapedProfile.followersStr} FOLLOWERS · VERIFIED`
+          : '★ CREATOR · VERIFIED'
         : '★ 0% PLATFORM FEE · VIP BRAND',
       ax,
       cY + 683
@@ -795,9 +844,21 @@ export default function EarlyAccessPage() {
                 {role === 'creator' ? 'Your Instagram handle?' : 'Company website or handle?'}
               </h2>
 
-              <div className="w-full relative mb-2">
+              <div
+                className={`w-full h-[66px] rounded-[18px] border-2 transition-all flex items-center px-5 mb-2 ${
+                  shakeField === 'handle' || verificationStatus === 'not_found'
+                    ? 'border-[#ff078e] animate-shake'
+                    : verificationStatus === 'verified_public' || verificationStatus === 'verified_private'
+                    ? 'border-[#059669]'
+                    : ''
+                } ${
+                  isDark
+                    ? 'bg-[#1a1525] border-white/15 text-white focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/20'
+                    : 'bg-white border-[#e7e3dc] text-[#17141d] focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/10'
+                }`}
+              >
                 {role === 'creator' && (
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 font-mono-code text-[22px] font-bold text-[#ff078e] pointer-events-none">
+                  <span className="font-mono-code text-[22px] font-bold text-[#ff078e] mr-2.5 select-none shrink-0">
                     @
                   </span>
                 )}
@@ -805,21 +866,29 @@ export default function EarlyAccessPage() {
                   type="text"
                   value={handle}
                   onChange={(e) => handleHandleChange(e.target.value)}
-                  placeholder={role === 'creator' ? 'mayachen_creates' : 'e.g. acmestudio.com'}
+                  placeholder={role === 'creator' ? 'your_handle' : 'e.g. acmestudio.com'}
                   autoFocus
-                  className={`w-full h-[66px] rounded-[18px] text-[21px] font-semibold border-2 transition-all outline-none ${
-                    role === 'creator' ? 'pl-12 pr-6' : 'px-6'
-                  } ${shakeField === 'handle' ? 'border-[#ff078e] animate-shake' : ''} ${
-                    isDark
-                      ? 'bg-[#1a1525] border-white/15 text-white placeholder-zinc-500 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/20'
-                      : 'bg-white border-[#e7e3dc] text-[#17141d] placeholder-zinc-400 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10'
-                  }`}
+                  className="w-full bg-transparent border-0 outline-none text-[21px] font-semibold text-inherit placeholder-zinc-400 dark:placeholder-zinc-500"
                 />
+                {scraping && (
+                  <div className="w-5 h-5 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin shrink-0 ml-2" />
+                )}
               </div>
+
+              {verificationError && (
+                <div className="w-full text-[13px] text-[#ff078e] font-semibold flex items-center gap-1.5 mb-3">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{verificationError}</span>
+                </div>
+              )}
 
               <p className={`text-[13px] mb-4 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                 {role === 'creator'
-                  ? 'We live-verify your public profile to personalize your pass & badges.'
+                  ? 'We live-verify your Instagram identity via Apify. Public profiles display full stats & avatar; private profiles are verified securely.'
                   : 'Used to verify company authenticity and personalize your Founding Brand Pass.'}
               </p>
 
@@ -836,72 +905,173 @@ export default function EarlyAccessPage() {
                   <div className="flex items-center justify-between font-mono-code text-[11px] font-semibold mb-3">
                     <div className="flex items-center gap-2">
                       {scraping ? (
-                        <div className="w-3.5 h-3.5 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-radar" />
-                      ) : (
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin" />
+                      ) : verificationStatus === 'verified_public' || verificationStatus === 'verified_private' ? (
                         <span className="text-[#059669]">●</span>
+                      ) : verificationStatus === 'not_found' ? (
+                        <span className="text-[#ff078e]">✕</span>
+                      ) : (
+                        <span className="text-zinc-400">○</span>
                       )}
-                      <span className={scraping ? 'text-zinc-400' : 'text-[#059669]'}>{scrapeStatus}</span>
+                      <span
+                        className={
+                          scraping
+                            ? 'text-zinc-400'
+                            : verificationStatus === 'verified_public' || verificationStatus === 'verified_private'
+                            ? 'text-[#059669]'
+                            : verificationStatus === 'not_found'
+                            ? 'text-[#ff078e]'
+                            : 'text-zinc-400'
+                        }
+                      >
+                        {statusMessage || 'Enter handle to live-verify'}
+                      </span>
                     </div>
                     <span className="text-[#ff078e] font-bold">APIFY ENGINE</span>
                   </div>
 
-                  {/* Profile Card */}
-                  <div
-                    className={`flex items-center gap-3.5 p-3 rounded-2xl border transition-all ${
-                      scraping ? 'opacity-50 scale-[0.99]' : 'opacity-100 scale-100'
-                    } ${isDark ? 'bg-[#15111c] border-white/10' : 'bg-[#f4f2ee] border-[#e7e3dc]'}`}
-                  >
-                    <div className="relative w-14 h-14 shrink-0">
-                      <div className="absolute -inset-[3px] rounded-full p-[2px] bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]" />
-                      {scrapedProfile.avatarUrl ? (
-                        <img
-                          src={scrapedProfile.avatarUrl}
-                          alt="Avatar"
-                          className="w-full h-full rounded-full object-cover relative z-10 border-2 border-white dark:border-black"
-                          onError={(e) => {
-                            // Monogram fallback on broken image
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full rounded-full flex items-center justify-center font-bold text-white bg-[#ff078e] relative z-10 border-2 border-white dark:border-black">
-                          {name.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                      {scrapedProfile.isVerified && (
-                        <div className="absolute -bottom-0.5 -right-0.5 z-20 w-[18px] h-[18px] rounded-full bg-[#0095f6] text-white flex items-center justify-center shadow">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 font-bold text-[15px] truncate">
-                        <span>{scrapedProfile.displayName}</span>
+                  {/* State 1: Public profile verified */}
+                  {verificationStatus === 'verified_public' && scrapedProfile && (
+                    <div
+                      className={`flex items-center gap-3.5 p-3 rounded-2xl border transition-all ${
+                        isDark ? 'bg-[#15111c] border-white/10' : 'bg-[#f4f2ee] border-[#e7e3dc]'
+                      }`}
+                    >
+                      <div className="relative w-14 h-14 shrink-0">
+                        <div className="absolute -inset-[3px] rounded-full p-[2px] bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]" />
+                        {scrapedProfile.avatarUrl ? (
+                          <img
+                            src={scrapedProfile.avatarUrl}
+                            alt="Avatar"
+                            className="w-full h-full rounded-full object-cover relative z-10 border-2 border-white dark:border-black"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-full flex items-center justify-center font-bold text-white bg-[#ff078e] relative z-10 border-2 border-white dark:border-black">
+                            {(name || handle || 'CR').slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
                         {scrapedProfile.isVerified && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="#0095f6">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z" />
-                          </svg>
+                          <div className="absolute -bottom-0.5 -right-0.5 z-20 w-[18px] h-[18px] rounded-full bg-[#0095f6] text-white flex items-center justify-center shadow">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </div>
                         )}
                       </div>
-                      <div className="font-mono-code text-[12px] text-[#ff078e] font-semibold">
-                        @{handle.replace(/^@/, '') || 'creator'}
-                      </div>
-                      <div className="flex gap-3 text-[12px] mt-1 text-zinc-500 dark:text-zinc-400">
-                        <div>
-                          <b className="text-zinc-900 dark:text-white">{scrapedProfile.followersStr}</b> followers
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 font-bold text-[15px] truncate">
+                          <span>{scrapedProfile.displayName}</span>
+                          {scrapedProfile.isVerified && (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#0095f6">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z" />
+                            </svg>
+                          )}
                         </div>
-                        <div>
-                          <b className="text-zinc-900 dark:text-white">{scrapedProfile.postsStr}</b> posts
+                        <div className="font-mono-code text-[12px] text-[#ff078e] font-semibold">
+                          @{handle.replace(/^@+/, '')}
                         </div>
-                      </div>
-                      <div className="text-[12px] text-zinc-400 truncate mt-0.5">
-                        {scrapedProfile.biography}
+                        <div className="flex gap-3 text-[12px] mt-1 text-zinc-500 dark:text-zinc-400">
+                          <div>
+                            <b className="text-zinc-900 dark:text-white">{scrapedProfile.followersStr}</b> followers
+                          </div>
+                          <div>
+                            <b className="text-zinc-900 dark:text-white">{scrapedProfile.postsStr}</b> posts
+                          </div>
+                        </div>
+                        {scrapedProfile.biography ? (
+                          <div className="text-[12px] text-zinc-400 truncate mt-0.5">
+                            {scrapedProfile.biography}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* State 2: Private profile verified (no mock data, verified status) */}
+                  {verificationStatus === 'verified_private' && (
+                    <div
+                      className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all ${
+                        isDark ? 'bg-[#15111c] border-emerald-500/25' : 'bg-emerald-50/70 border-emerald-200'
+                      }`}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[14px] text-zinc-900 dark:text-white">
+                            @{handle.replace(/^@+/, '')}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono-code font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                            PRIVATE · VERIFIED
+                          </span>
+                        </div>
+                        <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-1 leading-snug">
+                          Your account exists and is verified. Because it is set to private on Instagram, photos and public metrics are restricted. You are confirmed and can proceed!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* State 3: Account not found */}
+                  {verificationStatus === 'not_found' && (
+                    <div
+                      className={`flex items-center gap-3 p-3.5 rounded-2xl border ${
+                        isDark ? 'bg-[#15111c] border-rose-500/25 text-rose-300' : 'bg-rose-50/80 border-rose-200 text-rose-700'
+                      }`}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" />
+                        <line x1="9" y1="9" x2="15" y2="15" />
+                      </svg>
+                      <div className="text-[12.5px] leading-snug">
+                        No Instagram account found matching <b>@{handle.replace(/^@+/, '')}</b>. Please check your username.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* State 4: Error / Timeout */}
+                  {verificationStatus === 'error' && (
+                    <div
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border ${
+                        isDark ? 'bg-[#15111c] border-amber-500/25 text-amber-300' : 'bg-amber-50/80 border-amber-200 text-amber-800'
+                      }`}
+                    >
+                      <div className="text-[12px] leading-snug">
+                        {statusMessage || 'Apify could not complete the verification right now.'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => performScrape(handle)}
+                        className="px-3 py-1.5 rounded-lg text-[12px] font-bold bg-[#ff078e] text-white hover:bg-[#c8307f] transition-all self-start sm:self-auto cursor-pointer shrink-0"
+                      >
+                        Retry Check
+                      </button>
+                    </div>
+                  )}
+
+                  {/* State 5: Idle */}
+                  {verificationStatus === 'idle' && (
+                    <div className="p-3 text-center text-[12.5px] text-zinc-400 font-mono-code">
+                      Type your Instagram handle to live-verify with Apify
+                    </div>
+                  )}
+
+                  {/* State 6: Scanning */}
+                  {verificationStatus === 'scanning' && (
+                    <div className="flex items-center justify-center gap-2 p-4 text-[13px] text-zinc-500 dark:text-zinc-400 font-mono-code">
+                      <div className="w-4 h-4 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin" />
+                      <span>Verifying @{handle.replace(/^@+/, '')} on Instagram via Apify...</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -957,7 +1127,7 @@ export default function EarlyAccessPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="maya@influnet.dev"
+                  placeholder="you@domain.com"
                   autoFocus
                   className={`w-full h-[66px] rounded-[18px] px-6 text-[21px] font-semibold border-2 transition-all outline-none ${
                     shakeField === 'email' ? 'border-[#ff078e] animate-shake' : ''
@@ -1141,7 +1311,7 @@ export default function EarlyAccessPage() {
                     {/* Avatar Frame with Shifting Neon Ring */}
                     <div className="relative w-[94px] h-[94px] mb-2.5">
                       <div className="absolute -inset-1 rounded-full p-[3px] bg-gradient-to-tr from-[#ff078e] via-[#7c3aed] to-[#06b6d4] animate-gradient-shift shadow-[0_0_20px_rgba(255,7,142,0.35)]" />
-                      {scrapedProfile.avatarUrl ? (
+                      {scrapedProfile?.avatarUrl ? (
                         <img
                           src={scrapedProfile.avatarUrl}
                           alt="Avatar"
@@ -1149,7 +1319,7 @@ export default function EarlyAccessPage() {
                         />
                       ) : (
                         <div className="w-full h-full rounded-full flex items-center justify-center font-headline font-extrabold text-[32px] text-white bg-gradient-to-br from-[#ff078e] to-[#c8307f] relative z-10 border-[3px] border-white dark:border-[#1a1525]">
-                          {name.slice(0, 2).toUpperCase()}
+                          {(name || handle || 'CR').slice(0, 2).toUpperCase()}
                         </div>
                       )}
                       <div className="absolute bottom-0 right-0 z-20 w-[26px] h-[26px] rounded-full bg-white dark:bg-[#0d0a12] border-2 border-white dark:border-[#1a1525] flex items-center justify-center shadow-sm">
@@ -1161,7 +1331,7 @@ export default function EarlyAccessPage() {
 
                     {/* Identity */}
                     <div className="font-headline font-extrabold text-[19px] tracking-tight leading-tight max-w-[250px] truncate text-center">
-                      {(name || 'CREATOR').toUpperCase()}
+                      {(name || (role === 'creator' ? handle : 'MEMBER') || 'CREATOR').toUpperCase()}
                     </div>
                     <div className="font-mono-code text-[12px] font-semibold text-[#ff078e] flex items-center gap-1 mt-0.5">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -1169,7 +1339,7 @@ export default function EarlyAccessPage() {
                         <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
                         <circle cx="17.5" cy="6.5" r="1.5" />
                       </svg>
-                      <span>@{role === 'creator' ? (handle.replace(/^@/, '') || 'creator') : (company || name).toLowerCase().replace(/\s+/g, '')}</span>
+                      <span>@{role === 'creator' ? (handle.replace(/^@+/, '') || 'creator') : (company || name).toLowerCase().replace(/\s+/g, '')}</span>
                     </div>
 
                     {/* Stat Pill */}
@@ -1178,7 +1348,16 @@ export default function EarlyAccessPage() {
                     }`}>
                       <span className="text-[#ff078e]">★</span>
                       <span>
-                        <b>{role === 'creator' ? scrapedProfile.followersStr : '0% PLATFORM FEE'}</b> {role === 'creator' ? 'FOLLOWERS · VERIFIED' : '· FOUNDING BRAND'}
+                        <b>
+                          {role === 'creator'
+                            ? isAccountPrivate
+                              ? 'PRIVATE CREATOR'
+                              : scrapedProfile?.followersStr
+                              ? `${scrapedProfile.followersStr} FOLLOWERS`
+                              : 'CREATOR'
+                            : '0% PLATFORM FEE'}
+                        </b>{' '}
+                        {role === 'creator' ? '· VERIFIED' : '· FOUNDING BRAND'}
                       </span>
                     </div>
 

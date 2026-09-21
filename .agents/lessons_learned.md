@@ -2,6 +2,36 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Real Apify Instagram Verification (No Mock Data, Private vs Public Handling)
+
+**Branch**: `dev`
+
+### Scope
+- **Complete Elimination of Mock/Instant Data**:
+  - Removed server-side `INSTANT_PROFILES` map from `apps/web/src/app/api/auth/social-preview/route.ts`. No pre-fabricated fake profiles for any handle.
+  - Removed client-side initial values (`Maya Chen`, `mayachen_creates`, `84.5K followers`) from `apps/web/src/app/early-access/page.tsx`. Initial form states now start blank.
+  - Eliminated all client-side synthetic fallback generators (`randomK`, Unsplash avatars, fake follower/post counters).
+- **Accurate Apify Verification Flow for Creators**:
+  - Every Instagram handle is verified directly via Apify's `apify~instagram-profile-scraper` actor.
+  - **Private Accounts**: If `profile.isPrivate` is true, media and follower metrics are not fetched ("if private we dont fetch anything only oking with creator and move to nexr"). The verification status confirms the account exists and is an active Instagram handle, displaying a verified private badge and enabling the user to proceed directly to the next screen.
+  - **Public Accounts**: If public, real data is fetched: display name, verified blue badge, avatar (inlined as base64 data URI to avoid Instagram CDN hotlink blocks), real follower count, post count, and bio. Displayed in the rich creator card.
+  - **Non-Existent Accounts**: Returns 404 and displays a clear error ("No Instagram account found matching @handle"), preventing unverified progression.
+  - **Overlapping UI Glitch Fix**: Refactored the Instagram handle input container to a responsive flex layout with an isolated `@` prefix span and `bg-transparent` borderless input, completely preventing typed handle text from overlapping the `@` symbol across all viewport sizes.
+
+### Broken & Resolved
+- **User Seeing Mock Data Instead of Real Scraper Results**:
+  - *Cause*: `route.ts` retained `INSTANT_PROFILES`, `page.tsx` initialized state to `Maya Chen` / `mayachen_creates`, and error fallbacks fabricated fake follower counts with Unsplash images.
+  - *Fix*: Removed all mock data structures; hooked input to live Apify verification; added distinct handlers for public vs. private vs. not found accounts.
+- **Overlapping `@` Symbol in Handle Input**:
+  - *Cause*: `absolute left-5` with `pl-12` caused the typed handle to collide with the absolute `@` icon.
+  - *Fix*: Converted input container to flexbox with a clean separate `@` prefix.
+
+### Key Lessons
+- Never pre-populate form states with hardcoded demo profiles in production UI flows; users perceive it as broken or stuck on test data.
+- Instagram handles can be public or private: private profiles require validation of existence and privacy status without assuming or fabricating public media metrics.
+
+---
+
 ### Session — 2026-09-21: Early Access Luxury Light Mode Redesign & Backend Scraper Fixes
 
 **Branch**: `dev`
