@@ -2,6 +2,29 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Fix PR Checks CI Failures (ESLint Next.js Link & Matchmaking Consent Payload)
+
+**Branch**: `dev`
+
+### Scope
+- **ESLint `no-html-link-for-pages` Fix**:
+  - `apps/web/src/app/early-access/page.tsx`: Replaced raw `<a href="/">` in navigation header with `<Link href="/">` from `next/link`.
+- **E2E Matchmaking Test Suite Consent Fix**:
+  - `apps/web/tests/matchmaking.js`: Added required consent fields (`termsAccepted: true, ageConfirmed: true, termsVersion: 'e2e-harness'`) to user metadata and `/api/auth/register` payload, satisfying the migration 162 terms validation gate.
+
+### Broken & Resolved
+- **CI ESLint Failure**:
+  - *Cause*: `apps/web/src/app/early-access/page.tsx:1138` used raw `<a>` navigating to `/`, causing `@next/next/no-html-link-for-pages` lint error.
+  - *Fix*: Imported and used Next.js `Link` component.
+- **CI E2E Matchmaking Test Failure**:
+  - *Cause*: `Profile registration failed: To create an account you need to accept the Terms and Privacy Policy and confirm you are 18 or older`. The endpoint `/api/auth/register` strictly requires `termsAccepted: true` and `ageConfirmed: true`, which were missing from the test script.
+  - *Fix*: Added the consent flags to both `createUser`/`signUp` metadata and the registration POST body. All 7 test phases now pass locally.
+
+### Key Lessons
+- Any integration test script that calls `/api/auth/register` or `public.register_profile` must include `termsAccepted: true, ageConfirmed: true` to pass the server-side consent validation enforced since migration 162.
+
+---
+
 ### Session — 2026-09-21: Fix Early Access Delete Endpoint Authorization Header
 
 **Branch**: `dev`

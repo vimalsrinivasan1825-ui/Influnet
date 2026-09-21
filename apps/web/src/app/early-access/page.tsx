@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import confetti from 'canvas-confetti';
 
 interface ScrapedProfile {
@@ -1135,7 +1136,7 @@ export default function EarlyAccessPage() {
             : 'bg-[#fbfaf8]/85 border-[#e7e3dc]'
         }`}
       >
-        <a href="/" className="flex items-center gap-2.5 font-headline font-extrabold text-[19px] tracking-tight">
+        <Link href="/" className="flex items-center gap-2.5 font-headline font-extrabold text-[19px] tracking-tight">
           <Image
             src="/influet_logo.png"
             alt="Influnet"
@@ -1145,7 +1146,7 @@ export default function EarlyAccessPage() {
             priority
           />
           <span>influnet</span>
-        </a>
+        </Link>
 
         <div className="flex items-center gap-3">
           {/* Role selector on screen 0 */}

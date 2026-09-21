@@ -60,7 +60,7 @@ async function signUpUser(email, name, role) {
       email,
       password,
       email_confirm: true,
-      user_metadata: { name, role },
+      user_metadata: { name, role, termsAccepted: true, ageConfirmed: true, termsVersion: 'e2e-harness' },
     });
     // A leftover account from an interrupted run must not fail the suite —
     // the sign-in below adopts it, and cleanup removes it either way.
@@ -82,7 +82,10 @@ async function signUpUser(email, name, role) {
       options: {
         data: {
           name,
-          role
+          role,
+          termsAccepted: true,
+          ageConfirmed: true,
+          termsVersion: 'e2e-harness',
         }
       }
     });
@@ -105,7 +108,10 @@ async function signUpUser(email, name, role) {
     email,
     name,
     location: 'Mumbai, India',
-    phone: '+919999999999'
+    phone: '+919999999999',
+    termsAccepted: true,
+    ageConfirmed: true,
+    termsVersion: 'e2e-harness',
   };
   if (role === 'business_owner') {
     payload.companyName = `Test Company ${suffix}`;
