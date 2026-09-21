@@ -2,6 +2,29 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: /join Mobile Touch Input Focus & Virtual Keyboard Activation Fix
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Input Focus & Software Keyboard Activation**:
+  - `apps/landing/src/app/join/page.tsx`:
+    - Removed `backdrop-blur-xl` from the form card container on mobile devices, preventing iOS WebKit compositor layer tap interception where touches fail to hit `<input>` elements.
+    - Moved the fixed background glowing orbs layer to `-z-10` with explicit `pointer-events-none select-none` on parent and child nodes, eliminating any possibility of background divs capturing mobile touch events.
+    - Added explicit React `useRef` handles (`step1InputRef`, `step2InputRef`, `step3EmailRef`, `step3PhoneRef`, `step7NoteRef`) and wired an automated `useEffect` timer (120ms) to programmatically trigger `.focus()` on step changes.
+    - Added `id` attributes and matching `<label htmlFor="...">` with `cursor-pointer`, allowing taps on labels to immediately focus the input field.
+    - Wrapped input containers with `onClick={() => inputRef.current?.focus()}` so tapping anywhere near the field immediately opens the virtual keyboard.
+    - Upgraded inputs to `h-14` (56px) meeting Apple Human Interface Guidelines for touch targets, and added `relative z-20 touch-manipulation cursor-text` with explicit `inputMode` hints (`text`, `email`, `tel`).
+    - Changed `framer-motion` card entrance transition to simple opacity fade (`initial={{ opacity: 0 }} animate={{ opacity: 1 }}`) instead of horizontal `x` translates, preventing CSS transforms from disturbing WebKit caret positioning and touch coordinates.
+    - Switched outer container to `min-h-[100dvh]` to smoothly accommodate mobile browser chrome and virtual keyboard expansion.
+
+### Broken & Resolved
+- **Mobile Safari Input Unresponsive / Keyboard Not Appearing**:
+  - *Cause*: `backdrop-blur-xl` combined with Framer Motion `transform: translateX()` in iOS WebKit creates a separate compositing layer that intercepts touch events before they reach the `<input>` element, preventing focus and software keyboard activation.
+  - *Fix*: Removed backdrop-filter on the card, replaced horizontal transform animation with opacity fade, added `-z-10` on ambient background, and wired explicit `ref.focus()` on step mounts and container taps.
+
+---
+
 ### Session — 2026-09-21: /join Light Mode Redesign, Bigger Centered Logo, Progress 0% Fix & Multi-Select Options
 
 **Branch**: `dev`

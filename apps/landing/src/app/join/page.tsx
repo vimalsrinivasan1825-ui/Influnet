@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -96,6 +96,13 @@ export default function CreatorJoinPage() {
   ]);
   const [customChallengeNote, setCustomChallengeNote] = useState('');
 
+  // Explicit input refs for reliable mobile focus
+  const step1InputRef = useRef<HTMLInputElement>(null);
+  const step2InputRef = useRef<HTMLInputElement>(null);
+  const step3EmailRef = useRef<HTMLInputElement>(null);
+  const step3PhoneRef = useRef<HTMLInputElement>(null);
+  const step7NoteRef = useRef<HTMLTextAreaElement>(null);
+
   // UI / Error State
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -103,6 +110,20 @@ export default function CreatorJoinPage() {
     applicationNumber: number;
     message: string;
   } | null>(null);
+
+  // Auto-focus the active input on step changes (works reliably on mobile & desktop)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (step === 1) {
+        step1InputRef.current?.focus();
+      } else if (step === 2) {
+        step2InputRef.current?.focus();
+      } else if (step === 3) {
+        step3EmailRef.current?.focus();
+      }
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [step]);
 
   // Confetti on success
   useEffect(() => {
@@ -153,21 +174,25 @@ export default function CreatorJoinPage() {
     if (step === 1) {
       if (!name.trim()) {
         setErrorMsg('Please enter your full name');
+        step1InputRef.current?.focus();
         return false;
       }
     } else if (step === 2) {
       if (handle.trim().length > 60) {
         setErrorMsg('Instagram handle is too long');
+        step2InputRef.current?.focus();
         return false;
       }
     } else if (step === 3) {
       if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         setErrorMsg('Please enter a valid email address');
+        step3EmailRef.current?.focus();
         return false;
       }
       const digits = phone.replace(/\D/g, '');
       if (digits.length < 7 || digits.length > 15 || !PHONE_REGEX.test(phone.trim())) {
         setErrorMsg('Please enter a valid WhatsApp number (7–15 digits)');
+        step3PhoneRef.current?.focus();
         return false;
       }
     } else if (step === 4) {
@@ -257,20 +282,20 @@ export default function CreatorJoinPage() {
   const progressPercent = Math.round(((step - 1) / totalSteps) * 100);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-zinc-900 flex flex-col justify-between selection:bg-[#ff078e] selection:text-white relative overflow-x-hidden font-sans">
-      {/* Background Ambience: Subtle animated glowing orbs and texture */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-36 left-1/2 -translate-x-1/2 w-[700px] sm:w-[950px] h-[520px] bg-gradient-to-b from-[#ff078e]/12 via-[#7928ca]/8 to-transparent rounded-full blur-3xl opacity-80" />
-        <div className="absolute -bottom-24 -right-24 w-[480px] h-[480px] bg-gradient-to-tl from-[#ff078e]/10 via-[#00e5ff]/5 to-transparent rounded-full blur-3xl opacity-70" />
-        <div className="absolute top-1/3 -left-36 w-[400px] h-[400px] bg-gradient-to-tr from-[#7928ca]/8 to-transparent rounded-full blur-3xl opacity-60" />
-        <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] opacity-50" />
+    <div className="min-h-[100dvh] bg-[#FAFAFA] text-zinc-900 flex flex-col justify-between selection:bg-[#ff078e] selection:text-white relative overflow-x-hidden font-sans">
+      {/* Background Ambience: Pushed to -z-10 with pointer-events-none so it NEVER intercepts mobile touch events */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 select-none">
+        <div className="absolute -top-36 left-1/2 -translate-x-1/2 w-[700px] sm:w-[950px] h-[520px] bg-gradient-to-b from-[#ff078e]/12 via-[#7928ca]/8 to-transparent rounded-full blur-3xl opacity-80 pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-[480px] h-[480px] bg-gradient-to-tl from-[#ff078e]/10 via-[#00e5ff]/5 to-transparent rounded-full blur-3xl opacity-70 pointer-events-none" />
+        <div className="absolute top-1/3 -left-36 w-[400px] h-[400px] bg-gradient-to-tr from-[#7928ca]/8 to-transparent rounded-full blur-3xl opacity-60 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] opacity-50 pointer-events-none" />
       </div>
 
       {/* Top Header with Centered Prominent Logo & Brand Name */}
-      <header className="relative z-10 w-full pt-8 sm:pt-10 pb-4 px-4 sm:px-6 flex flex-col items-center justify-center">
+      <header className="relative z-10 w-full pt-6 sm:pt-10 pb-3 sm:pb-4 px-4 sm:px-6 flex flex-col items-center justify-center">
         <Link
           href="/"
-          className="group flex flex-col items-center gap-3 transition-transform active:scale-95"
+          className="group flex flex-col items-center gap-2.5 sm:gap-3 transition-transform active:scale-95 touch-manipulation"
         >
           {/* Bigger Logo Badge with Soft Ambient Glow */}
           <div className="relative size-20 sm:size-24 rounded-3xl bg-white border border-zinc-200/90 p-3.5 flex items-center justify-center shadow-[0_10px_35px_rgba(255,7,142,0.18)] group-hover:shadow-[0_12px_45px_rgba(255,7,142,0.28)] group-hover:border-[#ff078e]/40 transition-all">
@@ -279,7 +304,7 @@ export default function CreatorJoinPage() {
               alt="Influnet Logo"
               width={72}
               height={72}
-              className="size-full object-contain"
+              className="size-full object-contain pointer-events-none"
               priority
             />
             {/* Ambient subtle glow ring */}
@@ -291,7 +316,7 @@ export default function CreatorJoinPage() {
         </Link>
 
         {step <= totalSteps && (
-          <div className="w-full max-w-md mt-6">
+          <div className="w-full max-w-md mt-4 sm:mt-6">
             {/* Step Indicator & Fixed 0% Starting Progress */}
             <div className="flex items-center justify-between text-xs font-mono font-medium text-zinc-500 mb-2 px-1">
               <span className="text-[#ff078e] font-bold">
@@ -311,18 +336,18 @@ export default function CreatorJoinPage() {
         )}
       </header>
 
-      {/* Main Step-by-Step Card Container in Light Mode */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-6 py-6 max-w-xl w-full mx-auto">
+      {/* Main Step-by-Step Card Container: Pure white card (no mobile backdrop-filter bug) */}
+      <main className="relative z-10 flex-1 flex flex-col justify-center items-center px-4 sm:px-6 py-4 sm:py-6 max-w-xl w-full mx-auto">
         <AnimatePresence mode="wait">
           {/* STEP 1: Name */}
           {step === 1 && (
             <motion.div
               key="step1"
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.28, ease: 'easeInOut' }}
-              className="w-full bg-white/90 border border-zinc-200/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07),0_0_1px_1px_rgba(0,0,0,0.03)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="w-full bg-white border border-zinc-200/90 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_-10px_rgba(0,0,0,0.06)] relative z-10"
             >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/20 text-[#ff078e] text-xs font-mono font-bold mb-4">
                 <Sparkles className="size-3.5" />
@@ -335,12 +360,23 @@ export default function CreatorJoinPage() {
                 Tell us how brands and the Influnet creator team should address you.
               </p>
 
-              <div>
-                <label className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2">
+              <div
+                className="cursor-text"
+                onClick={() => step1InputRef.current?.focus()}
+              >
+                <label
+                  htmlFor="creator-name-input"
+                  className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2 cursor-pointer"
+                >
                   Full Name / Creator Name *
                 </label>
                 <input
+                  ref={step1InputRef}
+                  id="creator-name-input"
+                  name="name"
                   type="text"
+                  inputMode="text"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -351,7 +387,7 @@ export default function CreatorJoinPage() {
                   }}
                   placeholder="e.g. Vimal Srinivasan"
                   autoFocus
-                  className="w-full h-13 px-4 rounded-xl bg-zinc-50/90 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base sm:text-lg focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all shadow-sm"
+                  className="w-full h-14 px-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all shadow-sm relative z-20 touch-manipulation cursor-text"
                 />
               </div>
 
@@ -366,7 +402,7 @@ export default function CreatorJoinPage() {
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95"
+                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95 touch-manipulation"
                 >
                   Continue <ArrowRight className="size-4" />
                 </button>
@@ -378,11 +414,11 @@ export default function CreatorJoinPage() {
           {step === 2 && (
             <motion.div
               key="step2"
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.28, ease: 'easeInOut' }}
-              className="w-full bg-white/90 border border-zinc-200/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07),0_0_1px_1px_rgba(0,0,0,0.03)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="w-full bg-white border border-zinc-200/90 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_-10px_rgba(0,0,0,0.06)] relative z-10"
             >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-700 text-xs font-mono font-bold mb-4">
                 <Camera className="size-3.5" />
@@ -395,16 +431,28 @@ export default function CreatorJoinPage() {
                 Brands inspect your visual content aesthetic and audience vibe before offering deals.
               </p>
 
-              <div>
-                <label className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2">
+              <div
+                className="cursor-text"
+                onClick={() => step2InputRef.current?.focus()}
+              >
+                <label
+                  htmlFor="creator-handle-input"
+                  className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2 cursor-pointer"
+                >
                   Instagram Handle (Optional)
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-4 text-zinc-400 font-bold text-lg select-none">
+                  <span className="absolute left-4 text-zinc-400 font-bold text-lg select-none pointer-events-none z-30">
                     @
                   </span>
                   <input
+                    ref={step2InputRef}
+                    id="creator-handle-input"
+                    name="instagramHandle"
                     type="text"
+                    inputMode="text"
+                    autoCapitalize="none"
+                    autoCorrect="off"
                     value={handle}
                     onChange={(e) => {
                       setHandle(e.target.value.replace(/^@/, ''));
@@ -415,7 +463,7 @@ export default function CreatorJoinPage() {
                     }}
                     placeholder="creatorhandle"
                     autoFocus
-                    className="w-full h-13 pl-9 pr-4 rounded-xl bg-zinc-50/90 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base sm:text-lg focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm"
+                    className="w-full h-14 pl-9 pr-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm relative z-20 touch-manipulation cursor-text"
                   />
                 </div>
                 <p className="text-xs text-zinc-400 mt-2">
@@ -434,7 +482,7 @@ export default function CreatorJoinPage() {
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95"
+                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95 touch-manipulation"
                 >
                   <ArrowLeft className="size-4" /> Back
                 </button>
@@ -443,7 +491,7 @@ export default function CreatorJoinPage() {
                     <button
                       type="button"
                       onClick={nextStep}
-                      className="text-xs text-zinc-500 hover:text-zinc-800 px-3 py-2 transition-colors underline font-medium"
+                      className="text-xs text-zinc-500 hover:text-zinc-800 px-3 py-2 transition-colors underline font-medium touch-manipulation"
                     >
                       Skip for now
                     </button>
@@ -451,7 +499,7 @@ export default function CreatorJoinPage() {
                   <button
                     type="button"
                     onClick={nextStep}
-                    className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95"
+                    className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95 touch-manipulation"
                   >
                     Continue <ArrowRight className="size-4" />
                   </button>
@@ -464,11 +512,11 @@ export default function CreatorJoinPage() {
           {step === 3 && (
             <motion.div
               key="step3"
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.28, ease: 'easeInOut' }}
-              className="w-full bg-white/90 border border-zinc-200/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07),0_0_1px_1px_rgba(0,0,0,0.03)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="w-full bg-white border border-zinc-200/90 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_-10px_rgba(0,0,0,0.06)] relative z-10"
             >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-xs font-mono font-bold mb-4">
                 <Phone className="size-3.5" />
@@ -482,14 +530,25 @@ export default function CreatorJoinPage() {
               </p>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2">
+                <div
+                  className="cursor-text"
+                  onClick={() => step3EmailRef.current?.focus()}
+                >
+                  <label
+                    htmlFor="creator-email-input"
+                    className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2 cursor-pointer"
+                  >
                     Email Address *
                   </label>
                   <div className="relative flex items-center">
-                    <Mail className="absolute left-4 size-4 text-zinc-400 pointer-events-none" />
+                    <Mail className="absolute left-4 size-4 text-zinc-400 pointer-events-none z-30" />
                     <input
+                      ref={step3EmailRef}
+                      id="creator-email-input"
+                      name="email"
                       type="email"
+                      inputMode="email"
+                      autoComplete="email"
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value);
@@ -497,19 +556,30 @@ export default function CreatorJoinPage() {
                       }}
                       placeholder="vimal@influnet.io"
                       autoFocus
-                      className="w-full h-12 pl-11 pr-4 rounded-xl bg-zinc-50/90 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-sm sm:text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm"
+                      className="w-full h-14 pl-11 pr-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm relative z-20 touch-manipulation cursor-text"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2">
+                <div
+                  className="cursor-text"
+                  onClick={() => step3PhoneRef.current?.focus()}
+                >
+                  <label
+                    htmlFor="creator-phone-input"
+                    className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2 cursor-pointer"
+                  >
                     WhatsApp Number (Instant Deal Alerts) *
                   </label>
                   <div className="relative flex items-center">
-                    <Phone className="absolute left-4 size-4 text-zinc-400 pointer-events-none" />
+                    <Phone className="absolute left-4 size-4 text-zinc-400 pointer-events-none z-30" />
                     <input
+                      ref={step3PhoneRef}
+                      id="creator-phone-input"
+                      name="phone"
                       type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
                       value={phone}
                       onChange={(e) => {
                         setPhone(e.target.value);
@@ -519,7 +589,7 @@ export default function CreatorJoinPage() {
                         if (e.key === 'Enter') nextStep();
                       }}
                       placeholder="+91 98765 43210"
-                      className="w-full h-12 pl-11 pr-4 rounded-xl bg-zinc-50/90 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-sm sm:text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm"
+                      className="w-full h-14 pl-11 pr-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-base focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all font-mono shadow-sm relative z-20 touch-manipulation cursor-text"
                     />
                   </div>
                   <p className="text-[11px] text-zinc-500 mt-1.5">
@@ -539,14 +609,14 @@ export default function CreatorJoinPage() {
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95"
+                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95 touch-manipulation"
                 >
                   <ArrowLeft className="size-4" /> Back
                 </button>
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95"
+                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95 touch-manipulation"
                 >
                   Continue <ArrowRight className="size-4" />
                 </button>
@@ -554,15 +624,15 @@ export default function CreatorJoinPage() {
             </motion.div>
           )}
 
-          {/* STEP 4: Creator Roles / Formats (MULTI-SELECT ENABLED) */}
+          {/* STEP 4: Creator Roles / Formats (MULTI-SELECT) */}
           {step === 4 && (
             <motion.div
               key="step4"
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.28, ease: 'easeInOut' }}
-              className="w-full bg-white/90 border border-zinc-200/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07),0_0_1px_1px_rgba(0,0,0,0.03)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="w-full bg-white border border-zinc-200/90 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_-10px_rgba(0,0,0,0.06)] relative z-10"
             >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-700 text-xs font-mono font-bold mb-4">
                 <Share2 className="size-3.5" />
@@ -586,7 +656,7 @@ export default function CreatorJoinPage() {
                         toggleCreatorType(role.id);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      className={`w-full text-left p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-between ${
+                      className={`w-full text-left p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-between touch-manipulation ${
                         isSelected
                           ? 'bg-gradient-to-r from-[#ff078e]/[0.08] to-[#7928ca]/[0.05] border-[#ff078e] shadow-sm text-zinc-950 ring-1 ring-[#ff078e]'
                           : 'bg-zinc-50/80 border-zinc-200/90 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-100/60'
@@ -628,14 +698,14 @@ export default function CreatorJoinPage() {
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95"
+                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95 touch-manipulation"
                 >
                   <ArrowLeft className="size-4" /> Back
                 </button>
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95"
+                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95 touch-manipulation"
                 >
                   Continue <ArrowRight className="size-4" />
                 </button>
@@ -647,11 +717,11 @@ export default function CreatorJoinPage() {
           {step === 5 && (
             <motion.div
               key="step5"
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.28, ease: 'easeInOut' }}
-              className="w-full bg-white/90 border border-zinc-200/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07),0_0_1px_1px_rgba(0,0,0,0.03)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="w-full bg-white border border-zinc-200/90 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_-10px_rgba(0,0,0,0.06)] relative z-10"
             >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs font-mono font-bold mb-4">
                 <Award className="size-3.5" />
@@ -675,7 +745,7 @@ export default function CreatorJoinPage() {
                         setFollowerTier(tier.id);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      className={`p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                      className={`p-4 rounded-2xl border text-left transition-all flex items-center justify-between touch-manipulation ${
                         isSelected
                           ? 'bg-gradient-to-br from-[#ff078e]/[0.08] to-[#7928ca]/[0.05] border-[#ff078e] shadow-sm text-zinc-950 ring-1 ring-[#ff078e]'
                           : 'bg-zinc-50/80 border-zinc-200/90 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-100/60'
@@ -713,14 +783,14 @@ export default function CreatorJoinPage() {
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95"
+                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95 touch-manipulation"
                 >
                   <ArrowLeft className="size-4" /> Back
                 </button>
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95"
+                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95 touch-manipulation"
                 >
                   Continue <ArrowRight className="size-4" />
                 </button>
@@ -732,11 +802,11 @@ export default function CreatorJoinPage() {
           {step === 6 && (
             <motion.div
               key="step6"
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.28, ease: 'easeInOut' }}
-              className="w-full bg-white/90 border border-zinc-200/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07),0_0_1px_1px_rgba(0,0,0,0.03)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="w-full bg-white border border-zinc-200/90 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_-10px_rgba(0,0,0,0.06)] relative z-10"
             >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-700 text-xs font-mono font-bold mb-4">
                 <Layers className="size-3.5" />
@@ -760,7 +830,7 @@ export default function CreatorJoinPage() {
                         toggleNiche(niche.id);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      className={`px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 active:scale-95 ${
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 active:scale-95 touch-manipulation ${
                         isSelected
                           ? 'bg-gradient-to-r from-[#ff078e] to-[#c8307f] border-[#ff078e] text-white shadow-md shadow-[#ff078e]/25 font-bold'
                           : 'bg-zinc-50/90 border-zinc-200 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-100/70'
@@ -788,14 +858,14 @@ export default function CreatorJoinPage() {
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95"
+                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95 touch-manipulation"
                 >
                   <ArrowLeft className="size-4" /> Back
                 </button>
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95"
+                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-lg shadow-[#ff078e]/25 transition-all active:scale-95 touch-manipulation"
                 >
                   Continue <ArrowRight className="size-4" />
                 </button>
@@ -803,15 +873,15 @@ export default function CreatorJoinPage() {
             </motion.div>
           )}
 
-          {/* STEP 7: Brand Experience & Challenges (MULTI-SELECT CHALLENGES ENABLED) */}
+          {/* STEP 7: Brand Experience & Challenges */}
           {step === 7 && (
             <motion.div
               key="step7"
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.28, ease: 'easeInOut' }}
-              className="w-full bg-white/90 border border-zinc-200/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07),0_0_1px_1px_rgba(0,0,0,0.03)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="w-full bg-white border border-zinc-200/90 rounded-3xl p-6 sm:p-8 shadow-[0_15px_50px_-10px_rgba(0,0,0,0.06)] relative z-10"
             >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 text-xs font-mono font-bold mb-4">
                 <CheckCircle2 className="size-3.5" />
@@ -836,7 +906,7 @@ export default function CreatorJoinPage() {
                         setBrandExp(opt.id);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      className={`w-full text-left p-3 sm:p-3.5 rounded-xl border transition-all flex items-center justify-between ${
+                      className={`w-full text-left p-3 sm:p-3.5 rounded-xl border transition-all flex items-center justify-between touch-manipulation ${
                         isSelected
                           ? 'bg-gradient-to-r from-[#ff078e]/[0.08] to-[#7928ca]/[0.05] border-[#ff078e] text-zinc-950 font-bold ring-1 ring-[#ff078e]'
                           : 'bg-zinc-50/80 border-zinc-200/90 text-zinc-700 hover:border-zinc-300'
@@ -871,7 +941,7 @@ export default function CreatorJoinPage() {
                         key={ch.id}
                         type="button"
                         onClick={() => toggleChallenge(ch.id)}
-                        className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between ${
+                        className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between touch-manipulation ${
                           isSelected
                             ? 'bg-[#ff078e]/10 border-[#ff078e] text-zinc-950 font-semibold'
                             : 'bg-zinc-50/80 border-zinc-200 text-zinc-600 hover:border-zinc-300'
@@ -894,16 +964,26 @@ export default function CreatorJoinPage() {
               </div>
 
               {/* Optional Custom Notes / Challenge Details */}
-              <div>
-                <label className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2">
+              <div
+                className="cursor-text"
+                onClick={() => step7NoteRef.current?.focus()}
+              >
+                <label
+                  htmlFor="creator-notes-input"
+                  className="block text-xs font-mono font-bold text-zinc-600 uppercase tracking-wider mb-2 cursor-pointer"
+                >
                   Other notes or specific challenges (Optional)
                 </label>
                 <textarea
+                  ref={step7NoteRef}
+                  id="creator-notes-input"
+                  name="challengeNotes"
+                  inputMode="text"
                   value={customChallengeNote}
                   onChange={(e) => setCustomChallengeNote(e.target.value)}
                   rows={2}
                   placeholder="Tell us any specific issue you want Influnet to solve for your workflow..."
-                  className="w-full p-3 rounded-xl bg-zinc-50/90 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-xs sm:text-sm focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all shadow-sm"
+                  className="w-full p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 text-sm focus:outline-none focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10 focus:bg-white transition-all shadow-sm relative z-20 touch-manipulation cursor-text"
                 />
               </div>
 
@@ -919,7 +999,7 @@ export default function CreatorJoinPage() {
                   type="button"
                   onClick={prevStep}
                   disabled={submitting}
-                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                  className="h-12 px-5 rounded-full border border-zinc-200 hover:bg-zinc-100/80 text-zinc-700 text-sm font-bold inline-flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 touch-manipulation"
                 >
                   <ArrowLeft className="size-4" /> Back
                 </button>
@@ -927,7 +1007,7 @@ export default function CreatorJoinPage() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-xl shadow-[#ff078e]/30 transition-all active:scale-95 disabled:opacity-50"
+                  className="h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center gap-2 shadow-xl shadow-[#ff078e]/30 transition-all active:scale-95 disabled:opacity-50 touch-manipulation"
                 >
                   {submitting ? 'Submitting Application…' : 'Submit Application 🎉'}
                 </button>
@@ -939,10 +1019,10 @@ export default function CreatorJoinPage() {
           {step === 8 && (
             <motion.div
               key="step8"
-              initial={{ opacity: 0, scale: 0.92 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
-              className="w-full bg-white/95 border border-[#ff078e]/30 rounded-3xl p-6 sm:p-10 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(255,7,142,0.18)] text-center"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="w-full bg-white border border-[#ff078e]/30 rounded-3xl p-6 sm:p-10 shadow-[0_20px_60px_-15px_rgba(255,7,142,0.18)] text-center relative z-10"
             >
               <div className="size-16 rounded-2xl bg-gradient-to-br from-[#ff078e] to-[#7928ca] mx-auto flex items-center justify-center text-white shadow-[0_8px_30px_rgba(255,7,142,0.45)] mb-5">
                 <CheckCircle2 className="size-9" />
@@ -980,13 +1060,13 @@ export default function CreatorJoinPage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
                 <Link
                   href="/"
-                  className="w-full sm:w-auto h-12 px-6 rounded-full border border-zinc-200 hover:bg-zinc-100 text-zinc-700 font-bold text-sm inline-flex items-center justify-center gap-2 transition-all"
+                  className="w-full sm:w-auto h-12 px-6 rounded-full border border-zinc-200 hover:bg-zinc-100 text-zinc-700 font-bold text-sm inline-flex items-center justify-center gap-2 transition-all touch-manipulation"
                 >
                   <Home className="size-4" /> Return to Home
                 </Link>
                 <a
                   href={`${APP_URL}/early-access`}
-                  className="w-full sm:w-auto h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center justify-center gap-2 shadow-lg shadow-[#ff078e]/30 transition-all"
+                  className="w-full sm:w-auto h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center justify-center gap-2 shadow-lg shadow-[#ff078e]/30 transition-all touch-manipulation"
                 >
                   <Sparkles className="size-4" /> Claim Founder Pass
                 </a>
@@ -997,7 +1077,7 @@ export default function CreatorJoinPage() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 w-full py-5 text-center text-xs text-zinc-500 font-mono border-t border-zinc-200/60 bg-white/40 backdrop-blur-sm">
+      <footer className="relative z-10 w-full py-4 text-center text-xs text-zinc-500 font-mono border-t border-zinc-200/60 bg-white/60">
         Influnet Creator Network © {new Date().getFullYear()} · Made for Indian Creators & Brands
       </footer>
     </div>
