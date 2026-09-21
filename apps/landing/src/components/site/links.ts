@@ -5,6 +5,8 @@ export const SIGNUP_URL: Record<Role, string> = {
   creator: `${APP_URL}/signup/influencer`,
   business: `${APP_URL}/signup/business`,
 };
+export const EARLY_ACCESS_URL = `${APP_URL}/early-access`;
+
 
 export const SUPPORT_EMAIL = 'support@influnet.io';
 

@@ -4,7 +4,8 @@ import { useRef } from 'react';
 import LogoMark from '@/components/brand/logo-mark';
 import { gsap, SplitText, useGSAP, prefersReducedMotion } from '@/components/motion/gsap';
 import type { Role } from '@/lib/role';
-import { APP_URL, SIGNUP_URL } from './links';
+import { APP_URL, SIGNUP_URL, EARLY_ACCESS_URL } from './links';
+
 
 type Props = { role: Role; title: string; body: string; cta: string };
 
@@ -46,18 +47,25 @@ export default function FinalCta({ role, title, body, cta }: Props) {
         </p>
         <div data-cta-fade className="flex flex-wrap justify-center gap-3">
           <a
+            href={EARLY_ACCESS_URL}
+            className="flex h-14 items-center rounded-full bg-brand px-8 text-[17px] font-bold text-ink transition-colors hover:bg-white shadow-[0_0_24px_rgba(255,7,142,0.4)]"
+          >
+            Claim Founder Pass ✦
+          </a>
+          <a
             href={SIGNUP_URL[role]}
-            className="flex h-14 items-center rounded-full bg-brand px-8 text-[17px] font-bold text-ink transition-colors hover:bg-white"
+            className="flex h-14 items-center rounded-full border-[1.5px] border-white/25 px-7 text-[17px] font-semibold transition-colors hover:border-white/60"
           >
             {cta}
           </a>
           <a
             href={`${APP_URL}/login`}
-            className="flex h-14 items-center rounded-full border-[1.5px] border-white/25 px-7 text-[17px] font-semibold transition-colors hover:border-white/60"
+            className="flex h-14 items-center rounded-full border-[1.5px] border-white/15 px-6 text-[17px] font-semibold text-neutral-400 transition-colors hover:border-white/40 hover:text-white"
           >
             Log in
           </a>
         </div>
+
       </div>
     </section>
   );
