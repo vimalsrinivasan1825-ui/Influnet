@@ -2,6 +2,27 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Landing Page Layout Fix — Chatbot Icon Collision & Mobile App Card Disabled
+
+**Branch**: `dev`
+
+### Scope
+- **Disabled Left-Side Mobile App Card**:
+  - In `apps/landing/src/components/site/site-widgets.tsx`: Temporarily disabled `<AppCard hidden={open} />` per user request so it can easily be re-enabled later.
+- **Fixed Chatbot Overlap on Early Access Founder Card**:
+  - In `apps/landing/src/components/site/early-access-banner.tsx`:
+    - Moved the banner to the bottom-left corner (`sm:bottom-6 sm:left-6 sm:right-auto sm:w-[380px]`) occupying the space of the disabled mobile app card.
+    - Added responsive clearance on mobile devices (`bottom-4 left-3 right-[5.25rem]`), ensuring the card leaves 84px margin on the right and never collides with the circular chatbot launcher.
+    - Integrated with `SiteWidgets` so the banner respects `hidden={open}` and automatically yields when the user opens the help chat window.
+  - In `apps/landing/src/app/layout.tsx`: Removed the duplicate standalone `<EarlyAccessBanner />` mount so it is managed exclusively through `SiteWidgets`.
+
+### Broken & Resolved
+- **Chatbot Floating Icon Obscuring "Claim Pass" Action**:
+  - *Cause*: Both `HelpBot` (z-[60]) and `EarlyAccessBanner` (z-50) were pinned to the bottom-right corner (`bottom-6 right-6`), placing the chatbot launcher directly on top of the banner's call-to-action button.
+  - *Fix*: Relocated `EarlyAccessBanner` to the bottom-left, added safe right clearance on narrow screens, and disabled `AppCard`.
+
+---
+
 ### Session — 2026-09-21: Fix PR Checks CI Failures (ESLint Next.js Link & Matchmaking Consent Payload)
 
 **Branch**: `dev`

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, Spline_Sans_Mono } from "next/font/google";
 import Script from "next/script";
 import { BOOT_SCRIPT } from "@/lib/role";
-import EarlyAccessBanner from "@/components/site/early-access-banner";
 import "./globals.css";
 
 
@@ -56,7 +55,6 @@ export default function RootLayout({
           {BOOT_SCRIPT}
         </Script>
         {children}
-        <EarlyAccessBanner />
       </body>
 
     </html>

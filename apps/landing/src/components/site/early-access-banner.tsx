@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, X } from 'lucide-react';
 import { EARLY_ACCESS_URL } from './links';
 
-export default function EarlyAccessBanner() {
+export default function EarlyAccessBanner({ hidden = false }: { hidden?: boolean } = {}) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -36,13 +36,13 @@ export default function EarlyAccessBanner() {
 
   return (
     <AnimatePresence>
-      {visible && (
+      {visible && !hidden && (
         <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ type: 'spring', stiffness: 220, damping: 20 }}
-          className="fixed bottom-6 right-6 z-50 max-w-sm w-[calc(100vw-3rem)] rounded-2xl bg-[#120d1a]/95 border border-[#ff078e]/35 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.8),0_0_30px_rgba(255,7,142,0.2)] backdrop-blur-xl text-white selection:bg-[#ff078e]"
+          className="fixed bottom-4 left-3 right-[5.25rem] z-[55] rounded-2xl bg-[#120d1a]/95 border border-[#ff078e]/35 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.8),0_0_30px_rgba(255,7,142,0.2)] backdrop-blur-xl text-white selection:bg-[#ff078e] sm:bottom-6 sm:left-6 sm:right-auto sm:max-w-sm sm:w-[380px]"
         >
           {/* Close button */}
           <button

@@ -4,9 +4,11 @@ import { useState, useSyncExternalStore } from 'react';
 import { ROLE_KEY, type Role } from '@/lib/role';
 import AppCard from './app-card';
 import HelpBot from './help-bot';
+import EarlyAccessBanner from './early-access-banner';
 
-// The floating pieces every page carries: the mobile-app card (bottom left)
-// and the help bot (bottom right). The card steps aside while the chat is open.
+// The floating pieces every page carries: the early-access pass banner (bottom left)
+// and the help bot (bottom right). The banner steps aside while the chat is open.
+// Note: AppCard (mobile app promotion) is temporarily disabled per user request and can be enabled later.
 export default function SiteWidgets({ role }: { role?: Role }) {
   const [open, setOpen] = useState(false);
   // Pages without a side (the legal pages) use the one the visitor last picked.
@@ -22,7 +24,9 @@ export default function SiteWidgets({ role }: { role?: Role }) {
 
   return (
     <>
-      <AppCard hidden={open} />
+      {/* Mobile app card temporarily disabled — can be re-enabled later */}
+      {false && <AppCard hidden={open} />}
+      <EarlyAccessBanner hidden={open} />
       <HelpBot key={side} role={side} open={open} onOpenChange={setOpen} />
     </>
   );
