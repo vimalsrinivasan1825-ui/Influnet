@@ -2,6 +2,41 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Optional Instagram & Website, Mobile/WhatsApp Collector, Signup Re-submission & Admin Delete
+
+**Branch**: `dev`
+
+### Scope
+- **Optional Instagram Handle & Company Website (`apps/web/src/app/early-access/page.tsx`)**:
+  - Made Instagram handles strictly optional for both Creators and Businesses.
+  - Added clear, prominent "Skip for now →" buttons alongside the primary action on Screen 2 so users can progress immediately without inputting social handles.
+  - For Creators: handles can be verified if provided; if skipped, user receives a clean Founding Creator pass without `@null` or `@creator` artifacts.
+  - For Businesses: provided dedicated optional fields for **Company Website** (with Globe icon) and **Brand Instagram Handle** (with `@` prefix).
+- **Mobile / WhatsApp Number Capture**:
+  - Added optional `Mobile / WhatsApp Number` input on Screen 3 below Email ("for instant WhatsApp VIP launch alerts & pass delivery").
+  - Database schema updated with migration `167_early_access_phone_and_delete.sql` to add `phone TEXT` to `early_access_signups`.
+  - Updated `admin_early_access_report` RPC to return and filter across `phone` and `website`.
+- **Duplicate Email Resubmission & Update Logic (`apps/web/src/app/api/early-access/route.ts`)**:
+  - Previously, submitting an existing email returned `{ alreadyClaimed: true }` without updating any fields, giving testers the impression that submissions were not reaching the database.
+  - Now, submitting with an existing email updates the existing row with latest values (`phone`, `name`, `handle`, `company`, `website`, `followers`, `bio`) while preserving pass number.
+- **Admin Dashboard Delete Functionality (`apps/web/src/app/dashboard/admin/early-access/page.tsx` & `/api/admin/early-access/[id]/route.ts`)**:
+  - Created secure `DELETE /api/admin/early-access/[id]` endpoint protected by `withAdmin`.
+  - Added a delete button column (with trash icon) in the admin dashboard table with confirmation prompt to safely remove test entries.
+  - Added display columns for `phone` (with Phone icon) and `website` (with external link & Globe icon).
+- **Canvas Exporter & 3D Pass Fallbacks**:
+  - Fixed Canvas 1080×1350 exporter and 3D card render to display `★ FOUNDING CREATOR` or company/name when handle is omitted, eliminating broken `@` placeholders.
+
+### Broken & Resolved
+- **Submissions Not Appearing on Database / Admin Page When Re-testing**:
+  - *Cause*: `early_access_signups` returned the existing record without updating fields when an email was reused during testing. Without a delete action on the admin page, testers could not clear their test rows.
+  - *Fix*: Created the `DELETE` API route, added delete actions in the admin table, and made `POST /api/early-access` update existing records on duplicate email.
+
+### Key Lessons
+- In test-heavy flows such as early access or pre-launch signups, allowing records to be updated on resubmission and providing an administrative delete option is essential for testing and QA verification.
+- Always provide clear "Skip for now" actions whenever social handle inputs are optional so users never feel forced to authenticate third-party handles.
+
+---
+
 ### Session — 2026-09-21: Explicit Verification Trigger, Vendor Brand Erasure, Audio Feedback & Soft-Launch Guarantee
 
 **Branch**: `dev`

@@ -26,7 +26,9 @@ export default function EarlyAccessPage() {
   // Form State — empty by default, no mock data
   const [name, setName] = useState('');
   const [handle, setHandle] = useState('');
+  const [website, setWebsite] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [company, setCompany] = useState('');
 
   // Scraper & Live Verification State
@@ -354,16 +356,26 @@ export default function EarlyAccessPage() {
       playAudioCue('error');
       return;
     }
+    if (role === 'business' && !company.trim()) {
+      setCompany(name.trim());
+    }
     playAudioCue('click');
     setScreen('s2');
   };
 
-  const handleNext2 = async () => {
+  const handleNext2 = async (skip = false) => {
+    if (skip) {
+      playAudioCue('click');
+      setScreen('s3');
+      return;
+    }
+
     if (role === 'creator') {
       const clean = handle.replace(/^@+/, '').trim();
+      // Handle is strictly optional — empty handle moves forward smoothly
       if (!clean) {
-        triggerShake('handle');
-        playAudioCue('error');
+        playAudioCue('click');
+        setScreen('s3');
         return;
       }
       if (scraping) {
@@ -379,11 +391,10 @@ export default function EarlyAccessPage() {
         return;
       }
     } else {
-      if (!handle.trim()) {
-        triggerShake('handle');
-        playAudioCue('error');
-        return;
-      }
+      // For businesses, website and Instagram handle are both optional
+      playAudioCue('click');
+      setScreen('s3');
+      return;
     }
     playAudioCue('click');
     setScreen('s3');
@@ -405,6 +416,8 @@ export default function EarlyAccessPage() {
     setSynthProgress(0);
 
     const cleanHandle = handle.replace(/^@+/, '').trim();
+    const cleanPhone = phone.trim();
+    const cleanWebsite = website.trim();
 
     // Call backend API in parallel
     const apiPromise = fetch('/api/early-access', {
@@ -414,9 +427,11 @@ export default function EarlyAccessPage() {
         kind: role,
         name: name.trim(),
         email: email.trim(),
-        handle: role === 'creator' ? cleanHandle : null,
+        phone: cleanPhone || null,
+        handle: cleanHandle || null,
+        website: role === 'business' ? (cleanWebsite || null) : null,
         company: role === 'business' ? (company.trim() || name.trim()) : null,
-        followers: role === 'creator' ? (scrapedProfile?.followersStr ?? (isAccountPrivate ? 'PRIVATE' : null)) : null,
+        followers: role === 'creator' && cleanHandle ? (scrapedProfile?.followersStr ?? (isAccountPrivate ? 'PRIVATE' : null)) : null,
         avatarUrl: role === 'creator' ? (scrapedProfile?.avatarUrl ?? null) : null,
         bio: role === 'creator' ? (scrapedProfile?.biography ?? (isAccountPrivate ? 'Private Creator Profile' : null)) : null,
       }),
@@ -431,12 +446,14 @@ export default function EarlyAccessPage() {
 
     // Animated multi-step progress forge
     const steps = [
-      { p: 25, label: '❖ Verifying creator identity credentials...', ms: 500 },
+      { p: 25, label: `❖ Verifying ${role === 'creator' ? 'creator' : 'brand'} identity credentials...`, ms: 500 },
       {
         p: 58,
-        label: isAccountPrivate
-          ? `❖ Enrolling verified private creator @${cleanHandle}...`
-          : `❖ Validating @${cleanHandle} on Instagram...`,
+        label: cleanHandle
+          ? isAccountPrivate
+            ? `❖ Enrolling verified private account @${cleanHandle}...`
+            : `❖ Validating @${cleanHandle} on Instagram...`
+          : `❖ Enrolling Founding ${role === 'creator' ? 'Creator' : 'Brand'} ${name.trim()}...`,
         ms: 600,
       },
       { p: 85, label: '❖ Minting Founding Member Token on Genesis Series...', ms: 550 },
@@ -614,7 +631,13 @@ export default function EarlyAccessPage() {
 
     ctx.fillStyle = '#ff078e';
     ctx.font = '700 28px monospace';
-    ctx.fillText(role === 'creator' ? `@${handle || 'creator'}` : (company || name), ax, cY + 610);
+    const cleanHandleExp = handle.replace(/^@+/, '').trim();
+    const handleLine = cleanHandleExp
+      ? `@${cleanHandleExp}`
+      : role === 'creator'
+      ? '★ FOUNDING CREATOR'
+      : (company || name || '★ FOUNDING BRAND');
+    ctx.fillText(handleLine, ax, cY + 610);
 
     // Followers Badge Pill
     ctx.fillStyle = isDark ? 'rgba(255,255,255,.08)' : '#ede8df';
@@ -627,7 +650,7 @@ export default function EarlyAccessPage() {
           ? '★ PRIVATE CREATOR · VERIFIED'
           : scrapedProfile?.followersStr
           ? `★ ${scrapedProfile.followersStr} FOLLOWERS · VERIFIED`
-          : '★ CREATOR · VERIFIED'
+          : '★ VIP CREATOR · VERIFIED'
         : '★ 0% PLATFORM FEE · VIP BRAND',
       ax,
       cY + 683
@@ -1086,7 +1109,7 @@ export default function EarlyAccessPage() {
           )}
 
           {/* ════════════════════════════════════════════════════
-             SCREEN 2 — Instagram Handle with Live Scraper
+             SCREEN 2 — Social / Web Verification (Optional)
           ════════════════════════════════════════════════════ */}
           {screen === 's2' && (
             <div className="w-full flex flex-col items-start text-left animate-in fade-in duration-300">
@@ -1101,266 +1124,328 @@ export default function EarlyAccessPage() {
                 Question 2 of 3
               </div>
 
-              <h2 className="font-headline font-extrabold text-[28px] sm:text-[36px] tracking-tight leading-tight mb-5">
-                {role === 'creator' ? 'Your Instagram handle?' : 'Company website or handle?'}
-              </h2>
+              {role === 'creator' ? (
+                <>
+                  <h2 className="font-headline font-extrabold text-[28px] sm:text-[36px] tracking-tight leading-tight mb-2">
+                    Your Instagram handle? <span className="text-zinc-400 font-normal text-[20px]">(Optional)</span>
+                  </h2>
+                  <p className={`text-[13.5px] mb-5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                    Enter your handle to show your verified follower count on your Founder Pass, or skip to claim a standard pass.
+                  </p>
 
-              <div
-                className={`w-full h-[66px] rounded-[18px] border-2 transition-all flex items-center px-5 mb-2 ${
-                  shakeField === 'handle' || verificationStatus === 'not_found'
-                    ? 'border-[#ff078e] animate-shake'
-                    : verificationStatus === 'verified_public' || verificationStatus === 'verified_private'
-                    ? 'border-[#059669]'
-                    : ''
-                } ${
-                  isDark
-                    ? 'bg-[#1a1525] border-white/15 text-white focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/20'
-                    : 'bg-white border-[#e7e3dc] text-[#17141d] focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/10'
-                }`}
-              >
-                {role === 'creator' && (
-                  <span className="font-mono-code text-[22px] font-bold text-[#ff078e] mr-2.5 select-none shrink-0">
-                    @
-                  </span>
-                )}
-                <input
-                  type="text"
-                  value={handle}
-                  onChange={(e) => handleHandleChange(e.target.value)}
-                  placeholder={role === 'creator' ? 'your_handle' : 'e.g. acmestudio.com'}
-                  autoFocus
-                  className="w-full bg-transparent border-0 outline-none text-[21px] font-semibold text-inherit placeholder-zinc-400 dark:placeholder-zinc-500"
-                />
-                {role === 'creator' && handle.trim().length >= 2 && (
-                  <button
-                    type="button"
-                    onClick={() => performScrape(handle, false)}
-                    disabled={scraping}
-                    className={`ml-2 px-3.5 py-1.5 rounded-xl font-mono-code text-[12px] font-bold transition-all shrink-0 cursor-pointer ${
-                      isAccountVerified
-                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                        : scraping
-                        ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
-                        : 'bg-[#ff078e] hover:bg-[#c8307f] text-white shadow-sm'
+                  <div
+                    className={`w-full h-[66px] rounded-[18px] border-2 transition-all flex items-center px-5 mb-2 ${
+                      shakeField === 'handle' || verificationStatus === 'not_found'
+                        ? 'border-[#ff078e] animate-shake'
+                        : verificationStatus === 'verified_public' || verificationStatus === 'verified_private'
+                        ? 'border-[#059669]'
+                        : ''
+                    } ${
+                      isDark
+                        ? 'bg-[#1a1525] border-white/15 text-white focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/20'
+                        : 'bg-white border-[#e7e3dc] text-[#17141d] focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/10'
                     }`}
                   >
-                    {scraping ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 rounded-full border-2 border-zinc-400 border-t-white animate-spin" />
-                        Checking...
-                      </span>
-                    ) : isAccountVerified ? (
-                      '✓ Verified'
-                    ) : (
-                      'Verify'
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {verificationError && (
-                <div className="w-full text-[13px] text-[#ff078e] font-semibold flex items-center gap-1.5 mb-3">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <span>{verificationError}</span>
-                </div>
-              )}
-
-              <p className={`text-[13px] mb-4 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                {role === 'creator'
-                  ? 'We live-verify your Instagram identity directly. Public profiles display full stats & avatar; private profiles are verified securely.'
-                  : 'Used to verify company authenticity and personalize your Founding Brand Pass.'}
-              </p>
-
-              {/* Instagram Live Scraper Preview Box (Creator Mode) */}
-              {role === 'creator' && (
-                <div
-                  className={`w-full rounded-[18px] p-4 mb-6 border transition-all ${
-                    isDark
-                      ? 'bg-[#1a1525] border-white/15 shadow-xl shadow-black/40'
-                      : 'bg-white border-[#e7e3dc] shadow-md shadow-black/5'
-                  }`}
-                >
-                  {/* Status bar */}
-                  <div className="flex items-center justify-between font-mono-code text-[11px] font-semibold mb-3">
-                    <div className="flex items-center gap-2">
-                      {scraping ? (
-                        <div className="w-3.5 h-3.5 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin" />
-                      ) : verificationStatus === 'verified_public' || verificationStatus === 'verified_private' ? (
-                        <span className="text-[#059669]">●</span>
-                      ) : verificationStatus === 'not_found' ? (
-                        <span className="text-[#ff078e]">✕</span>
-                      ) : (
-                        <span className="text-zinc-400">○</span>
-                      )}
-                      <span
-                        className={
-                          scraping
-                            ? 'text-zinc-400'
-                            : verificationStatus === 'verified_public' || verificationStatus === 'verified_private'
-                            ? 'text-[#059669]'
-                            : verificationStatus === 'not_found'
-                            ? 'text-[#ff078e]'
-                            : 'text-zinc-400'
-                        }
-                      >
-                        {statusMessage || 'Enter handle and tap Verify'}
-                      </span>
-                    </div>
-                    <span className="text-[#ff078e] font-bold tracking-wider">LIVE VERIFICATION</span>
-                  </div>
-
-                  {/* State 1: Public profile verified */}
-                  {verificationStatus === 'verified_public' && scrapedProfile && (
-                    <div
-                      className={`flex items-center gap-3.5 p-3 rounded-2xl border transition-all ${
-                        isDark ? 'bg-[#15111c] border-white/10' : 'bg-[#f4f2ee] border-[#e7e3dc]'
-                      }`}
-                    >
-                      <div className="relative w-14 h-14 shrink-0">
-                        <div className="absolute -inset-[3px] rounded-full p-[2px] bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]" />
-                        {scrapedProfile.avatarUrl ? (
-                          <img
-                            src={scrapedProfile.avatarUrl}
-                            alt="Avatar"
-                            className="w-full h-full rounded-full object-cover relative z-10 border-2 border-white dark:border-black"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full rounded-full flex items-center justify-center font-bold text-white bg-[#ff078e] relative z-10 border-2 border-white dark:border-black">
-                            {(name || handle || 'CR').slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        {scrapedProfile.isVerified && (
-                          <div className="absolute -bottom-0.5 -right-0.5 z-20 w-[18px] h-[18px] rounded-full bg-[#0095f6] text-white flex items-center justify-center shadow">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 font-bold text-[15px] truncate">
-                          <span>{scrapedProfile.displayName}</span>
-                          {scrapedProfile.isVerified && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#0095f6">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="font-mono-code text-[12px] text-[#ff078e] font-semibold">
-                          @{handle.replace(/^@+/, '')}
-                        </div>
-                        <div className="flex gap-3 text-[12px] mt-1 text-zinc-500 dark:text-zinc-400">
-                          <div>
-                            <b className="text-zinc-900 dark:text-white">{scrapedProfile.followersStr}</b> followers
-                          </div>
-                          <div>
-                            <b className="text-zinc-900 dark:text-white">{scrapedProfile.postsStr}</b> posts
-                          </div>
-                        </div>
-                        {scrapedProfile.biography ? (
-                          <div className="text-[12px] text-zinc-400 truncate mt-0.5">
-                            {scrapedProfile.biography}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* State 2: Private profile verified (no mock data, verified status) */}
-                  {verificationStatus === 'verified_private' && (
-                    <div
-                      className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all ${
-                        isDark ? 'bg-[#15111c] border-emerald-500/25' : 'bg-emerald-50/70 border-emerald-200'
-                      }`}
-                    >
-                      <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-[14px] text-zinc-900 dark:text-white">
-                            @{handle.replace(/^@+/, '')}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono-code font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                            PRIVATE · VERIFIED
-                          </span>
-                        </div>
-                        <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-1 leading-snug">
-                          Your account exists and is verified. Because it is set to private on Instagram, photos and public metrics are restricted. You are confirmed and can proceed!
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* State 3: Account not found */}
-                  {verificationStatus === 'not_found' && (
-                    <div
-                      className={`flex items-center gap-3 p-3.5 rounded-2xl border ${
-                        isDark ? 'bg-[#15111c] border-rose-500/25 text-rose-300' : 'bg-rose-50/80 border-rose-200 text-rose-700'
-                      }`}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="15" y1="9" x2="9" y2="15" />
-                        <line x1="9" y1="9" x2="15" y2="15" />
-                      </svg>
-                      <div className="text-[12.5px] leading-snug">
-                        No Instagram account found matching <b>@{handle.replace(/^@+/, '')}</b>. Please check your username.
-                      </div>
-                    </div>
-                  )}
-
-                  {/* State 4: Error / Timeout */}
-                  {verificationStatus === 'error' && (
-                    <div
-                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border ${
-                        isDark ? 'bg-[#15111c] border-amber-500/25 text-amber-300' : 'bg-amber-50/80 border-amber-200 text-amber-800'
-                      }`}
-                    >
-                      <div className="text-[12px] leading-snug">
-                        {statusMessage || 'Could not complete the verification right now. Please try again.'}
-                      </div>
+                    <span className="font-mono-code text-[22px] font-bold text-[#ff078e] mr-2.5 select-none shrink-0">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      value={handle}
+                      onChange={(e) => handleHandleChange(e.target.value)}
+                      placeholder="your_handle (optional)"
+                      autoFocus
+                      className="w-full bg-transparent border-0 outline-none text-[21px] font-semibold text-inherit placeholder-zinc-400 dark:placeholder-zinc-500"
+                    />
+                    {handle.trim().length >= 2 && (
                       <button
                         type="button"
                         onClick={() => performScrape(handle, false)}
-                        className="px-3 py-1.5 rounded-lg text-[12px] font-bold bg-[#ff078e] text-white hover:bg-[#c8307f] transition-all self-start sm:self-auto cursor-pointer shrink-0"
+                        disabled={scraping}
+                        className={`ml-2 px-3.5 py-1.5 rounded-xl font-mono-code text-[12px] font-bold transition-all shrink-0 cursor-pointer ${
+                          isAccountVerified
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                            : scraping
+                            ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
+                            : 'bg-[#ff078e] hover:bg-[#c8307f] text-white shadow-sm'
+                        }`}
                       >
-                        Retry Check
+                        {scraping ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded-full border-2 border-zinc-400 border-t-white animate-spin" />
+                            Checking...
+                          </span>
+                        ) : isAccountVerified ? (
+                          '✓ Verified'
+                        ) : (
+                          'Verify'
+                        )}
                       </button>
+                    )}
+                  </div>
+
+                  {verificationError && (
+                    <div className="w-full text-[13px] text-[#ff078e] font-semibold flex items-center gap-1.5 mb-3">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      <span>{verificationError}</span>
                     </div>
                   )}
 
-                  {/* State 5: Idle */}
-                  {verificationStatus === 'idle' && (
-                    <div className="p-3 text-center text-[12.5px] text-zinc-400 font-mono-code">
-                      Type your Instagram handle and tap Verify (or Confirm & Continue)
-                    </div>
-                  )}
+                  {/* Instagram Live Scraper Preview Box (Creator Mode) */}
+                  {handle.trim().length >= 2 && (
+                    <div
+                      className={`w-full rounded-[18px] p-4 mb-6 border transition-all ${
+                        isDark
+                          ? 'bg-[#1a1525] border-white/15 shadow-xl shadow-black/40'
+                          : 'bg-white border-[#e7e3dc] shadow-md shadow-black/5'
+                      }`}
+                    >
+                      {/* Status bar */}
+                      <div className="flex items-center justify-between font-mono-code text-[11px] font-semibold mb-3">
+                        <div className="flex items-center gap-2">
+                          {scraping ? (
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin" />
+                          ) : verificationStatus === 'verified_public' || verificationStatus === 'verified_private' ? (
+                            <span className="text-[#059669]">●</span>
+                          ) : verificationStatus === 'not_found' ? (
+                            <span className="text-[#ff078e]">✕</span>
+                          ) : (
+                            <span className="text-zinc-400">○</span>
+                          )}
+                          <span
+                            className={
+                              scraping
+                                ? 'text-zinc-400'
+                                : verificationStatus === 'verified_public' || verificationStatus === 'verified_private'
+                                ? 'text-[#059669]'
+                                : verificationStatus === 'not_found'
+                                ? 'text-[#ff078e]'
+                                : 'text-zinc-400'
+                            }
+                          >
+                            {statusMessage || 'Enter handle and tap Verify'}
+                          </span>
+                        </div>
+                        <span className="text-[#ff078e] font-bold tracking-wider">LIVE VERIFICATION</span>
+                      </div>
 
-                  {/* State 6: Scanning */}
-                  {verificationStatus === 'scanning' && (
-                    <div className="flex items-center justify-center gap-2 p-4 text-[13px] text-zinc-500 dark:text-zinc-400 font-mono-code">
-                      <div className="w-4 h-4 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin" />
-                      <span>Verifying @{handle.replace(/^@+/, '')} on Instagram...</span>
+                      {/* State 1: Public profile verified */}
+                      {verificationStatus === 'verified_public' && scrapedProfile && (
+                        <div
+                          className={`flex items-center gap-3.5 p-3 rounded-2xl border transition-all ${
+                            isDark ? 'bg-[#15111c] border-white/10' : 'bg-[#f4f2ee] border-[#e7e3dc]'
+                          }`}
+                        >
+                          <div className="relative w-14 h-14 shrink-0">
+                            <div className="absolute -inset-[3px] rounded-full p-[2px] bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]" />
+                            {scrapedProfile.avatarUrl ? (
+                              <img
+                                src={scrapedProfile.avatarUrl}
+                                alt="Avatar"
+                                className="w-full h-full rounded-full object-cover relative z-10 border-2 border-white dark:border-black"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full rounded-full flex items-center justify-center font-bold text-white bg-[#ff078e] relative z-10 border-2 border-white dark:border-black">
+                                {(name || handle || 'CR').slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            {scrapedProfile.isVerified && (
+                              <div className="absolute -bottom-0.5 -right-0.5 z-20 w-[18px] h-[18px] rounded-full bg-[#0095f6] text-white flex items-center justify-center shadow">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 font-bold text-[15px] truncate">
+                              <span>{scrapedProfile.displayName}</span>
+                              {scrapedProfile.isVerified && (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="#0095f6">
+                                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="font-mono-code text-[12px] text-[#ff078e] font-semibold">
+                              @{handle.replace(/^@+/, '')}
+                            </div>
+                            <div className="flex gap-3 text-[12px] mt-1 text-zinc-500 dark:text-zinc-400">
+                              <div>
+                                <b className="text-zinc-900 dark:text-white">{scrapedProfile.followersStr}</b> followers
+                              </div>
+                              <div>
+                                <b className="text-zinc-900 dark:text-white">{scrapedProfile.postsStr}</b> posts
+                              </div>
+                            </div>
+                            {scrapedProfile.biography ? (
+                              <div className="text-[12px] text-zinc-400 truncate mt-0.5">
+                                {scrapedProfile.biography}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* State 2: Private profile verified */}
+                      {verificationStatus === 'verified_private' && (
+                        <div
+                          className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all ${
+                            isDark ? 'bg-[#15111c] border-emerald-500/25' : 'bg-emerald-50/70 border-emerald-200'
+                          }`}
+                        >
+                          <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[14px] text-zinc-900 dark:text-white">
+                                @{handle.replace(/^@+/, '')}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono-code font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                                PRIVATE · VERIFIED
+                              </span>
+                            </div>
+                            <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-1 leading-snug">
+                              Your account exists and is verified. Because it is set to private on Instagram, photos and public metrics are restricted. You are confirmed and can proceed!
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* State 3: Account not found */}
+                      {verificationStatus === 'not_found' && (
+                        <div
+                          className={`flex items-center gap-3 p-3.5 rounded-2xl border ${
+                            isDark ? 'bg-[#15111c] border-rose-500/25 text-rose-300' : 'bg-rose-50/80 border-rose-200 text-rose-700'
+                          }`}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="15" y1="9" x2="9" y2="15" />
+                            <line x1="9" y1="9" x2="15" y2="15" />
+                          </svg>
+                          <div className="text-[12.5px] leading-snug">
+                            No Instagram account found matching <b>@{handle.replace(/^@+/, '')}</b>. You can skip or re-enter.
+                          </div>
+                        </div>
+                      )}
+
+                      {/* State 4: Error / Timeout */}
+                      {verificationStatus === 'error' && (
+                        <div
+                          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border ${
+                            isDark ? 'bg-[#15111c] border-amber-500/25 text-amber-300' : 'bg-amber-50/80 border-amber-200 text-amber-800'
+                          }`}
+                        >
+                          <div className="text-[12px] leading-snug">
+                            {statusMessage || 'Could not complete the verification right now.'}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => performScrape(handle, false)}
+                            className="px-3 py-1.5 rounded-lg text-[12px] font-bold bg-[#ff078e] text-white hover:bg-[#c8307f] transition-all self-start sm:self-auto cursor-pointer shrink-0"
+                          >
+                            Retry Check
+                          </button>
+                        </div>
+                      )}
+
+                      {/* State 5: Idle */}
+                      {verificationStatus === 'idle' && (
+                        <div className="p-3 text-center text-[12.5px] text-zinc-400 font-mono-code">
+                          Type your Instagram handle and tap Verify (or Confirm & Continue)
+                        </div>
+                      )}
+
+                      {/* State 6: Scanning */}
+                      {verificationStatus === 'scanning' && (
+                        <div className="flex items-center justify-center gap-2 p-4 text-[13px] text-zinc-500 dark:text-zinc-400 font-mono-code">
+                          <div className="w-4 h-4 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin" />
+                          <span>Verifying @{handle.replace(/^@+/, '')} on Instagram...</span>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </>
+              ) : (
+                /* Business Mode: Website + Instagram Handle both optional */
+                <>
+                  <h2 className="font-headline font-extrabold text-[28px] sm:text-[36px] tracking-tight leading-tight mb-2">
+                    Brand online presence <span className="text-zinc-400 font-normal text-[20px]">(Optional)</span>
+                  </h2>
+                  <p className={`text-[13.5px] mb-5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                    Help us personalize your Founding Brand pass and concierge onboarding.
+                  </p>
+
+                  {/* Website Field */}
+                  <div className="w-full mb-3">
+                    <label className="block text-[12px] font-mono-code uppercase font-bold tracking-wider mb-1.5 text-zinc-500 dark:text-zinc-400">
+                      Company Website <span className="text-zinc-400 text-[11px] font-normal lowercase">(optional)</span>
+                    </label>
+                    <div
+                      className={`w-full h-[60px] rounded-[18px] border-2 transition-all flex items-center px-5 ${
+                        isDark
+                          ? 'bg-[#1a1525] border-white/15 text-white focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/20'
+                          : 'bg-white border-[#e7e3dc] text-[#17141d] focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/10'
+                      }`}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-3 text-zinc-400 shrink-0">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="2" y1="12" x2="22" y2="12" />
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        placeholder="e.g. acmestudio.com"
+                        className="w-full bg-transparent border-0 outline-none text-[18px] font-semibold text-inherit placeholder-zinc-400 dark:placeholder-zinc-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Brand Instagram Handle */}
+                  <div className="w-full mb-6">
+                    <label className="block text-[12px] font-mono-code uppercase font-bold tracking-wider mb-1.5 text-zinc-500 dark:text-zinc-400">
+                      Brand Instagram Handle <span className="text-zinc-400 text-[11px] font-normal lowercase">(optional)</span>
+                    </label>
+                    <div
+                      className={`w-full h-[60px] rounded-[18px] border-2 transition-all flex items-center px-5 ${
+                        isDark
+                          ? 'bg-[#1a1525] border-white/15 text-white focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/20'
+                          : 'bg-white border-[#e7e3dc] text-[#17141d] focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/10'
+                      }`}
+                    >
+                      <span className="font-mono-code text-[20px] font-bold text-[#ff078e] mr-2.5 select-none shrink-0">
+                        @
+                      </span>
+                      <input
+                        type="text"
+                        value={handle}
+                        onChange={(e) => handleHandleChange(e.target.value)}
+                        placeholder="brand_handle"
+                        className="w-full bg-transparent border-0 outline-none text-[18px] font-semibold text-inherit placeholder-zinc-400 dark:placeholder-zinc-500"
+                      />
+                    </div>
+                  </div>
+                </>
               )}
 
-              <div className="flex items-center gap-3">
+              {/* Action Buttons with Clear "Skip for now" */}
+              <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={handleNext2}
+                  onClick={() => handleNext2(false)}
                   disabled={scraping}
                   className="h-[52px] px-8 rounded-full bg-[#17141d] dark:bg-white text-white dark:text-[#0d0a12] hover:bg-[#ff078e] dark:hover:bg-[#ff078e] dark:hover:text-white font-bold text-[15.5px] inline-flex items-center gap-2.5 shadow-md hover:-translate-y-0.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1371,7 +1456,7 @@ export default function EarlyAccessPage() {
                     </>
                   ) : (
                     <>
-                      <span>Confirm & Continue</span>
+                      <span>{handle.trim() && role === 'creator' ? 'Confirm & Continue' : 'Continue'}</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M5 12h14M12 5l7 7-7 7" />
                       </svg>
@@ -1380,8 +1465,20 @@ export default function EarlyAccessPage() {
                 </button>
 
                 <button
+                  type="button"
+                  onClick={() => handleNext2(true)}
+                  className={`h-[52px] px-6 rounded-full border text-[14px] font-semibold transition-all cursor-pointer ${
+                    isDark
+                      ? 'border-white/15 text-zinc-300 hover:border-white/40 hover:text-white bg-white/5'
+                      : 'border-[#e7e3dc] text-zinc-600 hover:border-zinc-400 hover:text-zinc-900 bg-white'
+                  }`}
+                >
+                  Skip for now →
+                </button>
+
+                <button
                   onClick={() => setScreen('s1')}
-                  className={`text-[13px] px-4 py-2 rounded-lg transition-colors ${
+                  className={`text-[13px] px-3 py-2 rounded-lg transition-colors ${
                     isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-black'
                   }`}
                 >
@@ -1396,7 +1493,7 @@ export default function EarlyAccessPage() {
           )}
 
           {/* ════════════════════════════════════════════════════
-             SCREEN 3 — Email Confirmation
+             SCREEN 3 — Credentials Delivery (Email + Phone)
           ════════════════════════════════════════════════════ */}
           {screen === 's3' && (
             <div className="w-full flex flex-col items-start text-left animate-in fade-in duration-300">
@@ -1411,18 +1508,25 @@ export default function EarlyAccessPage() {
                 Question 3 of 3
               </div>
 
-              <h2 className="font-headline font-extrabold text-[28px] sm:text-[36px] tracking-tight leading-tight mb-5">
+              <h2 className="font-headline font-extrabold text-[28px] sm:text-[36px] tracking-tight leading-tight mb-2">
                 Where do we send your<br />Founder credentials?
               </h2>
+              <p className={`text-[13.5px] mb-5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                We'll deliver your verified Genesis Pass and VIP launch activation key.
+              </p>
 
-              <div className="w-full relative mb-2">
+              {/* Work / Personal Email Field */}
+              <div className="w-full relative mb-4">
+                <label className="block text-[12px] font-mono-code uppercase font-bold tracking-wider mb-1.5 text-zinc-500 dark:text-zinc-400">
+                  Email Address <span className="text-[#ff078e]">*</span>
+                </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@domain.com"
                   autoFocus
-                  className={`w-full h-[66px] rounded-[18px] px-6 text-[21px] font-semibold border-2 transition-all outline-none ${
+                  className={`w-full h-[60px] rounded-[18px] px-5 text-[19px] font-semibold border-2 transition-all outline-none ${
                     shakeField === 'email' ? 'border-[#ff078e] animate-shake' : ''
                   } ${
                     isDark
@@ -1432,9 +1536,33 @@ export default function EarlyAccessPage() {
                 />
               </div>
 
-              <p className={`text-[13px] mb-6 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                We'll email your verified Genesis Pass and VIP launch activation key.
-              </p>
+              {/* Mobile / WhatsApp Number (Optional) */}
+              <div className="w-full relative mb-6">
+                <label className="block text-[12px] font-mono-code uppercase font-bold tracking-wider mb-1.5 text-zinc-500 dark:text-zinc-400">
+                  Mobile / WhatsApp Number <span className="text-zinc-400 text-[11px] font-normal lowercase">(optional)</span>
+                </label>
+                <div
+                  className={`w-full h-[60px] rounded-[18px] border-2 transition-all flex items-center px-5 ${
+                    isDark
+                      ? 'bg-[#1a1525] border-white/15 text-white focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/20'
+                      : 'bg-white border-[#e7e3dc] text-[#17141d] focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/10'
+                  }`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-3 text-zinc-400 shrink-0">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210 (Optional)"
+                    className="w-full bg-transparent border-0 outline-none text-[18px] font-semibold text-inherit placeholder-zinc-400 dark:placeholder-zinc-500"
+                  />
+                </div>
+                <p className={`text-[12px] mt-1.5 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                  Optional — for instant WhatsApp VIP launch alerts & pass delivery.
+                </p>
+              </div>
 
               <div className="flex items-center gap-3">
                 <button
@@ -1624,15 +1752,21 @@ export default function EarlyAccessPage() {
 
                     {/* Identity */}
                     <div className="font-headline font-extrabold text-[19px] tracking-tight leading-tight max-w-[250px] truncate text-center">
-                      {(name || (role === 'creator' ? handle : 'MEMBER') || 'CREATOR').toUpperCase()}
+                      {(name || (role === 'creator' ? handle : company) || 'CREATOR').toUpperCase()}
                     </div>
                     <div className="font-mono-code text-[12px] font-semibold text-[#ff078e] flex items-center gap-1 mt-0.5">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
-                        <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
-                        <circle cx="17.5" cy="6.5" r="1.5" />
-                      </svg>
-                      <span>@{role === 'creator' ? (handle.replace(/^@+/, '') || 'creator') : (company || name).toLowerCase().replace(/\s+/g, '')}</span>
+                      {handle.replace(/^@+/, '').trim() ? (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
+                            <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+                            <circle cx="17.5" cy="6.5" r="1.5" />
+                          </svg>
+                          <span>@{handle.replace(/^@+/, '').trim()}</span>
+                        </>
+                      ) : (
+                        <span>{role === 'creator' ? '★ FOUNDING CREATOR' : (company || name || '★ FOUNDING BRAND')}</span>
+                      )}
                     </div>
 
                     {/* Stat Pill */}
@@ -1647,7 +1781,7 @@ export default function EarlyAccessPage() {
                               ? 'PRIVATE CREATOR'
                               : scrapedProfile?.followersStr
                               ? `${scrapedProfile.followersStr} FOLLOWERS`
-                              : 'CREATOR'
+                              : 'VIP CREATOR'
                             : '0% PLATFORM FEE'}
                         </b>{' '}
                         {role === 'creator' ? '· VERIFIED' : '· FOUNDING BRAND'}
@@ -1713,7 +1847,9 @@ export default function EarlyAccessPage() {
                   <span>Soft-Launch Event Guarantee</span>
                 </div>
                 <p className={`text-[12px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  Your VIP Founding Pass and 0% platform credentials are confirmed! When we officially launch at our upcoming launch event, your VIP activation link will be delivered directly to <b>{email}</b>{role === 'creator' && handle.trim() ? <> and your verified Instagram DM to <b>@{handle.replace(/^@+/, '')}</b></> : null}.
+                  Your VIP Founding Pass and 0% platform credentials are confirmed! When we officially launch at our upcoming launch event, your VIP activation link will be delivered directly to <b>{email}</b>
+                  {phone.trim() ? <> and WhatsApp <b>{phone.trim()}</b></> : null}
+                  {handle.replace(/^@+/, '').trim() ? <> and Instagram DM to <b>@{handle.replace(/^@+/, '').trim()}</b></> : null}.
                 </p>
               </div>
 

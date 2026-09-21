@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { Sparkles, Search, UserCheck, Building2, Download } from 'lucide-react';
+import { Sparkles, Search, UserCheck, Building2, Download, Trash2, Globe, Phone } from 'lucide-react';
 import {
   AdminPage,
   Badge,
@@ -28,6 +28,7 @@ export default function EarlyAccessAdminPage() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const params = {
     kind,
@@ -38,6 +39,26 @@ export default function EarlyAccessAdminPage() {
 
   const { data, loading, error, reload } = useInsight<any>('early_access', null, params);
   const s = data?.summary ?? {};
+
+  const handleDelete = async (id: string, memberName: string) => {
+    if (!window.confirm(`Delete early access pass for "${memberName}"? This cannot be undone.`)) {
+      return;
+    }
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/admin/early-access/${id}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok) {
+        reload();
+      } else {
+        alert(json?.message || json?.error || 'Failed to delete record');
+      }
+    } catch {
+      alert('Network error while deleting record');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <AdminPage
@@ -127,7 +148,7 @@ export default function EarlyAccessAdminPage() {
             },
             {
               key: 'name',
-              label: 'Member',
+              label: 'Member & Contact',
               render: (r: any) => (
                 <div className="flex items-center gap-2.5 min-w-0">
                   {r.avatar_url ? (
@@ -144,6 +165,12 @@ export default function EarlyAccessAdminPage() {
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-content text-xs sm:text-sm">{r.name}</p>
                     <p className="truncate text-xs text-content-muted">{r.email}</p>
+                    {r.phone && (
+                      <p className="truncate text-[11px] font-mono text-content-soft flex items-center gap-1 mt-0.5">
+                        <Phone className="size-2.5 text-content-muted" />
+                        <span>{r.phone}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               ),
@@ -159,11 +186,29 @@ export default function EarlyAccessAdminPage() {
             },
             {
               key: 'handle',
-              label: 'Handle / Domain',
+              label: 'Handle / Links',
               render: (r: any) => (
-                <span className="font-mono text-xs text-content-soft">
-                  {r.handle ? `@${r.handle}` : r.website || r.company || '—'}
-                </span>
+                <div className="flex flex-col text-xs font-mono">
+                  {r.handle ? (
+                    <span className="text-content-soft font-semibold">@{r.handle}</span>
+                  ) : (
+                    <span className="text-content-muted italic">No Instagram handle</span>
+                  )}
+                  {r.website && (
+                    <a
+                      href={r.website.startsWith('http') ? r.website : `https://${r.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand hover:underline flex items-center gap-1 text-[11px] mt-0.5"
+                    >
+                      <Globe className="size-2.5" />
+                      <span className="truncate max-w-[130px]">{r.website.replace(/^https?:\/\//, '')}</span>
+                    </a>
+                  )}
+                  {r.company && r.company !== r.name && (
+                    <span className="text-content-muted text-[11px] truncate max-w-[130px]">{r.company}</span>
+                  )}
+                </div>
               ),
             },
             {
@@ -171,7 +216,7 @@ export default function EarlyAccessAdminPage() {
               label: 'Audience / Reach',
               render: (r: any) => (
                 <span className="text-xs font-semibold text-content">
-                  {r.followers ? `${r.followers} followers` : r.kind === 'business' ? 'Business Partner' : '—'}
+                  {r.followers ? `${r.followers} followers` : r.kind === 'business' ? 'Business Partner' : 'Early Supporter'}
                 </span>
               ),
             },
@@ -185,12 +230,19 @@ export default function EarlyAccessAdminPage() {
               ),
             },
             {
-              key: 'status',
-              label: 'Status',
+              key: 'actions',
+              label: '',
               render: (r: any) => (
-                <Badge size="sm" variant="success">
-                  {r.status}
-                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={deletingId === r.id}
+                  onClick={() => handleDelete(r.id, r.name)}
+                  className="text-danger hover:bg-danger/10 hover:text-danger h-7 px-2"
+                  title="Delete registration"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
               ),
             },
           ]}

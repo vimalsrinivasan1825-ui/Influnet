@@ -9,6 +9,7 @@ const EarlyAccessSchema = z.object({
   kind: z.enum(['creator', 'business']),
   name: z.string().trim().min(1, 'Name is required').max(120),
   email: z.string().trim().email('Valid email is required').max(160),
+  phone: z.string().trim().max(30).optional().nullable(),
   handle: z.string().trim().max(60).optional().nullable(),
   company: z.string().trim().max(120).optional().nullable(),
   website: z.string().trim().max(200).optional().nullable(),
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
   try {
     const limited = await enforceRateLimit(req, {
       bucket: 'early-access:submit',
-      limit: 10,
+      limit: 20,
       windowMs: 60_000,
     });
     if (limited) return limited;
@@ -64,10 +65,28 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (existing) {
+      // Update existing record with latest info so repeated testing/re-submitting updates the pass
+      const { data: updatedPass } = await supabase
+        .from('early_access_signups')
+        .update({
+          kind: parsed.data.kind,
+          name: parsed.data.name,
+          phone: parsed.data.phone || existing.phone || null,
+          handle: cleanHandle ?? existing.handle,
+          company: parsed.data.company || (parsed.data.kind === 'business' ? parsed.data.name : null) || existing.company,
+          website: parsed.data.website || existing.website || null,
+          followers: parsed.data.followers || existing.followers || null,
+          avatar_url: parsed.data.avatarUrl || existing.avatar_url || null,
+          bio: parsed.data.bio || existing.bio || null,
+        })
+        .eq('id', existing.id)
+        .select('*')
+        .single();
+
       return NextResponse.json({
         ok: true,
         alreadyClaimed: true,
-        pass: existing,
+        pass: updatedPass ?? existing,
       }, { headers: CORS_HEADERS });
     }
 
@@ -78,6 +97,7 @@ export async function POST(req: Request) {
         kind: parsed.data.kind,
         name: parsed.data.name,
         email: cleanEmail,
+        phone: parsed.data.phone || null,
         handle: cleanHandle,
         company: parsed.data.company || (parsed.data.kind === 'business' ? parsed.data.name : null),
         website: parsed.data.website || null,
