@@ -6,8 +6,8 @@ import AppCard from './app-card';
 import HelpBot from './help-bot';
 import EarlyAccessBanner from './early-access-banner';
 
-// The floating pieces every page carries: the early-access pass banner (bottom left)
-// and the help bot (bottom right). The banner steps aside while the chat is open.
+// The floating pieces every page carries: the help bot (bottom right). The banner
+// and app card are temporarily disabled per user request and can be re-enabled later.
 // Note: AppCard (mobile app promotion) is temporarily disabled per user request and can be enabled later.
 export default function SiteWidgets({ role }: { role?: Role }) {
   const [open, setOpen] = useState(false);
@@ -26,7 +26,8 @@ export default function SiteWidgets({ role }: { role?: Role }) {
     <>
       {/* Mobile app card temporarily disabled — can be re-enabled later */}
       {false && <AppCard hidden={open} />}
-      <EarlyAccessBanner hidden={open} />
+      {/* Founder pass / early-access banner temporarily disabled — can be re-enabled later */}
+      {false && <EarlyAccessBanner hidden={open} />}
       <HelpBot key={side} role={side} open={open} onOpenChange={setOpen} />
     </>
   );
