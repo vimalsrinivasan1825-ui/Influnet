@@ -141,6 +141,7 @@ const ADMIN_GROUPS: NavGroup[] = [
     items: [
       { label: "Broadcasts", href: "/dashboard/admin/broadcasts", icon: Megaphone },
       { label: "Leads", href: "/dashboard/admin/leads", icon: ContactRound },
+      { label: "Early access", href: "/dashboard/admin/early-access", icon: Sparkles },
     ],
   },
   {
