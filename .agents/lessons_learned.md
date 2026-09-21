@@ -2,11 +2,50 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
-### Session — 2026-09-21: Real Apify Instagram Verification (No Mock Data, Private vs Public Handling)
+### Session — 2026-09-21: Explicit Verification Trigger, Vendor Brand Erasure, Audio Feedback & Soft-Launch Guarantee
 
 **Branch**: `dev`
 
 ### Scope
+- **Debounce & Race-Condition Eradication (`apps/web/src/app/early-access/page.tsx`)**:
+  - Eliminated automatic 500ms keystroke debouncing that caused asynchronous Apify requests to fire for incomplete handles, flashing premature "not found" states before resolving.
+  - Adopted the robust architecture from `useSocialConnect` in `apps/web/src/lib/hooks/use-availability.ts`:
+    - Typing now strictly updates state and clears previous results without invoking network calls.
+    - Added `requestIdRef` counter: any response whose ID does not match the active request is silently discarded, preventing stale out-of-order responses from clobbering state.
+    - Added in-memory `cacheRef`: re-entering a verified handle or stepping back and forth through the wizard resolves instantly without redundant network calls.
+    - Added an explicit `[ Verify ]` action button directly inside the handle input box for intentional creator verification.
+    - Clicking "Confirm & Continue" (or hitting Enter) seamlessly runs verification on the current handle if not yet checked, awaiting completion and automatically advancing to Screen 3 on success.
+- **Complete Vendor Brand Erasure**:
+  - Stripped all user-facing mentions of "Apify" across badges, status messages, loading texts, and forge labels.
+  - Replaced vendor badges with `LIVE VERIFICATION` and `INSTAGRAM VERIFICATION`.
+- **Private Account UX Polish**:
+  - Private Instagram profiles are confirmed without attempting to fetch private media or metrics, displaying a clean reassuring confirmation: "✓ Private Instagram Account Verified".
+- **Soft-Launch Event Value Propositions & Guarantee**:
+  - Added dedicated launch perk feature cards on Screen 0 for both roles:
+    - **Creators**: 1-Year 0% Commission Pass, Direct Brand Deal Radar, Genesis VIP directory launch placement.
+    - **Brands**: 0% Platform Fees on initial campaigns, Direct Creator Access without agency markups, Escrow Shield protection.
+  - Added a prominent **Soft-Launch Event Guarantee** card on Screen 4 confirming that VIP credentials and activation keys will be delivered to the user's verified email and Instagram DM upon launch.
+- **Web Audio Harmonic Feedback Synthesizer**:
+  - Implemented zero-dependency synthesized audio cues using Web Audio API:
+    - Subtle navigation click ticks.
+    - Apple-style harmonic chime upon successful identity verification.
+    - Celebratory 4-note ascending chord when the VIP Founder Pass is minted.
+    - Low gentle warning tone on validation errors.
+  - Added a sound toggle button in the header with full mute/unmute support.
+
+### Broken & Resolved
+- **Premature "Not Found" Flashes While Typing**:
+  - *Cause*: A 500ms debounced keystroke listener was firing scrape requests on partial inputs. Because actor cold starts take several seconds, responses returned out of sequence and clobbered the user's final input with false negative states.
+  - *Fix*: Decoupled typing from network requests. Verification now triggers on deliberate user action (tapping "Verify" or "Confirm & Continue") and guards every response with an incremental `requestIdRef`.
+- **Hardcoded Placeholder Avatars**:
+  - *Cause*: Screen 0 SVG and proof row had hardcoded initials (`MC`, `VK`, `TB`, `MB`).
+  - *Fix*: Replaced with polished gradient icons (`✦`, `★`, `⚡`, `✓`) and dynamic soft-launch copy.
+
+### Key Lessons
+- Long-running network tasks (like external API scraping taking 4–20s) must NEVER be bound to raw input debounce timers. They should only run on deliberate user confirmation or submit action, protected by monotonic request counters.
+- Client audio cues should always use the Web Audio API with oscillators and gain nodes rather than external audio files to ensure instant playback without network overhead or missing asset errors.
+
+---
 - **Complete Elimination of Mock/Instant Data**:
   - Removed server-side `INSTANT_PROFILES` map from `apps/web/src/app/api/auth/social-preview/route.ts`. No pre-fabricated fake profiles for any handle.
   - Removed client-side initial values (`Maya Chen`, `mayachen_creates`, `84.5K followers`) from `apps/web/src/app/early-access/page.tsx`. Initial form states now start blank.

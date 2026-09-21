@@ -14,14 +14,14 @@ interface ScrapedProfile {
   isPrivate: boolean;
 }
 
-// Client-side mock registry removed — all handles now route through the real
-// /api/auth/social-preview API. Server-side INSTANT_PROFILES handles popular
-// handles instantly (~50ms); real arbitrary handles hit Apify with a 28s budget.
+// Client-side mock registry removed — all handles route through the live
+// /api/auth/social-preview verification API with instant caching and race condition protection.
 
 export default function EarlyAccessPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [role, setRole] = useState<'creator' | 'business'>('creator');
   const [screen, setScreen] = useState<'s0' | 's1' | 's2' | 's3' | 'sLoading' | 's4'>('s0');
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Form State — empty by default, no mock data
   const [name, setName] = useState('');
@@ -55,7 +55,92 @@ export default function EarlyAccessPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const passContainerRef = useRef<HTMLDivElement>(null);
   const expCanvasRef = useRef<HTMLCanvasElement>(null);
-  const scrapeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const requestIdRef = useRef(0);
+  const cacheRef = useRef<
+    Map<
+      string,
+      {
+        status: 'verified_public' | 'verified_private' | 'not_found';
+        profile: ScrapedProfile | null;
+        isPrivate: boolean;
+        isVerified: boolean;
+        message: string;
+        error: string | null;
+      }
+    >
+  >(new Map());
+
+  // Web Audio Harmonic Feedback Synthesizer
+  const playAudioCue = useCallback((type: 'click' | 'success' | 'complete' | 'error') => {
+    if (!soundEnabled) return;
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const now = ctx.currentTime;
+
+      if (type === 'click') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(640, now);
+        osc.frequency.exponentialRampToValueAtTime(320, now + 0.04);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.04);
+      } else if (type === 'success') {
+        // High-clarity Apple-style double chime (F5 -> C6)
+        [698.46, 1046.5].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.1, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.22);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.22);
+        });
+      } else if (type === 'complete') {
+        // Celebratory 4-note ascending chord for pass reveal
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.5);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.5);
+        });
+      } else if (type === 'error') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.14);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.14);
+      }
+    } catch {
+      // AudioContext unavailable or blocked by browser policy
+    }
+  }, [soundEnabled]);
 
   // Trigger shake animation on invalid inputs
   const triggerShake = (field: string) => {
@@ -63,118 +148,192 @@ export default function EarlyAccessPage() {
     setTimeout(() => setShakeField(null), 600);
   };
 
-  // Perform Live Scrape with Apify via /api/auth/social-preview
-  const performScrape = useCallback(async (rawHandle: string) => {
-    const clean = rawHandle.replace(/^@+/, '').trim().toLowerCase();
-    if (!clean || clean.length < 2) {
-      setVerificationStatus('idle');
-      setStatusMessage('');
-      setScrapedProfile(null);
-      setIsAccountVerified(false);
-      setIsAccountPrivate(false);
-      setVerificationError(null);
-      return;
-    }
-
-    setScraping(true);
-    setVerificationStatus('scanning');
-    setStatusMessage(`Scanning Instagram for @${clean}...`);
-    setVerificationError(null);
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-      const res = await fetch(`/api/auth/social-preview?platform=instagram&handle=${encodeURIComponent(clean)}`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      const data = await res.json().catch(() => null);
-
-      if (res.ok && data?.status === 'found' && data?.profile) {
-        // Public Instagram Profile found
-        const p = data.profile;
-        const count = p.followerCount;
-        const formattedFollowers = count != null
-          ? count >= 1_000_000
-            ? `${(count / 1_000_000).toFixed(1)}M`
-            : count >= 1_000
-            ? `${(count / 1_000).toFixed(1)}K`
-            : `${count}`
-          : 'Verified';
-
-        setScrapedProfile({
-          displayName: p.displayName || clean,
-          avatarUrl: p.avatarUrl || null,
-          followerCount: p.followerCount || null,
-          followersStr: formattedFollowers,
-          postsStr: p.postsCount != null ? String(p.postsCount) : '—',
-          biography: p.biography || '',
-          isVerified: Boolean(p.isVerified),
-          isPrivate: false,
-        });
-        setIsAccountPrivate(false);
-        setIsAccountVerified(true);
-        setVerificationStatus('verified_public');
-        setStatusMessage('✓ Verified Public Creator Profile');
-      } else if (res.ok && (data?.status === 'private' || data?.isPrivate)) {
-        // Private Instagram Account: verify identity without fetching media
+  // Perform Live Instagram Identity Verification via /api/auth/social-preview
+  const performScrape = useCallback(
+    async (rawHandle: string, autoAdvance = false): Promise<boolean> => {
+      const clean = rawHandle.replace(/^@+/, '').trim().toLowerCase();
+      if (!clean || clean.length < 2) {
+        setVerificationStatus('idle');
+        setStatusMessage('');
         setScrapedProfile(null);
-        setIsAccountPrivate(true);
-        setIsAccountVerified(true);
-        setVerificationStatus('verified_private');
-        setStatusMessage('✓ Private Instagram Account Verified');
-      } else if (res.status === 404 || data?.status === 'notfound') {
-        // Handle does not exist on Instagram
-        setScrapedProfile(null);
-        setIsAccountPrivate(false);
         setIsAccountVerified(false);
-        setVerificationStatus('not_found');
-        setStatusMessage(`✕ Profile @${clean} not found`);
-        setVerificationError(`Account @${clean} was not found on Instagram. Please check your spelling.`);
-      } else {
-        // Lookup issue or timeout
+        setIsAccountPrivate(false);
+        setVerificationError(null);
+        return false;
+      }
+
+      // Check cache first for immediate zero-latency feedback
+      const cached = cacheRef.current.get(clean);
+      if (cached) {
+        setScrapedProfile(cached.profile);
+        setIsAccountPrivate(cached.isPrivate);
+        setIsAccountVerified(cached.isVerified);
+        setVerificationStatus(cached.status);
+        setStatusMessage(cached.message);
+        setVerificationError(cached.error);
+        if (cached.isVerified) {
+          playAudioCue('success');
+          if (autoAdvance) {
+            playAudioCue('click');
+            setScreen('s3');
+          }
+          return true;
+        } else {
+          playAudioCue('error');
+          return false;
+        }
+      }
+
+      const currentReqId = ++requestIdRef.current;
+      setScraping(true);
+      setVerificationStatus('scanning');
+      setStatusMessage(`Verifying @${clean} on Instagram...`);
+      setVerificationError(null);
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 32000);
+
+        const res = await fetch(
+          `/api/auth/social-preview?platform=instagram&handle=${encodeURIComponent(clean)}`,
+          { signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+
+        const data = await res.json().catch(() => null);
+
+        // Discard stale responses if user typed or initiated a newer request
+        if (currentReqId !== requestIdRef.current) {
+          return false;
+        }
+
+        if (res.ok && data?.status === 'found' && data?.profile) {
+          // Public Instagram Profile found
+          const p = data.profile;
+          const count = p.followerCount;
+          const formattedFollowers =
+            count != null
+              ? count >= 1_000_000
+                ? `${(count / 1_000_000).toFixed(1)}M`
+                : count >= 1_000
+                ? `${(count / 1_000).toFixed(1)}K`
+                : `${count}`
+              : 'Verified';
+
+          const profileObj: ScrapedProfile = {
+            displayName: p.displayName || clean,
+            avatarUrl: p.avatarUrl || null,
+            followerCount: p.followerCount || null,
+            followersStr: formattedFollowers,
+            postsStr: p.postsCount != null ? String(p.postsCount) : '—',
+            biography: p.biography || '',
+            isVerified: Boolean(p.isVerified),
+            isPrivate: false,
+          };
+
+          setScrapedProfile(profileObj);
+          setIsAccountPrivate(false);
+          setIsAccountVerified(true);
+          setVerificationStatus('verified_public');
+          setStatusMessage('✓ Verified Public Creator Profile');
+          cacheRef.current.set(clean, {
+            status: 'verified_public',
+            profile: profileObj,
+            isPrivate: false,
+            isVerified: true,
+            message: '✓ Verified Public Creator Profile',
+            error: null,
+          });
+          playAudioCue('success');
+          if (autoAdvance) {
+            playAudioCue('click');
+            setScreen('s3');
+          }
+          return true;
+        } else if (res.ok && (data?.status === 'private' || data?.isPrivate)) {
+          // Private Instagram Account: identity confirmed, zero mock metrics/media
+          setScrapedProfile(null);
+          setIsAccountPrivate(true);
+          setIsAccountVerified(true);
+          setVerificationStatus('verified_private');
+          setStatusMessage('✓ Private Instagram Account Verified');
+          cacheRef.current.set(clean, {
+            status: 'verified_private',
+            profile: null,
+            isPrivate: true,
+            isVerified: true,
+            message: '✓ Private Instagram Account Verified',
+            error: null,
+          });
+          playAudioCue('success');
+          if (autoAdvance) {
+            playAudioCue('click');
+            setScreen('s3');
+          }
+          return true;
+        } else if (res.status === 404 || data?.status === 'notfound') {
+          // Handle does not exist on Instagram
+          setScrapedProfile(null);
+          setIsAccountPrivate(false);
+          setIsAccountVerified(false);
+          setVerificationStatus('not_found');
+          setStatusMessage(`✕ Profile @${clean} not found`);
+          const err = `Account @${clean} was not found on Instagram. Please check your username.`;
+          setVerificationError(err);
+          cacheRef.current.set(clean, {
+            status: 'not_found',
+            profile: null,
+            isPrivate: false,
+            isVerified: false,
+            message: `✕ Profile @${clean} not found`,
+            error: err,
+          });
+          playAudioCue('error');
+          return false;
+        } else {
+          // Lookup issue or timeout
+          setScrapedProfile(null);
+          setIsAccountPrivate(false);
+          setIsAccountVerified(false);
+          setVerificationStatus('error');
+          const msg = data?.message || 'Verification could not be completed. Please try again.';
+          setStatusMessage(msg);
+          setVerificationError(msg);
+          playAudioCue('error');
+          return false;
+        }
+      } catch {
+        if (currentReqId !== requestIdRef.current) return false;
         setScrapedProfile(null);
         setIsAccountPrivate(false);
         setIsAccountVerified(false);
         setVerificationStatus('error');
-        setStatusMessage(data?.message || 'Instagram lookup timed out');
-        setVerificationError(data?.message || 'Verification could not be completed. Please try again.');
+        setStatusMessage('Connection timed out');
+        setVerificationError('Verification timed out. Please check your network and retry.');
+        playAudioCue('error');
+        return false;
+      } finally {
+        if (currentReqId === requestIdRef.current) {
+          setScraping(false);
+        }
       }
-    } catch {
-      setScrapedProfile(null);
-      setIsAccountPrivate(false);
-      setIsAccountVerified(false);
-      setVerificationStatus('error');
-      setStatusMessage('Connection timed out');
-      setVerificationError('Verification timed out. Please check your network and retry.');
-    } finally {
-      setScraping(false);
-    }
-  }, []);
+    },
+    [playAudioCue]
+  );
 
-  // Debounced Instagram Input listener
+  // Controlled Instagram Input listener (no debounced keystroke scraping)
   const handleHandleChange = (val: string) => {
     const clean = val.replace(/^@+/, '');
     setHandle(clean);
-    if (scrapeTimeoutRef.current) clearTimeout(scrapeTimeoutRef.current);
-    const trimmed = clean.trim();
-    if (trimmed.length >= 2) {
-      setVerificationStatus('scanning');
-      setStatusMessage(`Scanning Instagram for @${trimmed}...`);
-      setVerificationError(null);
-      scrapeTimeoutRef.current = setTimeout(() => {
-        performScrape(trimmed);
-      }, 500);
-    } else {
-      setVerificationStatus('idle');
-      setStatusMessage('');
-      setScrapedProfile(null);
-      setIsAccountVerified(false);
-      setIsAccountPrivate(false);
-      setVerificationError(null);
-    }
+    // Invalidate any active background lookup
+    requestIdRef.current++;
+    // Reset status cleanly so user types without glitching
+    setVerificationStatus('idle');
+    setStatusMessage('');
+    setScrapedProfile(null);
+    setIsAccountVerified(false);
+    setIsAccountPrivate(false);
+    setVerificationError(null);
   };
 
   // Keyboard navigation (Enter)
@@ -192,45 +351,51 @@ export default function EarlyAccessPage() {
   const handleNext1 = () => {
     if (!name.trim()) {
       triggerShake('name');
+      playAudioCue('error');
       return;
     }
+    playAudioCue('click');
     setScreen('s2');
-    const clean = handle.replace(/^@+/, '').trim();
-    if (role === 'creator' && clean.length >= 2 && !isAccountVerified) {
-      performScrape(clean);
-    }
   };
 
-  const handleNext2 = () => {
+  const handleNext2 = async () => {
     if (role === 'creator') {
       const clean = handle.replace(/^@+/, '').trim();
       if (!clean) {
         triggerShake('handle');
+        playAudioCue('error');
         return;
       }
       if (scraping) {
-        // Still verifying handle with Apify
+        // Already scanning
         return;
       }
       if (!isAccountVerified) {
-        triggerShake('handle');
-        setVerificationError('Please verify your Instagram handle before continuing.');
+        // Seamlessly trigger verification and auto-advance on success
+        const ok = await performScrape(clean, true);
+        if (!ok) {
+          triggerShake('handle');
+        }
         return;
       }
     } else {
       if (!handle.trim()) {
         triggerShake('handle');
+        playAudioCue('error');
         return;
       }
     }
+    playAudioCue('click');
     setScreen('s3');
   };
 
   const handleNext3 = async () => {
     if (!email.trim() || !email.includes('@')) {
       triggerShake('email');
+      playAudioCue('error');
       return;
     }
+    playAudioCue('click');
     startSynthesizer();
   };
 
@@ -266,7 +431,7 @@ export default function EarlyAccessPage() {
 
     // Animated multi-step progress forge
     const steps = [
-      { p: 25, label: '❖ Querying verified Apify credentials...', ms: 500 },
+      { p: 25, label: '❖ Verifying creator identity credentials...', ms: 500 },
       {
         p: 58,
         label: isAccountPrivate
@@ -292,6 +457,7 @@ export default function EarlyAccessPage() {
     setTimeout(() => setBloomActive(false), 400);
 
     setScreen('s4');
+    playAudioCue('complete');
 
     // Confetti celebration
     try {
@@ -429,7 +595,7 @@ export default function EarlyAccessPage() {
     ctx.arc(ax, ay, ar, 0, Math.PI * 2);
     ctx.fill();
 
-    const initials = (name || 'MC')
+    const initials = (name || handle || 'VIP')
       .split(' ')
       .map((w) => w[0])
       .join('')
@@ -658,6 +824,36 @@ export default function EarlyAccessPage() {
             </div>
           )}
 
+          {/* Sound Toggle Button */}
+          <button
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              if (next) playAudioCue('click');
+            }}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${
+              isDark
+                ? 'bg-[#1a1525] border-white/10 text-zinc-300 hover:border-[#ff078e] hover:text-[#ff078e]'
+                : 'bg-white border-[#e7e3dc] text-zinc-600 hover:border-[#ff078e] hover:text-[#ff078e]'
+            }`}
+            aria-label="Toggle Sound"
+            title={soundEnabled ? 'Sound is ON' : 'Sound is OFF'}
+          >
+            {soundEnabled ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            )}
+          </button>
+
           {/* Theme Toggle Button */}
           <button
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
@@ -702,16 +898,16 @@ export default function EarlyAccessPage() {
                 <line x1="100" y1="100" x2="100" y2="184" stroke="#ff078e" strokeOpacity="0.3" strokeWidth="1.2" strokeDasharray="4 5" />
 
                 <circle cx="30" cy="38" r="18" fill="rgba(255,7,142,0.11)" stroke="#ff078e" strokeOpacity="0.5" strokeWidth="1.5" />
-                <text x="30" y="43" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="10" fill="#ff078e">MC</text>
+                <text x="30" y="43" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="13" fill="#ff078e">✦</text>
 
                 <circle cx="170" cy="38" r="18" fill="rgba(255,7,142,0.11)" stroke="#ff078e" strokeOpacity="0.5" strokeWidth="1.5" />
-                <text x="170" y="43" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="10" fill="#ff078e">VK</text>
+                <text x="170" y="43" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="13" fill="#ff078e">★</text>
 
                 <circle cx="30" cy="162" r="18" fill="rgba(255,7,142,0.11)" stroke="#ff078e" strokeOpacity="0.5" strokeWidth="1.5" />
-                <text x="30" y="167" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="10" fill="#ff078e">TB</text>
+                <text x="30" y="167" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="13" fill="#ff078e">⚡</text>
 
                 <circle cx="170" cy="162" r="18" fill="rgba(255,7,142,0.11)" stroke="#ff078e" strokeOpacity="0.5" strokeWidth="1.5" />
-                <text x="170" y="167" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="10" fill="#ff078e">MB</text>
+                <text x="170" y="167" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="13" fill="#ff078e">✓</text>
 
                 <circle cx="100" cy="100" r="28" className="animate-pulse-ring" fill="#ff078e" fillOpacity="0.12" stroke="#ff078e" strokeWidth="1.8" />
                 <circle cx="100" cy="100" r="17" fill="rgba(255,7,142,0.18)" stroke="#ff078e" strokeWidth="1.4" />
@@ -732,23 +928,88 @@ export default function EarlyAccessPage() {
               </h1>
 
               {/* Body */}
-              <p className={`text-[16px] leading-[1.65] max-w-[420px] mb-6 ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
+              <p className={`text-[16px] leading-[1.65] max-w-[420px] mb-5 ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
                 {role === 'creator'
                   ? 'Influnet connects creators with brands the moment they reach out — zero missed DMs, instant deals. Claim your official Founding Creator Pass now.'
                   : 'Direct, instant collaboration requests to verified creators with escrow-backed protection. Claim your official Founding Brand Pass now.'}
               </p>
 
               {/* Proof Row */}
-              <div className="flex items-center justify-center gap-3 mb-8">
+              <div className="flex items-center justify-center gap-3 mb-6">
                 <div className="flex -space-x-2">
-                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center font-extrabold text-[10px] text-white bg-[#ff078e] border-white dark:border-[#0d0a12]">MC</div>
-                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center font-extrabold text-[10px] text-white bg-[#7c3aed] border-white dark:border-[#0d0a12]">VK</div>
-                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center font-extrabold text-[10px] text-white bg-[#0891b2] border-white dark:border-[#0d0a12]">TB</div>
-                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center font-extrabold text-[10px] text-white bg-[#d97706] border-white dark:border-[#0d0a12]">MB</div>
+                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center text-[12px] text-white bg-gradient-to-tr from-[#ff078e] to-[#ff4db1] border-white dark:border-[#0d0a12] shadow-sm">✦</div>
+                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center text-[12px] text-white bg-gradient-to-tr from-[#7c3aed] to-[#a78bfa] border-white dark:border-[#0d0a12] shadow-sm">★</div>
+                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center text-[12px] text-white bg-gradient-to-tr from-[#0891b2] to-[#38bdf8] border-white dark:border-[#0d0a12] shadow-sm">⚡</div>
+                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center text-[12px] text-white bg-gradient-to-tr from-[#059669] to-[#34d399] border-white dark:border-[#0d0a12] shadow-sm">✓</div>
                 </div>
                 <div className={`text-[13.5px] font-medium ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                  <b>89 {role === 'creator' ? 'creators' : 'brands'}</b> already secured early passes
+                  <b>89 {role === 'creator' ? 'creators' : 'brands'}</b> registered for soft launch
                 </div>
+              </div>
+
+              {/* Event Soft-Launch Perks Grid */}
+              <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-7 text-left">
+                {role === 'creator' ? (
+                  <>
+                    <div className={`p-3.5 rounded-2xl border transition-all ${
+                      isDark ? 'bg-[#15111c]/70 border-white/10' : 'bg-white/80 border-[#e7e3dc]'
+                    }`}>
+                      <div className="text-[18px] mb-1">⚡</div>
+                      <div className="font-bold text-[13px] mb-0.5">0% Commission</div>
+                      <div className={`text-[11.5px] leading-snug ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        Keep 100% of brand payouts on every deal for a full year.
+                      </div>
+                    </div>
+                    <div className={`p-3.5 rounded-2xl border transition-all ${
+                      isDark ? 'bg-[#15111c]/70 border-white/10' : 'bg-white/80 border-[#e7e3dc]'
+                    }`}>
+                      <div className="text-[18px] mb-1">🎯</div>
+                      <div className="font-bold text-[13px] mb-0.5">Deal Radar</div>
+                      <div className={`text-[11.5px] leading-snug ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        Instant DM alerts the second a brand searches your niche.
+                      </div>
+                    </div>
+                    <div className={`p-3.5 rounded-2xl border transition-all ${
+                      isDark ? 'bg-[#15111c]/70 border-white/10' : 'bg-white/80 border-[#e7e3dc]'
+                    }`}>
+                      <div className="text-[18px] mb-1">🚀</div>
+                      <div className="font-bold text-[13px] mb-0.5">Genesis VIP</div>
+                      <div className={`text-[11.5px] leading-snug ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        Priority ranking in the creator directory on Day 1.
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={`p-3.5 rounded-2xl border transition-all ${
+                      isDark ? 'bg-[#15111c]/70 border-white/10' : 'bg-white/80 border-[#e7e3dc]'
+                    }`}>
+                      <div className="text-[18px] mb-1">💎</div>
+                      <div className="font-bold text-[13px] mb-0.5">0% Platform Fee</div>
+                      <div className={`text-[11.5px] leading-snug ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        Zero platform fees on your initial collaboration campaigns.
+                      </div>
+                    </div>
+                    <div className={`p-3.5 rounded-2xl border transition-all ${
+                      isDark ? 'bg-[#15111c]/70 border-white/10' : 'bg-white/80 border-[#e7e3dc]'
+                    }`}>
+                      <div className="text-[18px] mb-1">🤝</div>
+                      <div className="font-bold text-[13px] mb-0.5">Direct Access</div>
+                      <div className={`text-[11.5px] leading-snug ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        Hire verified creators directly without agency markups.
+                      </div>
+                    </div>
+                    <div className={`p-3.5 rounded-2xl border transition-all ${
+                      isDark ? 'bg-[#15111c]/70 border-white/10' : 'bg-white/80 border-[#e7e3dc]'
+                    }`}>
+                      <div className="text-[18px] mb-1">🛡️</div>
+                      <div className="font-bold text-[13px] mb-0.5">Escrow Shield</div>
+                      <div className={`text-[11.5px] leading-snug ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        Funds are held securely and released only on approved posts.
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Big CTA */}
@@ -870,8 +1131,30 @@ export default function EarlyAccessPage() {
                   autoFocus
                   className="w-full bg-transparent border-0 outline-none text-[21px] font-semibold text-inherit placeholder-zinc-400 dark:placeholder-zinc-500"
                 />
-                {scraping && (
-                  <div className="w-5 h-5 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin shrink-0 ml-2" />
+                {role === 'creator' && handle.trim().length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => performScrape(handle, false)}
+                    disabled={scraping}
+                    className={`ml-2 px-3.5 py-1.5 rounded-xl font-mono-code text-[12px] font-bold transition-all shrink-0 cursor-pointer ${
+                      isAccountVerified
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                        : scraping
+                        ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
+                        : 'bg-[#ff078e] hover:bg-[#c8307f] text-white shadow-sm'
+                    }`}
+                  >
+                    {scraping ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-full border-2 border-zinc-400 border-t-white animate-spin" />
+                        Checking...
+                      </span>
+                    ) : isAccountVerified ? (
+                      '✓ Verified'
+                    ) : (
+                      'Verify'
+                    )}
+                  </button>
                 )}
               </div>
 
@@ -888,7 +1171,7 @@ export default function EarlyAccessPage() {
 
               <p className={`text-[13px] mb-4 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                 {role === 'creator'
-                  ? 'We live-verify your Instagram identity via Apify. Public profiles display full stats & avatar; private profiles are verified securely.'
+                  ? 'We live-verify your Instagram identity directly. Public profiles display full stats & avatar; private profiles are verified securely.'
                   : 'Used to verify company authenticity and personalize your Founding Brand Pass.'}
               </p>
 
@@ -924,10 +1207,10 @@ export default function EarlyAccessPage() {
                             : 'text-zinc-400'
                         }
                       >
-                        {statusMessage || 'Enter handle to live-verify'}
+                        {statusMessage || 'Enter handle and tap Verify'}
                       </span>
                     </div>
-                    <span className="text-[#ff078e] font-bold">APIFY ENGINE</span>
+                    <span className="text-[#ff078e] font-bold tracking-wider">LIVE VERIFICATION</span>
                   </div>
 
                   {/* State 1: Public profile verified */}
@@ -1046,11 +1329,11 @@ export default function EarlyAccessPage() {
                       }`}
                     >
                       <div className="text-[12px] leading-snug">
-                        {statusMessage || 'Apify could not complete the verification right now.'}
+                        {statusMessage || 'Could not complete the verification right now. Please try again.'}
                       </div>
                       <button
                         type="button"
-                        onClick={() => performScrape(handle)}
+                        onClick={() => performScrape(handle, false)}
                         className="px-3 py-1.5 rounded-lg text-[12px] font-bold bg-[#ff078e] text-white hover:bg-[#c8307f] transition-all self-start sm:self-auto cursor-pointer shrink-0"
                       >
                         Retry Check
@@ -1061,7 +1344,7 @@ export default function EarlyAccessPage() {
                   {/* State 5: Idle */}
                   {verificationStatus === 'idle' && (
                     <div className="p-3 text-center text-[12.5px] text-zinc-400 font-mono-code">
-                      Type your Instagram handle to live-verify with Apify
+                      Type your Instagram handle and tap Verify (or Confirm & Continue)
                     </div>
                   )}
 
@@ -1069,7 +1352,7 @@ export default function EarlyAccessPage() {
                   {verificationStatus === 'scanning' && (
                     <div className="flex items-center justify-center gap-2 p-4 text-[13px] text-zinc-500 dark:text-zinc-400 font-mono-code">
                       <div className="w-4 h-4 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-spin" />
-                      <span>Verifying @{handle.replace(/^@+/, '')} on Instagram via Apify...</span>
+                      <span>Verifying @{handle.replace(/^@+/, '')} on Instagram...</span>
                     </div>
                   )}
                 </div>
@@ -1078,12 +1361,22 @@ export default function EarlyAccessPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleNext2}
-                  className="h-[52px] px-8 rounded-full bg-[#17141d] dark:bg-white text-white dark:text-[#0d0a12] hover:bg-[#ff078e] dark:hover:bg-[#ff078e] dark:hover:text-white font-bold text-[15.5px] inline-flex items-center gap-2.5 shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                  disabled={scraping}
+                  className="h-[52px] px-8 rounded-full bg-[#17141d] dark:bg-white text-white dark:text-[#0d0a12] hover:bg-[#ff078e] dark:hover:bg-[#ff078e] dark:hover:text-white font-bold text-[15.5px] inline-flex items-center gap-2.5 shadow-md hover:-translate-y-0.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span>Confirm & Continue</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
+                  {scraping ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-zinc-400 border-t-white animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Confirm & Continue</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </>
+                  )}
                 </button>
 
                 <button
@@ -1407,8 +1700,25 @@ export default function EarlyAccessPage() {
                 </div>
               </div>
 
+              {/* Soft-Launch Priority Guarantee Banner */}
+              <div
+                className={`w-full rounded-2xl p-4 mt-6 border text-left transition-all ${
+                  isDark
+                    ? 'bg-[#15111c]/90 border-white/10'
+                    : 'bg-white border-[#e7e3dc] shadow-sm'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5 font-headline font-bold text-[13.5px]">
+                  <span className="text-[#ff078e]">🚀</span>
+                  <span>Soft-Launch Event Guarantee</span>
+                </div>
+                <p className={`text-[12px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  Your VIP Founding Pass and 0% platform credentials are confirmed! When we officially launch at our upcoming launch event, your VIP activation link will be delivered directly to <b>{email}</b>{role === 'creator' && handle.trim() ? <> and your verified Instagram DM to <b>@{handle.replace(/^@+/, '')}</b></> : null}.
+                </p>
+              </div>
+
               {/* Action Buttons */}
-              <div className="w-full flex flex-col items-stretch gap-2.5 mt-6">
+              <div className="w-full flex flex-col items-stretch gap-2.5 mt-5">
                 <button
                   onClick={exportPassPNG}
                   className="h-[52px] rounded-full bg-[#ff078e] hover:bg-[#c8307f] text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-[0_8px_24px_rgba(255,7,142,0.35)] hover:-translate-y-0.5 transition-all cursor-pointer"
