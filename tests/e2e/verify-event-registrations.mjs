@@ -1,4 +1,4 @@
-// Event registrations (migrations 170–171): influnet.io/join → entry pass → admin check-in.
+// Event registrations (migrations 170–172): influnet.io/join → entry pass → admin check-in.
 //
 // Proves through the REAL routes, with real JWTs:
 //   • POST /api/event-pass mints an INF-XXXXXX pass; the same phone (any format)
@@ -6,12 +6,14 @@
 //   • a bad phone number is refused with field "phone";
 //   • the admin report finds a registration by its pass code, and check-in /
 //     undo round-trip through PATCH /api/admin/event-registrations/[id];
+//   • delete moves a row to the Deleted section (freeing its phone), restore and
+//     delete-forever work, and only already-deleted rows can be purged;
 //   • a creator and an anonymous caller are refused on both admin routes;
 //   • the retired Creator applications report and /api/join are gone.
 //
 // Usage: node --env-file=apps/web/.env.local tests/e2e/verify-event-registrations.mjs
 // Needs the dev server and the test-only admin (config.mjs TEST_ADMIN).
-// Registers at most 2 phones (91 90000 0009x) and deletes them at the end.
+// Registers one test phone (91 90000 00091) up to twice and deletes every row it made.
 
 import { Actor } from './lib/actor.mjs';
 import { TEST_ADMIN } from './lib/config.mjs';
@@ -63,7 +65,7 @@ async function main() {
   const found = report.body?.data?.rows ?? [];
   s.check('searching the pass code finds exactly that registration', report.ok && found.length === 1 && found[0].pass_code === code,
     { severity: 'HIGH', observed: `${report.status} ${found.length} rows` });
-  const [{ n }] = await sql(`select count(*)::int as n from event_registrations`);
+  const [{ n }] = await sql(`select count(*)::int as n from event_registrations where deleted_at is null`);
   s.check('the Registered KPI equals the table count', report.body?.data?.summary?.total === n,
     { severity: 'MEDIUM', observed: report.body?.data?.summary?.total, expected: n });
 
@@ -80,6 +82,49 @@ async function main() {
 
   const csv = await fetch(`${BASE}/api/admin/insights/event_registrations?format=csv&search=${code}`, { headers: { Authorization: `Bearer ${admin.token}` } });
   s.check('CSV export includes the pass code', csv.ok && (await csv.text()).includes(code), { severity: 'MEDIUM', observed: csv.status });
+
+  s.section('Delete, restore, delete forever (migration 172)');
+  const livePurge = await admin.del(`/api/admin/event-registrations/${row.id}`);
+  s.check('a live registration cannot be deleted permanently (409)', livePurge.status === 409,
+    { severity: 'HIGH', observed: livePurge.status });
+
+  const del = await admin.patch(`/api/admin/event-registrations/${row.id}`, { deleted: true });
+  const active = await admin.get(`/api/admin/insights/event_registrations?search=${code}`);
+  const trash = await admin.get(`/api/admin/insights/event_registrations?status=deleted&search=${code}`);
+  s.check('delete moves it from the list into the Deleted section',
+    del.ok && (active.body?.data?.rows ?? []).length === 0 && (trash.body?.data?.rows ?? []).length === 1,
+    { severity: 'HIGH', observed: `${del.status} active=${active.body?.data?.rows?.length} deleted=${trash.body?.data?.rows?.length}` });
+  const [{ live, gone }] = await sql(`select count(*) filter (where deleted_at is null)::int live, count(*) filter (where deleted_at is not null)::int gone from event_registrations`);
+  s.check('KPIs count live rows only, and the Deleted count matches',
+    trash.body?.data?.summary?.total === live && trash.body?.data?.summary?.deleted === gone,
+    { severity: 'MEDIUM', observed: JSON.stringify(trash.body?.data?.summary), expected: `${live} live / ${gone} deleted` });
+  const deletedCheckIn = await admin.patch(`/api/admin/event-registrations/${row.id}`, { checkedIn: true });
+  s.check('a deleted registration cannot be checked in (404)', deletedCheckIn.status === 404,
+    { severity: 'MEDIUM', observed: deletedCheckIn.status });
+
+  const reReg = await register({ name: 'QA Verify Again', phone: PHONE });
+  s.check('the same phone can register again after a delete, with a NEW pass',
+    reReg.status === 201 && reReg.body?.passCode && reReg.body.passCode !== code,
+    { severity: 'HIGH', observed: `${reReg.status} ${reReg.body?.passCode}` });
+  const restoreClash = await admin.patch(`/api/admin/event-registrations/${row.id}`, { deleted: false });
+  s.check('restoring is refused while that phone has a live registration (409)', restoreClash.status === 409,
+    { severity: 'MEDIUM', observed: `${restoreClash.status} ${JSON.stringify(restoreClash.body)}` });
+
+  const creatorDelete = await creator.patch(`/api/admin/event-registrations/${row.id}`, { deleted: false });
+  const creatorPurge = await creator.del(`/api/admin/event-registrations/${row.id}`);
+  s.check('a creator cannot delete, restore or purge (403)', creatorDelete.status === 403 && creatorPurge.status === 403,
+    { severity: 'CRITICAL', observed: `${creatorDelete.status}/${creatorPurge.status}` });
+
+  const purge = await admin.del(`/api/admin/event-registrations/${row.id}`);
+  const [{ left }] = await sql(`select count(*)::int as left from event_registrations where id = '${row.id}'`);
+  s.check('delete forever removes the row', purge.ok && left === 0, { severity: 'HIGH', observed: `${purge.status} rows left ${left}` });
+  const [second] = await sql(`select id from event_registrations where pass_code = '${reReg.body?.passCode}'`);
+  if (second) {
+    await admin.patch(`/api/admin/event-registrations/${second.id}`, { deleted: true });
+    const restore = await admin.patch(`/api/admin/event-registrations/${second.id}`, { deleted: false });
+    s.check('restore brings a deleted registration back', restore.ok && restore.body?.deleted_at === null,
+      { severity: 'HIGH', observed: `${restore.status} ${JSON.stringify(restore.body)}` });
+  }
 
   s.section('Access control');
   const creatorReport = await creator.get('/api/admin/insights/event_registrations');
