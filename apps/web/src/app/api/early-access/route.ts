@@ -5,11 +5,23 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { serviceRoleClient } from '@/lib/supabase/service';
 import { logger } from '@/lib/logger';
 
+const PHONE_REGEX = /^\+?[0-9\s\-().]{7,25}$/;
+
 const EarlyAccessSchema = z.object({
   kind: z.enum(['creator', 'business']),
   name: z.string().trim().min(1, 'Name is required').max(120),
   email: z.string().trim().email('Valid email is required').max(160),
-  phone: z.string().trim().max(30).optional().nullable(),
+  phone: z
+    .string()
+    .trim()
+    .max(30)
+    .refine((val) => {
+      if (!val) return true;
+      const digits = val.replace(/\D/g, '');
+      return digits.length >= 7 && digits.length <= 15 && PHONE_REGEX.test(val);
+    }, 'Phone number must be a valid phone/WhatsApp number with 7–15 digits')
+    .optional()
+    .nullable(),
   handle: z.string().trim().max(60).optional().nullable(),
   company: z.string().trim().max(120).optional().nullable(),
   website: z.string().trim().max(200).optional().nullable(),

@@ -31,6 +31,13 @@ export default function EarlyAccessPage() {
   const [phone, setPhone] = useState('');
   const [company, setCompany] = useState('');
 
+  // Form Field Validation Errors
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  // Multi-Format Social Media Export ('story' | 'linkedin' | 'square')
+  const [exportFormat, setExportFormat] = useState<'story' | 'linkedin' | 'square'>('story');
+
   // Scraper & Live Verification State
   const [scraping, setScraping] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<
@@ -338,6 +345,40 @@ export default function EarlyAccessPage() {
     setVerificationError(null);
   };
 
+  // Controlled Email & Phone Input Handlers with error clearing
+  const handleEmailChange = (val: string) => {
+    setEmail(val);
+    if (emailError) setEmailError(null);
+  };
+
+  const handlePhoneChange = (val: string) => {
+    setPhone(val);
+    if (phoneError) setPhoneError(null);
+  };
+
+  const validateEmail = (val: string): string | null => {
+    const trimmed = val.trim();
+    if (!trimmed) return 'Work or personal email is required';
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(trimmed)) {
+      return 'Please enter a valid email address (e.g. you@domain.com)';
+    }
+    return null;
+  };
+
+  const validatePhone = (val: string): string | null => {
+    const trimmed = val.trim();
+    if (!trimmed) return null; // phone is optional
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length < 7 || digits.length > 15) {
+      return 'Please enter a valid phone number with 7–15 digits';
+    }
+    if (!/^\+?[0-9\s\-().]{7,25}$/.test(trimmed)) {
+      return 'Phone number contains invalid characters';
+    }
+    return null;
+  };
+
   // Keyboard navigation (Enter)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -348,7 +389,7 @@ export default function EarlyAccessPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screen, name, handle, email, role, isAccountVerified, scraping]);
+  }, [screen, name, handle, email, phone, role, isAccountVerified, scraping, emailError, phoneError]);
 
   const handleNext1 = () => {
     if (!name.trim()) {
@@ -401,11 +442,24 @@ export default function EarlyAccessPage() {
   };
 
   const handleNext3 = async () => {
-    if (!email.trim() || !email.includes('@')) {
+    const eErr = validateEmail(email);
+    if (eErr) {
+      setEmailError(eErr);
       triggerShake('email');
       playAudioCue('error');
       return;
     }
+    setEmailError(null);
+
+    const pErr = validatePhone(phone);
+    if (pErr) {
+      setPhoneError(pErr);
+      triggerShake('phone');
+      playAudioCue('error');
+      return;
+    }
+    setPhoneError(null);
+
     playAudioCue('click');
     startSynthesizer();
   };
@@ -507,41 +561,114 @@ export default function EarlyAccessPage() {
     setFoilOpacity(0.65);
   };
 
-  // Canvas High-Res 1080x1350 PNG Export
-  const exportPassPNG = () => {
-    const c = expCanvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext('2d');
-    if (!ctx) return;
+  const drawRoundedRect = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number
+  ) => {
+    const radius = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  };
 
-    const W = 1080;
-    const H = 1350;
-    c.width = W;
-    c.height = H;
+  // Canonical Vector Influnet Spoke Mark for Canvas
+  const drawSpokeLogo = (
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    size: number,
+    rot: number,
+    color: string,
+    alpha: number
+  ) => {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const s = size / 700;
 
-    const isDark = theme === 'dark';
+    const tPoint = (px: number, py: number) => {
+      const dx = (px - 752) * s;
+      const dy = (py - 520) * s;
+      const rx = dx * Math.cos(rot) - dy * Math.sin(rot) + cx;
+      const ry = dx * Math.sin(rot) + dy * Math.cos(rot) + cy;
+      return { x: rx, y: ry };
+    };
 
-    // Wallpaper
-    ctx.fillStyle = isDark ? '#0d0a12' : '#fbfaf8';
-    ctx.fillRect(0, 0, W, H);
+    // Spokes
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(2, 46 * s);
+    ctx.lineCap = 'round';
 
-    // Radial Glow
-    const grd = ctx.createRadialGradient(W / 2, H * 0.44, 50, W / 2, H * 0.44, 540);
-    grd.addColorStop(0, 'rgba(255,7,142,.25)');
-    grd.addColorStop(1, 'transparent');
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, W, H);
+    const spokePairs = [
+      { p1: [713, 408], p2: [525, 396] },
+      { p1: [841, 427], p2: [960, 246] },
+      { p1: [856, 559], p2: [1013, 617] },
+      { p1: [677, 622], p2: [566, 774] },
+    ];
 
-    // Card Dimensions
-    const cW = 800;
-    const cH = 1140;
-    const cX = (W - cW) / 2;
-    const cY = (H - cH) / 2;
+    for (const pair of spokePairs) {
+      const pt1 = tPoint(pair.p1[0], pair.p1[1]);
+      const pt2 = tPoint(pair.p2[0], pair.p2[1]);
+      ctx.beginPath();
+      ctx.moveTo(pt1.x, pt1.y);
+      ctx.lineTo(pt2.x, pt2.y);
+      ctx.stroke();
+    }
+
+    // Center Ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(3, 96 * s), 0, Math.PI * 2);
+    ctx.lineWidth = Math.max(2, 46 * s);
+    ctx.strokeStyle = color;
+    ctx.stroke();
+
+    // Outer Nodes
+    ctx.fillStyle = color;
+    const nodes = [
+      { x: 525, y: 396, r: 76 },
+      { x: 960, y: 246, r: 87 },
+      { x: 1013, y: 617, r: 80 },
+      { x: 566, y: 774, r: 84 },
+    ];
+
+    for (const node of nodes) {
+      const pt = tPoint(node.x, node.y);
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, Math.max(2, node.r * s), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  };
+
+  // Reusable Scalable VIP Pass Card Drawer on Canvas
+  const drawPassCard = (
+    ctx: CanvasRenderingContext2D,
+    cX: number,
+    cY: number,
+    cW: number,
+    cH: number,
+    isDark: boolean
+  ) => {
+    const k = cW / 800; // scaling factor relative to 800px base card
+    const textCol = isDark ? '#f0ecf8' : '#17141d';
 
     ctx.save();
-    ctx.shadowColor = isDark ? 'rgba(0,0,0,.85)' : 'rgba(23,20,29,.22)';
-    ctx.shadowBlur = 70;
-    ctx.shadowOffsetY = 30;
+    // Card Shadow
+    ctx.shadowColor = isDark ? 'rgba(0,0,0,0.85)' : 'rgba(23,20,29,0.22)';
+    ctx.shadowBlur = 60 * k;
+    ctx.shadowOffsetY = 24 * k;
 
     // Card Background Gradient
     const cg = ctx.createLinearGradient(cX, cY, cX + cW, cY + cH);
@@ -555,53 +682,55 @@ export default function EarlyAccessPage() {
       cg.addColorStop(1, '#f0ebdf');
     }
     ctx.fillStyle = cg;
-    drawRoundedRect(ctx, cX, cY, cW, cH, 56);
+    drawRoundedRect(ctx, cX, cY, cW, cH, 48 * k);
     ctx.fill();
 
     // Card Border
-    ctx.strokeStyle = isDark ? 'rgba(255,255,255,.16)' : 'rgba(215,208,197,.85)';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(215,208,197,0.85)';
+    ctx.lineWidth = Math.max(1.5, 3 * k);
     ctx.stroke();
     ctx.restore();
 
+    // Subtle internal rotating watermark logo
+    drawSpokeLogo(ctx, cX + cW / 2, cY + cH * 0.44, 460 * k, 0.35, '#ff078e', isDark ? 0.08 : 0.05);
+
     // Lanyard Slot
-    ctx.fillStyle = isDark ? 'rgba(0,0,0,.6)' : 'rgba(0,0,0,.1)';
-    drawRoundedRect(ctx, W / 2 - 50, cY + 30, 100, 16, 8);
+    ctx.fillStyle = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)';
+    drawRoundedRect(ctx, cX + cW / 2 - 45 * k, cY + 22 * k, 90 * k, 14 * k, 7 * k);
     ctx.fill();
 
-    const textCol = isDark ? '#f0ecf8' : '#17141d';
-
-    // Header: INFLUNET
+    // Header: Logo Mark + INFLUNET
+    drawSpokeLogo(ctx, cX + 62 * k, cY + 84 * k, 34 * k, 0, '#ff078e', 1);
     ctx.fillStyle = textCol;
-    ctx.font = '800 32px sans-serif';
+    ctx.font = `800 ${Math.round(26 * k)}px sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('INFLUNET', cX + 60, cY + 110);
+    ctx.fillText('INFLUNET', cX + 88 * k, cY + 92 * k);
 
-    // Header: FOUNDER PASS
+    // Header: FOUNDER PASS Pill
     ctx.fillStyle = '#ff078e';
-    ctx.font = '700 18px monospace';
+    ctx.font = `700 ${Math.round(15 * k)}px monospace`;
     ctx.textAlign = 'right';
-    ctx.fillText(role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND', cX + cW - 60, cY + 110);
+    ctx.fillText(role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND', cX + cW - 55 * k, cY + 92 * k);
 
     // Serial Row
     ctx.fillStyle = isDark ? '#736b7e' : '#8b8693';
-    ctx.font = '600 16px monospace';
+    ctx.font = `600 ${Math.round(14 * k)}px monospace`;
     ctx.textAlign = 'left';
-    ctx.fillText('GENESIS SERIES', cX + 60, cY + 148);
+    ctx.fillText('GENESIS SERIES', cX + 55 * k, cY + 128 * k);
     ctx.textAlign = 'right';
     ctx.fillStyle = '#ff078e';
-    ctx.fillText(`NO. #${String(passNumber).padStart(4, '0')} / 1000`, cX + cW - 60, cY + 148);
+    ctx.fillText(`NO. #${String(passNumber).padStart(4, '0')} / 1000`, cX + cW - 55 * k, cY + 128 * k);
 
-    // Center Avatar / Monogram
-    const ax = W / 2;
-    const ay = cY + 360;
-    const ar = 120;
+    // Avatar Monogram
+    const ax = cX + cW / 2;
+    const ay = cY + 310 * k;
+    const ar = 100 * k;
 
-    // Outer Neon Ring
+    // Neon Avatar Ring
     ctx.strokeStyle = '#ff078e';
-    ctx.lineWidth = 8;
+    ctx.lineWidth = Math.max(3, 7 * k);
     ctx.beginPath();
-    ctx.arc(ax, ay, ar + 10, 0, Math.PI * 2);
+    ctx.arc(ax, ay, ar + 8 * k, 0, Math.PI * 2);
     ctx.stroke();
 
     const ag = ctx.createLinearGradient(ax - ar, ay - ar, ax + ar, ay + ar);
@@ -619,31 +748,45 @@ export default function EarlyAccessPage() {
       .toUpperCase()
       .slice(0, 2);
     ctx.fillStyle = '#ffffff';
-    ctx.font = '800 84px sans-serif';
+    ctx.font = `800 ${Math.round(70 * k)}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(initials, ax, ay + 30);
+    ctx.fillText(initials, ax, ay + 24 * k);
+
+    // Star badge on avatar
+    const starX = ax + ar * 0.68;
+    const starY = ay + ar * 0.68;
+    ctx.fillStyle = isDark ? '#0d0a12' : '#ffffff';
+    ctx.beginPath();
+    ctx.arc(starX, starY, 18 * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff078e';
+    ctx.font = `900 ${Math.round(18 * k)}px sans-serif`;
+    ctx.fillText('★', starX, starY + 6 * k);
 
     // Name & Handle
     ctx.fillStyle = textCol;
-    ctx.font = '800 52px sans-serif';
+    ctx.font = `800 ${Math.round(44 * k)}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText((name || 'CREATOR').toUpperCase(), ax, cY + 560);
+    const displayName = (name || (role === 'creator' ? handle : company) || 'CREATOR').toUpperCase();
+    ctx.fillText(displayName, ax, cY + 490 * k);
 
     ctx.fillStyle = '#ff078e';
-    ctx.font = '700 28px monospace';
-    const cleanHandleExp = handle.replace(/^@+/, '').trim();
-    const handleLine = cleanHandleExp
-      ? `@${cleanHandleExp}`
+    ctx.font = `700 ${Math.round(23 * k)}px monospace`;
+    const cleanH = handle.replace(/^@+/, '').trim();
+    const handleLine = cleanH
+      ? `@${cleanH}`
       : role === 'creator'
       ? '★ FOUNDING CREATOR'
       : (company || name || '★ FOUNDING BRAND');
-    ctx.fillText(handleLine, ax, cY + 610);
+    ctx.fillText(handleLine, ax, cY + 532 * k);
 
-    // Followers Badge Pill
-    ctx.fillStyle = isDark ? 'rgba(255,255,255,.08)' : '#ede8df';
-    drawRoundedRect(ctx, ax - 220, cY + 650, 440, 52, 26);
+    // Followers / Status Badge Pill
+    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.08)' : '#ede8df';
+    const pillW = Math.min(cW - 100 * k, 430 * k);
+    drawRoundedRect(ctx, ax - pillW / 2, cY + 565 * k, pillW, 46 * k, 23 * k);
     ctx.fill();
     ctx.fillStyle = textCol;
+    ctx.font = `700 ${Math.round(15 * k)}px monospace`;
     ctx.fillText(
       role === 'creator'
         ? isAccountPrivate
@@ -653,58 +796,268 @@ export default function EarlyAccessPage() {
           : '★ VIP CREATOR · VERIFIED'
         : '★ 0% PLATFORM FEE · VIP BRAND',
       ax,
-      cY + 683
+      cY + 594 * k
     );
 
-    // Meta Grid
-    const fy = cY + cH - 270;
-    ctx.strokeStyle = isDark ? 'rgba(255,255,255,.12)' : 'rgba(215,208,197,.8)';
-    ctx.lineWidth = 2;
+    // Meta Grid Divider Line
+    const fy = cY + cH - 230 * k;
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(215,208,197,0.8)';
+    ctx.lineWidth = Math.max(1, 2 * k);
     ctx.beginPath();
-    ctx.moveTo(cX + 60, fy);
-    ctx.lineTo(cX + cW - 60, fy);
+    ctx.moveTo(cX + 50 * k, fy);
+    ctx.lineTo(cX + cW - 50 * k, fy);
     ctx.stroke();
 
+    // Meta Grid Details
     ctx.fillStyle = isDark ? '#736b7e' : '#8b8693';
-    ctx.font = '700 16px monospace';
+    ctx.font = `700 ${Math.round(13.5 * k)}px monospace`;
     ctx.textAlign = 'left';
-    ctx.fillText('MEMBERSHIP', cX + 70, fy + 44);
-    ctx.fillText('PASS BENEFIT', cX + 70, fy + 90);
-    ctx.fillText('STATUS', cX + 70, fy + 136);
+    ctx.fillText('MEMBERSHIP', cX + 60 * k, fy + 38 * k);
+    ctx.fillText('PASS BENEFIT', cX + 60 * k, fy + 78 * k);
+    ctx.fillText('STATUS', cX + 60 * k, fy + 118 * k);
 
     ctx.textAlign = 'right';
     ctx.fillStyle = textCol;
-    ctx.fillText(role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND', cX + cW - 70, fy + 44);
-    ctx.fillText(role === 'creator' ? '1 YR UNLIMITED PASS' : '0% FEE CONCIERGE', cX + cW - 70, fy + 90);
+    ctx.fillText(role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND', cX + cW - 60 * k, fy + 38 * k);
+    ctx.fillText(role === 'creator' ? '1 YR UNLIMITED PASS' : '0% FEE CONCIERGE', cX + cW - 60 * k, fy + 78 * k);
     ctx.fillStyle = '#059669';
-    ctx.fillText('● CONFIRMED & ACTIVE', cX + cW - 70, fy + 136);
+    ctx.fillText('● CONFIRMED & ACTIVE', cX + cW - 60 * k, fy + 118 * k);
 
-    // Trigger Download
-    const a = document.createElement('a');
-    a.download = `influnet-founder-pass-${(handle || name).toLowerCase().replace(/\s+/g, '-')}.png`;
-    a.href = c.toDataURL('image/png');
-    a.click();
+    // Barcode Strip
+    const by = cY + cH - 60 * k;
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+    ctx.beginPath();
+    ctx.moveTo(cX + 50 * k, by - 12 * k);
+    ctx.lineTo(cX + cW - 50 * k, by - 12 * k);
+    ctx.stroke();
+
+    // Serial & Security Code
+    ctx.fillStyle = isDark ? '#736b7e' : '#8b8693';
+    ctx.font = `600 ${Math.round(12 * k)}px monospace`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`INFN-${passNumber}-VIP · ENCRYPTED PASS`, cX + 60 * k, by + 12 * k);
+    ctx.textAlign = 'right';
+    ctx.fillText('VALID THRU 2027', cX + cW - 60 * k, by + 12 * k);
   };
 
-  const drawRoundedRect = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    r: number
-  ) => {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
+  // Multi-Ratio Social Exporter: Instagram Story (9:16), LinkedIn (16:9), Square (1:1)
+  const exportPassPNG = (targetFormat?: 'story' | 'linkedin' | 'square') => {
+    const c = expCanvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+
+    const fmt = targetFormat || exportFormat || 'story';
+    const isDark = theme === 'dark';
+
+    let W = 1080;
+    let H = 1920;
+
+    if (fmt === 'story') {
+      W = 1080;
+      H = 1920;
+    } else if (fmt === 'linkedin') {
+      W = 1200;
+      H = 675;
+    } else {
+      W = 1080;
+      H = 1080;
+    }
+
+    c.width = W;
+    c.height = H;
+
+    // Background Gradient Wallpaper
+    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+    if (isDark) {
+      bgGrad.addColorStop(0, '#0a0710');
+      bgGrad.addColorStop(0.5, '#120d1c');
+      bgGrad.addColorStop(1, '#07050b');
+    } else {
+      bgGrad.addColorStop(0, '#fbfaf8');
+      bgGrad.addColorStop(0.5, '#f6f3ed');
+      bgGrad.addColorStop(1, '#ece6dc');
+    }
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Ambient Radial Glow
+    const grd = ctx.createRadialGradient(
+      fmt === 'linkedin' ? W * 0.72 : W / 2,
+      fmt === 'linkedin' ? H / 2 : H * 0.44,
+      40,
+      fmt === 'linkedin' ? W * 0.72 : W / 2,
+      fmt === 'linkedin' ? H / 2 : H * 0.44,
+      fmt === 'linkedin' ? 500 : 620
+    );
+    grd.addColorStop(0, 'rgba(255,7,142,0.3)');
+    grd.addColorStop(0.6, 'rgba(124,58,237,0.12)');
+    grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+
+    if (fmt === 'story') {
+      // ═══════════════════════════════════════════════════
+      // 1. INSTAGRAM STORY (9:16 — 1080 x 1920)
+      // ═══════════════════════════════════════════════════
+
+      // Ambient Rotating Logo Watermark in Background
+      drawSpokeLogo(ctx, W / 2, H * 0.46, 960, -0.32, '#ff078e', isDark ? 0.09 : 0.06);
+
+      // Top Safe Margin Header (Above Card)
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff078e';
+      ctx.font = '800 16px monospace';
+      ctx.fillText('★ INFLUNET VIP EARLY ACCESS PASS ★', W / 2, 210);
+
+      ctx.fillStyle = isDark ? '#f0ecf8' : '#17141d';
+      ctx.font = '800 36px sans-serif';
+      ctx.fillText('OFFICIAL FOUNDING MEMBER', W / 2, 255);
+
+      // Suspended 3D-styled Luxury Card
+      const cW = 820;
+      const cH = 1200;
+      const cX = (W - cW) / 2;
+      const cY = 295;
+      drawPassCard(ctx, cX, cY, cW, cH, isDark);
+
+      // Bottom Safe Margin Footer (Below Card)
+      ctx.fillStyle = '#ff078e';
+      ctx.font = '700 22px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('DM TO COLLABORATE WITH CREATOR', W / 2, 1600);
+
+      // Call to action pill
+      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.08)' : '#ede8df';
+      drawRoundedRect(ctx, W / 2 - 240, 1630, 480, 56, 28);
+      ctx.fill();
+      ctx.strokeStyle = '#ff078e';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = isDark ? '#ffffff' : '#17141d';
+      ctx.font = '700 19px sans-serif';
+      ctx.fillText('🔗 influnet.com · Soft-Launch 2026', W / 2, 1665);
+
+      // Bottom Watermark Mark
+      drawSpokeLogo(ctx, W / 2, 1750, 60, 0, '#ff078e', 0.8);
+    } else if (fmt === 'linkedin') {
+      // ═══════════════════════════════════════════════════
+      // 2. LINKEDIN POST / BANNER (16:9 — 1200 x 675)
+      // ═══════════════════════════════════════════════════
+
+      // Watermark in Background
+      drawSpokeLogo(ctx, 940, 337, 620, 0.22, '#ff078e', isDark ? 0.1 : 0.06);
+      drawSpokeLogo(ctx, 110, 110, 360, -0.4, '#ff078e', isDark ? 0.05 : 0.03);
+
+      // Left Column — Rich Typography & VIP Perks
+      const textCol = isDark ? '#f0ecf8' : '#17141d';
+      ctx.textAlign = 'left';
+
+      // Header logo
+      drawSpokeLogo(ctx, 80, 75, 42, 0, '#ff078e', 1);
+      ctx.fillStyle = textCol;
+      ctx.font = '800 28px sans-serif';
+      ctx.fillText('INFLUNET', 115, 84);
+
+      // Genesis series badge
+      ctx.fillStyle = '#ff078e';
+      ctx.font = '700 13px monospace';
+      ctx.fillText('GENESIS SERIES · VIP INVITATION', 80, 126);
+
+      // Main Role Title
+      ctx.fillStyle = textCol;
+      ctx.font = '900 44px sans-serif';
+      ctx.fillText(role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND', 80, 180);
+
+      // Creator / Brand Name
+      ctx.fillStyle = '#ff078e';
+      ctx.font = '800 26px sans-serif';
+      const cleanH = handle.replace(/^@+/, '').trim();
+      ctx.fillText((name || (cleanH ? `@${cleanH}` : 'CREATOR')).toUpperCase(), 80, 222);
+
+      if (cleanH) {
+        ctx.fillStyle = isDark ? '#a19bae' : '#6b6675';
+        ctx.font = '600 17px monospace';
+        ctx.fillText(`@${cleanH}`, 80, 252);
+      }
+
+      // VIP Perks List
+      const perks = role === 'creator'
+        ? [
+            '✓  0% Platform Commission on Collaborations',
+            '✓  Direct Instant Pitch Notifications via App & SMS',
+            '✓  Verified Creator Badge & Priority Brand Discovery',
+            '✓  VIP Concierge Launch Access Guaranteed',
+          ]
+        : [
+            '✓  Direct Access to Vetted High-Engagement Creators',
+            '✓  0% Platform Surcharge during Launch Period',
+            '✓  Instant Collaboration Inquiries & Fast Response',
+            '✓  VIP Concierge Brand Matching Support',
+          ];
+
+      ctx.fillStyle = isDark ? '#d5cfe0' : '#3d3846';
+      ctx.font = '600 16px sans-serif';
+      perks.forEach((perk, i) => {
+        ctx.fillText(perk, 80, 310 + i * 38);
+      });
+
+      // Pass verification badge at bottom left
+      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+      drawRoundedRect(ctx, 80, 480, 520, 70, 16);
+      ctx.fill();
+      ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ff078e';
+      ctx.font = '700 14px monospace';
+      ctx.fillText(`PASS NO. #${String(passNumber).padStart(4, '0')} / 1000  ·  ACTIVE & VERIFIED`, 104, 510);
+      ctx.fillStyle = isDark ? '#a19bae' : '#6b6675';
+      ctx.font = '500 13px sans-serif';
+      ctx.fillText('Officially confirmed for the upcoming Influnet launch event at influnet.com', 104, 532);
+
+      // Right Column — Floating Luxury Pass Card
+      const cW = 390;
+      const cH = 575;
+      const cX = 740;
+      const cY = 50;
+      drawPassCard(ctx, cX, cY, cW, cH, isDark);
+    } else {
+      // ═══════════════════════════════════════════════════
+      // 3. SQUARE POST (1:1 — 1080 x 1080)
+      // ═══════════════════════════════════════════════════
+
+      // Ambient Rotating Logo Watermark in Background
+      drawSpokeLogo(ctx, W / 2, H / 2, 880, 0.28, '#ff078e', isDark ? 0.09 : 0.06);
+
+      // Top Small Watermark
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff078e';
+      ctx.font = '800 14px monospace';
+      ctx.fillText('INFLUNET · GENESIS VIP FOUNDER PASS', W / 2, 42);
+
+      // Centered Luxury Pass Card
+      const cW = 720;
+      const cH = 960;
+      const cX = (W - cW) / 2;
+      const cY = 60;
+      drawPassCard(ctx, cX, cY, cW, cH, isDark);
+
+      // Bottom watermark
+      ctx.fillStyle = isDark ? '#736b7e' : '#8b8693';
+      ctx.font = '600 12px monospace';
+      ctx.fillText('VERIFIED FOUNDING MEMBER  ·  INFLUNET.COM', W / 2, 1052);
+    }
+
+    // Trigger File Download
+    const cleanHandleSlug = handle.replace(/^@+/, '').trim() || name || 'founder';
+    const slug = cleanHandleSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const a = document.createElement('a');
+    a.download = `influnet-pass-${fmt}-${slug}.png`;
+    a.href = c.toDataURL('image/png');
+    a.click();
   };
 
   const isDark = theme === 'dark';
@@ -1523,27 +1876,39 @@ export default function EarlyAccessPage() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => handleEmailChange(e.target.value)}
                   placeholder="you@domain.com"
                   autoFocus
                   className={`w-full h-[60px] rounded-[18px] px-5 text-[19px] font-semibold border-2 transition-all outline-none ${
-                    shakeField === 'email' ? 'border-[#ff078e] animate-shake' : ''
+                    shakeField === 'email' || emailError ? 'border-[#ff078e] animate-shake' : ''
                   } ${
                     isDark
                       ? 'bg-[#1a1525] border-white/15 text-white placeholder-zinc-500 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/20'
                       : 'bg-white border-[#e7e3dc] text-[#17141d] placeholder-zinc-400 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10'
                   }`}
                 />
+                {emailError && (
+                  <div className="w-full text-[12.5px] text-[#ff078e] font-semibold flex items-center gap-1.5 mt-2 animate-in fade-in">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{emailError}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Mobile / WhatsApp Number (Optional) */}
+              {/* Mobile / WhatsApp Number (Optional with validation) */}
               <div className="w-full relative mb-6">
                 <label className="block text-[12px] font-mono-code uppercase font-bold tracking-wider mb-1.5 text-zinc-500 dark:text-zinc-400">
                   Mobile / WhatsApp Number <span className="text-zinc-400 text-[11px] font-normal lowercase">(optional)</span>
                 </label>
                 <div
                   className={`w-full h-[60px] rounded-[18px] border-2 transition-all flex items-center px-5 ${
-                    isDark
+                    shakeField === 'phone' || phoneError
+                      ? 'border-[#ff078e] animate-shake'
+                      : isDark
                       ? 'bg-[#1a1525] border-white/15 text-white focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/20'
                       : 'bg-white border-[#e7e3dc] text-[#17141d] focus-within:border-[#ff078e] focus-within:ring-4 focus-within:ring-[#ff078e]/10'
                   }`}
@@ -1554,14 +1919,25 @@ export default function EarlyAccessPage() {
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder="e.g. +91 98765 43210 (Optional)"
                     className="w-full bg-transparent border-0 outline-none text-[18px] font-semibold text-inherit placeholder-zinc-400 dark:placeholder-zinc-500"
                   />
                 </div>
-                <p className={`text-[12px] mt-1.5 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
-                  Optional — for instant WhatsApp VIP launch alerts & pass delivery.
-                </p>
+                {phoneError ? (
+                  <div className="w-full text-[12.5px] text-[#ff078e] font-semibold flex items-center gap-1.5 mt-2 animate-in fade-in">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{phoneError}</span>
+                  </div>
+                ) : (
+                  <p className={`text-[12px] mt-1.5 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                    Optional — for instant WhatsApp VIP launch alerts & pass delivery.
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -1649,57 +2025,132 @@ export default function EarlyAccessPage() {
              SCREEN 4 — Luxury VIP Founder Pass Reveal
           ════════════════════════════════════════════════════ */}
           {screen === 's4' && (
-            <div className="w-full max-w-[360px] flex flex-col items-center animate-in fade-in zoom-in-95 duration-500">
-              {/* 3D Stage */}
+            <div className="w-full max-w-[380px] flex flex-col items-center animate-in fade-in zoom-in-95 duration-500 relative">
+              {/* Social Media Format Selector Tabs */}
               <div
-                ref={passContainerRef}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
-                className="w-[300px] h-[440px] relative perspective-[1200px] mx-auto select-none cursor-grab active:cursor-grabbing"
+                className="w-full flex items-center justify-center p-1 rounded-2xl mb-5 border backdrop-blur-md transition-all shadow-sm max-w-[340px] select-none"
+                style={{
+                  backgroundColor: isDark ? 'rgba(26, 21, 37, 0.85)' : 'rgba(244, 242, 238, 0.9)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e7e3dc',
+                }}
               >
-                <div
-                  ref={cardRef}
-                  style={{
-                    transform: `rotateX(${cardRotate.x}deg) rotateY(${cardRotate.y}deg)`,
-                    transition: cardRotate.x === 0 ? 'transform 0.6s ease-out' : 'transform 0.08s ease-out',
-                    transformStyle: 'preserve-3d',
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExportFormat('story');
+                    playAudioCue('click');
                   }}
-                  className={`w-full h-full rounded-[26px] relative overflow-hidden border transition-shadow duration-300 ${
-                    isDark
-                      ? 'bg-gradient-to-b from-[#221a30] via-[#171124] to-[#0d0817] border-white/15 shadow-[0_40px_90px_rgba(0,0,0,0.8),0_0_45px_rgba(255,7,142,0.25)]'
-                      : 'bg-gradient-to-b from-white via-[#faf8f5] to-[#f0ebdf] border-[#d7d0c5]/80 shadow-[0_30px_70px_rgba(0,0,0,0.15),0_10px_24px_rgba(0,0,0,0.08)]'
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    exportFormat === 'story'
+                      ? 'bg-[#ff078e] text-white shadow-[0_2px_12px_rgba(255,7,142,0.35)]'
+                      : isDark
+                      ? 'text-zinc-400 hover:text-white'
+                      : 'text-zinc-600 hover:text-black'
                   }`}
                 >
-                  {/* Holographic Prismatic Foil Overlay */}
+                  <span>📱 Story</span>
+                  <span className="text-[10px] opacity-75 font-mono">9:16</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExportFormat('linkedin');
+                    playAudioCue('click');
+                  }}
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    exportFormat === 'linkedin'
+                      ? 'bg-[#ff078e] text-white shadow-[0_2px_12px_rgba(255,7,142,0.35)]'
+                      : isDark
+                      ? 'text-zinc-400 hover:text-white'
+                      : 'text-zinc-600 hover:text-black'
+                  }`}
+                >
+                  <span>💼 LinkedIn</span>
+                  <span className="text-[10px] opacity-75 font-mono">16:9</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExportFormat('square');
+                    playAudioCue('click');
+                  }}
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    exportFormat === 'square'
+                      ? 'bg-[#ff078e] text-white shadow-[0_2px_12px_rgba(255,7,142,0.35)]'
+                      : isDark
+                      ? 'text-zinc-400 hover:text-white'
+                      : 'text-zinc-600 hover:text-black'
+                  }`}
+                >
+                  <span>⬛ Square</span>
+                  <span className="text-[10px] opacity-75 font-mono">1:1</span>
+                </button>
+              </div>
+
+              {/* 3D Stage with Ambient Rotating Spoke Logo Shadow */}
+              <div className="relative w-full flex items-center justify-center">
+                {/* Ambient Rotating Spoke Logo Shadow */}
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-visible select-none -z-10">
+                  <div className="w-[420px] h-[420px] sm:w-[480px] sm:h-[480px] animate-[spin_40s_linear_infinite] opacity-15 dark:opacity-25 transition-opacity">
+                    <svg viewBox="430 150 690 720" className="w-full h-full filter blur-[1px]">
+                      <g stroke="#ff078e" strokeWidth="54" strokeLinecap="round" fill="none">
+                        <line x1="713" y1="408" x2="525" y2="396" />
+                        <line x1="841" y1="427" x2="960" y2="246" />
+                        <line x1="856" y1="559" x2="1013" y2="617" />
+                        <line x1="677" y1="622" x2="566" y2="774" />
+                      </g>
+                      <g fill="#ff078e">
+                        <circle cx="525" cy="396" r="76" />
+                        <circle cx="960" cy="246" r="87" />
+                        <circle cx="1013" cy="617" r="80" />
+                        <circle cx="566" cy="774" r="84" />
+                      </g>
+                      <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="54" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div
+                  ref={passContainerRef}
+                  onMouseMove={handleMouseMove}
+                  onMouseLeave={handleMouseLeave}
+                  className="w-[300px] h-[440px] relative perspective-[1200px] mx-auto select-none cursor-grab active:cursor-grabbing"
+                >
                   <div
-                    className="absolute inset-0 rounded-[26px] pointer-events-none z-15 mix-blend-overlay transition-opacity duration-300"
+                    ref={cardRef}
                     style={{
-                      background: `linear-gradient(${foilAngle}deg, transparent 0%, rgba(255,255,255,.25) 26%, rgba(255,7,142,.35) 43%, rgba(124,58,237,.3) 53%, rgba(6,182,212,.3) 64%, transparent 100%)`,
-                      opacity: foilOpacity,
+                      transform: `rotateX(${cardRotate.x}deg) rotateY(${cardRotate.y}deg)`,
+                      transition: cardRotate.x === 0 ? 'transform 0.6s ease-out' : 'transform 0.08s ease-out',
+                      transformStyle: 'preserve-3d',
                     }}
-                  />
-
-                  {/* Lanyard Clip Slot */}
-                  <div
-                    className={`absolute top-3 left-1/2 -translate-x-1/2 w-12 h-2 rounded-full z-20 border ${
-                      isDark ? 'bg-black/60 border-white/10' : 'bg-black/10 border-black/15'
+                    className={`w-full h-full rounded-[26px] relative overflow-hidden border transition-shadow duration-300 ${
+                      isDark
+                        ? 'bg-gradient-to-b from-[#221a30] via-[#171124] to-[#0d0817] border-white/15 shadow-[0_40px_90px_rgba(0,0,0,0.8),0_0_45px_rgba(255,7,142,0.25)]'
+                        : 'bg-gradient-to-b from-white via-[#faf8f5] to-[#f0ebdf] border-[#d7d0c5]/80 shadow-[0_30px_70px_rgba(0,0,0,0.15),0_10px_24px_rgba(0,0,0,0.08)]'
                     }`}
-                  />
+                  >
+                    {/* Holographic Prismatic Foil Overlay */}
+                    <div
+                      className="absolute inset-0 rounded-[26px] pointer-events-none z-15 mix-blend-overlay transition-opacity duration-300"
+                      style={{
+                        background: `linear-gradient(${foilAngle}deg, transparent 0%, rgba(255,255,255,.25) 26%, rgba(255,7,142,.35) 43%, rgba(124,58,237,.3) 53%, rgba(6,182,212,.3) 64%, transparent 100%)`,
+                        opacity: foilOpacity,
+                      }}
+                    />
 
-                  {/* Geometric Watermark */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none z-1 opacity-10" viewBox="0 0 300 440" fill="none">
-                    <circle cx="150" cy="200" r="140" stroke="#ff078e" strokeWidth="1.5" strokeDasharray="6 6" />
-                    <circle cx="150" cy="200" r="90" stroke="#ff078e" strokeWidth="1" />
-                    <line x1="150" y1="60" x2="150" y2="340" stroke="#ff078e" strokeWidth="1" strokeDasharray="4 4" />
-                    <line x1="10" y1="200" x2="290" y2="200" stroke="#ff078e" strokeWidth="1" strokeDasharray="4 4" />
-                  </svg>
+                    {/* Lanyard Clip Slot */}
+                    <div
+                      className={`absolute top-3 left-1/2 -translate-x-1/2 w-12 h-2 rounded-full z-20 border ${
+                        isDark ? 'bg-black/60 border-white/10' : 'bg-black/10 border-black/15'
+                      }`}
+                    />
 
-                  {/* Card Inner Content */}
-                  <div className="relative z-10 flex flex-col items-center h-full pt-7 pb-4 px-5">
-                    {/* Header */}
-                    <div className="w-full flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5 font-headline font-extrabold text-[13px] tracking-tight">
-                        <svg viewBox="430 150 690 720" width="16" height="17">
+                    {/* Authentic Rotating Spoke Mark Watermark inside Card */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-[0.08] dark:opacity-[0.09] z-1 select-none">
+                      <div className="w-[300px] h-[300px] animate-[spin_45s_linear_infinite]">
+                        <svg viewBox="430 150 690 720" className="w-full h-full fill-[#ff078e] stroke-[#ff078e]">
                           <g stroke="#ff078e" strokeWidth="50" strokeLinecap="round" fill="none">
                             <line x1="713" y1="408" x2="525" y2="396" />
                             <line x1="841" y1="427" x2="960" y2="246" />
@@ -1714,129 +2165,159 @@ export default function EarlyAccessPage() {
                           </g>
                           <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="50" />
                         </svg>
-                        <span>INFLUNET</span>
-                      </div>
-                      <div className="font-mono-code text-[8px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/35 text-[#ff078e]">
-                        {role === 'creator' ? 'FOUNDER PASS' : 'FOUNDER BRAND'}
                       </div>
                     </div>
 
-                    {/* Serial Row */}
-                    <div className="w-full flex justify-between items-center font-mono-code text-[8px] font-semibold tracking-wider text-zinc-400 mb-2.5">
-                      <span>GENESIS SERIES</span>
-                      <span className="font-bold text-[#ff078e]">
-                        NO. #{String(passNumber).padStart(4, '0')} / 1000
-                      </span>
-                    </div>
-
-                    {/* Avatar Frame with Shifting Neon Ring */}
-                    <div className="relative w-[94px] h-[94px] mb-2.5">
-                      <div className="absolute -inset-1 rounded-full p-[3px] bg-gradient-to-tr from-[#ff078e] via-[#7c3aed] to-[#06b6d4] animate-gradient-shift shadow-[0_0_20px_rgba(255,7,142,0.35)]" />
-                      {scrapedProfile?.avatarUrl ? (
-                        <img
-                          src={scrapedProfile.avatarUrl}
-                          alt="Avatar"
-                          className="w-full h-full rounded-full object-cover relative z-10 border-[3px] border-white dark:border-[#1a1525]"
-                        />
-                      ) : (
-                        <div className="w-full h-full rounded-full flex items-center justify-center font-headline font-extrabold text-[32px] text-white bg-gradient-to-br from-[#ff078e] to-[#c8307f] relative z-10 border-[3px] border-white dark:border-[#1a1525]">
-                          {(name || handle || 'CR').slice(0, 2).toUpperCase()}
+                    {/* Card Inner Content */}
+                    <div className="relative z-10 flex flex-col items-center h-full pt-7 pb-4 px-5">
+                      {/* Header */}
+                      <div className="w-full flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1.5 font-headline font-extrabold text-[13px] tracking-tight">
+                          <svg viewBox="430 150 690 720" width="16" height="17">
+                            <g stroke="#ff078e" strokeWidth="50" strokeLinecap="round" fill="none">
+                              <line x1="713" y1="408" x2="525" y2="396" />
+                              <line x1="841" y1="427" x2="960" y2="246" />
+                              <line x1="856" y1="559" x2="1013" y2="617" />
+                              <line x1="677" y1="622" x2="566" y2="774" />
+                            </g>
+                            <g fill="#ff078e">
+                              <circle cx="525" cy="396" r="76" />
+                              <circle cx="960" cy="246" r="87" />
+                              <circle cx="1013" cy="617" r="80" />
+                              <circle cx="566" cy="774" r="84" />
+                            </g>
+                            <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="50" />
+                          </svg>
+                          <span>INFLUNET</span>
                         </div>
-                      )}
-                      <div className="absolute bottom-0 right-0 z-20 w-[26px] h-[26px] rounded-full bg-white dark:bg-[#0d0a12] border-2 border-white dark:border-[#1a1525] flex items-center justify-center shadow-sm">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff078e">
-                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                        <div className="font-mono-code text-[8px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/35 text-[#ff078e]">
+                          {role === 'creator' ? 'FOUNDER PASS' : 'FOUNDER BRAND'}
+                        </div>
+                      </div>
+
+                      {/* Serial Row */}
+                      <div className="w-full flex justify-between items-center font-mono-code text-[8px] font-semibold tracking-wider text-zinc-400 mb-2.5">
+                        <span>GENESIS SERIES</span>
+                        <span className="font-bold text-[#ff078e]">
+                          NO. #{String(passNumber).padStart(4, '0')} / 1000
+                        </span>
+                      </div>
+
+                      {/* Avatar Frame with Shifting Neon Ring */}
+                      <div className="relative w-[94px] h-[94px] mb-2.5">
+                        <div className="absolute -inset-1 rounded-full p-[3px] bg-gradient-to-tr from-[#ff078e] via-[#7c3aed] to-[#06b6d4] animate-gradient-shift shadow-[0_0_20px_rgba(255,7,142,0.35)]" />
+                        {scrapedProfile?.avatarUrl ? (
+                          <img
+                            src={scrapedProfile.avatarUrl}
+                            alt="Avatar"
+                            className="w-full h-full rounded-full object-cover relative z-10 border-[3px] border-white dark:border-[#1a1525]"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-full flex items-center justify-center font-headline font-extrabold text-[32px] text-white bg-gradient-to-br from-[#ff078e] to-[#c8307f] relative z-10 border-[3px] border-white dark:border-[#1a1525]">
+                            {(name || handle || 'CR').slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 right-0 z-20 w-[26px] h-[26px] rounded-full bg-white dark:bg-[#0d0a12] border-2 border-white dark:border-[#1a1525] flex items-center justify-center shadow-sm">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff078e">
+                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      {/* Identity */}
+                      <div className="font-headline font-extrabold text-[19px] tracking-tight leading-tight max-w-[250px] truncate text-center">
+                        {(name || (role === 'creator' ? handle : company) || 'CREATOR').toUpperCase()}
+                      </div>
+                      <div className="font-mono-code text-[12px] font-semibold text-[#ff078e] flex items-center gap-1 mt-0.5">
+                        {handle.replace(/^@+/, '').trim() ? (
+                          <>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                              <rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
+                              <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+                              <circle cx="17.5" cy="6.5" r="1.5" />
+                            </svg>
+                            <span>@{handle.replace(/^@+/, '').trim()}</span>
+                          </>
+                        ) : (
+                          <span>{role === 'creator' ? '★ FOUNDING CREATOR' : (company || name || '★ FOUNDING BRAND')}</span>
+                        )}
+                      </div>
+
+                      {/* Stat Pill */}
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-mono-code text-[9.5px] font-bold mt-2 ${
+                        isDark ? 'bg-[#15111c] border-white/10 text-zinc-300' : 'bg-[#f4f2ee] border-[#e7e3dc] text-zinc-700'
+                      }`}>
+                        <span className="text-[#ff078e]">★</span>
+                        <span>
+                          <b>
+                            {role === 'creator'
+                              ? isAccountPrivate
+                                ? 'PRIVATE CREATOR'
+                                : scrapedProfile?.followersStr
+                                ? `${scrapedProfile.followersStr} FOLLOWERS`
+                                : 'VIP CREATOR'
+                              : '0% PLATFORM FEE'}
+                          </b>{' '}
+                          {role === 'creator' ? '· VERIFIED' : '· FOUNDING BRAND'}
+                        </span>
+                      </div>
+
+                      {/* Metadata Grid */}
+                      <div className="w-full mt-auto pt-2.5 border-t border-zinc-200 dark:border-white/10 grid grid-cols-2 gap-x-3 gap-y-1.5 text-left">
+                        <div className="flex flex-col">
+                          <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">MEMBERSHIP</span>
+                          <span className="font-mono-code text-[9px] font-bold">{role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">PASS BENEFIT</span>
+                          <span className="font-mono-code text-[9px] font-bold">{role === 'creator' ? '1 YR UNLIMITED PASS' : '0% FEE CONCIERGE'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">SECURITY STATUS</span>
+                          <span className="font-mono-code text-[9px] font-bold text-[#059669]">● CONFIRMED & ACTIVE</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">VALID THROUGH</span>
+                          <span className="font-mono-code text-[9px] font-bold">SEPTEMBER 2027</span>
+                        </div>
+                      </div>
+
+                      {/* Security Barcode Strip */}
+                      <div className="w-full mt-2 pt-2 border-t border-dashed border-zinc-300 dark:border-white/15 flex items-center justify-between">
+                        {/* Barcode SVG */}
+                        <svg className="h-[18px] opacity-70" viewBox="0 0 140 18" fill="currentColor">
+                          <rect x="0" width="3" height="18" /><rect x="5" width="2" height="18" /><rect x="9" width="4" height="18" />
+                          <rect x="16" width="1" height="18" /><rect x="20" width="3" height="18" /><rect x="25" width="5" height="18" />
+                          <rect x="33" width="2" height="18" /><rect x="37" width="3" height="18" /><rect x="43" width="1" height="18" />
+                          <rect x="47" width="4" height="18" /><rect x="54" width="2" height="18" /><rect x="59" width="5" height="18" />
+                          <rect x="67" width="2" height="18" /><rect x="72" width="4" height="18" /><rect x="79" width="2" height="18" />
+                          <rect x="84" width="3" height="18" /><rect x="90" width="5" height="18" /><rect x="98" width="1" height="18" />
+                          <rect x="102" width="3" height="18" /><rect x="108" width="4" height="18" /><rect x="115" width="2" height="18" />
+                          <rect x="120" width="4" height="18" /><rect x="127" width="2" height="18" /><rect x="132" width="3" height="18" />
+                        </svg>
+                        <div className="font-mono-code text-[8px] font-semibold text-zinc-400 tracking-wider">
+                          INFN-{passNumber}-VIP
+                        </div>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="opacity-60">
+                          <path d="M8.5 16.5a5 5 0 0 1 0-9" />
+                          <path d="M12 19a8.5 8.5 0 0 0 0-14" />
+                          <path d="M15.5 21.5a12 12 0 0 0 0-19" />
                         </svg>
                       </div>
-                    </div>
-
-                    {/* Identity */}
-                    <div className="font-headline font-extrabold text-[19px] tracking-tight leading-tight max-w-[250px] truncate text-center">
-                      {(name || (role === 'creator' ? handle : company) || 'CREATOR').toUpperCase()}
-                    </div>
-                    <div className="font-mono-code text-[12px] font-semibold text-[#ff078e] flex items-center gap-1 mt-0.5">
-                      {handle.replace(/^@+/, '').trim() ? (
-                        <>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                            <rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
-                            <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
-                            <circle cx="17.5" cy="6.5" r="1.5" />
-                          </svg>
-                          <span>@{handle.replace(/^@+/, '').trim()}</span>
-                        </>
-                      ) : (
-                        <span>{role === 'creator' ? '★ FOUNDING CREATOR' : (company || name || '★ FOUNDING BRAND')}</span>
-                      )}
-                    </div>
-
-                    {/* Stat Pill */}
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-mono-code text-[9.5px] font-bold mt-2 ${
-                      isDark ? 'bg-[#15111c] border-white/10 text-zinc-300' : 'bg-[#f4f2ee] border-[#e7e3dc] text-zinc-700'
-                    }`}>
-                      <span className="text-[#ff078e]">★</span>
-                      <span>
-                        <b>
-                          {role === 'creator'
-                            ? isAccountPrivate
-                              ? 'PRIVATE CREATOR'
-                              : scrapedProfile?.followersStr
-                              ? `${scrapedProfile.followersStr} FOLLOWERS`
-                              : 'VIP CREATOR'
-                            : '0% PLATFORM FEE'}
-                        </b>{' '}
-                        {role === 'creator' ? '· VERIFIED' : '· FOUNDING BRAND'}
-                      </span>
-                    </div>
-
-                    {/* Metadata Grid */}
-                    <div className="w-full mt-auto pt-2.5 border-t border-zinc-200 dark:border-white/10 grid grid-cols-2 gap-x-3 gap-y-1.5 text-left">
-                      <div className="flex flex-col">
-                        <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">MEMBERSHIP</span>
-                        <span className="font-mono-code text-[9px] font-bold">{role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND'}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">PASS BENEFIT</span>
-                        <span className="font-mono-code text-[9px] font-bold">{role === 'creator' ? '1 YR UNLIMITED PASS' : '0% FEE CONCIERGE'}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">SECURITY STATUS</span>
-                        <span className="font-mono-code text-[9px] font-bold text-[#059669]">● CONFIRMED & ACTIVE</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">VALID THROUGH</span>
-                        <span className="font-mono-code text-[9px] font-bold">SEPTEMBER 2027</span>
-                      </div>
-                    </div>
-
-                    {/* Security Barcode Strip */}
-                    <div className="w-full mt-2 pt-2 border-t border-dashed border-zinc-300 dark:border-white/15 flex items-center justify-between">
-                      {/* Barcode SVG */}
-                      <svg className="h-[18px] opacity-70" viewBox="0 0 140 18" fill="currentColor">
-                        <rect x="0" width="3" height="18" /><rect x="5" width="2" height="18" /><rect x="9" width="4" height="18" />
-                        <rect x="16" width="1" height="18" /><rect x="20" width="3" height="18" /><rect x="25" width="5" height="18" />
-                        <rect x="33" width="2" height="18" /><rect x="37" width="3" height="18" /><rect x="43" width="1" height="18" />
-                        <rect x="47" width="4" height="18" /><rect x="54" width="2" height="18" /><rect x="59" width="5" height="18" />
-                        <rect x="67" width="2" height="18" /><rect x="72" width="4" height="18" /><rect x="79" width="2" height="18" />
-                        <rect x="84" width="3" height="18" /><rect x="90" width="5" height="18" /><rect x="98" width="1" height="18" />
-                        <rect x="102" width="3" height="18" /><rect x="108" width="4" height="18" /><rect x="115" width="2" height="18" />
-                        <rect x="120" width="4" height="18" /><rect x="127" width="2" height="18" /><rect x="132" width="3" height="18" />
-                      </svg>
-                      <div className="font-mono-code text-[8px] font-semibold text-zinc-400 tracking-wider">
-                        INFN-{passNumber}-VIP
-                      </div>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="opacity-60">
-                        <path d="M8.5 16.5a5 5 0 0 1 0-9" />
-                        <path d="M12 19a8.5 8.5 0 0 0 0-14" />
-                        <path d="M15.5 21.5a12 12 0 0 0 0-19" />
-                      </svg>
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Format Info Pill */}
+              <div className={`font-mono-code text-[11px] font-semibold mt-3 mb-1 flex items-center gap-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                <span className="w-2 h-2 rounded-full bg-[#ff078e] animate-pulse inline-block" />
+                <span>Format: <b>{exportFormat === 'story' ? 'Instagram Story (1080×1920)' : exportFormat === 'linkedin' ? 'LinkedIn Post (1200×675)' : 'Square Post (1080×1080)'}</b></span>
+              </div>
+
               {/* Soft-Launch Priority Guarantee Banner */}
               <div
-                className={`w-full rounded-2xl p-4 mt-6 border text-left transition-all ${
+                className={`w-full rounded-2xl p-4 mt-3 border text-left transition-all ${
                   isDark
                     ? 'bg-[#15111c]/90 border-white/10'
                     : 'bg-white border-[#e7e3dc] shadow-sm'
@@ -1853,10 +2334,10 @@ export default function EarlyAccessPage() {
                 </p>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons with format download */}
               <div className="w-full flex flex-col items-stretch gap-2.5 mt-5">
                 <button
-                  onClick={exportPassPNG}
+                  onClick={() => exportPassPNG(exportFormat)}
                   className="h-[52px] rounded-full bg-[#ff078e] hover:bg-[#c8307f] text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-[0_8px_24px_rgba(255,7,142,0.35)] hover:-translate-y-0.5 transition-all cursor-pointer"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -1864,26 +2345,63 @@ export default function EarlyAccessPage() {
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  <span>Save My Founder Pass (PNG)</span>
+                  <span>
+                    {exportFormat === 'story'
+                      ? 'Download Instagram Story (PNG)'
+                      : exportFormat === 'linkedin'
+                      ? 'Download LinkedIn Banner (PNG)'
+                      : 'Download Square Card (PNG)'}
+                  </span>
                 </button>
 
-                <button
-                  onClick={exportPassPNG}
-                  className={`h-[48px] rounded-full border text-[14px] font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    isDark
-                      ? 'bg-[#1a1525] border-white/15 text-white hover:border-[#ff078e] hover:text-[#ff078e]'
-                      : 'bg-white border-[#e7e3dc] text-zinc-900 hover:border-[#ff078e] hover:text-[#ff078e]'
-                  }`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="2" y="2" width="20" height="20" rx="5" />
-                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-                  </svg>
-                  <span>Share to Instagram Story</span>
-                </button>
+                {/* One-click quick shortcuts for all three formats */}
+                <div className="w-full flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => exportPassPNG('story')}
+                    className={`flex-1 h-[42px] rounded-xl border text-[12px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      exportFormat === 'story'
+                        ? 'border-[#ff078e] text-[#ff078e] bg-[#ff078e]/10'
+                        : isDark
+                        ? 'border-white/10 text-zinc-300 hover:border-white/30 bg-white/5'
+                        : 'border-[#e7e3dc] text-zinc-700 hover:border-zinc-400 bg-white'
+                    }`}
+                    title="Download Instagram Story (1080x1920)"
+                  >
+                    <span>📱 Story</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => exportPassPNG('linkedin')}
+                    className={`flex-1 h-[42px] rounded-xl border text-[12px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      exportFormat === 'linkedin'
+                        ? 'border-[#ff078e] text-[#ff078e] bg-[#ff078e]/10'
+                        : isDark
+                        ? 'border-white/10 text-zinc-300 hover:border-white/30 bg-white/5'
+                        : 'border-[#e7e3dc] text-zinc-700 hover:border-zinc-400 bg-white'
+                    }`}
+                    title="Download LinkedIn Banner (1200x675)"
+                  >
+                    <span>💼 LinkedIn</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => exportPassPNG('square')}
+                    className={`flex-1 h-[42px] rounded-xl border text-[12px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      exportFormat === 'square'
+                        ? 'border-[#ff078e] text-[#ff078e] bg-[#ff078e]/10'
+                        : isDark
+                        ? 'border-white/10 text-zinc-300 hover:border-white/30 bg-white/5'
+                        : 'border-[#e7e3dc] text-zinc-700 hover:border-zinc-400 bg-white'
+                    }`}
+                    title="Download Square Post (1080x1080)"
+                  >
+                    <span>⬛ Square</span>
+                  </button>
+                </div>
 
                 <button
+                  type="button"
                   onClick={() => {
                     setScreen('s0');
                     setSynthProgress(0);

@@ -2,6 +2,45 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Strict Phone & Email Validation, Rotating Logo Shadow Watermarks, and Multi-Ratio Social Exporter (Story 9:16, LinkedIn 16:9, Square 1:1)
+
+**Branch**: `dev`
+
+### Scope
+- **Strict Client & Server-Side Email & Phone Validation**:
+  - `apps/web/src/app/api/early-access/route.ts`:
+    - Validates email with `z.string().trim().email('Valid email is required')`.
+    - Validates phone with `PHONE_REGEX = /^\+?[0-9\s\-().]{7,25}$/` and digit count check (`digits.length >= 7 && digits.length <= 15`). Rejects malformed numbers or random text while allowing legitimate international numbers.
+  - `apps/web/src/app/early-access/page.tsx`:
+    - Added dedicated `emailError` and `phoneError` state and real-time keystroke clearers.
+    - Added regex checks `validateEmail` and `validatePhone`.
+    - Added inline error badges with icon and shake animation (`animate-shake`) on failure.
+    - Blocked progression on Screen 3 until valid credentials are provided, with harmonic error audio feedback.
+- **Multi-Ratio Social Media Exporter**:
+  - Replaced generic fixed 1080×1350 download with dedicated multi-format canvas exporter supporting:
+    - **Instagram Story (9:16 — 1080×1920)**: Full-height story layout with top safe zone (status/header margin), bottom safe zone (reply/sticker bar), luxury pass card, call-to-action pill ("DM TO COLLABORATE WITH CREATOR"), and ambient rotating watermark mark.
+    - **LinkedIn Post / Banner (16:9 — 1200×675)**: Landscape split layout with left column rich typography (Influnet mark, genesis badge, role headline, creator/brand name & handle, 4 VIP launch perks, serial badge) and right column floating luxury pass card.
+    - **Square Post (1:1 — 1080×1080)**: Centered pass card with watermark accents for Instagram feed and social tiles.
+  - Built scalable canvas pass card generator (`drawPassCard`) that renders high-DPI cards for any aspect ratio without distortion.
+- **Rotating Spoke Mark Logo Shadow / Watermarks**:
+  - Added vector `drawSpokeLogo` canvas engine using canonical coordinates from `logo-mark.tsx` (`(752, 520)` center, 4 orbital nodes, 4 spokes, center ring) supporting arbitrary rotation, scale, and alpha.
+  - Screen 4 UI: Added continuous ambient rotating spoke logo shadow (`animate-[spin_40s_linear_infinite]`) behind the 3D stage with luminous pink glow.
+  - Inside the 3D card: Replaced generic concentric circles with an authentic continuous rotating spoke logo watermark (`animate-[spin_45s_linear_infinite]`).
+- **Screen 4 Format Selector Tabs & One-Click Downloads**:
+  - Added interactive format switcher pills (`📱 Story 9:16`, `💼 LinkedIn 16:9`, `⬛ Square 1:1`) with tactile audio clicks.
+  - Added primary download button adapting to selected format + 3 quick-download shortcut buttons to export any format with a single click.
+
+### Broken & Resolved
+- **Missing Audio Helper Symbol During Compile**:
+  - *Cause*: Screen 4 format buttons initially called `playClick()`, whereas the local audio dispatcher is named `playAudioCue('click')`.
+  - *Fix*: Replaced references with `playAudioCue('click')`; verified with clean `npx tsc --noEmit`.
+
+### Key Lessons
+- When implementing social sharing graphics, a single aspect ratio never fits all platforms. Instagram Stories demand 9:16 with safe zones for top stories UI and bottom reply inputs, whereas LinkedIn and Twitter perform best with 16:9 landscape banners featuring readable copy alongside the pass graphic.
+- Ambient rotating brand marks rendered as faint background shadows (`opacity-15 blur-[1px]`) add depth and movement to pre-launch cards without clashing with the central identity details.
+
+---
+
 ### Session — 2026-09-21: Optional Instagram & Website, Mobile/WhatsApp Collector, Signup Re-submission & Admin Delete
 
 **Branch**: `dev`
