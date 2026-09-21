@@ -21,6 +21,7 @@ import {
   Copy,
   CornerUpLeft,
   FileText,
+  Flag,
   Handshake,
   Image as ImageIcon,
   MoreVertical,
@@ -79,6 +80,7 @@ import {
   type SheetRef,
 } from '@/components/ui';
 import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
+import { ReportSheet } from '@/components/report-sheet';
 import { maybeAskForPush } from '@/lib/push-prompt';
 
 
@@ -435,6 +437,10 @@ export default function ConversationScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const displaySheet = useRef<SheetRef>(null);
+  // Report / block the other person, from the ⋮ menu (App Store 1.2, Google
+  // UGC policy): a chat is where abuse actually arrives, so it can't live only
+  // on the profile screen.
+  const reportSheet = useRef<SheetRef>(null);
   const insets = useSafeAreaInsets();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const me = useSession((s) => s.profile?.id);
@@ -515,16 +521,16 @@ export default function ConversationScreen() {
     navigation.setOptions({
       title: name ?? 'Chat',
       /**
-       * The only header action. Deliberately not a call button: this app does
-       * not place calls, and an affordance that looks like it does is a
-       * promise the product cannot keep.
+       * The only header action: display options plus report/block. Deliberately
+       * not a call button: this app does not place calls, and an affordance
+       * that looks like it does is a promise the product cannot keep.
        */
       headerRight: () => (
         <Pressable
           onPress={() => displaySheet.current?.expand()}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Chat display options"
+          accessibilityLabel="Chat options"
           style={({ pressed }) => ({ paddingHorizontal: 4, opacity: pressed ? 0.5 : 1 })}
         >
           <MoreVertical size={20} color={t.color.brand} />
@@ -1509,7 +1515,7 @@ export default function ConversationScreen() {
         the size that suits reading is routinely not the size someone wants for
         every button on their phone.
       */}
-      <Sheet ref={displaySheet} title="Display">
+      <Sheet ref={displaySheet} title="Chat options">
         <View style={{ gap: t.spacing.xl }}>
           <View style={{ gap: t.spacing.sm }}>
             <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
@@ -1616,8 +1622,45 @@ export default function ConversationScreen() {
             </View>
             <ChevronRight size={16} color={t.color.contentMuted} />
           </Pressable>
+
+          {partner?.id ? (
+            <Pressable
+              onPress={() => {
+                displaySheet.current?.close();
+                reportSheet.current?.expand();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Report or block ${partner.name || 'this person'}`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: t.spacing.md,
+                paddingVertical: t.spacing.sm,
+              }}
+            >
+              <Flag size={19} color={t.color.danger} />
+              <View style={{ flex: 1 }}>
+                <Txt variant="bodyStrong" style={{ fontSize: 15, color: t.color.danger }}>
+                  Report or block
+                </Txt>
+                <Txt variant="caption" tone="muted">
+                  Tell us about {partner.name || 'this person'}, or stop them contacting you
+                </Txt>
+              </View>
+              <ChevronRight size={16} color={t.color.contentMuted} />
+            </Pressable>
+          ) : null}
         </View>
       </Sheet>
+
+      {partner?.id ? (
+        <ReportSheet
+          sheetRef={reportSheet}
+          reportedId={partner.id}
+          reportedName={partner.name || 'this person'}
+          context={{ kind: 'profile' }}
+        />
+      ) : null}
 
       <Sheet ref={proposeSheet} title="Propose project terms">
         <Txt variant="footnote" tone="muted">

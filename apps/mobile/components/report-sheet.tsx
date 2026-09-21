@@ -3,8 +3,8 @@
  *
  * App Store 1.2 and Google's UGC policy want reporting reachable where the
  * content is, not only inside a project. This sheet is used on creator and
- * business profiles, campaign pages and collaboration requests; the project and
- * conversation screens keep their own older copies of the same UI (same words,
+ * business profiles, campaign pages, collaboration requests and the chat ⋮
+ * menu; the project screen keeps its own older copy of the same UI (same words,
  * same API). The web twin is apps/web/src/components/safety/report-dialog.tsx.
  *
  * The report is ABOUT a person (`reportedId`). `context` says where it was made
