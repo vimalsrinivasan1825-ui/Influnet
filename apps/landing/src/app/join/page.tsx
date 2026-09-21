@@ -15,7 +15,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Share2,
-  Home,
   Layers,
   Award,
 } from 'lucide-react';
@@ -106,10 +105,6 @@ export default function CreatorJoinPage() {
   // UI / Error State
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submissionResult, setSubmissionResult] = useState<{
-    applicationNumber: number;
-    message: string;
-  } | null>(null);
 
   // Auto-focus the active input on step changes (works reliably on mobile & desktop)
   useEffect(() => {
@@ -263,10 +258,6 @@ export default function CreatorJoinPage() {
       const json = await res.json().catch(() => null);
 
       if (res.ok && json?.ok) {
-        setSubmissionResult({
-          applicationNumber: json.applicationNumber || 1001,
-          message: json.message || 'Application received successfully!',
-        });
         setStep(8); // Step 8: Success
       } else {
         setErrorMsg(json?.error || 'Failed to submit application. Please try again.');
@@ -291,26 +282,26 @@ export default function CreatorJoinPage() {
         <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] opacity-50 pointer-events-none" />
       </div>
 
-      {/* Top Header with Centered Prominent Logo & Brand Name */}
+      {/* Top Header with Centered Prominent Large Logo & Brand Name */}
       <header className="relative z-10 w-full pt-6 sm:pt-10 pb-3 sm:pb-4 px-4 sm:px-6 flex flex-col items-center justify-center">
         <Link
           href="/"
-          className="group flex flex-col items-center gap-2.5 sm:gap-3 transition-transform active:scale-95 touch-manipulation"
+          className="group flex flex-col items-center gap-3 sm:gap-3.5 transition-transform active:scale-95 touch-manipulation"
         >
-          {/* Bigger Logo Badge with Soft Ambient Glow */}
-          <div className="relative size-20 sm:size-24 rounded-3xl bg-white border border-zinc-200/90 p-3.5 flex items-center justify-center shadow-[0_10px_35px_rgba(255,7,142,0.18)] group-hover:shadow-[0_12px_45px_rgba(255,7,142,0.28)] group-hover:border-[#ff078e]/40 transition-all">
+          {/* Brand Logo Badge */}
+          <div className="relative size-36 sm:size-48 rounded-[32px] sm:rounded-[44px] bg-white border border-zinc-200/90 p-5 sm:p-6 flex items-center justify-center shadow-[0_14px_45px_rgba(255,7,142,0.22)] group-hover:shadow-[0_18px_55px_rgba(255,7,142,0.32)] group-hover:border-[#ff078e]/40 transition-all">
             <Image
               src="/influet_logo.png"
               alt="Influnet Logo"
-              width={72}
-              height={72}
+              width={192}
+              height={192}
               className="size-full object-contain pointer-events-none"
               priority
             />
             {/* Ambient subtle glow ring */}
-            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-[#ff078e]/20 via-[#7928ca]/20 to-[#ff078e]/20 blur-sm -z-10 opacity-70 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute -inset-1.5 rounded-3xl sm:rounded-[36px] bg-gradient-to-r from-[#ff078e]/25 via-[#7928ca]/25 to-[#ff078e]/25 blur-md -z-10 opacity-75 group-hover:opacity-100 transition-opacity" />
           </div>
-          <span className="font-black text-2xl sm:text-3xl tracking-tight text-zinc-900 font-headline">
+          <span className="font-black text-3xl sm:text-4xl tracking-tight text-zinc-900 font-headline">
             influnet
           </span>
         </Link>
@@ -1028,47 +1019,19 @@ export default function CreatorJoinPage() {
                 <CheckCircle2 className="size-9" />
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/30 text-[#ff078e] font-mono text-xs font-bold mb-2">
-                Application #{submissionResult?.applicationNumber || 1001} Confirmed
-              </div>
-
               <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight leading-tight font-headline">
-                You’re on the Influnet Creator Roster, {name}!
+                Thank you for your response!
               </h1>
               <p className="text-sm text-zinc-600 mt-2 max-w-md mx-auto leading-relaxed">
-                {submissionResult?.message ||
-                  'Your profile has been recorded in the Influnet creator database. Our partnerships team is matching you with active brand campaigns.'}
+                Your application has been received. Our team will review it and get back to you soon.
               </p>
 
-              <div className="my-6 p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 text-left max-w-sm mx-auto space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-500 font-mono">Categories:</span>
-                  <span className="text-zinc-900 font-semibold truncate max-w-[200px]">
-                    {selectedCreatorTypes.join(', ')}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-500 font-mono">Audience:</span>
-                  <span className="text-[#ff078e] font-semibold">{followerTier}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-500 font-mono">WhatsApp Alerts:</span>
-                  <span className="text-emerald-700 font-mono font-semibold">{phone}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
-                <Link
-                  href="/"
-                  className="w-full sm:w-auto h-12 px-6 rounded-full border border-zinc-200 hover:bg-zinc-100 text-zinc-700 font-bold text-sm inline-flex items-center justify-center gap-2 transition-all touch-manipulation"
-                >
-                  <Home className="size-4" /> Return to Home
-                </Link>
+              <div className="mt-8 flex justify-center">
                 <a
-                  href={`${APP_URL}/early-access`}
-                  className="w-full sm:w-auto h-12 px-7 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center justify-center gap-2 shadow-lg shadow-[#ff078e]/30 transition-all touch-manipulation"
+                  href="/"
+                  className="w-full sm:w-auto h-12 px-8 rounded-full bg-gradient-to-r from-[#ff078e] to-[#7928ca] hover:opacity-95 text-white font-extrabold text-sm inline-flex items-center justify-center gap-2 shadow-lg shadow-[#ff078e]/30 transition-all active:scale-95 touch-manipulation"
                 >
-                  <Sparkles className="size-4" /> Claim Founder Pass
+                  Visit Our Website <ArrowRight className="size-4" />
                 </a>
               </div>
             </motion.div>
