@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import LogoMark from '@/components/brand/logo-mark';
 import RoleSwitch from '@/components/brand/role-switch';
+import { APP_URL } from '@/lib/site';
 
 interface FloatingCardType {
   id: number;
@@ -422,7 +423,7 @@ export default function Hero() {
               className="flex flex-wrap gap-4"
             >
               <Link
-                href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
+                href={`${APP_URL}/signup`}
                 className="group inline-flex items-center gap-2 px-7 py-4 bg-black font-semibold rounded-full hover:bg-gray-900 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 style={{ color: 'white' }}
               >

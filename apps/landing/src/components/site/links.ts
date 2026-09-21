@@ -1,6 +1,6 @@
 import type { Role } from '@/lib/role';
 
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? '';
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://dev.influnet.io';
 export const SIGNUP_URL: Record<Role, string> = {
   creator: `${APP_URL}/signup/influencer`,
   business: `${APP_URL}/signup/business`,

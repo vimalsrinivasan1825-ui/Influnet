@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { APP_URL } from '@/lib/site';
 
 const PILLARS = [
   'Manage Opportunities.',
@@ -90,13 +91,13 @@ export default function Cta() {
         {/* Action Buttons with Forced Colors */}
         <div className="animate-on-scroll flex flex-col sm:flex-row gap-4 justify-center items-center opacity-0 translate-y-3 transition-all duration-600 delay-[460ms] [&.animate-in]:opacity-100 [&.animate-in]:translate-y-0">
           <Link
-            href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
+            href={`${APP_URL}/signup`}
             className="w-full sm:w-auto min-w-[12rem] h-14 flex items-center justify-center px-8 rounded-2xl text-base font-bold !text-white bg-[var(--magenta)] hover:bg-[var(--magenta-deep)] shadow-lg shadow-pink-500/15 hover:shadow-pink-500/25 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
           >
             Get Started
           </Link>
           <Link
-            href={`${process.env.NEXT_PUBLIC_APP_URL}/login`}
+            href={`${APP_URL}/login`}
             className="w-full sm:w-auto min-w-[12rem] h-14 flex items-center justify-center px-8 rounded-2xl text-base font-bold !text-white border border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer"
           >
             Log in
