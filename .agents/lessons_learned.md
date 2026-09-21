@@ -2,6 +2,83 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Full Early Access & Founder Pass Integration (Landing Teaser, Web App Wizard, Database & Admin CRM)
+
+**Branch**: `dev`
+
+### Scope
+- **Database Schema & Migration 166 (`supabase/migrations/166_early_access_waitlist.sql`)**:
+  - Created `public.early_access_signups` with sequential identity `pass_number` (starting at 101), role (`creator` | `business`), verified follower metrics, avatar URL, and metadata.
+  - Implemented `public.admin_early_access_report()` RPC guarded by `is_admin()` computing SQL aggregate KPIs and paginated rows.
+  - Applied migration 166 cleanly to dev database via `scripts/apply-migration.mjs 166`.
+- **Backend API (`apps/web/src/app/api/early-access/route.ts`)**:
+  - Implemented rate-limited `POST /api/early-access` validating role, name, email, handle, and metadata with Zod.
+  - Inserts new passes and auto-syncs with `crm_leads` with `source: 'inbound'`, `stage: 'new'`, and tags `['early_access', 'founder_pass']` for automatic conversion linking when users eventually register accounts.
+- **Admin Insights Integration (`apps/web/src/lib/admin-insights.ts`)**:
+  - Registered `early_access` module in `MODULES` map routing to `admin_early_access_report()`, enabling CSV exports and dashboard reporting per AGENTS.md rules.
+- **Admin Early Access Dashboard (`apps/web/src/app/dashboard/admin/early-access/page.tsx`)**:
+  - Built full admin dashboard with real-time KPI tiles (Total Passes, Creators, Brands, Latest Registration), role filtering (`All` / `Creators` / `Brands`), debounced search, responsive data table, and 1-click CSV export.
+  - Added "Early access" link under Engagement in `apps/web/src/components/dashboard/sidebar.tsx`.
+- **Web App Frontend Flow (`apps/web/src/app/early-access/page.tsx`)**:
+  - Full-screen Next.js / Framer Motion wizard with Role Selection (Creator vs Brand).
+  - Creator path: Name → Instagram Handle (live Apify scraper lookup via `/api/auth/social-preview`, preview card, explicit note that private accounts or users without IG can skip) → Email → Pass Synthesizer → 3D Founding Creator Pass (real avatar, follower metrics, 1-yr unlimited pass perks, dynamic tilt, PNG export).
+  - Brand path: Company Name → Website/Handle (skippable) → Work Email → Synthesizer → 3D Founding Brand Pass (0% platform fee, VIP concierge, PNG export).
+- **Landing Page Integration (`apps/landing`)**:
+  - Created `<EarlyAccessBanner />` toast in `apps/landing/src/components/site/early-access-banner.tsx` that appears after 3.5s for first-time visitors with dismiss memory in `sessionStorage`.
+  - Mounted `<EarlyAccessBanner />` in `apps/landing/src/app/layout.tsx`.
+  - Added `EARLY_ACCESS_URL` to `apps/landing/src/components/site/links.ts` and updated `apps/landing/src/components/site/final-cta.tsx`.
+
+### Broken & Resolved
+- **Lucide-react Icon Missing**: `Instagram` icon is not exported by `lucide-react`. Resolved by removing the unused import in `apps/web/src/app/early-access/page.tsx` and using native inline SVG.
+- **Typecheck & Column-Grants Verification**: Both `landing` and `web` passed `tsc --noEmit` cleanly, and `tests/unit/column-grants.test.ts` confirmed zero column grant violations.
+
+### Key Lessons
+- Linking the landing page to a dedicated public page on the app subdomain (`${APP_URL}/early-access`) avoids cross-origin CORS limitations while keeping Apify API rate limits and Supabase service-role secrets protected server-side.
+- Pre-signup leads created in `early_access_signups` mirror seamlessly into `crm_leads`, allowing the existing trigger `match_crm_leads()` to link the lead automatically when the user signs up with the same email in the future.
+
+### Next Target
+- Test end-to-end flow with user; verify CSV export and role-based pass generation in staging.
+
+---
+
+### Session — 2026-09-19: Creator Hero Visual Redesign (Curved Energy Beams & Thematic Feature Cards)
+
+**Branch**: `dev`
+
+### Scope
+- **Creator Hero Component Redesign (`apps/landing/src/components/creators/hero.tsx`)**:
+  - Replaced rigid 7px solid pink SVG lines with smooth cubic bezier curves (`M ... C ...`) connecting the central profile card to 6 satellite nodes in a 720×640 canvas.
+  - Added subtle dashed base guidelines and animated glowing energy beams (`.flowing-beam`) with staggered speeds and delays to represent live data/deal flow.
+  - Transformed generic monochromatic pink circles into rich, glassmorphic micro-mockup cards (`SatelliteCard`) with individual semantic theme colors, live status tags, badges, and micro-details:
+    - *Reviewed Brands* (Emerald `#10b981`, `BadgeCheck`, "Approved Brand ✓")
+    - *Open Campaigns* (Rose Coral `#f43f5e`, `Megaphone`, live pulse, "₹45k avg · 2 Reels")
+    - *Instant Invoices* (Warm Amber `#f59e0b`, `ReceiptText`, "Paid ₹35,000 · Tax Logged")
+    - *Who Viewed You* (Electric Blue `#3b82f6`, `Eye`, live views counter, "Brand Marketing Leads")
+    - *Payment Gates* (Mint Cyan `#06b6d4`, `ShieldCheck`, Escrow badge, "100% Advance Secured")
+    - *Live Media Kit* (Electric Violet `#a855f7`, `LayoutGrid`, 8.4% ER badge, "Curated Reels & Proof")
+  - Added responsive fallback: on screens `< 1024px`, renders a clean 2-column card grid below the profile card rather than awkward overlapping lines.
+- **Footer CTA Logo Fix (`apps/landing/src/components/site/final-cta.tsx`)**:
+  - Kept the dynamic scroll-triggered assembly animation (spokes drawSVG, ring drawSVG, nodes pop in with `back.out(2.2)`).
+  - Removed the continuous 360° spin tween and `data-cta-spin` container so the logo stays stationary and upright in its official brand orientation once created.
+- **Legal Compliance Pages & Navigation (`apps/landing/src/lib/legal-data.ts`, `apps/landing/src/components/site/legal-view.tsx`)**:
+  - Created structured legal content and standalone routes for `/terms` (Terms of Service), `/privacy` (Privacy Policy), and `/refunds` (Cancellation & Refund Policy).
+  - Designed `LegalView` component conforming to "Paper & Ink" aesthetics with tab switching and direct grievance officer contacts.
+  - Linked all legal documents in the global landing footer in `final-cta.tsx`.
+- **Global Animations (`apps/landing/src/app/globals.css`)**:
+  - Added `@keyframes beam-flow` and `.flowing-beam` utility for hardware-accelerated beam motion.
+
+### Broken & Resolved
+- **Artificial Appearance of Hero Network**: The previous design looked stiff and unnatural due to straight 7px fluorescent pink lines and uniform circles with black pills. Resolved by introducing organic bezier splines with gradient glows and styling each node as an authentic micro-mockup of the product with its own thematic palette and status chips.
+
+### Key Lessons
+- Network/ecosystem diagrams in landing heroes should avoid rigid straight lines; organic bezier paths with soft glow and flowing dash segments feel significantly more premium and dynamic.
+- Satellite feature chips look substantially better when they carry distinct, purposeful brand colors and mini product details (like "Paid ₹35,000" or "Approved Brand ✓") instead of identical generic colored circles.
+
+### Next Target
+- Present to user and review any additional tweaks.
+
+---
+
 ### Session — 2026-09-16: Dual-Tier Admin System & Developer Super Admin Credentials
 
 **Branch**: `dev`
