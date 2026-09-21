@@ -19,11 +19,17 @@ const JoinApplicationSchema = z.object({
       return digits.length >= 7 && digits.length <= 15 && PHONE_REGEX.test(val);
     }, 'Must be a valid WhatsApp / contact number (7–15 digits)'),
   instagramHandle: z.string().trim().max(100).optional().nullable(),
-  creatorType: z.string().trim().min(1, 'Creator category is required').max(80),
+  creatorType: z.union([
+    z.string().trim().min(1, 'Creator category is required').max(250),
+    z.array(z.string().trim().max(80)).min(1, 'Select at least one creator category'),
+  ]),
   followerTier: z.string().trim().min(1, 'Follower range is required').max(50),
   contentNiches: z.array(z.string().trim().max(50)).min(1, 'Select at least one content niche'),
   brandExperience: z.string().trim().min(1, 'Brand experience is required').max(50),
-  biggestChallenge: z.string().trim().max(2000).optional().nullable(),
+  biggestChallenge: z.union([
+    z.string().trim().max(2000),
+    z.array(z.string().trim().max(200)),
+  ]).optional().nullable(),
 });
 
 const CORS_HEADERS = {
@@ -70,6 +76,12 @@ export async function POST(req: Request) {
     } = parsed.data;
 
     const cleanHandle = instagramHandle ? instagramHandle.replace(/^@/, '').trim() : null;
+    const formattedCreatorType = Array.isArray(creatorType)
+      ? creatorType.join(', ').slice(0, 240)
+      : creatorType.slice(0, 240);
+    const formattedChallenge = Array.isArray(biggestChallenge)
+      ? biggestChallenge.join('; ').slice(0, 2000)
+      : (biggestChallenge?.slice(0, 2000) || null);
 
     const supabase = serviceRoleClient();
     if (!supabase) {
@@ -86,11 +98,11 @@ export async function POST(req: Request) {
         email: email.toLowerCase(),
         phone,
         instagram_handle: cleanHandle,
-        creator_type: creatorType,
+        creator_type: formattedCreatorType,
         follower_tier: followerTier,
         content_niches: contentNiches,
         brand_experience: brandExperience,
-        biggest_challenge: biggestChallenge || null,
+        biggest_challenge: formattedChallenge,
         metadata: {
           userAgent: req.headers.get('user-agent'),
           referer: req.headers.get('referer'),

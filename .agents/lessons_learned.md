@@ -2,6 +2,44 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: /join Light Mode Redesign, Bigger Centered Logo, Progress 0% Fix & Multi-Select Options
+
+**Branch**: `dev`
+
+### Scope
+- **Apple-Style Light Mode Aesthetic & Ambient Glowing Background**:
+  - `apps/landing/src/app/join/page.tsx`:
+    - Re-themed the entire `/join` questionnaire to match the Influnet light design system (`#FAFAFA` base, crisp white glassmorphic card `bg-white/90 border-zinc-200/80 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07)]`).
+    - Added ambient animated glowing radial gradients (`from-[#ff078e]/12 via-[#7928ca]/8` and `from-[#ff078e]/10 via-[#00e5ff]/5`) and a subtle dot grid texture.
+    - Updated typography to deep zinc (`text-zinc-900` headings, `text-zinc-500` descriptions, `text-zinc-600` mono labels).
+    - Polished inputs and buttons with brand magenta-to-purple gradients, focus rings, and light hover transitions.
+- **Enlarged Centered Brand Logo**:
+  - Resized the logo badge to `size-20 sm:size-24` (80px - 96px) with an ambient glowing ring (`shadow-[0_10px_35px_rgba(255,7,142,0.18)]`), housing a 72px transparent Influnet icon and bold `influnet` typography.
+- **Accurate Step Progress Calculation (0% on Step 1)**:
+  - Fixed initial progress calculation from `(step / totalSteps) * 100` (which showed 14% on step 1 before answering any question) to `Math.round(((step - 1) / totalSteps) * 100)`.
+  - Now accurately displays `0% completed` on Step 1, progressing by ~14% per completed step, reaching 100% on submission.
+- **Multi-Select Options Support**:
+  - **Creator Roles / Formats (Step 4)**: Transformed into multi-select checkboxes allowing creators to choose multiple formats (e.g., both YouTuber and Instagram Creator).
+  - **Common Challenges (Step 7)**: Replaced bare textarea with structured multi-select chips for creator pain points (Inconsistent deals, delayed payouts, brands ghosting in DMs, pricing doubts, confusing contracts, unfair barter) plus optional custom notes.
+  - **Content Niches (Step 6)**: Enhanced multi-select vertical pills with selection counters and light theme styling.
+- **Backend & Database Multi-Select Migration**:
+  - `supabase/migrations/169_creator_applications_multi_select.sql`:
+    - Dropped previous 80-character constraint and expanded `creator_type` check to 250 characters.
+    - Applied cleanly via `scripts/apply-migration.mjs 169`.
+  - `apps/web/src/app/api/join/route.ts`:
+    - Updated `JoinApplicationSchema` to accept arrays or strings for `creatorType` and `biggestChallenge`.
+    - Formats arrays into clean comma/semicolon-separated values before inserting into Supabase.
+
+### Broken & Resolved
+- **Initial 14% Progress Bug**:
+  - *Cause*: Progress formula used `step / totalSteps` instead of `(step - 1) / totalSteps`. On load, `1/7 = 14%` was displayed before the user answered any question.
+  - *Fix*: Calculated `progressPercent = Math.round(((step - 1) / totalSteps) * 100)`.
+- **String Length Constraint on Multi-Select Formats**:
+  - *Cause*: `creator_type` was capped at 80 characters in migration 168. Selecting 3 long formats could exceed 80 chars.
+  - *Fix*: Created and applied migration 169 to allow up to 250 characters.
+
+---
+
 ### Session — 2026-09-21: Interactive /join Creator Application Flow, Supabase DB & Admin CRM Integration
 
 **Branch**: `dev`
