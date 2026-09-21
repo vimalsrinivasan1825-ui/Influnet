@@ -17,6 +17,19 @@ const EarlyAccessSchema = z.object({
   bio: z.string().trim().max(500).optional().nullable(),
 });
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
+
 export async function POST(req: Request) {
   try {
     const limited = await enforceRateLimit(req, {
@@ -55,7 +68,7 @@ export async function POST(req: Request) {
         ok: true,
         alreadyClaimed: true,
         pass: existing,
-      });
+      }, { headers: CORS_HEADERS });
     }
 
     // Insert new Founder Pass early access record
@@ -113,7 +126,7 @@ export async function POST(req: Request) {
         alreadyClaimed: false,
         pass: newPass,
       },
-      { status: 201 }
+      { status: 201, headers: CORS_HEADERS }
     );
   } catch (error) {
     logger.error('early-access: unexpected error', { error: String(error) });
