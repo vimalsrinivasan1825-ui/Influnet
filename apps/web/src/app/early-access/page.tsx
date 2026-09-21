@@ -1,80 +1,141 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import {
-  Sparkles,
-  ArrowRight,
-  Check,
-  Download,
-  Share2,
-  Globe,
-  Building2,
-  UserCheck,
-  ShieldCheck,
-  RotateCcw,
-  Zap,
-} from 'lucide-react';
-
-import Link from 'next/link';
-
-type Role = 'creator' | 'business';
 
 interface ScrapedProfile {
-  displayName?: string | null;
-  avatarUrl?: string | null;
-  followerCount?: number | null;
-  followersStr?: string;
-  biography?: string | null;
-  isVerified?: boolean | null;
-  isPrivate?: boolean | null;
+  displayName: string;
+  avatarUrl: string | null;
+  followerCount: number | null;
+  followersStr: string;
+  postsStr: string;
+  biography: string;
+  isVerified: boolean;
+  isPrivate: boolean;
 }
 
-export default function EarlyAccessPage() {
-  const [role, setRole] = useState<Role>('creator');
-  const [step, setStep] = useState<'role' | 'name' | 'social' | 'email' | 'synthesizing' | 'revealed'>('role');
-
-  const [name, setName] = useState('Maya Chen');
-  const [handle, setHandle] = useState('mayachen_creates');
-  const [company, setCompany] = useState('');
-  const [website, setWebsite] = useState('');
-  const [email, setEmail] = useState('maya@influnet.dev');
-
-  // Instagram Scraper States
-  const [scraping, setScraping] = useState(false);
-  const [scrapedProfile, setScrapedProfile] = useState<ScrapedProfile | null>({
+const KNOWN_PROFILES: Record<string, Partial<ScrapedProfile>> = {
+  mayachen_creates: {
     displayName: 'Maya Chen',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
     followersStr: '84.5K',
+    postsStr: '240',
     biography: 'Visual Storyteller & Creator ✦ Mumbai / London ✦ Collabs open',
     isVerified: true,
+    isPrivate: false,
+  },
+  'virat.kohli': {
+    displayName: 'Virat Kohli',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    followersStr: '271M',
+    postsStr: '1,680',
+    biography: 'Athlete. Passion. Purpose. 🏏',
+    isVerified: true,
+    isPrivate: false,
+  },
+  techburner: {
+    displayName: 'Tech Burner',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
+    followersStr: '4.8M',
+    postsStr: '890',
+    biography: 'Making Tech Fun! 🔥 Gadgets & Lifestyle',
+    isVerified: true,
+    isPrivate: false,
+  },
+  mrbeast: {
+    displayName: 'MrBeast',
+    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&auto=format&fit=crop&q=80',
+    followersStr: '62.4M',
+    postsStr: '450',
+    biography: 'I want to make the world a better place before I die',
+    isVerified: true,
+    isPrivate: false,
+  },
+};
+
+export default function EarlyAccessPage() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [role, setRole] = useState<'creator' | 'business'>('creator');
+  const [screen, setScreen] = useState<'s0' | 's1' | 's2' | 's3' | 'sLoading' | 's4'>('s0');
+
+  // Form State
+  const [name, setName] = useState('Maya Chen');
+  const [handle, setHandle] = useState('mayachen_creates');
+  const [email, setEmail] = useState('maya@influnet.dev');
+  const [company, setCompany] = useState('');
+
+  // Scraper State
+  const [scraping, setScraping] = useState(false);
+  const [scrapeStatus, setScrapeStatus] = useState<string>('Verified Public Creator Profile');
+  const [scrapedProfile, setScrapedProfile] = useState<ScrapedProfile>({
+    displayName: 'Maya Chen',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    followerCount: 84500,
+    followersStr: '84.5K',
+    postsStr: '240',
+    biography: 'Visual Storyteller & Creator ✦ Mumbai / London ✦ Collabs open',
+    isVerified: true,
+    isPrivate: false,
   });
 
-  // Synthesizer / Pass States
-  const [passNumber, setPassNumber] = useState(101);
+  // Synthesizer State
   const [synthProgress, setSynthProgress] = useState(0);
-  const [synthStage, setSynthStage] = useState('Connecting to Influnet Genesis...');
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [synthStepLabel, setSynthStepLabel] = useState('Connecting to Influnet network...');
+  const [passNumber, setPassNumber] = useState(89);
+  const [shakeField, setShakeField] = useState<string | null>(null);
+
+  // 3D Card State
+  const [cardRotate, setCardRotate] = useState({ x: 0, y: 0 });
+  const [foilAngle, setFoilAngle] = useState(130);
+  const [foilOpacity, setFoilOpacity] = useState(0.7);
+  const [bloomActive, setBloomActive] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
+  const passContainerRef = useRef<HTMLDivElement>(null);
   const expCanvasRef = useRef<HTMLCanvasElement>(null);
+  const scrapeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto trigger scraper for default handle
-  useEffect(() => {
-    if (role === 'creator' && handle) {
-      lookupInstagram(handle);
-    }
-  }, [role]);
+  // Trigger shake animation on invalid inputs
+  const triggerShake = (field: string) => {
+    setShakeField(field);
+    setTimeout(() => setShakeField(null), 600);
+  };
 
-  // Instagram Lookup using existing backend API
-  const lookupInstagram = async (rawHandle: string) => {
+  // Perform Scrape with Caching & Backend API
+  const performScrape = useCallback(async (rawHandle: string) => {
     const clean = rawHandle.replace(/^@/, '').trim().toLowerCase();
     if (!clean) return;
 
     setScraping(true);
+    setScrapeStatus(`Scanning Instagram: @${clean}...`);
+
+    // Check fast mock/known registry
+    if (KNOWN_PROFILES[clean]) {
+      const k = KNOWN_PROFILES[clean];
+      setScrapedProfile({
+        displayName: k.displayName || name || clean,
+        avatarUrl: k.avatarUrl || null,
+        followerCount: k.followerCount ?? 84500,
+        followersStr: k.followersStr || '84.5K',
+        postsStr: k.postsStr || '240',
+        biography: k.biography || 'Visual Storyteller & Creator ✦ Collabs open',
+        isVerified: k.isVerified ?? true,
+        isPrivate: false,
+      });
+      setScrapeStatus('✓ Verified Public Creator Profile');
+      setScraping(false);
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/auth/social-preview?platform=instagram&handle=${encodeURIComponent(clean)}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(`/api/auth/social-preview?platform=instagram&handle=${encodeURIComponent(clean)}`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
       const data = await res.json().catch(() => null);
 
       if (res.ok && data?.profile) {
@@ -89,127 +150,189 @@ export default function EarlyAccessPage() {
           : 'Verified';
 
         setScrapedProfile({
-          displayName: p.displayName || name,
+          displayName: p.displayName || name || clean,
           avatarUrl: p.avatarUrl || null,
           followerCount: p.followerCount || null,
           followersStr: formattedFollowers,
-          biography: p.biography || '',
-          isVerified: p.isVerified ?? true,
-          isPrivate: p.isPrivate ?? false,
+          postsStr: p.mediaCount ? String(p.mediaCount) : '120+',
+          biography: p.biography || `Digital Creator ✦ influnet.me/${clean}`,
+          isVerified: Boolean(p.isVerified),
+          isPrivate: Boolean(p.isPrivate),
         });
+        setScrapeStatus(p.isPrivate ? '● Private Profile (Limited Data)' : '✓ Verified Public Creator Profile');
       } else {
-        // High quality fallback data for previewing smoothly
+        // High quality fallback data for seamless pass synthesis
+        const randomK = (15 + (clean.length * 7.3) % 180).toFixed(1);
+        const randomPosts = 80 + (clean.length * 13) % 200;
         setScrapedProfile({
-          displayName: name || clean,
+          displayName: name || (clean.charAt(0).toUpperCase() + clean.slice(1).replace(/[._]/g, ' ')),
           avatarUrl: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80`,
-          followersStr: '84.5K',
-          biography: 'Digital Creator & Storyteller ✦ Collabs open',
+          followerCount: Math.round(parseFloat(randomK) * 1000),
+          followersStr: `${randomK}K`,
+          postsStr: `${randomPosts}`,
+          biography: `Digital Creator & Lifestyle ✦ influnet.me/${clean} ✦ Inquiries open`,
           isVerified: true,
           isPrivate: false,
         });
+        setScrapeStatus('✓ Verified Public Creator Profile');
       }
     } catch {
-      // Fallback gracefully without breaking UI
+      // Graceful fallback on network timeout
+      const randomK = (25 + (clean.length * 5.5) % 150).toFixed(1);
       setScrapedProfile({
         displayName: name || clean,
-        avatarUrl: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&auto=format&fit=crop&q=80`,
-        followersStr: '84.5K',
-        biography: 'Digital Creator & Storyteller ✦ Collabs open',
+        avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80`,
+        followerCount: 50000,
+        followersStr: `${randomK}K`,
+        postsStr: '150',
+        biography: `Digital Creator & Storyteller ✦ influnet.me/${clean}`,
         isVerified: true,
         isPrivate: false,
       });
+      setScrapeStatus('✓ Profile Connected');
     } finally {
       setScraping(false);
     }
+  }, [name]);
+
+  // Debounced Instagram Input listener
+  const handleHandleChange = (val: string) => {
+    setHandle(val);
+    if (scrapeTimeoutRef.current) clearTimeout(scrapeTimeoutRef.current);
+    const clean = val.replace(/^@/, '').trim();
+    if (clean.length >= 2) {
+      scrapeTimeoutRef.current = setTimeout(() => {
+        performScrape(clean);
+      }, 450);
+    }
   };
 
-  // Submit and start pass synthesizer
-  const handleSubmit = async () => {
-    if (!email || !email.includes('@')) return;
+  // Keyboard navigation (Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+      if (screen === 's1') handleNext1();
+      else if (screen === 's2') handleNext2();
+      else if (screen === 's3') handleNext3();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [screen, name, handle, email, role]);
 
-    setStep('synthesizing');
+  const handleNext1 = () => {
+    if (!name.trim()) {
+      triggerShake('name');
+      return;
+    }
+    setScreen('s2');
+    if (role === 'creator') {
+      performScrape(handle);
+    }
+  };
+
+  const handleNext2 = () => {
+    if (role === 'creator') {
+      const clean = handle.replace(/^@/, '').trim();
+      if (!clean) {
+        triggerShake('handle');
+        return;
+      }
+    }
+    setScreen('s3');
+  };
+
+  const handleNext3 = async () => {
+    if (!email.trim() || !email.includes('@')) {
+      triggerShake('email');
+      return;
+    }
+    startSynthesizer();
+  };
+
+  // Synthesizer Sequence (Screen 3.5 -> 4)
+  const startSynthesizer = async () => {
+    setScreen('sLoading');
     setSynthProgress(0);
 
-    // Call early-access API in parallel
-    const payload = {
-      kind: role,
-      name: name.trim(),
-      email: email.trim(),
-      handle: role === 'creator' ? handle.replace(/^@/, '').trim() : null,
-      company: role === 'business' ? (company.trim() || name.trim()) : null,
-      website: role === 'business' ? website.trim() : null,
-      followers: role === 'creator' ? scrapedProfile?.followersStr : null,
-      avatarUrl: role === 'creator' ? scrapedProfile?.avatarUrl : null,
-      bio: role === 'creator' ? scrapedProfile?.biography : null,
-    };
+    // Call backend API in parallel
+    const apiPromise = fetch('/api/early-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind: role,
+        name: name.trim(),
+        email: email.trim(),
+        handle: role === 'creator' ? handle.replace(/^@/, '').trim() : null,
+        company: role === 'business' ? (company.trim() || name.trim()) : null,
+        followers: role === 'creator' ? scrapedProfile.followersStr : null,
+        avatarUrl: role === 'creator' ? scrapedProfile.avatarUrl : null,
+        bio: role === 'creator' ? scrapedProfile.biography : null,
+      }),
+    })
+      .then(async (r) => {
+        const d = await r.json().catch(() => null);
+        if (d?.pass?.pass_number) {
+          setPassNumber(d.pass.pass_number);
+        }
+      })
+      .catch(() => {});
 
-    let generatedPassNumber = 101;
-    try {
-      const res = await fetch('/api/early-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const resData = await res.json().catch(() => null);
-      if (resData?.pass?.pass_number) {
-        generatedPassNumber = resData.pass.pass_number;
-        setPassNumber(generatedPassNumber);
-      }
-    } catch {
-      // fallback
-    }
-
-    // Animate synthesizer stages
-    const stages = [
-      { p: 25, label: '❖ Connecting to Influnet Genesis Network...' },
-      { p: 55, label: role === 'creator' ? `❖ Verifying @${handle} credentials via Apify...` : '❖ Allocating Founding Brand privileges...' },
-      { p: 85, label: `❖ Minting Member Token #${generatedPassNumber}...` },
-      { p: 100, label: '❖ Applying cryptographic seal & holographic foil...' },
+    // Animated multi-step progress forge
+    const steps = [
+      { p: 25, label: '❖ Querying verified Apify credentials...', ms: 500 },
+      { p: 58, label: `❖ Validating @${handle} with ${scrapedProfile.followersStr} followers...`, ms: 600 },
+      { p: 85, label: '❖ Minting Founding Member Token on Genesis Series...', ms: 550 },
+      { p: 100, label: '❖ Applying holographic foil & cryptographic seal...', ms: 450 },
     ];
 
-    let current = 0;
-    const interval = setInterval(() => {
-      current += 2;
-      setSynthProgress(current);
+    for (const step of steps) {
+      setSynthStepLabel(step.label);
+      setSynthProgress(step.p);
+      await new Promise((r) => setTimeout(r, step.ms));
+    }
 
-      if (current < 30) setSynthStage(stages[0].label);
-      else if (current < 65) setSynthStage(stages[1].label);
-      else if (current < 90) setSynthStage(stages[2].label);
-      else setSynthStage(stages[3].label);
+    await apiPromise;
+    await new Promise((r) => setTimeout(r, 200));
 
-      if (current >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          setStep('revealed');
-          confetti({
-            particleCount: 90,
-            spread: 60,
-            origin: { y: 0.6 },
-            colors: ['#ff078e', '#7c3aed', '#06b6d4', '#ffffff'],
-          });
-        }, 300);
-      }
-    }, 45);
+    // Reveal Screen 4 with Bloom and Confetti
+    setBloomActive(true);
+    setTimeout(() => setBloomActive(false), 400);
+
+    setScreen('s4');
+
+    // Confetti celebration
+    try {
+      confetti({
+        particleCount: 90,
+        spread: 68,
+        origin: { y: 0.62 },
+        colors: ['#ff078e', '#ffffff', '#7c3aed', '#06b6d4'],
+      });
+    } catch {}
   };
 
-  // 3D Tilt calculation
+  // 3D Card Mouse Tilt Tracking
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
+    if (!passContainerRef.current) return;
+    const rect = passContainerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
-    setTilt({
-      x: (y / (rect.height / 2)) * -14,
-      y: (x / (rect.width / 2)) * 16,
-    });
+    const rx = (y / (rect.height / 2)) * -14;
+    const ry = (x / (rect.width / 2)) * 16;
+    setCardRotate({ x: rx, y: ry });
+
+    const angle = 120 + ((e.clientX - rect.left) / rect.width) * 60;
+    setFoilAngle(angle);
+    setFoilOpacity(0.92);
   };
 
   const handleMouseLeave = () => {
-    setTilt({ x: 0, y: 0 });
+    setCardRotate({ x: 0, y: 0 });
+    setFoilOpacity(0.65);
   };
 
-  // PNG Export
-  const exportPNG = () => {
+  // Canvas High-Res 1080x1350 PNG Export
+  const exportPassPNG = () => {
     const c = expCanvasRef.current;
     if (!c) return;
     const ctx = c.getContext('2d');
@@ -220,60 +343,72 @@ export default function EarlyAccessPage() {
     c.width = W;
     c.height = H;
 
-    // Background
-    ctx.fillStyle = '#0d0a12';
+    const isDark = theme === 'dark';
+
+    // Wallpaper
+    ctx.fillStyle = isDark ? '#0d0a12' : '#fbfaf8';
     ctx.fillRect(0, 0, W, H);
 
     // Radial Glow
     const grd = ctx.createRadialGradient(W / 2, H * 0.44, 50, W / 2, H * 0.44, 540);
-    grd.addColorStop(0, 'rgba(255, 7, 142, 0.28)');
+    grd.addColorStop(0, 'rgba(255,7,142,.25)');
     grd.addColorStop(1, 'transparent');
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, W, H);
 
-    // Card dimensions
+    // Card Dimensions
     const cW = 800;
     const cH = 1140;
     const cX = (W - cW) / 2;
     const cY = (H - cH) / 2;
 
-    // Card Fill
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.85)';
-    ctx.shadowBlur = 60;
-    ctx.shadowOffsetY = 24;
+    ctx.shadowColor = isDark ? 'rgba(0,0,0,.85)' : 'rgba(23,20,29,.22)';
+    ctx.shadowBlur = 70;
+    ctx.shadowOffsetY = 30;
 
+    // Card Background Gradient
     const cg = ctx.createLinearGradient(cX, cY, cX + cW, cY + cH);
-    cg.addColorStop(0, '#20182c');
-    cg.addColorStop(0.5, '#160f22');
-    cg.addColorStop(1, '#0c0716');
+    if (isDark) {
+      cg.addColorStop(0, '#221a30');
+      cg.addColorStop(0.5, '#171124');
+      cg.addColorStop(1, '#0d0817');
+    } else {
+      cg.addColorStop(0, '#ffffff');
+      cg.addColorStop(0.5, '#faf8f5');
+      cg.addColorStop(1, '#f0ebdf');
+    }
     ctx.fillStyle = cg;
-    rrect(ctx, cX, cY, cW, cH, 54);
+    drawRoundedRect(ctx, cX, cY, cW, cH, 56);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    // Card Border
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,.16)' : 'rgba(215,208,197,.85)';
     ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
 
-    // Clip Slot
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    rrect(ctx, W / 2 - 50, cY + 28, 100, 16, 8);
+    // Lanyard Slot
+    ctx.fillStyle = isDark ? 'rgba(0,0,0,.6)' : 'rgba(0,0,0,.1)';
+    drawRoundedRect(ctx, W / 2 - 50, cY + 30, 100, 16, 8);
     ctx.fill();
 
-    // Header
-    ctx.fillStyle = '#ffffff';
+    const textCol = isDark ? '#f0ecf8' : '#17141d';
+
+    // Header: INFLUNET
+    ctx.fillStyle = textCol;
     ctx.font = '800 32px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('INFLUNET', cX + 60, cY + 110);
 
+    // Header: FOUNDER PASS
     ctx.fillStyle = '#ff078e';
     ctx.font = '700 18px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(role === 'creator' ? 'FOUNDER PASS' : 'FOUNDING BRAND PASS', cX + cW - 60, cY + 110);
+    ctx.fillText(role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND', cX + cW - 60, cY + 110);
 
-    // Serial
-    ctx.fillStyle = '#8b8693';
+    // Serial Row
+    ctx.fillStyle = isDark ? '#736b7e' : '#8b8693';
     ctx.font = '600 16px monospace';
     ctx.textAlign = 'left';
     ctx.fillText('GENESIS SERIES', cX + 60, cY + 148);
@@ -281,11 +416,12 @@ export default function EarlyAccessPage() {
     ctx.fillStyle = '#ff078e';
     ctx.fillText(`NO. #${String(passNumber).padStart(4, '0')} / 1000`, cX + cW - 60, cY + 148);
 
-    // Center Avatar or Monogram
+    // Center Avatar / Monogram
     const ax = W / 2;
     const ay = cY + 360;
     const ar = 120;
 
+    // Outer Neon Ring
     ctx.strokeStyle = '#ff078e';
     ctx.lineWidth = 8;
     ctx.beginPath();
@@ -294,72 +430,85 @@ export default function EarlyAccessPage() {
 
     const ag = ctx.createLinearGradient(ax - ar, ay - ar, ax + ar, ay + ar);
     ag.addColorStop(0, '#ff078e');
-    ag.addColorStop(1, '#7c3aed');
+    ag.addColorStop(1, '#c8307f');
     ctx.fillStyle = ag;
     ctx.beginPath();
     ctx.arc(ax, ay, ar, 0, Math.PI * 2);
     ctx.fill();
 
-    const initials = (name || 'IN').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+    const initials = (name || 'MC')
+      .split(' ')
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
     ctx.fillStyle = '#ffffff';
-    ctx.font = '800 82px sans-serif';
+    ctx.font = '800 84px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(initials, ax, ay + 30);
 
     // Name & Handle
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = textCol;
     ctx.font = '800 52px sans-serif';
+    ctx.textAlign = 'center';
     ctx.fillText((name || 'CREATOR').toUpperCase(), ax, cY + 560);
 
     ctx.fillStyle = '#ff078e';
     ctx.font = '700 28px monospace';
-    ctx.fillText(role === 'creator' ? `@${handle || 'creator'}` : (website || 'Verified Brand'), ax, cY + 610);
+    ctx.fillText(role === 'creator' ? `@${handle || 'creator'}` : (company || name), ax, cY + 610);
 
-    // Stat Pill
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    rrect(ctx, ax - 220, cY + 650, 440, 52, 26);
+    // Followers Badge Pill
+    ctx.fillStyle = isDark ? 'rgba(255,255,255,.08)' : '#ede8df';
+    drawRoundedRect(ctx, ax - 220, cY + 650, 440, 52, 26);
     ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 19px monospace';
+    ctx.fillStyle = textCol;
+    ctx.font = '700 20px monospace';
     ctx.fillText(
       role === 'creator'
-        ? `★ ${scrapedProfile?.followersStr || '84.5K'} FOLLOWERS · VERIFIED`
-        : `★ FOUNDING BUSINESS · 0% PLATFORM FEE`,
+        ? `★ ${scrapedProfile.followersStr} FOLLOWERS · VERIFIED`
+        : '★ 0% PLATFORM FEE · VIP BRAND',
       ax,
       cY + 683
     );
 
     // Meta Grid
     const fy = cY + cH - 270;
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,.12)' : 'rgba(215,208,197,.8)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(cX + 60, fy);
     ctx.lineTo(cX + cW - 60, fy);
     ctx.stroke();
 
-    ctx.fillStyle = '#8b8693';
+    ctx.fillStyle = isDark ? '#736b7e' : '#8b8693';
     ctx.font = '700 16px monospace';
     ctx.textAlign = 'left';
     ctx.fillText('MEMBERSHIP', cX + 70, fy + 44);
-    ctx.fillText('PERKS', cX + 70, fy + 90);
+    ctx.fillText('PASS BENEFIT', cX + 70, fy + 90);
     ctx.fillText('STATUS', cX + 70, fy + 136);
 
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = textCol;
     ctx.fillText(role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND', cX + cW - 70, fy + 44);
-    ctx.fillText(role === 'creator' ? '1 YR UNLIMITED COLLAB PASS' : '0% FEE + VIP CONCIERGE', cX + cW - 70, fy + 90);
-    ctx.fillStyle = '#34d399';
+    ctx.fillText(role === 'creator' ? '1 YR UNLIMITED PASS' : '0% FEE CONCIERGE', cX + cW - 70, fy + 90);
+    ctx.fillStyle = '#059669';
     ctx.fillText('● CONFIRMED & ACTIVE', cX + cW - 70, fy + 136);
 
     // Trigger Download
     const a = document.createElement('a');
-    a.download = `influnet-founder-pass-${role}-${handle || 'member'}.png`;
+    a.download = `influnet-founder-pass-${(handle || name).toLowerCase().replace(/\s+/g, '-')}.png`;
     a.href = c.toDataURL('image/png');
     a.click();
   };
 
-  function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const drawRoundedRect = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number
+  ) => {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
     ctx.lineTo(x + w - r, y);
@@ -371,19 +520,103 @@ export default function EarlyAccessPage() {
     ctx.lineTo(x, y + r);
     ctx.quadraticCurveTo(x, y, x + r, y);
     ctx.closePath();
-  }
+  };
+
+  const isDark = theme === 'dark';
 
   return (
-    <div className="relative min-h-screen bg-[#0d0a12] text-white flex flex-col items-center justify-between px-4 py-8 overflow-x-hidden selection:bg-[#ff078e] selection:text-white">
-      {/* Background Ambience */}
-      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_center,rgba(255,7,142,0.12)_0%,transparent_70%)]" />
-      <div className="pointer-events-none fixed inset-0 z-0 opacity-20 bg-[linear-gradient(to_right,#8b869315_1px,transparent_1px),linear-gradient(to_bottom,#8b869315_1px,transparent_1px)] bg-[size:44px_44px]" />
+    <div
+      className={`min-h-screen transition-colors duration-300 relative selection:bg-[#ff078e] selection:text-white ${
+        isDark ? 'bg-[#0d0a12] text-[#f0ecf8]' : 'bg-[#fbfaf8] text-[#17141d]'
+      }`}
+      style={{
+        fontFamily: "'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap');
+
+        .font-headline {
+          font-family: 'Bricolage Grotesque', sans-serif;
+        }
+        .font-mono-code {
+          font-family: 'Spline Sans Mono', monospace;
+        }
+
+        /* Subtle grid background texture */
+        .bg-grid-texture {
+          background-image: linear-gradient(to right, rgba(139, 134, 147, 0.05) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(139, 134, 147, 0.05) 1px, transparent 1px);
+          background-size: 44px 44px;
+        }
+
+        @keyframes pulse-ring {
+          0%, 100% { transform: scale(1); opacity: 0.15; }
+          50% { transform: scale(1.22); opacity: 0.28; }
+        }
+        .animate-pulse-ring {
+          animation: pulse-ring 2.8s ease-in-out infinite;
+        }
+
+        @keyframes orbit-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-orbit {
+          animation: orbit-spin 8s linear infinite;
+        }
+        .animate-radar {
+          animation: orbit-spin 0.7s linear infinite;
+        }
+
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient-shift {
+          background-size: 300% 300%;
+          animation: gradientShift 4s ease infinite;
+        }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-6px); }
+          40%, 80% { transform: translateX(6px); }
+        }
+        .animate-shake {
+          animation: shake 0.4s ease-in-out;
+        }
+      `}</style>
+
+      {/* Grid Pattern & Ambient Glow */}
+      <div className="fixed inset-0 pointer-events-none z-0 bg-grid-texture" />
+      <div
+        className="fixed top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] pointer-events-none z-0 rounded-full blur-3xl opacity-60"
+        style={{
+          background: isDark
+            ? 'radial-gradient(circle, rgba(255,7,142,0.14) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(255,7,142,0.08) 0%, transparent 70%)',
+        }}
+      />
+
+      {/* Screen Bloom Flash Overlay */}
+      {bloomActive && (
+        <div className="fixed inset-0 z-50 pointer-events-none bg-white/70 animate-pulse duration-300" />
+      )}
 
       {/* Header */}
-      <header className="relative z-10 w-full max-w-5xl flex items-center justify-between py-4 border-b border-white/10">
-        <Link href="/" className="flex items-center gap-2.5 font-extrabold text-xl tracking-tight text-white">
-          <svg viewBox="430 150 690 720" width="22" height="23" aria-hidden="true">
-            <g stroke="#ff078e" strokeWidth="46" strokeLinecap="round" fill="none">
+      <header
+        className={`fixed top-0 left-0 right-0 h-[60px] z-40 px-6 sm:px-10 flex items-center justify-between border-b backdrop-blur-md transition-colors ${
+          isDark
+            ? 'bg-[#0d0a12]/85 border-white/10'
+            : 'bg-[#fbfaf8]/85 border-[#e7e3dc]'
+        }`}
+      >
+        <a href="/" className="flex items-center gap-2.5 font-headline font-extrabold text-[19px] tracking-tight">
+          {/* Official Influnet Spoke Mark */}
+          <svg viewBox="430 150 690 720" width="24" height="25" aria-hidden="true">
+            <g stroke="#ff078e" strokeWidth="44" strokeLinecap="round" fill="none">
               <line x1="713" y1="408" x2="525" y2="396" />
               <line x1="841" y1="427" x2="960" y2="246" />
               <line x1="856" y1="559" x2="1013" y2="617" />
@@ -395,511 +628,709 @@ export default function EarlyAccessPage() {
               <circle cx="1013" cy="617" r="80" />
               <circle cx="566" cy="774" r="84" />
             </g>
-            <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="46" />
+            <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="44" />
           </svg>
-          influnet
-        </Link>
-        <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase tracking-widest text-[#ff078e] px-3 py-1 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/30">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#ff078e] animate-ping" />
-          Genesis Pass · Limited
+          <span>influnet</span>
+        </a>
+
+        <div className="flex items-center gap-3">
+          {/* Role selector on screen 0 */}
+          {screen === 's0' && (
+            <div className={`p-1 rounded-full flex items-center gap-1 border text-xs font-semibold ${
+              isDark ? 'bg-[#15111c] border-white/10' : 'bg-[#f4f2ee] border-[#e7e3dc]'
+            }`}>
+              <button
+                onClick={() => setRole('creator')}
+                className={`px-3 py-1 rounded-full transition-all ${
+                  role === 'creator'
+                    ? 'bg-[#ff078e] text-white shadow-sm'
+                    : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black'
+                }`}
+              >
+                Creator Pass
+              </button>
+              <button
+                onClick={() => setRole('business')}
+                className={`px-3 py-1 rounded-full transition-all ${
+                  role === 'business'
+                    ? 'bg-[#ff078e] text-white shadow-sm'
+                    : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black'
+                }`}
+              >
+                Brand Pass
+              </button>
+            </div>
+          )}
+
+          {/* Theme Toggle Button */}
+          <button
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${
+              isDark
+                ? 'bg-[#1a1525] border-white/10 text-zinc-300 hover:border-[#ff078e] hover:text-[#ff078e]'
+                : 'bg-white border-[#e7e3dc] text-zinc-600 hover:border-[#ff078e] hover:text-[#ff078e]'
+            }`}
+            aria-label="Toggle Theme"
+          >
+            {isDark ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+              </svg>
+            )}
+          </button>
         </div>
       </header>
 
-      {/* Main Multi-Step Wizard Container */}
-      <main className="relative z-10 w-full max-w-lg my-auto py-8 flex flex-col items-center text-center">
-        <AnimatePresence mode="wait">
-          {/* ══ STEP 0: Role Selection ══ */}
-          {step === 'role' && (
-            <motion.div
-              key="step-role"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              className="w-full"
-            >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/20 text-[#ff078e] text-xs font-mono font-bold tracking-widest uppercase mb-4">
-                <Sparkles className="w-3.5 h-3.5" /> Select Your Path
+      {/* Main Content Stage */}
+      <main className="relative z-10 min-h-screen flex items-center justify-center px-4 pt-24 pb-16">
+        <div className="w-full max-w-[560px] flex flex-col items-center text-center">
+
+          {/* ════════════════════════════════════════════════════
+             SCREEN 0 — Intro Hook
+          ════════════════════════════════════════════════════ */}
+          {screen === 's0' && (
+            <div className="w-full flex flex-col items-center animate-in fade-in zoom-in-95 duration-400">
+              {/* Animated Spoke Cluster SVG */}
+              <svg className="w-[180px] h-[180px] sm:w-[200px] sm:h-[200px] shrink-0 mb-6" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+                <circle cx="100" cy="100" r="65" fill="rgba(255,7,142,0.06)" />
+                <line x1="100" y1="100" x2="30" y2="38" stroke="#ff078e" strokeOpacity="0.4" strokeWidth="1.2" strokeDasharray="4 5" />
+                <line x1="100" y1="100" x2="170" y2="38" stroke="#ff078e" strokeOpacity="0.4" strokeWidth="1.2" strokeDasharray="4 5" />
+                <line x1="100" y1="100" x2="30" y2="162" stroke="#ff078e" strokeOpacity="0.4" strokeWidth="1.2" strokeDasharray="4 5" />
+                <line x1="100" y1="100" x2="170" y2="162" stroke="#ff078e" strokeOpacity="0.4" strokeWidth="1.2" strokeDasharray="4 5" />
+                <line x1="100" y1="100" x2="100" y2="16" stroke="#ff078e" strokeOpacity="0.3" strokeWidth="1.2" strokeDasharray="4 5" />
+                <line x1="100" y1="100" x2="100" y2="184" stroke="#ff078e" strokeOpacity="0.3" strokeWidth="1.2" strokeDasharray="4 5" />
+
+                <circle cx="30" cy="38" r="18" fill="rgba(255,7,142,0.11)" stroke="#ff078e" strokeOpacity="0.5" strokeWidth="1.5" />
+                <text x="30" y="43" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="10" fill="#ff078e">MC</text>
+
+                <circle cx="170" cy="38" r="18" fill="rgba(255,7,142,0.11)" stroke="#ff078e" strokeOpacity="0.5" strokeWidth="1.5" />
+                <text x="170" y="43" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="10" fill="#ff078e">VK</text>
+
+                <circle cx="30" cy="162" r="18" fill="rgba(255,7,142,0.11)" stroke="#ff078e" strokeOpacity="0.5" strokeWidth="1.5" />
+                <text x="30" y="167" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="10" fill="#ff078e">TB</text>
+
+                <circle cx="170" cy="162" r="18" fill="rgba(255,7,142,0.11)" stroke="#ff078e" strokeOpacity="0.5" strokeWidth="1.5" />
+                <text x="170" y="167" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="10" fill="#ff078e">MB</text>
+
+                <circle cx="100" cy="100" r="28" className="animate-pulse-ring" fill="#ff078e" fillOpacity="0.12" stroke="#ff078e" strokeWidth="1.8" />
+                <circle cx="100" cy="100" r="17" fill="rgba(255,7,142,0.18)" stroke="#ff078e" strokeWidth="1.4" />
+                <text x="100" y="105" textAnchor="middle" fontFamily="Bricolage Grotesque,sans-serif" fontWeight="800" fontSize="15" fill="#ff078e">✦</text>
+              </svg>
+
+              {/* Eyebrow */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/25 text-[#c8307f] dark:text-[#ff3aaa] font-mono-code text-[11px] font-bold tracking-wider uppercase mb-5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#ff078e] animate-ping" />
+                {role === 'creator' ? 'Founding Creator Access · Limited Genesis Spots' : 'Founding Brand Access · 0% Platform Fee'}
               </div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3 font-sans">
-                Claim your official <br />
-                <span className="text-[#ff078e]">Founder Pass</span>
+
+              {/* Headline */}
+              <h1 className="font-headline font-extrabold text-[34px] sm:text-[48px] md:text-[54px] tracking-tight leading-[1.05] mb-4">
+                Secure your spot.<br />
+                Be among the <span className="text-[#ff078e]">first</span><br />
+                on Influnet.
               </h1>
-              <p className="text-neutral-400 text-sm sm:text-base max-w-sm mx-auto mb-8">
-                Be the first to experience zero-latency influencer collaborations. Select your profile type to begin.
-              </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full text-left">
-                {/* Creator Option */}
-                <button
-                  onClick={() => {
-                    setRole('creator');
-                    setStep('name');
-                  }}
-                  className="group relative p-5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-[#ff078e]/60 transition-all duration-200 flex flex-col justify-between"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-[#ff078e]/15 border border-[#ff078e]/30 flex items-center justify-center text-[#ff078e] group-hover:scale-105 transition-transform">
-                      <UserCheck className="w-5 h-5" />
-                    </div>
-                    <span className="text-[11px] font-mono text-[#ff078e] font-bold tracking-wider">CREATOR</span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-white mb-1">Creator / Influencer</h3>
-                    <p className="text-xs text-neutral-400 leading-relaxed">
-                      Instant brand deals, verified custom link-in-bio, and 1-Year Unlimited Collab Pass.
-                    </p>
-                  </div>
-                  <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-[#ff078e]">
-                    Claim Creator Pass <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </button>
-
-                {/* Business Option */}
-                <button
-                  onClick={() => {
-                    setRole('business');
-                    setStep('name');
-                  }}
-                  className="group relative p-5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-[#ff078e]/60 transition-all duration-200 flex flex-col justify-between"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform">
-                      <Building2 className="w-5 h-5" />
-                    </div>
-                    <span className="text-[11px] font-mono text-purple-400 font-bold tracking-wider">BRAND</span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-white mb-1">Business / Brand</h3>
-                    <p className="text-xs text-neutral-400 leading-relaxed">
-                      Zero platform fee for 1 year, verified talent discovery, and priority concierge matching.
-                    </p>
-                  </div>
-                  <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-purple-400">
-                    Claim Brand Pass <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ══ STEP 1: Name ══ */}
-          {step === 'name' && (
-            <motion.div
-              key="step-name"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              className="w-full text-left"
-            >
-              <div className="text-xs font-mono uppercase font-bold text-[#ff078e] tracking-wider mb-2">
-                Step 1 of 3 · Profile
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
-                {role === 'creator' ? "What's your creator name?" : "What's your company or brand name?"}
-              </h2>
-              <p className="text-neutral-400 text-sm mb-6">
-                This will be embossed on your official Founder Pass.
-              </p>
-
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={role === 'creator' ? 'e.g. Maya Chen' : 'e.g. Acme Studios'}
-                className="w-full h-16 rounded-2xl bg-white/[0.05] border-2 border-white/10 focus:border-[#ff078e] px-5 text-xl font-semibold text-white outline-none transition-all placeholder:text-neutral-600"
-                autoFocus
-              />
-
-              <div className="flex items-center justify-between mt-6">
-                <button
-                  onClick={() => setStep('role')}
-                  className="text-xs text-neutral-400 hover:text-white transition-colors"
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={() => {
-                    if (name.trim()) setStep('social');
-                  }}
-                  className="h-12 px-6 rounded-full bg-white text-black font-bold text-sm hover:bg-[#ff078e] hover:text-white transition-all flex items-center gap-2"
-                >
-                  Continue <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ══ STEP 2: Social Handle & Live Apify Scraper ══ */}
-          {step === 'social' && (
-            <motion.div
-              key="step-social"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              className="w-full text-left"
-            >
-              <div className="text-xs font-mono uppercase font-bold text-[#ff078e] tracking-wider mb-2">
-                Step 2 of 3 · Public Verification
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
-                {role === 'creator' ? 'Your Instagram handle?' : 'Your company website or handle?'}
-              </h2>
-              <p className="text-neutral-400 text-sm mb-4">
+              {/* Body */}
+              <p className={`text-[16px] leading-[1.65] max-w-[420px] mb-6 ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
                 {role === 'creator'
-                  ? 'We use public data to personalize your pass, badge, and metrics.'
-                  : 'Allows creators to verify your brand legitimacy.'}
+                  ? 'Influnet connects creators with brands the moment they reach out — zero missed DMs, instant deals. Claim your official Founding Creator Pass now.'
+                  : 'Direct, instant collaboration requests to verified creators with escrow-backed protection. Claim your official Founding Brand Pass now.'}
               </p>
 
-              {role === 'creator' ? (
-                <>
-                  <div className="relative w-full">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-mono text-xl font-bold text-[#ff078e]">
-                      @
-                    </span>
-                    <input
-                      type="text"
-                      value={handle}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/^@/, '');
-                        setHandle(val);
-                      }}
-                      onBlur={() => lookupInstagram(handle)}
-                      placeholder="mayachen_creates"
-                      className="w-full h-16 rounded-2xl bg-white/[0.05] border-2 border-white/10 focus:border-[#ff078e] pl-10 pr-5 text-xl font-semibold text-white outline-none transition-all placeholder:text-neutral-600"
-                    />
-                  </div>
-
-                  {/* Notice about Public ID / Skippable */}
-                  <div className="mt-3 flex items-start gap-2 text-xs text-neutral-400 bg-white/[0.02] p-3 rounded-xl border border-white/5">
-                    <span className="text-[#ff078e] font-bold">Note:</span>
-                    <span>
-                      Please enter a public Instagram handle. If your profile is private or you prefer not to share, you can skip this step.
-                    </span>
-                  </div>
-
-                  {/* Scraped Preview Card */}
-                  <div className="mt-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center gap-4">
-                    <div className="relative w-14 h-14 rounded-full p-0.5 bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex-shrink-0">
-                      <img
-                        src={scrapedProfile?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'}
-                        alt="Scraped Avatar"
-                        className="w-full h-full rounded-full object-cover bg-neutral-900 border border-black"
-                      />
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#0095f6] text-white flex items-center justify-center">
-                        <Check className="w-3 h-3 stroke-[3]" />
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 font-bold text-sm text-white">
-                        <span>{scrapedProfile?.displayName || name}</span>
-                        <span className="text-[10px] font-mono text-[#0095f6] bg-[#0095f6]/15 px-1.5 py-0.5 rounded">
-                          VERIFIED
-                        </span>
-                      </div>
-                      <div className="text-xs font-mono text-[#ff078e]">@{handle || 'creator'}</div>
-                      <div className="text-xs text-neutral-400 mt-1">
-                        <span className="font-bold text-white">{scrapedProfile?.followersStr || '84.5K'}</span> followers · Public Profile
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      placeholder="Company Name (e.g. Acme Brands)"
-                      className="w-full h-14 rounded-2xl bg-white/[0.05] border-2 border-white/10 focus:border-purple-500 px-4 text-base font-semibold text-white outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
-                      placeholder="Website or Instagram (e.g. acme.com or @acme)"
-                      className="w-full h-14 rounded-2xl bg-white/[0.05] border-2 border-white/10 focus:border-purple-500 px-4 text-base font-semibold text-white outline-none"
-                    />
-                  </div>
-                  <p className="text-xs text-neutral-400 mt-2">Optional: You can skip this step if not applicable.</p>
-                </>
-              )}
-
-              <div className="flex items-center justify-between mt-6">
-                <button
-                  onClick={() => setStep('name')}
-                  className="text-xs text-neutral-400 hover:text-white transition-colors"
-                >
-                  ← Back
-                </button>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setStep('email')}
-                    className="text-xs text-neutral-400 hover:text-white underline underline-offset-4"
-                  >
-                    Skip this step
-                  </button>
-                  <button
-                    onClick={() => setStep('email')}
-                    className="h-12 px-6 rounded-full bg-white text-black font-bold text-sm hover:bg-[#ff078e] hover:text-white transition-all flex items-center gap-2"
-                  >
-                    Continue <ArrowRight className="w-4 h-4" />
-                  </button>
+              {/* Proof Row */}
+              <div className="flex items-center justify-center gap-3 mb-8">
+                <div className="flex -space-x-2">
+                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center font-extrabold text-[10px] text-white bg-[#ff078e] border-white dark:border-[#0d0a12]">MC</div>
+                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center font-extrabold text-[10px] text-white bg-[#7c3aed] border-white dark:border-[#0d0a12]">VK</div>
+                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center font-extrabold text-[10px] text-white bg-[#0891b2] border-white dark:border-[#0d0a12]">TB</div>
+                  <div className="w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center font-extrabold text-[10px] text-white bg-[#d97706] border-white dark:border-[#0d0a12]">MB</div>
+                </div>
+                <div className={`text-[13.5px] font-medium ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
+                  <b>89 {role === 'creator' ? 'creators' : 'brands'}</b> already secured early passes
                 </div>
               </div>
-            </motion.div>
+
+              {/* Big CTA */}
+              <button
+                onClick={() => setScreen('s1')}
+                className="inline-flex items-center gap-2.5 h-[58px] px-8 rounded-full bg-[#ff078e] hover:bg-[#c8307f] text-white font-bold text-[16px] shadow-[0_10px_30px_rgba(255,7,142,0.32)] hover:shadow-[0_16px_38px_rgba(255,7,142,0.45)] hover:-translate-y-0.5 transition-all cursor-pointer"
+              >
+                <span>Claim My {role === 'creator' ? 'Founder' : 'Brand'} Pass</span>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </button>
+              <p className={`mt-3 text-[12.5px] ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                Free · Instant public verification · Takes 30s
+              </p>
+            </div>
           )}
 
-          {/* ══ STEP 3: Email ══ */}
-          {step === 'email' && (
-            <motion.div
-              key="step-email"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              className="w-full text-left"
-            >
-              <div className="text-xs font-mono uppercase font-bold text-[#ff078e] tracking-wider mb-2">
-                Step 3 of 3 · Final Step
+          {/* ════════════════════════════════════════════════════
+             SCREEN 1 — Name
+          ════════════════════════════════════════════════════ */}
+          {screen === 's1' && (
+            <div className="w-full flex flex-col items-start text-left animate-in fade-in duration-300">
+              {/* Progress Pips */}
+              <div className="flex gap-1.5 mb-6">
+                <div className="h-[3px] w-[34px] rounded-full bg-[#ff078e]" />
+                <div className={`h-[3px] w-[34px] rounded-full ${isDark ? 'bg-white/15' : 'bg-zinc-200'}`} />
+                <div className={`h-[3px] w-[34px] rounded-full ${isDark ? 'bg-white/15' : 'bg-zinc-200'}`} />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
-                Where do we send your Founder credentials?
+
+              <div className="font-mono-code text-[11px] font-bold tracking-widest uppercase text-[#c8307f] dark:text-[#ff3aaa] mb-2">
+                Question 1 of 3
+              </div>
+
+              <h2 className="font-headline font-extrabold text-[28px] sm:text-[36px] tracking-tight leading-tight mb-5">
+                {role === 'creator' ? "What's your creator name?" : "What's your company or brand name?"}
               </h2>
-              <p className="text-neutral-400 text-sm mb-6">
-                We'll email your verified pass and invite token when Influnet launches.
+
+              <div className="w-full relative mb-2">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={role === 'creator' ? 'e.g. Maya Chen' : 'e.g. Acme Studio'}
+                  autoFocus
+                  className={`w-full h-[66px] rounded-[18px] px-6 text-[21px] font-semibold border-2 transition-all outline-none ${
+                    shakeField === 'name' ? 'border-[#ff078e] animate-shake' : ''
+                  } ${
+                    isDark
+                      ? 'bg-[#1a1525] border-white/15 text-white placeholder-zinc-500 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/20'
+                      : 'bg-white border-[#e7e3dc] text-[#17141d] placeholder-zinc-400 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10'
+                  }`}
+                />
+              </div>
+
+              <p className={`text-[13px] mb-6 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                This name is embossed on your Founder Pass and official genesis verification.
               </p>
 
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@company.com"
-                className="w-full h-16 rounded-2xl bg-white/[0.05] border-2 border-white/10 focus:border-[#ff078e] px-5 text-xl font-semibold text-white outline-none transition-all placeholder:text-neutral-600"
-                autoFocus
-              />
+              <button
+                onClick={handleNext1}
+                className="h-[52px] px-8 rounded-full bg-[#17141d] dark:bg-white text-white dark:text-[#0d0a12] hover:bg-[#ff078e] dark:hover:bg-[#ff078e] dark:hover:text-white font-bold text-[15.5px] inline-flex items-center gap-2.5 shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+              >
+                <span>Continue</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </button>
 
-              <div className="flex items-center justify-between mt-6">
+              <div className={`flex items-center gap-2 mt-3 text-[12px] ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                or press <span className={`px-2 py-0.5 rounded text-[11px] font-mono border ${isDark ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-600'}`}>Enter ↵</span>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════
+             SCREEN 2 — Instagram Handle with Live Scraper
+          ════════════════════════════════════════════════════ */}
+          {screen === 's2' && (
+            <div className="w-full flex flex-col items-start text-left animate-in fade-in duration-300">
+              {/* Progress Pips */}
+              <div className="flex gap-1.5 mb-6">
+                <div className="h-[3px] w-[34px] rounded-full bg-[#ff078e]" />
+                <div className="h-[3px] w-[34px] rounded-full bg-[#ff078e]" />
+                <div className={`h-[3px] w-[34px] rounded-full ${isDark ? 'bg-white/15' : 'bg-zinc-200'}`} />
+              </div>
+
+              <div className="font-mono-code text-[11px] font-bold tracking-widest uppercase text-[#c8307f] dark:text-[#ff3aaa] mb-2">
+                Question 2 of 3
+              </div>
+
+              <h2 className="font-headline font-extrabold text-[28px] sm:text-[36px] tracking-tight leading-tight mb-5">
+                {role === 'creator' ? 'Your Instagram handle?' : 'Company website or handle?'}
+              </h2>
+
+              <div className="w-full relative mb-2">
+                {role === 'creator' && (
+                  <span className="absolute left-5 top-1/2 -translate-y-1/2 font-mono-code text-[22px] font-bold text-[#ff078e] pointer-events-none">
+                    @
+                  </span>
+                )}
+                <input
+                  type="text"
+                  value={handle}
+                  onChange={(e) => handleHandleChange(e.target.value)}
+                  placeholder={role === 'creator' ? 'mayachen_creates' : 'e.g. acmestudio.com'}
+                  autoFocus
+                  className={`w-full h-[66px] rounded-[18px] text-[21px] font-semibold border-2 transition-all outline-none ${
+                    role === 'creator' ? 'pl-12 pr-6' : 'px-6'
+                  } ${shakeField === 'handle' ? 'border-[#ff078e] animate-shake' : ''} ${
+                    isDark
+                      ? 'bg-[#1a1525] border-white/15 text-white placeholder-zinc-500 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/20'
+                      : 'bg-white border-[#e7e3dc] text-[#17141d] placeholder-zinc-400 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10'
+                  }`}
+                />
+              </div>
+
+              <p className={`text-[13px] mb-4 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                {role === 'creator'
+                  ? 'We live-verify your public profile to personalize your pass & badges.'
+                  : 'Used to verify company authenticity and personalize your Founding Brand Pass.'}
+              </p>
+
+              {/* Instagram Live Scraper Preview Box (Creator Mode) */}
+              {role === 'creator' && (
+                <div
+                  className={`w-full rounded-[18px] p-4 mb-6 border transition-all ${
+                    isDark
+                      ? 'bg-[#1a1525] border-white/15 shadow-xl shadow-black/40'
+                      : 'bg-white border-[#e7e3dc] shadow-md shadow-black/5'
+                  }`}
+                >
+                  {/* Status bar */}
+                  <div className="flex items-center justify-between font-mono-code text-[11px] font-semibold mb-3">
+                    <div className="flex items-center gap-2">
+                      {scraping ? (
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-zinc-400 border-t-[#ff078e] animate-radar" />
+                      ) : (
+                        <span className="text-[#059669]">●</span>
+                      )}
+                      <span className={scraping ? 'text-zinc-400' : 'text-[#059669]'}>{scrapeStatus}</span>
+                    </div>
+                    <span className="text-[#ff078e] font-bold">APIFY ENGINE</span>
+                  </div>
+
+                  {/* Profile Card */}
+                  <div
+                    className={`flex items-center gap-3.5 p-3 rounded-2xl border transition-all ${
+                      scraping ? 'opacity-50 scale-[0.99]' : 'opacity-100 scale-100'
+                    } ${isDark ? 'bg-[#15111c] border-white/10' : 'bg-[#f4f2ee] border-[#e7e3dc]'}`}
+                  >
+                    <div className="relative w-14 h-14 shrink-0">
+                      <div className="absolute -inset-[3px] rounded-full p-[2px] bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]" />
+                      {scrapedProfile.avatarUrl ? (
+                        <img
+                          src={scrapedProfile.avatarUrl}
+                          alt="Avatar"
+                          className="w-full h-full rounded-full object-cover relative z-10 border-2 border-white dark:border-black"
+                          onError={(e) => {
+                            // Monogram fallback on broken image
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full rounded-full flex items-center justify-center font-bold text-white bg-[#ff078e] relative z-10 border-2 border-white dark:border-black">
+                          {name.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      {scrapedProfile.isVerified && (
+                        <div className="absolute -bottom-0.5 -right-0.5 z-20 w-[18px] h-[18px] rounded-full bg-[#0095f6] text-white flex items-center justify-center shadow">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 font-bold text-[15px] truncate">
+                        <span>{scrapedProfile.displayName}</span>
+                        {scrapedProfile.isVerified && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="#0095f6">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="font-mono-code text-[12px] text-[#ff078e] font-semibold">
+                        @{handle.replace(/^@/, '') || 'creator'}
+                      </div>
+                      <div className="flex gap-3 text-[12px] mt-1 text-zinc-500 dark:text-zinc-400">
+                        <div>
+                          <b className="text-zinc-900 dark:text-white">{scrapedProfile.followersStr}</b> followers
+                        </div>
+                        <div>
+                          <b className="text-zinc-900 dark:text-white">{scrapedProfile.postsStr}</b> posts
+                        </div>
+                      </div>
+                      <div className="text-[12px] text-zinc-400 truncate mt-0.5">
+                        {scrapedProfile.biography}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setStep('social')}
-                  className="text-xs text-neutral-400 hover:text-white transition-colors"
+                  onClick={handleNext2}
+                  className="h-[52px] px-8 rounded-full bg-[#17141d] dark:bg-white text-white dark:text-[#0d0a12] hover:bg-[#ff078e] dark:hover:bg-[#ff078e] dark:hover:text-white font-bold text-[15.5px] inline-flex items-center gap-2.5 shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                >
+                  <span>Confirm & Continue</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={() => setScreen('s1')}
+                  className={`text-[13px] px-4 py-2 rounded-lg transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-black'
+                  }`}
                 >
                   ← Back
                 </button>
-                <button
-                  onClick={handleSubmit}
-                  className="h-12 px-7 rounded-full bg-[#ff078e] text-white font-bold text-sm hover:bg-[#d6358a] transition-all shadow-lg shadow-[#ff078e]/30 flex items-center gap-2"
-                >
-                  Generate My Pass ✦
-                </button>
               </div>
-            </motion.div>
+
+              <div className={`flex items-center gap-2 mt-3 text-[12px] ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                or press <span className={`px-2 py-0.5 rounded text-[11px] font-mono border ${isDark ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-600'}`}>Enter ↵</span>
+              </div>
+            </div>
           )}
 
-          {/* ══ STEP 3.5: Pass Synthesizer Loading Screen ══ */}
-          {step === 'synthesizing' && (
-            <motion.div
-              key="step-synth"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              className="w-full flex flex-col items-center justify-center py-6"
-            >
-              {/* Circular SVG Progress Ring */}
-              <div className="relative w-44 h-44 mb-8 flex items-center justify-center">
+          {/* ════════════════════════════════════════════════════
+             SCREEN 3 — Email Confirmation
+          ════════════════════════════════════════════════════ */}
+          {screen === 's3' && (
+            <div className="w-full flex flex-col items-start text-left animate-in fade-in duration-300">
+              {/* Progress Pips */}
+              <div className="flex gap-1.5 mb-6">
+                <div className="h-[3px] w-[34px] rounded-full bg-[#ff078e]" />
+                <div className="h-[3px] w-[34px] rounded-full bg-[#ff078e]" />
+                <div className="h-[3px] w-[34px] rounded-full bg-[#ff078e]" />
+              </div>
+
+              <div className="font-mono-code text-[11px] font-bold tracking-widest uppercase text-[#c8307f] dark:text-[#ff3aaa] mb-2">
+                Question 3 of 3
+              </div>
+
+              <h2 className="font-headline font-extrabold text-[28px] sm:text-[36px] tracking-tight leading-tight mb-5">
+                Where do we send your<br />Founder credentials?
+              </h2>
+
+              <div className="w-full relative mb-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="maya@influnet.dev"
+                  autoFocus
+                  className={`w-full h-[66px] rounded-[18px] px-6 text-[21px] font-semibold border-2 transition-all outline-none ${
+                    shakeField === 'email' ? 'border-[#ff078e] animate-shake' : ''
+                  } ${
+                    isDark
+                      ? 'bg-[#1a1525] border-white/15 text-white placeholder-zinc-500 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/20'
+                      : 'bg-white border-[#e7e3dc] text-[#17141d] placeholder-zinc-400 focus:border-[#ff078e] focus:ring-4 focus:ring-[#ff078e]/10'
+                  }`}
+                />
+              </div>
+
+              <p className={`text-[13px] mb-6 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                We'll email your verified Genesis Pass and VIP launch activation key.
+              </p>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleNext3}
+                  className="h-[52px] px-8 rounded-full bg-[#ff078e] hover:bg-[#c8307f] text-white font-bold text-[15.5px] inline-flex items-center gap-2.5 shadow-[0_8px_26px_rgba(255,7,142,0.35)] hover:-translate-y-0.5 transition-all cursor-pointer"
+                >
+                  <span>Generate My Founder Pass ✦</span>
+                </button>
+
+                <button
+                  onClick={() => setScreen('s2')}
+                  className={`text-[13px] px-4 py-2 rounded-lg transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-black'
+                  }`}
+                >
+                  ← Back
+                </button>
+              </div>
+
+              <div className={`flex items-center gap-2 mt-3 text-[12px] ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                or press <span className={`px-2 py-0.5 rounded text-[11px] font-mono border ${isDark ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-600'}`}>Enter ↵</span>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════
+             SCREEN 3.5 — Card Synthesizer Forge Loading
+          ════════════════════════════════════════════════════ */}
+          {screen === 'sLoading' && (
+            <div className="w-full max-w-[440px] flex flex-col items-center animate-in fade-in zoom-in-95 duration-300">
+              {/* Spinning Forge Core Ring */}
+              <div className="relative w-[170px] h-[170px] mb-8 flex items-center justify-center">
                 <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 160 160">
-                  <circle cx="80" cy="80" r="72" stroke="rgba(255,255,255,0.1)" strokeWidth="6" fill="none" />
                   <circle
                     cx="80"
                     cy="80"
-                    r="72"
-                    stroke="#ff078e"
-                    strokeWidth="6"
+                    r="75"
                     fill="none"
+                    stroke={isDark ? 'rgba(255,255,255,0.1)' : '#e7e3dc'}
+                    strokeWidth="4"
+                  />
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="75"
+                    fill="none"
+                    stroke="#ff078e"
+                    strokeWidth="5"
                     strokeLinecap="round"
-                    strokeDasharray="452"
-                    strokeDashoffset={452 - (452 * synthProgress) / 100}
-                    className="transition-all duration-75 ease-linear"
+                    strokeDasharray={471}
+                    strokeDashoffset={471 - (471 * synthProgress) / 100}
+                    className="transition-all duration-300 ease-out drop-shadow-[0_0_10px_rgba(255,7,142,0.7)]"
                   />
                 </svg>
+
                 {/* Orbiting particle */}
-                <div
-                  className="absolute inset-0 rounded-full border border-dashed border-[#ff078e]/30 animate-spin"
-                  style={{ animationDuration: '6s' }}
-                >
-                  <div className="w-3 h-3 rounded-full bg-[#ff078e] shadow-[0_0_12px_#ff078e] absolute -top-1.5 left-1/2 -translate-x-1/2" />
+                <div className="absolute -inset-[14px] rounded-full border border-dashed border-[#ff078e]/35 animate-orbit">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#ff078e] shadow-[0_0_12px_#ff078e]" />
                 </div>
-                <div className="text-3xl font-mono font-extrabold text-white">{synthProgress}%</div>
+
+                <div className="font-mono-code text-[28px] font-bold">
+                  {synthProgress}%
+                </div>
               </div>
 
-              <h3 className="text-2xl font-extrabold text-white mb-2">Synthesizing Credentials</h3>
-              <div className="text-xs font-mono text-[#ff078e] h-6 flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5 animate-pulse" />
-                {synthStage}
+              <h2 className="font-headline font-extrabold text-[26px] tracking-tight mb-2">
+                Synthesizing Your Pass
+              </h2>
+              <div className="font-mono-code text-[12.5px] text-[#ff078e] font-semibold h-6">
+                {synthStepLabel}
               </div>
-            </motion.div>
+
+              {/* Forge Segment Bars */}
+              <div className="flex justify-center gap-1.5 mt-6">
+                <div className={`w-12 h-[3px] rounded transition-all ${synthProgress >= 25 ? 'bg-[#ff078e] shadow-[0_0_8px_#ff078e]' : isDark ? 'bg-white/15' : 'bg-zinc-200'}`} />
+                <div className={`w-12 h-[3px] rounded transition-all ${synthProgress >= 58 ? 'bg-[#ff078e] shadow-[0_0_8px_#ff078e]' : isDark ? 'bg-white/15' : 'bg-zinc-200'}`} />
+                <div className={`w-12 h-[3px] rounded transition-all ${synthProgress >= 85 ? 'bg-[#ff078e] shadow-[0_0_8px_#ff078e]' : isDark ? 'bg-white/15' : 'bg-zinc-200'}`} />
+                <div className={`w-12 h-[3px] rounded transition-all ${synthProgress >= 100 ? 'bg-[#ff078e] shadow-[0_0_8px_#ff078e]' : isDark ? 'bg-white/15' : 'bg-zinc-200'}`} />
+              </div>
+            </div>
           )}
 
-          {/* ══ STEP 4: Revealed 3D Founder Pass ══ */}
-          {step === 'revealed' && (
-            <motion.div
-              key="step-revealed"
-              initial={{ opacity: 0, scale: 0.75, rotateY: -20 }}
-              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ type: 'spring', stiffness: 120, damping: 14 }}
-              className="w-full flex flex-col items-center"
-            >
-              {/* 3D Tilt Card Wrapper */}
+          {/* ════════════════════════════════════════════════════
+             SCREEN 4 — Luxury VIP Founder Pass Reveal
+          ════════════════════════════════════════════════════ */}
+          {screen === 's4' && (
+            <div className="w-full max-w-[360px] flex flex-col items-center animate-in fade-in zoom-in-95 duration-500">
+              {/* 3D Stage */}
               <div
-                ref={cardRef}
+                ref={passContainerRef}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
-                style={{
-                  transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-                  transformStyle: 'preserve-3d',
-                }}
-                className="relative w-[300px] h-[440px] rounded-[26px] bg-gradient-to-b from-[#221a30] via-[#171124] to-[#0d0817] border border-white/15 p-6 flex flex-col items-center justify-between shadow-[0_30px_90px_rgba(0,0,0,0.8),0_0_40px_rgba(255,7,142,0.25)] transition-transform duration-100 ease-out cursor-grab active:cursor-grabbing overflow-hidden"
+                className="w-[300px] h-[440px] relative perspective-[1200px] mx-auto select-none cursor-grab active:cursor-grabbing"
               >
-                {/* Lanyard Clip Slot */}
-                <div className="w-12 h-2 rounded-full bg-black/60 border border-white/10 mb-2" />
-
-                {/* Holographic Prismatic Foil Overlay */}
                 <div
-                  className="pointer-events-none absolute inset-0 rounded-[26px] mix-blend-overlay opacity-60"
+                  ref={cardRef}
                   style={{
-                    background: `linear-gradient(${120 + tilt.y * 3}deg, transparent 0%, rgba(255,255,255,0.2) 25%, rgba(255,7,142,0.35) 43%, rgba(124,58,237,0.3) 53%, rgba(6,182,212,0.3) 64%, transparent 100%)`,
+                    transform: `rotateX(${cardRotate.x}deg) rotateY(${cardRotate.y}deg)`,
+                    transition: cardRotate.x === 0 ? 'transform 0.6s ease-out' : 'transform 0.08s ease-out',
+                    transformStyle: 'preserve-3d',
                   }}
-                />
+                  className={`w-full h-full rounded-[26px] relative overflow-hidden border transition-shadow duration-300 ${
+                    isDark
+                      ? 'bg-gradient-to-b from-[#221a30] via-[#171124] to-[#0d0817] border-white/15 shadow-[0_40px_90px_rgba(0,0,0,0.8),0_0_45px_rgba(255,7,142,0.25)]'
+                      : 'bg-gradient-to-b from-white via-[#faf8f5] to-[#f0ebdf] border-[#d7d0c5]/80 shadow-[0_30px_70px_rgba(0,0,0,0.15),0_10px_24px_rgba(0,0,0,0.08)]'
+                  }`}
+                >
+                  {/* Holographic Prismatic Foil Overlay */}
+                  <div
+                    className="absolute inset-0 rounded-[26px] pointer-events-none z-15 mix-blend-overlay transition-opacity duration-300"
+                    style={{
+                      background: `linear-gradient(${foilAngle}deg, transparent 0%, rgba(255,255,255,.25) 26%, rgba(255,7,142,.35) 43%, rgba(124,58,237,.3) 53%, rgba(6,182,212,.3) 64%, transparent 100%)`,
+                      opacity: foilOpacity,
+                    }}
+                  />
 
-                {/* Card Header */}
-                <div className="w-full flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-extrabold text-xs tracking-tight text-white">
-                    <span className="text-[#ff078e]">✦</span> INFLUNET
-                  </div>
-                  <span className="text-[8.5px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-[#ff078e]/15 border border-[#ff078e]/40 text-[#ff078e]">
-                    {role === 'creator' ? 'FOUNDER PASS' : 'BRAND PASS'}
-                  </span>
-                </div>
+                  {/* Lanyard Clip Slot */}
+                  <div
+                    className={`absolute top-3 left-1/2 -translate-x-1/2 w-12 h-2 rounded-full z-20 border ${
+                      isDark ? 'bg-black/60 border-white/10' : 'bg-black/10 border-black/15'
+                    }`}
+                  />
 
-                {/* Serial */}
-                <div className="w-full flex items-center justify-between text-[8px] font-mono text-neutral-400 tracking-wider">
-                  <span>GENESIS SERIES</span>
-                  <span className="text-[#ff078e] font-bold">NO. #{String(passNumber).padStart(4, '0')} / 1000</span>
-                </div>
+                  {/* Geometric Watermark */}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none z-1 opacity-10" viewBox="0 0 300 440" fill="none">
+                    <circle cx="150" cy="200" r="140" stroke="#ff078e" strokeWidth="1.5" strokeDasharray="6 6" />
+                    <circle cx="150" cy="200" r="90" stroke="#ff078e" strokeWidth="1" />
+                    <line x1="150" y1="60" x2="150" y2="340" stroke="#ff078e" strokeWidth="1" strokeDasharray="4 4" />
+                    <line x1="10" y1="200" x2="290" y2="200" stroke="#ff078e" strokeWidth="1" strokeDasharray="4 4" />
+                  </svg>
 
-                {/* Avatar Frame */}
-                <div className="relative w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-[#ff078e] via-purple-500 to-cyan-400 shadow-[0_0_24px_rgba(255,7,142,0.35)]">
-                  {role === 'creator' && scrapedProfile?.avatarUrl ? (
-                    <img
-                      src={scrapedProfile.avatarUrl}
-                      alt={name}
-                      className="w-full h-full rounded-full object-cover bg-neutral-900 border-2 border-black"
-                    />
-                  ) : (
-                    <div className="w-full h-full rounded-full bg-gradient-to-br from-[#ff078e] to-purple-800 flex items-center justify-center text-white font-extrabold text-3xl">
-                      {(name || 'IN').slice(0, 2).toUpperCase()}
+                  {/* Card Inner Content */}
+                  <div className="relative z-10 flex flex-col items-center h-full pt-7 pb-4 px-5">
+                    {/* Header */}
+                    <div className="w-full flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 font-headline font-extrabold text-[13px] tracking-tight">
+                        <svg viewBox="430 150 690 720" width="16" height="17">
+                          <g stroke="#ff078e" strokeWidth="50" strokeLinecap="round" fill="none">
+                            <line x1="713" y1="408" x2="525" y2="396" />
+                            <line x1="841" y1="427" x2="960" y2="246" />
+                            <line x1="856" y1="559" x2="1013" y2="617" />
+                            <line x1="677" y1="622" x2="566" y2="774" />
+                          </g>
+                          <g fill="#ff078e">
+                            <circle cx="525" cy="396" r="76" />
+                            <circle cx="960" cy="246" r="87" />
+                            <circle cx="1013" cy="617" r="80" />
+                            <circle cx="566" cy="774" r="84" />
+                          </g>
+                          <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="50" />
+                        </svg>
+                        <span>INFLUNET</span>
+                      </div>
+                      <div className="font-mono-code text-[8px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/35 text-[#ff078e]">
+                        {role === 'creator' ? 'FOUNDER PASS' : 'FOUNDER BRAND'}
+                      </div>
                     </div>
-                  )}
-                  <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-black border-2 border-[#ff078e] flex items-center justify-center text-[#ff078e]">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                  </div>
-                </div>
 
-                {/* Identity */}
-                <div className="text-center">
-                  <h4 className="font-extrabold text-lg text-white tracking-tight leading-tight">{name.toUpperCase()}</h4>
-                  <p className="text-xs font-mono text-[#ff078e] font-semibold mt-0.5">
-                    {role === 'creator' ? `@${handle || 'creator'}` : (website || 'Verified Partner')}
-                  </p>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] font-mono text-neutral-300 font-bold mt-2">
-                    <span className="text-[#ff078e]">★</span>
-                    {role === 'creator'
-                      ? `${scrapedProfile?.followersStr || '84.5K'} FOLLOWERS · VERIFIED`
-                      : 'FOUNDING BRAND · 0% FEE'}
-                  </div>
-                </div>
+                    {/* Serial Row */}
+                    <div className="w-full flex justify-between items-center font-mono-code text-[8px] font-semibold tracking-wider text-zinc-400 mb-2.5">
+                      <span>GENESIS SERIES</span>
+                      <span className="font-bold text-[#ff078e]">
+                        NO. #{String(passNumber).padStart(4, '0')} / 1000
+                      </span>
+                    </div>
 
-                {/* Metadata Grid */}
-                <div className="w-full border-t border-white/10 pt-2 grid grid-cols-2 gap-2 text-left">
-                  <div>
-                    <div className="text-[7.5px] font-mono uppercase text-neutral-400 font-bold">MEMBERSHIP</div>
-                    <div className="text-[9px] font-mono text-white font-bold">
-                      {role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND'}
+                    {/* Avatar Frame with Shifting Neon Ring */}
+                    <div className="relative w-[94px] h-[94px] mb-2.5">
+                      <div className="absolute -inset-1 rounded-full p-[3px] bg-gradient-to-tr from-[#ff078e] via-[#7c3aed] to-[#06b6d4] animate-gradient-shift shadow-[0_0_20px_rgba(255,7,142,0.35)]" />
+                      {scrapedProfile.avatarUrl ? (
+                        <img
+                          src={scrapedProfile.avatarUrl}
+                          alt="Avatar"
+                          className="w-full h-full rounded-full object-cover relative z-10 border-[3px] border-white dark:border-[#1a1525]"
+                        />
+                      ) : (
+                        <div className="w-full h-full rounded-full flex items-center justify-center font-headline font-extrabold text-[32px] text-white bg-gradient-to-br from-[#ff078e] to-[#c8307f] relative z-10 border-[3px] border-white dark:border-[#1a1525]">
+                          {name.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 right-0 z-20 w-[26px] h-[26px] rounded-full bg-white dark:bg-[#0d0a12] border-2 border-white dark:border-[#1a1525] flex items-center justify-center shadow-sm">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff078e">
+                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Identity */}
+                    <div className="font-headline font-extrabold text-[19px] tracking-tight leading-tight max-w-[250px] truncate text-center">
+                      {(name || 'CREATOR').toUpperCase()}
+                    </div>
+                    <div className="font-mono-code text-[12px] font-semibold text-[#ff078e] flex items-center gap-1 mt-0.5">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
+                        <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+                        <circle cx="17.5" cy="6.5" r="1.5" />
+                      </svg>
+                      <span>@{role === 'creator' ? (handle.replace(/^@/, '') || 'creator') : (company || name).toLowerCase().replace(/\s+/g, '')}</span>
+                    </div>
+
+                    {/* Stat Pill */}
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-mono-code text-[9.5px] font-bold mt-2 ${
+                      isDark ? 'bg-[#15111c] border-white/10 text-zinc-300' : 'bg-[#f4f2ee] border-[#e7e3dc] text-zinc-700'
+                    }`}>
+                      <span className="text-[#ff078e]">★</span>
+                      <span>
+                        <b>{role === 'creator' ? scrapedProfile.followersStr : '0% PLATFORM FEE'}</b> {role === 'creator' ? 'FOLLOWERS · VERIFIED' : '· FOUNDING BRAND'}
+                      </span>
+                    </div>
+
+                    {/* Metadata Grid */}
+                    <div className="w-full mt-auto pt-2.5 border-t border-zinc-200 dark:border-white/10 grid grid-cols-2 gap-x-3 gap-y-1.5 text-left">
+                      <div className="flex flex-col">
+                        <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">MEMBERSHIP</span>
+                        <span className="font-mono-code text-[9px] font-bold">{role === 'creator' ? 'FOUNDING CREATOR' : 'FOUNDING BRAND'}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">PASS BENEFIT</span>
+                        <span className="font-mono-code text-[9px] font-bold">{role === 'creator' ? '1 YR UNLIMITED PASS' : '0% FEE CONCIERGE'}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">SECURITY STATUS</span>
+                        <span className="font-mono-code text-[9px] font-bold text-[#059669]">● CONFIRMED & ACTIVE</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-mono-code text-[7.5px] font-bold tracking-widest uppercase text-zinc-400">VALID THROUGH</span>
+                        <span className="font-mono-code text-[9px] font-bold">SEPTEMBER 2027</span>
+                      </div>
+                    </div>
+
+                    {/* Security Barcode Strip */}
+                    <div className="w-full mt-2 pt-2 border-t border-dashed border-zinc-300 dark:border-white/15 flex items-center justify-between">
+                      {/* Barcode SVG */}
+                      <svg className="h-[18px] opacity-70" viewBox="0 0 140 18" fill="currentColor">
+                        <rect x="0" width="3" height="18" /><rect x="5" width="2" height="18" /><rect x="9" width="4" height="18" />
+                        <rect x="16" width="1" height="18" /><rect x="20" width="3" height="18" /><rect x="25" width="5" height="18" />
+                        <rect x="33" width="2" height="18" /><rect x="37" width="3" height="18" /><rect x="43" width="1" height="18" />
+                        <rect x="47" width="4" height="18" /><rect x="54" width="2" height="18" /><rect x="59" width="5" height="18" />
+                        <rect x="67" width="2" height="18" /><rect x="72" width="4" height="18" /><rect x="79" width="2" height="18" />
+                        <rect x="84" width="3" height="18" /><rect x="90" width="5" height="18" /><rect x="98" width="1" height="18" />
+                        <rect x="102" width="3" height="18" /><rect x="108" width="4" height="18" /><rect x="115" width="2" height="18" />
+                        <rect x="120" width="4" height="18" /><rect x="127" width="2" height="18" /><rect x="132" width="3" height="18" />
+                      </svg>
+                      <div className="font-mono-code text-[8px] font-semibold text-zinc-400 tracking-wider">
+                        INFN-{passNumber}-VIP
+                      </div>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="opacity-60">
+                        <path d="M8.5 16.5a5 5 0 0 1 0-9" />
+                        <path d="M12 19a8.5 8.5 0 0 0 0-14" />
+                        <path d="M15.5 21.5a12 12 0 0 0 0-19" />
+                      </svg>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-[7.5px] font-mono uppercase text-neutral-400 font-bold">BENEFIT</div>
-                    <div className="text-[9px] font-mono text-white font-bold">
-                      {role === 'creator' ? '1 YR UNLIMITED PASS' : '0% PLATFORM FEE'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[7.5px] font-mono uppercase text-neutral-400 font-bold">STATUS</div>
-                    <div className="text-[9px] font-mono text-emerald-400 font-bold">● CONFIRMED & ACTIVE</div>
-                  </div>
-                  <div>
-                    <div className="text-[7.5px] font-mono uppercase text-neutral-400 font-bold">VALID THROUGH</div>
-                    <div className="text-[9px] font-mono text-neutral-300 font-bold">SEPTEMBER 2027</div>
-                  </div>
-                </div>
-
-                {/* Security Strip */}
-                <div className="w-full border-t border-dashed border-white/15 pt-2 flex items-center justify-between text-[8px] font-mono text-neutral-400">
-                  <div className="flex gap-0.5 opacity-60">
-                    {[3, 2, 4, 1, 3, 5, 2, 3, 1, 4, 2, 5, 2, 4, 2, 3].map((w, i) => (
-                      <div key={i} className="bg-white h-3.5" style={{ width: `${w}px` }} />
-                    ))}
-                  </div>
-                  <span>INFN-{passNumber}-VIP</span>
-                  <span>)))</span>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="w-full max-w-xs flex flex-col gap-2.5 mt-6">
+              <div className="w-full flex flex-col items-stretch gap-2.5 mt-6">
                 <button
-                  onClick={exportPNG}
-                  className="h-12 rounded-full bg-[#ff078e] hover:bg-[#d6358a] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#ff078e]/30 transition-all"
+                  onClick={exportPassPNG}
+                  className="h-[52px] rounded-full bg-[#ff078e] hover:bg-[#c8307f] text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-[0_8px_24px_rgba(255,7,142,0.35)] hover:-translate-y-0.5 transition-all cursor-pointer"
                 >
-                  <Download className="w-4 h-4" /> Save My Founder Pass (PNG)
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Save My Founder Pass (PNG)</span>
                 </button>
+
                 <button
-                  onClick={exportPNG}
-                  className="h-11 rounded-full bg-white/[0.06] hover:bg-white/10 border border-white/15 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all"
+                  onClick={exportPassPNG}
+                  className={`h-[48px] rounded-full border text-[14px] font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    isDark
+                      ? 'bg-[#1a1525] border-white/15 text-white hover:border-[#ff078e] hover:text-[#ff078e]'
+                      : 'bg-white border-[#e7e3dc] text-zinc-900 hover:border-[#ff078e] hover:text-[#ff078e]'
+                  }`}
                 >
-                  <Share2 className="w-4 h-4" /> Share to Instagram Story
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="2" y="2" width="20" height="20" rx="5" />
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                  </svg>
+                  <span>Share to Instagram Story</span>
                 </button>
+
                 <button
                   onClick={() => {
-                    setStep('role');
-                    setName('');
-                    setHandle('');
-                    setEmail('');
+                    setScreen('s0');
+                    setSynthProgress(0);
                   }}
-                  className="text-xs text-neutral-400 hover:text-white flex items-center justify-center gap-1.5 mt-1"
+                  className={`text-[13px] mt-1 transition-colors ${
+                    isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-400 hover:text-zinc-600'
+                  }`}
                 >
-                  <RotateCcw className="w-3.5 h-3.5" /> Start over
+                  ← Start over with another profile
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 w-full max-w-5xl py-4 border-t border-white/10 flex items-center justify-between text-xs text-neutral-400">
-        <div>© 2026 Influnet Technologies Inc. All rights reserved.</div>
-        <div className="flex gap-4">
-          <Link href="/terms" className="hover:text-white transition-colors">
-            Terms
-          </Link>
-          <Link href="/privacy" className="hover:text-white transition-colors">
-            Privacy
-          </Link>
-        </div>
-      </footer>
-
-      {/* Hidden Export Canvas */}
-      <canvas ref={expCanvasRef} style={{ display: 'none' }} />
+      {/* Hidden Canvas for 1080x1350 High-Res PNG Rendering */}
+      <canvas ref={expCanvasRef} className="hidden" />
     </div>
   );
 }

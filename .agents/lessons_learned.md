@@ -2,6 +2,46 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Early Access Luxury Light Mode Redesign & Backend Scraper Fixes
+
+**Branch**: `dev`
+
+### Scope
+- **Web App Early Access UI Overhaul (`apps/web/src/app/early-access/page.tsx`)**:
+  - Rebuilt the entire Early Access flow to match the high-fidelity luxury light-mode prototype (`apps/landing/public/event-card-prototype.html`).
+  - Implemented exact design tokens: light mode default (`#fbfaf8`, `#ffffff`, `#e7e3dc`), 44px dotted grid texture, radial ambient brand glows, and seamless dark mode toggle.
+  - Added official Influnet Spoke Mark logo in the header and on the 3D Founder Pass.
+  - Implemented the full multi-screen experience:
+    - **Screen 0 (Intro)**: Animated spoke cluster SVG with pulsing nodes, pulse-dot eyebrow, proof avatar stack ("89 creators already secured early passes"), and quick Creator/Brand selector.
+    - **Screen 1 (Name)**: Big input with embossed pass hint, enter-key listener, and shake animation on empty input.
+    - **Screen 2 (Instagram with Live Scraper)**: Real-time Apify engine lookup with animated radar spinner, status bar, and Instagram profile card (avatar ring, verified check, followers count, posts count, bio).
+    - **Screen 3 (Email)**: Email collector for credentials and activation keys.
+    - **Screen 3.5 (Pass Synthesizer Forge)**: SVG circular progress ring (0% to 100%), dynamic step labels ("❖ Querying verified Apify credentials...", "❖ Validating @handle with X followers...", etc.), and glowing segment bars.
+    - **Screen 4 (Luxury VIP Founder Pass Reveal)**: Screen bloom flash transition, confetti burst (`canvas-confetti`), interactive 3D Founder Pass with cursor tilt tracking, prismatic holographic foil, lanyard clip slot, serial number (`GENESIS SERIES NO. #... / 1000`), embossed identity, stat pill, VIP metadata grid, and security barcode.
+    - **Export**: Built-in 1080×1350 high-res canvas PNG exporter with 1-click download.
+- **Backend Scraping Resilience & CORS Fixes (`apps/web/src/app/api/auth/social-preview/route.ts`)**:
+  - Added permissive CORS headers (`Access-Control-Allow-Origin: *`) and `OPTIONS` preflight handler so all client origins can access social-preview without CORS blocks.
+  - Added fast in-memory LRU cache with 1-hour TTL to prevent redundant scraper calls.
+  - Added instant pre-cached registry for popular creator handles (`mayachen_creates`, `virat.kohli`, `techburner`, `mrbeast`, `instagram`) to provide instant sub-50ms feedback.
+  - Added 15-second AbortController timeout to prevent hanging when Apify actor cold starts take 20+ seconds, returning clean structured fallbacks instead of crashing.
+
+### Broken & Resolved
+- **Dark Mode Discordance with Landing Page Prototype**:
+  - *Cause*: Previous implementation was built in dark mode with a different layout from the prototype HTML file.
+  - *Fix*: Transferred the exact Paper & Ink tokens, typography (`Bricolage Grotesque`, `Spline Sans Mono`, `Instrument Sans`), SVGs, and 3D card layout from `event-card-prototype.html` into `apps/web/src/app/early-access/page.tsx`.
+- **Apify Scraper High Latency & CORS Failures**:
+  - *Cause*: Live Apify actor sync calls take 15–25 seconds; typing in the input triggered un-debounced requests that rapidly hit the 5/min rate limit and blocked visitors; requests from different origins lacked CORS headers.
+  - *Fix*: Added in-memory cache, instant pre-cached demo profiles, 15s timeout protection, debounced input, and full CORS headers.
+
+### Key Lessons
+- For interactive public preview tools, never rely exclusively on synchronous third-party scraping actors without a fast cache and fallback data; cold starts on actors can take 20s+, which users perceive as broken.
+- Brand assets (like the official 4-node spoke mark logo) should be shared consistently across landing pages, auth screens, and shareable passes.
+
+### Next Target
+- Test early-access page locally and on dev deployment.
+
+---
+
 ### Session — 2026-09-21: Full Early Access & Founder Pass Integration & Unauthenticated Routing Fix
 
 **Branch**: `dev`
