@@ -207,7 +207,18 @@ export const MODULES: Record<string, InsightModule> = {
     }),
     csv: (d) => d?.rows ?? [],
   },
+  early_access: {
+    rpc: 'admin_early_access_report',
+    tier: 'admin',
+    args: (q) => ({
+      p_search: strParam(q, 'search'),
+      p_kind: strParam(q, 'kind', 20),
+      ...page(q),
+    }),
+    csv: (d) => d?.rows ?? [],
+  },
 };
+
 
 /** RFC4180-ish CSV. Values are quoted and internal quotes doubled. */
 export function toCsv(rows: Record<string, unknown>[], omit: string[] = []): string {
