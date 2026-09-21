@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import confetti from 'canvas-confetti';
 
 interface ScrapedProfile {
@@ -64,7 +65,20 @@ export default function EarlyAccessPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const passContainerRef = useRef<HTMLDivElement>(null);
   const expCanvasRef = useRef<HTMLCanvasElement>(null);
+  const logoImgRef = useRef<HTMLImageElement | null>(null);
   const requestIdRef = useRef(0);
+
+  // Preload actual Influnet logo for instant, synchronous Canvas & 3D card rendering
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.src = '/influet_logo.png';
+      img.onload = () => {
+        logoImgRef.current = img;
+      };
+    }
+  }, []);
   const cacheRef = useRef<
     Map<
       string,
@@ -583,72 +597,24 @@ export default function EarlyAccessPage() {
     ctx.closePath();
   };
 
-  // Canonical Vector Influnet Spoke Mark for Canvas
-  const drawSpokeLogo = (
+  // Draw Actual Influnet Logo from Image Artwork on Canvas
+  const drawActualLogo = (
     ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement | null,
     cx: number,
     cy: number,
     size: number,
-    rot: number,
-    color: string,
-    alpha: number
+    rot = 0,
+    alpha = 1
   ) => {
+    if (!img || !img.complete || img.naturalWidth === 0) return;
     ctx.save();
     ctx.globalAlpha = alpha;
-    const s = size / 700;
-
-    const tPoint = (px: number, py: number) => {
-      const dx = (px - 752) * s;
-      const dy = (py - 520) * s;
-      const rx = dx * Math.cos(rot) - dy * Math.sin(rot) + cx;
-      const ry = dx * Math.sin(rot) + dy * Math.cos(rot) + cy;
-      return { x: rx, y: ry };
-    };
-
-    // Spokes
-    ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(2, 46 * s);
-    ctx.lineCap = 'round';
-
-    const spokePairs = [
-      { p1: [713, 408], p2: [525, 396] },
-      { p1: [841, 427], p2: [960, 246] },
-      { p1: [856, 559], p2: [1013, 617] },
-      { p1: [677, 622], p2: [566, 774] },
-    ];
-
-    for (const pair of spokePairs) {
-      const pt1 = tPoint(pair.p1[0], pair.p1[1]);
-      const pt2 = tPoint(pair.p2[0], pair.p2[1]);
-      ctx.beginPath();
-      ctx.moveTo(pt1.x, pt1.y);
-      ctx.lineTo(pt2.x, pt2.y);
-      ctx.stroke();
+    ctx.translate(cx, cy);
+    if (rot !== 0) {
+      ctx.rotate(rot);
     }
-
-    // Center Ring
-    ctx.beginPath();
-    ctx.arc(cx, cy, Math.max(3, 96 * s), 0, Math.PI * 2);
-    ctx.lineWidth = Math.max(2, 46 * s);
-    ctx.strokeStyle = color;
-    ctx.stroke();
-
-    // Outer Nodes
-    ctx.fillStyle = color;
-    const nodes = [
-      { x: 525, y: 396, r: 76 },
-      { x: 960, y: 246, r: 87 },
-      { x: 1013, y: 617, r: 80 },
-      { x: 566, y: 774, r: 84 },
-    ];
-
-    for (const node of nodes) {
-      const pt = tPoint(node.x, node.y);
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, Math.max(2, node.r * s), 0, Math.PI * 2);
-      ctx.fill();
-    }
-
+    ctx.drawImage(img, -size / 2, -size / 2, size, size);
     ctx.restore();
   };
 
@@ -659,7 +625,8 @@ export default function EarlyAccessPage() {
     cY: number,
     cW: number,
     cH: number,
-    isDark: boolean
+    isDark: boolean,
+    logoImg: HTMLImageElement | null
   ) => {
     const k = cW / 800; // scaling factor relative to 800px base card
     const textCol = isDark ? '#f0ecf8' : '#17141d';
@@ -691,20 +658,20 @@ export default function EarlyAccessPage() {
     ctx.stroke();
     ctx.restore();
 
-    // Subtle internal rotating watermark logo
-    drawSpokeLogo(ctx, cX + cW / 2, cY + cH * 0.44, 460 * k, 0.35, '#ff078e', isDark ? 0.08 : 0.05);
+    // Subtle internal rotating actual logo watermark
+    drawActualLogo(ctx, logoImg, cX + cW / 2, cY + cH * 0.44, 440 * k, 0.35, isDark ? 0.08 : 0.06);
 
     // Lanyard Slot
     ctx.fillStyle = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.1)';
     drawRoundedRect(ctx, cX + cW / 2 - 45 * k, cY + 22 * k, 90 * k, 14 * k, 7 * k);
     ctx.fill();
 
-    // Header: Logo Mark + INFLUNET
-    drawSpokeLogo(ctx, cX + 62 * k, cY + 84 * k, 34 * k, 0, '#ff078e', 1);
+    // Header: Actual Logo Mark + INFLUNET
+    drawActualLogo(ctx, logoImg, cX + 68 * k, cY + 88 * k, 36 * k, 0, 1);
     ctx.fillStyle = textCol;
     ctx.font = `800 ${Math.round(26 * k)}px sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('INFLUNET', cX + 88 * k, cY + 92 * k);
+    ctx.fillText('INFLUNET', cX + 94 * k, cY + 95 * k);
 
     // Header: FOUNDER PASS Pill
     ctx.fillStyle = '#ff078e';
@@ -840,13 +807,30 @@ export default function EarlyAccessPage() {
     ctx.fillText('VALID THRU 2027', cX + cW - 60 * k, by + 12 * k);
   };
 
+  const getOrLoadLogo = async (): Promise<HTMLImageElement | null> => {
+    if (logoImgRef.current && logoImgRef.current.complete && logoImgRef.current.naturalWidth > 0) {
+      return logoImgRef.current;
+    }
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        logoImgRef.current = img;
+        resolve(img);
+      };
+      img.onerror = () => resolve(null);
+      img.src = '/influet_logo.png';
+    });
+  };
+
   // Multi-Ratio Social Exporter: Instagram Story (9:16), LinkedIn (16:9), Square (1:1)
-  const exportPassPNG = (targetFormat?: 'story' | 'linkedin' | 'square') => {
+  const exportPassPNG = async (targetFormat?: 'story' | 'linkedin' | 'square') => {
     const c = expCanvasRef.current;
     if (!c) return;
     const ctx = c.getContext('2d');
     if (!ctx) return;
 
+    const logoImg = await getOrLoadLogo();
     const fmt = targetFormat || exportFormat || 'story';
     const isDark = theme === 'dark';
 
@@ -901,8 +885,8 @@ export default function EarlyAccessPage() {
       // 1. INSTAGRAM STORY (9:16 — 1080 x 1920)
       // ═══════════════════════════════════════════════════
 
-      // Ambient Rotating Logo Watermark in Background
-      drawSpokeLogo(ctx, W / 2, H * 0.46, 960, -0.32, '#ff078e', isDark ? 0.09 : 0.06);
+      // Ambient Rotating Actual Logo Watermark in Background
+      drawActualLogo(ctx, logoImg, W / 2, H * 0.46, 880, -0.32, isDark ? 0.12 : 0.08);
 
       // Top Safe Margin Header (Above Card)
       ctx.textAlign = 'center';
@@ -919,7 +903,7 @@ export default function EarlyAccessPage() {
       const cH = 1200;
       const cX = (W - cW) / 2;
       const cY = 295;
-      drawPassCard(ctx, cX, cY, cW, cH, isDark);
+      drawPassCard(ctx, cX, cY, cW, cH, isDark, logoImg);
 
       // Bottom Safe Margin Footer (Below Card)
       ctx.fillStyle = '#ff078e';
@@ -939,26 +923,26 @@ export default function EarlyAccessPage() {
       ctx.font = '700 19px sans-serif';
       ctx.fillText('🔗 influnet.com · Soft-Launch 2026', W / 2, 1665);
 
-      // Bottom Watermark Mark
-      drawSpokeLogo(ctx, W / 2, 1750, 60, 0, '#ff078e', 0.8);
+      // Bottom Actual Watermark Mark
+      drawActualLogo(ctx, logoImg, W / 2, 1750, 64, 0, 0.9);
     } else if (fmt === 'linkedin') {
       // ═══════════════════════════════════════════════════
       // 2. LINKEDIN POST / BANNER (16:9 — 1200 x 675)
       // ═══════════════════════════════════════════════════
 
-      // Watermark in Background
-      drawSpokeLogo(ctx, 940, 337, 620, 0.22, '#ff078e', isDark ? 0.1 : 0.06);
-      drawSpokeLogo(ctx, 110, 110, 360, -0.4, '#ff078e', isDark ? 0.05 : 0.03);
+      // Watermark in Background with actual logo
+      drawActualLogo(ctx, logoImg, 940, 337, 600, 0.22, isDark ? 0.12 : 0.08);
+      drawActualLogo(ctx, logoImg, 110, 110, 340, -0.4, isDark ? 0.06 : 0.04);
 
       // Left Column — Rich Typography & VIP Perks
       const textCol = isDark ? '#f0ecf8' : '#17141d';
       ctx.textAlign = 'left';
 
-      // Header logo
-      drawSpokeLogo(ctx, 80, 75, 42, 0, '#ff078e', 1);
+      // Header actual logo
+      drawActualLogo(ctx, logoImg, 95, 75, 42, 0, 1);
       ctx.fillStyle = textCol;
       ctx.font = '800 28px sans-serif';
-      ctx.fillText('INFLUNET', 115, 84);
+      ctx.fillText('INFLUNET', 122, 84);
 
       // Genesis series badge
       ctx.fillStyle = '#ff078e';
@@ -1023,14 +1007,14 @@ export default function EarlyAccessPage() {
       const cH = 575;
       const cX = 740;
       const cY = 50;
-      drawPassCard(ctx, cX, cY, cW, cH, isDark);
+      drawPassCard(ctx, cX, cY, cW, cH, isDark, logoImg);
     } else {
       // ═══════════════════════════════════════════════════
       // 3. SQUARE POST (1:1 — 1080 x 1080)
       // ═══════════════════════════════════════════════════
 
-      // Ambient Rotating Logo Watermark in Background
-      drawSpokeLogo(ctx, W / 2, H / 2, 880, 0.28, '#ff078e', isDark ? 0.09 : 0.06);
+      // Ambient Rotating Actual Logo Watermark in Background
+      drawActualLogo(ctx, logoImg, W / 2, H / 2, 840, 0.28, isDark ? 0.12 : 0.08);
 
       // Top Small Watermark
       ctx.textAlign = 'center';
@@ -1043,7 +1027,7 @@ export default function EarlyAccessPage() {
       const cH = 960;
       const cX = (W - cW) / 2;
       const cY = 60;
-      drawPassCard(ctx, cX, cY, cW, cH, isDark);
+      drawPassCard(ctx, cX, cY, cW, cH, isDark, logoImg);
 
       // Bottom watermark
       ctx.fillStyle = isDark ? '#736b7e' : '#8b8693';
@@ -1152,22 +1136,14 @@ export default function EarlyAccessPage() {
         }`}
       >
         <a href="/" className="flex items-center gap-2.5 font-headline font-extrabold text-[19px] tracking-tight">
-          {/* Official Influnet Spoke Mark */}
-          <svg viewBox="430 150 690 720" width="24" height="25" aria-hidden="true">
-            <g stroke="#ff078e" strokeWidth="44" strokeLinecap="round" fill="none">
-              <line x1="713" y1="408" x2="525" y2="396" />
-              <line x1="841" y1="427" x2="960" y2="246" />
-              <line x1="856" y1="559" x2="1013" y2="617" />
-              <line x1="677" y1="622" x2="566" y2="774" />
-            </g>
-            <g fill="#ff078e">
-              <circle cx="525" cy="396" r="76" />
-              <circle cx="960" cy="246" r="87" />
-              <circle cx="1013" cy="617" r="80" />
-              <circle cx="566" cy="774" r="84" />
-            </g>
-            <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="44" />
-          </svg>
+          <Image
+            src="/influet_logo.png"
+            alt="Influnet"
+            width={28}
+            height={28}
+            className="size-7 object-contain"
+            priority
+          />
           <span>influnet</span>
         </a>
 
@@ -2091,24 +2067,14 @@ export default function EarlyAccessPage() {
 
               {/* 3D Stage with Ambient Rotating Spoke Logo Shadow */}
               <div className="relative w-full flex items-center justify-center">
-                {/* Ambient Rotating Spoke Logo Shadow */}
+                {/* Ambient Rotating Actual Influnet Logo Shadow */}
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-visible select-none -z-10">
-                  <div className="w-[420px] h-[420px] sm:w-[480px] sm:h-[480px] animate-[spin_40s_linear_infinite] opacity-15 dark:opacity-25 transition-opacity">
-                    <svg viewBox="430 150 690 720" className="w-full h-full filter blur-[1px]">
-                      <g stroke="#ff078e" strokeWidth="54" strokeLinecap="round" fill="none">
-                        <line x1="713" y1="408" x2="525" y2="396" />
-                        <line x1="841" y1="427" x2="960" y2="246" />
-                        <line x1="856" y1="559" x2="1013" y2="617" />
-                        <line x1="677" y1="622" x2="566" y2="774" />
-                      </g>
-                      <g fill="#ff078e">
-                        <circle cx="525" cy="396" r="76" />
-                        <circle cx="960" cy="246" r="87" />
-                        <circle cx="1013" cy="617" r="80" />
-                        <circle cx="566" cy="774" r="84" />
-                      </g>
-                      <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="54" />
-                    </svg>
+                  <div className="w-[380px] h-[380px] sm:w-[460px] sm:h-[460px] animate-[spin_40s_linear_infinite] opacity-20 dark:opacity-25 transition-opacity">
+                    <img
+                      src="/influet_logo.png"
+                      alt="Influnet Logo Shadow"
+                      className="w-full h-full object-contain filter drop-shadow-[0_0_50px_rgba(255,7,142,0.45)]"
+                    />
                   </div>
                 </div>
 
@@ -2147,24 +2113,14 @@ export default function EarlyAccessPage() {
                       }`}
                     />
 
-                    {/* Authentic Rotating Spoke Mark Watermark inside Card */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-[0.08] dark:opacity-[0.09] z-1 select-none">
-                      <div className="w-[300px] h-[300px] animate-[spin_45s_linear_infinite]">
-                        <svg viewBox="430 150 690 720" className="w-full h-full fill-[#ff078e] stroke-[#ff078e]">
-                          <g stroke="#ff078e" strokeWidth="50" strokeLinecap="round" fill="none">
-                            <line x1="713" y1="408" x2="525" y2="396" />
-                            <line x1="841" y1="427" x2="960" y2="246" />
-                            <line x1="856" y1="559" x2="1013" y2="617" />
-                            <line x1="677" y1="622" x2="566" y2="774" />
-                          </g>
-                          <g fill="#ff078e">
-                            <circle cx="525" cy="396" r="76" />
-                            <circle cx="960" cy="246" r="87" />
-                            <circle cx="1013" cy="617" r="80" />
-                            <circle cx="566" cy="774" r="84" />
-                          </g>
-                          <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="50" />
-                        </svg>
+                    {/* Rotating Actual Influnet Logo Watermark inside Card */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-[0.08] dark:opacity-[0.10] z-1 select-none">
+                      <div className="w-[280px] h-[280px] animate-[spin_45s_linear_infinite]">
+                        <img
+                          src="/influet_logo.png"
+                          alt="Influnet Mark"
+                          className="w-full h-full object-contain"
+                        />
                       </div>
                     </div>
 
@@ -2172,22 +2128,12 @@ export default function EarlyAccessPage() {
                     <div className="relative z-10 flex flex-col items-center h-full pt-7 pb-4 px-5">
                       {/* Header */}
                       <div className="w-full flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5 font-headline font-extrabold text-[13px] tracking-tight">
-                          <svg viewBox="430 150 690 720" width="16" height="17">
-                            <g stroke="#ff078e" strokeWidth="50" strokeLinecap="round" fill="none">
-                              <line x1="713" y1="408" x2="525" y2="396" />
-                              <line x1="841" y1="427" x2="960" y2="246" />
-                              <line x1="856" y1="559" x2="1013" y2="617" />
-                              <line x1="677" y1="622" x2="566" y2="774" />
-                            </g>
-                            <g fill="#ff078e">
-                              <circle cx="525" cy="396" r="76" />
-                              <circle cx="960" cy="246" r="87" />
-                              <circle cx="1013" cy="617" r="80" />
-                              <circle cx="566" cy="774" r="84" />
-                            </g>
-                            <circle cx="752" cy="520" r="96" fill="none" stroke="#ff078e" strokeWidth="50" />
-                          </svg>
+                        <div className="flex items-center gap-2 font-headline font-extrabold text-[13px] tracking-tight">
+                          <img
+                            src="/influet_logo.png"
+                            alt="Influnet"
+                            className="w-[18px] h-[18px] object-contain shrink-0"
+                          />
                           <span>INFLUNET</span>
                         </div>
                         <div className="font-mono-code text-[8px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full bg-[#ff078e]/10 border border-[#ff078e]/35 text-[#ff078e]">

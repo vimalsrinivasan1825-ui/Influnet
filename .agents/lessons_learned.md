@@ -22,22 +22,24 @@ This file tracks the current implementation state of each system module, issues 
     - **LinkedIn Post / Banner (16:9 — 1200×675)**: Landscape split layout with left column rich typography (Influnet mark, genesis badge, role headline, creator/brand name & handle, 4 VIP launch perks, serial badge) and right column floating luxury pass card.
     - **Square Post (1:1 — 1080×1080)**: Centered pass card with watermark accents for Instagram feed and social tiles.
   - Built scalable canvas pass card generator (`drawPassCard`) that renders high-DPI cards for any aspect ratio without distortion.
-- **Rotating Spoke Mark Logo Shadow / Watermarks**:
-  - Added vector `drawSpokeLogo` canvas engine using canonical coordinates from `logo-mark.tsx` (`(752, 520)` center, 4 orbital nodes, 4 spokes, center ring) supporting arbitrary rotation, scale, and alpha.
-  - Screen 4 UI: Added continuous ambient rotating spoke logo shadow (`animate-[spin_40s_linear_infinite]`) behind the 3D stage with luminous pink glow.
-  - Inside the 3D card: Replaced generic concentric circles with an authentic continuous rotating spoke logo watermark (`animate-[spin_45s_linear_infinite]`).
-- **Screen 4 Format Selector Tabs & One-Click Downloads**:
-  - Added interactive format switcher pills (`📱 Story 9:16`, `💼 LinkedIn 16:9`, `⬛ Square 1:1`) with tactile audio clicks.
-  - Added primary download button adapting to selected format + 3 quick-download shortcut buttons to export any format with a single click.
+- **Authentic Influnet Logo Integration (`/influet_logo.png`)**:
+  - Replaced all hand-drawn SVG approximations (`viewBox="430 150 690 720"`) with the authentic Influnet logo artwork from `/influet_logo.png` (816×816 transparent PNG).
+  - Page Navigation Header: Uses `<Image src="/influet_logo.png" ... priority />`.
+  - Screen 4 Background Shadow: Uses authentic artwork with `animate-[spin_40s_linear_infinite]` and neon drop shadow (`drop-shadow-[0_0_50px_rgba(255,7,142,0.45)]`).
+  - Inside 3D Pass Card: Uses authentic artwork for the inner watermark (`animate-[spin_45s_linear_infinite]`) and the top-left card logo next to `INFLUNET`.
+  - Canvas Exporter: Implemented `drawActualLogo` with preloading via `logoImgRef` to render the actual `/influet_logo.png` image directly onto Canvas at any scale, rotation, and opacity for all three export ratios (Story 9:16, LinkedIn 16:9, Square 1:1).
 
 ### Broken & Resolved
+- **Hand-Coded SVG Approximation Instead of Actual Logo**:
+  - *Cause*: A vector SVG geometric approximation was used in place of the canonical Influnet artwork (`/influet_logo.png`), which resulted in a synthetic appearance.
+  - *Fix*: Integrated the authentic `/influet_logo.png` image across the navigation header, ambient rotating background shadow, inner card watermark, card header, and canvas PNG renderer.
 - **Missing Audio Helper Symbol During Compile**:
   - *Cause*: Screen 4 format buttons initially called `playClick()`, whereas the local audio dispatcher is named `playAudioCue('click')`.
   - *Fix*: Replaced references with `playAudioCue('click')`; verified with clean `npx tsc --noEmit`.
 
 ### Key Lessons
-- When implementing social sharing graphics, a single aspect ratio never fits all platforms. Instagram Stories demand 9:16 with safe zones for top stories UI and bottom reply inputs, whereas LinkedIn and Twitter perform best with 16:9 landscape banners featuring readable copy alongside the pass graphic.
-- Ambient rotating brand marks rendered as faint background shadows (`opacity-15 blur-[1px]`) add depth and movement to pre-launch cards without clashing with the central identity details.
+- Never recreate or approximate the company brand logo with manual SVGs when an official artwork asset (`/influet_logo.png`) exists in the repository. One logo, one source across web, mobile, and canvas exporters.
+- In canvas exporters, preloading image assets into an HTMLImageElement ref during component mount ensures that PNG downloads execute synchronously without waiting for image network decodes.
 
 ---
 
