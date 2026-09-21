@@ -1396,6 +1396,11 @@
       </thead>
       <tbody>
         <tr>
+          <td class="mono" style="white-space:nowrap">2026-09-21</td>
+          <td><strong>Creator Intake Flow &amp; Admin CRM Integration</strong>: Implemented mobile-first 7-step creator application flow at <span class="mono">/join</span> with confetti celebration, authentic Influnet logo/branding, and real-time validation replicating Google Forms intake; created PostgreSQL migration 168 with <span class="mono">creator_join_applications</span> table and <span class="mono">admin_creator_applications_report</span> SQL aggregation RPC; built public API route <span class="mono">/api/join</span> with CORS support and rate limiting; created admin management console at <span class="mono">/dashboard/admin/creator-applications</span> with KPIs, instant WhatsApp outreach links, live search, and CSV export. <b>Lint ✅ Typecheck web &amp; landing ✅</b></td>
+          <td>Creator Flow · Landing · Admin · DB · API</td>
+        </tr>
+        <tr>
           <td class="mono" style="white-space:nowrap">2026-09-16</td>
           <td><strong>Dual-tier Admin Architecture & Developer Super Admin</strong>: Created super admin tier (<span class="mono">is_super_admin</span> on <span class="mono">profiles</span> via migration 150) and provisioned developer credential (<span class="mono">dev.admin@influnet.io</span>). Gated 6 technical backend routes (<span class="mono">/api/admin/{health,vendors,rate-limits,emails,audit,issues}</span>) with <span class="mono">withSuperAdmin()</span> server guard, returning 403 Forbidden to non-super admins. Protected technical pages with client <span class="mono">&lt;DeveloperGate&gt;</span>. Split admin sidebar navigation into Business Admin (11 business oversight items) and Developer Admin (17 total items including vendor status, PostHog/Sentry controls, system health, rate limits). <b>Typecheck web &amp; mobile ✅ Tests 523/523 ✅</b></td>
           <td>Admin · Security · Auth · Observability</td>

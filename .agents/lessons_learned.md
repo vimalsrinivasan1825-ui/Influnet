@@ -2,6 +2,59 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Interactive /join Creator Application Flow, Supabase DB & Admin CRM Integration
+
+**Branch**: `dev`
+
+### Scope
+- **Interactive Step-by-Step Creator Join Flow (`/join`)**:
+  - `apps/landing/src/app/join/page.tsx`:
+    - Replicated Google Form questionnaire (`https://docs.google.com/forms/d/e/1FAIpQLSeIDN-dWkuFLOb6VXiFVDju8DRcYC05yILq-OJzGRvO4zqzUw/viewform`) into a modern, interactive, step-by-step intake experience.
+    - Designed with centered authentic Influnet logo (`/influet_logo.png`) and bold brand name.
+    - 7 step-by-step cards: Full Name & WhatsApp, Email & City, Instagram Handle & Profile Link, Primary Content Category, Follower Tier & Platform, Brand Collaboration Experience, and Biggest Creator Challenge.
+    - Step 8 celebratory screen with `canvas-confetti`, animated badges, application number pill, and back-to-home CTA.
+    - 100% mobile-first touch UI with large touch targets, progress bars, responsive badges, and smooth step transitions.
+    - Client-side validation with real-time feedback and Enter-key progression.
+  - `apps/landing/src/components/landing/header.tsx`:
+    - Added "Join as Creator" navigation item with glowing badge to desktop header and mobile drawer.
+- **Database Schema & SQL Migration**:
+  - `supabase/migrations/168_creator_join_applications.sql`:
+    - Created `public.creator_join_applications` table with `application_number` starting at `1001`, comprehensive creator metadata, contact details, platforms, and submission tracking.
+    - Row Level Security (RLS) allowing authenticated admins full access and public users anonymous insert (`anon_insert_creator_applications`).
+    - Added high-performance SQL RPC `admin_creator_applications_report(p_search, p_category, p_follower_tier, p_limit, p_offset)` to perform count aggregations, status filtering, and pagination in SQL (satisfying AGENTS.md rule).
+  - Migration applied cleanly to dev Supabase DB via `scripts/apply-migration.mjs 168`.
+- **Public API Intake Route with CORS**:
+  - `apps/web/src/app/api/join/route.ts`:
+    - Zod schema validation matching all 9 questionnaire fields.
+    - Cross-Origin Resource Sharing (CORS) preflight (`OPTIONS`) and headers (`POST`) allowing cross-domain submissions from `https://influnet.io` to `https://dev.influnet.io`.
+    - In-memory sliding window IP rate limiter (15 submissions/hour/IP).
+    - Service-role Supabase client row insertion returning assigned `application_number`.
+- **Admin CRM Management Dashboard**:
+  - `apps/web/src/app/dashboard/admin/creator-applications/page.tsx`:
+    - Admin CRM portal with real-time KPI overview (Total Applications, Instagram Verified, Experienced Creators, Monetization Blockers).
+    - Real-time search by name, email, WhatsApp, or Instagram handle.
+    - Filter dropdowns by Content Category and Follower Tier.
+    - Direct WhatsApp launch link (`https://wa.me/...`) for instant creator outreach.
+    - Direct Instagram profile links (`https://instagram.com/...`).
+    - Full CSV export functionality using `ExportButton`.
+    - Delete application API endpoint (`apps/web/src/app/api/admin/creator-applications/[id]/route.ts`) guarded with `withAdmin(req)`.
+  - `apps/web/src/lib/admin-insights.ts`: Registered `creator_applications` under `MODULES`.
+  - `apps/web/src/components/dashboard/sidebar.tsx`: Added "Creator applications" sidebar link under Engagement section.
+
+### Broken & Resolved
+- **Cross-Domain POST from Landing Domain to Web API**:
+  - *Cause*: `apps/landing` runs on `https://influnet.io` while `apps/web` runs on `https://dev.influnet.io`. Without CORS handling, browser `fetch` calls from the landing page were blocked by standard browser origin policies.
+  - *Fix*: Implemented CORS headers (`Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: POST, OPTIONS`, `Access-Control-Allow-Headers: Content-Type, Authorization`) and an explicit `OPTIONS` route handler in `apps/web/src/app/api/join/route.ts`.
+- **Icon Compatibility in Admin Dashboard**:
+  - *Cause*: `lucide-react` does not export an `Instagram` icon in the installed version, causing a TypeScript compilation error.
+  - *Fix*: Replaced missing icon with inline responsive SVG for Instagram and used `Camera` from `lucide-react`.
+
+### Key Lessons
+- When public marketing sites on separate subdomains submit data to Next.js API routes, always configure CORS headers and an explicit `OPTIONS` method on the receiving API route.
+- Always perform Admin CRM KPI counts and aggregations in SQL functions (`admin_creator_applications_report`) rather than fetching full datasets into Node.js to comply with PostgREST row limits.
+
+---
+
 ### Session — 2026-09-21: Landing Page Layout Fix — Chatbot Icon Collision & Mobile App Card Disabled
 
 **Branch**: `dev`

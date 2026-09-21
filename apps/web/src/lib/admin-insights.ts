@@ -217,6 +217,17 @@ export const MODULES: Record<string, InsightModule> = {
     }),
     csv: (d) => d?.rows ?? [],
   },
+  creator_applications: {
+    rpc: 'admin_creator_applications_report',
+    tier: 'admin',
+    args: (q) => ({
+      p_search: strParam(q, 'search'),
+      p_follower_tier: strParam(q, 'follower_tier', 40),
+      p_creator_type: strParam(q, 'creator_type', 40),
+      ...page(q),
+    }),
+    csv: (d) => d?.rows ?? [],
+  },
 };
 
 

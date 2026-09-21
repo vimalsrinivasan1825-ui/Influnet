@@ -20,6 +20,7 @@ import {
   History,
   LayoutDashboard,
   UserRound,
+  UserCheck,
   Mail,
   BarChart3,
   Inbox,
@@ -142,6 +143,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { label: "Broadcasts", href: "/dashboard/admin/broadcasts", icon: Megaphone },
       { label: "Leads", href: "/dashboard/admin/leads", icon: ContactRound },
       { label: "Early access", href: "/dashboard/admin/early-access", icon: Sparkles },
+      { label: "Creator applications", href: "/dashboard/admin/creator-applications", icon: UserCheck },
     ],
   },
   {

@@ -51,6 +51,12 @@ export default function Header() {
             >
               For Creators
             </Link>
+            <Link
+              href="/join"
+              className="text-sm font-semibold text-[#ff078e] hover:text-[#ff4da6] transition-colors flex items-center gap-1"
+            >
+              Join as Creator
+            </Link>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
@@ -106,6 +112,13 @@ export default function Header() {
               className="block px-4 py-2.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg"
             >
               For Creators
+            </Link>
+            <Link
+              href="/join"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-2.5 text-sm font-semibold text-[#ff078e] hover:bg-[#ff078e]/10 rounded-lg"
+            >
+              Join as Creator ✨
             </Link>
             <div className="border-t border-white/5 pt-3 mt-3 space-y-2">
               <Link
