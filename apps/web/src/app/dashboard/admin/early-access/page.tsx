@@ -8,6 +8,7 @@
 
 import { useState } from 'react';
 import { Sparkles, Search, UserCheck, Building2, Download, Trash2, Globe, Phone } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 import {
   AdminPage,
   Badge,
@@ -46,12 +47,13 @@ export default function EarlyAccessAdminPage() {
     }
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/early-access/${id}`, { method: 'DELETE' });
-      const json = await res.json().catch(() => null);
-      if (res.ok && json?.ok) {
+      const res = await apiFetch<{ ok: boolean; deleted?: string }>(`/api/admin/early-access/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok && res.data?.ok) {
         reload();
       } else {
-        alert(json?.message || json?.error || 'Failed to delete record');
+        alert(res.error || 'Failed to delete record');
       }
     } catch {
       alert('Network error while deleting record');

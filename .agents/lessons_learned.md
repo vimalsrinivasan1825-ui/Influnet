@@ -2,6 +2,28 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: Fix Early Access Delete Endpoint Authorization Header
+
+**Branch**: `dev`
+
+### Scope
+- **Admin Early Access Delete API Call**:
+  - `apps/web/src/app/dashboard/admin/early-access/page.tsx`:
+    - Replaced the raw browser `fetch` call with `apiFetch` from `@/lib/api-client`.
+    - Automatically injects the user's Supabase session Bearer token (`Authorization: Bearer <token>`) and client telemetry headers.
+    - Accurately passes through `withAdmin` route authorization without triggering `"Missing Authorization header"` 401 alerts.
+    - Correctly handles json response data (`res.data?.ok`) and triggers table reload.
+
+### Broken & Resolved
+- **"Missing Authorization header" Alert on Deletion**:
+  - *Cause*: `apps/web/src/app/dashboard/admin/early-access/page.tsx` was calling raw `fetch('/api/admin/early-access/[id]', { method: 'DELETE' })` without passing an `Authorization: Bearer <token>` header. The target route `route.ts` is guarded with `withAdmin(req)`, which requires an authorization header, resulting in a 401 Unauthorized alert dialog.
+  - *Fix*: Replaced raw `fetch` with `apiFetch` from `@/lib/api-client`, which automatically pulls the live Supabase session access token via `getAuthToken()`.
+
+### Key Lessons
+- Never use raw `fetch()` directly in client-side dashboard pages when communicating with `/api/admin/*` or `/api/*` endpoints guarded by `withAdmin` or `withAuth`. Always use `apiFetch` from `@/lib/api-client` to guarantee authenticated requests with valid session tokens, correlation IDs, and unified error handling.
+
+---
+
 ### Session — 2026-09-21: Strict Phone & Email Validation, Rotating Logo Shadow Watermarks, and Multi-Ratio Social Exporter (Story 9:16, LinkedIn 16:9, Square 1:1)
 
 **Branch**: `dev`
