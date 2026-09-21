@@ -30,6 +30,21 @@ const EarlyAccessSchema = z.object({
   bio: z.string().trim().max(500).optional().nullable(),
 });
 
+/**
+ * The only fields an anonymous caller gets back. This route is public and keyed
+ * by an email address anyone can type, so returning the stored row would hand
+ * out a stranger's phone, bio and submission IP. The page needs the pass number.
+ */
+function publicPass(row: { pass_number?: unknown; kind?: unknown; name?: unknown } | null) {
+  if (!row) return null;
+  return { pass_number: row.pass_number ?? null, kind: row.kind ?? null, name: row.name ?? null };
+}
+
+/** `ilike` treats `%` and `_` as wildcards; `a_b@x.com` must not match `axb@x.com`. */
+function escapeLike(value: string) {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -73,32 +88,31 @@ export async function POST(req: Request) {
     const { data: existing } = await supabase
       .from('early_access_signups')
       .select('*')
-      .ilike('email', cleanEmail)
+      .ilike('email', escapeLike(cleanEmail))
       .maybeSingle();
 
     if (existing) {
-      // Update existing record with latest info so repeated testing/re-submitting updates the pass
+      // Anyone can submit any address, so a repeat submission may only fill
+      // fields that are still blank — never overwrite what the owner entered.
       const { data: updatedPass } = await supabase
         .from('early_access_signups')
         .update({
-          kind: parsed.data.kind,
-          name: parsed.data.name,
-          phone: parsed.data.phone || existing.phone || null,
-          handle: cleanHandle ?? existing.handle,
-          company: parsed.data.company || (parsed.data.kind === 'business' ? parsed.data.name : null) || existing.company,
-          website: parsed.data.website || existing.website || null,
-          followers: parsed.data.followers || existing.followers || null,
-          avatar_url: parsed.data.avatarUrl || existing.avatar_url || null,
-          bio: parsed.data.bio || existing.bio || null,
+          phone: existing.phone || parsed.data.phone || null,
+          handle: existing.handle ?? cleanHandle,
+          company: existing.company || parsed.data.company || (parsed.data.kind === 'business' ? parsed.data.name : null),
+          website: existing.website || parsed.data.website || null,
+          followers: existing.followers || parsed.data.followers || null,
+          avatar_url: existing.avatar_url || parsed.data.avatarUrl || null,
+          bio: existing.bio || parsed.data.bio || null,
         })
         .eq('id', existing.id)
-        .select('*')
+        .select('pass_number, kind, name')
         .single();
 
       return NextResponse.json({
         ok: true,
         alreadyClaimed: true,
-        pass: updatedPass ?? existing,
+        pass: publicPass(updatedPass ?? existing),
       }, { headers: CORS_HEADERS });
     }
 
@@ -122,7 +136,7 @@ export async function POST(req: Request) {
         },
         status: 'confirmed',
       })
-      .select('*')
+      .select('pass_number, kind, name')
       .single();
 
     if (insertErr) {
@@ -146,7 +160,9 @@ export async function POST(req: Request) {
         });
 
       // Trigger automatic account linker if user already has an account
-      await (supabase.rpc as any)('match_crm_leads').catch(() => {});
+      // A Postgrest builder has no .catch(), so the old `.catch(() => {})` threw
+      // before the request was ever sent and the linker never ran.
+      await supabase.rpc('match_crm_leads' as never);
     } catch (crmErr) {
       // Non-blocking: early_access_signups is the canonical source
       logger.warn('early-access: crm sync warning', { error: String(crmErr) });
@@ -156,7 +172,7 @@ export async function POST(req: Request) {
       {
         ok: true,
         alreadyClaimed: false,
-        pass: newPass,
+        pass: publicPass(newPass),
       },
       { status: 201, headers: CORS_HEADERS }
     );

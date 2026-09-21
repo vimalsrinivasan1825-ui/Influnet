@@ -30,6 +30,20 @@ export async function OPTIONS() {
 // In-memory cache to prevent repeated actor calls and rate-limiting
 const PREVIEW_CACHE = new Map<string, { time: number; data: any }>();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+// Entries were never evicted, so a long-lived replica grew this for ever — one
+// entry per distinct handle anyone typed. A Map iterates in insertion order, so
+// dropping the first key drops the oldest.
+const CACHE_MAX_ENTRIES = 1000;
+
+function cachePut(key: string, data: unknown) {
+  PREVIEW_CACHE.delete(key);
+  PREVIEW_CACHE.set(key, { time: Date.now(), data });
+  while (PREVIEW_CACHE.size > CACHE_MAX_ENTRIES) {
+    const oldest = PREVIEW_CACHE.keys().next().value;
+    if (oldest === undefined) break;
+    PREVIEW_CACHE.delete(oldest);
+  }
+}
 
 export async function GET(req: Request) {
   try {
@@ -101,7 +115,7 @@ export async function GET(req: Request) {
         handle,
         isPrivate: false,
         profile: null,
-        message: `Instagram account @${handle} was not found.`,
+        message: `${PLATFORM_LABEL[handler.platform]} account @${handle} was not found.`,
       }, { status: 404, headers: CORS_HEADERS });
     }
 
@@ -115,7 +129,7 @@ export async function GET(req: Request) {
         isPrivate: true,
         profile: null,
       };
-      PREVIEW_CACHE.set(cacheKey, { time: Date.now(), data: payload });
+      cachePut(cacheKey, payload);
       return NextResponse.json(payload, { headers: CORS_HEADERS });
     }
 
@@ -136,7 +150,7 @@ export async function GET(req: Request) {
       },
     };
 
-    PREVIEW_CACHE.set(cacheKey, { time: Date.now(), data: payload });
+    cachePut(cacheKey, payload);
     return NextResponse.json(payload, { headers: CORS_HEADERS });
   } catch (error: any) {
     if (error?.message === 'SCRAPER_TIMEOUT') {
