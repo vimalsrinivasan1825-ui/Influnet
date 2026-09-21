@@ -2,7 +2,7 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
-### Session — 2026-09-21: Full Early Access & Founder Pass Integration (Landing Teaser, Web App Wizard, Database & Admin CRM)
+### Session — 2026-09-21: Full Early Access & Founder Pass Integration & Unauthenticated Routing Fix
 
 **Branch**: `dev`
 
@@ -13,6 +13,7 @@ This file tracks the current implementation state of each system module, issues 
   - Applied migration 166 cleanly to dev database via `scripts/apply-migration.mjs 166`.
 - **Backend API (`apps/web/src/app/api/early-access/route.ts`)**:
   - Implemented rate-limited `POST /api/early-access` validating role, name, email, handle, and metadata with Zod.
+  - Added permissive CORS headers and `OPTIONS` preflight handler so all landing and client origins can communicate reliably.
   - Inserts new passes and auto-syncs with `crm_leads` with `source: 'inbound'`, `stage: 'new'`, and tags `['early_access', 'founder_pass']` for automatic conversion linking when users eventually register accounts.
 - **Admin Insights Integration (`apps/web/src/lib/admin-insights.ts`)**:
   - Registered `early_access` module in `MODULES` map routing to `admin_early_access_report()`, enabling CSV exports and dashboard reporting per AGENTS.md rules.
@@ -23,21 +24,29 @@ This file tracks the current implementation state of each system module, issues 
   - Full-screen Next.js / Framer Motion wizard with Role Selection (Creator vs Brand).
   - Creator path: Name → Instagram Handle (live Apify scraper lookup via `/api/auth/social-preview`, preview card, explicit note that private accounts or users without IG can skip) → Email → Pass Synthesizer → 3D Founding Creator Pass (real avatar, follower metrics, 1-yr unlimited pass perks, dynamic tilt, PNG export).
   - Brand path: Company Name → Website/Handle (skippable) → Work Email → Synthesizer → 3D Founding Brand Pass (0% platform fee, VIP concierge, PNG export).
-- **Landing Page Integration (`apps/landing`)**:
-  - Created `<EarlyAccessBanner />` toast in `apps/landing/src/components/site/early-access-banner.tsx` that appears after 3.5s for first-time visitors with dismiss memory in `sessionStorage`.
-  - Mounted `<EarlyAccessBanner />` in `apps/landing/src/app/layout.tsx`.
-  - Added `EARLY_ACCESS_URL` to `apps/landing/src/components/site/links.ts` and updated `apps/landing/src/components/site/final-cta.tsx`.
+- **Landing Page Integration & URL Routing Isolation (`apps/landing`)**:
+  - Isolated environment linking: Pointed dev branch Azure Static Web Apps build workflow (`azure-static-web-apps-proud-smoke-00f74a310.yml`) to `https://dev.influnet.io` rather than staging.
+  - Updated `apps/landing/src/components/site/links.ts` and `apps/landing/src/lib/site.ts` to default `APP_URL` to `https://dev.influnet.io`.
+  - Replaced ad-hoc `process.env.NEXT_PUBLIC_APP_URL` across landing components (`header.tsx`, `hero.tsx`, `cta.tsx`) with verified `APP_URL` references.
+- **Public Profile Hijack Prevention (`apps/web/src/app/[username]/page.tsx`)**:
+  - Added explicit `RESERVED_ROUTES` rejection set (`early-access`, `login`, `signup`, `dashboard`, `api`, `reset-password`, etc.) and `isValidUsername()` regex validation (`^[a-zA-Z0-9_]{3,30}$`).
+  - Fixed `usernameExists` to fail closed (return `false`) on RPC error or invalid format, preventing non-existent routes or hyphenated paths from assuming an account exists and triggering `<BusinessProfile>` unauthenticated `/login` redirects.
 
 ### Broken & Resolved
+- **Landing Page Navigating to Staging & Redirecting to Login**:
+  - *Cause 1*: The Azure Static Web Apps workflow on `dev` was hardcoded to build with `NEXT_PUBLIC_APP_URL: "https://staging.influnet.io"`. When visitors clicked "Claim Founder Pass" or the card, they were navigated to staging before staging had received the early-access migration/code.
+  - *Cause 2*: On the backend, `apps/web/src/app/[username]/page.tsx` lacked a format check and failed open on `check_username_available` RPC errors. For hyphenated paths like `early-access`, it assumed a private business profile existed and forwarded to `<BusinessProfile>`, which redirected anonymous visitors to `/login?next=...`.
+  - *Fix*: Set `NEXT_PUBLIC_APP_URL` to `https://dev.influnet.io` in the dev SWA workflow and local defaults; added strict username format and reserved route guards to `[username]/page.tsx`.
 - **Lucide-react Icon Missing**: `Instagram` icon is not exported by `lucide-react`. Resolved by removing the unused import in `apps/web/src/app/early-access/page.tsx` and using native inline SVG.
 - **Typecheck & Column-Grants Verification**: Both `landing` and `web` passed `tsc --noEmit` cleanly, and `tests/unit/column-grants.test.ts` confirmed zero column grant violations.
 
 ### Key Lessons
-- Linking the landing page to a dedicated public page on the app subdomain (`${APP_URL}/early-access`) avoids cross-origin CORS limitations while keeping Apify API rate limits and Supabase service-role secrets protected server-side.
-- Pre-signup leads created in `early_access_signups` mirror seamlessly into `crm_leads`, allowing the existing trigger `match_crm_leads()` to link the lead automatically when the user signs up with the same email in the future.
+- In Next.js App Router root catch-all routes like `[username]`, always validate segment format (e.g. `^[a-zA-Z0-9_]{3,30}$`) and check against a reserved-routes set BEFORE querying the database. Never let RPC errors or format validation failures default to "username exists", as downstream private components redirecting to `/login` will hijack all unauthenticated 404s and new feature routes.
+- Multi-environment setups with separate domains (`dev.influnet.io` vs `staging.influnet.io`) require build workflows on each branch to strictly inject that branch's own domain.
 
 ### Next Target
-- Test end-to-end flow with user; verify CSV export and role-based pass generation in staging.
+- User verification of the Early Access pass generator on `dev.influnet.io`.
+- Merge `dev` to `staging` via pull request per branch rules once verified.
 
 ---
 
