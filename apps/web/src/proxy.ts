@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
+import { movedProfileRedirect } from '@/lib/moved-profiles';
 
 // Next.js 16: the `middleware` file convention was renamed to `proxy`,
 // and the file must sit at the same level as `app` (inside src/). There must
@@ -35,6 +36,18 @@ export async function proxy(request: NextRequest) {
   // every request in the app for no benefit.
   if (request.nextUrl.pathname.startsWith('/api/')) {
     const res = NextResponse.next({ request: { headers } });
+    res.headers.set('x-request-id', requestId);
+    return res;
+  }
+
+  // Profiles of accounts moved to another environment (see lib/moved-profiles).
+  // Before the session refresh: a forwarded visitor needs no Supabase round trip.
+  const moved = movedProfileRedirect(new URL(request.url), {
+    usernames: process.env.MOVED_PROFILE_REDIRECTS,
+    target: process.env.MOVED_PROFILE_TARGET,
+  }, request.headers.get('x-forwarded-host') ?? request.headers.get('host'));
+  if (moved) {
+    const res = NextResponse.redirect(moved, 308);
     res.headers.set('x-request-id', requestId);
     return res;
   }
