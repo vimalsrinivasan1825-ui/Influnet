@@ -19,6 +19,7 @@ import LogoMark from '@/components/brand/logo-mark';
 import { APP_URL } from '@/components/site/links';
 import { EVENT, firstName, qrPath, type Pass } from './event';
 import { renderPassPng } from './pass-image';
+import { trackMeta } from '@/components/analytics/meta-pixel';
 
 const STORE_KEY = `influnet.pass.${EVENT.slug}`;
 
@@ -336,6 +337,8 @@ function RegisterForm({ onRegistered }: { onRegistered: (p: Pass, already: boole
       });
       const json = await res.json().catch(() => null);
       if (res.ok && json?.ok) {
+        // Counted once per person: a re-registration just shows the existing pass.
+        if (!json.alreadyRegistered) trackMeta('CompleteRegistration', { content_name: EVENT.slug });
         onRegistered({ passCode: json.passCode, name: json.name }, Boolean(json.alreadyRegistered));
         return;
       }
@@ -466,7 +469,11 @@ function RegisterForm({ onRegistered }: { onRegistered: (p: Pass, already: boole
         )}
       </button>
       <p className="mt-3 text-center text-[13px] leading-snug text-muted">
-        Your details go only to the Influnet team for this event.
+        Your details go only to the Influnet team for this event. We measure our ads with Meta&rsquo;s
+        pixel, which never receives them.{' '}
+        <Link href="/privacy" className="underline underline-offset-2 hover:text-ink-soft">
+          Privacy policy
+        </Link>
       </p>
     </form>
   );

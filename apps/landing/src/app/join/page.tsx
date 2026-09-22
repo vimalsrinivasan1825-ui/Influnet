@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import EventRegistration from '@/components/event/event-registration';
+import MetaPixel from '@/components/analytics/meta-pixel';
 
 // Ad landing page for the Silicon Nexus S2 soft launch: register → entry pass.
 // (The earlier multi-step creator survey that lived here is in git history.)
@@ -16,5 +17,10 @@ export const metadata: Metadata = {
 };
 
 export default function JoinPage() {
-  return <EventRegistration />;
+  return (
+    <>
+      <MetaPixel />
+      <EventRegistration />
+    </>
+  );
 }

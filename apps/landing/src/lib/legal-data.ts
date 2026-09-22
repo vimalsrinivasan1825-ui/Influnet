@@ -96,12 +96,13 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
           'Public Social Media Data: When creators connect their channels (such as Instagram, YouTube, X, Facebook), we ingest only public metrics: handle names, follower tallies, public post counts, engagement averages, and public media thumbnails.',
           'Commercial & Transactional Data: We record collaboration contracts, stage sign-offs, deliverables feedback, and transaction references. Financial details (credit/debit cards, UPI VPA, net banking credentials) are processed directly by our RBI-licensed payment aggregator (Razorpay) and never stored on Influnet servers.',
           'Device & Telemetry Data: IP addresses, browser types, session timestamps, and diagnostic logs collected to ensure security, enforce rate-limits, and prevent unauthorized scraping.',
+          'Event Registration Data: When you register for an Influnet event (for example through influnet.io/join), we collect your name, phone number, and, if you choose to give them, your email address, city, and Instagram handle. We use these only to issue your entry pass, manage attendance, and contact you about that event.',
         ],
       },
       {
         heading: '2. Purpose & Legal Basis for Processing',
         body: [
-          'We process your data to: (a) operate and maintain the platform marketplace; (b) facilitate instant notifications when brands send deal requests; (c) verify creator identity and prevent fraudulent accounts; (d) manage stage milestones, payment clearances, and GST invoice generation; and (e) safeguard platform infrastructure from malicious attacks.',
+          'We process your data to: (a) operate and maintain the platform marketplace; (b) facilitate instant notifications when brands send deal requests; (c) verify creator identity and prevent fraudulent accounts; (d) manage stage milestones, payment clearances, and GST invoice generation; (e) safeguard platform infrastructure from malicious attacks; (f) run and admit attendees to events you register for; and (g) measure how well our advertising performs.',
         ],
       },
       {
@@ -109,6 +110,7 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
         body: [
           'Public Visibility: Creator profile metrics (handle, follower tier, niche, portfolio links, city) are displayed on your custom public influnet.io link and discovery search for prospective brand collaborations.',
           'Trusted Infrastructure Partners: We share minimal necessary data with vetted infrastructure partners: Microsoft Azure (cloud hosting & compute), Supabase (relational database & authentication), Razorpay (milestone payments & payouts), Stream (in-app messaging), and Resend (transactional notification emails).',
+          'Advertising Measurement: Our event registration page (influnet.io/join) uses the Meta Pixel, provided by Meta Platforms (Facebook and Instagram), to measure which of our ads bring visitors and how many of them register. Meta receives that you viewed the page and whether you completed a registration, along with standard browser and device information and its own cookies, and may link this to your Meta account under Meta’s own privacy policy. We do not send Meta your name, phone number, email address, or any other details you type into the form.',
           'No Data Brokering: We never sell, rent, or trade your personal or contact information to third-party data brokers or advertisers.',
         ],
       },
@@ -127,7 +129,14 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
         ],
       },
       {
-        heading: '6. Grievance Redressal Officer',
+        heading: '6. Cookies & Advertising Choices',
+        body: [
+          'We use cookies and similar browser storage that are necessary to keep you signed in, keep the platform secure, and remember your event pass on your device.',
+          'On our event registration page only, the Meta Pixel sets advertising cookies as described in section 3. You can block them with your browser’s privacy settings or an ad blocker (registration still works) and control how Meta uses this activity in your Facebook or Instagram ad settings under “Ad preferences”.',
+        ],
+      },
+      {
+        heading: '7. Grievance Redressal Officer',
         body: [
           'In accordance with India’s Information Technology Act, 2000 and the Consumer Protection (E-Commerce) Rules, 2020, our appointed Grievance Officer can be contacted for data inquiries, regulatory notices, or privacy complaints at grievance@influnet.io. Inquiries are acknowledged within 48 hours and resolved within statutory timeframes.',
         ],

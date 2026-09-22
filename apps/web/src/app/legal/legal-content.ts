@@ -181,7 +181,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
         heading: 'Who else sees it',
         body: [
           'Other users see your public profile, and the brands and creators you work with see what you share in that project.',
-          'Our service providers process data on our behalf, each for one purpose: Supabase (database and authentication), Microsoft Azure (hosting), Razorpay (payments), Stream (chat), Cloudinary (images), Resend (email), Apify (public social data), Sentry (error diagnostics), PostHog (product analytics).',
+          'Our service providers process data on our behalf, each for one purpose: Supabase (database and authentication), Microsoft Azure (hosting), Razorpay (payments), Stream (chat), Cloudinary (images), Resend (email), Apify (public social data), Sentry (error diagnostics), PostHog (product analytics), Meta (measuring our ads, on our event registration page only).',
           'We may disclose data where the law requires it.',
           'We do not sell your personal data.',
         ],
@@ -217,7 +217,7 @@ export const LEGAL_DOCS: LegalDoc[] = [
       {
         heading: 'Cookies',
         body: [
-          'We use cookies that are necessary to keep you signed in and to keep the platform secure. Where analytics are enabled, they are used to understand aggregate usage. You can clear cookies in your browser, though signing in will stop working without the necessary ones.',
+          'We use cookies that are necessary to keep you signed in and to keep the platform secure. Where analytics are enabled, they are used to understand aggregate usage. Our event registration page (influnet.io/join) also uses the Meta Pixel, which sets Meta’s advertising cookies so we can see which ads bring visitors and how many register; Meta is not sent the details you type into the form. You can clear cookies in your browser, though signing in will stop working without the necessary ones.',
         ],
       },
       {
