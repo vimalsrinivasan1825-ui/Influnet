@@ -54,14 +54,18 @@ export default function DeleteAccountPage() {
         <h2 className="text-base font-bold text-content">What is deleted</h2>
         <p className="mt-2 text-sm text-content-soft">
           Deleting your account permanently removes your profile, your social handles, your collaboration
-          requests, your projects and their files, your messages, your notifications and your saved items.
-          This cannot be undone.
+          requests, your messages, your notifications and your saved items. This cannot be undone.
         </p>
         <h2 className="mt-4 text-base font-bold text-content">What is kept, and for how long</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-content-soft">
           <li>
             <strong>Payment and invoice records</strong> are kept for as long as Indian tax and accounting law
             requires, because they belong to a completed transaction between two parties.
+          </li>
+          <li>
+            <strong>Projects you ran with someone else</strong>, and the documents issued in them, stay
+            available to the other party, because they are that person&apos;s record too. Your name is
+            replaced with &ldquo;Deleted account&rdquo; and your sign-in stops working.
           </li>
           <li>
             <strong>A record that an account was closed</strong> — the date, the account type, the reason you
