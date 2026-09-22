@@ -113,7 +113,9 @@ export async function CreatorProfile({
   // Primary CTA. Anonymous visitors land on the entry screen (sign in OR sign
   // up) rather than straight into business signup — a returning brand may
   // already have an account and just needs to sign in.
-  let ctaHref = `/signup?next=/${username}`;
+  // Straight to the request form after signing up or logging in — not back to
+  // this profile, where they would have to find the button a second time.
+  let ctaHref = `/signup?next=${encodeURIComponent(`/dashboard/requests/new?to=${profile.userId}`)}`;
   let ctaLabel = 'Send a request';
   if (isOwner) {
     ctaHref = '/dashboard/settings';

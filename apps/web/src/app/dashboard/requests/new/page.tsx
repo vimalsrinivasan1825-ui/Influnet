@@ -43,7 +43,11 @@ export default function NewRequestPage() {
     (async () => {
       const sb = createClient();
       const { data: { session } } = await sb.auth.getSession();
-      if (!session) { router.replace("/login"); return; }
+      if (!session) {
+        // Come back to this exact form (with its ?to=) after signing in.
+        router.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        return;
+      }
 
       const { data: profile } = await sb
         .from("profiles")
