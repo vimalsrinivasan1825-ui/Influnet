@@ -318,7 +318,12 @@ jobs:
                 "PHONE_OTP_ENABLED=${{ vars.PHONE_OTP_ENABLED }}" \
                 "NOTIFY_EMAILS_ENABLED=${{ vars.NOTIFY_EMAILS_ENABLED }}" \
                 "SUBSCRIPTIONS_ENABLED=${{ vars.SUBSCRIPTIONS_ENABLED }}" \
-                "OWNERSHIP_GATE_ENABLED=${{ vars.OWNERSHIP_GATE_ENABLED }}"
+                "OWNERSHIP_GATE_ENABLED=${{ vars.OWNERSHIP_GATE_ENABLED }}" \
+                "MOVED_PROFILE_REDIRECTS=${{ vars.MOVED_PROFILE_REDIRECTS }}"
+      # MOVED_PROFILE_REDIRECTS: usernames whose accounts were moved to staging
+      # (comma-separated, e.g. "giresh"). dev forwards their public profile
+      # links to staging — see apps/web/src/lib/moved-profiles.ts. Set it in
+      # Settings → Environments → dev → Variables; unset means the feature is off.
 
       # Read-side credentials for /dashboard/admin/observability. Optional,
       # and set ONLY when the secret exists: `${{ secrets.X }}` expands to "" for
