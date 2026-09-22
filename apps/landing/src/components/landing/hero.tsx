@@ -358,11 +358,11 @@ export default function Hero() {
           <div className="hidden sm:block">
             <RoleSwitch current="business" />
           </div>
-          <Link href={`${process.env.NEXT_PUBLIC_APP_URL}/login`} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+          <Link href={`${APP_URL}/login`} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
             Log in
           </Link>
           <Link
-            href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
+            href={`${APP_URL}/signup`}
             className="px-5 py-2.5 bg-white text-black border border-gray-200 text-sm font-semibold rounded-full hover:bg-gray-50 transition-colors shadow-sm"
             style={{ color: 'black' }}
           >

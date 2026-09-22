@@ -43,7 +43,13 @@ jobs:
           output_location: "" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
         env:
-          NEXT_PUBLIC_APP_URL: "https://dev.influnet.io"
+          # Every Log in / Get started / Sign up link. Real users belong on
+          # staging; pointing this at dev sent real signups to the dev database.
+          NEXT_PUBLIC_APP_URL: "https://staging.influnet.io"
+          # Only the /join event form. It stays on dev until the current event
+          # ends, so its registrations and entry passes stay in one database.
+          # See apps/landing/src/components/site/links.ts.
+          NEXT_PUBLIC_EVENT_API_URL: "https://dev.influnet.io"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

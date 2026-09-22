@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { APP_URL } from '@/lib/site';
 
 export default function Footer() {
   return (
@@ -50,12 +51,12 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-gray-900 mb-4">Company</h3>
             <ul className="space-y-2.5">
               <li>
-                <Link href={`${process.env.NEXT_PUBLIC_APP_URL}/login`} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                <Link href={`${APP_URL}/login`} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
                   Log In
                 </Link>
               </li>
               <li>
-                <Link href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                <Link href={`${APP_URL}/signup`} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
                   Sign Up
                 </Link>
               </li>
