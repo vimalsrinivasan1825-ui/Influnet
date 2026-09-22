@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import LogoMark from '@/components/brand/logo-mark';
-import { APP_URL } from '@/components/site/links';
+import { APP_URL, EVENT_API_URL } from '@/components/site/links';
 import { EVENT, firstName, qrPath, type Pass } from './event';
 import { renderPassPng } from './pass-image';
 import { trackMeta } from '@/components/analytics/meta-pixel';
@@ -323,7 +323,7 @@ function RegisterForm({ onRegistered }: { onRegistered: (p: Pass, already: boole
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${APP_URL}/api/event-pass`, {
+      const res = await fetch(`${EVENT_API_URL}/api/event-pass`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

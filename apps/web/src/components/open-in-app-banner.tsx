@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
 /**
@@ -43,6 +43,24 @@ function storeUrl(): string {
 
 export function OpenInAppBanner() {
   const [show, setShow] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Publish the banner's height while it is up, so anything else fixed to the
+  // bottom of the screen (the public profile's request bar, the report button)
+  // can sit above it instead of underneath.
+  useEffect(() => {
+    const el = ref.current;
+    const rootStyle = document.documentElement.style;
+    if (!show || !el) return;
+    const publish = () => rootStyle.setProperty('--app-banner-h', `${el.offsetHeight}px`);
+    publish();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+    ro?.observe(el);
+    return () => {
+      ro?.disconnect();
+      rootStyle.removeProperty('--app-banner-h');
+    };
+  }, [show]);
 
   useEffect(() => {
     let dismissed = false;
@@ -89,6 +107,7 @@ export function OpenInAppBanner() {
 
   return (
     <div
+      ref={ref}
       role="dialog"
       aria-label="Open in the Influnet app"
       className="fixed inset-x-0 bottom-0 z-[100] border-t border-hairline bg-surface-card px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)]"

@@ -1,6 +1,30 @@
 import type { Role } from '@/lib/role';
 
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://dev.influnet.io';
+/**
+ * Where every "Log in", "Get started" and "Sign up" on the landing goes.
+ *
+ * Staging is the environment real users sign up on; dev is for building and
+ * is wiped and reseeded. This used to default to dev, and on 2026-09-21 the
+ * deploy workflow was also pointed at dev so the /join event form would post
+ * there — which silently sent every login and signup link to dev as well, and
+ * real people created accounts on the wrong database. Navigation and the event
+ * form are now two separate settings (see EVENT_API_URL).
+ *
+ * NEXT_PUBLIC_* is inlined at BUILD time: changing it means a redeploy of the
+ * landing (the SWA workflow has a manual trigger for exactly this).
+ */
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://staging.influnet.io';
+
+/**
+ * Where the /join event form posts registrations.
+ *
+ * Deliberately separate from APP_URL: an event's registrations, entry passes
+ * and the admin "Event registrations" screen must all live in ONE database, and
+ * the first event (silicon-nexus-s2) started collecting on dev. Moving the form
+ * mid-campaign would split its passes across two databases. Repoint this, and
+ * move the rows, only between events.
+ */
+export const EVENT_API_URL = process.env.NEXT_PUBLIC_EVENT_API_URL || 'https://dev.influnet.io';
 export const SIGNUP_URL: Record<Role, string> = {
   creator: `${APP_URL}/signup/influencer`,
   business: `${APP_URL}/signup/business`,

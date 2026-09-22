@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { APP_URL } from '@/lib/site';
 
 const STATS = [
   { 
@@ -99,7 +100,7 @@ export default function Vision() {
 
               <div className="mb-6">
                 <Link
-                  href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
+                  href={`${APP_URL}/signup`}
                   className="inline-flex items-center gap-2 px-7 py-4 bg-[var(--magenta)] hover:bg-[var(--magenta-deep)] text-white font-bold rounded-2xl shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer text-xs md:text-sm"
                 >
                   Join Influnet Today

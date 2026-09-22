@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { APP_URL } from '@/lib/site';
 
 // --- CountUp Component for Animated Statistics ---
 function CountUp({ end, suffix = '', duration = 1200 }: { end: number; suffix?: string; duration?: number }) {
@@ -499,7 +500,7 @@ export default function TrustVerification() {
             </div>
           </div>
           <Link
-            href={`${process.env.NEXT_PUBLIC_APP_URL}/signup/business`}
+            href={`${APP_URL}/signup/business`}
             className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs md:text-sm shadow-md shadow-pink-500/25 transition-all hover:-translate-y-0.5 active:scale-95 flex-shrink-0 cursor-pointer"
           >
             Start Your Campaign Today

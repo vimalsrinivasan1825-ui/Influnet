@@ -12,6 +12,7 @@ export * from './project-lifecycle';
 export * from './project-stage-guide';
 export * from './project-turn';
 export * from './profile-visibility';
+export * from './profile-layout';
 export * from './project-cancellation';
 export * from './verification-nudge';
 export * from './phone';

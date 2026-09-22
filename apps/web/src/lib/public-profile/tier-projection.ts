@@ -79,6 +79,10 @@ const FREE_FIELDS = [
   'usingMock',
   'snapshotAge',
   'packages',
+  // Public posts and follower-level figures — the same facts as `featured`,
+  // `videos` and `stats`, just ordered for the section designs.
+  'showcase',
+  'headlineNumbers',
 ] as const satisfies readonly (keyof CreatorProfileView)[];
 
 export type FreeCreatorProfileView = Pick<

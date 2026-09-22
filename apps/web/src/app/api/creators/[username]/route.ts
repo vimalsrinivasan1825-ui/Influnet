@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { withAuth, jsonError } from '@/lib/api';
+import { resolveProfileLayout } from '@influnet/core';
 import {
   buildCreatorProfileView,
   resolveMockMode,
@@ -11,7 +12,8 @@ import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
 import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
-import { isSectionVisible } from '@influnet/core';
+import { getProfileLayout } from '@/lib/public-profile/get-layout';
+import { applySectionVisibility } from '@/lib/public-profile/profile-layout-view';
 import { publicOrigin } from '@/lib/site';
 import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
 import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
@@ -104,13 +106,14 @@ export async function GET(
   // of them used to 500 the entire profile — so an Instagram rate-limit could
   // make a creator look like they do not exist. Each slot now degrades on its
   // own and the rest of the profile still renders.
-  const [instagram, youtube, reviews, portfolio, visibility, collabStats] = await settleAll(
+  const [instagram, youtube, reviews, portfolio, visibility, layout, collabStats] = await settleAll(
     [
       getInstagramSnapshot(profile.userId),
       getYouTubeSnapshot(profile.userId),
       getPublicReviews(profile.userId),
       getCreatorPortfolio(supabase, profile.userId),
       getProfileVisibility(supabase, profile.userId),
+      getProfileLayout(supabase, profile.userId),
       // Migration 113. Counts only — how many brands this creator has actually
       // worked with, and how many of those finished. Follower count says how many
       // people watch; this says whether anyone has hired them, which is the thing
@@ -119,7 +122,7 @@ export async function GET(
     ],
     {
       route: '/api/creators/[username]',
-      labels: ['instagram', 'youtube', 'reviews', 'portfolio', 'visibility', 'collab_stats'],
+      labels: ['instagram', 'youtube', 'reviews', 'portfolio', 'visibility', 'layout', 'collab_stats'],
     },
   );
 
@@ -144,9 +147,7 @@ export async function GET(
   // Same gating as /c/[username] (the canonical page) — this route feeds the
   // mobile app's native profile screen and the web search overlay, and both
   // must respect the creator's choice exactly like the full page does.
-  if (!isSectionVisible(visibility, 'instagram_posts')) data.featured = [];
-  if (!isSectionVisible(visibility, 'youtube_videos')) data.videos = [];
-  if (!isSectionVisible(visibility, 'portfolio')) data.portfolio = [];
+  applySectionVisibility(data, visibility);
 
   // Plan gate, applied AFTER the creator's own visibility choices and applied
   // by projection rather than deletion — see lib/public-profile/tier-projection.ts
@@ -186,6 +187,8 @@ export async function GET(
     ctaProjectId,
     userId: profile.userId,
     isPro: Boolean(ownerIsPro),
+    /** Migration 173. Resolved: every section has a design. */
+    layout: layout ?? resolveProfileLayout({}),
     /** False when the viewer got the Free projection — drives the locked panels. */
     canSeeAudience,
     availabilityStatus: (profile as { availabilityStatus?: string | null }).availabilityStatus ?? null,

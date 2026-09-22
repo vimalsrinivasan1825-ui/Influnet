@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createRSCClient } from '@/lib/supabase/server-rsc';
 import type { Metadata } from 'next';
 import { ReportButton } from '@/components/safety/report-dialog';
-import CreatorProfileViewComponent from '@/components/public-profile/creator-profile-view';
+import EditorialProfile from '@/components/public-profile/editorial/editorial-profile';
 import {
   buildCreatorProfileView,
   extractContact,
@@ -16,7 +16,8 @@ import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
 import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
-import { isSectionVisible } from '@influnet/core';
+import { getProfileLayout } from '@/lib/public-profile/get-layout';
+import { applySectionVisibility } from '@/lib/public-profile/profile-layout-view';
 import { publicOrigin } from '@/lib/site';
 import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
 import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
@@ -113,7 +114,7 @@ export async function CreatorProfile({
   // up) rather than straight into business signup — a returning brand may
   // already have an account and just needs to sign in.
   let ctaHref = `/signup?next=/${username}`;
-  let ctaLabel = 'Work with me';
+  let ctaLabel = 'Send a request';
   if (isOwner) {
     ctaHref = '/dashboard/settings';
     ctaLabel = 'Edit profile';
@@ -177,12 +178,13 @@ export async function CreatorProfile({
 
   // Instagram, YouTube and ratings are independent reads — one being empty (or
   // its migration unapplied) must never hold up or break the others.
-  const [instagram, youtube, reviews, portfolio, visibility, collabStats] = await Promise.all([
+  const [instagram, youtube, reviews, portfolio, visibility, layout, collabStats] = await Promise.all([
     getInstagramSnapshot(profile.userId),
     getYouTubeSnapshot(profile.userId),
     getPublicReviews(profile.userId),
     getCreatorPortfolio(supabaseAnon, profile.userId),
     getProfileVisibility(supabaseAnon, profile.userId),
+    getProfileLayout(supabaseAnon, profile.userId),
     // Migration 113 — counts only, no partner identities. Same independent-read
     // rule as the others above: an unapplied migration must not break the page.
     (supabaseAnon.rpc as any)('get_collaboration_stats', { p_user_id: profile.userId }),
@@ -215,9 +217,7 @@ export async function CreatorProfile({
    * Stripping the arrays after the view is built keeps that distinction
    * without threading a visibility flag through every stat computation.
    */
-  if (!isSectionVisible(visibility, 'instagram_posts')) view.featured = [];
-  if (!isSectionVisible(visibility, 'youtube_videos')) view.videos = [];
-  if (!isSectionVisible(visibility, 'portfolio')) view.portfolio = [];
+  applySectionVisibility(view, visibility);
 
   /**
    * Plan gate. This page is PUBLIC and anonymous, which makes it the one that
@@ -260,8 +260,9 @@ export async function CreatorProfile({
 
   return (
     <>
-      <CreatorProfileViewComponent
+      <EditorialProfile
         data={viewForViewer}
+        layout={layout}
         isOwner={isOwner}
         isPro={Boolean(ownerIsPro)}
         ctaHref={ctaHref}
@@ -274,6 +275,7 @@ export async function CreatorProfile({
       {user && !isOwner && !embedded && (
         <ReportButton
           variant="floating"
+          className="bottom-[calc(1rem+var(--app-banner-h,0px))] max-sm:bottom-[calc(6rem+var(--app-banner-h,0px))]"
           reportedId={profile.userId}
           reportedName={viewForViewer.name || 'this creator'}
           context={{ kind: 'profile' }}
