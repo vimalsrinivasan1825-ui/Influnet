@@ -37,6 +37,8 @@ interface AdminProject {
   current_stage: string;
   budget?: number | string | null;
   created_at: string;
+  owner_user_id?: string | null;
+  counterparty_user_id?: string | null;
   owner?: { name?: string | null } | null;
   counterparty?: { name?: string | null } | null;
 }
@@ -146,9 +148,13 @@ export default function AdminProjectsPage() {
                       </Badge>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-content-soft">
-                      <span>{p.owner?.name || "Unknown"} (Brand)</span>
+                      <span>
+                        {p.owner?.name || (p.owner_user_id == null ? "Deleted account (Brand)" : "Unknown")}
+                      </span>
                       <ArrowLeftRight className="size-3 text-content-muted" />
-                      <span>{p.counterparty?.name || "Unknown"} (Creator)</span>
+                      <span>
+                        {p.counterparty?.name || (p.counterparty_user_id == null ? "Deleted account (Creator)" : "Unknown")}
+                      </span>
                       {p.budget != null && p.budget !== "" && (
                         <span className="font-semibold text-content">₹{Number(p.budget).toLocaleString()}</span>
                       )}

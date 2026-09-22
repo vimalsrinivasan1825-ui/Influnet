@@ -34,6 +34,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedTabs } from "@/components/ui/tabs";
+import { DeveloperGate } from "@/components/dashboard/admin/developer-gate";
 
 interface Issue {
   id: string;
@@ -343,7 +344,7 @@ function IssueCard({
   );
 }
 
-export default function AdminIssuesPage() {
+function AdminIssuesContent() {
   const [items, setItems] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -515,5 +516,13 @@ export default function AdminIssuesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminIssuesPage() {
+  return (
+    <DeveloperGate>
+      <AdminIssuesContent />
+    </DeveloperGate>
   );
 }

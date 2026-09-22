@@ -85,6 +85,22 @@ jobs:
       - name: Confirm migration state after applying
         run: supabase migration list
 
+      # Nothing else deployed these. `supabase functions deploy` was documented
+      # as a MANUAL command in four different docs going back to July and never
+      # once automated — which is exactly how the retired Login_Verification_OTP
+      # template stayed live on staging's phone-otp function after the code had
+      # already moved to Authentication_OTP: the source was right, the RUNNING
+      # function just never heard about it. Deploying on every push, the same
+      # way migrations already are, closes that class of bug for good rather
+      # than relying on someone remembering the command from a doc.
+      #
+      # Idempotent and cheap even when the function didn't change — add a new
+      # function's directory name here when one is added.
+      - name: Deploy Edge Functions
+        run: |
+          supabase functions deploy phone-otp --project-ref "$PROJECT_REF"
+          supabase functions deploy auth-signup --project-ref "$PROJECT_REF"
+
   build-and-deploy:
     needs: migrate
     runs-on: ubuntu-latest
@@ -138,6 +154,50 @@ jobs:
           exit $fail
 
       # Build-time: NEXT_PUBLIC_* vars are baked into the frontend JS
+      # The builder stage, on its own, so the source maps can be lifted out of
+      # it before the runner stage deletes them (see apps/web/Dockerfile).
+      #
+      # This is not a second build: the full build below is the SAME Dockerfile
+      # with the SAME build args, so every layer through `builder` comes back
+      # from Docker's layer cache. Keep the two argument lists identical — a
+      # difference in any one of them invalidates the cache and genuinely does
+      # build twice.
+      - name: Build the builder stage (for source maps)
+        run: |
+          docker build -f apps/web/Dockerfile --target builder \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ vars.SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ vars.SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ vars.STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ env.NEXT_PUBLIC_APP_URL }}" \
+            --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ vars.PHONE_OTP_ENABLED }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
+            --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_RELEASE="${{ github.sha }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_KEY="${{ vars.POSTHOG_KEY }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_HOST="${{ vars.POSTHOG_HOST }}" \
+            -t influnet-web-builder:${{ github.sha }} .
+
+      # Runs on every deploy; no-ops with a log line until the three Sentry
+      # values exist. The auth token stays in this step's environment and
+      # never reaches `docker build`, so it cannot land in an image layer.
+      - name: Upload source maps to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          scripts/upload-sentry-sourcemaps.sh \
+            influnet-web-builder:${{ github.sha }} \
+            ${{ github.sha }}
+
+      # PostHog is a `vars.` variable, not a `secrets.` one, for the same reason
+      # SUPABASE_ANON_KEY is: a PostHog project key (phc_...) is designed to sit
+      # in the browser bundle, so hiding it buys nothing and makes it harder to
+      # confirm at a glance. Both are passed as a BUILD arg (what the browser
+      # gets) and a RUNTIME var (what /api/admin/health reads to tell you
+      # whether analytics is on) — see the note on the env-var step below for
+      # why that duplication is not redundant. Unset is fine: with no key,
+      # lib/analytics.ts never loads posthog-js and nothing is sent.
       - name: Build and Push Docker Image
         run: |
           docker build -f apps/web/Dockerfile \
@@ -148,6 +208,9 @@ jobs:
             --build-arg NEXT_PUBLIC_PHONE_OTP_ENABLED="${{ vars.PHONE_OTP_ENABLED }}" \
             --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" \
             --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID="${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_RELEASE="${{ github.sha }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_KEY="${{ vars.POSTHOG_KEY }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_HOST="${{ vars.POSTHOG_HOST }}" \
             -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
           docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
@@ -248,11 +311,40 @@ jobs:
                 "EMAIL_TEST_SECRET=${{ secrets.EMAIL_TEST_SECRET }}" \
                 "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" \
                 "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
+                "SENTRY_RELEASE=${{ github.sha }}" \
+                "NEXT_PUBLIC_POSTHOG_KEY=${{ vars.POSTHOG_KEY }}" \
+                "NEXT_PUBLIC_POSTHOG_HOST=${{ vars.POSTHOG_HOST }}" \
                 "APP_ENV=dev" \
                 "PHONE_OTP_ENABLED=${{ vars.PHONE_OTP_ENABLED }}" \
                 "NOTIFY_EMAILS_ENABLED=${{ vars.NOTIFY_EMAILS_ENABLED }}" \
                 "SUBSCRIPTIONS_ENABLED=${{ vars.SUBSCRIPTIONS_ENABLED }}" \
                 "OWNERSHIP_GATE_ENABLED=${{ vars.OWNERSHIP_GATE_ENABLED }}"
+
+      # Read-side credentials for /dashboard/admin/observability. Optional,
+      # and set ONLY when the secret exists: `${{ secrets.X }}` expands to "" for
+      # a missing secret, and `--set-env-vars X=` would then blank a value set
+      # by hand on the container. SENTRY_API_TOKEN (event:read) is not
+      # SENTRY_AUTH_TOKEN (source-map upload). See lib/observability-dashboard.ts.
+      - name: Set observability dashboard credentials (when present)
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            ARGS=()
+            add() { if [ -n "$2" ]; then ARGS+=("$1=$2"); fi; }
+            add SENTRY_API_TOKEN "${{ secrets.SENTRY_API_TOKEN }}"
+            add SENTRY_ORG "${{ secrets.SENTRY_ORG }}"
+            add SENTRY_PROJECT "${{ secrets.SENTRY_PROJECT }}"
+            add POSTHOG_PERSONAL_API_KEY "${{ secrets.POSTHOG_PERSONAL_API_KEY }}"
+            add POSTHOG_PROJECT_ID "${{ vars.POSTHOG_PROJECT_ID }}"
+            if [ ${#ARGS[@]} -eq 0 ]; then
+              echo "No observability read credentials configured; dashboard will show setup steps."
+              exit 0
+            fi
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --set-env-vars "${ARGS[@]}"
 
       - name: Wait for the new revision to serve traffic
         run: |

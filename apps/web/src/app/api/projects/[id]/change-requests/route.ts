@@ -1,3 +1,4 @@
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { z } from 'zod';
@@ -91,6 +92,9 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data.changes, ['title', 'description', 'deliverables']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
 
     const { project, error } = await loadParticipantProject(supabase, projectId, user.id);
     if (error) return error;
@@ -162,6 +166,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
     const { request_id, action, note } = parsed.data;
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['note']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
 
     const { project, error } = await loadParticipantProject(supabase, projectId, user.id);
     if (error) return error;

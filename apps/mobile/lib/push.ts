@@ -34,7 +34,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-async function getExpoPushToken(): Promise<string | null> {
+async function getExpoPushToken(prompt: boolean): Promise<string | null> {
   // Simulators/emulators have no push service to register with.
   if (!Device.isDevice) {
     console.warn('[push] not a physical device — push tokens are unavailable here');
@@ -56,6 +56,12 @@ async function getExpoPushToken(): Promise<string | null> {
   const existing = await Notifications.getPermissionsAsync();
   let status = existing.status;
   if (status !== 'granted') {
+    // The OS shows its permission prompt ONCE; a "Don't allow" given without
+    // context is permanent. So nothing asks here on app open: only the
+    // explanation in components/push-prompt.tsx (shown after a meaningful
+    // action) or the Settings switch passes `prompt: true`. Everyone who
+    // already granted it, and every Android below 13, still registers silently.
+    if (!prompt) return null;
     const requested = await Notifications.requestPermissionsAsync();
     status = requested.status;
   }
@@ -90,25 +96,46 @@ async function getExpoPushToken(): Promise<string | null> {
   }
 }
 
-/** Registers this device's token with the server. Safe to call repeatedly — e.g. on every app open. */
-export async function syncPushToken(): Promise<void> {
-  const token = await getExpoPushToken();
+/** The token this install last registered, so sign-out can switch off only this device. */
+let registeredToken: string | null = null;
+
+function deviceMeta() {
+  return {
+    platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined,
+    appVersion: Constants.expoConfig?.version ?? undefined,
+    osVersion: Device.osVersion ?? undefined,
+  } as const;
+}
+
+/**
+ * Registers this device's token with the server. Safe to call repeatedly — e.g.
+ * on every app open, where it is SILENT: it registers only if permission was
+ * already granted and never shows the OS prompt. Pass `{ prompt: true }` only
+ * from a screen the person chose to turn notifications on from.
+ */
+export async function syncPushToken(opts: { prompt?: boolean } = {}): Promise<void> {
+  const token = await getExpoPushToken(opts.prompt === true);
   if (!token) return;
 
   // The result was previously discarded, which hid the case where the column
   // is missing server-side — the app looked registered while the server had
   // nothing to push to.
-  const res = await endpoints.registerPushToken<{ ok?: boolean; reason?: string }>(token);
+  const res = await endpoints.registerPushToken<{ ok?: boolean; reason?: string }>(token, {
+    ...deviceMeta(),
+    permission: 'granted',
+  });
   if (!res.ok || res.data?.ok !== true) {
     console.warn('[push] server did not store the push token:', res.data?.reason ?? res.error);
     return;
   }
+  registeredToken = token;
   console.log('[push] registered device token with the server');
 }
 
 /**
- * Clears the server-side token on sign-out, so a shared or reset device stops
- * receiving the previous account's pushes.
+ * Switches off THIS device server-side on sign-out, so a shared or reset
+ * device stops receiving the previous account's pushes — without silencing the
+ * same account's other phones (migration 156).
  *
  * Awaitable on purpose. Fired and forgotten, this request raced
  * supabase.auth.signOut() and usually reached the network *after* the token was
@@ -116,7 +143,8 @@ export async function syncPushToken(): Promise<void> {
  * resulting 401 was one of the strays that kept re-triggering sign-out.
  */
 export async function clearPushToken(): Promise<void> {
-  await endpoints.registerPushToken(null);
+  await endpoints.registerPushToken(null, registeredToken ? { deviceToken: registeredToken } : undefined);
+  registeredToken = null;
 }
 
 /**
@@ -136,19 +164,36 @@ export function usePushNotificationRouting(router: ImperativeRouter, ready: bool
   useEffect(() => {
     if (!ready) return;
 
-    // Cold start: the app was launched BY tapping a notification.
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      const link = response?.notification.request.content.data?.link;
+    const handle = (response: Notifications.NotificationResponse | null) => {
+      const data = response?.notification.request.content.data as
+        | { link?: unknown; delivery_id?: unknown }
+        | undefined;
+      // Broadcast opens are reported back so the admin can see whether anyone
+      // actually tapped (migration 157). Best-effort, never blocks navigation.
+      const deliveryId = Number(data?.delivery_id);
+      if (Number.isFinite(deliveryId) && deliveryId > 0) {
+        void endpoints.markNotificationOpened(deliveryId).catch(() => {});
+      }
+      const link = data?.link;
       const href = typeof link === 'string' ? toMobileHref(link) : null;
       if (href) routerRef.current.push(href);
-    });
+    };
+
+    // Cold start: the app was launched BY tapping a notification.
+    void Notifications.getLastNotificationResponseAsync().then(handle);
 
     // Warm: the app was already running (foreground or background).
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const link = response.notification.request.content.data?.link;
-      const href = typeof link === 'string' ? toMobileHref(link) : null;
-      if (href) routerRef.current.push(href);
-    });
+    const subscription = Notifications.addNotificationResponseReceivedListener(handle);
     return () => subscription.remove();
   }, [ready]);
+}
+
+/** The OS-level state, reduced to what the app's rules and Settings row need. */
+export async function getPushOsStatus(): Promise<'undetermined' | 'granted' | 'denied'> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === 'granted' || status === 'denied' ? status : 'undetermined';
+  } catch {
+    return 'undetermined';
+  }
 }

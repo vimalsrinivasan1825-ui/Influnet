@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { projectTurn, STAGE_PHASES, phaseOf } from '@influnet/core';
+import { projectTurn, STAGE_PHASES, phaseOf, flowOf, participantView } from '@influnet/core';
 import { withAuth, jsonError } from '@/lib/api';
+import { settleAll } from '@/lib/settle';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
@@ -186,13 +187,22 @@ export async function GET(req: Request) {
       // Everything a brand sees on /c/[username], read from the same sources.
       // A creator's own dashboard showing a different set of numbers than their
       // public page is the fastest way to make both look untrustworthy.
-      const [ig, yt, revs, collabs] = await Promise.all([
-        getInstagramSnapshot(user.id),
-        getYouTubeSnapshot(user.id),
-        getPublicReviews(user.id),
-        // Cast: the RPC (migration 067) is newer than the generated types.
-        (supabase.rpc as any)('get_creator_collaborations', { p_user_id: user.id }),
-      ]);
+      // Four independent enrichments of the same profile. None of them is
+      // load-bearing: the Home screen renders perfectly with any of them
+      // missing, so a throw in one must not cost the other three.
+      const [ig, yt, revs, collabs] = await settleAll(
+        [
+          getInstagramSnapshot(user.id),
+          getYouTubeSnapshot(user.id),
+          getPublicReviews(user.id),
+          // Cast: the RPC (migration 067) is newer than the generated types.
+          (supabase.rpc as any)('get_creator_collaborations', { p_user_id: user.id }),
+        ],
+        {
+          route: '/api/home',
+          labels: ['instagram', 'youtube', 'reviews', 'past_collaborations'],
+        },
+      );
       social = ig;
       youtube = yt;
       reviews = revs;
@@ -212,11 +222,19 @@ export async function GET(req: Request) {
         avatar_url: social?.profilePicUrl ?? null,
       };
     } else if (role === 'business_owner') {
-      const { data: biz } = await supabase
-        .from('business_profiles')
-        .select('username, company_name, industry, website, city, state, logo_url, approval_status')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Through the RPC, never a direct select: `authenticated` has column
+      // grants on business_profiles for only four columns (migration 053), and
+      // naming username/logo_url here failed the whole query — every brand's
+      // Home card rendered empty.
+      const { data: bizJson } = await supabase.rpc('get_own_business_profile');
+      const biz = bizJson as {
+        username?: string | null;
+        company_name?: string | null;
+        industry?: string | null;
+        website?: string | null;
+        logo_url?: string | null;
+        approval_status?: string | null;
+      } | null;
 
       publicPath = biz?.username ? `/b/${biz.username}` : null;
       publicProfile = {
@@ -234,7 +252,7 @@ export async function GET(req: Request) {
     const { data: projects } = await supabase
       .from('campaign_projects')
       .select(`
-        id, title, status, current_stage, budget, created_at, updated_at, stage_progress,
+        id, title, status, current_stage, flow_key, budget, created_at, updated_at, stage_progress,
         owner_user_id, counterparty_user_id,
         owner:profiles!campaign_projects_owner_user_id_fkey(id, name),
         counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name)
@@ -252,10 +270,12 @@ export async function GET(req: Request) {
     // owner is always the paying brand, the counterparty the creator.
     const ongoingRows = ongoing.map((p: any) => {
       const side = p.owner_user_id === user.id ? 'business' : 'creator';
+      const flow = flowOf(p);
       const { turn, action } = projectTurn({
         stage: p.current_stage,
         side,
         stageProgress: p.stage_progress,
+        flow,
       });
 
       return {
@@ -263,9 +283,16 @@ export async function GET(req: Request) {
         title: p.title,
         status: p.status,
         current_stage: p.current_stage,
+        flow_key: p.flow_key ?? 'full',
         budget: p.budget,
         updated_at: p.updated_at,
-        partner: side === 'business' ? p.counterparty?.name ?? null : p.owner?.name ?? null,
+        // Null embed after migration 161 means the other party deleted their
+        // account — ship the shared "Deleted account" label, never a blank.
+        partner:
+          participantView(
+            side === 'business' ? p.counterparty_user_id : p.owner_user_id,
+            side === 'business' ? p.counterparty : p.owner,
+          ).name,
         // "Whose move is it" — the one thing Home needs and never had. Computed
         // here rather than on the client because it reads stage_progress, which
         // is far too heavy to ship to a phone for every project.
@@ -409,7 +436,10 @@ export async function GET(req: Request) {
     // for after launch and its budget is round trips, not queries.
     const projectIds = all.map((p: any) => p.id);
 
-    const [viewsRes, businessViewersRes, reach, paymentsRes] = await Promise.all([
+    // settleAll: these are four independent stat tiles. Reach failing should
+    // blank the reach tile, not the whole Home screen — which is the first
+    // thing the app asks for after launch.
+    const [viewsRes, businessViewersRes, reach, paymentsRes] = await settleAll([
       // Rolling 60 days: the last 30 are the figure, the 30 before it are the
       // baseline the delta is measured against.
       isCreator
@@ -441,7 +471,10 @@ export async function GET(req: Request) {
             .select('amount, status, paid_at, created_at, project_id')
             .in('project_id', projectIds)
         : Promise.resolve({ data: [], error: null } as any),
-    ]);
+    ], {
+      route: '/api/home',
+      labels: ['profile_views', 'business_viewers', 'reach', 'payments'],
+    });
 
     /**
      * Views, split into the two windows. A missing table (an environment behind
@@ -530,10 +563,16 @@ export async function GET(req: Request) {
     const lastPayment = lastPaid
       ? {
           amount: toRupees(lastPaid.amount),
-          partner: lastPaidProject
-            ? (lastPaidProject.owner_user_id === user.id
-                ? lastPaidProject.counterparty?.name
-                : lastPaidProject.owner?.name) ?? null
+          partner:
+          lastPaidProject
+            ? participantView(
+                lastPaidProject.owner_user_id === user.id
+                  ? lastPaidProject.counterparty_user_id
+                  : lastPaidProject.owner_user_id,
+                lastPaidProject.owner_user_id === user.id
+                  ? lastPaidProject.counterparty
+                  : lastPaidProject.owner,
+              ).name
             : null,
         }
       : null;
@@ -649,7 +688,10 @@ export async function GET(req: Request) {
         budget: p.budget,
         completed_at: p.updated_at,
         partner:
-          p.owner_user_id === user.id ? p.counterparty?.name ?? null : p.owner?.name ?? null,
+          participantView(
+            p.owner_user_id === user.id ? p.counterparty_user_id : p.owner_user_id,
+            p.owner_user_id === user.id ? p.counterparty : p.owner,
+          ).name,
       })),
       counts: {
         ongoing: ongoing.length,

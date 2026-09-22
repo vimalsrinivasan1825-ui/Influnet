@@ -14,10 +14,11 @@ import {
   ChannelHeader,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/index.css";
-import { MessageSquare, Plus, FolderKanban, MoreVertical, Pin, PinOff, Trash2, Loader2, ArrowLeft } from "lucide-react";
+import { MessageSquare, Plus, FolderKanban, MoreVertical, Pin, PinOff, Trash2, Loader2, ArrowLeft, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 import { DealPanel } from "@/components/dashboard/deal-panel";
+import { ReportDialog } from "@/components/safety/report-dialog";
 import { cn } from "@/lib/utils";
 
 const STREAM_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
@@ -111,6 +112,9 @@ function MessagesContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [menuOpenConv, setMenuOpenConv] = useState<string | null>(null);
+  // Report / block the other person in a chat — a conversation is where abuse
+  // arrives (App Store 1.2 / Google UGC policy apply to the web twin too).
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeChannel, setActiveChannel] = useState<ReturnType<StreamChat["channel"]> | null>(null);
   // Who this conversation is with, resolved from our own tables. The Stream
@@ -396,6 +400,7 @@ function MessagesContent() {
               )}
               {conversations.map((c, i) => {
                 const other = c.participants?.find((p) => p.user_id !== userId)?.profile;
+                const otherId = c.participants?.find((p) => p.user_id !== userId)?.user_id;
                 const isActive = activeConvId === c.id;
                 const isMenuOpen = menuOpenConv === c.id;
                 const lastMsg = c.messages?.[c.messages.length - 1];
@@ -472,6 +477,18 @@ function MessagesContent() {
                           >
                             <Trash2 className="size-3.5" /> Delete chat
                           </button>
+                          {otherId && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenConv(null);
+                                setReportTarget({ id: otherId, name: other?.name || "this person" });
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft"
+                            >
+                              <Flag className="size-3.5" /> Report or block
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -507,6 +524,7 @@ function MessagesContent() {
           <DealPanel
             key={activeConvId}
             conversationId={activeConvId}
+            userId={userId}
             onProjectCreated={fetchConversations}
           />
         )}
@@ -545,6 +563,16 @@ function MessagesContent() {
           </div>
         )}
       </div>
+
+      {reportTarget && (
+        <ReportDialog
+          open
+          onClose={() => setReportTarget(null)}
+          reportedId={reportTarget.id}
+          reportedName={reportTarget.name}
+          context={{ kind: "profile" }}
+        />
+      )}
     </div>
   );
 }

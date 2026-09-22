@@ -291,10 +291,10 @@ export default function AdminUserDetailPage() {
               const row = (
                 <div className="flex items-center justify-between gap-3 py-2.5">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar name={c.other?.name || "Unknown"} size="sm" square />
+                    <Avatar name={c.other?.name || "Deleted account"} size="sm" square />
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-content">
-                        {c.other?.name || "Unknown user"}
+                        {c.other?.name || (c.other == null ? "Deleted account" : "Unknown user")}
                       </div>
                       <div className="text-xs text-content-muted">{c.label}</div>
                     </div>

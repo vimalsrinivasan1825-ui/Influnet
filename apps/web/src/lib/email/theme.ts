@@ -6,6 +6,8 @@
  * support neither CSS custom properties nor oklch(). Everything an email
  * renders must be an inline style with a literal colour.
  */
+import { SUPPORT_EMAIL } from '@influnet/core';
+
 export const theme = {
   brand: '#ee3e96',
   brandAlt: '#f26e59',
@@ -65,5 +67,5 @@ export function absoluteUrl(href: string): string {
 
 /** Support inbox shown as Reply-To and in the footer. */
 export function supportEmail(): string {
-  return process.env.EMAIL_REPLY_TO || 'support@influnet.io';
+  return process.env.EMAIL_REPLY_TO || SUPPORT_EMAIL;
 }

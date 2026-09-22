@@ -19,6 +19,7 @@ import { Input, InputGroup } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, THead, TRow } from "@/components/ui/table";
+import { DeveloperGate } from "@/components/dashboard/admin/developer-gate";
 
 interface AuditEntry {
   id: number;
@@ -71,7 +72,8 @@ export default function AdminAuditPage() {
   );
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
+    <DeveloperGate>
+      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
       <PageHeader
         eyebrow="Accountability"
         title="Audit log"
@@ -143,5 +145,6 @@ export default function AdminAuditPage() {
         </Card>
       )}
     </div>
+    </DeveloperGate>
   );
 }

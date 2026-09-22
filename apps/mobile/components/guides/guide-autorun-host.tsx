@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { CirclePlay, X } from 'lucide-react-native';
 import { guidesForRoute } from '@influnet/core';
+import { isGuideVisible } from '@/lib/guide-visibility';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { Txt } from '@/components/ui';
@@ -40,7 +41,7 @@ export function GuideAutoRunHost() {
     if (!loaded || !pathname || role === 'admin' || reduceMotion) return;
 
     const menuRole = role === 'influencer' || role === 'business_owner' ? role : null;
-    const guide = guidesForRoute(pathname, menuRole)[0];
+    const guide = guidesForRoute(pathname, menuRole).filter(isGuideVisible)[0];
     if (!guide || hasSeen(guide.id)) return;
 
     timer.current = setTimeout(() => {

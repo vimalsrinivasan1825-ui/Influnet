@@ -30,6 +30,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
+import { DeveloperGate } from "@/components/dashboard/admin/developer-gate";
 
 interface Health {
   environment: {
@@ -72,7 +73,8 @@ export default function AdminHealthPage() {
   const pendingMigrations = health?.features.filter((f) => !f.applied) ?? [];
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-6">
+    <DeveloperGate>
+      <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-6">
       <PageHeader
         eyebrow="Operations"
         title="System health"
@@ -208,5 +210,6 @@ export default function AdminHealthPage() {
         </>
       )}
     </div>
+    </DeveloperGate>
   );
 }

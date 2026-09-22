@@ -52,39 +52,39 @@ function CountUp({ end, suffix = '', duration = 1200 }: { end: number; suffix?: 
 const BUSINESS_CARDS = [
   {
     id: '01',
-    title: 'No Fake Numbers. Only Real Impact.',
-    description: 'We verify creators so you can collaborate with confidence, ensuring zero wasted campaign spend.',
+    title: 'Know the Creator Is Real.',
+    description: 'Creators prove they own their account, and their numbers are pulled from their public profiles, not typed in by hand.',
     bullets: [
-      'Audience authenticity checks',
-      'Engagement quality analysis',
-      'Fraud & fake follower detection',
-      'Verified badge you can trust'
+      'Instagram ownership check with a one-time bio code',
+      'Follower and engagement numbers from public profiles',
+      'Portfolio of past collaborations',
+      'Reviews from completed projects only'
     ],
     accent: 'from-purple-600 to-indigo-600',
     mockupType: 'verify'
   },
   {
     id: '02',
-    title: 'Track Every Campaign. Prove Every Result.',
-    description: 'Monitor performance in real time and measure the exact return on investment (ROI) that actually matters.',
+    title: 'Track Every Project, Stage by Stage.',
+    description: 'See where every collaboration stands, whose move it is, and what the creator’s content reached.',
     bullets: [
-      'Real-time campaign analytics',
-      'Reach, engagement, clicks & ROI',
-      'Custom reports in one click',
-      'Share results with your team'
+      'Every project tracked from invite to payment',
+      'Both sides sign off before a stage moves on',
+      'Creator reach and views on their profile',
+      'Your spend across projects in one place'
     ],
     accent: 'from-blue-500 to-cyan-500',
     mockupType: 'performance'
   },
   {
     id: '03',
-    title: 'Manage Payments & Budgets Seamlessly',
-    description: 'Automated payments, clear budgets, and zero manual payment follow-ups or administrative hassle.',
+    title: 'Pay Against Agreed Terms.',
+    description: 'Amounts come from the terms both sides agreed. Pay the advance and final amounts through Razorpay, with a record of every payment.',
     bullets: [
-      'Secure escrow & milestone payments',
-      'Automated invoicing & reminders',
-      'Transparent transaction history',
-      'On-time payments, always'
+      'Advance and final payments via Razorpay',
+      'Amounts set by the agreed terms, not retyped',
+      'Downloadable receipts and invoices',
+      'Full payment history per project'
     ],
     accent: 'from-emerald-500 to-teal-500',
     mockupType: 'payments'
@@ -98,14 +98,14 @@ function MockupVerify() {
     <div className="w-full bg-slate-50 rounded-2xl border border-gray-100 p-5 font-sans text-xs flex flex-col justify-between h-full min-h-[250px] shadow-inner">
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-4">
-          <span className="font-extrabold text-gray-800">Verification Engine</span>
+          <span className="font-extrabold text-gray-800">Creator Checks</span>
           <span className="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Verified</span>
         </div>
         <div className="space-y-2.5 font-semibold">
           {[
-            { label: 'Audience Authenticity', delay: 0.1 },
-            { label: 'Engagement Quality', delay: 0.25 },
-            { label: 'Identity Verification', delay: 0.4 }
+            { label: 'Account Ownership', delay: 0.1 },
+            { label: 'Public Metrics', delay: 0.25 },
+            { label: 'Past Collaborations', delay: 0.4 }
           ].map((item) => (
             <motion.div 
               key={item.label}
@@ -122,13 +122,13 @@ function MockupVerify() {
       </div>
       <div className="mt-3">
         <div className="flex justify-between text-[9px] text-gray-500 font-bold mb-1">
-          <span>Overall Score</span>
-          <span className="text-green-600 font-bold">86/100</span>
+          <span>Checks Passed</span>
+          <span className="text-green-600 font-bold">3/3</span>
         </div>
         <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
           <motion.div 
             initial={{ width: 0 }}
-            whileInView={{ width: '86%' }}
+            whileInView={{ width: '100%' }}
             transition={{ duration: 1.2, ease: 'easeOut' }}
             className="h-full bg-green-500 rounded-full" 
           />
@@ -157,7 +157,7 @@ function MockupPerformance() {
           <span className="font-extrabold text-gray-800">Campaign Stats</span>
           <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-            Live Tracker
+            Project Tracker
           </span>
         </div>
         
@@ -170,9 +170,9 @@ function MockupPerformance() {
             </div>
           </div>
           <div className="bg-white p-2.5 rounded-xl border border-gray-100 text-center shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
-            <div className="text-[9px] text-gray-400 font-bold uppercase">ROI</div>
+            <div className="text-[9px] text-gray-400 font-bold uppercase">Views</div>
             <div className="text-sm font-bold text-green-600 mt-0.5">
-              <CountUp end={4.2} suffix="X" />
+              <CountUp end={4.2} suffix="M" />
             </div>
           </div>
         </div>
@@ -238,17 +238,17 @@ function MockupPerformance() {
   );
 }
 
-// --- Live Escrow Burn Progress Ring in Card 4 ---
+// --- Payment progress ring in Card 4 ---
 function MockupPayments() {
   return (
     <div className="w-full bg-slate-50 rounded-2xl border border-gray-100 p-5 font-sans text-xs flex flex-col justify-between h-full min-h-[250px] shadow-inner">
       <div>
         <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
-          <span className="font-extrabold text-gray-800">Escrow Payouts</span>
-          <span className="text-[9px] font-bold text-gray-400">Milestone Escrow</span>
+          <span className="font-extrabold text-gray-800">Project Payments</span>
+          <span className="text-[9px] font-bold text-gray-400">Via Razorpay</span>
         </div>
 
-        {/* Circular Progress & Escrow Status */}
+        {/* Circular progress & payment status */}
         <div className="flex items-center gap-4 bg-white p-3 rounded-xl border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.015)] mb-3">
           <div className="relative w-12 h-12 flex items-center justify-center flex-shrink-0">
             <svg className="w-full h-full transform -rotate-95" viewBox="0 0 36 36">
@@ -269,7 +269,7 @@ function MockupPayments() {
             <span className="absolute text-[8px] font-bold text-gray-800">85%</span>
           </div>
           <div>
-            <div className="text-[10px] text-gray-400 font-bold">Total Budget Escrow</div>
+            <div className="text-[10px] text-gray-400 font-bold">Paid of Agreed Budget</div>
             <div className="text-xs font-bold text-gray-800 mt-0.5">₹4,25,000 / ₹5,00,000</div>
           </div>
         </div>
@@ -278,7 +278,7 @@ function MockupPayments() {
         <div className="space-y-2">
           {[
             { name: 'Sarah Fitness', amount: '₹2,50,000', status: 'Paid', statusClass: 'bg-green-50 text-green-700', delay: 0.1 },
-            { name: 'Rohit Verma', amount: '₹1,75,000', status: 'In Escrow', statusClass: 'bg-amber-50 text-amber-700', delay: 0.3 }
+            { name: 'Rohit Verma', amount: '₹1,75,000', status: 'Due', statusClass: 'bg-amber-50 text-amber-700', delay: 0.3 }
           ].map((tx) => (
             <motion.div 
               key={tx.name}

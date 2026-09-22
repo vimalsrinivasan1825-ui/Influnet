@@ -27,7 +27,7 @@ import { BadgeCheck, Check, Sparkles } from 'lucide-react-native';
 import { formatPrice, type Entitlements } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useEntitlements } from '@/lib/use-entitlements';
-import { useUpgrade } from '@/lib/use-upgrade';
+import { HIDE_PRO_PURCHASE, useUpgrade } from '@/lib/use-upgrade';
 import {
   Button,
   Card,
@@ -350,8 +350,9 @@ export default function BillingScreen() {
             <Txt variant="title3">Free plan</Txt>
           </View>
           <Txt tone="soft" variant="footnote">
-            You&apos;re on the Free plan. Upgrade for unlimited projects, creator
-            discovery and audience data.
+            {HIDE_PRO_PURCHASE
+              ? "You're on the Free plan. Pro adds unlimited projects, creator discovery and audience data."
+              : "You're on the Free plan. Upgrade for unlimited projects, creator discovery and audience data."}
           </Txt>
 
           {meters.length > 0 && (
@@ -369,7 +370,7 @@ export default function BillingScreen() {
         </Card>
       )}
 
-      {!isPro && (
+      {!isPro && !HIDE_PRO_PURCHASE && (
         <Button
           label={busy ? 'Opening checkout…' : `Upgrade to Pro — ${formatPrice(entitlements.price.paise, entitlements.price.currency)}/mo`}
           onPress={onUpgrade}
@@ -404,9 +405,11 @@ export default function BillingScreen() {
         </GoldPanel>
       </View>
 
-      <Txt variant="caption" tone="muted" center>
-        Secure payment by Razorpay · Cancel any time
-      </Txt>
+      {!HIDE_PRO_PURCHASE && (
+        <Txt variant="caption" tone="muted" center>
+          Secure payment by Razorpay · Cancel any time
+        </Txt>
+      )}
     </ScreenScroll>
   );
 }

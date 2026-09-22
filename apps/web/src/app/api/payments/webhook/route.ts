@@ -101,7 +101,15 @@ export async function POST(req: Request) {
     }
 
     if (isFailure) {
-      await admin.from('project_payments').update({ status: 'failed' }).eq('id', payment.id);
+      // Razorpay's own words for the failure, kept for the admin payments ledger (155).
+      const failureReason =
+        ((entity?.error_description as string | undefined) ||
+          (entity?.error_reason as string | undefined) ||
+          null)?.slice(0, 300) ?? null;
+      await admin
+        .from('project_payments')
+        .update({ status: 'failed', failure_reason: failureReason })
+        .eq('id', payment.id);
 
       if (payment.payer_id) {
         const { data: proj } = await admin

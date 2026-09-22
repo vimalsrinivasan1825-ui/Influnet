@@ -17,6 +17,7 @@ import { PlanNudge } from "@/components/dashboard/plan-nudge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/ui/motion";
 import { InboundBoostPanel } from "@/components/dashboard/inbound-boost-panel";
+import { ReportButton } from "@/components/safety/report-dialog";
 import { cn } from "@/lib/utils";
 
 interface CollabRequest {
@@ -538,6 +539,13 @@ function RequestCard({
             </Button>
           )}
 
+          {/* Report or block whoever sent / received this request (App Store 1.2). */}
+          <ReportButton
+            variant="icon"
+            reportedId={otherUserId}
+            reportedName={otherParty?.name || "this person"}
+            context={{ kind: "request", requestId: r.id }}
+          />
         </div>
       </Card>
     </Reveal>

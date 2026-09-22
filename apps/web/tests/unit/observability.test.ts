@@ -11,6 +11,8 @@ describe('observability', () => {
   beforeEach(() => {
     delete process.env.SENTRY_DSN;
     delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+    delete process.env.SENTRY_RELEASE;
+    delete process.env.NEXT_PUBLIC_SENTRY_RELEASE;
   });
   afterEach(() => {
     globalThis.fetch = origFetch;
@@ -41,6 +43,29 @@ describe('observability', () => {
     expect(String(url)).toContain('/api/456/envelope/');
     expect(String(url)).toContain('sentry_key=abc123');
     expect(String(init.body)).toContain('"boom"');
+  });
+
+  it('tags the event with the deployed release when one is set', async () => {
+    process.env.SENTRY_DSN = 'https://abc123@o123.ingest.sentry.io/456';
+    process.env.SENTRY_RELEASE = 'deadbeef1234';
+    const spy = vi.fn().mockResolvedValue({ ok: true });
+    globalThis.fetch = spy as any;
+    const { captureException } = await freshModule();
+
+    captureException(new Error('boom'));
+
+    expect(String(spy.mock.calls[0][1].body)).toContain('"release":"deadbeef1234"');
+  });
+
+  it('omits release rather than sending an empty one when unset', async () => {
+    process.env.SENTRY_DSN = 'https://abc123@o123.ingest.sentry.io/456';
+    const spy = vi.fn().mockResolvedValue({ ok: true });
+    globalThis.fetch = spy as any;
+    const { captureException } = await freshModule();
+
+    captureException(new Error('boom'));
+
+    expect(String(spy.mock.calls[0][1].body)).not.toContain('"release"');
   });
 
   it('never throws on a malformed DSN', async () => {

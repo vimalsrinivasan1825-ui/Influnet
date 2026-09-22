@@ -99,3 +99,23 @@ export const BUSINESS_TYPES = [
 export const BUDGET_RANGES = [
   'Under ₹25K/month', '₹25K – ₹50K', '₹50K – ₹1L', '₹1L – ₹5L', '₹5L – ₹10L', '₹10L+', 'Other',
 ];
+
+/**
+ * The one support mailbox. influnet.io has a mail server; influnet.in does NOT
+ * (no MX record), so mail to an @influnet.in address bounces. Import this,
+ * never type the address.
+ */
+export const SUPPORT_EMAIL = 'support@influnet.io';
+
+/**
+ * Version of the Terms of Service + Privacy Policy a person accepted at signup.
+ * Stored beside the acceptance time (signup_consents, migration 162) so we can
+ * always say WHICH text someone agreed to. Bump it whenever the legal text
+ * changes materially; existing accounts keep the version they accepted.
+ * The current value marks the unreviewed draft: set a dated version when the
+ * founder publishes the lawyer-reviewed text.
+ */
+export const TERMS_VERSION = '2026-09-draft-1';
+
+/** The minimum age to hold an account. The Terms say 18+, and signup now enforces it. */
+export const MINIMUM_AGE = 18;

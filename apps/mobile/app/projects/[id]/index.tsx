@@ -17,6 +17,7 @@ import {
   CANCELLATION_REASONS,
   cancellationReasonLabel,
   cancellationReasonRequiresText,
+  otherParticipant,
   type Stage,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
@@ -60,8 +61,8 @@ interface ProjectDetail {
   /** Already returned — the route selects `*`. */
   due_date?: string | null;
   created_at: string;
-  owner_user_id: string;
-  counterparty_user_id: string;
+  owner_user_id: string | null;
+  counterparty_user_id: string | null;
   stage_progress: Record<string, StageProgressEntry> | null;
   owner?: { name?: string } | null;
   counterparty?: { name?: string } | null;
@@ -152,7 +153,18 @@ export default function ProjectDetailScreen() {
 
   const project = data?.project;
   const isOwner = project?.owner_user_id === me;
-  const partner = (isOwner ? project?.counterparty?.name : project?.owner?.name) ?? 'Partner';
+  // Null embed after migration 161 means the other party deleted their
+  // account — shared "Deleted account" wording, never a blank.
+  const partner =
+    project
+      ? otherParticipant(
+          isOwner,
+          project.owner_user_id,
+          project.counterparty_user_id,
+          project.owner,
+          project.counterparty,
+        ).name
+      : 'Partner';
   const s = styleForStatus(project?.status, t.color);
 
   /**
@@ -283,7 +295,7 @@ export default function ProjectDetailScreen() {
   const stageStatus = (stage: string) =>
     (project?.stage_progress?.[stage] as { status?: string } | undefined)?.status;
   const paidAmount = project
-    ? stageStatus('final_payment') === 'completed'
+    ? stageStatus('final_payment') === 'completed' || stageStatus('quick_payment') === 'completed'
       ? Number(project.budget || 0)
       : stageStatus('advance_payment') === 'completed'
         ? Number(project.advance_amount || project.budget || 0)

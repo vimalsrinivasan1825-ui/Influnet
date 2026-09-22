@@ -17,6 +17,7 @@ import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
 import { useEntitlements } from '@/lib/use-entitlements';
 import { Button, Card, ListRow, SectionLabel, Txt } from '@/components/ui';
+import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
 
 interface ProjectDocument {
   id: string;
@@ -100,7 +101,7 @@ export function ProjectDocuments({ projectId }: { projectId: string }) {
       {invoiceLimit !== null && (
         <Txt variant="caption" tone={atCap ? 'warn' : 'muted'}>
           {invoicesUsed} of {invoiceLimit} invoices this month
-          {atCap ? ' · upgrade to Pro for unlimited' : ''}
+          {atCap && !HIDE_PRO_PURCHASE ? ' · upgrade to Pro for unlimited' : ''}
         </Txt>
       )}
 

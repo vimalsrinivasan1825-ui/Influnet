@@ -51,13 +51,22 @@ interface RealtimeState {
    */
   projectTicks: Record<string, number>;
   /**
+   * Per-conversation counter, keyed by conversation id, for the chat screen's
+   * deal card — the one thing a project row can never signal, because
+   * declining or withdrawing a proposal never creates or touches a
+   * campaign_projects row. See openConversationChannel for why this is keyed
+   * on conversation id rather than a participant's user id.
+   */
+  proposalTicks: Record<string, number>;
+  /**
    * Bumped whenever the session's channel set is opened or torn down.
    *
    * Per-project channels are opened by screens, which can mount before
    * startRealtime() has run (a cold start deep-linked into a project) — without
    * a signal to re-run on, such a screen would stay channel-less for its whole
    * life. It doubles as the resume re-arm: the same teardown/reopen that fixes
-   * the session channels re-opens the screens' channels through this.
+   * the session channels re-opens the screens' channels through this. The
+   * per-conversation channels below share it for the same reason.
    */
   gen: number;
 }
@@ -66,6 +75,7 @@ export const useRealtimeTicks = create<RealtimeState>(() => ({
   requestsTick: 0,
   projectsTick: 0,
   projectTicks: {},
+  proposalTicks: {},
   gen: 0,
 }));
 
@@ -85,6 +95,16 @@ let appStateSub: { remove: () => void } | null = null;
  * screen.
  */
 const projectSubs = new Map<string, { count: number; channel: RealtimeChannel | null }>();
+
+/**
+ * Same shape as projectSubs, keyed by conversation id instead of project id,
+ * for the chat screen's deal card. Kept as its own map rather than folded
+ * into projectSubs: a project id (bigint) and a conversation id (uuid) are
+ * different id spaces watching different tables for a different reason, and
+ * sharing one map would mean one function subscribing to two unrelated
+ * tables under whichever kind of id happened to be passed in.
+ */
+const conversationSubs = new Map<string, { count: number; channel: RealtimeChannel | null }>();
 
 /**
  * Bumped by every startRealtime() and stopRealtime().
@@ -155,6 +175,19 @@ const bumpOpenProjects = () => {
   for (const id of projectSubs.keys()) bumpProject(id);
 };
 
+/** One open conversation's deal card changed. See bumpProject. */
+const bumpConversation = (conversationId: string) =>
+  debounce(`conversation:${conversationId}`, () =>
+    useRealtimeTicks.setState((s) => ({
+      proposalTicks: { ...s.proposalTicks, [conversationId]: (s.proposalTicks[conversationId] ?? 0) + 1 },
+    })),
+  );
+
+/** Bump every conversation a screen currently has open. See bumpOpenProjects. */
+const bumpOpenConversations = () => {
+  for (const id of conversationSubs.keys()) bumpConversation(id);
+};
+
 function openChannels(userId: string): void {
   // A notification row is written for every event worth a badge (see
   // apps/web/src/lib/notify.ts), so this one channel keeps every count live.
@@ -197,12 +230,18 @@ function openChannels(userId: string): void {
         }
 
         // Anything else: a notification usually accompanies a row change on one
-        // of the two tables below, but not always from a path we replicate (a
-        // DELETE can never reach a filtered listener at all), so bumping both is
-        // the cheap way to keep the screens honest.
+        // of the tables below, but not always from a path we replicate (a
+        // DELETE can never reach a filtered listener at all), so bumping all
+        // three is the cheap way to keep the screens honest. This is also the
+        // ONLY backstop declining a proposal has — that action notifies the
+        // proposer but touches no published column a filtered listener can
+        // key on other than conversation_id, which this generic handler has
+        // no way to name; withdrawing sends no notification at all, so it has
+        // no backstop and depends entirely on the dedicated channel below.
         bumpRequests();
         bumpProjects();
         bumpOpenProjects();
+        bumpOpenConversations();
       },
     )
     .subscribe();
@@ -346,6 +385,45 @@ async function closeProjectChannels(): Promise<void> {
 }
 
 /**
+ * The chat screen's deal card: a proposal accepted, declined or withdrawn.
+ * Filtered on conversation_id — the one column every project_proposals row
+ * carries for BOTH parties — rather than a participant's user id, because the
+ * only participant recorded directly on the row is proposed_by (the sender);
+ * the recipient's id appears nowhere on it, so a filter keyed on their id
+ * could never match. See migration 148 for the RLS reasoning that makes a
+ * conversation_id filter safe rather than a leak.
+ *
+ * Requires supabase/migrations/148_realtime_project_proposals.sql. Until it
+ * is applied this channel subscribes and never fires, same degrade-safely
+ * contract as the project channel above.
+ */
+function openConversationChannel(conversationId: string): RealtimeChannel {
+  return supabase
+    .channel(`mobile-conversation:${conversationId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'project_proposals',
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      () => bumpConversation(conversationId),
+    )
+    .subscribe();
+}
+
+/** Close the per-conversation channels without forgetting who is still watching. */
+async function closeConversationChannels(): Promise<void> {
+  const open: RealtimeChannel[] = [];
+  for (const sub of conversationSubs.values()) {
+    if (sub.channel) open.push(sub.channel);
+    sub.channel = null;
+  }
+  await Promise.all(open.map((c) => supabase.removeChannel(c).catch(() => undefined)));
+}
+
+/**
  * Re-arm after the app was backgrounded.
  *
  * iOS and Android both suspend the socket when the app leaves the foreground,
@@ -367,19 +445,22 @@ function handleAppState(status: AppStateStatus): void {
   const openProjectChannels = [...projectSubs.values()]
     .map((s) => s.channel)
     .filter((c): c is RealtimeChannel => !!c);
+  const openConversationChannels = [...conversationSubs.values()]
+    .map((s) => s.channel)
+    .filter((c): c is RealtimeChannel => !!c);
   const healthy =
     channels.length > 0 &&
-    [...channels, ...openProjectChannels].every(
+    [...channels, ...openProjectChannels, ...openConversationChannels].every(
       (c) => c.state === 'joined' || c.state === 'joining',
     );
 
   if (!healthy) {
     logger.info('realtime resubscribing after resume');
     const gen = generation;
-    // The per-project channels die in exactly the same way as the session ones,
-    // so they are torn down with them and re-opened by the screens through the
-    // `gen` bump below.
-    void Promise.all([closeChannels(), closeProjectChannels()]).then(() => {
+    // The per-project and per-conversation channels die in exactly the same
+    // way as the session ones, so they are torn down with them and re-opened
+    // by the screens through the `gen` bump below.
+    void Promise.all([closeChannels(), closeProjectChannels(), closeConversationChannels()]).then(() => {
       // Guard against a sign-out OR a startRealtime() that landed while the
       // teardown was in flight. The id check alone lets a same-user restart
       // through, and then both it and this continuation open a channel set.
@@ -393,8 +474,10 @@ function handleAppState(status: AppStateStatus): void {
   bumpRequests();
   bumpProjects();
   // Whatever moved while the app was asleep produced no event anyone heard, so
-  // an open project is stale by definition at the moment it is looked at again.
+  // an open project — or an open conversation's deal card — is stale by
+  // definition at the moment it is looked at again.
   bumpOpenProjects();
+  bumpOpenConversations();
 }
 
 /**
@@ -441,12 +524,14 @@ export function stopRealtime(): void {
   // were shown, so the next account starts clean.
   useNotificationToast.getState().clear();
   void closeChannels();
-  // A project screen can still be mounted at sign-out (signing out from a deep
-  // link, a session that expired under you), and its channel would otherwise
-  // live until that screen unmounts — authenticated work outliving its token,
-  // which is the class of bug the sign-out cycle was spent removing. The
-  // refcounts stay so the screens can re-open cleanly if a session returns.
+  // A project or conversation screen can still be mounted at sign-out (signing
+  // out from a deep link, a session that expired under you), and its channel
+  // would otherwise live until that screen unmounts — authenticated work
+  // outliving its token, which is the class of bug the sign-out cycle was
+  // spent removing. The refcounts stay so the screens can re-open cleanly if a
+  // session returns.
   void closeProjectChannels();
+  void closeConversationChannels();
 
   // No `gen` bump here on purpose. Bumping it would wake every mounted project
   // screen's effect during teardown, and `currentUserId` is already null by
@@ -530,6 +615,52 @@ export function useProjectLive(projectId: string | undefined, revalidate: () => 
   useEffect(() => {
     // `<=` for the same reason as useLiveRefresh: a decrease means the world
     // restarted, not that these rows changed.
+    if (tick <= seen.current) {
+      seen.current = tick;
+      return;
+    }
+    seen.current = tick;
+    fnRef.current();
+  }, [tick]);
+}
+
+/**
+ * Keep one conversation's deal card live while its screen is open. Same
+ * contract and refcounting as useProjectLive — see there for why `revalidate`
+ * must be useFetch's silent one, not `refresh`.
+ */
+export function useProposalLive(conversationId: string | undefined, revalidate: () => void): void {
+  const gen = useRealtimeTicks((s) => s.gen);
+
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const existing = conversationSubs.get(conversationId);
+    const sub = existing ?? { count: 0, channel: null };
+    sub.count += 1;
+    conversationSubs.set(conversationId, sub);
+
+    if (!sub.channel && currentUserId) sub.channel = openConversationChannel(conversationId);
+
+    return () => {
+      const cur = conversationSubs.get(conversationId);
+      if (!cur) return;
+      cur.count -= 1;
+      if (cur.count > 0) return;
+      conversationSubs.delete(conversationId);
+      if (cur.channel) void supabase.removeChannel(cur.channel).catch(() => undefined);
+    };
+  }, [conversationId, gen]);
+
+  const tick = useRealtimeTicks((s) => (conversationId ? (s.proposalTicks[conversationId] ?? 0) : 0));
+
+  const fnRef = useRef(revalidate);
+  useEffect(() => {
+    fnRef.current = revalidate;
+  });
+
+  const seen = useRef(tick);
+  useEffect(() => {
     if (tick <= seen.current) {
       seen.current = tick;
       return;

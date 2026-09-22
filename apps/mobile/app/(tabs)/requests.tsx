@@ -38,6 +38,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChevronDown, ChevronUp, Search, Send } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+import { maybeAskForPush } from '@/lib/push-prompt';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useFetch } from '@/lib/use-fetch';
@@ -189,6 +190,14 @@ export default function RequestsScreen() {
       (data?.collabs ?? []).filter((c) => (isCreator ? c.to_user_id === me : c.from_user_id === me)),
     [data, isCreator, me],
   );
+
+  // A creator who can see a request addressed to them has just seen why
+  // notifications matter, so this is the moment to ask (lib/push-prompt.ts). It
+  // decides for itself and is a no-op when already granted, denied or declined.
+  const incomingCount = isCreator ? rows.length : 0;
+  useEffect(() => {
+    if (incomingCount > 0) void maybeAskForPush('request_received');
+  }, [incomingCount]);
 
   const { actionItems, activeItems, closedItems } = useMemo(() => {
     const stateOf = (c: CollabRow) => c.deal_state ?? c.status;

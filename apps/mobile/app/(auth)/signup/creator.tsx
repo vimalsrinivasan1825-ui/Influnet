@@ -3,7 +3,15 @@ import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Check, X } from 'lucide-react-native';
-import { COLLAB_TYPES, INDIAN_STATES, LANGUAGES, NICHES, PRICE_TIERS } from '@influnet/core';
+import {
+  COLLAB_TYPES,
+  INDIAN_STATES,
+  LANGUAGES,
+  NICHES,
+  PRICE_TIERS,
+  isStrongEnoughPassword,
+  passwordStrengthScore,
+} from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions, useInstagramAvailability } from '@/lib/use-signup';
 import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
@@ -16,6 +24,7 @@ import { SocialDisclosure } from '@/components/social-disclosure';
 import { BioVerifyStep, useBioVerification } from '@/components/bio-verify-step';
 import { Button, Chip, ChipWrap, Field, Txt } from '@/components/ui';
 import { CityField } from '@/components/city-field';
+import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from '@/components/consent-fields';
 
 /** Toggle a value in a multi-select list. */
 function toggle(list: string[], value: string) {
@@ -45,6 +54,7 @@ export default function CreatorSignup() {
 
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [consent, setConsent] = useState<ConsentState>(NO_CONSENT);
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState('');
@@ -166,6 +176,9 @@ export default function CreatorSignup() {
         city: city.trim() || undefined,
         state: state || undefined,
         location: [city.trim(), state].filter(Boolean).join(', ') || undefined,
+        // The server refuses a signup without both and records the time itself
+        // (signup_consents, migration 162); they ride in auth metadata too.
+        ...consentPayload(consent),
       });
 
       if (!result.ok) {
@@ -279,7 +292,7 @@ export default function CreatorSignup() {
   },
   {
     title: 'Create your login',
-    valid: /\S+@\S+\.\S+/.test(email) && password.length >= 8 && emailOk,
+    valid: /\S+@\S+\.\S+/.test(email) && isStrongEnoughPassword(password) && emailOk,
     body: (
       <View style={{ gap: t.spacing.lg }}>
         <Field
@@ -310,7 +323,18 @@ export default function CreatorSignup() {
             secureTextEntry
             autoCapitalize="none"
             autoComplete="new-password"
-            hint="At least 8 characters."
+            // Real-time strength feedback rather than a single static
+            // "8 characters" line — the wizard now actually enforces
+            // more than length (see isStrongEnoughPassword), so a
+            // password can be 8 characters and still not pass.
+            error={
+              password.length > 0 && !isStrongEnoughPassword(password)
+                ? passwordStrengthScore(password) === 0
+                  ? 'At least 8 characters.'
+                  : 'Add a number, a symbol, or a longer phrase.'
+                : null
+            }
+            hint="At least 8 characters, mixing in a number or a symbol."
             placeholder="Create a password"
           />
         </View>
@@ -533,7 +557,7 @@ export default function CreatorSignup() {
     {
       title: 'Rate and location',
       subtitle: 'You can change these any time.',
-      valid: !!priceRange && !!state && !!gender,
+      valid: !!priceRange && !!state && !!gender && consentComplete(consent),
       body: (
         <View style={{ gap: t.spacing.xl }}>
           <View style={{ gap: t.spacing.sm }}>
@@ -580,6 +604,8 @@ export default function CreatorSignup() {
               ))}
             </ChipWrap>
           </View>
+
+          <ConsentFields value={consent} onChange={setConsent} />
         </View>
       ),
     },

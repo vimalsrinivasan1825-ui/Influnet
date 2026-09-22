@@ -37,6 +37,13 @@
  *
  *   node --env-file=apps/web/.env.local scripts/create-admin.mjs --list
  *
+ * ── Admin tier (migration 150/151) ────────────────────────────────────────
+ *   --super (alias --developer)  grant Developer / Super Admin: health, vendors,
+ *                                rate limits, emails, audit, issues.
+ *   --no-super                   explicitly revoke it (Business / Client Admin).
+ *   neither                      keep the account's current tier; a new admin
+ *                                starts as Business / Client Admin.
+ *
  * Requires SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL in the env.
  * The service-role key is a full-database credential: run this from a trusted
  * machine, never from CI logs or a shared terminal.
@@ -88,14 +95,15 @@ function strongPassword(len = 24) {
 async function listAdmins() {
   const { data, error } = await sb
     .from('profiles')
-    .select('id, email, name, created_at')
+    .select('id, email, name, created_at, is_super_admin')
     .eq('role', 'admin')
     .order('created_at');
   if (error) throw new Error(error.message);
   if (!data.length) return console.log('No admin accounts exist.');
   console.log(`\n${data.length} admin account(s):\n`);
   for (const a of data) {
-    console.log(`  ${a.email.padEnd(34)} ${(a.name || '').padEnd(24)} created ${a.created_at.slice(0, 10)}`);
+    const tier = a.is_super_admin ? '[Developer / Super Admin]' : '[Business / Client Admin]';
+    console.log(`  ${a.email.padEnd(34)} ${(a.name || '').padEnd(24)} ${tier.padEnd(26)} created ${a.created_at.slice(0, 10)}`);
     console.log(`  ${''.padEnd(34)} id: ${a.id}`);
   }
   console.log();
@@ -166,11 +174,16 @@ async function main() {
     console.log(`• auth user created (${userId}).`);
   }
 
+  // null = keep the current tier. Re-running this for an existing super admin
+  // without a flag must not quietly demote them.
+  const isSuper = flag('no-super') ? false : flag('super') || flag('developer') ? true : null;
+
   // Promote through the guarded RPC so the audit trail is written.
   const { data: result, error: rpcErr } = await sb.rpc('provision_admin', {
     p_user_id: userId,
     p_email: email,
     p_name: name,
+    p_is_super_admin: isSuper,
   });
   if (rpcErr) {
     throw new Error(
@@ -178,12 +191,12 @@ async function main() {
         '  If this says the function does not exist, apply migration 070_admin_hardening.sql first.',
     );
   }
-  console.log(`• profile promoted to admin (previous role: ${result?.previous_role ?? 'none'}).`);
+  console.log(`• profile promoted to admin (previous role: ${result?.previous_role ?? 'none'}, super_admin: ${result?.is_super_admin}).`);
 
   // Verify rather than trust the write.
-  const { data: check } = await sb.from('profiles').select('role').eq('id', userId).single();
+  const { data: check } = await sb.from('profiles').select('role, is_super_admin').eq('id', userId).single();
   if (check?.role !== 'admin') throw new Error('verification failed — role is not admin after provisioning');
-  console.log('• verified: role is admin.');
+  console.log(`• verified: role is admin (is_super_admin: ${Boolean(check?.is_super_admin)}).`);
 
   console.log('\n─────────────────────────────────────────────────────────────');
   console.log('  ADMIN ACCOUNT READY');

@@ -20,6 +20,7 @@ import { SegmentedTabs } from "@/components/ui/tabs";
 import { Reveal } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
 import { dealStateOf } from "@/lib/project-status";
+import { otherParticipant } from "@influnet/core";
 
 const STAGES = [
   { key: "collaboration_started", label: "Started", desc: "Collaboration initiated between brand and creator." },
@@ -44,7 +45,8 @@ interface Project {
   current_stage: string;
   status?: string | null;
   updated_at: string;
-  owner_user_id: string;
+  owner_user_id: string | null;
+  counterparty_user_id?: string | null;
   created_by_user_id?: string | null;
   owner?: { name?: string | null; role?: string } | null;
   counterparty?: { name?: string | null; role?: string } | null;
@@ -249,7 +251,10 @@ export default function ProjectsPage() {
         <div className="flex flex-col gap-4">
           {projects.map((p) => {
             const isOwner = p.owner_user_id === userId;
-            const counterparty = isOwner ? p.counterparty : p.owner;
+            // Null embed after migration 161 means GONE (deleted account), not
+            // hidden — render the shared "Deleted account" words, never a blank.
+            const other = otherParticipant(isOwner, p.owner_user_id, p.counterparty_user_id, p.owner, p.counterparty);
+            const counterparty = other.deleted ? null : { name: other.name, role: (isOwner ? p.counterparty : p.owner)?.role ?? null };
             const stageIndex = STAGES.findIndex((s) => s.key === p.current_stage);
             const currentStage = STAGES[stageIndex] || STAGES[0];
             const isCompleted = p.current_stage === "completed" || stageIndex === STAGES.length - 1;
@@ -288,8 +293,10 @@ export default function ProjectsPage() {
                           </span>
                           <span className="text-content-muted">·</span>
                           <span className="text-sm font-semibold text-content-soft">
-                            With {counterparty?.name || "Partner"} (
-                            {counterparty?.role === "influencer" ? "Creator" : "Brand"})
+                            With {other.name}
+                            {/* The role parenthetical needs a live profile; a gone one
+                                just reads "With Deleted account". */}
+                            {!other.deleted && ` (${counterparty?.role === "influencer" ? "Creator" : "Brand"})`}
                           </span>
                           {!isCompleted && !isCancelled && myTurn && (
                             <>
@@ -383,7 +390,7 @@ export default function ProjectsPage() {
                           ) : (
                             <div className="flex items-center gap-1.5 rounded-xl bg-surface-muted px-3 py-2.5 text-xs font-semibold text-content-muted">
                               <Clock className="size-3.5 shrink-0" />
-                              Waiting on {counterparty?.name || (userRole === "business" ? "the creator" : "the brand")}
+                              Waiting on {other.deleted ? (userRole === "business" ? "the creator" : "the brand") : other.name}
                             </div>
                           )}
                     </div>

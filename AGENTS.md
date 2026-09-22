@@ -13,7 +13,8 @@ needs before they can ship without you.
 There is no shared envelope. `/api/discover` returns `{results}`,
 `/api/collabs` returns `{collabs}`, `/api/blocks` returns `{blocks}`,
 `/api/projects/[id]/stage-items` returns `{items}`, `/api/conversations`
-returns `{conversation}`.
+returns `{conversation}` (POST) / `{conversations, projects}` (GET), and
+`/api/notifications` returns a **bare array**, not an envelope.
 
 **Read the route before consuming it.** Guessing with `body.data ?? body.results ?? []`
 silently yields an empty array, and empty arrays make tests pass and dashboards
@@ -30,6 +31,26 @@ anyone noticed the shapes didn't match.
 - `public.connections` exists and is **dead** — built in migration 029 for
   counters nothing ever wrote. Use `get_collaboration_stats()` (113) instead.
 
+## Column-level grants fail the whole query
+
+`authenticated` has **no table-level SELECT** on `profiles` or
+`business_profiles` — only a column allow-list. Naming one ungranted column in
+a query made with the caller's JWT does not return null for it: PostgREST fails
+the **entire statement** with 42501.
+
+That has shipped three ways: `withAuth` selecting `profiles.is_super_admin`
+403'd every API call for every user; `/api/profile/viewers` selecting
+`business_profiles.logo_url` rendered every viewer nameless; `/api/home`
+selecting `business_profiles.username` blanked every brand's Home card. Unit
+tests mock the database, so none of them noticed.
+
+Read your own business row through `get_own_business_profile()`; read other
+businesses' display fields through `lib/business-cards.ts`; read anything else
+through a service-role client after an explicit authorisation check.
+`tests/unit/column-grants.test.ts` scans for violations — keep its grant list
+in step with migrations. To prove a query works, run it as a real persona's
+JWT, not the service key.
+
 ## `NEXT_PUBLIC_*` is frozen at build time
 
 It is inlined into the JavaScript bundle. Changing it in a dashboard or a
@@ -38,8 +59,10 @@ read too, not just the browser.
 
 If a value must be changeable at runtime, serve it from an endpoint.
 `/api/auth/config` already does this for the phone-OTP flag, and the comment
-there explains why. Mobile reads it correctly; web still reads the inlined
-constant.
+there explains why. Mobile AND web signup read it at runtime, and the server gate
+(`phoneOtpEnabled()` → `flag('phone_otp')`) reads the same `feature_flags` row, so
+one dashboard toggle reaches every client. The flag is cached per replica for 45s,
+so right after a flip two replicas can briefly disagree.
 
 **Inlining is static, so a container still needs the real env var.** Next
 replaces the literal text `process.env.NEXT_PUBLIC_FOO`. It cannot replace a
@@ -120,6 +143,21 @@ which surfaced as a 500 with the user's click silently lost.
 Use `record_stage_signoff()` / `revoke_stage_signoff()` (migration 114). They
 take a row lock and write only the caller's own keys.
 
+## Business approval is enforced by triggers, and the rule is not "approved only"
+
+`approval_status` (`pending_review` / `approved` / `rejected`) is checked in the
+API routes **and** by database triggers (migration 164), because RLS only says
+"the owner may write" and every client holds the anon key plus the user's own JWT,
+so PostgREST can be called directly. Before 164 a pending business could publish a
+live campaign, and a rejected one could send a request, with one HTTP call.
+
+The rules are deliberately different per action: a business **awaiting review may
+send requests** (creators see an "unverified" flag, a July 2026 design decision;
+only `rejected` is blocked), but must be **approved to create or publish a
+campaign**. Do not "tighten" the request rule to approved-only without asking. A
+new write path for either table needs no new check (the triggers cover it), but its
+route should still return a clear 403 rather than surface the trigger's error.
+
 ## Payment gates open only via a signed webhook
 
 When Razorpay is configured, the gate checklist items for `advance_payment` and
@@ -127,6 +165,38 @@ When Razorpay is configured, the gate checklist items for `advance_payment` and
 webhook confirms a real payment. Amounts are derived server-side from the
 agreed terms and never taken from the client. Don't add a bypass "for testing";
 the audit suite drives real test-mode orders and signs its own webhooks.
+
+## The admin CRM can message real people
+
+`/dashboard/admin/broadcasts` sends real push notifications, in-app pop-ups and
+email to real accounts (migration 157, `lib/broadcasts.ts`). **Dev holds real
+push tokens belonging to real testers**, so before running anything that could
+send:
+
+- set **`BROADCAST_DRY_RUN=true`** (records everything, calls nothing), or
+- flip the `vendor_expo_push` kill switch off, or
+- target a segment of only your own test devices.
+
+The same rule as `NOTIFY_EMAILS_ENABLED`, for the same reason. `.claude/launch.json`'s
+`web-e2e` profile sets both.
+
+Other things that are easy to get wrong here:
+
+- **Reports go through ONE route**, `/api/admin/insights/<module>`, with the module
+  whitelisted in `lib/admin-insights.ts`. A new report is a row there plus a page —
+  never a query built from a client-supplied table or column name.
+- **`withAdmin` returns a service-role client with no `auth.uid()`.** Every
+  `admin_*` RPC guards itself with `is_admin()`, so it must be called through
+  `callerClient(req)` or it raises `forbidden`.
+- **Never count rows in Node.** PostgREST caps a response at Max Rows (1000),
+  which silently froze the Overview tiles. Count in SQL.
+- **All admin reporting is IST.** Bucket by
+  `(created_at AT TIME ZONE 'Asia/Kolkata')::date`, never `created_at::date`.
+- **Deletion is fail-closed:** the tombstone (153) is written *before*
+  `auth.admin.deleteUser`, and if it cannot be written the account is not deleted.
+- **History starts at the migration.** DAU, cohorts, app versions, search and push
+  delivery only exist from 152/156/157/160 onward; the screens say so rather than
+  drawing an empty chart that reads as "the business died".
 
 ## Testing
 

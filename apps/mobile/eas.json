@@ -53,7 +53,8 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://staging.influnet.io",
         "EXPO_PUBLIC_SUPABASE_URL": "https://aokdansyqxracuwsosji.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_ihsN1x749RpcTUckCMEV0Q_wZNrjiBZ",
-        "EXPO_PUBLIC_STREAM_API_KEY": "5z6hhrgmrdj9"
+        "EXPO_PUBLIC_STREAM_API_KEY": "5z6hhrgmrdj9",
+        "EXPO_PUBLIC_HIDE_PRO_PURCHASE": "1"
       },
       "android": {
         "buildType": "app-bundle"

@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { ReportButton } from "@/components/safety/report-dialog";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { SOCIAL_PLATFORMS, PLATFORM_LABEL } from "@/lib/social/types";
 
@@ -225,6 +226,19 @@ export default function CampaignDetailPage() {
       </button>
 
       <PageHeader title={campaign.title} subtitle={`By ${campaign.business_user?.name || "Brand"}`} />
+
+      {/* Report or block the brand that posted this campaign (App Store 1.2). Not
+          for the brand's own campaign, and only when the owner is still known. */}
+      {!isOwner && campaign.business_user?.id && (
+        <div className="-mt-2 self-start">
+          <ReportButton
+            variant="link"
+            reportedId={campaign.business_user.id}
+            reportedName={campaign.business_user.name || "this brand"}
+            context={{ kind: "campaign", campaignId: campaign.id }}
+          />
+        </div>
+      )}
 
       {/* Campaign details */}
       <Card className="p-5">

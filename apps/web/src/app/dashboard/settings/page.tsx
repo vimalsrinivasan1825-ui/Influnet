@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
 import { uploadToCloudinary } from "@/lib/storage/upload-client";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
+import { NotificationPreferences } from "@/components/dashboard/notification-preferences";
 import { BlockedAccountsPanel } from "@/components/dashboard/blocked-accounts-panel";
 import { EmailPreferencesPanel } from "@/components/dashboard/email-preferences-panel";
 import { InstagramOwnershipPanel } from "@/components/dashboard/instagram-ownership-panel";
@@ -207,6 +208,7 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
 
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -357,6 +359,9 @@ export default function SettingsPage() {
     try {
       const res = await apiFetch("/api/profile", {
         method: "DELETE",
+        // The reason is the only thing kept afterwards, and it is stored without
+        // a name, email or phone attached (migration 153).
+        body: JSON.stringify(deleteReason ? { reason_code: deleteReason } : {}),
       });
       if (!res.ok) throw new Error(res.error || "Failed to delete account");
       
@@ -672,10 +677,38 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-8">
+        <SectionCard eyebrow="Notifications" title="What we send you">
+          <NotificationPreferences />
+        </SectionCard>
+      </div>
+
+      <div className="mt-8">
         <SectionCard title="Danger zone">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-content-muted">
-              Permanently delete your account and all associated data. This action cannot be undone.
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-2">
+              <div className="text-sm text-content-muted">
+                Permanently delete your account and all associated data. This action cannot be undone.
+                Active projects have to be completed or cancelled first.
+              </div>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-bold uppercase tracking-[0.06em] text-content-muted">
+                  Why are you leaving? (optional)
+                </span>
+                <select
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="h-9 w-full max-w-xs rounded-lg border border-hairline-strong bg-surface-card px-2 text-sm text-content-soft"
+                >
+                  <option value="">Prefer not to say</option>
+                  <option value="not_useful">It wasn&apos;t useful for me</option>
+                  <option value="privacy">Privacy concerns</option>
+                  <option value="duplicate">I have another account</option>
+                  <option value="found_alternative">I found another platform</option>
+                  <option value="too_expensive">Too expensive</option>
+                  <option value="bad_experience">I had a bad experience</option>
+                  <option value="other">Something else</option>
+                </select>
+              </label>
             </div>
             <Button
               variant="outline"

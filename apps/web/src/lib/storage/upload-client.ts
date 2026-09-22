@@ -4,6 +4,7 @@
 // Usage: const { url, publicId } = await uploadToCloudinary(file, 'stage');
 
 import { apiFetch } from '@/lib/api-client';
+import { fetchWithTimeout, TIMEOUT } from '../fetch-timeout';
 
 export interface UploadResult {
   url: string;
@@ -45,7 +46,11 @@ export async function uploadToCloudinary(
 
   // Direct upload to Cloudinary (does not go through our server). `auto` handles
   // images and raw files (PDFs, etc.) alike.
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/auto/upload`, {
+  // Generous, because this carries a real file and a slow connection is not a
+  // fault. Bounded anyway: a stalled upload should eventually give up and let
+  // the user retry rather than spin forever with no way out.
+  const res = await fetchWithTimeout(`https://api.cloudinary.com/v1_1/${cloud_name}/auto/upload`, {
+    timeoutMs: TIMEOUT.UPLOAD,
     method: 'POST',
     body: form,
   });

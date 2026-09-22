@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -12,7 +13,6 @@ import {
   Settings,
   Shield,
   BadgeCheck,
-  Compass,
   Building2,
   PanelLeftClose,
   PanelLeft,
@@ -20,6 +20,7 @@ import {
   History,
   LayoutDashboard,
   UserRound,
+  Ticket,
   Mail,
   BarChart3,
   Inbox,
@@ -33,17 +34,48 @@ import {
   CreditCard,
   Sparkles,
   type LucideIcon,
+  PlugZap,
+  Terminal,
+  Bug,
+  LineChart,
+  CalendarDays,
+  UserPlus,
+  UserMinus,
+  Smartphone,
+  Store,
+  Heart,
+  Radar,
+  Crown,
+  Megaphone,
+  ContactRound,
+  FileSpreadsheet,
+  MessageSquareLock,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 import { useEntitlements } from "@/lib/hooks/use-entitlements";
 
-type NavItem = {
+const SECTION_ROOTS = new Set(["/dashboard", "/dashboard/admin"]);
+
+interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
   badge?: "unread" | "pending";
-};
+}
+
+/**
+ * The admin console outgrew a flat list at ~10 entries and now has ~30, so it
+ * is grouped the way the client's other consoles are. A group with no items for
+ * this admin tier simply does not render.
+ */
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+  /** Groups past the first start folded; the open set is remembered per browser. */
+  defaultOpen?: boolean;
+}
 
 const CREATOR_NAV: NavItem[] = [
   { label: "Home", href: "/dashboard/home", icon: Home },
@@ -69,25 +101,85 @@ const BUSINESS_NAV: NavItem[] = [
   { label: "My activity", href: "/dashboard/activity", icon: History },
 ];
 
-const ADMIN_NAV: NavItem[] = [
-  { label: "Overview", href: "/dashboard/admin", icon: Shield },
-  { label: "Live activity", href: "/dashboard/admin/activity", icon: Activity },
-  { label: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
-  { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
-  { label: "Rate limits", href: "/dashboard/admin/rate-limits", icon: Gauge },
-  { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
-  { label: "Campaigns", href: "/dashboard/admin/campaigns", icon: Sparkles },
-  { label: "Support", href: "/dashboard/admin/support", icon: Inbox },
-  // Reports had a working API since migration 056 and no screen at all — every
-  // harassment report filed by a user went into a table nobody could read.
-  { label: "Reports", href: "/dashboard/admin/reports", icon: ShieldAlert },
-  { label: "Feedback", href: "/dashboard/admin/feedback", icon: MessageSquareHeart },
-  { label: "Users", href: "/dashboard/admin/users", icon: Users },
-  { label: "Projects", href: "/dashboard/admin/projects", icon: FolderKanban },
-  { label: "Requests", href: "/dashboard/admin/collabs", icon: Send },
-  { label: "Email", href: "/dashboard/admin/emails", icon: Mail },
-  { label: "Audit log", href: "/dashboard/admin/audit", icon: History },
-  { label: "Issues & fixes", href: "/dashboard/admin/issues", icon: ClipboardList },
+/** Business / Client Admin: strictly non-technical platform operations */
+const ADMIN_GROUPS: NavGroup[] = [
+  {
+    label: "Workspace",
+    defaultOpen: true,
+    items: [
+      { label: "Overview", href: "/dashboard/admin", icon: Shield },
+      { label: "Founder dashboard", href: "/dashboard/admin/founder", icon: LineChart },
+      { label: "Live activity", href: "/dashboard/admin/activity", icon: Activity },
+      { label: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
+      { label: "Daily metrics", href: "/dashboard/admin/metrics", icon: CalendarDays },
+      { label: "Product analytics", href: "/dashboard/admin/product", icon: Activity },
+      { label: "Customer tracking", href: "/dashboard/admin/customers", icon: Users },
+      { label: "Incomplete signups", href: "/dashboard/admin/incomplete", icon: UserPlus },
+      { label: "Deleted users", href: "/dashboard/admin/deleted", icon: UserMinus },
+      { label: "App activity", href: "/dashboard/admin/app", icon: Smartphone },
+    ],
+  },
+  {
+    label: "Marketplace",
+    items: [
+      { label: "Campaigns", href: "/dashboard/admin/campaigns", icon: Sparkles },
+      { label: "Projects", href: "/dashboard/admin/projects", icon: FolderKanban },
+      { label: "Requests", href: "/dashboard/admin/collabs", icon: Send },
+      { label: "Marketplace analytics", href: "/dashboard/admin/marketplace", icon: Store },
+      { label: "Engagement", href: "/dashboard/admin/engagement", icon: Heart },
+      { label: "Match system", href: "/dashboard/admin/search", icon: Radar },
+    ],
+  },
+  {
+    label: "Payments",
+    items: [
+      { label: "Payments", href: "/dashboard/admin/payments", icon: CreditCard },
+      { label: "Pro subscribers", href: "/dashboard/admin/subscribers", icon: Crown },
+    ],
+  },
+  {
+    label: "Engagement",
+    items: [
+      { label: "Broadcasts", href: "/dashboard/admin/broadcasts", icon: Megaphone },
+      { label: "Leads", href: "/dashboard/admin/leads", icon: ContactRound },
+      { label: "Early access", href: "/dashboard/admin/early-access", icon: Sparkles },
+      { label: "Event registrations", href: "/dashboard/admin/event-registrations", icon: Ticket },
+    ],
+  },
+  {
+    label: "People & support",
+    items: [
+      { label: "Approvals", href: "/dashboard/admin/approvals", icon: BadgeCheck, badge: "pending" },
+      { label: "Users", href: "/dashboard/admin/users", icon: Users },
+      { label: "Support", href: "/dashboard/admin/support", icon: Inbox },
+      { label: "Reports", href: "/dashboard/admin/reports", icon: ShieldAlert },
+      { label: "Feedback", href: "/dashboard/admin/feedback", icon: MessageSquareHeart },
+    ],
+  },
+  {
+    label: "Reports & logs",
+    items: [
+      { label: "Report builder", href: "/dashboard/admin/report-builder", icon: FileSpreadsheet },
+      { label: "Error log", href: "/dashboard/admin/errors", icon: Bug },
+      { label: "OTP logs", href: "/dashboard/admin/otp", icon: MessageSquareLock },
+    ],
+  },
+];
+
+/** Developer-only groups, appended for a super admin. */
+const DEV_GROUPS: NavGroup[] = [
+  {
+    label: "System",
+    items: [
+      { label: "System health", href: "/dashboard/admin/health", icon: HeartPulse },
+      { label: "Vendors", href: "/dashboard/admin/vendors", icon: PlugZap },
+      { label: "Observability", href: "/dashboard/admin/observability", icon: Bug },
+      { label: "Rate limits", href: "/dashboard/admin/rate-limits", icon: Gauge },
+      { label: "Email", href: "/dashboard/admin/emails", icon: Mail },
+      { label: "Audit log", href: "/dashboard/admin/audit", icon: History },
+      { label: "Issues & fixes", href: "/dashboard/admin/issues", icon: ClipboardList },
+    ],
+  },
 ];
 
 const ROLE_META: Record<
@@ -96,7 +188,7 @@ const ROLE_META: Record<
 > = {
   influencer: { label: "Creator", short: "C", nav: CREATOR_NAV, icon: Users },
   business_owner: { label: "Business", short: "B", nav: BUSINESS_NAV, icon: Building2 },
-  admin: { label: "Admin", short: "A", nav: ADMIN_NAV, icon: Shield },
+  admin: { label: "Admin", short: "A", nav: [], icon: Shield },
 };
 
 function NavList({
@@ -116,9 +208,11 @@ function NavList({
   return (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
       {items.map((item) => {
+        // Section roots (/dashboard, /dashboard/admin) match only exactly —
+        // as prefixes they lit up alongside every page beneath them.
         const active =
           pathname === item.href ||
-          (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
+          (!SECTION_ROOTS.has(item.href) && pathname.startsWith(item.href + "/"));
         const count =
           item.badge === "unread"
             ? unreadMessages
@@ -167,6 +261,110 @@ function NavList({
   );
 }
 
+/** The admin console's grouped navigation, with folding sections. */
+function GroupedNavList({
+  groups,
+  collapsed,
+  pendingRequests,
+  onNavigate,
+}: {
+  groups: NavGroup[];
+  collapsed: boolean;
+  pendingRequests: number;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const g of groups) initial[g.label] = g.defaultOpen ?? false;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = JSON.parse(localStorage.getItem("influnet_admin_nav") ?? "{}");
+        for (const key of Object.keys(initial)) {
+          if (typeof stored[key] === "boolean") initial[key] = stored[key];
+        }
+      } catch {
+        /* first visit, or storage blocked */
+      }
+    }
+    return initial;
+  });
+
+  const toggle = (label: string) => {
+    setOpen((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      try {
+        localStorage.setItem("influnet_admin_nav", JSON.stringify(next));
+      } catch {
+        /* storage blocked — folding just won't be remembered */
+      }
+      return next;
+    });
+  };
+
+  return (
+    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
+      {groups.map((group) => {
+        // A section containing the current page always shows, however it was left.
+        const hasActive = group.items.some(
+          (i) => pathname === i.href || (!SECTION_ROOTS.has(i.href) && pathname.startsWith(i.href + "/")),
+        );
+        const expanded = collapsed || hasActive || open[group.label];
+        return (
+          <div key={group.label} className="flex flex-col">
+            {!collapsed && (
+              <button
+                onClick={() => toggle(group.label)}
+                className="flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-[0.625rem] font-bold uppercase tracking-[0.1em] text-content-muted transition-colors hover:text-content"
+              >
+                {group.label}
+                <ChevronDown className={cn("size-3 transition-transform", expanded ? "" : "-rotate-90")} />
+              </button>
+            )}
+            {expanded &&
+              group.items.map((item) => {
+                const active =
+                  pathname === item.href ||
+                  (!SECTION_ROOTS.has(item.href) && pathname.startsWith(item.href + "/"));
+                const count = item.badge === "pending" ? pendingRequests : 0;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    title={collapsed ? item.label : undefined}
+                    className={cn(
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+                      collapsed && "justify-center px-0",
+                      active
+                        ? "bg-brand-soft text-brand-strong"
+                        : "text-content-soft hover:bg-surface-muted hover:text-content",
+                    )}
+                  >
+                    {active && !collapsed && (
+                      <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand" />
+                    )}
+                    <Icon className="size-[1.15rem] shrink-0" />
+                    {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                    {count > 0 &&
+                      (collapsed ? (
+                        <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand ring-2 ring-surface-card" />
+                      ) : (
+                        <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[0.625rem] font-bold text-white tabular-nums">
+                          {count > 99 ? "99+" : count}
+                        </span>
+                      ))}
+                  </Link>
+                );
+              })}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-2.5">
@@ -178,9 +376,24 @@ function Brand({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-function RolePill({ role, collapsed }: { role: UserRole; collapsed: boolean }) {
+function RolePill({
+  role,
+  isSuperAdmin,
+  collapsed,
+}: {
+  role: UserRole;
+  isSuperAdmin?: boolean;
+  collapsed: boolean;
+}) {
   const meta = ROLE_META[role];
-  const Icon = meta.icon;
+  const Icon = role === "admin" && isSuperAdmin ? Terminal : meta.icon;
+  const label =
+    role === "admin"
+      ? isSuperAdmin
+        ? "Developer workspace"
+        : "Admin workspace"
+      : `${meta.label} workspace`;
+
   return (
     <div className="px-3 pt-3">
       {/* Brand-soft everywhere — the role color still differs (pink for
@@ -195,7 +408,7 @@ function RolePill({ role, collapsed }: { role: UserRole; collapsed: boolean }) {
         <Icon className="size-3.5 shrink-0" />
         {!collapsed && (
           <span className="text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
-            {meta.label} workspace
+            {label}
           </span>
         )}
       </div>
@@ -205,6 +418,7 @@ function RolePill({ role, collapsed }: { role: UserRole; collapsed: boolean }) {
 
 interface SidebarProps {
   role: UserRole;
+  isSuperAdmin?: boolean;
   unreadMessages?: number;
   pendingRequests?: number;
   collapsed: boolean;
@@ -215,6 +429,7 @@ interface SidebarProps {
 
 export default function DashboardSidebar({
   role,
+  isSuperAdmin = false,
   unreadMessages = 0,
   pendingRequests = 0,
   collapsed,
@@ -223,6 +438,8 @@ export default function DashboardSidebar({
   onCloseMobile,
 }: SidebarProps) {
   const meta = ROLE_META[role] ?? ROLE_META.influencer;
+  const navItems = meta.nav;
+  const adminGroups = isSuperAdmin ? [...ADMIN_GROUPS, ...DEV_GROUPS] : ADMIN_GROUPS;
 
   return (
     <>
@@ -254,13 +471,17 @@ export default function DashboardSidebar({
           </button>
         </div>
 
-        <RolePill role={role} collapsed={collapsed} />
-        <NavList
-          items={meta.nav}
-          collapsed={collapsed}
-          unreadMessages={unreadMessages}
-          pendingRequests={pendingRequests}
-        />
+        <RolePill role={role} isSuperAdmin={isSuperAdmin} collapsed={collapsed} />
+        {role === "admin" ? (
+          <GroupedNavList groups={adminGroups} collapsed={collapsed} pendingRequests={pendingRequests} />
+        ) : (
+          <NavList
+            items={navItems}
+            collapsed={collapsed}
+            unreadMessages={unreadMessages}
+            pendingRequests={pendingRequests}
+          />
+        )}
 
         <div className="border-t border-hairline px-3 py-3">
           <SidebarFooter collapsed={collapsed} role={role} />
@@ -298,14 +519,23 @@ export default function DashboardSidebar({
               <X className="size-5" />
             </button>
           </div>
-          <RolePill role={role} collapsed={false} />
-          <NavList
-            items={meta.nav}
-            collapsed={false}
-            unreadMessages={unreadMessages}
-            pendingRequests={pendingRequests}
-            onNavigate={onCloseMobile}
-          />
+          <RolePill role={role} isSuperAdmin={isSuperAdmin} collapsed={false} />
+          {role === "admin" ? (
+            <GroupedNavList
+              groups={adminGroups}
+              collapsed={false}
+              pendingRequests={pendingRequests}
+              onNavigate={onCloseMobile}
+            />
+          ) : (
+            <NavList
+              items={navItems}
+              collapsed={false}
+              unreadMessages={unreadMessages}
+              pendingRequests={pendingRequests}
+              onNavigate={onCloseMobile}
+            />
+          )}
           <div className="border-t border-hairline px-3 py-3">
             <SidebarFooter collapsed={false} onNavigate={onCloseMobile} role={role} />
           </div>

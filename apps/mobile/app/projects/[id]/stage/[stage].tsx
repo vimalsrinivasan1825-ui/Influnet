@@ -13,6 +13,7 @@ import {
   isMutualSignoffStage,
   isSkippableStage,
   stageSkipProposal,
+  otherParticipant,
   type Stage,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
@@ -63,8 +64,8 @@ interface ProjectDetail {
   status: string;
   current_stage: string;
   flow_key?: string | null;
-  owner_user_id: string;
-  counterparty_user_id: string;
+  owner_user_id: string | null;
+  counterparty_user_id: string | null;
   stage_progress: Record<string, StageProgressEntry> | null;
   /** Dual-confirm completion flags (migration 056). */
   owner_confirmed_complete?: boolean | null;
@@ -154,7 +155,17 @@ export default function StageScreen() {
 
   const isOwner = project?.owner_user_id === me;
   const entry = project?.stage_progress?.[stageKey];
-  const partner = (isOwner ? project?.counterparty?.name : project?.owner?.name) ?? 'them';
+  // "Deleted account" when the other party's account is gone (migration 161).
+  const partner =
+    project
+      ? otherParticipant(
+          isOwner,
+          project.owner_user_id,
+          project.counterparty_user_id,
+          project.owner,
+          project.counterparty,
+        ).name
+      : 'them';
 
   const mySignoff = isOwner ? entry?.owner_signoff_at : entry?.creator_signoff_at;
   const theirSignoff = isOwner ? entry?.creator_signoff_at : entry?.owner_signoff_at;
@@ -180,14 +191,10 @@ export default function StageScreen() {
   );
   const paymentsConfigured = !!paymentConfig?.configured;
 
-  // Completion is its own control, not a sign-off (NON_SIGNOFF_STAGES). Without
-  // this branch the final stage rendered NO footer at all, so a project started
-  // on the phone could be carried all the way to final payment and then never
-  // finished — 'signoff' is rejected outright by the API for this stage.
-  // Completion is the stage just before project_completed — 'final_payment' for full flow, 'quick_payment' for short flows.
-  const completedIdx = flow ? flow.stages.indexOf('project_completed') : -1;
-  const terminalStage = completedIdx > 0 ? flow!.stages[completedIdx - 1] : 'final_payment';
-  const isCompletionStage = stageKey === terminalStage;
+  // Completion is its own control, not a sign-off (NON_SIGNOFF_STAGES).
+  // On the full flow, 'final_payment' is non-signoff and requires dual-confirm
+  // completion. Short flows use bilateral sign-off on every stage.
+  const isCompletionStage = stageKey === 'final_payment';
 
   // The review fork. `sent_for_review` is in NON_SIGNOFF_STAGES, so it is
   // neither a sign-off stage nor the completion stage — which is exactly how it
@@ -205,7 +212,7 @@ export default function StageScreen() {
   // say is the re-review it goes back to.
   const isResubmit = stageKey === 'revisions';
 
-  const stageActor = STAGE_ACTOR[stageKey as Stage];
+  const stageActor = flow.actor[stageKey] || STAGE_ACTOR[stageKey as Stage];
   const myRoleKey: 'business' | 'creator' = isOwner ? 'business' : 'creator';
   const iAmActor = stageActor === 'either' || stageActor === myRoleKey;
   const iAmReviewer = iAmActor;

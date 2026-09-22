@@ -4,6 +4,8 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { subscriptionsEnabled, resolveEntitlements } from '@/lib/entitlements';
 import { isRazorpayConfigured } from '@/lib/payments/razorpay';
 import { createProOrder } from '@/lib/payments/subscription';
+import { serviceRoleClient } from '@/lib/supabase/service';
+import { logger } from '@/lib/logger';
 
 /**
  * Opens a Pro purchase. Returns the Razorpay order the browser checkout needs.
@@ -51,6 +53,19 @@ export async function POST(req: Request) {
     }
 
     const order = await createProOrder(supabase, user.id);
+
+    // Reporting ledger (migration 155): without this row a checkout that is
+    // opened and abandoned leaves no trace. Never blocks the purchase.
+    const admin = serviceRoleClient();
+    if (admin) {
+      const { error: ledgerErr } = await (admin.rpc as any)('record_pro_order', {
+        p_order_id: order.orderId,
+        p_user_id: user.id,
+        p_amount: order.amount,
+        p_currency: order.currency,
+      });
+      if (ledgerErr) logger.warn('[billing/checkout] pro_orders insert failed', { err: ledgerErr.message });
+    }
 
     return NextResponse.json({
       orderId: order.orderId,

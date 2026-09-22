@@ -17,6 +17,7 @@ import { Txt } from '@/components/ui';
 import { GuidePlayer } from './guide-player';
 import { DEFAULT_CONTEXT, type GuideContext } from './screens';
 import { useGuides } from './use-guides';
+import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
 
 const CTA: Record<string, { label: string; href: string }> = {
   'connect-instagram': { label: 'Verify now', href: '/verification' },
@@ -74,7 +75,7 @@ export function GuideModal() {
   }, [profile]);
 
   if (!openId || !script) return null;
-  const cta = CTA[script.id];
+  const cta = script.id === 'get-premium' && HIDE_PRO_PURCHASE ? undefined : CTA[script.id];
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={close} statusBarTranslucent>

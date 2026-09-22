@@ -32,6 +32,8 @@ export async function apiFetch<T = any>(
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+  // Analytics label only (daily activity by platform, migration 152).
+  if (!headers['X-Influnet-Client']) headers['X-Influnet-Client'] = 'web';
 
   const res = await fetch(path, { ...options, headers });
   const requestId = res.headers.get('x-request-id');

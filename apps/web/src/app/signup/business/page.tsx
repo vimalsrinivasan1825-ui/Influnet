@@ -7,11 +7,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from "@/lib/constants";
-import { isValidGstin, isValidWebsite, normalizeWebsite } from "@influnet/core";
+import { isValidGstin, isValidWebsite, isStrongEnoughPassword, normalizeWebsite, passwordStrengthScore } from "@influnet/core";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { CityInput } from "@/components/ui/city-input";
 import { PhoneOtpField, usePhoneOtpEnabled } from "@/components/signup/phone-otp-field";
+import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from "@/components/signup/consent-fields";
 import { cn } from "@/lib/utils";
 import { useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from "@/lib/hooks/use-availability";
 import { Check, X } from "lucide-react";
@@ -21,13 +22,11 @@ const STEP_LABELS = ["Account", "Company", "Verify", "Intent"];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** 0–4 password strength score with a matching label + bar color. */
+/** Label + bar color for a score from the shared passwordStrengthScore — kept
+ *  local since it's presentation only (Tailwind classes), unlike the score
+ *  itself, which mobile and web now share and gate signup on identically. */
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
-  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+  const score = passwordStrengthScore(pw);
   const meta = [
     { label: "Too short", color: "bg-danger" },
     { label: "Weak", color: "bg-danger" },
@@ -125,7 +124,10 @@ function BusinessSignupContent() {
   const usernameOk = usernameStatus === "available" || usernameStatus === "error";
   const emailOk = emailStatus === "available" || emailStatus === "error";
   const emailValid = EMAIL_RE.test(email);
-  const passwordOk = password.length >= 8;
+  // "Fair" (score 2) or better — see isStrongEnoughPassword. Used to be a
+  // bare length >= 8, which accepted a password built from one character
+  // class outright (e.g. '12345678').
+  const passwordOk = isStrongEnoughPassword(password);
   // Both fields are optional, so blank stays valid — only a filled-in value is checked.
   //
   // Both feed their own inline error message ONLY — neither may gate
@@ -135,6 +137,8 @@ function BusinessSignupContent() {
   // could not get past step 2 or step 3 at all.
   const websiteValid = isValidWebsite(website);
   const gstValid = !gstNumber.trim() || isValidGstin(gstNumber);
+
+  const [consent, setConsent] = useState<ConsentState>(NO_CONSENT);
 
   const canProceed = (): boolean => {
     // Mobile OTP is a hard gate when enabled — the server rejects an unverified
@@ -146,7 +150,7 @@ function BusinessSignupContent() {
       );
     if (step === 2) return !!businessType && !!industry;
     if (step === 3) return !!city && !!state && !!registeredAddress;
-    if (step === 4) return !!marketingBudget;
+    if (step === 4) return !!marketingBudget && consentComplete(consent);
     return false;
   };
 
@@ -174,6 +178,9 @@ function BusinessSignupContent() {
         gstNumber: gstValid && gstNumber.trim() ? gstNumber.trim().toUpperCase() : undefined,
         marketingBudget,
         location: `${city}, ${state}`,
+        // Recorded server-side (signup_consents, migration 162); the server refuses
+        // a signup without both, and it rides in auth metadata so the recovery path has it.
+        ...consentPayload(consent),
       };
 
       const { data, error: authError } = await sb.auth.signUp({
@@ -191,6 +198,7 @@ function BusinessSignupContent() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-Influnet-Client": "web",
             Authorization: `Bearer ${data.session.access_token}`,
           },
           // The OTP token is deliberately NOT part of `payload` — that object
@@ -566,6 +574,7 @@ function BusinessSignupContent() {
                   Your account will be reviewed by our team. Outbound campaign requests unlock once approved.
                 </p>
               </div>
+              <ConsentFields value={consent} onChange={setConsent} disabled={isLoading} />
             </div>
           )}
 

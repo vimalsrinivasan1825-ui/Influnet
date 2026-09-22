@@ -2,6 +2,551 @@
 
 This file tracks the current implementation state of each system module, issues encountered, fixes applied, and core architectural lessons learned.
 
+### Session — 2026-09-21: /join Mobile Touch Input Focus & Virtual Keyboard Activation Fix
+
+**Branch**: `dev`
+
+### Scope
+- **Mobile Input Focus & Software Keyboard Activation**:
+  - `apps/landing/src/app/join/page.tsx`:
+    - Removed `backdrop-blur-xl` from the form card container on mobile devices, preventing iOS WebKit compositor layer tap interception where touches fail to hit `<input>` elements.
+    - Moved the fixed background glowing orbs layer to `-z-10` with explicit `pointer-events-none select-none` on parent and child nodes, eliminating any possibility of background divs capturing mobile touch events.
+    - Added explicit React `useRef` handles (`step1InputRef`, `step2InputRef`, `step3EmailRef`, `step3PhoneRef`, `step7NoteRef`) and wired an automated `useEffect` timer (120ms) to programmatically trigger `.focus()` on step changes.
+    - Added `id` attributes and matching `<label htmlFor="...">` with `cursor-pointer`, allowing taps on labels to immediately focus the input field.
+    - Wrapped input containers with `onClick={() => inputRef.current?.focus()}` so tapping anywhere near the field immediately opens the virtual keyboard.
+    - Upgraded inputs to `h-14` (56px) meeting Apple Human Interface Guidelines for touch targets, and added `relative z-20 touch-manipulation cursor-text` with explicit `inputMode` hints (`text`, `email`, `tel`).
+    - Changed `framer-motion` card entrance transition to simple opacity fade (`initial={{ opacity: 0 }} animate={{ opacity: 1 }}`) instead of horizontal `x` translates, preventing CSS transforms from disturbing WebKit caret positioning and touch coordinates.
+    - Switched outer container to `min-h-[100dvh]` to smoothly accommodate mobile browser chrome and virtual keyboard expansion.
+
+### Broken & Resolved
+- **Mobile Safari Input Unresponsive / Keyboard Not Appearing**:
+  - *Cause*: `backdrop-blur-xl` combined with Framer Motion `transform: translateX()` in iOS WebKit creates a separate compositing layer that intercepts touch events before they reach the `<input>` element, preventing focus and software keyboard activation.
+  - *Fix*: Removed backdrop-filter on the card, replaced horizontal transform animation with opacity fade, added `-z-10` on ambient background, and wired explicit `ref.focus()` on step mounts and container taps.
+
+---
+
+### Session — 2026-09-21: /join Light Mode Redesign, Bigger Centered Logo, Progress 0% Fix & Multi-Select Options
+
+**Branch**: `dev`
+
+### Scope
+- **Apple-Style Light Mode Aesthetic & Ambient Glowing Background**:
+  - `apps/landing/src/app/join/page.tsx`:
+    - Re-themed the entire `/join` questionnaire to match the Influnet light design system (`#FAFAFA` base, crisp white glassmorphic card `bg-white/90 border-zinc-200/80 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.07)]`).
+    - Added ambient animated glowing radial gradients (`from-[#ff078e]/12 via-[#7928ca]/8` and `from-[#ff078e]/10 via-[#00e5ff]/5`) and a subtle dot grid texture.
+    - Updated typography to deep zinc (`text-zinc-900` headings, `text-zinc-500` descriptions, `text-zinc-600` mono labels).
+    - Polished inputs and buttons with brand magenta-to-purple gradients, focus rings, and light hover transitions.
+- **Enlarged Centered Brand Logo**:
+  - Resized the logo badge to `size-20 sm:size-24` (80px - 96px) with an ambient glowing ring (`shadow-[0_10px_35px_rgba(255,7,142,0.18)]`), housing a 72px transparent Influnet icon and bold `influnet` typography.
+- **Accurate Step Progress Calculation (0% on Step 1)**:
+  - Fixed initial progress calculation from `(step / totalSteps) * 100` (which showed 14% on step 1 before answering any question) to `Math.round(((step - 1) / totalSteps) * 100)`.
+  - Now accurately displays `0% completed` on Step 1, progressing by ~14% per completed step, reaching 100% on submission.
+- **Multi-Select Options Support**:
+  - **Creator Roles / Formats (Step 4)**: Transformed into multi-select checkboxes allowing creators to choose multiple formats (e.g., both YouTuber and Instagram Creator).
+  - **Common Challenges (Step 7)**: Replaced bare textarea with structured multi-select chips for creator pain points (Inconsistent deals, delayed payouts, brands ghosting in DMs, pricing doubts, confusing contracts, unfair barter) plus optional custom notes.
+  - **Content Niches (Step 6)**: Enhanced multi-select vertical pills with selection counters and light theme styling.
+- **Backend & Database Multi-Select Migration**:
+  - `supabase/migrations/169_creator_applications_multi_select.sql`:
+    - Dropped previous 80-character constraint and expanded `creator_type` check to 250 characters.
+    - Applied cleanly via `scripts/apply-migration.mjs 169`.
+  - `apps/web/src/app/api/join/route.ts`:
+    - Updated `JoinApplicationSchema` to accept arrays or strings for `creatorType` and `biggestChallenge`.
+    - Formats arrays into clean comma/semicolon-separated values before inserting into Supabase.
+
+### Broken & Resolved
+- **Initial 14% Progress Bug**:
+  - *Cause*: Progress formula used `step / totalSteps` instead of `(step - 1) / totalSteps`. On load, `1/7 = 14%` was displayed before the user answered any question.
+  - *Fix*: Calculated `progressPercent = Math.round(((step - 1) / totalSteps) * 100)`.
+- **String Length Constraint on Multi-Select Formats**:
+  - *Cause*: `creator_type` was capped at 80 characters in migration 168. Selecting 3 long formats could exceed 80 chars.
+  - *Fix*: Created and applied migration 169 to allow up to 250 characters.
+
+---
+
+### Session — 2026-09-21: Interactive /join Creator Application Flow, Supabase DB & Admin CRM Integration
+
+**Branch**: `dev`
+
+### Scope
+- **Interactive Step-by-Step Creator Join Flow (`/join`)**:
+  - `apps/landing/src/app/join/page.tsx`:
+    - Replicated Google Form questionnaire (`https://docs.google.com/forms/d/e/1FAIpQLSeIDN-dWkuFLOb6VXiFVDju8DRcYC05yILq-OJzGRvO4zqzUw/viewform`) into a modern, interactive, step-by-step intake experience.
+    - Designed with centered authentic Influnet logo (`/influet_logo.png`) and bold brand name.
+    - 7 step-by-step cards: Full Name & WhatsApp, Email & City, Instagram Handle & Profile Link, Primary Content Category, Follower Tier & Platform, Brand Collaboration Experience, and Biggest Creator Challenge.
+    - Step 8 celebratory screen with `canvas-confetti`, animated badges, application number pill, and back-to-home CTA.
+    - 100% mobile-first touch UI with large touch targets, progress bars, responsive badges, and smooth step transitions.
+    - Client-side validation with real-time feedback and Enter-key progression.
+  - `apps/landing/src/components/landing/header.tsx`:
+    - Added "Join as Creator" navigation item with glowing badge to desktop header and mobile drawer.
+- **Database Schema & SQL Migration**:
+  - `supabase/migrations/168_creator_join_applications.sql`:
+    - Created `public.creator_join_applications` table with `application_number` starting at `1001`, comprehensive creator metadata, contact details, platforms, and submission tracking.
+    - Row Level Security (RLS) allowing authenticated admins full access and public users anonymous insert (`anon_insert_creator_applications`).
+    - Added high-performance SQL RPC `admin_creator_applications_report(p_search, p_category, p_follower_tier, p_limit, p_offset)` to perform count aggregations, status filtering, and pagination in SQL (satisfying AGENTS.md rule).
+  - Migration applied cleanly to dev Supabase DB via `scripts/apply-migration.mjs 168`.
+- **Public API Intake Route with CORS**:
+  - `apps/web/src/app/api/join/route.ts`:
+    - Zod schema validation matching all 9 questionnaire fields.
+    - Cross-Origin Resource Sharing (CORS) preflight (`OPTIONS`) and headers (`POST`) allowing cross-domain submissions from `https://influnet.io` to `https://dev.influnet.io`.
+    - In-memory sliding window IP rate limiter (15 submissions/hour/IP).
+    - Service-role Supabase client row insertion returning assigned `application_number`.
+- **Admin CRM Management Dashboard**:
+  - `apps/web/src/app/dashboard/admin/creator-applications/page.tsx`:
+    - Admin CRM portal with real-time KPI overview (Total Applications, Instagram Verified, Experienced Creators, Monetization Blockers).
+    - Real-time search by name, email, WhatsApp, or Instagram handle.
+    - Filter dropdowns by Content Category and Follower Tier.
+    - Direct WhatsApp launch link (`https://wa.me/...`) for instant creator outreach.
+    - Direct Instagram profile links (`https://instagram.com/...`).
+    - Full CSV export functionality using `ExportButton`.
+    - Delete application API endpoint (`apps/web/src/app/api/admin/creator-applications/[id]/route.ts`) guarded with `withAdmin(req)`.
+  - `apps/web/src/lib/admin-insights.ts`: Registered `creator_applications` under `MODULES`.
+  - `apps/web/src/components/dashboard/sidebar.tsx`: Added "Creator applications" sidebar link under Engagement section.
+
+### Broken & Resolved
+- **Cross-Domain POST from Landing Domain to Web API**:
+  - *Cause*: `apps/landing` runs on `https://influnet.io` while `apps/web` runs on `https://dev.influnet.io`. Without CORS handling, browser `fetch` calls from the landing page were blocked by standard browser origin policies.
+  - *Fix*: Implemented CORS headers (`Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: POST, OPTIONS`, `Access-Control-Allow-Headers: Content-Type, Authorization`) and an explicit `OPTIONS` route handler in `apps/web/src/app/api/join/route.ts`.
+- **Icon Compatibility in Admin Dashboard**:
+  - *Cause*: `lucide-react` does not export an `Instagram` icon in the installed version, causing a TypeScript compilation error.
+  - *Fix*: Replaced missing icon with inline responsive SVG for Instagram and used `Camera` from `lucide-react`.
+
+### Key Lessons
+- When public marketing sites on separate subdomains submit data to Next.js API routes, always configure CORS headers and an explicit `OPTIONS` method on the receiving API route.
+- Always perform Admin CRM KPI counts and aggregations in SQL functions (`admin_creator_applications_report`) rather than fetching full datasets into Node.js to comply with PostgREST row limits.
+
+---
+
+### Session — 2026-09-21: Landing Page Layout Fix — Chatbot Icon Collision & Mobile App Card Disabled
+
+**Branch**: `dev`
+
+### Scope
+- **Disabled Left-Side Mobile App Card**:
+  - In `apps/landing/src/components/site/site-widgets.tsx`: Temporarily disabled `<AppCard hidden={open} />` per user request so it can easily be re-enabled later.
+- **Fixed Chatbot Overlap on Early Access Founder Card**:
+  - In `apps/landing/src/components/site/early-access-banner.tsx`:
+    - Moved the banner to the bottom-left corner (`sm:bottom-6 sm:left-6 sm:right-auto sm:w-[380px]`) occupying the space of the disabled mobile app card.
+    - Added responsive clearance on mobile devices (`bottom-4 left-3 right-[5.25rem]`), ensuring the card leaves 84px margin on the right and never collides with the circular chatbot launcher.
+    - Integrated with `SiteWidgets` so the banner respects `hidden={open}` and automatically yields when the user opens the help chat window.
+  - In `apps/landing/src/app/layout.tsx`: Removed the duplicate standalone `<EarlyAccessBanner />` mount so it is managed exclusively through `SiteWidgets`.
+
+### Broken & Resolved
+- **Chatbot Floating Icon Obscuring "Claim Pass" Action**:
+  - *Cause*: Both `HelpBot` (z-[60]) and `EarlyAccessBanner` (z-50) were pinned to the bottom-right corner (`bottom-6 right-6`), placing the chatbot launcher directly on top of the banner's call-to-action button.
+  - *Fix*: Relocated `EarlyAccessBanner` to the bottom-left, added safe right clearance on narrow screens, and disabled `AppCard`.
+
+---
+
+### Session — 2026-09-21: Fix PR Checks CI Failures (ESLint Next.js Link & Matchmaking Consent Payload)
+
+**Branch**: `dev`
+
+### Scope
+- **ESLint `no-html-link-for-pages` Fix**:
+  - `apps/web/src/app/early-access/page.tsx`: Replaced raw `<a href="/">` in navigation header with `<Link href="/">` from `next/link`.
+- **E2E Matchmaking Test Suite Consent Fix**:
+  - `apps/web/tests/matchmaking.js`: Added required consent fields (`termsAccepted: true, ageConfirmed: true, termsVersion: 'e2e-harness'`) to user metadata and `/api/auth/register` payload, satisfying the migration 162 terms validation gate.
+
+### Broken & Resolved
+- **CI ESLint Failure**:
+  - *Cause*: `apps/web/src/app/early-access/page.tsx:1138` used raw `<a>` navigating to `/`, causing `@next/next/no-html-link-for-pages` lint error.
+  - *Fix*: Imported and used Next.js `Link` component.
+- **CI E2E Matchmaking Test Failure**:
+  - *Cause*: `Profile registration failed: To create an account you need to accept the Terms and Privacy Policy and confirm you are 18 or older`. The endpoint `/api/auth/register` strictly requires `termsAccepted: true` and `ageConfirmed: true`, which were missing from the test script.
+  - *Fix*: Added the consent flags to both `createUser`/`signUp` metadata and the registration POST body. All 7 test phases now pass locally.
+
+### Key Lessons
+- Any integration test script that calls `/api/auth/register` or `public.register_profile` must include `termsAccepted: true, ageConfirmed: true` to pass the server-side consent validation enforced since migration 162.
+
+---
+
+### Session — 2026-09-21: Fix Early Access Delete Endpoint Authorization Header
+
+**Branch**: `dev`
+
+### Scope
+- **Admin Early Access Delete API Call**:
+  - `apps/web/src/app/dashboard/admin/early-access/page.tsx`:
+    - Replaced the raw browser `fetch` call with `apiFetch` from `@/lib/api-client`.
+    - Automatically injects the user's Supabase session Bearer token (`Authorization: Bearer <token>`) and client telemetry headers.
+    - Accurately passes through `withAdmin` route authorization without triggering `"Missing Authorization header"` 401 alerts.
+    - Correctly handles json response data (`res.data?.ok`) and triggers table reload.
+
+### Broken & Resolved
+- **"Missing Authorization header" Alert on Deletion**:
+  - *Cause*: `apps/web/src/app/dashboard/admin/early-access/page.tsx` was calling raw `fetch('/api/admin/early-access/[id]', { method: 'DELETE' })` without passing an `Authorization: Bearer <token>` header. The target route `route.ts` is guarded with `withAdmin(req)`, which requires an authorization header, resulting in a 401 Unauthorized alert dialog.
+  - *Fix*: Replaced raw `fetch` with `apiFetch` from `@/lib/api-client`, which automatically pulls the live Supabase session access token via `getAuthToken()`.
+
+### Key Lessons
+- Never use raw `fetch()` directly in client-side dashboard pages when communicating with `/api/admin/*` or `/api/*` endpoints guarded by `withAdmin` or `withAuth`. Always use `apiFetch` from `@/lib/api-client` to guarantee authenticated requests with valid session tokens, correlation IDs, and unified error handling.
+
+---
+
+### Session — 2026-09-21: Strict Phone & Email Validation, Rotating Logo Shadow Watermarks, and Multi-Ratio Social Exporter (Story 9:16, LinkedIn 16:9, Square 1:1)
+
+**Branch**: `dev`
+
+### Scope
+- **Strict Client & Server-Side Email & Phone Validation**:
+  - `apps/web/src/app/api/early-access/route.ts`:
+    - Validates email with `z.string().trim().email('Valid email is required')`.
+    - Validates phone with `PHONE_REGEX = /^\+?[0-9\s\-().]{7,25}$/` and digit count check (`digits.length >= 7 && digits.length <= 15`). Rejects malformed numbers or random text while allowing legitimate international numbers.
+  - `apps/web/src/app/early-access/page.tsx`:
+    - Added dedicated `emailError` and `phoneError` state and real-time keystroke clearers.
+    - Added regex checks `validateEmail` and `validatePhone`.
+    - Added inline error badges with icon and shake animation (`animate-shake`) on failure.
+    - Blocked progression on Screen 3 until valid credentials are provided, with harmonic error audio feedback.
+- **Multi-Ratio Social Media Exporter**:
+  - Replaced generic fixed 1080×1350 download with dedicated multi-format canvas exporter supporting:
+    - **Instagram Story (9:16 — 1080×1920)**: Full-height story layout with top safe zone (status/header margin), bottom safe zone (reply/sticker bar), luxury pass card, call-to-action pill ("DM TO COLLABORATE WITH CREATOR"), and ambient rotating watermark mark.
+    - **LinkedIn Post / Banner (16:9 — 1200×675)**: Landscape split layout with left column rich typography (Influnet mark, genesis badge, role headline, creator/brand name & handle, 4 VIP launch perks, serial badge) and right column floating luxury pass card.
+    - **Square Post (1:1 — 1080×1080)**: Centered pass card with watermark accents for Instagram feed and social tiles.
+  - Built scalable canvas pass card generator (`drawPassCard`) that renders high-DPI cards for any aspect ratio without distortion.
+- **Authentic Influnet Logo Integration (`/influet_logo.png`)**:
+  - Replaced all hand-drawn SVG approximations (`viewBox="430 150 690 720"`) with the authentic Influnet logo artwork from `/influet_logo.png` (816×816 transparent PNG).
+  - Page Navigation Header: Uses `<Image src="/influet_logo.png" ... priority />`.
+  - Screen 4 Background Shadow: Uses authentic artwork with `animate-[spin_40s_linear_infinite]` and neon drop shadow (`drop-shadow-[0_0_50px_rgba(255,7,142,0.45)]`).
+  - Inside 3D Pass Card: Uses authentic artwork for the inner watermark (`animate-[spin_45s_linear_infinite]`) and the top-left card logo next to `INFLUNET`.
+  - Canvas Exporter: Implemented `drawActualLogo` with preloading via `logoImgRef` to render the actual `/influet_logo.png` image directly onto Canvas at any scale, rotation, and opacity for all three export ratios (Story 9:16, LinkedIn 16:9, Square 1:1).
+
+### Broken & Resolved
+- **Hand-Coded SVG Approximation Instead of Actual Logo**:
+  - *Cause*: A vector SVG geometric approximation was used in place of the canonical Influnet artwork (`/influet_logo.png`), which resulted in a synthetic appearance.
+  - *Fix*: Integrated the authentic `/influet_logo.png` image across the navigation header, ambient rotating background shadow, inner card watermark, card header, and canvas PNG renderer.
+- **Missing Audio Helper Symbol During Compile**:
+  - *Cause*: Screen 4 format buttons initially called `playClick()`, whereas the local audio dispatcher is named `playAudioCue('click')`.
+  - *Fix*: Replaced references with `playAudioCue('click')`; verified with clean `npx tsc --noEmit`.
+
+### Key Lessons
+- Never recreate or approximate the company brand logo with manual SVGs when an official artwork asset (`/influet_logo.png`) exists in the repository. One logo, one source across web, mobile, and canvas exporters.
+- In canvas exporters, preloading image assets into an HTMLImageElement ref during component mount ensures that PNG downloads execute synchronously without waiting for image network decodes.
+
+---
+
+### Session — 2026-09-21: Optional Instagram & Website, Mobile/WhatsApp Collector, Signup Re-submission & Admin Delete
+
+**Branch**: `dev`
+
+### Scope
+- **Optional Instagram Handle & Company Website (`apps/web/src/app/early-access/page.tsx`)**:
+  - Made Instagram handles strictly optional for both Creators and Businesses.
+  - Added clear, prominent "Skip for now →" buttons alongside the primary action on Screen 2 so users can progress immediately without inputting social handles.
+  - For Creators: handles can be verified if provided; if skipped, user receives a clean Founding Creator pass without `@null` or `@creator` artifacts.
+  - For Businesses: provided dedicated optional fields for **Company Website** (with Globe icon) and **Brand Instagram Handle** (with `@` prefix).
+- **Mobile / WhatsApp Number Capture**:
+  - Added optional `Mobile / WhatsApp Number` input on Screen 3 below Email ("for instant WhatsApp VIP launch alerts & pass delivery").
+  - Database schema updated with migration `167_early_access_phone_and_delete.sql` to add `phone TEXT` to `early_access_signups`.
+  - Updated `admin_early_access_report` RPC to return and filter across `phone` and `website`.
+- **Duplicate Email Resubmission & Update Logic (`apps/web/src/app/api/early-access/route.ts`)**:
+  - Previously, submitting an existing email returned `{ alreadyClaimed: true }` without updating any fields, giving testers the impression that submissions were not reaching the database.
+  - Now, submitting with an existing email updates the existing row with latest values (`phone`, `name`, `handle`, `company`, `website`, `followers`, `bio`) while preserving pass number.
+- **Admin Dashboard Delete Functionality (`apps/web/src/app/dashboard/admin/early-access/page.tsx` & `/api/admin/early-access/[id]/route.ts`)**:
+  - Created secure `DELETE /api/admin/early-access/[id]` endpoint protected by `withAdmin`.
+  - Added a delete button column (with trash icon) in the admin dashboard table with confirmation prompt to safely remove test entries.
+  - Added display columns for `phone` (with Phone icon) and `website` (with external link & Globe icon).
+- **Canvas Exporter & 3D Pass Fallbacks**:
+  - Fixed Canvas 1080×1350 exporter and 3D card render to display `★ FOUNDING CREATOR` or company/name when handle is omitted, eliminating broken `@` placeholders.
+
+### Broken & Resolved
+- **Submissions Not Appearing on Database / Admin Page When Re-testing**:
+  - *Cause*: `early_access_signups` returned the existing record without updating fields when an email was reused during testing. Without a delete action on the admin page, testers could not clear their test rows.
+  - *Fix*: Created the `DELETE` API route, added delete actions in the admin table, and made `POST /api/early-access` update existing records on duplicate email.
+
+### Key Lessons
+- In test-heavy flows such as early access or pre-launch signups, allowing records to be updated on resubmission and providing an administrative delete option is essential for testing and QA verification.
+- Always provide clear "Skip for now" actions whenever social handle inputs are optional so users never feel forced to authenticate third-party handles.
+
+---
+
+### Session — 2026-09-21: Explicit Verification Trigger, Vendor Brand Erasure, Audio Feedback & Soft-Launch Guarantee
+
+**Branch**: `dev`
+
+### Scope
+- **Debounce & Race-Condition Eradication (`apps/web/src/app/early-access/page.tsx`)**:
+  - Eliminated automatic 500ms keystroke debouncing that caused asynchronous Apify requests to fire for incomplete handles, flashing premature "not found" states before resolving.
+  - Adopted the robust architecture from `useSocialConnect` in `apps/web/src/lib/hooks/use-availability.ts`:
+    - Typing now strictly updates state and clears previous results without invoking network calls.
+    - Added `requestIdRef` counter: any response whose ID does not match the active request is silently discarded, preventing stale out-of-order responses from clobbering state.
+    - Added in-memory `cacheRef`: re-entering a verified handle or stepping back and forth through the wizard resolves instantly without redundant network calls.
+    - Added an explicit `[ Verify ]` action button directly inside the handle input box for intentional creator verification.
+    - Clicking "Confirm & Continue" (or hitting Enter) seamlessly runs verification on the current handle if not yet checked, awaiting completion and automatically advancing to Screen 3 on success.
+- **Complete Vendor Brand Erasure**:
+  - Stripped all user-facing mentions of "Apify" across badges, status messages, loading texts, and forge labels.
+  - Replaced vendor badges with `LIVE VERIFICATION` and `INSTAGRAM VERIFICATION`.
+- **Private Account UX Polish**:
+  - Private Instagram profiles are confirmed without attempting to fetch private media or metrics, displaying a clean reassuring confirmation: "✓ Private Instagram Account Verified".
+- **Soft-Launch Event Value Propositions & Guarantee**:
+  - Added dedicated launch perk feature cards on Screen 0 for both roles:
+    - **Creators**: 1-Year 0% Commission Pass, Direct Brand Deal Radar, Genesis VIP directory launch placement.
+    - **Brands**: 0% Platform Fees on initial campaigns, Direct Creator Access without agency markups, Escrow Shield protection.
+  - Added a prominent **Soft-Launch Event Guarantee** card on Screen 4 confirming that VIP credentials and activation keys will be delivered to the user's verified email and Instagram DM upon launch.
+- **Web Audio Harmonic Feedback Synthesizer**:
+  - Implemented zero-dependency synthesized audio cues using Web Audio API:
+    - Subtle navigation click ticks.
+    - Apple-style harmonic chime upon successful identity verification.
+    - Celebratory 4-note ascending chord when the VIP Founder Pass is minted.
+    - Low gentle warning tone on validation errors.
+  - Added a sound toggle button in the header with full mute/unmute support.
+
+### Broken & Resolved
+- **Premature "Not Found" Flashes While Typing**:
+  - *Cause*: A 500ms debounced keystroke listener was firing scrape requests on partial inputs. Because actor cold starts take several seconds, responses returned out of sequence and clobbered the user's final input with false negative states.
+  - *Fix*: Decoupled typing from network requests. Verification now triggers on deliberate user action (tapping "Verify" or "Confirm & Continue") and guards every response with an incremental `requestIdRef`.
+- **Hardcoded Placeholder Avatars**:
+  - *Cause*: Screen 0 SVG and proof row had hardcoded initials (`MC`, `VK`, `TB`, `MB`).
+  - *Fix*: Replaced with polished gradient icons (`✦`, `★`, `⚡`, `✓`) and dynamic soft-launch copy.
+
+### Key Lessons
+- Long-running network tasks (like external API scraping taking 4–20s) must NEVER be bound to raw input debounce timers. They should only run on deliberate user confirmation or submit action, protected by monotonic request counters.
+- Client audio cues should always use the Web Audio API with oscillators and gain nodes rather than external audio files to ensure instant playback without network overhead or missing asset errors.
+
+---
+- **Complete Elimination of Mock/Instant Data**:
+  - Removed server-side `INSTANT_PROFILES` map from `apps/web/src/app/api/auth/social-preview/route.ts`. No pre-fabricated fake profiles for any handle.
+  - Removed client-side initial values (`Maya Chen`, `mayachen_creates`, `84.5K followers`) from `apps/web/src/app/early-access/page.tsx`. Initial form states now start blank.
+  - Eliminated all client-side synthetic fallback generators (`randomK`, Unsplash avatars, fake follower/post counters).
+- **Accurate Apify Verification Flow for Creators**:
+  - Every Instagram handle is verified directly via Apify's `apify~instagram-profile-scraper` actor.
+  - **Private Accounts**: If `profile.isPrivate` is true, media and follower metrics are not fetched ("if private we dont fetch anything only oking with creator and move to nexr"). The verification status confirms the account exists and is an active Instagram handle, displaying a verified private badge and enabling the user to proceed directly to the next screen.
+  - **Public Accounts**: If public, real data is fetched: display name, verified blue badge, avatar (inlined as base64 data URI to avoid Instagram CDN hotlink blocks), real follower count, post count, and bio. Displayed in the rich creator card.
+  - **Non-Existent Accounts**: Returns 404 and displays a clear error ("No Instagram account found matching @handle"), preventing unverified progression.
+  - **Overlapping UI Glitch Fix**: Refactored the Instagram handle input container to a responsive flex layout with an isolated `@` prefix span and `bg-transparent` borderless input, completely preventing typed handle text from overlapping the `@` symbol across all viewport sizes.
+
+### Broken & Resolved
+- **User Seeing Mock Data Instead of Real Scraper Results**:
+  - *Cause*: `route.ts` retained `INSTANT_PROFILES`, `page.tsx` initialized state to `Maya Chen` / `mayachen_creates`, and error fallbacks fabricated fake follower counts with Unsplash images.
+  - *Fix*: Removed all mock data structures; hooked input to live Apify verification; added distinct handlers for public vs. private vs. not found accounts.
+- **Overlapping `@` Symbol in Handle Input**:
+  - *Cause*: `absolute left-5` with `pl-12` caused the typed handle to collide with the absolute `@` icon.
+  - *Fix*: Converted input container to flexbox with a clean separate `@` prefix.
+
+### Key Lessons
+- Never pre-populate form states with hardcoded demo profiles in production UI flows; users perceive it as broken or stuck on test data.
+- Instagram handles can be public or private: private profiles require validation of existence and privacy status without assuming or fabricating public media metrics.
+
+---
+
+### Session — 2026-09-21: Early Access Luxury Light Mode Redesign & Backend Scraper Fixes
+
+**Branch**: `dev`
+
+### Scope
+- **Web App Early Access UI Overhaul (`apps/web/src/app/early-access/page.tsx`)**:
+  - Rebuilt the entire Early Access flow to match the high-fidelity luxury light-mode prototype (`apps/landing/public/event-card-prototype.html`).
+  - Implemented exact design tokens: light mode default (`#fbfaf8`, `#ffffff`, `#e7e3dc`), 44px dotted grid texture, radial ambient brand glows, and seamless dark mode toggle.
+  - Added official Influnet Spoke Mark logo in the header and on the 3D Founder Pass.
+  - Implemented the full multi-screen experience:
+    - **Screen 0 (Intro)**: Animated spoke cluster SVG with pulsing nodes, pulse-dot eyebrow, proof avatar stack ("89 creators already secured early passes"), and quick Creator/Brand selector.
+    - **Screen 1 (Name)**: Big input with embossed pass hint, enter-key listener, and shake animation on empty input.
+    - **Screen 2 (Instagram with Live Scraper)**: Real-time Apify engine lookup with animated radar spinner, status bar, and Instagram profile card (avatar ring, verified check, followers count, posts count, bio).
+    - **Screen 3 (Email)**: Email collector for credentials and activation keys.
+    - **Screen 3.5 (Pass Synthesizer Forge)**: SVG circular progress ring (0% to 100%), dynamic step labels ("❖ Querying verified Apify credentials...", "❖ Validating @handle with X followers...", etc.), and glowing segment bars.
+    - **Screen 4 (Luxury VIP Founder Pass Reveal)**: Screen bloom flash transition, confetti burst (`canvas-confetti`), interactive 3D Founder Pass with cursor tilt tracking, prismatic holographic foil, lanyard clip slot, serial number (`GENESIS SERIES NO. #... / 1000`), embossed identity, stat pill, VIP metadata grid, and security barcode.
+    - **Export**: Built-in 1080×1350 high-res canvas PNG exporter with 1-click download.
+- **Backend Scraping Resilience & CORS Fixes (`apps/web/src/app/api/auth/social-preview/route.ts`)**:
+  - Added permissive CORS headers (`Access-Control-Allow-Origin: *`) and `OPTIONS` preflight handler so all client origins can access social-preview without CORS blocks.
+  - Added fast in-memory LRU cache with 1-hour TTL to prevent redundant scraper calls.
+  - Added instant pre-cached registry for popular creator handles (`mayachen_creates`, `virat.kohli`, `techburner`, `mrbeast`, `instagram`) to provide instant sub-50ms feedback.
+  - Added 15-second AbortController timeout to prevent hanging when Apify actor cold starts take 20+ seconds, returning clean structured fallbacks instead of crashing.
+
+### Broken & Resolved
+- **Dark Mode Discordance with Landing Page Prototype**:
+  - *Cause*: Previous implementation was built in dark mode with a different layout from the prototype HTML file.
+  - *Fix*: Transferred the exact Paper & Ink tokens, typography (`Bricolage Grotesque`, `Spline Sans Mono`, `Instrument Sans`), SVGs, and 3D card layout from `event-card-prototype.html` into `apps/web/src/app/early-access/page.tsx`.
+- **Apify Scraper High Latency & CORS Failures**:
+  - *Cause*: Live Apify actor sync calls take 15–25 seconds; typing in the input triggered un-debounced requests that rapidly hit the 5/min rate limit and blocked visitors; requests from different origins lacked CORS headers.
+  - *Fix*: Added in-memory cache, instant pre-cached demo profiles, 15s timeout protection, debounced input, and full CORS headers.
+
+### Key Lessons
+- For interactive public preview tools, never rely exclusively on synchronous third-party scraping actors without a fast cache and fallback data; cold starts on actors can take 20s+, which users perceive as broken.
+- Brand assets (like the official 4-node spoke mark logo) should be shared consistently across landing pages, auth screens, and shareable passes.
+
+### Next Target
+- Test early-access page locally and on dev deployment.
+
+---
+
+### Session — 2026-09-21: Full Early Access & Founder Pass Integration & Unauthenticated Routing Fix
+
+**Branch**: `dev`
+
+### Scope
+- **Database Schema & Migration 166 (`supabase/migrations/166_early_access_waitlist.sql`)**:
+  - Created `public.early_access_signups` with sequential identity `pass_number` (starting at 101), role (`creator` | `business`), verified follower metrics, avatar URL, and metadata.
+  - Implemented `public.admin_early_access_report()` RPC guarded by `is_admin()` computing SQL aggregate KPIs and paginated rows.
+  - Applied migration 166 cleanly to dev database via `scripts/apply-migration.mjs 166`.
+- **Backend API (`apps/web/src/app/api/early-access/route.ts`)**:
+  - Implemented rate-limited `POST /api/early-access` validating role, name, email, handle, and metadata with Zod.
+  - Added permissive CORS headers and `OPTIONS` preflight handler so all landing and client origins can communicate reliably.
+  - Inserts new passes and auto-syncs with `crm_leads` with `source: 'inbound'`, `stage: 'new'`, and tags `['early_access', 'founder_pass']` for automatic conversion linking when users eventually register accounts.
+- **Admin Insights Integration (`apps/web/src/lib/admin-insights.ts`)**:
+  - Registered `early_access` module in `MODULES` map routing to `admin_early_access_report()`, enabling CSV exports and dashboard reporting per AGENTS.md rules.
+- **Admin Early Access Dashboard (`apps/web/src/app/dashboard/admin/early-access/page.tsx`)**:
+  - Built full admin dashboard with real-time KPI tiles (Total Passes, Creators, Brands, Latest Registration), role filtering (`All` / `Creators` / `Brands`), debounced search, responsive data table, and 1-click CSV export.
+  - Added "Early access" link under Engagement in `apps/web/src/components/dashboard/sidebar.tsx`.
+- **Web App Frontend Flow (`apps/web/src/app/early-access/page.tsx`)**:
+  - Full-screen Next.js / Framer Motion wizard with Role Selection (Creator vs Brand).
+  - Creator path: Name → Instagram Handle (live Apify scraper lookup via `/api/auth/social-preview`, preview card, explicit note that private accounts or users without IG can skip) → Email → Pass Synthesizer → 3D Founding Creator Pass (real avatar, follower metrics, 1-yr unlimited pass perks, dynamic tilt, PNG export).
+  - Brand path: Company Name → Website/Handle (skippable) → Work Email → Synthesizer → 3D Founding Brand Pass (0% platform fee, VIP concierge, PNG export).
+- **Landing Page Integration & URL Routing Isolation (`apps/landing`)**:
+  - Isolated environment linking: Pointed dev branch Azure Static Web Apps build workflow (`azure-static-web-apps-proud-smoke-00f74a310.yml`) to `https://dev.influnet.io` rather than staging.
+  - Updated `apps/landing/src/components/site/links.ts` and `apps/landing/src/lib/site.ts` to default `APP_URL` to `https://dev.influnet.io`.
+  - Replaced ad-hoc `process.env.NEXT_PUBLIC_APP_URL` across landing components (`header.tsx`, `hero.tsx`, `cta.tsx`) with verified `APP_URL` references.
+- **Public Profile Hijack Prevention (`apps/web/src/app/[username]/page.tsx`)**:
+  - Added explicit `RESERVED_ROUTES` rejection set (`early-access`, `login`, `signup`, `dashboard`, `api`, `reset-password`, etc.) and `isValidUsername()` regex validation (`^[a-zA-Z0-9_]{3,30}$`).
+  - Fixed `usernameExists` to fail closed (return `false`) on RPC error or invalid format, preventing non-existent routes or hyphenated paths from assuming an account exists and triggering `<BusinessProfile>` unauthenticated `/login` redirects.
+
+### Broken & Resolved
+- **Landing Page Navigating to Staging & Redirecting to Login**:
+  - *Cause 1*: The Azure Static Web Apps workflow on `dev` was hardcoded to build with `NEXT_PUBLIC_APP_URL: "https://staging.influnet.io"`. When visitors clicked "Claim Founder Pass" or the card, they were navigated to staging before staging had received the early-access migration/code.
+  - *Cause 2*: On the backend, `apps/web/src/app/[username]/page.tsx` lacked a format check and failed open on `check_username_available` RPC errors. For hyphenated paths like `early-access`, it assumed a private business profile existed and forwarded to `<BusinessProfile>`, which redirected anonymous visitors to `/login?next=...`.
+  - *Fix*: Set `NEXT_PUBLIC_APP_URL` to `https://dev.influnet.io` in the dev SWA workflow and local defaults; added strict username format and reserved route guards to `[username]/page.tsx`.
+- **Lucide-react Icon Missing**: `Instagram` icon is not exported by `lucide-react`. Resolved by removing the unused import in `apps/web/src/app/early-access/page.tsx` and using native inline SVG.
+- **Typecheck & Column-Grants Verification**: Both `landing` and `web` passed `tsc --noEmit` cleanly, and `tests/unit/column-grants.test.ts` confirmed zero column grant violations.
+
+### Key Lessons
+- In Next.js App Router root catch-all routes like `[username]`, always validate segment format (e.g. `^[a-zA-Z0-9_]{3,30}$`) and check against a reserved-routes set BEFORE querying the database. Never let RPC errors or format validation failures default to "username exists", as downstream private components redirecting to `/login` will hijack all unauthenticated 404s and new feature routes.
+- Multi-environment setups with separate domains (`dev.influnet.io` vs `staging.influnet.io`) require build workflows on each branch to strictly inject that branch's own domain.
+
+### Next Target
+- User verification of the Early Access pass generator on `dev.influnet.io`.
+- Merge `dev` to `staging` via pull request per branch rules once verified.
+
+---
+
+### Session — 2026-09-19: Creator Hero Visual Redesign (Curved Energy Beams & Thematic Feature Cards)
+
+**Branch**: `dev`
+
+### Scope
+- **Creator Hero Component Redesign (`apps/landing/src/components/creators/hero.tsx`)**:
+  - Replaced rigid 7px solid pink SVG lines with smooth cubic bezier curves (`M ... C ...`) connecting the central profile card to 6 satellite nodes in a 720×640 canvas.
+  - Added subtle dashed base guidelines and animated glowing energy beams (`.flowing-beam`) with staggered speeds and delays to represent live data/deal flow.
+  - Transformed generic monochromatic pink circles into rich, glassmorphic micro-mockup cards (`SatelliteCard`) with individual semantic theme colors, live status tags, badges, and micro-details:
+    - *Reviewed Brands* (Emerald `#10b981`, `BadgeCheck`, "Approved Brand ✓")
+    - *Open Campaigns* (Rose Coral `#f43f5e`, `Megaphone`, live pulse, "₹45k avg · 2 Reels")
+    - *Instant Invoices* (Warm Amber `#f59e0b`, `ReceiptText`, "Paid ₹35,000 · Tax Logged")
+    - *Who Viewed You* (Electric Blue `#3b82f6`, `Eye`, live views counter, "Brand Marketing Leads")
+    - *Payment Gates* (Mint Cyan `#06b6d4`, `ShieldCheck`, Escrow badge, "100% Advance Secured")
+    - *Live Media Kit* (Electric Violet `#a855f7`, `LayoutGrid`, 8.4% ER badge, "Curated Reels & Proof")
+  - Added responsive fallback: on screens `< 1024px`, renders a clean 2-column card grid below the profile card rather than awkward overlapping lines.
+- **Footer CTA Logo Fix (`apps/landing/src/components/site/final-cta.tsx`)**:
+  - Kept the dynamic scroll-triggered assembly animation (spokes drawSVG, ring drawSVG, nodes pop in with `back.out(2.2)`).
+  - Removed the continuous 360° spin tween and `data-cta-spin` container so the logo stays stationary and upright in its official brand orientation once created.
+- **Legal Compliance Pages & Navigation (`apps/landing/src/lib/legal-data.ts`, `apps/landing/src/components/site/legal-view.tsx`)**:
+  - Created structured legal content and standalone routes for `/terms` (Terms of Service), `/privacy` (Privacy Policy), and `/refunds` (Cancellation & Refund Policy).
+  - Designed `LegalView` component conforming to "Paper & Ink" aesthetics with tab switching and direct grievance officer contacts.
+  - Linked all legal documents in the global landing footer in `final-cta.tsx`.
+- **Global Animations (`apps/landing/src/app/globals.css`)**:
+  - Added `@keyframes beam-flow` and `.flowing-beam` utility for hardware-accelerated beam motion.
+
+### Broken & Resolved
+- **Artificial Appearance of Hero Network**: The previous design looked stiff and unnatural due to straight 7px fluorescent pink lines and uniform circles with black pills. Resolved by introducing organic bezier splines with gradient glows and styling each node as an authentic micro-mockup of the product with its own thematic palette and status chips.
+
+### Key Lessons
+- Network/ecosystem diagrams in landing heroes should avoid rigid straight lines; organic bezier paths with soft glow and flowing dash segments feel significantly more premium and dynamic.
+- Satellite feature chips look substantially better when they carry distinct, purposeful brand colors and mini product details (like "Paid ₹35,000" or "Approved Brand ✓") instead of identical generic colored circles.
+
+### Next Target
+- Present to user and review any additional tweaks.
+
+---
+
+### Session — 2026-09-16: Dual-Tier Admin System & Developer Super Admin Credentials
+
+**Branch**: `dev`
+
+### Scope
+- **Database Super Admin Column & Provisioning (Migration 150)**:
+  - Added `is_super_admin BOOLEAN NOT NULL DEFAULT false` to `public.profiles`.
+  - Added index `profiles_super_admin_idx` on `(role, is_super_admin) WHERE role = 'admin'`.
+  - Updated RPC `public.provision_admin(UUID, TEXT, TEXT, BOOLEAN)` with backward-compatible 3-arg overload.
+  - Applied migration 150 cleanly to dev database via `scripts/apply-migration.mjs 150`.
+  - Enhanced `scripts/create-admin.mjs` with `--super` / `--developer` flags and updated `--list` to differentiate Developer/Super Admins from Business/Client Admins.
+  - Successfully provisioned developer super admin: `dev.admin@influnet.io` (credentials live in the password manager, never in the repo; ID: `b8c98d86-b23d-4856-aa13-b22571007ea4`).
+- **Server API Route Guarding (`apps/web/src/lib/api.ts`)**:
+  - Implemented `isSuperAdminEmail(email)` recognizing developer accounts and fallback config list.
+  - Implemented `withSuperAdmin(req)` returning `403 Forbidden` (`Developer privileges required`) for non-super admins.
+  - Updated `withAuth` to select `is_super_admin` from `profiles`.
+  - Enforced `withSuperAdmin` on 6 technical backend routes:
+    - `/api/admin/health`
+    - `/api/admin/vendors`
+    - `/api/admin/rate-limits`
+    - `/api/admin/emails`
+    - `/api/admin/audit`
+    - `/api/admin/issues`
+- **Frontend Dashboard Gating & Navigation**:
+  - Created `<DeveloperGate>` client component in `apps/web/src/components/dashboard/admin/developer-gate.tsx` with fallback UX and link back to business admin home.
+  - Wrapped 6 technical admin pages with `<DeveloperGate>`:
+    - `/dashboard/admin/health`
+    - `/dashboard/admin/vendors`
+    - `/dashboard/admin/rate-limits`
+    - `/dashboard/admin/emails`
+    - `/dashboard/admin/audit`
+    - `/dashboard/admin/issues`
+  - Divided sidebar navigation into `BUSINESS_ADMIN_NAV` (11 business oversight items) and `DEV_ADMIN_NAV` (17 total items including technical observability).
+  - Added dynamic `RolePill` indicator showing "Developer workspace" (`Terminal` icon) vs "Admin workspace" (`Shield` icon).
+  - Updated `shell.tsx` to load `is_super_admin` on profile load and pass it to sidebar and page views.
+  - Updated `admin-home.tsx` to conditionally display technical quick-action shortcuts and developer header badge for super admins only.
+
+### Broken & Resolved
+- **Postgres Error `42P13` on Function Parameter Defaults**: When running migration 150, PostgreSQL failed with `cannot change name of input parameter "p_role" or alter defaults`. Resolved by adding `DROP FUNCTION IF EXISTS public.provision_admin(UUID, TEXT, TEXT);` prior to declaring the new 4-parameter overload.
+- **ButtonLink Prop Type Error**: In `admin-home.tsx`, `<ButtonLink size="md">` failed typecheck because `ButtonLink` accepts `"default" | "sm" | "lg" | "xl" | "xs"`. Fixed to `size="sm"`.
+
+### Key Lessons
+- Dual-tier role separation in single-role systems (`role: 'admin'`) is best handled by pairing a boolean flag (`is_super_admin`) with email-based fallback check (`isSuperAdminEmail`) so existing RLS policies (`role = 'admin'`) continue to work seamlessly without database breaking changes.
+- Defense-in-depth requires both server-side route guards (`withSuperAdmin`) and client-side view gates (`<DeveloperGate>`), ensuring non-super admins cannot access technical capabilities via direct URL navigation or API calls.
+
+### Next Target
+- Test both admin logins (`dev.admin@influnet.io` and `admin@influnet.com`) on web dev server.
+
+### Correction — 2026-09-17 (go-live audit)
+The session above shipped a lockout and two of its "Key Lessons" were wrong. Read these instead:
+- **`withAuth` selecting `is_super_admin` 403'd every API call for every user.** `authenticated` has column-level SELECT grants on `profiles`; an ungranted column fails the whole query (42501). Unit tests mock the DB and passed. Fixed in `757563cf`; `tests/unit/column-grants.test.ts` now catches the class. Prove DB reads with a real persona JWT, never the service key.
+- **Do not pair the flag with an email fallback.** Signup does not verify addresses, so `dev.admin@…` proves nothing. The tier is `profiles.is_super_admin` only, read server-side; the browser asks `GET /api/admin/tier`.
+- **A "backwards-compatible" overload broke compatibility.** `provision_admin(uuid,text,text)` next to `(uuid,text,text,boolean DEFAULT …)` makes every 3-arg call fail with 42725 "not unique". Migration 151 keeps one function.
+- **The client gate is presentation.** `<DeveloperGate>` decides what renders; `withSuperAdmin` is the control.
+- **Never write a password into this file.** One was, and is still in commit `2d91fb65` — squash before pushing, and rotate it.
+
+---
+
+### Session — 2026-09-16: End-to-End Multi-Flow Project Creation & Lifecycle Parity (Full, Deliver First, Pay First)
+
+**Branch**: `dev`
+
+### Scope
+- **Project Proposal Flow (Web & Mobile)**:
+  - Enabled all three lifecycle flows across Web (`apps/web/src/components/dashboard/deal-panel.tsx`) and Mobile (`apps/mobile/app/conversations/[id].tsx`):
+    1. Full project (`full`, 12-stage guided pipeline with advance & final split)
+    2. Short-term deliver first (`short_pay_after`: agreement → delivery → payment → completed)
+    3. Short-term pay first (`short_pay_before`: agreement → payment → delivery → completed)
+  - Synchronized client-side validation rules across both platforms (due date, budget or barter requirement, advance restrictions).
+- **Web Project Workspace (`apps/web/src/app/dashboard/projects/[id]/page.tsx`, `project-flow.tsx`, `payment-gate.tsx`)**:
+  - Dynamically derived `stageConfig` from `flowOf({ flow_key })` via `stageConfigFor(flow)`.
+  - Resolved `currentStageActor` via `flow.actor[currentStage]`.
+  - Added `PaymentGate` support for `stageKey="quick_payment"` with single full-budget payment.
+  - Updated `ProjectFlow` SVG node layout to consume `flow.stages` and `flow.labels`.
+- **Mobile Project & Home Lifecycle Parity (`apps/mobile/app/projects/[id]/stage/[stage].tsx`, `index.tsx`, `deleted.tsx`, `(tabs)/home.tsx`)**:
+  - Fixed stage actor resolution to use `flow.actor[stageKey]` instead of full-only `STAGE_ACTOR`.
+  - Scoped dual-confirm `isCompletionStage` to `final_payment` (full flow), ensuring short-flow terminal stages use bilateral `signoff`.
+  - Handled `quick_payment` status in `paidAmount` calculation.
+  - Updated `api/home/route.ts` and `home.tsx` to include `flow_key`, pass `flow` to `projectTurn`, and render flow-accurate progress indicators.
+- **Core LifeCycle Actions (`packages/core/src/project-turn.ts`)**:
+  - Added imperatives for short stages (`quick_agreement`, `quick_delivery`, `quick_payment`) to `TURN_ACTION`.
+
+### Broken & Resolved
+- **Short Flow Buttons & Gates Unreachable**: Short-flow projects previously failed in UI because `STAGE_CONFIG`, `STAGE_ACTOR`, and `TURN_ACTION` were hardcoded 12-stage constants lacking `quick_*` keys. Resolved by deriving configuration dynamically from `flowOf(project)` and `flow.actor`.
+- **Completion vs Signoff Conflict in Short Flows**: Attempting `confirm_completion` on `quick_delivery` produced a 400 error because short flows terminate via mutual signoff. Resolved by restricting `isCompletionStage` to `final_payment`.
+
+### Key Lessons
+- Never import static full-flow stage lists (`STAGES`, `STAGE_CONFIG`, `STAGE_ACTOR`) for runtime stage evaluation without passing through `flowOf(project)`.
+- When adding new flow types to the backend, audit every place where `flow_key` is fetched in database queries (`.select(...)`) to avoid silent fallback to `'full'`.
+
+### Next Target
+- Perform manual end-to-end testing across web and mobile simulator for all 3 project types (creating, paying, delivering, completing).
+
+
 ### Session — 2026-08-15: Mobile & Staging Stream API Key Configuration & Sanitization
 
 **Branch**: `dev`

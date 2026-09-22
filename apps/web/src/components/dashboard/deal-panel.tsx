@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 import { VerifiedMark } from "@/components/icons/verified-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,9 +116,12 @@ const money = (v: unknown) =>
  */
 export function DealPanel({
   conversationId,
+  userId,
   onProjectCreated,
 }: {
   conversationId: string;
+  /** Needed only to scope the realtime watch below to this viewer's own rows. */
+  userId?: string | null;
   onProjectCreated?: () => void;
 }) {
   const [deal, setDeal] = useState<DealState | null>(null);
@@ -141,6 +145,33 @@ export function DealPanel({
     setPrefill(null);
     load();
   }, [load]);
+
+  // This panel had NO realtime of its own — it loaded once on mount and
+  // nothing told it the other side had acted. respond_to_proposal's accept
+  // path inserts the new campaign_projects row, which is what wakes this up
+  // for an accept; collab_requests is watched too since it's what "awaiting
+  // reply" reflects before any proposal exists.
+  //
+  // project_proposals is filtered on conversation_id, not a participant's
+  // user id like the other two: the only party recorded directly on that
+  // table is proposed_by (the sender), so a filter keyed on the RECIPIENT's
+  // id could never match — and withdrawing is only ever done by the
+  // proposer, so it is specifically the recipient's panel that needs to see
+  // it disappear. conversation_id is the column every row carries for both
+  // sides, and this panel already has it. Migration 148 covers why a
+  // conversation_id filter doesn't widen access (RLS still gates delivery).
+  useRealtimeRefresh({
+    channelName: "dashboard-deal-panel-live",
+    enabled: !!userId,
+    watches: userId
+      ? [
+          { table: "collab_requests", filters: [`from_user_id=eq.${userId}`, `to_user_id=eq.${userId}`] },
+          { table: "campaign_projects", filters: [`owner_user_id=eq.${userId}`, `counterparty_user_id=eq.${userId}`] },
+          { table: "project_proposals", filters: [`conversation_id=eq.${conversationId}`] },
+        ]
+      : [],
+    onChange: load,
+  });
 
   const respondToRequest = async (status: "accepted" | "declined" | "cancelled") => {
     if (!deal?.request) return;
@@ -678,11 +709,20 @@ function ProposalForm({
           maxLength={4000}
         />
 
-        {/* Flow kind selector */}
+        {/* Flow kind selector.
+            All three flow_key values the backend actually supports (see
+            packages/core/src/project-lifecycle.ts and migration 119) belong
+            here. short_pay_before existed as a full, tested lifecycle —
+            propose_project() validated it, the E2E suite covered it — with
+            no way for a real user to ever pick it: `flowKey`'s state type
+            already listed it, but this options array stopped at two, so it
+            was reachable only by editing a prefilled proposal that already
+            carried it. Found 2026-09-16 checking this flow end-to-end. */}
         <div className="flex gap-2">
           {([
             { key: "full" as const, label: "Full project", desc: "12-stage guided pipeline" },
             { key: "short_pay_after" as const, label: "Short-term", desc: "Deliver then get paid" },
+            { key: "short_pay_before" as const, label: "Pay first", desc: "Get paid, then deliver" },
           ]).map((opt) => (
             <button
               key={opt.key}

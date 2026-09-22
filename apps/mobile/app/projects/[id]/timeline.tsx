@@ -32,7 +32,7 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Check } from 'lucide-react-native';
-import { flowOf, type StageFlow } from '@influnet/core';
+import { flowOf, otherParticipant, type StageFlow } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -54,8 +54,8 @@ interface TimelineProject {
   current_stage: string;
   flow_key?: string | null;
   created_at: string;
-  owner_user_id: string;
-  counterparty_user_id: string;
+  owner_user_id: string | null;
+  counterparty_user_id: string | null;
   stage_progress: Record<string, StageProgressEntry> | null;
   owner?: { name?: string } | null;
   counterparty?: { name?: string } | null;
@@ -110,7 +110,17 @@ export default function ProjectTimelineScreen() {
 
   const project = data?.project;
   const isOwner = project?.owner_user_id === me;
-  const partner = (isOwner ? project?.counterparty?.name : project?.owner?.name) ?? 'Partner';
+  // "Deleted account" when the other party's account is gone (migration 161).
+  const partner =
+    project
+      ? otherParticipant(
+          isOwner,
+          project.owner_user_id,
+          project.counterparty_user_id,
+          project.owner,
+          project.counterparty,
+        ).name
+      : 'Partner';
 
   const rows = useMemo(() => {
     if (!project) return [];

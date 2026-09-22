@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAdmin, jsonError } from '@/lib/api';
+import { withSuperAdmin, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getTemplate, listTemplates } from '@/lib/email/templates';
 import { emailsEnabled, emailConfigured, fromAddress, isValidEmail } from '@/lib/email/client';
@@ -23,7 +23,7 @@ import { supportEmail } from '@/lib/email/theme';
  */
 
 export async function GET(req: Request) {
-  const auth = await withAdmin(req);
+  const auth = await withSuperAdmin(req);
   if (!auth.ok) return auth.res;
 
   const { supabase } = auth;
@@ -58,7 +58,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = await withAdmin(req);
+  const auth = await withSuperAdmin(req);
   if (!auth.ok) return auth.res;
 
   let payload: { action?: string; templateId?: string; data?: Record<string, unknown>; to?: string };

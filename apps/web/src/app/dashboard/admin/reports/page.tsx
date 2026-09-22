@@ -26,6 +26,10 @@ interface Report {
   details: string | null;
   status: string;
   project_id: number | null;
+  context?: "profile" | "campaign" | "request" | "project" | "chat" | null;
+  campaign_id?: string | null;
+  collab_request_id?: string | null;
+  campaign?: { id: string; title: string | null } | null;
   created_at: string;
   reporter: { id: string; name: string } | null;
   reported: { id: string; name: string; verification_status?: string } | null;
@@ -147,6 +151,12 @@ export default function AdminReportsPage() {
                     {r.project_id != null && (
                       <Badge variant="outline" size="sm">
                         Project #{r.project_id}
+                      </Badge>
+                    )}
+                    {/* Where the report was made (migration 163). */}
+                    {r.context && (
+                      <Badge variant="outline" size="sm">
+                        From {r.context === "campaign" && r.campaign?.title ? `campaign “${r.campaign.title}”` : r.context === "request" ? "a collaboration request" : `a ${r.context}`}
                       </Badge>
                     )}
                   </div>

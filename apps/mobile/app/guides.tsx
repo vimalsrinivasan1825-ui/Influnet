@@ -13,6 +13,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { ScreenScroll, Txt } from '@/components/ui';
 import { useGuides } from '@/components/guides/use-guides';
+import { isGuideVisible } from '@/lib/guide-visibility';
 
 export default function GuidesScreen() {
   const t = useTheme();
@@ -21,7 +22,13 @@ export default function GuidesScreen() {
   const { seen, open } = useGuides();
 
   const menuRole = role === 'influencer' || role === 'business_owner' ? role : null;
-  const sections = useMemo(() => guidesForMenu(menuRole), [menuRole]);
+  const sections = useMemo(
+    () =>
+      guidesForMenu(menuRole)
+        .map((s) => ({ ...s, guides: s.guides.filter(isGuideVisible) }))
+        .filter((s) => s.guides.length > 0),
+    [menuRole],
+  );
 
   return (
     <>

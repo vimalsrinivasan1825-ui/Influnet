@@ -21,6 +21,7 @@ import {
   Copy,
   CornerUpLeft,
   FileText,
+  Flag,
   Handshake,
   Image as ImageIcon,
   MoreVertical,
@@ -36,6 +37,7 @@ import { endpoints } from '@/lib/api';
 import { getConversationChannel, getLastStreamFailureReason, isStreamConfigured } from '@/lib/stream';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { useNotificationToast } from '@/lib/notification-toast';
+import { useLiveRefresh, useProposalLive } from '@/lib/realtime';
 import { formatCurrency, formatDayLabel, formatMessageTime, timeAgo } from '@/lib/format';
 import {
   TEXT_SCALE as TEXT_SCALE_PREVIEW,
@@ -44,7 +46,7 @@ import {
   type ChatTextSize,
 } from '@/lib/use-chat-display';
 import { ChatPaper } from '@/components/chat-paper';
-import { flowOf } from '@influnet/core';
+import { dealStateOf, DEAL_STATE_LABEL, flowOf } from '@influnet/core';
 
 /**
  * " · Step 2 of 12", or nothing.
@@ -71,11 +73,16 @@ import {
   Card,
   Field,
   KeyboardAvoider,
+  SegmentedControl,
   Sheet,
   Txt,
   VerifiedBadge,
   type SheetRef,
 } from '@/components/ui';
+import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
+import { ReportSheet } from '@/components/report-sheet';
+import { maybeAskForPush } from '@/lib/push-prompt';
+
 
 /**
  * Same six types (and same emoji) as the web dashboard's default reaction bar
@@ -370,10 +377,25 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
     };
   }
 
-  const live = payload.projects?.[0];
+  // `payload.projects` is every non-pending_acceptance project between this
+  // pair, NEWEST FIRST — it can hold more than one once a finished project
+  // is followed by a new one. Picking [0] blindly meant a just-completed or
+  // cancelled project (the newest row) shadowed an OLDER project that was
+  // still genuinely active: the pinned card read "Project in progress" for
+  // a project that had already finished, and tapping it opened that wrong
+  // project instead of the one actually being worked. An open project — if
+  // one exists — is always the one worth pinning here.
+  const live =
+    payload.projects?.find((p) => p.status !== 'completed' && p.status !== 'cancelled') ??
+    payload.projects?.[0];
   if (live) {
     return {
-      status: 'Project in progress',
+      // Reflects the actual row instead of asserting "in progress" for
+      // whatever this happened to be — the same status→label mapping the
+      // Projects tab uses (dealStateOf), so a completed or cancelled project
+      // surfaced here (no open one exists) reads accurately rather than as
+      // live work.
+      status: DEAL_STATE_LABEL[dealStateOf(live.status)],
       budget: live.budget,
       deliverables: live.title,
       projectId: live.id,
@@ -415,6 +437,10 @@ export default function ConversationScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const displaySheet = useRef<SheetRef>(null);
+  // Report / block the other person, from the ⋮ menu (App Store 1.2, Google
+  // UGC policy): a chat is where abuse actually arrives, so it can't live only
+  // on the profile screen.
+  const reportSheet = useRef<SheetRef>(null);
   const insets = useSafeAreaInsets();
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const me = useSession((s) => s.profile?.id);
@@ -468,6 +494,17 @@ export default function ConversationScreen() {
   const [pDescription, setPDescription] = useState('');
   const [pBudget, setPBudget] = useState('');
   const [pAdvance, setPAdvance] = useState('');
+  // Flow choice. The web propose form already had this; this screen had no
+  // way to reach short_pay_after or short_pay_before at all — every mobile
+  // proposal silently landed on 'full' regardless of what the business
+  // actually wanted, forcing a one-off deal through the 12-stage pipeline.
+  // Found and fixed 2026-09-16.
+  const [pFlowKey, setPFlowKey] = useState<'full' | 'short_pay_after' | 'short_pay_before'>('full');
+  const [pDueDate, setPDueDate] = useState('');
+  const [pDeliverables, setPDeliverables] = useState('');
+  const [pIsBarter, setPIsBarter] = useState(false);
+  const [pBarterDetails, setPBarterDetails] = useState('');
+  const pIsShort = pFlowKey !== 'full';
   const [proposeBusy, setProposeBusy] = useState(false);
   const [proposeError, setProposeError] = useState<string | null>(null);
 
@@ -484,16 +521,16 @@ export default function ConversationScreen() {
     navigation.setOptions({
       title: name ?? 'Chat',
       /**
-       * The only header action. Deliberately not a call button: this app does
-       * not place calls, and an affordance that looks like it does is a
-       * promise the product cannot keep.
+       * The only header action: display options plus report/block. Deliberately
+       * not a call button: this app does not place calls, and an affordance
+       * that looks like it does is a promise the product cannot keep.
        */
       headerRight: () => (
         <Pressable
           onPress={() => displaySheet.current?.expand()}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Chat display options"
+          accessibilityLabel="Chat options"
           style={({ pressed }) => ({ paddingHorizontal: 4, opacity: pressed ? 0.5 : 1 })}
         >
           <MoreVertical size={20} color={t.color.brand} />
@@ -611,6 +648,26 @@ export default function ConversationScreen() {
     void load();
   }, [load]);
 
+  // The other side accepting a proposal, or the underlying request changing,
+  // used to be invisible on this screen while it was open: the only refetch
+  // was useFocusEffect below, which never fires for a screen you're already
+  // sitting on, and there was no realtime subscription behind this deal card
+  // at all (unlike the Projects and Requests tabs, which already use this
+  // same hook). A brand who stayed in the conversation while the creator
+  // accepted kept seeing "awaiting reply" until they left the screen and came
+  // back — respond_to_proposal's accept path inserts the new campaign_projects
+  // row, which is what wakes this up.
+  useLiveRefresh('requests', load);
+  useLiveRefresh('projects', load);
+  // Declining or withdrawing a proposal is a separate case from the two
+  // above: neither touches collab_requests or campaign_projects, only
+  // project_proposals — published to Realtime in migration 148, specifically
+  // because withdraw sends no notification at all (decline at least notifies
+  // the proposer) and had no backstop whatsoever without this. See
+  // useProposalLive for why this is keyed on conversation id rather than a
+  // participant's user id.
+  useProposalLive(id, load);
+
   // Anything that landed while this screen was backgrounded — or while the
   // socket was down on a flaky connection — is only picked up by re-reading.
   useFocusEffect(
@@ -664,6 +721,7 @@ export default function ConversationScreen() {
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     dealSheet.current?.close();
+    if (action === 'accept') void maybeAskForPush('project_started');
 
     // Positive confirmation of where the brand now stands on the free project
     // cap — the server only fills this in when the caller owns the new project
@@ -678,8 +736,8 @@ export default function ConversationScreen() {
         body:
           left > 0
             ? `You've used ${conv.used} of ${conv.limit} free project conversions — ${left} left.`
-            : `You've used all ${conv.limit} free project conversions. Upgrade to Pro for unlimited.`,
-        link: '/dashboard/billing',
+            : `You've used all ${conv.limit} free project conversions.${HIDE_PRO_PURCHASE ? '' : ' Upgrade to Pro for unlimited.'}`,
+        link: HIDE_PRO_PURCHASE ? null : '/dashboard/billing',
         receivedAt: Date.now(),
       });
     }
@@ -718,6 +776,21 @@ export default function ConversationScreen() {
       setProposeError('The advance can’t be more than the total budget.');
       return;
     }
+    // Same three rules the server enforces (propose_project(), migration 121)
+    // — checked here too so the error reads as a form problem, not a failed
+    // request, and matching web's copy exactly.
+    if (pIsShort && !pDueDate.trim()) {
+      setProposeError('A short-term project needs a delivery date.');
+      return;
+    }
+    if (pIsShort && (!budget || budget <= 0) && !pIsBarter) {
+      setProposeError('A short-term project needs a budget or must be marked as barter.');
+      return;
+    }
+    if (pIsBarter && !pBarterDetails.trim()) {
+      setProposeError('Barter projects need a description of what is being exchanged.');
+      return;
+    }
 
     setProposeBusy(true);
     setProposeError(null);
@@ -726,8 +799,16 @@ export default function ConversationScreen() {
       collab_request_id: deal.collabRequestId,
       title,
       description: pDescription.trim() || undefined,
-      budget,
-      advance_amount: advance,
+      flow_key: pFlowKey,
+      budget: pIsBarter ? 0 : budget,
+      // short_flow_no_advance: an advance only means something in the full
+      // flow's separate advance/final split. Short flows pay the whole
+      // budget at their one payment stage.
+      advance_amount: pIsShort ? undefined : advance,
+      due_date: pIsShort && pDueDate.trim() ? pDueDate.trim() : undefined,
+      deliverables: pIsShort && pDeliverables.trim() ? pDeliverables.trim() : undefined,
+      is_barter: pIsShort && pIsBarter ? true : undefined,
+      barter_details: pIsShort && pIsBarter ? pBarterDetails.trim() : undefined,
     });
     setProposeBusy(false);
 
@@ -741,6 +822,11 @@ export default function ConversationScreen() {
     setPDescription('');
     setPBudget('');
     setPAdvance('');
+    setPFlowKey('full');
+    setPDueDate('');
+    setPDeliverables('');
+    setPIsBarter(false);
+    setPBarterDetails('');
     void load();
   }
 
@@ -1429,7 +1515,7 @@ export default function ConversationScreen() {
         the size that suits reading is routinely not the size someone wants for
         every button on their phone.
       */}
-      <Sheet ref={displaySheet} title="Display">
+      <Sheet ref={displaySheet} title="Chat options">
         <View style={{ gap: t.spacing.xl }}>
           <View style={{ gap: t.spacing.sm }}>
             <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
@@ -1536,8 +1622,45 @@ export default function ConversationScreen() {
             </View>
             <ChevronRight size={16} color={t.color.contentMuted} />
           </Pressable>
+
+          {partner?.id ? (
+            <Pressable
+              onPress={() => {
+                displaySheet.current?.close();
+                reportSheet.current?.expand();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Report or block ${partner.name || 'this person'}`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: t.spacing.md,
+                paddingVertical: t.spacing.sm,
+              }}
+            >
+              <Flag size={19} color={t.color.danger} />
+              <View style={{ flex: 1 }}>
+                <Txt variant="bodyStrong" style={{ fontSize: 15, color: t.color.danger }}>
+                  Report or block
+                </Txt>
+                <Txt variant="caption" tone="muted">
+                  Tell us about {partner.name || 'this person'}, or stop them contacting you
+                </Txt>
+              </View>
+              <ChevronRight size={16} color={t.color.contentMuted} />
+            </Pressable>
+          ) : null}
         </View>
       </Sheet>
+
+      {partner?.id ? (
+        <ReportSheet
+          sheetRef={reportSheet}
+          reportedId={partner.id}
+          reportedName={partner.name || 'this person'}
+          context={{ kind: 'profile' }}
+        />
+      ) : null}
 
       <Sheet ref={proposeSheet} title="Propose project terms">
         <Txt variant="footnote" tone="muted">
@@ -1564,30 +1687,113 @@ export default function ConversationScreen() {
           hint="Scope, deliverables and timing — the clearer this is, the fewer change requests later."
         />
 
+        <Txt variant="footnote" tone="muted" style={{ marginTop: 4, marginBottom: 6 }}>
+          Project type
+        </Txt>
+        <SegmentedControl
+          segments={[
+            { value: 'full', label: 'Full' },
+            { value: 'short_pay_after', label: 'Deliver first' },
+            { value: 'short_pay_before', label: 'Pay first' },
+          ]}
+          value={pFlowKey}
+          onChange={(v) => {
+            setPFlowKey(v);
+            if (v !== 'full') setPAdvance('');
+            if (proposeError) setProposeError(null);
+          }}
+        />
+        <Txt variant="caption" tone="muted" style={{ marginTop: 4 }}>
+          {pFlowKey === 'full'
+            ? 'The 12-stage guided pipeline — for an ongoing campaign.'
+            : pFlowKey === 'short_pay_after'
+              ? 'A quick one-off: agree, deliver, then get paid.'
+              : 'A quick one-off: agree, get paid, then deliver.'}
+        </Txt>
+
         <Field
-          label="Total budget (optional)"
-          placeholder="50000"
-          value={pBudget}
+          label={pIsShort ? 'Budget (₹) *' : 'Total budget (optional)'}
+          placeholder={pIsBarter ? '0 (barter)' : '50000'}
+          value={pIsBarter ? '0' : pBudget}
+          editable={!pIsBarter}
           onChangeText={(v) => {
             setPBudget(v);
             if (proposeError) setProposeError(null);
           }}
           keyboardType="number-pad"
-          hint="Leave blank if you've already settled it in chat."
+          hint={pIsShort ? undefined : "Leave blank if you've already settled it in chat."}
         />
 
-        <Field
-          label="Advance (optional)"
-          placeholder="15000"
-          value={pAdvance}
-          onChangeText={(v) => {
-            setPAdvance(v);
-            if (proposeError) setProposeError(null);
-          }}
-          keyboardType="number-pad"
-          hint="Paid up front at the deposit stage. Must not exceed the total."
-          error={proposeError}
-        />
+        {pIsShort ? (
+          <>
+            <Field
+              label="Delivery date *"
+              placeholder="YYYY-MM-DD"
+              value={pDueDate}
+              onChangeText={(v) => {
+                setPDueDate(v);
+                if (proposeError) setProposeError(null);
+              }}
+            />
+            <Field
+              label="Deliverables (optional)"
+              placeholder="Specific deliverables for this short project…"
+              value={pDeliverables}
+              onChangeText={setPDeliverables}
+              multiline
+            />
+            <Pressable
+              onPress={() => {
+                setPIsBarter((b) => !b);
+                if (!pIsBarter) setPBudget('0');
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}
+            >
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 4,
+                  borderWidth: 1.5,
+                  borderColor: pIsBarter ? t.color.brand : t.color.hairlineStrong,
+                  backgroundColor: pIsBarter ? t.color.brand : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {pIsBarter ? <Check size={14} color={t.color.white} /> : null}
+              </View>
+              <Txt variant="footnote">This is a barter (no cash payment)</Txt>
+            </Pressable>
+            {pIsBarter ? (
+              <Field
+                label="What's being exchanged? *"
+                placeholder="e.g. product for content"
+                value={pBarterDetails}
+                onChangeText={setPBarterDetails}
+                multiline
+              />
+            ) : null}
+          </>
+        ) : (
+          <Field
+            label="Advance (optional)"
+            placeholder="15000"
+            value={pAdvance}
+            onChangeText={(v) => {
+              setPAdvance(v);
+              if (proposeError) setProposeError(null);
+            }}
+            keyboardType="number-pad"
+            hint="Paid up front at the deposit stage. Must not exceed the total."
+          />
+        )}
+
+        {proposeError ? (
+          <Txt variant="footnote" tone="danger" style={{ marginTop: 2 }}>
+            {proposeError}
+          </Txt>
+        ) : null}
 
         <Button
           label="Send these terms"

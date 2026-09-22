@@ -1,5 +1,6 @@
+import { flag } from '@/lib/feature-flags';
 import { NextResponse } from 'next/server';
-import { callerClient, jsonError, withAdmin } from '@/lib/api';
+import { callerClient, jsonError, withSuperAdmin } from '@/lib/api';
 import { appEnv } from '@/lib/env';
 import { isDistributedRateLimit } from '@/lib/rate-limit';
 import { isObservabilityEnabled } from '@/lib/observability';
@@ -18,8 +19,44 @@ import { isObservabilityEnabled } from '@/lib/observability';
  * APIs, and turning a status page into a billing line item is a bad trade.
  */
 
-/** Migrations whose absence changes behaviour, newest first. */
-const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: 'rpc' | 'table' }[] = [
+/**
+ * Migrations whose absence changes behaviour, newest first.
+ *
+ * Every RPC listed here must stay callable with ZERO arguments — see the probe
+ * loop below for why. That rules out most of the write RPCs (record_stage_signoff,
+ * propose_project, reveal_business_contact, accept_campaign_application and
+ * friends all take required arguments), so where a migration ships both a table
+ * and a function, the table is the probe. A few migrations are deliberately not
+ * probed at all because they create nothing selectable: 148 only adds an
+ * existing table to a publication, and 144/147 alter columns on tables that
+ * already existed, so a probe would report "applied" either way. A probe that
+ * cannot fail is worse than no probe. 149 only seeds nothing and changes a
+ * constraint, and 151 redefines functions that already existed, for the same
+ * reason.
+ *
+ * `column` probes are `table.column`, selected through the service-role client
+ * — a missing column fails the select, which is exactly the signal.
+ */
+const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: 'rpc' | 'table' | 'column' }[] = [
+  { migration: '165', label: 'Single-source request notifications', probe: 'collab_notifications_single_source', kind: 'rpc' },
+  { migration: '164', label: 'Business approval guards (DB level)', probe: 'business_approval_guards_installed', kind: 'rpc' },
+  { migration: '163', label: 'Report context (campaign / request)', probe: 'user_reports.context', kind: 'column' },
+  { migration: '162', label: 'Signup consent (Terms + 18+)', probe: 'record_signup_consent', kind: 'rpc' },
+  { migration: '161', label: 'Projects survive account deletion (F2)', probe: 'project_deletion_survival_ok', kind: 'rpc' },
+  { migration: '150', label: 'Super-admin tier', probe: 'profiles.is_super_admin', kind: 'column' },
+  { migration: '146', label: 'Test-run sessions', probe: 'report_test_sessions', kind: 'table' },
+  { migration: '142', label: 'Re-engagement nudges', probe: 'nudge_candidates', kind: 'rpc' },
+  { migration: '138', label: 'Free-tier ceilings', probe: 'get_entitlements', kind: 'rpc' },
+  { migration: '137', label: 'Runtime feature flags', probe: 'feature_flags', kind: 'table' },
+  { migration: '135', label: 'Tax invoice numbering', probe: 'invoice_number_counters', kind: 'table' },
+  { migration: '126', label: 'Campaign applications', probe: 'campaign_applications', kind: 'table' },
+  { migration: '125', label: 'Campaigns', probe: 'campaigns', kind: 'table' },
+  { migration: '124', label: 'Project documents', probe: 'project_documents', kind: 'table' },
+  { migration: '123', label: 'Saved items', probe: 'saved_items', kind: 'table' },
+  { migration: '118', label: 'Report remarks', probe: 'report_remarks', kind: 'table' },
+  { migration: '116', label: 'Profile link clicks', probe: 'get_profile_link_reach', kind: 'rpc' },
+  { migration: '115', label: 'Billing foundation', probe: 'billing_settings', kind: 'table' },
+  { migration: '113', label: 'Collaboration & view stats', probe: 'get_profile_view_stats', kind: 'rpc' },
   { migration: '109', label: 'Rate-limit visibility', probe: 'rate_limit_stats', kind: 'table' },
   { migration: '108', label: 'Admin user activity', probe: 'admin_get_user_activity', kind: 'rpc' },
   { migration: '099', label: 'Live activity feed', probe: 'get_platform_activity', kind: 'rpc' },
@@ -32,7 +69,7 @@ const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: '
 
 export async function GET(req: Request) {
   try {
-    const auth = await withAdmin(req);
+    const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase } = auth;
     const scoped = callerClient(req);
@@ -52,8 +89,23 @@ export async function GET(req: Request) {
       { name: 'Email sending ON', configured: process.env.NOTIFY_EMAILS_ENABLED === 'true', required: false },
       { name: 'Sentry', configured: isObservabilityEnabled(), required: false },
       { name: 'PostHog analytics', configured: Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY), required: false },
+      // Read-side keys for /dashboard/admin/observability. The send keys above
+      // cannot read anything back.
+      {
+        name: 'Sentry read API (dashboard)',
+        configured: Boolean(process.env.SENTRY_API_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT),
+        required: false,
+      },
+      {
+        name: 'PostHog read API (dashboard)',
+        configured: Boolean(process.env.POSTHOG_PERSONAL_API_KEY && process.env.POSTHOG_PROJECT_ID),
+        required: false,
+      },
       { name: 'Distributed rate limiting', configured: isDistributedRateLimit(), required: false },
-      { name: 'Phone OTP gate', configured: process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === 'true', required: false },
+      // The RUNTIME flag (feature_flags row, env only as its fallback), i.e. what the
+      // signup gate is actually doing. This used to read NEXT_PUBLIC_PHONE_OTP_ENABLED,
+      // a build-time constant, so it kept saying "off" after the gate was flipped on.
+      { name: 'Phone OTP gate (runtime flag)', configured: flag('phone_otp'), required: false },
     ];
 
     // ── Database reachability + latency ──────────────────────────────────
@@ -70,6 +122,11 @@ export async function GET(req: Request) {
         try {
           if (f.kind === 'table') {
             const { error } = await supabase.from(f.probe).select('*').limit(0);
+            return { ...f, applied: !error };
+          }
+          if (f.kind === 'column') {
+            const [table, column] = f.probe.split('.');
+            const { error } = await supabase.from(table).select(column).limit(0);
             return { ...f, applied: !error };
           }
           // An RPC that exists but rejects us (e.g. 'forbidden') still proves

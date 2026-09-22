@@ -21,6 +21,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, THead, TRow } from "@/components/ui/table";
+import { DeveloperGate } from "@/components/dashboard/admin/developer-gate";
 
 /**
  * Admin email console — preview every template with editable data and send a
@@ -87,7 +88,7 @@ const STATUS_VARIANT: Record<string, "success" | "danger" | "warning" | "neutral
   complained: "danger",
 };
 
-export default function AdminEmailsPage() {
+function AdminEmailsContent() {
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [config, setConfig] = useState<EmailConfig | null>(null);
   const [recent, setRecent] = useState<Delivery[] | null>(null);
@@ -416,6 +417,14 @@ export default function AdminEmailsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminEmailsPage() {
+  return (
+    <DeveloperGate>
+      <AdminEmailsContent />
+    </DeveloperGate>
   );
 }
 

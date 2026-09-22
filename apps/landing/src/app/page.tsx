@@ -1,27 +1,14 @@
-import Hero from '@/components/landing/hero';
-import ReplyGap from '@/components/landing/reply-gap';
-import HowItWorks from '@/components/landing/how-it-works';
-import TrustVerification from '@/components/landing/trust-verification';
-import CreatorCarousel from '@/components/landing/creator-carousel';
-import TrustCarousel from '@/components/landing/trust-carousel';
-import Vision from '@/components/landing/vision';
-import Cta from '@/components/landing/cta';
-import Footer from '@/components/landing/footer';
+import Gateway from '@/components/gate/gateway';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white">
-      <main>
-        <Hero />
-        <ReplyGap />
-        <HowItWorks />
-        <TrustVerification />
-        <CreatorCarousel />
-        <TrustCarousel />
-        <Vision />
-        <Cta />
-      </main>
-      <Footer />
-    </div>
+    <>
+      <noscript>
+        <div style={{ padding: 32, fontFamily: 'system-ui' }}>
+          <a href="/creators">I&apos;m a creator</a> · <a href="/business">I&apos;m a business</a>
+        </div>
+      </noscript>
+      <Gateway />
+    </>
   );
 }

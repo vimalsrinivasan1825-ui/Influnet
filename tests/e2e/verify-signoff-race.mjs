@@ -11,10 +11,24 @@
 // losing side alternated between runs). This runs 20 rounds and requires every
 // single one to land both signatures and advance.
 //
+// A round answered with 429 is VOIDED and re-taken after the limiter window:
+// the project PATCH route is limited per user to 20 per aligned 60-second
+// window (projects:update), shared with every other project action. A throttle
+// is the limiter working, not a lost update — counting it as a failure made
+// this verifier report findings purely from running it right after phase4.
+//
+// The budget math forces a window-discipline: the burst is exactly ROUNDS × 2
+// PATCHes per side — the whole 20-PATCH-per-window budget. So each high-volume
+// section opens by waiting out the current window: inherited traffic from an
+// earlier phase would turn burst rounds into 429s, and the sequential section
+// right after a clean burst would have its FIRST PATCH throttled, cascading
+// into three downstream failures that look like a broken stage machine and
+// are purely the limiter.
+//
 // Usage: node --env-file=apps/web/.env.local tests/e2e/verify-signoff-race.mjs
 
 import { Actor, raceAll } from './lib/actor.mjs';
-import { Scenario, loadPersonaState } from './lib/scenario.mjs';
+import { Scenario, loadPersonaState, sleep } from './lib/scenario.mjs';
 import { sql, lit } from './lib/sql.mjs';
 import { personaByKey } from './lib/personas.mjs';
 import { currentStage } from './lib/lifecycle.mjs';
@@ -22,6 +36,17 @@ import { currentStage } from './lib/lifecycle.mjs';
 const s = new Scenario('verify-signoff-race', 'Sign-off race — lost update regression');
 
 const ROUNDS = 20;
+
+// Fixed-window limiter: buckets are aligned to wall-clock minutes and reset
+// at the next boundary, so sleeping until just past the next boundary always
+// lands in a fresh window. 65s guarantees a crossing regardless of where in
+// the current window we are.
+async function waitOutRateLimitWindow() {
+  const msIntoWindow = Date.now() % 60_000;
+  const wait = 60_000 - msIntoWindow + 5_000;
+  console.log(`  ..    waiting ${Math.round(wait / 1000)}s for a fresh rate-limit window`);
+  await sleep(wait);
+}
 
 async function main() {
   const state = loadPersonaState();
@@ -36,7 +61,15 @@ async function main() {
     `select id from campaign_projects
      where owner_user_id=${lit(uid('mamaearth'))} and counterparty_user_id=${lit(uid('sourav'))}
      order by created_at desc limit 1`);
-  if (!proj) throw new Error('No Mamaearth × Sourav project; run phase4 first.');
+  if (!proj) {
+    // This verifier consumes the project phase4 leaves behind; phase9 and
+    // verify-161 re-seed personas and erase it. Phase4 re-establishes its own
+    // fixtures now, so one command revives everything this needs.
+    throw new Error(
+      'No Mamaearth × Sourav project. It is removed by re-seeds (phase9, verify-161). '
+      + 'Re-run `node --env-file=apps/web/.env.local tests/e2e/phase4-lifecycle.mjs` '
+      + '(it self-establishes its fixtures), then this script.');
+  }
   const pid = proj.id;
 
   // collaboration_started is a mutual-sign-off stage whose required item is
@@ -46,13 +79,29 @@ async function main() {
 
   s.section(`${ROUNDS} simultaneous sign-off rounds`);
 
+  // See the header: ROUNDS × 2 PATCHes per side is the whole per-window
+  // budget, so the burst must start from a fresh one or earlier phases'
+  // traffic turns burst rounds into 429s.
+  await waitOutRateLimitWindow();
+
   let bothLanded = 0;
   let advanced = 0;
   let serverErrors = 0;
+  let voidedBy429 = 0;
   const statusPairs = [];
   const failures = [];
 
-  for (let round = 1; round <= ROUNDS; round++) {
+  // The project PATCH route shares a per-minute rate-limit bucket with every
+  // other project action. Traffic from an earlier phase (phase4's 80-message
+  // flood alone) leaves that bucket part-spent, so a 20-round × 2-PATCH burst
+  // can legitimately start seeing 429s. A 429 is the limiter working — not a
+  // lost update — so a throttled round is VOIDED and re-taken whole in a fresh
+  // window: only rounds where both PATCHes were issued simultaneously and
+  // neither was throttled count toward the result. Capped so a permanently
+  // closed limiter fails loudly instead of looping forever.
+  const MAX_429_ROUNDS = ROUNDS;
+
+  for (let round = 1; round <= ROUNDS; ) {
     await sql(`
       begin;
       update campaign_projects set current_stage='collaboration_started',
@@ -66,6 +115,19 @@ async function main() {
       () => A.mamaearth.patch(`/api/projects/${pid}`, { action: 'signoff' }),
       () => A.sourav.patch(`/api/projects/${pid}`, { action: 'signoff' }),
     ]);
+
+    if (a.status === 429 || b.status === 429) {
+      voidedBy429++;
+      if (voidedBy429 > MAX_429_ROUNDS) {
+        s.check('rate limiter releases the sign-off route within a window', false,
+          { severity: 'HIGH', observed: `${voidedBy429} rounds voided by 429 with no window freeing up`, expected: 'a 60s window clears them' });
+        break;
+      }
+      await sleep(61_000); // next limiter window, then take the same round again
+      continue;
+    }
+
+    round++;
     statusPairs.push([a.status, b.status]);
     if (a.status >= 500 || b.status >= 500) serverErrors++;
 
@@ -89,6 +151,14 @@ async function main() {
   s.note('status pairs observed', JSON.stringify(statusPairs));
   s.note('rounds where both signatures landed', `${bothLanded}/${ROUNDS}`);
   s.note('rounds where the stage advanced', `${advanced}/${ROUNDS}`);
+  if (voidedBy429 > 0) s.note('rounds voided by the rate limiter and re-taken', String(voidedBy429));
+
+  // The sequential section must not inherit the race burst's spent bucket:
+  // the burst alone spends the whole 20-PATCH-per-user budget, so without a
+  // wait the FIRST sequential PATCH is throttled, the second signature never
+  // lands, and three downstream checks fail for limiter reasons that have
+  // nothing to do with sign-off correctness.
+  await waitOutRateLimitWindow();
 
   s.check('both sign-offs survive a simultaneous write, every round',
     bothLanded === ROUNDS,
@@ -118,6 +188,9 @@ async function main() {
     select 1 as ok;`);
 
   const first = await A.mamaearth.patch(`/api/projects/${pid}`, { action: 'signoff' });
+  s.check('sequential sign-off is not throttled by earlier phases',
+    first.status === 200,
+    { severity: 'MEDIUM', observed: first.status, expected: '200 — the window was waited out above' });
   const midway = await currentStage(pid);
   s.check('one side signing alone does NOT advance the stage',
     midway.current_stage === 'collaboration_started',

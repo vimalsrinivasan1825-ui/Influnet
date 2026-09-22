@@ -72,7 +72,12 @@ export class Actor {
   /** Complete registration through the real endpoint (writes profiles + role table). */
   async register() {
     const { role, email, password, key, approve, tier, ...rest } = this.persona;
-    return this.api('POST', '/api/auth/register', { role, ...rest });
+    // Signup now REQUIRES consent (migration 162, POST /api/auth/register 422s
+    // without it). Personas are synthetic, so they accept on their own behalf.
+    return this.api('POST', '/api/auth/register', {
+      role, ...rest,
+      termsAccepted: true, ageConfirmed: true, termsVersion: 'e2e-harness',
+    });
   }
 
   /**

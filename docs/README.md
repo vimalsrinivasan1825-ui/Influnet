@@ -31,6 +31,7 @@ Before signing the project off to real users, or handing the codebase to another
 |---|---|
 | [VISION.md](product/VISION.md) | The problem, the solution, value for each side, the mission. |
 | [ROADMAP.md](product/ROADMAP.md) | Feature status matrix, prioritized backlog, remaining work, build specs (reviews/payments), open decisions. |
+| [ADMIN_CRM_ANALYSIS_2026-09-17.md](product/ADMIN_CRM_ANALYSIS_2026-09-17.md) | **Admin CRM & analytics plan.** Client's reference consoles mapped to Influnet, what the admin has today, which signals are never recorded, module-by-module spec (founder dashboard, payments, deleted users, OTP/error logs, push/broadcasts/scheduled pushes, CRM, report builder), phased estimate, and issues found (Overview counts cap at 1000 rows). |
 | [PROJECTS_AND_VERIFICATION.md](product/PROJECTS_AND_VERIFICATION.md) | Product audit: pipeline-vs-Kanban model, the trust/verification badge system, and recommendations. |
 | [DECISIONS.md](product/DECISIONS.md) | Decision log (ADR-style): stack choice, OTP reuse, payments direction. Add new decisions at the top. |
 
@@ -42,12 +43,15 @@ Before signing the project off to real users, or handing the codebase to another
 | [architecture.html](architecture/architecture.html) | Living visual architecture page (module cards + status pills + update log). Keep in sync with shipped behavior. |
 | [MOBILE_ARCHITECTURE_STRATEGY.md](architecture/MOBILE_ARCHITECTURE_STRATEGY.md) | High-level strategy for adding a React Native (Expo) mobile app: shared Supabase, monorepo shape, code-sharing model. |
 | [MOBILE_APP_PLAN.md](architecture/MOBILE_APP_PLAN.md) | **The detailed mobile build plan.** Codebase analysis, package extraction, mobile design system + component library, screen-by-screen redesign (tabs, stage timeline replacing Kanban), phased roadmap, risks. |
+| [ADMIN_CRM_BUILD_GUIDE.md](architecture/ADMIN_CRM_BUILD_GUIDE.md) | **How to build the admin CRM.** Admin wiring and its traps (`withAdmin` returns a service client; `is_admin()` RPCs need `callerClient`), recipe for an analytics module, schema sketches (activity, push devices, broadcasts, tombstones), segment compiler, push sender/scheduler/receipts, mobile OTA vs native rules, metric definitions, definition of done. |
 | [RUNTIME_FEATURE_FLAGS_PROPOSAL.md](architecture/RUNTIME_FEATURE_FLAGS_PROPOSAL.md) | **Design only — agreed but not built (D-004).** Moving email/OTP switches behind the admin page so they flip without a redeploy: the three difficulty tiers, the protection model, and what must never be flag-controlled. |
 | [REALTIME_COMMUNICATION.md](architecture/REALTIME_COMMUNICATION.md) | **Real-time communication design.** Explains pull vs push-based updates, implementation patterns (SSE, WebSockets, LISTEN/NOTIFY), and the dynamic reload fix plan. |
 
 ### operations/ — *running, securing, deploying, testing*
 | Doc | What's in it |
 |---|---|
+| [launch-blueprint.html](operations/launch-blueprint.html) | **Launch audit 2026-09-18, as a page.** Architecture diagram (web, admin, mobile, Supabase, nine vendors), environments map, all 72 tables grouped, new findings F1–F7, and the tickable six-phase work order to real users. Open straight from the repo. |
+| [module-map.html](operations/module-map.html) | **The app broken down to its smallest units.** Surface → role → module → area → unit (14 modules, 79 units), each with status, known gaps and "strong when" checks; one unit in focus at a time. Opens with an expandable App tree: 3 apps → role → section → every screen and action (617 nodes). Companion to launch-blueprint.html. |
 | [handover-checklist.html](operations/handover-checklist.html) | **The interactive version of HANDOVER.md.** Tickable, collapsible checklist — click an item to see the detail. Open it straight from the repo; nothing is published or hosted. Ticks persist per browser. |
 | [HANDOVER.md](operations/HANDOVER.md) | **Canonical sign-off doc.** Verified current state, the remaining go-live blockers (all infrastructure/paperwork, no code), the weekly operating routine and break-glass switches for the first months, the access/rotation inventory a new developer needs, and the accepted risks they must not "fix" naively. |
 | [SECURITY.md](operations/SECURITY.md) | **Canonical.** Auth/data-access model, PII column lockdown, RLS conventions, and the full security-audit history (every finding + status). |
@@ -55,6 +59,7 @@ Before signing the project off to real users, or handing the codebase to another
 | [QA_AND_GO_LIVE.md](operations/QA_AND_GO_LIVE.md) | Manual QA / test script (step-by-step, expected results) + "path to a solid product" checklist. |
 | [PRE_LAUNCH_CHECKLIST.md](operations/PRE_LAUNCH_CHECKLIST.md) | **Start here before a tester round.** P0/P1/P2 checklist with why / do / how-to-verify for each item: pending migrations, auth-email rate limits, redirect URLs, Sentry, App Insights, log collection, webhook domains, the mobile OTA publish. Plus the daily routine and the tester-issue triage flow. |
 | [OBSERVABILITY.md](operations/OBSERVABILITY.md) | **Seeing inside the app during a tester round.** Which of the four questions (who signed up / where do they stall / is this deployment healthy / what broke) is answered where, request-id correlation, KQL queries, and what was deliberately not built. |
+| [ADMIN_CRM.md](operations/ADMIN_CRM.md) | **Running the admin CRM.** Every admin screen and what it answers, what must be switched on first (cron secrets, per-admin logins, iOS push, the mobile OTA), the rules around sending a broadcast (quiet hours, frequency caps, approval threshold, kill switch, dry run), the scheduled jobs, the privacy rules, and the known limits. |
 | [ANALYTICS.md](operations/ANALYTICS.md) | Turning on PostHog, Sentry, App Insights and the support/feedback system — all built but inert until keyed. Includes what's deliberately disabled (autocapture, session replay) and why. |
 | [MOBILE_BUILD_STAGES.md](operations/MOBILE_BUILD_STAGES.md) | Mobile app build log: what each stage shipped, how it was verified, the remaining stages in order, and the Metro/dependency gotchas. |
 | [ANDROID_DISTRIBUTION.md](operations/ANDROID_DISTRIBUTION.md) | **Android App Bundle (.aab)** distribution via Google Play Console Internal Testing track, invite management, and the 20-tester rule. |

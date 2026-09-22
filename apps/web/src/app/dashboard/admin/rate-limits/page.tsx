@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, THead, TRow } from "@/components/ui/table";
+import { DeveloperGate } from "@/components/dashboard/admin/developer-gate";
 
 interface Caller {
   identity: string;
@@ -71,7 +72,8 @@ export default function AdminRateLimitsPage() {
   const totalLimited = buckets.reduce((sum, b) => sum + b.limitedCount, 0);
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
+    <DeveloperGate>
+      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
       <PageHeader
         eyebrow="Traffic"
         title="Rate limits"
@@ -203,5 +205,6 @@ export default function AdminRateLimitsPage() {
         </Card>
       )}
     </div>
+    </DeveloperGate>
   );
 }

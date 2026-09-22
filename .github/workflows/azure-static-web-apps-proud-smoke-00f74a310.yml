@@ -43,7 +43,7 @@ jobs:
           output_location: "" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
         env:
-          NEXT_PUBLIC_APP_URL: "https://staging.influnet.io"
+          NEXT_PUBLIC_APP_URL: "https://dev.influnet.io"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

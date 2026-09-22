@@ -41,6 +41,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (!part) return jsonError(403, 'You are not a participant of this conversation.');
 
     if (parsed.data.pinned) {
+      // Already pinned is a success, and must be checked BEFORE the insert: the
+      // enforce_pin_quota trigger (migration 140) runs before the unique-key check,
+      // so at the Free cap of 3 a repeat pin of a chat that is already pinned was
+      // refused with a 402 ("Free plans pin up to 3 chats") instead of being a no-op.
+      const { data: existing } = await supabase
+        .from('conversation_pins')
+        .select('conversation_id')
+        .eq('user_id', user.id)
+        .eq('conversation_id', id)
+        .maybeSingle();
+      if (existing) return NextResponse.json({ pinned: true });
+
       const { error } = await supabase
         .from('conversation_pins')
         .insert({ user_id: user.id, conversation_id: id });

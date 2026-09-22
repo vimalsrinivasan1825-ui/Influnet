@@ -21,6 +21,7 @@
  * this read; this just exposes it as a real query rather than a raw table
  * scan a brand would have to run in SQL.
  */
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
@@ -187,6 +188,10 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
+
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['title', 'description', 'deliverables', 'location']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
 
     const data = parsed.data;
     const { data: campaign, error } = await supabase

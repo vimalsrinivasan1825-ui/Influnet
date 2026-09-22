@@ -46,13 +46,23 @@ ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_PHONE_OTP_ENABLED
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_RAZORPAY_KEY_ID
+# The deploy's git SHA. Tags every browser error with the build it came from —
+# the server half reads SENTRY_RELEASE from the live environment instead.
+ARG NEXT_PUBLIC_SENTRY_RELEASE
+# Product analytics. Optional: with no key, lib/analytics.ts never loads
+# posthog-js at all, so an unset value costs nothing and ships nothing.
+ARG NEXT_PUBLIC_POSTHOG_KEY
+ARG NEXT_PUBLIC_POSTHOG_HOST
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
     NEXT_PUBLIC_STREAM_API_KEY=$NEXT_PUBLIC_STREAM_API_KEY \
     NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
     NEXT_PUBLIC_PHONE_OTP_ENABLED=$NEXT_PUBLIC_PHONE_OTP_ENABLED \
     NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
-    NEXT_PUBLIC_RAZORPAY_KEY_ID=$NEXT_PUBLIC_RAZORPAY_KEY_ID
+    NEXT_PUBLIC_RAZORPAY_KEY_ID=$NEXT_PUBLIC_RAZORPAY_KEY_ID \
+    NEXT_PUBLIC_SENTRY_RELEASE=$NEXT_PUBLIC_SENTRY_RELEASE \
+    NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY \
+    NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST
 
 # Build the Next.js app in standalone mode
 RUN npm run build --workspace=web
@@ -76,6 +86,17 @@ RUN chown nextjs:nodejs .next
 # Leverage Next.js standalone output tracing to keep image size small
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+
+# Source maps stop here.
+#
+# next.config.ts turns them on so the deploy can upload them to Sentry
+# (scripts/upload-sentry-sourcemaps.sh, which reads them out of the BUILDER
+# stage). Serving them as well would publish the original TypeScript to
+# anyone who opens devtools, so the deployed image carries none.
+#
+# `-exec rm` rather than `-delete`: busybox find on alpine does not carry
+# -delete in every build, and a silent failure here is a source leak.
+RUN find ./apps/web/.next -name '*.map' -type f -exec rm -f {} +
 
 USER nextjs
 

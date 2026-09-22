@@ -170,6 +170,18 @@ export async function handleSubscriptionEvent(
     return { handled: false, reason: `ignored:${type}` };
   }
 
+  // Reporting ledger (migration 155). Independent of the grant below and
+  // idempotent: a replayed event re-settles the same order to the same state.
+  await settleProOrder(admin, {
+    orderId: payment?.order_id ?? order?.id ?? null,
+    userId: userId ?? null,
+    status: captured ? 'paid' : 'failed',
+    paymentId: payment?.id ?? null,
+    amount: Number(payment?.amount ?? order?.amount_paid ?? 0) || null,
+    currency: (payment?.currency ?? order?.currency ?? null) as string | null,
+    reason: (payment?.error_description ?? payment?.error_reason ?? null) as string | null,
+  });
+
   if (!userId) {
     // Recorded for forensics but not applied — apply_billing_event stores the
     // payload with a null user so the payment is not simply lost.
@@ -225,6 +237,32 @@ export async function handleSubscriptionEvent(
 
   logger.info('pro subscription activated', { userId, until: periodEnd });
   return { handled: true, userId };
+}
+
+async function settleProOrder(
+  admin: SupabaseClient,
+  a: {
+    orderId: string | null;
+    userId: string | null;
+    status: 'paid' | 'failed';
+    paymentId: string | null;
+    amount: number | null;
+    currency: string | null;
+    reason: string | null;
+  },
+): Promise<void> {
+  if (!a.orderId) return;
+  const { error } = await (admin.rpc as any)('settle_pro_order', {
+    p_order_id: a.orderId,
+    p_user_id: a.userId,
+    p_status: a.status,
+    p_payment_id: a.paymentId,
+    p_amount: a.amount,
+    p_currency: a.currency ? a.currency.toUpperCase() : null,
+    p_reason: a.reason,
+  });
+  // Reporting only — a failure here must never affect the grant.
+  if (error) logger.warn('settle_pro_order failed', { orderId: a.orderId, err: error.message });
 }
 
 async function readExpectedPaise(admin: SupabaseClient): Promise<number | null> {

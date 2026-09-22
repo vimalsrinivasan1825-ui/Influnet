@@ -22,6 +22,7 @@ import { useEntitlements } from '@/lib/use-entitlements';
 import { useAccountSheet } from '@/lib/use-account-sheet';
 import { listAccounts, type AccountSummary } from '@/lib/accounts';
 import { Avatar, ListRow, Sheet, Txt, type SheetRef } from '@/components/ui';
+import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
 
 export function AccountSwitcher() {
   const t = useTheme();
@@ -69,10 +70,12 @@ export function AccountSwitcher() {
     // Gate is a product decision, not a server-enforced one — adding an account
     // is just signing in, which anyone can do. Free users get the paywall.
     if (billingEnabled && !isPro) {
-      router.push('/billing' as any);
+      if (!HIDE_PRO_PURCHASE) router.push('/billing' as any);
       Alert.alert(
-        'Multiple accounts is a Pro feature',
-        'Upgrade to add and switch between more than one Influnet account on this device.',
+        HIDE_PRO_PURCHASE ? 'Multiple accounts' : 'Multiple accounts is a Pro feature',
+        HIDE_PRO_PURCHASE
+          ? "Your current plan doesn't include more than one Influnet account on this device."
+          : 'Upgrade to add and switch between more than one Influnet account on this device.',
       );
       return;
     }

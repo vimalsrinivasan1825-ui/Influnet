@@ -2,6 +2,9 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import LogoMark from '@/components/brand/logo-mark';
+import RoleSwitch from '@/components/brand/role-switch';
+import { APP_URL } from '@/lib/site';
 
 interface FloatingCardType {
   id: number;
@@ -345,15 +348,16 @@ export default function Hero() {
     <section className="relative min-h-screen bg-[#fafafa] overflow-hidden">
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
-        <Link href="/" className="flex items-center gap-2">
-          <img
-            src="/influet_logo.png"
-            alt="influnet"
-            className="h-8 w-auto flex-shrink-0"
-          />
+        <Link href="/business" className="flex items-center gap-2">
+          <span data-nav-logo className="flex">
+            <LogoMark size={28} />
+          </span>
           <span className="text-2xl font-bold text-black tracking-tight">influnet</span>
         </Link>
         <div className="flex items-center gap-4">
+          <div className="hidden sm:block">
+            <RoleSwitch current="business" />
+          </div>
           <Link href={`${process.env.NEXT_PUBLIC_APP_URL}/login`} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
             Log in
           </Link>
@@ -419,7 +423,7 @@ export default function Hero() {
               className="flex flex-wrap gap-4"
             >
               <Link
-                href={`${process.env.NEXT_PUBLIC_APP_URL}/signup`}
+                href={`${APP_URL}/signup`}
                 className="group inline-flex items-center gap-2 px-7 py-4 bg-black font-semibold rounded-full hover:bg-gray-900 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 style={{ color: 'white' }}
               >
@@ -428,17 +432,6 @@ export default function Hero() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </Link>
-              <button
-                className="group inline-flex items-center gap-2 px-7 py-4 bg-white text-gray-900 font-semibold rounded-full border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all shadow-sm"
-                style={{ color: '#111827' }}
-              >
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                  <svg className="w-3.5 h-3.5 text-gray-900 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-                Watch Demo
-              </button>
             </motion.div>
           </div>
 

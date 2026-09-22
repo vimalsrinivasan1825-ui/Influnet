@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { resolveEntitlements } from '@/lib/entitlements';
+import { businessCards } from '@/lib/business-cards';
 
 /**
  * "Who viewed your profile" — the identified list, gated by plan.
@@ -56,22 +57,22 @@ export async function GET(req: Request) {
     const profiles: Record<string, { name: string | null; avatarUrl: string | null; username: string | null }> = {};
 
     if (businessIds.length > 0) {
-      const [{ data: baseRows }, { data: bizRows }] = await Promise.all([
-        supabase.from('profiles').select('id, name, avatar_url').in('id', businessIds),
-        supabase
-          .from('business_profiles')
-          .select('user_id, company_name, username, logo_url')
-          .in('user_id', businessIds),
+      // Two traps, both of which silently blanked every viewer's name:
+      // profiles has no avatar column, and business_profiles.username/logo_url
+      // are outside `authenticated`'s column grants (053) — either one fails
+      // the whole query. The ids come from rows RLS already let this creator
+      // read, so resolving their display cards server-side reveals nothing new.
+      const [{ data: baseRows }, cards] = await Promise.all([
+        supabase.from('profiles').select('id, name').in('id', businessIds),
+        businessCards(businessIds),
       ]);
-      const bizById = new Map(
-        ((bizRows ?? []) as any[]).map((b) => [b.user_id as string, b]),
-      );
-      for (const p of (baseRows ?? []) as any[]) {
-        const b = bizById.get(p.id);
-        profiles[p.id] = {
-          name: b?.company_name || p.name || null,
-          avatarUrl: b?.logo_url || p.avatar_url || null,
-          username: b?.username || null,
+      const names = new Map(((baseRows ?? []) as { id: string; name: string | null }[]).map((p) => [p.id, p.name]));
+      for (const id of businessIds) {
+        const card = cards.get(id);
+        profiles[id] = {
+          name: card?.companyName || names.get(id) || null,
+          avatarUrl: card?.logoUrl ?? null,
+          username: card?.username ?? null,
         };
       }
     }

@@ -1,3 +1,4 @@
+import { ReportButton } from '@/components/safety/report-dialog';
 import { notFound, redirect } from 'next/navigation';
 import { createRSCClient } from '@/lib/supabase/server-rsc';
 import {
@@ -271,6 +272,9 @@ export async function BusinessProfile({
                     Message
                   </ButtonLink>
                   <BusinessContactReveal username={username} />
+                  <div className="mt-5 border-t border-hairline pt-4">
+                    <ReportButton variant="link" reportedId={profile.userId} reportedName={displayName} context={{ kind: 'profile' }} />
+                  </div>
                 </>
               )}
             </div>

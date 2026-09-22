@@ -27,6 +27,32 @@ const supabaseAnon = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
+const RESERVED_ROUTES = new Set([
+  'early-access',
+  'login',
+  'signup',
+  'dashboard',
+  'dashboard-discover-disabled',
+  'api',
+  'terms',
+  'privacy',
+  'refunds',
+  'reset-password',
+  'delete-account',
+  'influnet',
+  'checkout',
+  'vf',
+  'b',
+  'c',
+  'app',
+  'r',
+  'ui-preview',
+]);
+
+function isValidUsername(uname: string): boolean {
+  return /^[a-zA-Z0-9_]{3,30}$/.test(uname);
+}
+
 /**
  * Is this username a creator?
  *
@@ -36,6 +62,7 @@ const supabaseAnon = createClient(
  * 404s for a visitor who may not see it (business profiles are private).
  */
 async function isCreator(username: string): Promise<boolean> {
+  if (!isValidUsername(username)) return false;
   const { data, error } = await supabaseAnon.rpc('get_public_influencer', { p_slug: username });
   return !error && !!data;
 }
@@ -54,12 +81,11 @@ async function isCreator(username: string): Promise<boolean> {
  * account holds it — a private business still 404s from the page itself.
  */
 async function usernameExists(username: string): Promise<boolean> {
+  if (!isValidUsername(username)) return false;
   const { data, error } = await supabaseAnon.rpc('check_username_available', {
     p_username: username,
   });
-  // Fail open: if the check itself errors, fall through to the page rather
-  // than 404-ing a profile that does exist.
-  if (error) return true;
+  if (error) return false;
   return data === false;
 }
 
@@ -69,6 +95,10 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
+  const lower = username.toLowerCase();
+  if (RESERVED_ROUTES.has(lower) || !isValidUsername(username)) {
+    return { title: 'Not Found | Influnet' };
+  }
   if (await isCreator(username)) return creatorMetadata({ params });
   // Business profiles are private, so they get no descriptive metadata: the
   // title must not confirm to an unauthorised visitor that the account exists.
@@ -83,6 +113,10 @@ export default async function PublicProfilePage({
   searchParams: Promise<{ mock?: string }>;
 }) {
   const { username } = await params;
+  const lower = username.toLowerCase();
+  if (RESERVED_ROUTES.has(lower) || !isValidUsername(username)) {
+    notFound();
+  }
   if (await isCreator(username)) {
     return <CreatorProfile params={params} searchParams={searchParams} />;
   }

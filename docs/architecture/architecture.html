@@ -807,9 +807,9 @@
 
     <section class="mod" id="m-admin">
       <header><h3>Admin panel</h3><span class="pill ok">Working</span></header>
-      <p>Platform stats, business approval queue, user list, project and collab oversight with force-delete. Every route re-checks the admin role server-side; RLS uses the <span class="mono">is_admin()</span> definer function.</p>
-      <p class="paths">dashboard/admin/* · api/admin/* · migration 038</p>
-      <p class="gap"><b>Gap:</b> no audit log of admin actions yet.</p>
+      <p>Dual-tier admin architecture: Business/Client Admin (stats, approvals, users, tickets, disputes, collabs) vs Developer/Super Admin (system health, PostHog/Sentry vendor controls, rate limits, emails, audit logs, issues). Technical routes secured by <span class="mono">withSuperAdmin()</span> and <span class="mono">&lt;DeveloperGate&gt;</span>. Profile flag <span class="mono">is_super_admin</span> enabled via migration 150.</p>
+      <p class="paths">dashboard/admin/* · api/admin/* · migrations 038, 150</p>
+      <p class="gap"><b>Done:</b> Dual-tier role separation with developer credentials (dev.admin@influnet.io). <b>Status:</b> Fully working.</p>
     </section>
 
     <section class="mod" id="m-settings">
@@ -1395,6 +1395,16 @@
         <tr><th>Date</th><th>Change</th><th>Areas</th></tr>
       </thead>
       <tbody>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-09-21</td>
+          <td><strong>Creator Intake Flow &amp; Admin CRM Integration</strong>: Implemented mobile-first 7-step creator application flow at <span class="mono">/join</span> with confetti celebration, authentic Influnet logo/branding, and real-time validation replicating Google Forms intake; created PostgreSQL migration 168 with <span class="mono">creator_join_applications</span> table and <span class="mono">admin_creator_applications_report</span> SQL aggregation RPC; built public API route <span class="mono">/api/join</span> with CORS support and rate limiting; created admin management console at <span class="mono">/dashboard/admin/creator-applications</span> with KPIs, instant WhatsApp outreach links, live search, and CSV export. <b>Lint ✅ Typecheck web &amp; landing ✅</b></td>
+          <td>Creator Flow · Landing · Admin · DB · API</td>
+        </tr>
+        <tr>
+          <td class="mono" style="white-space:nowrap">2026-09-16</td>
+          <td><strong>Dual-tier Admin Architecture & Developer Super Admin</strong>: Created super admin tier (<span class="mono">is_super_admin</span> on <span class="mono">profiles</span> via migration 150) and provisioned developer credential (<span class="mono">dev.admin@influnet.io</span>). Gated 6 technical backend routes (<span class="mono">/api/admin/{health,vendors,rate-limits,emails,audit,issues}</span>) with <span class="mono">withSuperAdmin()</span> server guard, returning 403 Forbidden to non-super admins. Protected technical pages with client <span class="mono">&lt;DeveloperGate&gt;</span>. Split admin sidebar navigation into Business Admin (11 business oversight items) and Developer Admin (17 total items including vendor status, PostHog/Sentry controls, system health, rate limits). <b>Typecheck web &amp; mobile ✅ Tests 523/523 ✅</b></td>
+          <td>Admin · Security · Auth · Observability</td>
+        </tr>
         <tr>
           <td class="mono" style="white-space:nowrap">2026-07-30</td>
           <td><strong>Mobile project screen crash fix</strong>: Fixed an infinite rendering loop in <span class="mono">ProjectChangeRequests</span> by refactoring the <span class="mono">proposeSheet</span> ref from a state-based ref (<span class="mono">useState</span>) to a stable mutable ref (<span class="mono">useRef</span>), resolving blank screen crash on project details page load. <b>Typecheck 7/7 ✅ Tests 214/220 ✅</b></td>

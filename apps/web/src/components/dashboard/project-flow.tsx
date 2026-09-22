@@ -7,10 +7,10 @@ import {
   type Node, type Edge, type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Check, Circle, SkipForward, Link2, Download, ChevronDown } from 'lucide-react';
+import { Check, SkipForward, Link2, Download, ChevronDown } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Handle, Position } from '@xyflow/react';
-import { STAGE_LABELS, STAGES, type Stage } from '@/lib/project-lifecycle';
+import { STAGE_LABELS, flowOf, type Stage } from '@/lib/project-lifecycle';
 import { STAGE_GUIDE } from '@/lib/project-stage-guide';
 
 type StageStatus = 'done' | 'skipped' | 'current' | 'upcoming';
@@ -71,8 +71,20 @@ function StageNode({ data, selected }: NodeProps) {
 const nodeTypes = { stage: StageNode };
 
 export function ProjectFlow({ project, entries, userId, onPreviewImage }: { project: any; entries: any[]; userId: string | null; onPreviewImage?: (url: string) => void }) {
-  const currentIdx = STAGES.indexOf(project?.current_stage as Stage);
-  const sp = (project?.stage_progress || {}) as Record<string, any>;
+  // This project's real stage list. Was hardcoded to STAGES (the full
+  // flow's 12 stages) — a purely linear, data-driven layout underneath
+  // (each node is just array-index * 280px, edges just connect consecutive
+  // entries), so the only thing wrong for a short-flow project was reading
+  // from the wrong array. `flowOf` needs only `flow_key`, which `project`
+  // already carries. Found and fixed 2026-09-16 alongside the same bug in
+  // the Guided tab.
+  const flow = flowOf(project ?? {});
+  const currentIdx = flow.stages.indexOf(project?.current_stage as Stage);
+  // Memoised: `|| {}` minted a fresh object every render for a project with no
+  // progress yet, which re-created statusOf → the nodes → setNodes below on
+  // every render.
+  const rawProgress = project?.stage_progress;
+  const sp = useMemo(() => (rawProgress || {}) as Record<string, any>, [rawProgress]);
   // Which side of STAGE_GUIDE to show for an unreached stage — the whole
   // point of showing it is telling THIS viewer what they'll need to do.
   const userRole: 'business' | 'creator' = project?.owner_user_id === userId ? 'business' : 'creator';
@@ -81,7 +93,7 @@ export function ProjectFlow({ project, entries, userId, onPreviewImage }: { proj
   // meant a creator had no way to see or prepare for what comes next — the
   // per-stage guidance in STAGE_GUIDE already covers every stage, it just
   // wasn't reachable for anything upcoming.
-  const allStages = STAGES;
+  const allStages = flow.stages as readonly Stage[];
 
   const statusOf = useCallback((key: string, i: number): StageStatus => {
     if (sp[key]?.status === 'skipped') return 'skipped';
@@ -94,9 +106,9 @@ export function ProjectFlow({ project, entries, userId, onPreviewImage }: { proj
     id: key,
     type: 'stage',
     position: { x: i * 280, y: (i % 2) * 120 },
-    data: { label: STAGE_LABELS[key] || key, status: statusOf(key, i), count: entries.filter((e) => e.stage_key === key).length, index: i },
+    data: { label: flow.labels[key] || STAGE_LABELS[key] || key, status: statusOf(key, i), count: entries.filter((e) => e.stage_key === key).length, index: i },
     deletable: false,
-  })), [allStages, statusOf, entries]);
+  })), [allStages, statusOf, entries, flow.labels]);
 
   const initialEdges: Edge[] = useMemo(() => allStages.slice(1).map((key: Stage, i: number) => ({
     id: `${allStages[i]}-${key}`,
@@ -152,7 +164,7 @@ export function ProjectFlow({ project, entries, userId, onPreviewImage }: { proj
           <>
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-[0.08em] text-brand">Stage</span>
-              <span className="text-lg font-extrabold text-content">{STAGE_LABELS[selected as Stage] || selected}</span>
+              <span className="text-lg font-extrabold text-content">{flow.labels[selected as string] || STAGE_LABELS[selected as Stage] || selected}</span>
             </div>
             {/* What this stage is for, and what each side does in it — always
                 shown, not just for stages not yet reached, so "what happens

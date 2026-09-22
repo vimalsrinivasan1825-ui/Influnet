@@ -87,6 +87,31 @@ export const WebsiteSchema = z
   .refine(isValidWebsite, 'Enter a valid website (e.g. yourcompany.com)')
   .transform(normalizeWebsite);
 
+/**
+ * 0-4 signup password strength score, shared so mobile and web enforce the
+ * SAME bar rather than each guessing at one. Not a full entropy estimate (no
+ * zxcvbn) — just enough to reject a password built from one character class,
+ * which "8 characters, any character" let straight through (e.g. a bare
+ * '12345678' scored a 1 here — "present but weak" — and used to be accepted
+ * outright because the old check was only pw.length >= 8).
+ */
+export function passwordStrengthScore(pw: string): number {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+  return score;
+}
+
+/** The bar signup actually gates on — score 2 ("Fair") or better: at least 8
+ *  characters AND not just one character class (so a 12+ character password,
+ *  or an 8+ one mixing case, digits or symbols, passes; 'password' and
+ *  '12345678' do not). */
+export function isStrongEnoughPassword(pw: string): boolean {
+  return passwordStrengthScore(pw) >= 2;
+}
+
 export const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -142,6 +167,13 @@ export const RegisterProfileSchema = z.object({
   // this against phone_otp_sessions only when phoneOtpEnabled(), and strips it
   // either way before the RPC.
   phoneVerificationToken: z.string().uuid().nullable().optional(),
+  // Consent, recorded server-side in signup_consents (migration 162) by the
+  // register route, which REFUSES a signup without both. Optional in the schema
+  // only so the route can answer with a specific 422 instead of a generic 400;
+  // the route strips all three before the payload reaches register_profile.
+  termsAccepted: z.boolean().optional(),
+  ageConfirmed: z.boolean().optional(),
+  termsVersion: z.string().max(40).optional(),
   // business fields
   companyName: z.string().optional(),
   businessType: z.string().optional(),

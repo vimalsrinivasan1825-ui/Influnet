@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
+import { DELETED_PARTICIPANT_LABEL } from '@influnet/core';
 
 // GET: the project's activity timeline — a single legible history both parties
 // can read. Returns stored project_activity rows (newest last) plus a synthesized
@@ -60,7 +61,13 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         summary: 'Collaboration started — project created',
         metadata: {},
         created_at: project.created_at,
-        actor: owner ? { id: owner.id, name: owner.name } : null,
+        // The creator of the project may have deleted their account (migration
+        // 161): the event stays, the actor reads "Deleted account".
+        actor: owner
+          ? { id: owner.id, name: owner.name || DELETED_PARTICIPANT_LABEL }
+          : project.owner_user_id == null
+            ? { id: null, name: DELETED_PARTICIPANT_LABEL }
+            : null,
       },
       ...stored.map((r: any) => ({
         id: r.id,

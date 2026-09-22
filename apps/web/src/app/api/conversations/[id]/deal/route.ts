@@ -1,6 +1,8 @@
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
+import { businessCards } from '@/lib/business-cards';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
@@ -59,12 +61,11 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     // relationship-gated) business profile straight from the chat.
     let partnerSlug: string | null = null;
     if (partner?.role === 'business_owner') {
-      const { data: biz } = await supabase
-        .from('business_profiles')
-        .select('username')
-        .eq('user_id', otherUserId)
-        .maybeSingle();
-      partnerSlug = biz?.username ?? null;
+      // The caller's client cannot read business_profiles.username (column
+      // grants, migration 053) — the query failed and the link never showed.
+      // Safe to resolve server-side: otherUserId is this conversation's
+      // verified partner, and /b/<slug> enforces its own relationship gate.
+      partnerSlug = (await businessCards([otherUserId])).get(otherUserId)?.username ?? null;
     }
 
     // Every collaboration request between this pair, newest first. A brand and
@@ -236,6 +237,10 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['title', 'description', 'deliverables', 'note', 'barter_details']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
+
     const { collab_request_id, title, description, budget, advance_amount, due_date, note, flow_key, deliverables, start_date, is_barter, barter_details } = parsed.data;
 
     // Server-side validation for short flows (defence in depth with the RPC)
@@ -335,6 +340,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['note']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
+
     const { proposal_id, action, note } = parsed.data;
 
     // Accepting is what creates the project — a creator who hasn't proven

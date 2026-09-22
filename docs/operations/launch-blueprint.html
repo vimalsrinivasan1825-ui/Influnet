@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Generated 2026-09-18. Online copy: https://claude.ai/artifact/1LweS4qvufxFMc4sgJC3AL -->
+<title>Influnet Launch Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#fbf8fa; --surface:#ffffff; --sunk:#f4eef2; --ink:#1d1720; --muted:#6b5f68; --line:#e6dce3;
+  --brand:#c42a78; --brand-fill:#ee3e96; --brand-soft:#fdeef6;
+  --crit:#b8232b; --crit-soft:#fcebeb; --warn:#9a5a0c; --warn-soft:#fbf1e1; --ok:#276f45; --ok-soft:#e5f3ea;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Instrument Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --mono:"Spline Sans Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151116; --surface:#1e1920; --sunk:#262028; --ink:#f1eaf0; --muted:#a99ca6; --line:#3a3039;
+    --brand:#ff72b4; --brand-soft:#3a1a2c; --crit:#ff8078; --crit-soft:#3d1a1c; --warn:#f0b35a; --warn-soft:#3a2b14; --ok:#72d19a; --ok-soft:#16301f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151116; --surface:#1e1920; --sunk:#262028; --ink:#f1eaf0; --muted:#a99ca6; --line:#3a3039;
+  --brand:#ff72b4; --brand-soft:#3a1a2c; --crit:#ff8078; --crit-soft:#3d1a1c; --warn:#f0b35a; --warn-soft:#3a2b14; --ok:#72d19a; --ok-soft:#16301f;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1100px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(34px,5vw,52px);font-weight:700;letter-spacing:-.02em}
+h2{font-size:28px;font-weight:700;letter-spacing:-.01em}
+h3{font-size:18px;font-weight:700}
+p{margin:0;max-width:68ch}
+code,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--sunk);padding:1px 5px;border-radius:4px}
+a{color:var(--brand)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* nav */
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px;overflow-x:auto;white-space:nowrap}
+nav.toc .wrap{display:flex;gap:18px;align-items:center}
+nav.toc a{color:var(--muted);text-decoration:none;font-size:13.5px;font-weight:500}
+nav.toc a:hover{color:var(--ink)}
+nav.toc strong{font-family:var(--display);font-size:15px;margin-right:6px}
+nav.toc strong span{color:var(--brand-fill)}
+
+section{padding-top:56px;display:grid;gap:20px}
+.lede{font-size:18px;color:var(--ink)}
+.sub{color:var(--muted)}
+
+/* hero */
+header.hero{padding-top:44px;display:grid;gap:18px}
+.verdict{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.verdict .stamp{font:700 13px/1 var(--mono);letter-spacing:.06em;color:var(--crit);border:2px solid var(--crit);padding:8px 10px;border-radius:6px;transform:rotate(-2deg);white-space:nowrap}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.facts div{background:var(--surface);padding:14px 16px;display:grid;gap:2px}
+.facts b{font:700 26px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.facts span{font-size:13px;color:var(--muted)}
+
+/* scorecard */
+.score{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.score .row{display:grid;grid-template-columns:190px 130px 1fr;gap:16px;padding:14px 18px;border-top:1px solid var(--line);align-items:baseline}
+.score .row:first-child{border-top:0}
+.score .area{font-weight:600}
+.pill{display:inline-block;font:600 11.5px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:5px 8px;border-radius:99px;white-space:nowrap}
+.p-crit{background:var(--crit-soft);color:var(--crit)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-brand{background:var(--brand-soft);color:var(--brand)}
+.p-muted{background:var(--sunk);color:var(--muted)}
+
+/* figures */
+figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:12px}
+.scroll{overflow-x:auto}
+figure svg{display:block;width:100%;height:auto;min-width:760px;color:var(--ink)}
+figcaption{color:var(--muted);font-size:14px;max-width:80ch}
+svg .grp{fill:var(--sunk);stroke:var(--line)}
+svg .node{fill:var(--surface);stroke:var(--muted);stroke-width:1}
+svg .node.hot{stroke:var(--brand-fill);stroke-width:2}
+svg .node.bad{stroke:var(--crit);stroke-width:2}
+svg .node.ghost{fill:none;stroke-dasharray:5 4}
+svg text{fill:var(--ink);font-family:var(--body)}
+svg .t{font-size:14px;font-weight:600}
+svg .gt{font-size:13px;font-weight:600;fill:var(--muted);font-family:var(--mono);letter-spacing:.02em}
+svg .s{font-size:12px;fill:var(--muted)}
+svg .m{font-size:11.5px;font-family:var(--mono);fill:var(--muted)}
+svg .lbl{font-size:11.5px;fill:var(--muted);font-family:var(--mono)}
+svg .lbl.hot{fill:var(--brand)}
+svg .lbl.bad{fill:var(--crit)}
+svg .e{stroke:var(--muted);stroke-width:1.4;fill:none}
+svg .e.dev{stroke-dasharray:6 4}
+svg .e.hot{stroke:var(--brand-fill);stroke-width:2}
+svg .e.bad{stroke:var(--crit);stroke-width:2}
+svg .halo{stroke:var(--surface);stroke-width:8;fill:none}
+svg .ah{fill:var(--muted)}
+svg .ah.hot{fill:var(--brand-fill)}
+svg .ah.bad{fill:var(--crit)}
+svg .tag{fill:var(--brand-soft);stroke:none}
+
+/* inventory */
+.inv{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.inv .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start}
+.inv ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px}
+.inv li{margin:2px 0}
+
+/* db map */
+.db{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.dom{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px;align-content:start}
+.dom header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dom header span{font:500 12px var(--mono);color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips code{background:var(--sunk);font-size:12px;padding:3px 6px}
+.chips code.dead{text-decoration:line-through;color:var(--muted)}
+.chips code.key{background:var(--brand-soft);color:var(--brand)}
+
+/* findings */
+.find{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.f{display:grid;grid-template-columns:110px 1fr;gap:16px;padding:18px;border-top:1px solid var(--line)}
+.f:first-child{border-top:0}
+.f .body{display:grid;gap:6px}
+.f .ev{font-size:13.5px;color:var(--muted)}
+.f .fix{font-size:14px}
+.f .fix b{font-weight:600}
+
+/* plan */
+.progress{display:flex;align-items:center;gap:12px;font:500 13px var(--mono);color:var(--muted)}
+.bar{flex:1;height:6px;background:var(--sunk);border-radius:99px;overflow:hidden;max-width:320px}
+.bar i{display:block;height:100%;width:0;background:var(--brand-fill);transition:width .3s}
+.phase{display:grid;gap:10px}
+.phase-h{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.phase-h .when{font:500 13px var(--mono);color:var(--muted)}
+.phase-h .why{flex-basis:100%;color:var(--muted);font-size:14px}
+.task{display:grid;grid-template-columns:24px 1fr;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.task input{width:18px;height:18px;margin-top:3px;accent-color:var(--brand-fill)}
+.task .tt{display:grid;gap:4px}
+.task .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.task .done-when{font-size:13.5px;color:var(--muted)}
+.task .done-when b{color:var(--ink);font-weight:600}
+.task.checked .what{text-decoration:line-through;color:var(--muted)}
+.who-you{background:var(--brand-soft);color:var(--brand)}
+.who-dev{background:var(--sunk);color:var(--ink)}
+.who-both{background:var(--warn-soft);color:var(--warn)}
+.effort{font:500 12px var(--mono);color:var(--muted)}
+
+/* tables */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px}
+th,td{text-align:left;padding:11px 14px;border-top:1px solid var(--line);vertical-align:top}
+thead th{border-top:0;font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--sunk)}
+td:first-child{font-weight:600}
+
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:8px}
+.note ul{margin:0;padding-left:18px}
+.note li{margin:4px 0}
+footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+
+@media (max-width:640px){
+  .score .row{grid-template-columns:1fr;gap:6px}
+  .f{grid-template-columns:1fr;gap:8px}
+  .verdict{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+.theme{margin-left:auto;display:flex;gap:2px;border:1px solid var(--line);border-radius:99px;padding:2px;flex-shrink:0}
+.theme button{font:500 12px var(--mono);background:none;border:0;color:var(--muted);padding:4px 10px;border-radius:99px;cursor:pointer}
+.theme button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.handoff{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center;background:var(--brand-soft);border:1px solid var(--line);border-radius:10px;padding:22px}
+.handoff .go{font:600 15px var(--body);color:var(--bg);background:var(--ink);padding:12px 18px;border-radius:8px;text-decoration:none;white-space:nowrap}
+@media (max-width:640px){.handoff{grid-template-columns:1fr}}
+</style>
+
+<nav class="toc" aria-label="Sections">
+  <div class="wrap">
+    <strong>Influnet<span>.</span></strong>
+    <a href="#verdict">Verdict</a>
+    <a href="#status">Status</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#environments">Environments</a>
+    <a href="#database">Database</a>
+    <a href="#findings">New findings</a>
+    <a href="#plan">Work order</a>
+    <a href="#monitoring">Monitoring</a>
+    <a href="#module-map">Module map →</a>
+    <div class="theme" role="group" aria-label="Colour theme"><button type="button" data-t="auto">Auto</button><button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button></div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<header class="hero" id="verdict">
+  <div class="eyebrow">Launch audit · 18 September 2026 · branch dev @ 3cd1ef51</div>
+  <h1>Influnet Launch Blueprint</h1>
+  <p class="lede">Web, admin, iOS, Android, database and delivery pipeline, checked against the code and the live servers today. Also covered: what connects to what, and the order of work that gets real users onto it without anything breaking.</p>
+
+  <div class="verdict">
+    <div class="stamp">NOT YET</div>
+    <div style="display:grid;gap:8px">
+      <p><b>Every code blocker from this audit is now fixed and committed. What still stands between the app and real users is configuration, accounts and paperwork that only you can do.</b> The work is on a local branch, <code>fix/launch-blueprint</code>: 27 commits, 5 new migrations (161–165, applied to the <em>dev</em> database only), nothing pushed and nothing deployed. Production (the <code>staging</code> environment) is still 129+ commits behind, so none of it is live until you merge <code>dev → staging</code>.</p>
+      <p class="sub">Updated 19 September 2026 after implementing the plan. See <a href="#status">Implementation status</a> for what changed, what was found on the way, and the short list that is yours.</p>
+    </div>
+  </div>
+  </div>
+
+  <div class="facts" aria-label="System size">
+    <div><b>3</b><span>apps: web, mobile, landing</span></div>
+    <div><b>114</b><span>API routes, one backend</span></div>
+    <div><b>727</b><span>unit tests passing</span></div>
+    <div><b>75</b><span>web pages · 38 admin</span></div>
+    <div><b>42</b><span>mobile screens</span></div>
+    <div><b>72</b><span>tables · RLS on all 72</span></div>
+    <div><b>165</b><span>migrations (001–165)</span></div>
+    <div><b>9</b><span>third-party services</span></div>
+  </div>
+
+  <div class="score" aria-label="Readiness by area">
+    <div class="row"><span class="area">Web app (creators, brands)</span><span><span class="pill p-ok">Ready on dev</span></span><span class="sub">Every E2E phase passes on the finished branch (phases 3–9), 727 unit tests, Next 16.3.5. Signup now requires Terms + 18+, text is filtered, report/block is on every profile, campaign and request. Blocked only by not being deployed to production.</span></div>
+    <div class="row"><span class="area">Admin CRM</span><span><span class="pill p-warn">Dev only</span></span><span class="sub">38 pages. The users list no longer drops the oldest users past 1,000 and CSV exports contain every row. Can send <em>real</em> push and email, so turn it on in production with <code>BROADCAST_DRY_RUN=true</code> first.</span></div>
+    <div class="row"><span class="area">Mobile (iOS + Android)</span><span><span class="pill p-warn">Code ready, owner steps left</span></span><span class="sub">The code for 7 of the 12 store issues is done (Pro purchase hidden, real account deletion, consent + 18+, report/block + content filter, privacy manifest, unused permissions, and the Legal section). The other 5 are yours: iOS certificate, Apple/Google organisation accounts, review accounts, the creator-payout decision, and the toolchain check on the first build. Still no automated mobile tests.</span></div>
+    <div class="row"><span class="area">Database</span><span><span class="pill p-ok">Sound</span></span><span class="sub">The account-deletion cascade is fixed (records survive), and 3 more holes are closed: consent is recorded, approval rules can no longer be skipped by calling the database directly, and a request no longer sends two notifications. Backups still need one real restore drill.</span></div>
+    <div class="row"><span class="area">Hosting &amp; delivery</span><span><span class="pill p-crit">Behind</span></span><span class="sub">Production is still 129+ commits behind dev. The mobile OTA is now manual and approval-gated with a rollout percentage (and keeps the Pro purchase hidden); the weekly health sweep watches production too. Needs: the merge, and required reviewers on the production environment.</span></div>
+    <div class="row"><span class="area">Monitoring</span><span><span class="pill p-warn">Wired, switched off</span></span><span class="sub">Unchanged in what you must do: Sentry alert rules, an uptime monitor on production, and the Sentry/PostHog keys in the mobile store build. The admin health page now also probes migrations 161–165.</span></div>
+    <div class="row"><span class="area">Legal &amp; money</span><span><span class="pill p-crit">Blocking</span></span><span class="sub">24 placeholders in the legal text, no creator payout mechanism, and Razorpay live keys not yet proven with a real rupee. All yours.</span></div>
+  </div>
+</header>
+
+
+<!-- ============ IMPLEMENTATION STATUS ============ -->
+<section id="status">
+  <div class="eyebrow">Updated 19 September 2026</div>
+  <h2>Implementation status: what was built, what was found on the way, what is yours</h2>
+  <p>Everything below is on the local branch <code>fix/launch-blueprint</code> (27 commits on top of <code>dev</code>). One fix per commit; each was verified before it was committed. Nothing has been pushed, merged or deployed, and the five new migrations (161–165) are applied to the <em>dev</em> database only. The full checks were re-run on the finished branch: typecheck 7/7, <b>727 unit tests</b>, and every end-to-end phase (3, 4, 5, 6, 7, 8, 9) plus each new verification script, all passing.</p>
+
+  <div class="facts" aria-label="Implementation numbers">
+    <div><b>14 / 15</b><span>plan items done (the 15th, cosmetic wording, was left on purpose)</span></div>
+    <div><b>5</b><span>migrations, 161–165, dev only</span></div>
+    <div><b>6</b><span>real bugs found beyond the audit, all fixed</span></div>
+    <div><b>14 → 8</b><span>units blocking launch (all 8 are yours)</span></div>
+    <div><b>20 → 30</b><span>units proven end to end</span></div>
+  </div>
+
+  <h3>What was implemented</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Item</th><th>Commits</th><th>Proof</th></tr></thead>
+      <tbody>
+        <tr><td>Deleting an account no longer destroys the other person's project, payments and invoices (F2)</td><td><code>37c71faf</code> db · <code>04e74fde</code> web + mobile</td><td>Real paid project, invoice, account deleted through the API: 32/32. Migration proved in a rolled-back transaction.</td></tr>
+        <tr><td>Deleting an account removes the person from Stream chat; one working support address (F6)</td><td><code>967fc35c</code></td><td>Against the real Stream app: user existed, account deleted, user gone (5/5).</td></tr>
+        <tr><td>Mobile OTA to production is manual, approval-gated, with a rollout percentage (F3)</td><td><code>135cf93c</code> · <code>7e710cb0</code></td><td>Flag checked against <code>eas update --help</code>; a config-parity test that I confirmed fails without the fix.</td></tr>
+        <tr><td>Weekly health sweep also watches production, and every probe always runs (F5)</td><td><code>e1f64f8c</code> · <code>54eb68ed</code></td><td>Workflow YAML validated.</td></tr>
+        <tr><td>Signup requires the Terms + Privacy Policy and 18+ (server-enforced, recorded with server time)</td><td><code>4e595fbd</code> db · <code>6fa634d0</code> web + mobile</td><td>13/13 through the real endpoint; brand wizard driven in a browser: the button stays disabled until both boxes are ticked.</td></tr>
+        <tr><td>Store builds show no Pro price, upgrade button or checkout link</td><td><code>dad91c99</code></td><td>Typecheck and both mobile exports.</td></tr>
+        <tr><td>Legal section and email preferences in mobile Settings</td><td><code>3f31f3a3</code></td><td>API contract checked against the real endpoint; both mobile exports.</td></tr>
+        <tr><td>Report or block from creator and business profiles, campaigns and requests</td><td><code>8968ee1e</code> db · <code>295da2d5</code> web + mobile</td><td>14/14 on the API; the four web surfaces driven in a real browser.</td></tr>
+        <tr><td>Objectionable-content filter on profiles, campaigns, requests and project terms</td><td><code>a76c0f60</code></td><td>66 unit tests (including names that must stay allowed) + 18/18 across every guarded route.</td></tr>
+        <tr><td>Push permission asked after a meaningful action, not on launch</td><td><code>a4f976c6</code></td><td>20 unit tests of the rules. <b>Not verified on hardware</b> (simulators have no push).</td></tr>
+        <tr><td>Phone-OTP gate follows the flag at runtime (it already did; corrected the stale note and a wrong health row)</td><td><code>645a2710</code></td><td>Flag flipped while the server ran; config and signup followed both ways (5/5).</td></tr>
+        <tr><td>Business approval enforced in the database</td><td><code>daaa5c05</code> db · <code>05465556</code> web</td><td>Reproduced the bypass first, then 11/11 after; 14 checks in a rolled-back transaction.</td></tr>
+        <tr><td>End-to-end tests for the 8 unproven units (skip, updates, change requests, delete/restore, peer requests, pins, notifications)</td><td><code>a932bba8</code> (+ the fixes below)</td><td>Phase 9: 80/80.</td></tr>
+        <tr><td>Admin lists and CSV exports are complete, not the first page</td><td><code>56b6f6bb</code></td><td>17 unit tests simulating the 1,000-row cap; 16/16 as a real admin.</td></tr>
+        <tr><td>Tracked pages: this blueprint and the module map</td><td><code>a4cc8465</code> · <code>d42846b3</code></td><td>Kept in step with each fix.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Found while implementing (not in the original audit)</h3>
+  <div class="find">
+    <div class="f"><div><span class="pill p-crit">Critical</span></div><div class="body">
+      <h3>F8 · A business could skip the approval rules by calling the database directly</h3>
+      <p class="ev">Reproduced on dev before the fix: a business still awaiting review published a <b>live campaign</b> with one HTTP call, and a <b>rejected</b> business sent a collaboration request the same way. The rules lived only in the API routes; the database policies just said "the owner may write", and every app holds the public key plus the user's own login token.</p>
+      <p class="fix"><b>Fixed</b> in <code>daaa5c05</code> + <code>05465556</code>: database triggers enforce the real rules (a business awaiting review <em>may</em> send requests, as designed; only a rejected one cannot; a campaign needs an approved business). Publishing a draft also had no check at all.</p></div></div>
+    <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
+      <h3>F9 · Every collaboration request produced two identical notifications</h3>
+      <p class="ev">A database trigger from July and the API's own notification both fired, so every request (brand or creator) showed the recipient two items and doubled the unread count. The trigger was also wrong for campaign applications: it told the brand that the creator had accepted, when the brand had just acted.</p>
+      <p class="fix"><b>Fixed</b> in migration 165 (<code>eae454f5</code>) and <code>b8a63906</code>: the routes are now the single source; an accepted application notifies the applicant properly.</p></div></div>
+    <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
+      <h3>F10 · The first mobile OTA update would have switched the Pro purchase back on inside the store apps</h3>
+      <p class="ev">An over-the-air update bundles the app with the <em>workflow's</em> environment, not the store profile's, and the new manual job did not set the hide-Pro flag. The same job also put user-typed inputs straight into shell commands.</p>
+      <p class="fix"><b>Fixed</b> in <code>7e710cb0</code>, with a test that fails if the two ever drift apart.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Medium</span></div><div class="body">
+      <h3>F11 · The admin users list lost users past 1,000 and ran one query per user; CSV exports stopped at 500 rows</h3>
+      <p class="ev">The database silently caps a response at 1,000 rows; the users list is newest-first, so the <em>oldest</em> users would have vanished while the list still looked complete. 40 users already took ~1.9 s. The Customers and Payments export buttons ask for 500 rows and the export used that page.</p>
+      <p class="fix"><b>Fixed</b> in <code>56b6f6bb</code>.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Medium</span></div><div class="body">
+      <h3>F12 · The weekly health sweep would have skipped the production check whenever a test failed</h3>
+      <p class="ev">Actions stops a job at its first failing step, so the production probe added for F5 would not run after a failing unit test or a dev outage.</p>
+      <p class="fix"><b>Fixed</b> in <code>54eb68ed</code>.</p></div></div>
+    <div class="f"><div><span class="pill p-brand">Low</span></div><div class="body">
+      <h3>F13 · Pinning a chat that is already pinned returned an upgrade prompt at the Free limit</h3>
+      <p class="fix"><b>Fixed</b> in <code>79ce24e5</code> (it is now a no-op).</p></div></div>
+  </div>
+
+  <h3>Where the plan turned out to be wrong, and what the code really does</h3>
+  <div class="two">
+    <div class="note"><h4>Corrected in the record</h4>
+      <ul>
+        <li><b>Deleting a project hides it from <em>both</em> lists</b> (and tells the other side); either person can restore it. The module map had said "hides only for you".</li>
+        <li><b>A business awaiting review can send requests</b> by design (July 2026 decision). My brief had assumed "unapproved is blocked". AGENTS.md now says so, so nobody "tightens" it.</li>
+        <li><b>The phone-OTP flag was already read at runtime on web.</b> AGENTS.md had it wrong.</li>
+        <li><b>The creator-to-creator Free cap (10 a month) only applies when subscriptions are on.</b> On the free launch configuration it does not, so it was noted rather than asserted.</li>
+      </ul></div>
+    <div class="note"><h4>Left alone on purpose</h4>
+      <ul>
+        <li><b>Item 14 (wording and empty states):</b> no edits were cheap and safe to make blind.</li>
+        <li><b>Mobile automated tests:</b> still none (F7).</li>
+        <li><b>Skip actions rewrite the whole stage record</b> (the pattern AGENTS.md warns about). 0 lost updates in 80 racing attempts, so it was not "fixed" without evidence.</li>
+        <li><b>Reviews, reports about a user, and what a leaver posted inside a project</b> are still deleted with them. That is a product decision (below).</li>
+        <li><b>Expo SDK patch bump:</b> needs a native build, so it waits for that build.</li>
+      </ul></div>
+  </div>
+
+  <h3>What is yours now, in order</h3>
+  <div class="find">
+    <div class="f"><div><span class="pill p-brand">Step 1</span></div><div class="body"><h3>Read the branch, then push it and merge <code>dev → staging</code></h3>
+      <p class="ev"><code>git log dev..fix/launch-blueprint</code> shows the 27 commits. Nothing reaches users until this merge. The deploy applies migrations 148–165 to production's database on its way. After it, open <code>/dashboard/admin/health</code>: it now probes 161–165 and should show 0 pending.</p></div></div>
+    <div class="f"><div><span class="pill p-crit">Step 2</span></div><div class="body"><h3>Rotate the admin password, then the production Auth settings</h3>
+      <p class="ev">Password (the old one is in GitHub history). Then Site URL, redirect allow-list, Confirm email, minimum password 8, leaked-password check. Details in Phase 1 below.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Step 3</span></div><div class="body"><h3>Container environment, GitHub environment, and monitoring</h3>
+      <p class="ev">Resend webhook secret, <code>CRON_SECRET</code> and the three endpoint secrets, Upstash, Sentry and PostHog keys, <code>BROADCAST_DRY_RUN=true</code> until you have sent yourself one; <b>required reviewers on the <code>production</code> GitHub environment</b> (the manual OTA job and the deploy both wait there); Stream chat moderation on; <code>TWOFACTOR_TEMPLATE</code>; Sentry alert rules; an uptime monitor on the production health URL.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Step 4</span></div><div class="body"><h3>Legal text, creator payouts, Razorpay live</h3>
+      <p class="ev">Fill the 24 placeholders and get a lawyer to review; when you publish, set a dated <code>TERMS_VERSION</code> in <code>packages/core</code> (it says "draft" today). Decide how creators get paid. Live Razorpay keys and one real rupee.</p></div></div>
+    <div class="f"><div><span class="pill p-warn">Step 5</span></div><div class="body"><h3>Accounts, certificate, one native build, and the store forms</h3>
+      <p class="ev">Organisation accounts (Apple and Google), regenerate the iOS certificate, put the Sentry/PostHog keys and a 1024 px icon into the store build, create the two review accounts, fill the privacy and age forms, and cut <b>one</b> native build that carries everything (the privacy manifest and permission changes cannot ship over the air). Then <b>walk the push prompt on a real iPhone and Android</b>: it is the one thing here I could not test.</p></div></div>
+    <div class="f"><div><span class="pill p-muted">Step 6</span></div><div class="body"><h3>Two product decisions the code now waits on</h3>
+      <p class="ev"><b>Free-plan limits:</b> the database enforces them even while the app treats everyone as Pro; which should win at launch? <b>Account deletion:</b> should a leaver's reviews and the reports about them survive? Today both are deleted with the account.</p></div></div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section id="architecture">
+  <div class="eyebrow">How it fits together</div>
+  <h2>One backend, two front doors, nine outside services</h2>
+  <p>The web app and the mobile app do not have separate backends. Both call the same 114 API routes inside the Next.js container. Those routes read and write one Supabase Postgres database as the signed-in user, so row-level security (RLS) decides what each person sees. The admin CRM is part of the same web app, behind admin checks. Only a few things bypass the API: sign-in, live updates, chat and card checkout go straight from the phone or browser to Supabase, Stream and Razorpay.</p>
+
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1180 670" role="img" aria-label="Browser and mobile app both call the Next.js API, which reads and writes Supabase as the user and calls nine third-party services with secret keys; chat and checkout go directly from devices to Stream and Razorpay.">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+        <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah bad"/></marker>
+      </defs>
+
+      <!-- clients -->
+      <text x="20" y="18" class="gt">WHO USES IT</text>
+      <rect x="20" y="30" width="210" height="64" rx="8" class="node"/>
+      <text x="125" y="57" text-anchor="middle" class="t">Landing site</text>
+      <text x="125" y="78" text-anchor="middle" class="s">influnet.io · Azure SWA</text>
+
+      <rect x="20" y="140" width="210" height="76" rx="8" class="node"/>
+      <text x="125" y="170" text-anchor="middle" class="t">Web browser</text>
+      <text x="125" y="192" text-anchor="middle" class="s">creators · brands · admins</text>
+
+      <rect x="20" y="262" width="210" height="100" rx="8" class="node"/>
+      <text x="125" y="290" text-anchor="middle" class="t">Mobile app</text>
+      <text x="125" y="312" text-anchor="middle" class="s">iOS + Android · Expo 57</text>
+      <text x="125" y="332" text-anchor="middle" class="s">42 screens · OTA via EAS</text>
+
+      <line x1="125" y1="94" x2="125" y2="138" class="e" marker-end="url(#a)"/>
+      <text x="134" y="121" class="lbl">sign up / log in</text>
+
+      <!-- next container -->
+      <rect x="290" y="20" width="420" height="290" rx="10" class="grp"/>
+      <text x="310" y="46" class="gt">NEXT.JS 16 · ONE CONTAINER · AZURE</text>
+      <rect x="310" y="66" width="185" height="70" rx="8" class="node"/>
+      <text x="402" y="95" text-anchor="middle" class="t">Web UI</text>
+      <text x="402" y="116" text-anchor="middle" class="s">37 creator/brand pages</text>
+      <rect x="505" y="66" width="185" height="70" rx="8" class="node"/>
+      <text x="597" y="95" text-anchor="middle" class="t">Admin CRM</text>
+      <text x="597" y="116" text-anchor="middle" class="s">38 pages · 2 admin tiers</text>
+      <rect x="310" y="186" width="380" height="80" rx="8" class="node hot"/>
+      <text x="500" y="216" text-anchor="middle" class="t">API · 114 routes under /api</text>
+      <text x="500" y="238" text-anchor="middle" class="s">auth check · rate limits · validation · stage rules</text>
+      <text x="500" y="256" text-anchor="middle" class="m">packages/core shared with mobile</text>
+      <line x1="402" y1="136" x2="402" y2="184" class="e" marker-end="url(#a)"/>
+      <text x="410" y="165" class="lbl">fetch</text>
+      <line x1="597" y1="136" x2="597" y2="184" class="e" marker-end="url(#a)"/>
+      <text x="605" y="165" class="lbl">fetch</text>
+
+      <line x1="230" y1="170" x2="308" y2="112" class="e" marker-end="url(#a)"/>
+      <text x="252" y="128" text-anchor="end" class="lbl">pages</text>
+      <line x1="230" y1="300" x2="308" y2="244" class="e" marker-end="url(#a)"/>
+      <text x="236" y="262" class="lbl">REST</text>
+      <text x="236" y="276" class="lbl">+ JWT</text>
+
+      <!-- supabase -->
+      <rect x="830" y="20" width="330" height="290" rx="10" class="grp"/>
+      <text x="850" y="46" class="gt">SUPABASE · ONE PER ENVIRONMENT</text>
+      <rect x="850" y="62" width="290" height="58" rx="8" class="node"/>
+      <text x="866" y="86" class="t">Auth</text>
+      <text x="866" y="106" class="s">email + password · sessions</text>
+      <text x="1128" y="86" text-anchor="end" class="m">direct from devices</text>
+      <rect x="850" y="132" width="290" height="84" rx="8" class="node hot"/>
+      <text x="866" y="157" class="t">Postgres</text>
+      <text x="866" y="178" class="s">72 tables · RLS on every one</text>
+      <text x="866" y="198" class="s">SQL functions · 165 migrations</text>
+      <rect x="850" y="228" width="140" height="70" rx="8" class="node"/>
+      <text x="864" y="253" class="t">Realtime</text>
+      <text x="864" y="273" class="s">live updates</text>
+      <text x="864" y="290" class="m">direct to devices</text>
+      <rect x="1000" y="228" width="140" height="70" rx="8" class="node"/>
+      <text x="1014" y="253" class="t">Edge functions</text>
+      <text x="1014" y="273" class="m">phone-otp</text>
+      <text x="1014" y="290" class="m">auth-signup</text>
+
+      <line x1="690" y1="200" x2="848" y2="100" class="e" marker-end="url(#a)"/>
+      <text x="768" y="138" text-anchor="middle" class="lbl">check token</text>
+      <line x1="690" y1="236" x2="848" y2="178" class="e" marker-end="url(#a)"/>
+      <text x="770" y="228" text-anchor="middle" class="lbl">query as user</text>
+      <text x="770" y="242" text-anchor="middle" class="lbl">(RLS applies)</text>
+
+      <!-- bus -->
+      <line x1="500" y1="266" x2="500" y2="500" class="e"/>
+      <line x1="78" y1="500" x2="974" y2="500" class="e"/>
+      <text x="510" y="420" class="lbl">server-side calls</text>
+      <text x="510" y="434" class="lbl">with secret keys</text>
+      <g class="drops">
+        <line x1="78" y1="500" x2="78" y2="538" class="e" marker-end="url(#a)"/>
+        <line x1="206" y1="500" x2="206" y2="538" class="e" marker-end="url(#a)"/>
+        <line x1="334" y1="500" x2="334" y2="538" class="e" marker-end="url(#a)"/>
+        <line x1="462" y1="500" x2="462" y2="538" class="e" marker-end="url(#a)"/>
+        <line x1="590" y1="500" x2="590" y2="538" class="e" marker-end="url(#a)"/>
+        <line x1="718" y1="500" x2="718" y2="538" class="e" marker-end="url(#a)"/>
+        <line x1="846" y1="500" x2="846" y2="538" class="e" marker-end="url(#a)"/>
+        <line x1="974" y1="500" x2="974" y2="538" class="e" marker-end="url(#a)"/>
+      </g>
+
+      <!-- direct device lines with halo bridges -->
+      <line x1="44" y1="362" x2="44" y2="538" class="halo"/>
+      <line x1="44" y1="362" x2="44" y2="538" class="e dev" marker-end="url(#a)"/>
+      <text x="50" y="455" class="lbl">chat</text>
+      <line x1="170" y1="362" x2="170" y2="538" class="halo"/>
+      <line x1="170" y1="362" x2="170" y2="538" class="e dev" marker-end="url(#a)"/>
+      <text x="176" y="455" class="lbl">checkout</text>
+
+      <line x1="1110" y1="298" x2="1110" y2="538" class="e" marker-end="url(#a)"/>
+      <text x="1104" y="420" text-anchor="end" class="lbl">sends OTP</text>
+
+      <!-- vendors -->
+      <g>
+        <rect x="20" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="78" y="565" text-anchor="middle" class="t">Stream</text>
+        <text x="78" y="584" text-anchor="middle" class="s">chat</text>
+        <text x="78" y="603" text-anchor="middle" class="m">webhook ↩</text>
+
+        <rect x="148" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="206" y="565" text-anchor="middle" class="t">Razorpay</text>
+        <text x="206" y="584" text-anchor="middle" class="s">payments</text>
+        <text x="206" y="603" text-anchor="middle" class="m">signed webhook ↩</text>
+
+        <rect x="276" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="334" y="565" text-anchor="middle" class="t">Expo Push</text>
+        <text x="334" y="584" text-anchor="middle" class="s">→ APNs / FCM</text>
+
+        <rect x="404" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="462" y="565" text-anchor="middle" class="t">Resend</text>
+        <text x="462" y="584" text-anchor="middle" class="s">email</text>
+        <text x="462" y="603" text-anchor="middle" class="m">bounces ↩</text>
+
+        <rect x="532" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="590" y="565" text-anchor="middle" class="t">Cloudinary</text>
+        <text x="590" y="584" text-anchor="middle" class="s">images</text>
+
+        <rect x="660" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="718" y="565" text-anchor="middle" class="t">Apify · Hiker</text>
+        <text x="718" y="584" text-anchor="middle" class="s">IG / YT stats</text>
+        <text x="718" y="603" text-anchor="middle" class="m">verification</text>
+
+        <rect x="788" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="846" y="565" text-anchor="middle" class="t">Upstash</text>
+        <text x="846" y="584" text-anchor="middle" class="s">shared rate</text>
+        <text x="846" y="603" text-anchor="middle" class="s">limits</text>
+
+        <rect x="916" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="974" y="565" text-anchor="middle" class="t">Sentry</text>
+        <text x="974" y="584" text-anchor="middle" class="s">+ PostHog</text>
+        <text x="974" y="603" text-anchor="middle" class="m">errors · usage</text>
+
+        <rect x="1044" y="540" width="116" height="78" rx="8" class="node"/>
+        <text x="1102" y="565" text-anchor="middle" class="t">2Factor</text>
+        <text x="1102" y="584" text-anchor="middle" class="s">SMS OTP</text>
+        <text x="1102" y="603" text-anchor="middle" class="m">India only</text>
+      </g>
+
+      <!-- legend -->
+      <line x1="20" y1="652" x2="60" y2="652" class="e"/>
+      <text x="68" y="656" class="lbl">server-side, secret keys never leave the container</text>
+      <line x1="470" y1="652" x2="510" y2="652" class="e dev"/>
+      <text x="518" y="656" class="lbl">straight from the phone or browser</text>
+      <text x="820" y="656" class="lbl">↩ = service calls back into /api/webhooks</text>
+    </svg>
+    </div>
+    <figcaption>The browser also connects directly to Stream chat, Supabase Auth and Realtime, just like the phone. Only one arrow is drawn to keep the picture readable. Shared code in <code>packages/</code> (<code>core</code> stage machine and rules, <code>api</code> client, <code>types</code>, <code>tokens</code>) is compiled into both web and mobile at build time. It is not a running service.</figcaption>
+  </figure>
+
+  <div class="inv">
+    <div class="card">
+      <h3>Web app · <span class="mono">apps/web</span></h3>
+      <ul>
+        <li>Next.js 16.3.5, React 19, Zustand, Zod 4, Tailwind 4</li>
+        <li>Home, dashboard, campaigns, requests, projects (12-stage board + guided mode), messages, billing, public profiles <code>/c/…</code> and <code>/b/…</code></li>
+        <li>Runs as a Docker image on Azure Container Apps</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Admin CRM · <span class="mono">/dashboard/admin</span></h3>
+      <ul>
+        <li>Users, approvals, verification, reports, support, payments, subscribers</li>
+        <li>Broadcasts (push, pop-up, email), leads, report builder, engagement, cohorts</li>
+        <li>Health, vendors (kill switches), observability, errors, OTP and email logs</li>
+        <li>Business-tier vs super-admin tier; MFA switch ready</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Mobile · <span class="mono">apps/mobile</span></h3>
+      <ul>
+        <li>Expo SDK 57, React Native 0.86, one codebase for iOS and Android</li>
+        <li>Tabs: Home · Campaigns · Requests · Messages · Projects; profile top-right</li>
+        <li>Creator public profile is a WebView of the web page; everything else native</li>
+        <li>JS updates ship over the air (EAS); native changes need a store build</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Landing · <span class="mono">apps/landing</span></h3>
+      <ul>
+        <li>Single marketing page on Azure Static Web Apps</li>
+        <li>Deploys by manual workflow run only; its login links are baked in at build time</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ENVIRONMENTS ============ -->
+<section id="environments">
+  <div class="eyebrow">Where code goes when you push</div>
+  <h2>Two environments, and production is the second one</h2>
+  <p>Each branch deploys its own web container and its own database. A push to <code>staging</code> also publishes an over-the-air mobile update to every installed app. That is the red arrow below, and it is the least guarded path in the whole system.</p>
+
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1100 440" role="img" aria-label="dev branch deploys dev.influnet.io, the preview OTA channel and the dev database; staging branch, which is production, deploys staging.influnet.io, the production OTA channel and the production database; main does not exist.">
+      <defs>
+        <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+        <marker id="bh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah hot"/></marker>
+        <marker id="bb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah bad"/></marker>
+      </defs>
+      <text x="20" y="22" class="gt">GIT BRANCH</text>
+      <text x="300" y="22" class="gt">DEPLOYS TO</text>
+      <text x="700" y="22" class="gt">DATABASE</text>
+
+      <!-- dev row -->
+      <rect x="20" y="40" width="200" height="114" rx="8" class="node"/>
+      <text x="40" y="72" class="t">dev</text>
+      <text x="40" y="94" class="s">every change lands here</text>
+      <text x="40" y="112" class="s">CI tests run here only</text>
+      <rect x="300" y="40" width="320" height="50" rx="8" class="node"/>
+      <text x="316" y="61" class="t">dev.influnet.io</text>
+      <text x="316" y="80" class="s">Azure Container App · auto on push</text>
+      <rect x="300" y="104" width="320" height="50" rx="8" class="node"/>
+      <text x="316" y="125" class="t">OTA channel “preview”</text>
+      <text x="316" y="144" class="s">internal test phones</text>
+      <rect x="700" y="40" width="380" height="114" rx="8" class="node"/>
+      <text x="716" y="66" class="t">Supabase jaajosocopoicmqcffuu</text>
+      <text x="716" y="88" class="s">migrations applied through 165</text>
+      <text x="716" y="108" class="s">E2E personas live here</text>
+      <text x="716" y="128" class="s">holds <tspan fill="currentColor" font-weight="600">real testers’ push tokens</tspan></text>
+      <line x1="220" y1="65" x2="298" y2="65" class="e" marker-end="url(#b)"/>
+      <text x="259" y="58" text-anchor="middle" class="lbl">deploy</text>
+      <line x1="220" y1="129" x2="298" y2="129" class="e" marker-end="url(#b)"/>
+      <text x="259" y="122" text-anchor="middle" class="lbl">OTA</text>
+      <line x1="620" y1="65" x2="698" y2="65" class="e" marker-end="url(#b)"/>
+      <text x="659" y="58" text-anchor="middle" class="lbl">migrate</text>
+
+      <!-- promotion -->
+      <line x1="120" y1="154" x2="120" y2="208" class="e hot" marker-end="url(#bh)"/>
+      <text x="132" y="178" class="lbl hot">PR only</text>
+      <text x="132" y="192" class="lbl hot">129 commits waiting</text>
+
+      <!-- staging row -->
+      <rect x="20" y="210" width="200" height="114" rx="8" class="node hot"/>
+      <text x="40" y="242" class="t">staging</text>
+      <rect x="112" y="229" width="92" height="20" rx="4" class="tag"/>
+      <text x="158" y="243" text-anchor="middle" class="lbl hot">PRODUCTION</text>
+      <text x="40" y="264" class="s">receives PRs from dev</text>
+      <text x="40" y="282" class="s">no required CI checks</text>
+      <rect x="300" y="210" width="320" height="50" rx="8" class="node hot"/>
+      <text x="316" y="231" class="t">staging.influnet.io</text>
+      <text x="316" y="250" class="s">measured today: 23 s cold, 0.25 s warm</text>
+      <rect x="300" y="274" width="320" height="50" rx="8" class="node bad"/>
+      <text x="316" y="295" class="t">OTA channel “production”</text>
+      <text x="316" y="314" class="s">every installed app, all at once</text>
+      <rect x="700" y="210" width="380" height="114" rx="8" class="node hot"/>
+      <text x="716" y="236" class="t">Supabase aokdansyqxracuwsosji</text>
+      <text x="716" y="258" class="s">migrations through 147 (last checked 17 Sep)</text>
+      <text x="716" y="278" class="s">148–165 apply on the next merge</text>
+      <text x="716" y="298" class="s">real users · <tspan class="m">qacreator</tspan> smoke fixture</text>
+      <line x1="220" y1="235" x2="298" y2="235" class="e" marker-end="url(#b)"/>
+      <text x="259" y="228" text-anchor="middle" class="lbl">deploy</text>
+      <line x1="220" y1="299" x2="298" y2="299" class="e bad" marker-end="url(#bb)"/>
+      <text x="259" y="292" text-anchor="middle" class="lbl bad">auto OTA</text>
+      <line x1="620" y1="235" x2="698" y2="235" class="e" marker-end="url(#b)"/>
+      <text x="659" y="228" text-anchor="middle" class="lbl">migrate</text>
+
+      <!-- main -->
+      <line x1="120" y1="324" x2="120" y2="378" class="e dev"/>
+      <text x="132" y="356" class="lbl">never set up</text>
+      <rect x="20" y="380" width="200" height="44" rx="8" class="node ghost"/>
+      <text x="40" y="407" class="s">main: doesn’t exist</text>
+      <text x="300" y="407" class="s">deploy-prod.yml is written but has never run. “production” in config means the staging database.</text>
+    </svg>
+    </div>
+    <figcaption>What this means day to day: <b>dev is now your only test environment</b>, and it holds real testers' push tokens, so admin broadcasts from dev can reach real phones. The landing site deploys separately, by manual run. Scheduled jobs (broadcasts every 5 min, daily maintenance, nudges) each read one endpoint secret, so they serve whichever environment that secret points at. The weekly health sweep checks <code>dev.influnet.io</code> only.</figcaption>
+  </figure>
+</section>
+
+<!-- ============ DATABASE ============ -->
+<section id="database">
+  <div class="eyebrow">What the database holds</div>
+  <h2>72 tables in nine groups</h2>
+  <p>Chat messages live on Stream, not in these tables; <code>messages</code> is only the history from before Stream. Projects are <code>campaign_projects</code> with a numeric id. There is no <code>collaborations</code> table. Every table has RLS on. On <code>profiles</code> and <code>business_profiles</code>, users may read only an allow-listed set of columns. Asking for any other column fails the whole query, not just that field.</p>
+
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1100 200" role="img" aria-label="A deal moves from discovery to request, negotiation, project, stage gates, payment and close; everything from project onward is deleted by cascade when either user deletes their account.">
+      <defs>
+        <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+      </defs>
+      <g>
+        <rect x="20" y="20" width="136" height="84" rx="8" class="node"/>
+        <text x="88" y="46" text-anchor="middle" class="t">Discover</text>
+        <text x="88" y="68" text-anchor="middle" class="m">influencer_profiles</text>
+        <text x="88" y="86" text-anchor="middle" class="m">social_snapshots</text>
+        <rect x="174" y="20" width="136" height="84" rx="8" class="node"/>
+        <text x="242" y="46" text-anchor="middle" class="t">Request</text>
+        <text x="242" y="68" text-anchor="middle" class="m">collab_requests</text>
+        <text x="242" y="86" text-anchor="middle" class="m">campaigns</text>
+        <rect x="328" y="20" width="136" height="84" rx="8" class="node"/>
+        <text x="396" y="46" text-anchor="middle" class="t">Negotiate</text>
+        <text x="396" y="68" text-anchor="middle" class="m">Stream chat</text>
+        <text x="396" y="86" text-anchor="middle" class="m">project_proposals</text>
+        <rect x="482" y="20" width="136" height="84" rx="8" class="node hot"/>
+        <text x="550" y="46" text-anchor="middle" class="t">Project</text>
+        <text x="550" y="68" text-anchor="middle" class="m">campaign_projects</text>
+        <text x="550" y="86" text-anchor="middle" class="s">12 stages</text>
+        <rect x="636" y="20" width="136" height="84" rx="8" class="node"/>
+        <text x="704" y="46" text-anchor="middle" class="t">Stage gates</text>
+        <text x="704" y="68" text-anchor="middle" class="m">project_stage_items</text>
+        <text x="704" y="86" text-anchor="middle" class="s">mutual sign-off RPCs</text>
+        <rect x="790" y="20" width="136" height="84" rx="8" class="node"/>
+        <text x="858" y="46" text-anchor="middle" class="t">Payment</text>
+        <text x="858" y="68" text-anchor="middle" class="m">project_payments</text>
+        <text x="858" y="86" text-anchor="middle" class="s">opened by webhook</text>
+        <rect x="944" y="20" width="136" height="84" rx="8" class="node"/>
+        <text x="1012" y="46" text-anchor="middle" class="t">Close</text>
+        <text x="1012" y="68" text-anchor="middle" class="m">project_documents</text>
+        <text x="1012" y="86" text-anchor="middle" class="m">reviews</text>
+        <line x1="156" y1="62" x2="172" y2="62" class="e" marker-end="url(#c)"/>
+        <line x1="310" y1="62" x2="326" y2="62" class="e" marker-end="url(#c)"/>
+        <line x1="464" y1="62" x2="480" y2="62" class="e" marker-end="url(#c)"/>
+        <line x1="618" y1="62" x2="634" y2="62" class="e" marker-end="url(#c)"/>
+        <line x1="772" y1="62" x2="788" y2="62" class="e" marker-end="url(#c)"/>
+        <line x1="926" y1="62" x2="942" y2="62" class="e" marker-end="url(#c)"/>
+      </g>
+      <path d="M482 122 V132 H1080 V122" class="e bad"/>
+      <text x="781" y="156" text-anchor="middle" class="lbl bad">either person deletes their account → all of this is deleted (ON DELETE CASCADE)</text>
+      <text x="781" y="174" text-anchor="middle" class="lbl bad">incl. the other party’s invoices and payment records · finding F2</text>
+    </svg>
+    </div>
+    <figcaption>How one deal moves through the tables. The stage machine's legal moves are defined only in <code>ALLOWED_TRANSITIONS</code> in <code>packages/core</code>. Sign-offs go through <code>record_stage_signoff()</code>, which locks the row so two people can't overwrite each other.</figcaption>
+  </figure>
+
+  <div class="db">
+    <div class="dom"><header><h3>Identity &amp; accounts</h3><span>11</span></header>
+      <div class="chips"><code class="key">profiles</code><code class="key">influencer_profiles</code><code class="key">business_profiles</code><code>pending_registrations</code><code>phone_otp_sessions</code><code>phone_otp_audit_log</code><code>deleted_accounts</code><code>user_presence</code><code>push_devices</code><code>notification_preferences</code><code>email_preferences</code></div></div>
+    <div class="dom"><header><h3>Discovery &amp; proof</h3><span>15</span></header>
+      <div class="chips"><code>social_snapshots</code><code>social_account_claims</code><code>verification_jobs</code><code>verification_checks</code><code>creator_portfolio_items</code><code>reviews</code><code>business_reviews</code><code>profile_views</code><code>creator_profile_views</code><code>business_profile_views</code><code>profile_link_clicks</code><code>influencer_shortlists</code><code>saved_items</code><code>search_events</code><code>business_contact_reveals</code></div></div>
+    <div class="dom"><header><h3>Deals &amp; conversations</h3><span>8</span></header>
+      <div class="chips"><code class="key">collab_requests</code><code>campaigns</code><code>campaign_applications</code><code>conversations</code><code>conversation_participants</code><code>conversation_pins</code><code>project_proposals</code><code>messages</code></div></div>
+    <div class="dom"><header><h3>Projects &amp; stage machine</h3><span>9</span></header>
+      <div class="chips"><code class="key">campaign_projects</code><code>project_stage_items</code><code>project_stage_entries</code><code>project_cards</code><code>project_assets</code><code>project_activity</code><code>project_change_requests</code><code>project_documents</code><code>invoice_number_counters</code></div></div>
+    <div class="dom"><header><h3>Money &amp; plans</h3><span>6</span></header>
+      <div class="chips"><code class="key">project_payments</code><code>subscriptions</code><code>billing_settings</code><code>billing_events</code><code>plan_usage</code><code>pro_orders</code></div></div>
+    <div class="dom"><header><h3>Trust &amp; safety</h3><span>6</span></header>
+      <div class="chips"><code>user_blocks</code><code>user_reports</code><code>report_remarks</code><code>admin_audit_log</code><code>admin_issues</code><code>rate_limit_stats</code></div></div>
+    <div class="dom"><header><h3>Notifications &amp; email</h3><span>7</span></header>
+      <div class="chips"><code>notifications</code><code>email_deliveries</code><code>email_suppressions</code><code>broadcasts</code><code>broadcast_runs</code><code>broadcast_deliveries</code><code>announcement_views</code></div></div>
+    <div class="dom"><header><h3>Admin, CRM &amp; ops</h3><span>9</span></header>
+      <div class="chips"><code>user_daily_activity</code><code>crm_leads</code><code>crm_lead_notes</code><code>saved_reports</code><code>support_tickets</code><code>ticket_messages</code><code>product_feedback</code><code>feature_flags</code><code>report_test_sessions</code></div></div>
+    <div class="dom"><header><h3>Dead</h3><span>1</span></header>
+      <div class="chips"><code class="dead">connections</code></div>
+      <p class="sub" style="font-size:13.5px">Built in migration 029, never written to. Use <code>get_collaboration_stats()</code> instead. Leave it alone rather than reviving it.</p></div>
+  </div>
+</section>
+
+<!-- ============ FINDINGS ============ -->
+<section id="findings">
+  <div class="eyebrow">Checked today, not recalled</div>
+  <h2>New since the 17 September audit</h2>
+  <p>The earlier audits (<code>docs/operations/GO_LIVE_AUDIT_2026-09-17.md</code>, <code>APP_STORE_READINESS_2026-09-17.md</code>) still stand, and their open items are folded into the work order below. These items are new, or have changed since then.</p>
+
+  <div class="find">
+    <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
+      <h3>F1 · Production is 129 commits behind, so the September fixes aren’t live</h3>
+      <p class="ev">Checked live: <code>staging.influnet.io/legal/privacy</code> and <code>/legal/terms</code> → 404. First request 23.4 s, next 0.25 s (the minimum-replica fix is in dev's deploy file but hasn't run). Production database at migration 147; dev at 165.</p>
+      <p class="fix"><b>Fix:</b> the dev → staging PR, but only after F2 and F3 below are in (Phase 1).</p></div></div>
+
+    <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
+      <h3>F2 · Deleting an account destroys finished projects, payment records and invoices, for both sides</h3>
+      <p class="ev"><code>006_campaign_projects.sql:6–7</code>: both <code>owner_user_id</code> and <code>counterparty_user_id</code> are <code>ON DELETE CASCADE</code>. <code>project_payments</code> (059) and <code>project_documents</code> (124) cascade from the project. The new self-delete (<code>api/profile/route.ts</code>) blocks only <em>active</em> projects, so a brand that deletes after completion wipes the creator's invoice too. Your draft terms promise to keep tax records.</p>
+      <p class="fix"><b>Fix:</b> a migration that changes both foreign keys to <code>SET NULL</code> and anonymises the leaving party. Invoices and payments stay. Must ship before real users can delete accounts, since the in-app delete button is already built.</p></div></div>
+
+    <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
+      <h3>F3 · Merging to staging pushes an OTA update to every installed app, with no approval and no rollout</h3>
+      <p class="ev"><code>.github/workflows/mobile-update.yml</code>: any push to <code>staging</code> that touches <code>apps/mobile</code> or <code>packages</code> runs <code>eas update --channel production</code>. The waiting merge carries a month of mobile changes. Changes that need a native build, such as the privacy manifest and permissions, can't travel by OTA at all.</p>
+      <p class="fix"><b>Fix:</b> make the production-channel job manual behind the <code>production</code> GitHub Environment approval, and publish at a percentage (EAS Update rollouts), for example 10% → 100% after a day of clean Sentry.</p></div></div>
+
+    <div class="f"><div><span class="pill p-crit">High</span></div><div class="body">
+      <h3>F4 · The admin password commit is on GitHub now</h3>
+      <p class="ev"><code>2d91fb65</code> is on <code>origin/dev</code> and on a Dependabot branch. The 17 Sep plan to squash it before pushing no longer applies.</p>
+      <p class="fix"><b>Fix:</b> rotating the password is the whole fix. Don't rewrite shared history. Also move <code>ADMIN_CREDENTIALS.local.txt</code> out of the repo folder into a password manager.</p></div></div>
+
+    <div class="f"><div><span class="pill p-warn">Medium</span></div><div class="body">
+      <h3>F5 · Nothing automated watches production</h3>
+      <p class="ev"><code>weekly-health.yml</code> probes <code>dev.influnet.io</code> only. Broadcast, maintenance and nudge jobs each take a single endpoint secret, so they run against one environment. There is no uptime monitor in the repo for the production URL.</p>
+      <p class="fix"><b>Fix:</b> UptimeRobot on the production health URL (10 min), and point those three endpoint secrets at production.</p></div></div>
+
+    <div class="f"><div><span class="pill p-warn">Medium</span></div><div class="body">
+      <h3>F6 · Account deletion leaves chat on Stream, and two screens still point to a dead mailbox</h3>
+      <p class="ev"><code>lib/account-deletion.ts</code> never deletes the Stream user, so chat history stays on Stream's servers. <code>mailto:support@influnet.in</code> is still in <code>apps/mobile/app/settings.tsx:434</code> and <code>apps/web/src/app/delete-account/page.tsx:82</code>, and that domain has no mail server (MX record).</p>
+      <p class="fix"><b>Fix:</b> delete the Stream user in <code>hardDeleteAccount</code>, and switch both links to a mailbox that receives mail.</p></div></div>
+
+    <div class="f"><div><span class="pill p-warn">Medium</span></div><div class="body">
+      <h3>F7 · Mobile has no automated tests, and the store build reports no crashes</h3>
+      <p class="ev">0 test files under <code>apps/mobile</code> (web has 49 files, 532 tests). The <code>production</code> profile in <code>eas.json</code> sets no <code>EXPO_PUBLIC_SENTRY_DSN</code> or <code>EXPO_PUBLIC_POSTHOG_KEY</code>. Store icon is still 512 px with transparency.</p>
+      <p class="fix"><b>Fix:</b> add the keys and a 1024 px opaque icon in the next native build, plus a small smoke-test suite run in the cloud (Phase 3).</p></div></div>
+
+    <div class="f"><div><span class="pill p-ok">Progress</span></div><div class="body">
+      <h3>Already fixed since 17 Sep</h3>
+      <p class="ev">iOS privacy manifest added · unused microphone, Face ID and overlay permissions removed · real in-app account deletion with an active-project guard and a tombstone record · hiding Pro purchase in store builds is in progress (uncommitted changes in <code>billing.tsx</code>, <code>use-upgrade.ts</code>, <code>eas.json</code>).</p></div></div>
+  </div>
+</section>
+
+<!-- ============ PLAN ============ -->
+<section id="plan">
+  <div class="eyebrow">The order to do it in</div>
+  <h2>Work order to a launch that doesn’t break</h2>
+  <p>Each phase unblocks the next, and every step has a check that proves it's done. <span class="pill who-you">You</span> means it needs your accounts, money or a decision. <span class="pill who-dev">Developer</span> is code. Ticks are saved in this browser only.</p>
+  <div class="progress"><span id="count">0 / 0 done</span><div class="bar"><i id="bar"></i></div></div>
+
+  <div class="phase" data-phase>
+    <div class="phase-h"><h3>Phase 0 · Protect what’s live</h3><span class="when">this week · ~1 day total</span><span class="why">Small, urgent, and every later step depends on them.</span></div>
+    <div class="task"><input type="checkbox" id="t01"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">10 min</span></div><label for="t01" class="what">Rotate the <code>dev.admin@influnet.io</code> password and any admin password that has ever been in a file or chat. Move <code>ADMIN_CREDENTIALS.local.txt</code> into a password manager.</label><div class="done-when"><b>Done when</b> the old password fails to sign in.</div></div></div>
+    <div class="task"><input type="checkbox" id="t02"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">20 min</span></div><label for="t02" class="what">Turn on the alarms. Sentry alert rules: “new issue” and “seen more than 10× in 5 min”. UptimeRobot on <code>https://staging.influnet.io/api/health</code> every 5 min, alerting by email and SMS.</label><div class="done-when"><b>Done when</b> a deliberate test error and a paused monitor both reach your phone.</div></div></div>
+    <div class="task"><input type="checkbox" id="t03"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t03" class="what">F2: stop account deletion from cascading through finished projects. Change the project foreign keys to <code>SET NULL</code> and anonymise the leaving party; payments and invoices stay.</label><div class="done-when"><b>Done when</b> an E2E persona with a completed, paid project deletes their account and the other party still opens the invoice.</div></div></div>
+    <div class="task"><input type="checkbox" id="t04"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">2 h</span></div><label for="t04" class="what">F3: make the production OTA job manual, behind the <code>production</code> environment approval, and publish with a percentage rollout.</label><div class="done-when"><b>Done when</b> a merge to staging deploys the web app and leaves installed phones untouched until approved.</div></div></div>
+    <div class="task"><input type="checkbox" id="t05"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">1 h</span></div><label for="t05" class="what">F6: delete the Stream user on account deletion; replace both <code>support@influnet.in</code> links.</label><div class="done-when"><b>Done when</b> a deleted persona no longer appears in the Stream dashboard.</div></div></div>
+  </div>
+
+  <div class="phase" data-phase>
+    <div class="phase-h"><h3>Phase 1 · Make production current</h3><span class="when">1–2 days</span><span class="why">After this, what you tested on dev is what users get.</span></div>
+    <div class="task"><input type="checkbox" id="t11"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">10 min</span></div><label for="t11" class="what">Production Supabase Auth, in this order: Site URL → <code>https://staging.influnet.io</code>; redirect allow-list <code>https://staging.influnet.io/**</code>; <b>then</b> Confirm email ON; minimum password 8; leaked-password protection ON.</label><div class="done-when"><b>Done when</b> a password-reset email for a test account links to staging.influnet.io, not localhost.</div></div></div>
+    <div class="task"><input type="checkbox" id="t12"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">30 min</span></div><label for="t12" class="what">Production container settings the deploy never sets: <code>RESEND_WEBHOOK_SECRET</code>, <code>CRON_SECRET</code>, <code>UPSTASH_REDIS_REST_URL</code>/<code>_TOKEN</code>, Sentry and PostHog keys, and <code>BROADCAST_DRY_RUN=true</code> until you've broadcast to yourself once.</label><div class="done-when"><b>Done when</b> <code>/dashboard/admin/health</code> on production shows each one configured.</div></div></div>
+    <div class="task"><input type="checkbox" id="t13"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">20 min</span></div><label for="t13" class="what">Production phone OTP: set the <code>TWOFACTOR_TEMPLATE</code> secret and redeploy the <code>phone-otp</code> edge function. Today codes arrive as voice calls.</label><div class="done-when"><b>Done when</b> a signup code arrives as an SMS.</div></div></div>
+    <div class="task"><input type="checkbox" id="t14"><div class="tt"><div class="meta"><span class="pill who-both">Both</span><span class="effort">2 h</span></div><label for="t14" class="what">Open and merge the dev → staging PR (after Phase 0). Watch migrations 148–165 apply, then run <code>tests/e2e/verify-151.mjs</code> against staging.</label><div class="done-when"><b>Done when</b> health shows 0 migrations pending, <code>/legal/privacy</code> returns 200, and a cold request takes under 2 s.</div></div></div>
+    <div class="task"><input type="checkbox" id="t15"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">15 min</span></div><label for="t15" class="what">Point <code>BROADCAST_ENDPOINT</code>, <code>MAINTENANCE_ENDPOINT</code> and <code>NUDGE_ENDPOINT</code> (plus <code>CRON_SECRET</code>) at production.</label><div class="done-when"><b>Done when</b> each workflow's next run logs a 200 from staging.influnet.io.</div></div></div>
+  </div>
+
+  <div class="phase" data-phase>
+    <div class="phase-h"><h3>Phase 2 · Legal, money, accounts</h3><span class="when">1–3 weeks elapsed · mostly waiting on others</span><span class="why">Start these the same day as Phase 0. They have the longest lead times.</span></div>
+    <div class="task"><input type="checkbox" id="t21"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">start now · 1–2 wks</span></div><label for="t21" class="what">Apple and Google developer accounts as an <b>organisation</b> (needs a D-U-N-S number). A personal Play account needs a 14-day, 12-tester closed test before it can publish.</label><div class="done-when"><b>Done when</b> both consoles show the legal entity as publisher.</div></div></div>
+    <div class="task"><input type="checkbox" id="t22"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">2 h + lawyer</span></div><label for="t22" class="what">Fill the 24 <code>[[placeholders]]</code> in <code>apps/web/src/app/legal/legal-content.ts</code>: entity, address, GSTIN, grievance officer, platform fee, advance refunds, content licence, liability cap. Then get a lawyer's review.</label><div class="done-when"><b>Done when</b> the draft banner disappears from the live legal pages.</div></div></div>
+    <div class="task"><input type="checkbox" id="t23"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">decision</span></div><label for="t23" class="what">Decide how creators get paid: Razorpay Route (linked accounts) or manual payouts, stated honestly in the terms. Holding money for third parties has RBI payment-aggregator implications.</label><div class="done-when"><b>Done when</b> the terms describe the mechanism that actually exists.</div></div></div>
+    <div class="task"><input type="checkbox" id="t24"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">1 h + review</span></div><label for="t24" class="what">Razorpay live keys and a fresh webhook secret on production, then move one real rupee through a real project.</label><div class="done-when"><b>Done when</b> the payment gate opens by itself and the capture shows in Razorpay.</div></div></div>
+    <div class="task"><input type="checkbox" id="t25"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">decision</span></div><label for="t25" class="what">Plans: launch free (<code>SUBSCRIPTIONS_ENABLED=false</code>) and sell Pro on the web later. This is the recommended option: it avoids in-app purchase rules and retrofitting limits on existing users.</label><div class="done-when"><b>Done when</b> the production boot banner shows the combination you chose.</div></div></div>
+    <div class="task"><input type="checkbox" id="t26"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">2 h</span></div><label for="t26" class="what">Production Supabase on the Pro plan (Free pauses after 7 idle days and has no point-in-time restore), then one restore drill into a scratch project.</label><div class="done-when"><b>Done when</b> you have written down how long the restore took. That time is your real recovery time.</div></div></div>
+    <div class="task"><input type="checkbox" id="t27"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">40 min</span></div><label for="t27" class="what">Create a working support mailbox (<code>support@influnet.io</code>) and fill in <code>docs/operations/ACCESS_INVENTORY.md</code>: every account, its owner, renewal date, and which vault entry holds its credential.</label><div class="done-when"><b>Done when</b> someone else could rotate a key without calling you.</div></div></div>
+  </div>
+
+  <div class="phase" data-phase>
+    <div class="phase-h"><h3>Phase 3 · Mobile ready for the stores</h3><span class="when">1–2 weeks of development, in parallel with Phase 2</span><span class="why">One native build carries all of it. OTA can't change permissions, manifests or icons.</span></div>
+    <div class="task"><input type="checkbox" id="t31"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t31" class="what">Finish and commit hiding Pro purchase in store builds (<code>EXPO_PUBLIC_HIDE_PRO_PURCHASE</code>, in progress).</label><div class="done-when"><b>Done when</b> a store build shows no price, upgrade button or checkout link anywhere.</div></div></div>
+    <div class="task"><input type="checkbox" id="t32"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">1 day</span></div><label for="t32" class="what">Signup consent on web and mobile: required “I agree to the Terms and Privacy Policy” and “I am 18 or older”, timestamped server-side. Add Settings → Legal (Terms, Privacy, Refunds, Contact, Delete account).</label><div class="done-when"><b>Done when</b> signup can't finish without both, and the timestamp is on the profile row.</div></div></div>
+    <div class="task"><input type="checkbox" id="t33"><div class="tt"><div class="meta"><span class="pill p-ok">Code done</span><span class="pill who-dev">Developer</span><span class="effort">2–3 days</span></div><label for="t33" class="what">Report/block on creator profiles, business profiles, campaign detail and request detail. Turn on Stream moderation, and add a server word filter for bios, campaign text and request messages.</label><div class="done-when"><b>Done when</b> a report filed from each of the four screens appears in admin → Reports.</div></div></div>
+    <div class="task"><input type="checkbox" id="t34"><div class="tt"><div class="meta"><span class="pill p-ok">Code partly done</span><span class="pill who-dev">Developer</span><span class="effort">½ day</span></div><label for="t34" class="what">Store build settings: 1024 px icon without transparency; Sentry and PostHog keys in the <code>production</code> profile; Expo SDK patch bump; <code>LAST_COMMIT_TIME</code> bump; Xcode 26 build image; Android target API 36; a Liquid Glass check on a real device.</label><div class="done-when"><b>Done when</b> the TestFlight upload arrives with no warnings email, and a forced crash shows up in Sentry.</div></div></div>
+    <div class="task"><input type="checkbox" id="t35"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">2 days</span></div><label for="t35" class="what">Mobile smoke tests for five flows: sign in, send request, chat, stage sign-off, reach the payment step. Run them on EAS/cloud devices, not a laptop.</label><div class="done-when"><b>Done when</b> they run on every production-bound build.</div></div></div>
+    <div class="task"><input type="checkbox" id="t36"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">1 h</span></div><label for="t36" class="what">Regenerate the iOS distribution certificate (<code>eas credentials</code>) and enable Push on <code>com.influnet.app</code>. Reserve the app name.</label><div class="done-when"><b>Done when</b> an iOS production build signs successfully.</div></div></div>
+    <div class="task"><input type="checkbox" id="t37"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">1 day</span></div><label for="t37" class="what">Two review accounts on production (brand pre-approved, with an active project and a chat between them), plus screenshots, the App Privacy and Data safety forms, and an 18+ age rating. India storefront only.</label><div class="done-when"><b>Done when</b> both builds are submitted with the review notes from APP_STORE_READINESS §5.</div></div></div>
+  </div>
+
+  <div class="phase" data-phase>
+    <div class="phase-h"><h3>Phase 4 · Soft launch</h3><span class="when">2–4 weeks · invite-only</span><span class="why">Real users, small enough that any problem is a conversation rather than a crisis.</span></div>
+    <div class="task"><input type="checkbox" id="t41"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">ongoing</span></div><label for="t41" class="what">Invite 20–50 creators and 5–10 brands you know, in India. Check daily for 5 minutes: Sentry, uptime, admin → Reports and Support.</label><div class="done-when"><b>Done when</b> the first 10 projects have run from request to payment.</div></div></div>
+    <div class="task"><input type="checkbox" id="t42"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">2 min each</span></div><label for="t42" class="what">One line per incident in <code>INCIDENTS.md</code>: what the user saw, what it actually was, what fixed it.</label><div class="done-when"><b>Done when</b> it's a habit. This file becomes the most valuable handover document you have.</div></div></div>
+    <div class="task"><input type="checkbox" id="t43"><div class="tt"><div class="meta"><span class="pill who-both">Both</span><span class="effort">gate</span></div><label for="t43" class="what">Before opening to the public, require 14 days with: no Sentry issue hitting more than 5% of users, every Razorpay capture matched by an opened gate, mobile crash-free sessions at 99.5% or above, and both store reviews passed.</label><div class="done-when"><b>Done when</b> all four hold.</div></div></div>
+  </div>
+
+  <div class="phase" data-phase>
+    <div class="phase-h"><h3>Phase 5 · Built to last</h3><span class="when">after launch</span><span class="why">What keeps future changes cheap and stops everything depending on one person.</span></div>
+    <div class="task"><input type="checkbox" id="t51"><div class="tt"><div class="meta"><span class="pill who-both">Both</span><span class="effort">1 day</span></div><label for="t51" class="what">Get a real pre-production environment back. Today dev is the only place to test before users see a change. Either stand up the planned production tier (its own Supabase Pro project in ap-south-1, its own Container App, a <code>main</code> branch; <code>deploy-prod.yml</code> is already written) and return staging to QA, or formally rename things so the names match reality.</label><div class="done-when"><b>Done when</b> a change is tested on a copy of production before it reaches production.</div></div></div>
+    <div class="task"><input type="checkbox" id="t52"><div class="tt"><div class="meta"><span class="pill who-dev">Developer</span><span class="effort">1 day</span></div><label for="t52" class="what">Write the Container App configuration as a committed script (Bicep/CLI) instead of portal clicks.</label><div class="done-when"><b>Done when</b> production can be rebuilt from the repo.</div></div></div>
+    <div class="task"><input type="checkbox" id="t53"><div class="tt"><div class="meta"><span class="pill who-both">Both</span><span class="effort">½ day</span></div><label for="t53" class="what">Hand over once: someone other than you runs a dev → staging promotion, applies a migration and cuts a mobile build.</label><div class="done-when"><b>Done when</b> they did it without calling you, and there is a written answer to “who gets paged at 2 am”.</div></div></div>
+    <div class="task"><input type="checkbox" id="t54"><div class="tt"><div class="meta"><span class="pill who-you">You</span><span class="effort">quarterly</span></div><label for="t54" class="what">Quarterly: restore drill, secret rotation review, renewal calendar (Apple certificate, domains, vendor plans; Apify's free plan still blocks X lookups).</label><div class="done-when"><b>Done when</b> it's in your calendar.</div></div></div>
+  </div>
+</section>
+
+<!-- ============ MONITORING ============ -->
+<section id="monitoring">
+  <div class="eyebrow">Knowing before users tell you</div>
+  <h2>Monitoring: what watches what</h2>
+  <p>Almost everything already exists in code and is <em>inert until switched on</em>. Nothing errors when a key is missing; you just never hear about problems. This table is the list of switches.</p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>If this goes wrong</th><th>What catches it</th><th>State today</th><th>Where you look</th></tr></thead>
+      <tbody>
+        <tr><td>Site is down</td><td>UptimeRobot on <code>/api/health</code></td><td><span class="pill p-crit">Not set</span> CI sweep checks dev only</td><td>SMS + email</td></tr>
+        <tr><td>Web or API errors</td><td>Sentry, release-tagged with source maps</td><td><span class="pill p-warn">Wired</span> no alert rules</td><td>Sentry · admin → Errors</td></tr>
+        <tr><td>Mobile crashes</td><td>Sentry via <code>lib/analytics</code></td><td><span class="pill p-crit">Blind</span> keys not in store profile</td><td>Sentry</td></tr>
+        <tr><td>Where users drop off</td><td>PostHog</td><td><span class="pill p-warn">Wired</span> keys to set</td><td>PostHog · admin → Observability</td></tr>
+        <tr><td>Slow endpoints, 5xx rate</td><td>Azure Application Insights</td><td><span class="pill p-muted">One toggle</span></td><td>Azure portal</td></tr>
+        <tr><td>A vendor goes down</td><td>Circuit breakers + kill switches for 6 vendors</td><td><span class="pill p-warn">Dev only</span> live after merge</td><td>admin → Vendors</td></tr>
+        <tr><td>Email lands in spam</td><td>Resend bounce webhook + suppression list</td><td><span class="pill p-crit">Secret missing</span></td><td>Resend dashboard</td></tr>
+        <tr><td>Money mismatch</td><td>Razorpay capture ↔ gate opened</td><td><span class="pill p-muted">Test mode only</span></td><td>Razorpay · admin → Payments</td></tr>
+        <tr><td>Database limits</td><td>Supabase usage: egress and realtime connections bind first, not size</td><td><span class="pill p-muted">Manual</span></td><td>Supabase → Reports</td></tr>
+        <tr><td>Migration not applied</td><td>Health-page migration probes</td><td><span class="pill p-ok">Built</span></td><td>admin → Health</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="two">
+    <div class="note">
+      <h3>Your routine once live</h3>
+      <ul>
+        <li><b>Daily, 2 min:</b> Sentry new issues, uptime, admin → Reports queue (the stores expect action on reports within 24 h).</li>
+        <li><b>Weekly, 30 min:</b> admin → Health and Vendors, Resend bounce and complaint rate (stop sending above ~2% complaints), Razorpay captures vs gates, Supabase egress, merge patch-level Dependabot PRs.</li>
+        <li><b>Monthly, 1 h:</b> run the E2E suite against dev (with <code>NOTIFY_EMAILS_ENABLED=false</code>), and review costs.</li>
+        <li><b>Quarterly:</b> restore drill, credential review, renewals.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3>Break-glass switches</h3>
+      <ul>
+        <li>One email template misbehaving → <code>EMAIL_DISABLED_TEMPLATES=&lt;id&gt;</code></li>
+        <li>All email → <code>NOTIFY_EMAILS_ENABLED=false</code></li>
+        <li>A vendor failing or billing out of control → admin → Vendors, switch it off</li>
+        <li>A broadcast gone wrong → <code>BROADCAST_DRY_RUN=true</code> or the <code>vendor_expo_push</code> switch</li>
+        <li>Paid plans misbehaving → <code>SUBSCRIPTIONS_ENABLED=false</code></li>
+        <li>A bad web deploy → redeploy the previous image; don't revert commits under pressure</li>
+        <li>A bad mobile OTA → republish the previous update group (needs F3's manual gate to be calm)</li>
+        <li>A stuck project → <code>record_stage_signoff()</code> / <code>revoke_stage_signoff()</code>, never hand-edit <code>stage_progress</code></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="module-map">
+  <div class="eyebrow">Going deeper, one piece at a time</div>
+  <h2>Module map: the app broken down to its smallest parts</h2>
+  <div class="handoff">
+    <div style="display:grid;gap:8px">
+      <p>This blueprint covers <em>launch</em>: setup, accounts and order of work. The companion page breaks the <em>product</em> down level by level: web or mobile, creator or brand, then the module (projects, requests, campaigns and so on), then each part inside it, down to the smallest unit you can finish. Every unit has a status, its known gaps and a finish line, so you can work on exactly one thing until it's strong.</p>
+      <p class="sub">14 modules · 79 units · 204 finish-line checks · one focus at a time.</p>
+    </div>
+    <a class="go" href="module-map.html">Open the module map →</a>
+  </div>
+</section>
+
+<footer>
+  Updated 19 Sep 2026 after implementation: branch <code>fix/launch-blueprint</code> (27 commits over <code>dev</code>). Original sources: the code on <code>dev</code> at 3cd1ef51; live probes of dev.influnet.io, staging.influnet.io and influnet.io on 18 Sep 2026; the migrations in <code>supabase/migrations</code>; and the earlier audits in <code>docs/operations/</code> (HANDOVER, GO_LIVE_AUDIT_2026-09-17, APP_STORE_READINESS_2026-09-17, BLOCK_0_TO_5_STATUS_2026-09-14). Azure container settings and Supabase Auth settings could not be read from here; their state is as last measured on 16–17 Sep.
+</footer>
+</div>
+
+<script>
+(function(){
+  var KEY='influnet-launch-ticks-v1', saved={};
+  try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+  var boxes=[].slice.call(document.querySelectorAll('.task input[type=checkbox]'));
+  function update(){
+    var n=0;
+    boxes.forEach(function(b){ if(b.checked) n++; b.closest('.task').classList.toggle('checked',b.checked); });
+    document.getElementById('count').textContent=n+' / '+boxes.length+' done';
+    document.getElementById('bar').style.width=(boxes.length? n/boxes.length*100:0)+'%';
+  }
+  boxes.forEach(function(b){
+    if(saved[b.id]) b.checked=true;
+    b.addEventListener('change',function(){
+      saved[b.id]=b.checked;
+      try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}
+      update();
+    });
+  });
+  update();
+})();
+(function(){
+  var KEY='influnet-theme', root=document.documentElement, host=root.getAttribute('data-theme');
+  var btns=[].slice.call(document.querySelectorAll('.theme button'));
+  function apply(t){
+    if(t==='light'||t==='dark') root.setAttribute('data-theme',t);
+    else if(host) root.setAttribute('data-theme',host); else root.removeAttribute('data-theme');
+    btns.forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-t')===t));});
+  }
+  var t='auto'; try{t=localStorage.getItem(KEY)||'auto';}catch(e){}
+  apply(t);
+  btns.forEach(function(b){b.addEventListener('click',function(){
+    var v=b.getAttribute('data-t'); try{localStorage.setItem(KEY,v);}catch(e){} apply(v);
+  });});
+})();
+</script>

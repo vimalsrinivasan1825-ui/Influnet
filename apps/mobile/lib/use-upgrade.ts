@@ -44,10 +44,21 @@ async function pollForPro(attempts = 6, delayMs = 2500): Promise<void> {
   }
 }
 
+// Set only on the `production` EAS profile — the one submitted to the App
+// Store and Play Store. Apple 3.1.1 and Google's Payments policy require
+// in-app purchases of subscriptions to go through IAP/Play Billing, not an
+// outside checkout, so store builds must not offer this path at all. Pro
+// bought on the web still applies here: entitlements always come from
+// /api/billing/entitlements, never from this flow.
+export const HIDE_PRO_PURCHASE = process.env.EXPO_PUBLIC_HIDE_PRO_PURCHASE === '1';
+
 export function useUpgrade() {
   const [busy, setBusy] = useState(false);
 
   const upgrade = useCallback(async (): Promise<UpgradeOutcome> => {
+    if (HIDE_PRO_PURCHASE) {
+      return { status: 'unavailable', message: 'Plan changes are not available in the app.' };
+    }
     if (busy) return { status: 'cancelled' };
     setBusy(true);
     try {

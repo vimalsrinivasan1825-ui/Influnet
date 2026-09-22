@@ -52,6 +52,21 @@ export function isObservabilityEnabled(): boolean {
   return dsn() !== null;
 }
 
+/**
+ * Which build this event came from.
+ *
+ * Every deploy sets this to its git SHA (`SENTRY_RELEASE`, from the workflow's
+ * `github.sha`). Without it every event in Sentry belongs to the same nameless
+ * build, which makes the two questions you actually ask after a deploy —
+ * "did my fix ship?" and "when did this start?" — unanswerable.
+ *
+ * Read per call rather than cached: the value is a plain env lookup, and
+ * caching it would only make the tests re-import the module for no gain.
+ */
+function release(): string | undefined {
+  return process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_SENTRY_RELEASE || undefined;
+}
+
 function hex(bytes: number): string {
   const a = new Uint8Array(bytes);
   // Web Crypto is available in Node 20+ and the edge runtime.
@@ -84,6 +99,7 @@ export function captureException(error: unknown, context: CaptureContext = {}): 
     platform: 'node',
     level: 'error',
     environment: appEnv,
+    release: release(),
     server_name: undefined as string | undefined,
     exception: {
       values: [

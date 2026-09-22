@@ -5,8 +5,8 @@ import Link from 'next/link';
 
 const STATS = [
   { 
-    value: '10M+', 
-    label: 'Creators on the rise', 
+    value: '12', 
+    label: 'Stages, invite to payment', 
     icon: (
       <svg className="w-5 h-5 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -15,8 +15,8 @@ const STATS = [
     bg: 'bg-pink-50/70 border border-pink-100/60' 
   },
   { 
-    value: '50K+', 
-    label: 'Businesses trust us', 
+    value: 'Both', 
+    label: 'Sides sign off each stage', 
     icon: (
       <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m9 0V9a2 2 0 00-2-2M5 21V11a2 2 0 002-2h2a2 2 0 002 2v10m-3-10v10m1-10v10m3-10v10M9 5h.01M15 5h.01M9 9h.01M15 9h.01M3 13h.01M3 17h.01M21 13h.01M21 17h.01M12 5H7v4h5V5z" />
@@ -25,8 +25,8 @@ const STATS = [
     bg: 'bg-purple-50/70 border border-purple-100/60' 
   },
   { 
-    value: '100%', 
-    label: 'Transparent platform', 
+    value: '₹0', 
+    label: 'To create your profile', 
     icon: (
       <svg className="w-5 h-5 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 00-2-2H5a2 2 0 00-2 2v12m4.5-12v12m0-12a2 2 0 012-2h2a2 2 0 012 2v12m0-12a2 2 0 012-2h2a2 2 0 012 2v12m-9-3.5h9" />
@@ -35,8 +35,8 @@ const STATS = [
     bg: 'bg-pink-50/70 border border-pink-100/60' 
   },
   { 
-    value: 'Global', 
-    label: 'Opportunities for all', 
+    value: 'India', 
+    label: 'Built for Indian creators & brands', 
     icon: (
       <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -151,7 +151,7 @@ export default function Vision() {
                       <img key={i} src={av} alt="avatar" className="w-5 h-5 rounded-full border border-white object-cover" />
                     ))}
                   </div>
-                  <span className="text-[7.5px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-md ml-1">+12K</span>
+                  <span className="text-[7.5px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-md ml-1">✓</span>
                 </div>
               </motion.div>
 

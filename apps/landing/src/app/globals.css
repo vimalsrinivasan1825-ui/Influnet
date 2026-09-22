@@ -16,6 +16,10 @@
   --verified-tint: #e9f7f1;
   --amber: #b7791f;
   --amber-tint: #fdf5e7;
+  --brand: #ff078e;
+  --brand-deep: #c8307f;
+  --night: #141118;
+  --night-soft: #c9c1d1;
 }
 
 @theme inline {
@@ -34,6 +38,10 @@
   --color-verified-tint: var(--verified-tint);
   --color-amber: var(--amber);
   --color-amber-tint: var(--amber-tint);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-night: var(--night);
+  --color-night-soft: var(--night-soft);
   --font-display: var(--font-bricolage);
   --font-sans: var(--font-instrument);
   --font-mono: var(--font-spline-mono);
@@ -64,7 +72,8 @@ button {
 :focus-visible {
   outline: 2px solid var(--magenta);
   outline-offset: 2px;
-  border-radius: 2px;
+  /* No border-radius here: outlines already follow each element's own shape,
+     and forcing 2px squared every round button while it had focus. */
 }
 
 /* Mono eyebrow label — the recurring "on the record" device */
@@ -141,6 +150,22 @@ button {
   animation-delay: var(--d, 0s);
 }
 
+@keyframes beam-flow {
+  0% {
+    stroke-dashoffset: 168;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.flowing-beam {
+  /* 36 + 132 = 168: one full pattern per loop, so the beam never jumps. */
+  stroke-dasharray: 36 132;
+  animation: beam-flow var(--beam-speed, 2.6s) cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation-delay: var(--beam-delay, 0s);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -151,5 +176,43 @@ button {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Hero pieces wait for their GSAP entrance so they never flash in their final
+   state before hydration. Reduced motion and no-JS both reveal them. */
+[data-reveal] {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    visibility: visible;
+  }
+  [data-page-intro] {
+    display: none;
+  }
+}
+
+/* Lenis smooth scroll */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Help bot: each new message settles in from below. */
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }

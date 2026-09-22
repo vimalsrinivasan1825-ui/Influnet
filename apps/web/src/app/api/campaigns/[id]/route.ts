@@ -4,6 +4,7 @@
  *
  * Envelope: `campaign`.
  */
+import { checkContent, contentProblemBody } from '@/lib/content-filter';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
@@ -80,6 +81,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
 
+    // Objectionable-content filter (Apple 1.2): refuse, naming the field.
+    const contentProblem = checkContent(parsed.data, ['title', 'description', 'deliverables', 'location']);
+    if (contentProblem) return NextResponse.json(contentProblemBody(contentProblem), { status: contentProblem.status });
+
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     for (const [k, v] of Object.entries(parsed.data)) {
       if (v !== undefined) updates[k] = v;
@@ -89,6 +94,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     // the free-tier live-campaign cap (C6) — this is where "publish" actually
     // happens; a draft can be as empty as its owner likes.
     if (parsed.data.status === 'live' && existing.status !== 'live') {
+      // Publishing needs an approved business, exactly like creating a campaign
+      // does. This path had NO check, so a draft could be published by a business
+      // that was never approved (or whose approval was later withdrawn). The
+      // campaigns_business_guard trigger (migration 164) enforces the same rule
+      // in the database; this gives the person a clear message instead of its error.
+      const { data: bizProfile } = await supabase
+        .from('business_profiles')
+        .select('approval_status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (bizProfile?.approval_status !== 'approved') {
+        return jsonError(403, 'Your business account must be approved before publishing campaigns');
+      }
+
       // Title is required (already enforced by schema min(1)).
       const desc = (updates.description as string) ?? existing.description ?? '';
       // BUG FIXED: this previously compared updates.deliverables to itself,
