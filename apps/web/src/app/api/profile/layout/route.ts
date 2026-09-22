@@ -4,6 +4,28 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 
 /**
+ * GET /api/profile/layout — the caller's own published layout, resolved.
+ *
+ * Returns `{ layout, username }`. The mobile editor starts from this and needs
+ * the username to load the page it previews.
+ */
+export async function GET(req: Request) {
+  const auth = await withAuth(req, { role: 'influencer' });
+  if (!auth.ok) return auth.res;
+
+  const [{ data, error }, { data: me }] = await Promise.all([
+    auth.supabase.rpc('get_profile_layout', { p_user_id: auth.user.id }),
+    auth.supabase.from('influencer_profiles').select('username').eq('user_id', auth.user.id).maybeSingle(),
+  ]);
+  if (error) return jsonError(500, 'Could not load your layout. Try again.', error);
+
+  return NextResponse.json({
+    layout: resolveProfileLayout(data),
+    username: (me as { username?: string } | null)?.username ?? null,
+  });
+}
+
+/**
  * PUT /api/profile/layout — publish the caller's public-profile layout.
  *
  * Body: a ProfileLayout (packages/core/src/profile-layout.ts). Returns

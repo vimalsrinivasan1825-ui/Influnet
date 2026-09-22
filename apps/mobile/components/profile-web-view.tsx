@@ -14,23 +14,23 @@
  * did anyway). Every build from the WebView release onward has the module and
  * takes the embed path.
  */
-import { Component, type ReactNode, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Share, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, Share2 } from 'lucide-react-native';
-import { useTheme } from '@/lib/theme';
-import { API_BASE_URL } from '@/lib/supabase';
-import { Button, Card, PressableScale, Screen, Txt } from '@/components/ui';
+import { Component, type ReactNode, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Share, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { useRouter } from "expo-router";
+import { ArrowLeft, Share2 } from "lucide-react-native";
+import { useTheme } from "@/lib/theme";
+import { API_BASE_URL } from "@/lib/supabase";
+import { Button, Card, PressableScale, Screen, Txt } from "@/components/ui";
 
 // Guarded — see the header. `WebViewComponent` is undefined on a build whose
 // binary predates the native module.
 let WebViewComponent: any;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  WebViewComponent = require('react-native-webview').WebView;
+  WebViewComponent = require("react-native-webview").WebView;
 } catch {
   WebViewComponent = undefined;
 }
@@ -61,8 +61,17 @@ class WebViewGuard extends Component<
   }
 }
 
-export function ProfileWebView(props: { username: string; title?: string }) {
-  const origin = API_BASE_URL.replace(/\/$/, '');
+type ProfileWebViewProps = {
+  username: string;
+  title?: string;
+  /** Extra query for the page, e.g. `design=hero:cover` from the design editor. */
+  query?: string;
+  /** No native header — the host screen draws its own (the design editor). */
+  bare?: boolean;
+};
+
+export function ProfileWebView(props: ProfileWebViewProps) {
+  const origin = API_BASE_URL.replace(/\/$/, "");
   const publicUrl = `${origin}/${encodeURIComponent(props.username)}`;
   const title = props.title ?? `@${props.username}`;
 
@@ -80,10 +89,9 @@ export function ProfileWebView(props: { username: string; title?: string }) {
 function NativeProfileWebView({
   username,
   title,
-}: {
-  username: string;
-  title?: string;
-}) {
+  query,
+  bare = false,
+}: ProfileWebViewProps) {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -91,17 +99,25 @@ function NativeProfileWebView({
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
-  const origin = API_BASE_URL.replace(/\/$/, '');
-  const startUrl = `${origin}/${encodeURIComponent(username)}?app=1`;
+  const origin = API_BASE_URL.replace(/\/$/, "");
+  const startUrl = `${origin}/${encodeURIComponent(username)}?app=1${query ? `&${query}` : ""}`;
   const publicUrl = `${origin}/${encodeURIComponent(username)}`;
   const profilePath = `/${username}`.toLowerCase();
 
   function allowNavigation(req: { url: string }): boolean {
     const url = req.url;
-    if (url === startUrl || url === `${origin}${profilePath}` || url === `${origin}${profilePath}/`) {
+    if (
+      url === startUrl ||
+      url === `${origin}${profilePath}` ||
+      url === `${origin}${profilePath}/`
+    ) {
       return true;
     }
-    if (url.startsWith('about:') || url.startsWith('data:')) return true;
+    // The design editor's preview (`?app=1&design=…`) may come back re-encoded.
+    if (url.toLowerCase().startsWith(`${origin}${profilePath}?app=1`)) {
+      return true;
+    }
+    if (url.startsWith("about:") || url.startsWith("data:")) return true;
     if (url.startsWith(`${origin}${profilePath}/media-kit`)) return true;
     void Linking.openURL(url).catch(() => {});
     return false;
@@ -117,29 +133,34 @@ function NativeProfileWebView({
 
   return (
     <View style={{ flex: 1, backgroundColor: t.color.surface }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: t.spacing.sm,
-          paddingHorizontal: t.spacing.screen,
-          paddingTop: insets.top + t.spacing.sm,
-          paddingBottom: t.spacing.sm,
-          backgroundColor: t.color.surfaceCard,
-          borderBottomWidth: 1,
-          borderBottomColor: t.color.hairline,
-        }}
-      >
-        <PressableScale onPress={() => router.back()} accessibilityLabel="Back">
-          <ArrowLeft size={22} color={t.color.content} />
-        </PressableScale>
-        <Txt variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
-          {title ?? `@${username}`}
-        </Txt>
-        <PressableScale onPress={share} accessibilityLabel="Share profile">
-          <Share2 size={20} color={t.color.content} />
-        </PressableScale>
-      </View>
+      {bare ? null : (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: t.spacing.sm,
+            paddingHorizontal: t.spacing.screen,
+            paddingTop: insets.top + t.spacing.sm,
+            paddingBottom: t.spacing.sm,
+            backgroundColor: t.color.surfaceCard,
+            borderBottomWidth: 1,
+            borderBottomColor: t.color.hairline,
+          }}
+        >
+          <PressableScale
+            onPress={() => router.back()}
+            accessibilityLabel="Back"
+          >
+            <ArrowLeft size={22} color={t.color.content} />
+          </PressableScale>
+          <Txt variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
+            {title ?? `@${username}`}
+          </Txt>
+          <PressableScale onPress={share} accessibilityLabel="Share profile">
+            <Share2 size={20} color={t.color.content} />
+          </PressableScale>
+        </View>
+      )}
 
       <View style={{ flex: 1 }}>
         <WebViewComponent
@@ -164,7 +185,13 @@ function NativeProfileWebView({
         ) : null}
 
         {failed ? (
-          <View style={[ABSOLUTE_FILL, styles(t).center, { padding: t.spacing.xl, gap: t.spacing.sm }]}>
+          <View
+            style={[
+              ABSOLUTE_FILL,
+              styles(t).center,
+              { padding: t.spacing.xl, gap: t.spacing.sm },
+            ]}
+          >
             <Txt variant="bodyStrong">Couldn&apos;t load this profile</Txt>
             <Txt variant="footnote" tone="muted" center>
               Check your connection and try again.
@@ -199,14 +226,24 @@ function BrowserFallback({ url, title }: { url: string; title: string }) {
 
   return (
     <Screen>
-      <View style={{ flex: 1, justifyContent: 'center', gap: 12 }}>
+      <View style={{ flex: 1, justifyContent: "center", gap: 12 }}>
         <Card style={{ gap: 8 }}>
           <Txt variant="title3">{title}</Txt>
           <Txt variant="footnote" tone="muted">
-            Opening this profile in your browser. Update the app for the in-app view.
+            Opening this profile in your browser. Update the app for the in-app
+            view.
           </Txt>
-          <Button label="Open again" size="md" onPress={() => WebBrowser.openBrowserAsync(url)} />
-          <Button label="Back" size="md" variant="secondary" onPress={() => router.back()} />
+          <Button
+            label="Open again"
+            size="md"
+            onPress={() => WebBrowser.openBrowserAsync(url)}
+          />
+          <Button
+            label="Back"
+            size="md"
+            variant="secondary"
+            onPress={() => router.back()}
+          />
         </Card>
       </View>
     </Screen>
@@ -214,7 +251,7 @@ function BrowserFallback({ url, title }: { url: string; title: string }) {
 }
 
 const ABSOLUTE_FILL = {
-  position: 'absolute' as const,
+  position: "absolute" as const,
   top: 0,
   left: 0,
   right: 0,
@@ -223,8 +260,8 @@ const ABSOLUTE_FILL = {
 
 const styles = (t: ReturnType<typeof useTheme>) => ({
   center: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     backgroundColor: t.color.surface,
   },
 });

@@ -180,3 +180,30 @@ export function resolveProfileLayout(raw: unknown): ResolvedProfileLayout {
     closingNote: clean.closingNote ?? null,
   };
 }
+
+/**
+ * Section designs as a URL value — `hero:cover,work:grid` — for previewing a
+ * layout that is not published yet. The mobile editor loads the real web page
+ * in a WebView with `?app=1&design=…`, because the page is the only renderer.
+ *
+ * Only DESIGNS travel this way, never the closing note or featured posts: a
+ * design can change how a creator's facts look, but a crafted link must not be
+ * able to put words or posts on somebody else's page.
+ */
+export function profileDesignParam(sections: Partial<ProfileLayoutSections>): string {
+  return PROFILE_LAYOUT_ORDER.filter((s) => sections[s])
+    .map((s) => `${s}:${sections[s]}`)
+    .join(',');
+}
+
+/** Applies a `design` value over a resolved layout. Unknown pairs are ignored. */
+export function applyProfileDesignParam(layout: ResolvedProfileLayout, param: unknown): ResolvedProfileLayout {
+  if (typeof param !== 'string' || !param || param.length > 300) return layout;
+  const raw: Record<string, string> = {};
+  for (const pair of param.split(',')) {
+    const [section, variant] = pair.split(':');
+    if (section && variant) raw[section] = variant;
+  }
+  const clean = sanitizeProfileLayout({ sections: raw });
+  return clean.sections ? { ...layout, sections: { ...layout.sections, ...clean.sections } } : layout;
+}

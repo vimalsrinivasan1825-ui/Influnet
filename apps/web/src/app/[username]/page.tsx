@@ -110,7 +110,7 @@ export default async function PublicProfilePage({
   searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ mock?: string }>;
+  searchParams: Promise<{ mock?: string; app?: string; design?: string; customize?: string }>;
 }) {
   const { username } = await params;
   const lower = username.toLowerCase();
