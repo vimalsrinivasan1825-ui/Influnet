@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { APP_URL } from '@/lib/site';
 
 const OPPORTUNITIES = [
   {
@@ -110,7 +111,7 @@ export default function Opportunities() {
 
         <div className="text-center">
           <Link
-            href={`${process.env.NEXT_PUBLIC_APP_URL}/signup/business`}
+            href={`${APP_URL}/signup/business`}
             className="inline-flex px-8 py-3.5 rounded-full text-base font-bold text-white bg-gray-900 shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 transition-all"
           >
             Join as Business

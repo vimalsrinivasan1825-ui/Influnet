@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { APP_URL } from '@/lib/site';
 
 // --- CountUp Component for Animated Statistics ---
 function CountUp({ end, suffix = '', duration = 1200 }: { end: number; suffix?: string; duration?: number }) {
@@ -586,7 +587,7 @@ export default function CreatorCarousel() {
           </div>
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
             <Link
-              href={`${process.env.NEXT_PUBLIC_APP_URL}/signup/influencer`}
+              href={`${APP_URL}/signup/influencer`}
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs md:text-sm shadow-md shadow-purple-500/25 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
             >
               Create Your Profile Now
