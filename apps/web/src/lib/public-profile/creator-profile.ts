@@ -6,7 +6,7 @@
 // not-yet-available analytics with mock data, controlled by a flag. Flip the flag
 // off (or pass ?mock=0) once real `social_connections` data is wired in.
 
-import { PRICE_TIERS, creatorLevel as getCreatorLevel } from '@influnet/core';
+import { PRICE_TIERS, creatorLevel as getCreatorLevel, profilePostKey } from '@influnet/core';
 import { publicOrigin } from '@/lib/site';
 import type { PublicPortfolioItem } from './get-portfolio';
 
@@ -101,6 +101,36 @@ export interface ProfilePackage {
   featured?: boolean;
 }
 
+/**
+ * One piece of work the profile can show: a captured Instagram post, a captured
+ * YouTube upload, or an entry the creator added to their own portfolio.
+ *
+ * `key` is profilePostKey() of the URL (or `pf:<id>` for a portfolio entry with
+ * no public link) — the value a creator's featured picks are matched against,
+ * so a pick survives the snapshot being re-captured.
+ */
+export interface ShowcaseItem {
+  key: string;
+  kind: 'instagram' | 'youtube' | 'portfolio';
+  url: string | null;
+  thumbUrl: string | null;
+  title: string;
+  /** Raw count, for ranking. Null when the platform didn't report one. */
+  views: number | null;
+  viewsLabel: string | null;
+  takenAt: string | null;
+  isVideo: boolean;
+  /** Portfolio entries only. */
+  brandName?: string | null;
+  verified?: boolean;
+}
+
+/** A single headline figure, e.g. { value: '8.9M', label: 'YouTube subscribers' }. */
+export interface HeadlineNumber {
+  value: string;
+  label: string;
+}
+
 export interface CreatorProfileView {
   name: string;
   username: string;
@@ -157,6 +187,10 @@ export interface CreatorProfileView {
   creatorLevel: { tier: string; label: string; isSelfReported: boolean } | null;
   /** S2 — the year this creator started, if they set one. Null if they didn't. */
   creatingSince: number | null;
+  /** Every showable post, video and portfolio entry, newest first. */
+  showcase: ShowcaseItem[];
+  /** Up to four distinct figures for the numbers section. */
+  headlineNumbers: HeadlineNumber[];
 }
 
 /** Loosely-typed shape of the `get_public_influencer` RPC payload. */
@@ -393,6 +427,7 @@ export interface SnapshotPostView {
   likes: number | null;
   type: string;
   takenAt?: string | null;
+  caption?: string | null;
 }
 
 /** Instagram analytics snapshot, mapped from a social_snapshots row by the page. */
@@ -528,6 +563,105 @@ export function computeReachStat(
     daysCovered >= MIN_DAYS_TO_EXTRAPOLATE ? Math.round((total / daysCovered) * 30) : total;
 
   return { label: '30-Day Reach', value: formatCount(value) };
+}
+
+/**
+ * A short, readable title from an Instagram caption: the first line, without
+ * hashtags or mentions, and never any contact detail the creator typed into it
+ * (same reason the page metadata strips the bio — see creatorMetadata).
+ */
+export function captionTitle(caption: string | null | undefined): string {
+  const firstLine = (caption ?? '').split(/\n/).find((l) => l.trim()) ?? '';
+  const cleaned = extractContact(firstLine)
+    .rest.replace(/[#@][\p{L}\p{N}_.]+/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return 'Instagram post';
+  return cleaned.length > 70 ? `${cleaned.slice(0, 67).trimEnd()}…` : cleaned;
+}
+
+function buildShowcase(
+  ig: InstagramSnapshotView | null,
+  yt: YouTubeSnapshotInput | null,
+  portfolio: PublicPortfolioItem[],
+): ShowcaseItem[] {
+  const items: ShowcaseItem[] = [];
+  const seen = new Set<string>();
+  const push = (item: ShowcaseItem) => {
+    if (seen.has(item.key)) return;
+    seen.add(item.key);
+    items.push(item);
+  };
+
+  // The creator's own portfolio entries first: they chose these.
+  for (const p of portfolio) {
+    if (p.source !== 'manual' || (!p.thumbnailUrl && !p.contentUrl)) continue;
+    push({
+      key: profilePostKey(p.contentUrl) ?? `pf:${p.id}`,
+      kind: 'portfolio',
+      url: p.contentUrl,
+      thumbUrl: p.thumbnailUrl,
+      title: p.title,
+      views: p.views,
+      viewsLabel: p.views != null ? formatCount(p.views) : null,
+      takenAt: p.happenedAt,
+      isVideo: p.platform === 'youtube',
+      brandName: p.brandName,
+      verified: false,
+    });
+  }
+  for (const post of ig?.posts ?? []) {
+    const key = profilePostKey(post.url);
+    if (!key || !post.thumbUrl) continue;
+    push({
+      key,
+      kind: 'instagram',
+      url: post.url,
+      thumbUrl: post.thumbUrl,
+      title: captionTitle(post.caption),
+      views: post.views,
+      viewsLabel: post.views != null ? formatCount(post.views) : null,
+      takenAt: post.takenAt ?? null,
+      isVideo: post.type === 'Video',
+    });
+  }
+  for (const v of yt?.videos ?? []) {
+    const key = profilePostKey(v.url);
+    if (!key || !v.thumbUrl) continue;
+    push({
+      key,
+      kind: 'youtube',
+      url: v.url,
+      thumbUrl: v.thumbUrl,
+      title: v.title,
+      views: v.views,
+      viewsLabel: v.views != null ? formatCount(v.views) : null,
+      takenAt: v.publishedAt,
+      isVideo: true,
+    });
+  }
+  return items.slice(0, 36);
+}
+
+/**
+ * Four DISTINCT figures. The old page showed Instagram followers twice (a chip
+ * and a stat card), which reads as broken rather than emphatic.
+ */
+function buildHeadlineNumbers(
+  ig: InstagramSnapshotView | null,
+  yt: YouTubeSnapshotInput | null,
+  igFollowers: number,
+  ytSubs: number,
+  reach: ProfileStat,
+): HeadlineNumber[] {
+  const out: HeadlineNumber[] = [];
+  if (ytSubs > 0) out.push({ value: formatCount(ytSubs), label: 'YouTube subscribers' });
+  if (igFollowers > 0) out.push({ value: formatCount(igFollowers), label: 'Instagram followers' });
+  if (ig?.avgViews != null && ig.avgViews > 0) out.push({ value: formatCount(ig.avgViews), label: 'Avg views per reel' });
+  else if (yt?.avgViews != null && yt.avgViews > 0) out.push({ value: formatCount(yt.avgViews), label: 'Avg views per video' });
+  if (ig?.engagementRate != null) out.push({ value: `${ig.engagementRate}%`, label: 'Engagement rate' });
+  else if (reach.label === '30-Day Reach') out.push({ value: reach.value, label: '30-day reach' });
+  return out.slice(0, 4);
 }
 
 export function buildCreatorProfileView(
@@ -749,6 +883,16 @@ export function buildCreatorProfileView(
     packages: buildProfilePackages(profile),
     creatorLevel: audienceSize > 0 ? getCreatorLevel(audienceSize, !!(ig || yt)) : null,
     creatingSince: profile.creatingSince ?? null,
+    // Never mocked, same as the portfolio: every tile is a claim about a real post.
+    showcase: buildShowcase(ig, yt, opts.portfolio ?? []),
+    headlineNumbers: useMock
+      ? [
+          { value: MOCK.youtube.subscribers, label: 'YouTube subscribers' },
+          { value: MOCK.instagram.followers, label: 'Instagram followers' },
+          { value: MOCK.instagram.avgViews, label: 'Avg views per reel' },
+          { value: MOCK.engagement, label: 'Engagement rate' },
+        ]
+      : buildHeadlineNumbers(ig, yt, igFollowersReal, ytSubsReal, reachStat),
   };
 }
 
@@ -802,10 +946,11 @@ function priceLabelOf(profile: RawPublicProfile): string {
 }
 
 function buildProfilePackages(profile: RawPublicProfile): ProfilePackage[] {
-  let types = (profile.collabTypes ?? []).filter((t) => PACKAGE_COPY[t]);
-  if (types.length === 0) {
-    types = ['YouTube Video', 'Event Appearance', 'Post'];
-  }
+  // No formats chosen means no rate card. This used to invent one — YouTube
+  // video, event appearance and post at "₹25,000+" — which put prices on a real
+  // creator's page that they never set, for work they may not even do.
+  const types = (profile.collabTypes ?? []).filter((t) => PACKAGE_COPY[t]);
+  if (types.length === 0) return [];
   const priceLabel = priceLabelOf(profile);
   const featuredIdx = types.length >= 3 ? 1 : types.length - 1;
   return types.slice(0, 3).map((t, i) => ({

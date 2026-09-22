@@ -33,6 +33,7 @@ export async function getInstagramSnapshot(userId: string): Promise<InstagramSna
       likes: typeof p.likes === 'number' ? p.likes : null,
       type: typeof p.type === 'string' ? p.type : 'Image',
       takenAt: typeof p.takenAt === 'string' ? p.takenAt : (typeof p.taken_at === 'string' ? p.taken_at : null),
+      caption: typeof p.caption === 'string' ? p.caption.slice(0, 400) : null,
     }));
 
   return {

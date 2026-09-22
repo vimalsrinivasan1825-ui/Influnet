@@ -3,9 +3,15 @@
 import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import CreatorProfileViewComponent, {
-  type CreatorProfileViewProps,
-} from "@/components/public-profile/creator-profile-view";
+import EditorialProfile, {
+  type EditorialProfileProps,
+} from "@/components/public-profile/editorial/editorial-profile";
+
+/** What /api/creators/[username] returns — the props the profile needs. */
+type CreatorPayload = Pick<
+  EditorialProfileProps,
+  "data" | "layout" | "isOwner" | "isPro" | "ctaHref" | "ctaLabel" | "collaborationStats"
+>;
 
 /**
  * Renders a creator's public profile (same view model as /c/[username]) as an
@@ -22,7 +28,7 @@ export function CreatorProfileOverlay({
   const [state, setState] = useState<
     | { status: "loading" }
     | { status: "error" }
-    | ({ status: "ready" } & CreatorProfileViewProps)
+    | ({ status: "ready" } & CreatorPayload)
   >({ status: "loading" });
 
   useEffect(() => {
@@ -30,7 +36,7 @@ export function CreatorProfileOverlay({
     let cancelled = false;
     setState({ status: "loading" });
     (async () => {
-      const res = await apiFetch<CreatorProfileViewProps>(
+      const res = await apiFetch<CreatorPayload>(
         `/api/creators/${encodeURIComponent(username)}`,
       );
       if (cancelled) return;
@@ -89,11 +95,15 @@ export function CreatorProfileOverlay({
             </div>
           )}
           {state.status === "ready" && (
-            <CreatorProfileViewComponent
+            <EditorialProfile
               data={state.data}
+              layout={state.layout}
               isOwner={state.isOwner}
+              isPro={state.isPro}
               ctaHref={state.ctaHref}
               ctaLabel={state.ctaLabel}
+              collaborationStats={state.collaborationStats}
+              inline
             />
           )}
         </div>

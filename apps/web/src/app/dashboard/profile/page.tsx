@@ -3,7 +3,11 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { ExternalLink, UserRound } from 'lucide-react';
 import { createRSCClient } from '@/lib/supabase/server-rsc';
-import CreatorProfileViewComponent from '@/components/public-profile/creator-profile-view';
+import EditorialProfile from '@/components/public-profile/editorial/editorial-profile';
+import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
+import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
+import { getProfileLayout } from '@/lib/public-profile/get-layout';
+import { applySectionVisibility } from '@/lib/public-profile/profile-layout-view';
 import { buildCreatorProfileView, type RawPublicProfile } from '@/lib/public-profile/creator-profile';
 import { getInstagramSnapshot } from '@/lib/public-profile/get-instagram-snapshot';
 import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
@@ -136,12 +140,25 @@ export default async function MyPublicProfilePage() {
   // takes `p_user_id` and returns a flat array of brand-name strings — so the
   // call errored, the array came back empty, and this page showed no past
   // collaborations while /c/[username] showed them all.
-  const [instagram, youtube, reviews, collabsRes] = await Promise.all([
+  const [instagram, youtube, reviews, collabsRes, portfolio, visibility, layout, collabStats] = await Promise.all([
     getInstagramSnapshot(profile.userId),
     getYouTubeSnapshot(profile.userId),
     getPublicReviews(profile.userId),
     (rsc.rpc as any)('get_creator_collaborations', { p_user_id: profile.userId }),
+    getCreatorPortfolio(supabaseAnon, profile.userId),
+    getProfileVisibility(supabaseAnon, profile.userId),
+    getProfileLayout(supabaseAnon, profile.userId),
+    (supabaseAnon.rpc as any)('get_collaboration_stats', { p_user_id: profile.userId }),
   ]);
+  const statsRow = Array.isArray(collabStats?.data) ? collabStats.data[0] : null;
+  const collaborationStats = collabStats?.error || !statsRow ? null : {
+    partners: statsRow.partners_total ?? 0,
+    projectsTotal: statsRow.projects_total ?? 0,
+    projectsActive: statsRow.projects_active ?? 0,
+    projectsCompleted: statsRow.projects_completed ?? 0,
+    firstCollabAt: statsRow.first_collab_at ?? null,
+    lastCollabAt: statsRow.last_collab_at ?? null,
+  };
 
   const autoCollaborations = Array.isArray(collabsRes?.data)
     ? (collabsRes.data as string[])
@@ -153,7 +170,9 @@ export default async function MyPublicProfilePage() {
     youtube,
     reviews,
     autoCollaborations,
+    portfolio,
   });
+  applySectionVisibility(view, visibility);
 
   return (
     <div className="flex flex-col">
@@ -163,7 +182,7 @@ export default async function MyPublicProfilePage() {
         <div>
           <p className="text-sm font-bold text-content">This is how brands see you</p>
           <p className="text-xs text-content-soft">
-            Live view of your public page at /c/{username}
+            Live view of /{username}. Open the live page to change its design.
           </p>
         </div>
         <div className="flex gap-2">
@@ -184,11 +203,14 @@ export default async function MyPublicProfilePage() {
         </div>
       </div>
 
-      <CreatorProfileViewComponent
+      <EditorialProfile
         data={view}
+        layout={layout}
         isOwner
         ctaHref="/dashboard/settings"
         ctaLabel="Edit profile"
+        collaborationStats={collaborationStats}
+        inline
       />
     </div>
   );
