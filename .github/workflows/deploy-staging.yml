@@ -296,7 +296,7 @@ jobs:
       # a missing secret, and `--set-env-vars X=` would then blank a value set
       # by hand on the container. SENTRY_API_TOKEN (event:read) is not
       # SENTRY_AUTH_TOKEN (source-map upload). See lib/observability-dashboard.ts.
-      - name: Set observability dashboard credentials (when present)
+      - name: Set observability and scheduler credentials (when present)
         uses: azure/cli@v2
         with:
           azcliversion: latest
@@ -308,8 +308,13 @@ jobs:
             add SENTRY_PROJECT "${{ secrets.SENTRY_PROJECT }}"
             add POSTHOG_PERSONAL_API_KEY "${{ secrets.POSTHOG_PERSONAL_API_KEY }}"
             add POSTHOG_PROJECT_ID "${{ vars.POSTHOG_PROJECT_ID }}"
+            # The scheduler's shared secret. /api/cron/* refuses every request
+            # without it (lib/cron-auth.ts), so an unset value is why scheduled
+            # broadcasts and nudges never fired. It rides the same when-present
+            # path: absent secret leaves whatever the container already has.
+            add CRON_SECRET "${{ secrets.CRON_SECRET }}"
             if [ ${#ARGS[@]} -eq 0 ]; then
-              echo "No observability read credentials configured; dashboard will show setup steps."
+              echo "No observability or scheduler credentials configured; those features show setup steps."
               exit 0
             fi
             az containerapp update \
