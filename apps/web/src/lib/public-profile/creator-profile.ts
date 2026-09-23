@@ -7,6 +7,7 @@
 // off (or pass ?mock=0) once real `social_connections` data is wired in.
 
 import { PRICE_TIERS, creatorLevel as getCreatorLevel, profilePostKey } from '@influnet/core';
+import type { AvailabilityStatus } from '@influnet/types';
 import { publicOrigin } from '@/lib/site';
 import type { PublicPortfolioItem } from './get-portfolio';
 
@@ -187,6 +188,12 @@ export interface CreatorProfileView {
   creatorLevel: { tier: string; label: string; isSelfReported: boolean } | null;
   /** S2 — the year this creator started, if they set one. Null if they didn't. */
   creatingSince: number | null;
+  /**
+   * Whether the creator is currently taking work on. Free to every viewer on
+   * purpose: it is the first thing a brand needs and the cheapest way to stop
+   * a request that was never going to be answered.
+   */
+  availability: AvailabilityStatus | null;
   /** Every showable post, video and portfolio entry, newest first. */
   showcase: ShowcaseItem[];
   /** Up to four distinct figures for the numbers section. */
@@ -227,6 +234,8 @@ export interface RawPublicProfile {
   engagementRate?: number | null;
   /** Migration 134. Optional so this stays backward-compatible before it's applied. */
   creatingSince?: number | null;
+  /** Whether the creator is taking work on. Returned by the RPC since 027. */
+  availabilityStatus?: AvailabilityStatus | null;
 }
 
 /** Format a raw count into a compact label: 1284 → "1,284", 92400 → "92.4K". */
@@ -883,6 +892,7 @@ export function buildCreatorProfileView(
     packages: buildProfilePackages(profile),
     creatorLevel: audienceSize > 0 ? getCreatorLevel(audienceSize, !!(ig || yt)) : null,
     creatingSince: profile.creatingSince ?? null,
+    availability: profile.availabilityStatus ?? null,
     // Never mocked, same as the portfolio: every tile is a claim about a real post.
     showcase: buildShowcase(ig, yt, opts.portfolio ?? []),
     headlineNumbers: useMock

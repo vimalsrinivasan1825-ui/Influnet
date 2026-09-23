@@ -1974,3 +1974,27 @@
     transform: none;
   }
 }
+
+/* Availability — "is this creator taking work on right now". Shares the chip
+   and status shapes with the verification badge it sits beside. */
+.chip_open {
+  background: var(--verified-tint);
+  color: var(--verified-ink);
+}
+.chip_limited {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+.chip_paused {
+  background: #f1efec;
+  color: var(--muted);
+}
+.status_open {
+  color: var(--verified);
+}
+.status_limited {
+  color: var(--amber);
+}
+.status_paused {
+  color: var(--muted);
+}

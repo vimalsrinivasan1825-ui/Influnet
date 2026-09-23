@@ -53,6 +53,10 @@ const FREE_FIELDS = [
   // this creator", not "the analysis a brand is buying".
   'creatorLevel',
   'creatingSince',
+  // Whether the creator is open to work. Gating this would be perverse: it
+  // exists to stop a brand sending a request nobody will answer, which costs
+  // the brand time and the creator an unanswered request either way.
+  'availability',
 
   // Trust signals. Never gated — a verification badge that only paying viewers
   // can see is not a trust signal, and hiding ratings would make the platform

@@ -8,6 +8,7 @@ import {
   titleCaseLabel,
   type RawPublicProfile,
 } from '@/lib/public-profile/creator-profile';
+import { toFreeProfileView } from '@/lib/public-profile/tier-projection';
 
 const baseProfile: RawPublicProfile = {
   userId: 'u1',
@@ -327,5 +328,27 @@ describe('computeReachStat', () => {
     const stat = computeReachStat([{ views: 50_000, takenAt: daysAgo(1) }], [], 10_000);
     // One day of content scaled by 30 would claim 1.5M — the sum is the honest figure.
     expect(stat).toEqual({ label: '30-Day Reach', value: '50K' });
+  });
+});
+
+describe('availability reaches a visiting brand', () => {
+  it('carries the creator-set status through to the view', () => {
+    const view = buildCreatorProfileView(
+      { ...baseProfile, availabilityStatus: 'limited' },
+      { mock: false },
+    );
+    expect(view.availability).toBe('limited');
+  });
+
+  it('is null when the creator never set one, rather than guessing "paused"', () => {
+    expect(buildCreatorProfileView(baseProfile, { mock: false }).availability).toBeNull();
+  });
+
+  it('survives the Free projection — a locked availability would defeat its purpose', () => {
+    const view = buildCreatorProfileView(
+      { ...baseProfile, availabilityStatus: 'open' },
+      { mock: false },
+    );
+    expect(toFreeProfileView(view).availability).toBe('open');
   });
 });

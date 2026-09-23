@@ -191,7 +191,9 @@ export async function GET(
     layout: layout ?? resolveProfileLayout({}),
     /** False when the viewer got the Free projection — drives the locked panels. */
     canSeeAudience,
-    availabilityStatus: (profile as { availabilityStatus?: string | null }).availabilityStatus ?? null,
+    // Kept alongside `data.availability` because the mobile profile screen
+    // reads it from the top level.
+    availabilityStatus: profile.availabilityStatus ?? null,
     collaborationStats: collabStats?.error || !statsRow ? null : {
       partners: statsRow.partners_total ?? 0,
       projectsTotal: statsRow.projects_total ?? 0,
