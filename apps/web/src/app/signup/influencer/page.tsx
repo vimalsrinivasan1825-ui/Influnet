@@ -272,7 +272,6 @@ function InfluencerSignupContent() {
   const [youtubeHandle, setYoutubeHandle] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
   const [facebookHandle, setFacebookHandle] = useState("");
-  const [snapchatHandle, setSnapchatHandle] = useState("");
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -304,7 +303,6 @@ function InfluencerSignupContent() {
         if (data.youtubeHandle) setYoutubeHandle(data.youtubeHandle);
         if (data.twitterHandle) setTwitterHandle(data.twitterHandle);
         if (data.facebookHandle) setFacebookHandle(data.facebookHandle);
-        if (data.snapchatHandle) setSnapchatHandle(data.snapchatHandle);
         if (data.collabTypes) setCollabTypes(data.collabTypes);
         if (data.priceRange) setPriceRange(data.priceRange);
       }
@@ -322,13 +320,13 @@ function InfluencerSignupContent() {
       JSON.stringify({
         step, firstName, lastName, username, city, state,
         languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
-        facebookHandle, snapchatHandle, collabTypes, priceRange,
+        facebookHandle, collabTypes, priceRange,
       })
     );
   }, [
     step, firstName, lastName, username, city, state,
     languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
-    facebookHandle, snapchatHandle, collabTypes, priceRange,
+    facebookHandle, collabTypes, priceRange,
   ]);
 
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
@@ -343,7 +341,6 @@ function InfluencerSignupContent() {
   const youtubeConnect = useSocialConnect("youtube", youtubeHandle);
   const facebookConnect = useSocialConnect("facebook", facebookHandle);
   const twitterConnect = useSocialConnect("twitter", twitterHandle);
-  const snapchatConnect = useSocialConnect("snapchat", snapchatHandle);
 
   // Fail open on network/server errors — the register RPC is the source of truth
   // and will still reject a taken name, so we never hard-block on a flaky check.
@@ -488,7 +485,6 @@ function InfluencerSignupContent() {
         youtubeHandle,
         twitterHandle,
         facebookHandle: facebookHandle.trim().replace(/^@/, "") || undefined,
-        snapchatHandle: snapchatHandle.trim().replace(/^@/, "") || undefined,
         // Audience numbers from the Connect lookups the creator already ran —
         // otherwise a creator lands with NULL followers and ranks below
         // everyone in discovery until their first in-app refresh hours later.
@@ -923,23 +919,6 @@ function InfluencerSignupContent() {
                           connect={twitterConnect}
                           placeholder="handle"
                           optional
-                        />
-                      ),
-                    },
-                    {
-                      platform: "snapchat",
-                      label: "Snapchat",
-                      filled: snapchatHandle.trim().length > 0,
-                      body: (
-                        <SocialConnectField
-                          platform="snapchat"
-                          value={snapchatHandle}
-                          onChange={setSnapchatHandle}
-                          connect={snapchatConnect}
-                          placeholder="username"
-                          optional
-                          linkOnly
-                          helper="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
                         />
                       ),
                     },

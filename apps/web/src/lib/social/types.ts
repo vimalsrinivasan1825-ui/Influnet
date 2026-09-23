@@ -11,14 +11,13 @@
 // branch on the platform name.
 
 /** Every platform the product knows about, scrapable or not. */
-export type SocialPlatform = 'instagram' | 'youtube' | 'facebook' | 'twitter' | 'snapchat';
+export type SocialPlatform = 'instagram' | 'youtube' | 'facebook' | 'twitter';
 
 export const SOCIAL_PLATFORMS: SocialPlatform[] = [
   'instagram',
   'youtube',
   'facebook',
   'twitter',
-  'snapchat',
 ];
 
 /** Human label for a platform, for UI copy and error messages. */
@@ -27,7 +26,6 @@ export const PLATFORM_LABEL: Record<SocialPlatform, string> = {
   youtube: 'YouTube',
   facebook: 'Facebook',
   twitter: 'X',
-  snapchat: 'Snapchat',
 };
 
 export type SocialErrorKind =
@@ -93,9 +91,9 @@ export interface SocialProfile {
 export interface SocialHandler {
   platform: SocialPlatform;
   /**
-   * False for platforms we deliberately accept a handle for but do not read
-   * (Snapchat). Callers must treat these as "link only" and never present an
-   * unfetched handle as verified.
+   * False for platforms we deliberately accept a handle for but do not read.
+   * Callers must treat these as "link only" and never present an unfetched
+   * handle as verified.
    */
   supported: boolean;
   /** Whether credentials for this handler are present in the environment. */

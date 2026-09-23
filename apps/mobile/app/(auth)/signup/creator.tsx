@@ -65,7 +65,6 @@ export default function CreatorSignup() {
   const [youtube, setYoutube] = useState('');
   const [twitter, setTwitter] = useState('');
   const [facebook, setFacebook] = useState('');
-  const [snapchat, setSnapchat] = useState('');
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState('');
   const [niche, setNiche] = useState<string[]>([]);
@@ -102,7 +101,6 @@ export default function CreatorSignup() {
   const ytConnect = useSocialConnect('youtube', youtube);
   const xConnect = useSocialConnect('twitter', twitter);
   const fbConnect = useSocialConnect('facebook', facebook);
-  const snapConnect = useSocialConnect('snapchat', snapchat);
 
   // Same rule as web: fill only what the user left blank. The lookup is a
   // convenience, never an authority on their own details.
@@ -159,7 +157,6 @@ export default function CreatorSignup() {
         youtubeHandle: youtube.trim().replace(/^@/, '') || undefined,
         twitterHandle: twitter.trim().replace(/^@/, '') || undefined,
         facebookHandle: facebook.trim().replace(/^@/, '') || undefined,
-        snapchatHandle: snapchat.trim().replace(/^@/, '') || undefined,
         // Audience numbers from the Connect lookups the creator already ran,
         // for the same reason instagramFollowers is sent: a profile that lands
         // with NULL followers ranks below everyone in discovery until its first
@@ -364,11 +361,6 @@ export default function CreatorSignup() {
       // is what turns a string into a checked account; clearing the field is
       // still a valid way past this step if another social covers it. `error`
       // deliberately passes: a provider outage must not become a signup wall.
-      //
-      // Snapchat is excluded from the "at least one" test on purpose: it's
-      // link-only (no public stats to read), and the server's own rule doesn't
-      // count it either, so accepting it here would just move the rejection one
-      // step later.
       valid:
         // Instagram is the one required account: it carries the ownership
         // check on the next step, and it's what brands look for first.
@@ -444,23 +436,6 @@ export default function CreatorSignup() {
                     value={twitter}
                     onChangeText={setTwitter}
                     connect={xConnect}
-                  />
-                ),
-              },
-              {
-                platform: 'snapchat',
-                label: 'Snapchat',
-                filled: snapchat.trim().length > 0,
-                body: (
-                  <SocialConnectField
-                    platform="snapchat"
-                    label="Snapchat"
-                    value={snapchat}
-                    onChangeText={setSnapchat}
-                    connect={snapConnect}
-                    placeholder="yourusername"
-                    linkOnly
-                    hint="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
                   />
                 ),
               },

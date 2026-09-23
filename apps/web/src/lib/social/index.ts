@@ -9,7 +9,6 @@ import { fetchInstagramProfile, InstagramProviderError, normalizeHandle as norma
 import { getYouTubeChannel, normalizeYouTubeHandle } from '../youtube';
 import { facebookHandler } from './facebook';
 import { twitterHandler } from './twitter';
-import { snapchatHandler } from './snapchat';
 import {
   SocialProviderError,
   type SocialHandler,
@@ -20,7 +19,6 @@ import {
 export * from './types';
 export { facebookHandler } from './facebook';
 export { twitterHandler } from './twitter';
-export { snapchatHandler } from './snapchat';
 
 const instagramHandler: SocialHandler = {
   platform: 'instagram',
@@ -109,7 +107,6 @@ const HANDLERS: Record<SocialPlatform, SocialHandler> = {
   youtube: youtubeHandler,
   facebook: facebookHandler,
   twitter: twitterHandler,
-  snapchat: snapchatHandler,
 };
 
 export function isSocialPlatform(value: unknown): value is SocialPlatform {
