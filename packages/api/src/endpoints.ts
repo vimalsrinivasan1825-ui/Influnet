@@ -28,6 +28,10 @@ export function createEndpoints(api: ApiClient) {
     /** Who viewed your profile. Free sees the most-recent few + a locked count. */
     profileViewers: <T = unknown>() => api.get<T>('/api/profile/viewers'),
     dismissWelcome: <T = unknown>() => api.post<T>('/api/profile/welcome'),
+    /** The creator's public-profile layout → `{ layout, username }` (migration 173). */
+    profileLayout: <T = unknown>() => api.get<T>('/api/profile/layout'),
+    /** Publish a layout → `{ layout }`, as it will render. */
+    publishProfileLayout: <T = unknown>(layout: unknown) => api.put<T>('/api/profile/layout', layout),
     /**
      * Registers (token) or clears (null) this device's Expo push token.
      * `meta` describes the device (migration 156); on clear, `meta.deviceToken`

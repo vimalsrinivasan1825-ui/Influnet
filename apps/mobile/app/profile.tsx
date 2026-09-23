@@ -24,6 +24,7 @@ import {
   Camera,
   ChevronRight,
   Eye,
+  Palette,
   History,
   LogOut,
   Pencil,
@@ -803,6 +804,13 @@ export default function ProfileScreen() {
           ) : null}
           {isCreator ? (
             <>
+              <ListRow
+                title="Customize public profile"
+                subtitle="Pick a design for each section, then publish"
+                left={<Palette size={19} color={t.color.contentSoft} />}
+                style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}
+                onPress={() => router.push('/profile-design')}
+              />
               <ListRow
                 title={refreshingSocial ? 'Refreshing…' : 'Refresh my numbers'}
                 style={{ borderTopWidth: 1, borderTopColor: t.color.hairline }}

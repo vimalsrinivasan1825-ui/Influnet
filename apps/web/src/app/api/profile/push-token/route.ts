@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { withAuth, jsonError } from '@/lib/api';
+import { withAuth, jsonError, platformFromUserAgent } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 
 /**
@@ -26,6 +26,12 @@ const BodySchema = z.object({
   osVersion: z.string().max(32).optional(),
   permission: z.enum(['granted', 'denied', 'undetermined']).optional(),
 });
+
+/** ios | android | unknown — never 'web', which push_devices refuses. */
+function devicePlatform(req: Request): 'ios' | 'android' | 'unknown' {
+  const p = platformFromUserAgent(req.headers.get('user-agent'));
+  return p === 'ios' || p === 'android' ? p : 'unknown';
+}
 
 function missingFunction(err: { message?: string; code?: string } | null): boolean {
   return !!err && (err.code === 'PGRST202' || /does not exist|Could not find the function/i.test(err.message ?? ''));
@@ -55,7 +61,12 @@ export async function POST(req: Request) {
         ? await supabase.rpc('unregister_push_device', { p_token: body.deviceToken ?? null })
         : await supabase.rpc('register_push_device', {
             p_token: body.token,
-            p_platform: body.platform ?? 'unknown',
+            // App builds older than migration 156 send no platform, which left
+            // every device of theirs labelled 'unknown' in the admin's
+            // Android-vs-iOS split. The request itself still says which it is.
+            // 'web' is not a device platform (156's CHECK allows ios/android/
+            // unknown only), so a browser-shaped UA stays 'unknown'.
+            p_platform: body.platform ?? devicePlatform(req),
             p_app_version: body.appVersion ?? null,
             p_os_version: body.osVersion ?? null,
             p_permission: body.permission ?? 'granted',

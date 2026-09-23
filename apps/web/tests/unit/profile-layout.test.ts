@@ -3,6 +3,8 @@ import {
   DEFAULT_PROFILE_LAYOUT_SECTIONS,
   MAX_CLOSING_NOTE,
   MAX_FEATURED_POSTS,
+  applyProfileDesignParam,
+  profileDesignParam,
   profilePostKey,
   resolveProfileLayout,
   sanitizeProfileLayout,
@@ -142,5 +144,30 @@ describe('groupBookedBrands', () => {
       { name: 'AuraGold', count: 1, latestAt: '2026-03-26' },
     ]);
     expect(otherBrands(['AuraGold', 'Nykaa'], rows)).toEqual(['Nykaa']);
+  });
+});
+
+describe('design preview param', () => {
+  it('round-trips section designs', () => {
+    const base = resolveProfileLayout({});
+    const param = profileDesignParam({ hero: 'cover', work: 'grid' });
+    expect(param).toBe('hero:cover,work:grid');
+    const out = applyProfileDesignParam(base, param);
+    expect(out.sections).toEqual({ ...DEFAULT_PROFILE_LAYOUT_SECTIONS, hero: 'cover', work: 'grid' });
+  });
+
+  it('ignores unknown sections and designs, and never carries text or posts', () => {
+    const base = resolveProfileLayout({ closingNote: 'mine', featured: ['https://instagram.com/p/abc'] });
+    const out = applyProfileDesignParam(base, 'hero:evil,bogus:card,closer:centered,closingNote:hi');
+    expect(out.sections.hero).toBe('card');
+    expect(out.sections.closer).toBe('centered');
+    expect(out.closingNote).toBe('mine');
+    expect(out.featured).toEqual(['https://instagram.com/p/abc']);
+  });
+
+  it('leaves the layout alone for empty or oversized input', () => {
+    const base = resolveProfileLayout({});
+    expect(applyProfileDesignParam(base, undefined)).toBe(base);
+    expect(applyProfileDesignParam(base, 'x'.repeat(301))).toBe(base);
   });
 });

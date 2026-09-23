@@ -38,6 +38,8 @@ export interface EditorialProfileProps {
   collaborationStats?: CollaborationStats | null;
   /** Inside the mobile app's WebView: no site chrome, CTAs or owner controls. */
   embedded?: boolean;
+  /** Open the Customize panel on arrival (`?customize=1`, e.g. from a notification). */
+  startCustomizing?: boolean;
   /**
    * Rendered inside another scrolling surface (the dashboard's search overlay,
    * the dashboard preview) rather than as the page. Nothing fixed to the
@@ -59,11 +61,12 @@ export default function EditorialProfile({
   collaborationStats = null,
   embedded = false,
   inline = false,
+  startCustomizing = false,
 }: EditorialProfileProps) {
   const router = useRouter();
   const [published, setPublished] = useState(layout);
   const [draft, setDraft] = useState(layout);
-  const [customizing, setCustomizing] = useState(false);
+  const [customizing, setCustomizing] = useState(startCustomizing && isOwner && !embedded && !inline);
   const [previewing, setPreviewing] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);

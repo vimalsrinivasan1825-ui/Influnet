@@ -58,7 +58,8 @@ export function toMobileHref(link: string | null | undefined): Href | null {
     case 'notifications':
       return '/notifications';
     case 'profile':
-      return '/profile';
+      // `/dashboard/profile/design` → the public-profile design editor.
+      return id === 'design' ? '/profile-design' : '/profile';
 
     default:
       return null;

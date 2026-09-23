@@ -126,6 +126,12 @@ const AUDIENCE_PRESETS: { key: string; label: string; audience: Record<string, u
   { key: "expiring", label: "Pro expiring in 7 days", audience: { role: "both", pro_expiring_within_days: 7 } },
   { key: "dormant", label: "Away for 14+ days", audience: { role: "both", dormant_for_days: 14 } },
   { key: "app_users", label: "Has the app installed", audience: { role: "both", has_push_device: true } },
+  // Platform comes from the device row. Builds older than the platform header
+  // are recognised from the request instead, but only once they next call the
+  // API — so soon after a release these two under-count, and "Has the app
+  // installed" is the safer reach for anything everyone must see.
+  { key: "ios", label: "iPhone users", audience: { role: "both", platforms: ["ios"] } },
+  { key: "android", label: "Android users", audience: { role: "both", platforms: ["android"] } },
 ];
 
 function Composer({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {

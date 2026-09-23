@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 import { movedProfileRedirect } from '@/lib/moved-profiles';
+import { safeNextPath } from '@/lib/safe-next';
 
 // Next.js 16: the `middleware` file convention was renamed to `proxy`,
 // and the file must sit at the same level as `app` (inside src/). There must
@@ -109,9 +110,22 @@ async function updateSession(request: NextRequest, headers: Headers) {
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === '/login') {
+  // Signed in and on /login or the /signup chooser: go where `next` asked for.
+  // This used to always go to /dashboard and drop `next`, so a creator who
+  // clicked "Request to collaborate" on a profile and passed through login
+  // landed on the dashboard instead of the request form.
+  //
+  // /login?add=1 is how the account menu adds a second account while signed
+  // in — the redirect was sending that straight back to the dashboard too.
+  const adding = pathname === '/login' && request.nextUrl.searchParams.get('add') === '1';
+  if (user && (pathname === '/login' || pathname === '/signup') && !adding) {
+    const target = new URL(
+      safeNextPath(request.nextUrl.searchParams.get('next')) ?? '/dashboard',
+      'http://placeholder',
+    );
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    url.pathname = target.pathname;
+    url.search = target.search;
     return NextResponse.redirect(url);
   }
 

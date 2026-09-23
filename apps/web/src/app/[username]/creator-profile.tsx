@@ -16,6 +16,7 @@ import { getYouTubeSnapshot } from '@/lib/public-profile/get-youtube-snapshot';
 import { getPublicReviews } from '@/lib/public-profile/get-reviews';
 import { getCreatorPortfolio } from '@/lib/public-profile/get-portfolio';
 import { getProfileVisibility } from '@/lib/public-profile/get-visibility';
+import { applyProfileDesignParam } from '@influnet/core';
 import { getProfileLayout } from '@/lib/public-profile/get-layout';
 import { applySectionVisibility } from '@/lib/public-profile/profile-layout-view';
 import { publicOrigin } from '@/lib/site';
@@ -77,7 +78,7 @@ export async function CreatorProfile({
   searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ mock?: string; app?: string }>;
+  searchParams: Promise<{ mock?: string; app?: string; design?: string; customize?: string }>;
 }) {
   const [{ username }, sp] = await Promise.all([params, searchParams]);
   const embedded = sp?.app === '1';
@@ -113,7 +114,9 @@ export async function CreatorProfile({
   // Primary CTA. Anonymous visitors land on the entry screen (sign in OR sign
   // up) rather than straight into business signup — a returning brand may
   // already have an account and just needs to sign in.
-  let ctaHref = `/signup?next=/${username}`;
+  // Straight to the request form after signing up or logging in — not back to
+  // this profile, where they would have to find the button a second time.
+  let ctaHref = `/signup?next=${encodeURIComponent(`/dashboard/requests/new?to=${profile.userId}`)}`;
   let ctaLabel = 'Send a request';
   if (isOwner) {
     ctaHref = '/dashboard/settings';
@@ -262,8 +265,12 @@ export async function CreatorProfile({
     <>
       <EditorialProfile
         data={viewForViewer}
-        layout={layout}
+        // The app's editor previews unpublished designs through `design`
+        // (designs only — see applyProfileDesignParam). The web owner already
+        // previews in place, so it is honoured for the embedded page alone.
+        layout={embedded ? applyProfileDesignParam(layout, sp?.design) : layout}
         isOwner={isOwner}
+        startCustomizing={isOwner && sp?.customize === '1'}
         isPro={Boolean(ownerIsPro)}
         ctaHref={ctaHref}
         ctaLabel={ctaLabel}

@@ -185,6 +185,7 @@ export default function RootLayout() {
               <Stack.Screen name="projects/[id]/timeline" options={{ title: 'Timeline' }} />
               <Stack.Screen name="projects/deleted" options={{ title: 'Deleted Projects' }} />
               <Stack.Screen name="edit-profile" options={{ title: 'Edit profile' }} />
+              <Stack.Screen name="profile-design" options={{ title: 'Customize profile' }} />
               {/* Directory route: the screen name is the file path, so
                   app/support/index.tsx registers as "support/index" — same
                   convention as projects/[id]/index above. */}

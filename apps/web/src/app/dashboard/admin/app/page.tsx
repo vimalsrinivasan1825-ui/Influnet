@@ -114,7 +114,9 @@ export default function AppActivityPage() {
           empty={<NoData what="version data" historyStarts={data?.history_starts} />}
         />
         <p className="px-5 pt-3 text-xs text-content-muted">
-          Version and platform come from the app itself, so they fill in as people open the updated build.
+          Android vs iOS is recognised from the request for older builds too, so it fills in the next time
+          someone opens the app. The app version is only reported by the app itself, so it fills in as
+          people move onto the updated build.
         </p>
       </SectionCard>
     </AdminPage>
