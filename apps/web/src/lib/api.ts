@@ -256,7 +256,26 @@ export function parseClientHeader(req: Request): { platform: string; version: st
   const [platform, version] = raw.split('/', 2);
   const known = platform === 'web' || platform === 'ios' || platform === 'android';
   const cleanVersion = version && /^[0-9a-z.\-+]{1,32}$/.test(version) ? version : null;
-  return { platform: known ? platform : 'unknown', version: known ? cleanVersion : null };
+  if (known) return { platform, version: cleanVersion };
+  // No header: an app build older than the header itself, which is most of what
+  // is installed. The request still says what it came from — React Native uses
+  // okhttp on Android and CFNetwork/Darwin on iOS — so the platform is
+  // recoverable without waiting for everyone to update. The version is not, and
+  // stays null rather than being guessed. Still only a label, never a decision.
+  return { platform: platformFromUserAgent(req.headers.get('user-agent')), version: null };
+}
+
+/** Platform from a request's User-Agent, or 'unknown'. Analytics only. */
+export function platformFromUserAgent(ua: string | null): 'web' | 'ios' | 'android' | 'unknown' {
+  const s = (ua ?? '').toLowerCase();
+  if (!s) return 'unknown';
+  // Order matters: an in-app WebView sends a browser UA and is counted as web,
+  // which is what it is — the app's own requests are the ones that say okhttp
+  // or CFNetwork.
+  if (s.includes('mozilla')) return 'web';
+  if (s.includes('okhttp')) return 'android';
+  if (s.includes('cfnetwork') || s.includes('darwin')) return 'ios';
+  return 'unknown';
 }
 
 const lastActiveTouchedAt = new Map<string, number>();
