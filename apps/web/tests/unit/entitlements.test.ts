@@ -119,7 +119,10 @@ describe('toFreeProfileView', () => {
       collabTypes: ['reel'],
       usingMock: false,
       snapshotAge: '2d',
-      packages: [],
+      // The rate card carries the creator's EXACT figures; Free is rewritten
+      // down to `priceBand` rather than losing the section entirely.
+      packages: [{ platform: 'instagram', title: 'Reel', description: '', perks: [], priceLabel: '₹12,000 – ₹18,000' }],
+      priceBand: '₹10K – ₹25K',
 
       // Premium — none of these may survive the projection.
       audience: {
@@ -179,9 +182,20 @@ describe('toFreeProfileView', () => {
       audience: { locations: [], ages: [], genders: [], interests: [] },
       contact: [],
       priceLabel: null,
+      packages: [],
+      priceBand: null,
     };
     const free = toFreeProfileView(sparse) as any;
     expect(free.lockedSections).toEqual([]);
+  });
+
+  it('shows Free the rate BAND rather than a padlock', () => {
+    // "Is this creator in our budget" is the question that decides whether a
+    // brand sends a request at all. Locking it sends them back to Instagram
+    // DMs, which is the behaviour this product exists to replace.
+    const free = toFreeProfileView(fullView()) as any;
+    expect(free.packages[0].priceLabel).toBe('₹10K – ₹25K');
+    expect(JSON.stringify(free)).not.toContain('12,000');
   });
 });
 

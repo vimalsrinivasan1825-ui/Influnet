@@ -82,7 +82,10 @@ const FREE_FIELDS = [
   // Housekeeping the UI needs to render at all
   'usingMock',
   'snapshotAge',
+  // The rate card. `packages` is rewritten below to carry the BAND rather than
+  // the creator's exact figures — see toFreeProfileView.
   'packages',
+  'priceBand',
   // Public posts and follower-level figures — the same facts as `featured`,
   // `videos` and `stats`, just ordered for the section designs.
   'showcase',
@@ -118,7 +121,9 @@ export type LockedSection = 'audience' | 'contact' | 'rate';
  *                 is not only monetisation: a brand that can read the address
  *                 has no reason to run the deal (or the payment, or the
  *                 sign-off) on the platform at all.
- *   priceLabel  — the creator's published rate
+ *   priceLabel  — the creator's exact published rate. Free gets `priceBand`
+ *                 instead, so "in budget?" is answerable without paying and
+ *                 "exactly how much?" is not.
  *   postPreview — the sample-work card that accompanies the rate
  */
 const PRO_ONLY_FIELDS = ['audience', 'contact', 'priceLabel', 'postPreview'] as const;
@@ -136,6 +141,15 @@ export function toFreeProfileView(view: CreatorProfileView): FreeCreatorProfileV
   const out = {} as Record<string, unknown>;
   for (const key of FREE_FIELDS) out[key] = view[key];
 
+  // The rate card is the one section Free sees a DIFFERENT version of rather
+  // than a locked panel. A brand's first question is "is this creator even in
+  // our budget", and a padlock there sends them back to Instagram DMs — which
+  // is the exact behaviour this product exists to replace. So the band ships
+  // free and the exact figures stay the thing Pro buys.
+  if (view.priceBand) {
+    out.packages = view.packages.map((p) => ({ ...p, priceLabel: view.priceBand as string }));
+  }
+
   const locked: LockedSection[] = [];
   const a = view.audience;
   const hasAudience =
@@ -143,7 +157,8 @@ export function toFreeProfileView(view: CreatorProfileView): FreeCreatorProfileV
     (a.locations.length > 0 || a.ages.length > 0 || a.genders.length > 0 || a.interests.length > 0);
   if (hasAudience) locked.push('audience');
   if (view.contact.length > 0) locked.push('contact');
-  if (view.priceLabel) locked.push('rate');
+  // Only when Pro would actually reveal something sharper than the band.
+  if (view.packages.some((p) => p.priceLabel !== view.priceBand)) locked.push('rate');
 
   (out as FreeCreatorProfileView).lockedSections = locked;
   return out as FreeCreatorProfileView;

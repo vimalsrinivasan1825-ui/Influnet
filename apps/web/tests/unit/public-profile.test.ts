@@ -335,20 +335,62 @@ describe('availability reaches a visiting brand', () => {
   it('carries the creator-set status through to the view', () => {
     const view = buildCreatorProfileView(
       { ...baseProfile, availabilityStatus: 'limited' },
-      { mock: false },
+      { useMock: false },
     );
     expect(view.availability).toBe('limited');
   });
 
   it('is null when the creator never set one, rather than guessing "paused"', () => {
-    expect(buildCreatorProfileView(baseProfile, { mock: false }).availability).toBeNull();
+    expect(buildCreatorProfileView(baseProfile, { useMock: false }).availability).toBeNull();
   });
 
   it('survives the Free projection — a locked availability would defeat its purpose', () => {
     const view = buildCreatorProfileView(
       { ...baseProfile, availabilityStatus: 'open' },
-      { mock: false },
+      { useMock: false },
     );
     expect(toFreeProfileView(view).availability).toBe('open');
+  });
+});
+
+describe('rate: a band for Free, exact figures for Pro', () => {
+  const withRate: RawPublicProfile = {
+    ...baseProfile,
+    collabTypes: ['Reel'],
+    priceRange: 'premium',
+    pricingMin: 12_000,
+    pricingMax: 18_000,
+  };
+
+  it('gives Pro the creator’s exact figures', () => {
+    const view = buildCreatorProfileView(withRate, { useMock: false });
+    expect(view.packages[0].priceLabel).toBe('₹12,000 – ₹18,000');
+  });
+
+  it('gives Free the band instead, so "in budget?" is still answerable', () => {
+    const free = toFreeProfileView(buildCreatorProfileView(withRate, { useMock: false }));
+    expect(free.packages[0].priceLabel).toBe('₹10K – ₹25K');
+    // The exact figures must not travel in the payload at all — a Free view
+    // that ships them and hides them in CSS is not a paywall.
+    expect(JSON.stringify(free)).not.toContain('12,000');
+    expect(free.lockedSections).toContain('rate');
+  });
+
+  it('derives a band from a typed minimum when no tier was picked', () => {
+    const view = buildCreatorProfileView(
+      { ...withRate, priceRange: null, pricingMax: null, pricingMin: 6_000 },
+      { useMock: false },
+    );
+    expect(view.priceBand).toBe('₹5K – ₹10K');
+  });
+
+  it('does not advertise a locked rate when the band is all there is', () => {
+    const free = toFreeProfileView(
+      buildCreatorProfileView(
+        { ...withRate, pricingMin: null, pricingMax: null },
+        { useMock: false },
+      ),
+    );
+    expect(free.lockedSections).not.toContain('rate');
   });
 });

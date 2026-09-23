@@ -172,6 +172,13 @@ export interface CreatorProfileView {
   collabTypes: string[];
   /** Human-readable rate, e.g. "₹25K+". Null when the creator hasn't set one. */
   priceLabel: string | null;
+  /**
+   * The coarse band a rate falls into, e.g. "₹10K – ₹25K". Free viewers get
+   * this in place of the exact figures so a brand can still tell whether this
+   * creator is in budget without the platform giving the negotiation away.
+   * Null only when the creator set no rate at all.
+   */
+  priceBand: string | null;
   /** Sample of the creator's actual work for the collaborate section. */
   postPreview: PostPreview | null;
   /** Recent uploads from the captured YouTube snapshot; null when unconnected. */
@@ -890,6 +897,7 @@ export function buildCreatorProfileView(
     instagramHandle: cleanHandle(profile.instagramHandle ?? null),
     youtubeHandle: cleanHandle(profile.youtubeHandle ?? (yt as any)?.handle ?? null),
     packages: buildProfilePackages(profile),
+    priceBand: priceBandOf(profile),
     creatorLevel: audienceSize > 0 ? getCreatorLevel(audienceSize, !!(ig || yt)) : null,
     creatingSince: profile.creatingSince ?? null,
     availability: profile.availabilityStatus ?? null,
@@ -939,20 +947,37 @@ const PACKAGE_COPY: Record<string, Omit<ProfilePackage, 'priceLabel' | 'featured
   },
 };
 
+const PRICE_RANGE_LABEL: Record<string, string> = {
+  entry: '₹1K – ₹5K',
+  standard: '₹5K – ₹10K',
+  premium: '₹10K – ₹25K',
+  pro: '₹25K+',
+};
+
 function priceLabelOf(profile: RawPublicProfile): string {
   const min = profile.pricingMin;
   const max = profile.pricingMax;
   const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
   if (min != null && max != null) return `${inr(min)} – ${inr(max)}`;
   if (min != null) return `${inr(min)}+`;
-  const PRICE_RANGE_LABEL: Record<string, string> = {
-    entry: '₹1K – ₹5K',
-    standard: '₹5K – ₹10K',
-    premium: '₹10K – ₹25K',
-    pro: '₹25K+',
-  };
   const range = (profile.priceRange ?? '').toLowerCase();
   return PRICE_RANGE_LABEL[range] ?? '₹25,000+';
+}
+
+/**
+ * The band an exact rate sits in. Prefers the tier the creator picked at
+ * signup; falls back to bucketing their typed minimum into the same ladder, so
+ * a creator who gave figures instead of a tier still has a band to show.
+ */
+function priceBandOf(profile: RawPublicProfile): string | null {
+  const tier = PRICE_RANGE_LABEL[(profile.priceRange ?? '').toLowerCase()];
+  if (tier) return tier;
+  const min = profile.pricingMin;
+  if (min == null) return null;
+  if (min < 5_000) return PRICE_RANGE_LABEL.entry;
+  if (min < 10_000) return PRICE_RANGE_LABEL.standard;
+  if (min < 25_000) return PRICE_RANGE_LABEL.premium;
+  return PRICE_RANGE_LABEL.pro;
 }
 
 function buildProfilePackages(profile: RawPublicProfile): ProfilePackage[] {
