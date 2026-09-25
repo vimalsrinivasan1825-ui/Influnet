@@ -3,11 +3,14 @@ import { z } from 'zod';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { serviceRoleClient } from '@/lib/supabase/service';
 import { logger } from '@/lib/logger';
+import { SURVEY_EVENTS, loadSurveyForms } from '@/lib/event-survey';
 
 // Pre-event survey for influnet.io/join/survey (landing app, other origin).
 //
 //   { action: 'lookup', event, phone }
-//     → { found: false } | { found: true, registrant, response }
+//     → { found: false } | { found: true, registrant, response, questions }
+//       questions: { creator, business } from event_survey_forms (175),
+//       null if unreadable (the page then falls back to its built-in set)
 //   { action: 'submit', event, phone, role, answers }
 //     → { ok: true }
 //
@@ -18,12 +21,10 @@ import { logger } from '@/lib/logger';
 // recognise themselves: first name, city, Instagram handle and a masked email —
 // never the full email or phone.
 
-const EVENTS = new Set(['silicon-nexus-s2']);
-
 const Phone = z.string().trim().min(7, 'Please enter your phone number').max(30);
-const Event = z.string().trim().refine((v) => EVENTS.has(v), 'Unknown event');
+const Event = z.string().trim().refine((v) => SURVEY_EVENTS.has(v), 'Unknown event');
 
-// Answers are keyed by question id (landing: survey-questions.ts). Each is a
+// Answers are keyed by question id (event_survey_forms, migration 175). Each is a
 // short text or a list of option ids; the bounds keep one submission small.
 const Answer = z.union([
   z.string().trim().max(1000),
@@ -117,11 +118,14 @@ export async function POST(req: Request) {
 
     if (body.action === 'lookup') {
       if (!reg) return NextResponse.json({ found: false }, { headers: CORS_HEADERS });
-      const { data: prior } = await supabase
-        .from('event_survey_responses')
-        .select('role, answers, updated_at')
-        .eq('registration_id', reg.id)
-        .maybeSingle();
+      const [{ data: prior }, questions] = await Promise.all([
+        supabase
+          .from('event_survey_responses')
+          .select('role, answers, updated_at')
+          .eq('registration_id', reg.id)
+          .maybeSingle(),
+        loadSurveyForms(supabase, body.event),
+      ]);
       return NextResponse.json(
         {
           found: true,
@@ -133,6 +137,7 @@ export async function POST(req: Request) {
             checkedIn: Boolean(reg.checked_in_at),
           },
           response: prior ?? null,
+          questions,
         },
         { headers: CORS_HEADERS },
       );

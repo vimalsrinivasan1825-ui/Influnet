@@ -1,6 +1,7 @@
-// Questions for /join/survey. Answers are stored keyed by question id and option
-// id (event_survey_responses.answers, migration 174), so rewording a label is
-// safe but renaming an id splits the data in two.
+// Fallback questions for /join/survey. The live form is edited in admin
+// (/dashboard/admin/event-survey) and stored in event_survey_forms (migration
+// 175, seeded from this file); the page only uses these if it can't load that.
+// Answers are keyed by question id and option id, so ids never change.
 
 export type Role = 'creator' | 'business';
 

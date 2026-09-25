@@ -49,7 +49,10 @@ export default function EventSurvey() {
   const [registrant, setRegistrant] = useState<Registrant | null>(null);
   const name = registrant?.firstName ?? '';
 
-  const questions = role ? QUESTIONS[role] : [];
+  // The live form comes with the lookup (edited in admin); the built-in set is
+  // only a fallback if the server couldn't read it.
+  const [forms, setForms] = useState<Record<Role, Question[]>>(QUESTIONS);
+  const questions = role ? forms[role] : [];
 
   const lookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +71,11 @@ export default function EventSurvey() {
         return;
       }
       setRegistrant(json.registrant);
+      const live = json.questions as Record<Role, Question[]> | null | undefined;
+      setForms({
+        creator: live?.creator?.length ? live.creator : QUESTIONS.creator,
+        business: live?.business?.length ? live.business : QUESTIONS.business,
+      });
       if (json.response) {
         setRole(json.response.role);
         setAnswers(json.response.answers ?? {});

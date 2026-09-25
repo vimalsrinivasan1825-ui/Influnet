@@ -21,6 +21,7 @@ import {
   LayoutDashboard,
   UserRound,
   Ticket,
+  ListChecks,
   Mail,
   BarChart3,
   Inbox,
@@ -144,6 +145,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { label: "Leads", href: "/dashboard/admin/leads", icon: ContactRound },
       { label: "Early access", href: "/dashboard/admin/early-access", icon: Sparkles },
       { label: "Event registrations", href: "/dashboard/admin/event-registrations", icon: Ticket },
+      { label: "Event survey", href: "/dashboard/admin/event-survey", icon: ListChecks },
     ],
   },
   {
