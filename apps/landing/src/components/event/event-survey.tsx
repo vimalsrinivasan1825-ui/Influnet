@@ -7,6 +7,7 @@ import LogoMark from '@/components/brand/logo-mark';
 import { EVENT_API_URL } from '@/components/site/links';
 import { EVENT } from './event';
 import { OTHER_SUFFIX, QUESTIONS, type Question, type Role } from './survey-questions';
+import { SURVEY_JOIN_URL, setHandoffPhone, takeHandoffPhone } from './survey-handoff';
 
 // Pre-event survey: phone → your registration → creator/business questions.
 // API: apps/web/src/app/api/event-survey/route.ts; storage: migration 174.
@@ -46,6 +47,9 @@ export default function EventSurvey() {
   const [answers, setAnswers] = useState<Answers>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The number is valid but nobody registered with it: not an error — the
+  // button becomes "Register now" and /join brings them back here after.
+  const [unregistered, setUnregistered] = useState(false);
   const [registrant, setRegistrant] = useState<Registrant | null>(null);
   const name = registrant?.firstName ?? '';
 
@@ -61,22 +65,23 @@ export default function EventSurvey() {
   const [forms, setForms] = useState<Record<Role, Question[]>>(QUESTIONS);
   const questions = role ? forms[role] : [];
 
-  const lookup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const lookup = async (value: string) => {
     if (busy) return;
-    const digits = phone.replace(/\D/g, '').replace(/^0/, '');
-    if (phone.trim().startsWith('+') ? digits.length < 8 : digits.length !== 10) {
-      setError('Enter the 10-digit mobile number you registered with');
+    setPhone(value);
+    const digits = value.replace(/\D/g, '').replace(/^0/, '');
+    if (value.trim().startsWith('+') ? digits.length < 8 : digits.length !== 10) {
+      setError('Enter your 10-digit mobile number');
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const json = await call({ action: 'lookup', phone: phone.trim() });
+      const json = await call({ action: 'lookup', phone: value.trim() });
       if (!json.found) {
-        setError('We couldn’t find a registration for this number. Try the number you used on the entry pass.');
+        setUnregistered(true);
         return;
       }
+      setUnregistered(false);
       setRegistrant(json.registrant);
       const live = json.questions as Record<Role, Question[]> | null | undefined;
       setForms({
@@ -94,6 +99,31 @@ export default function EventSurvey() {
       setBusy(false);
     }
   };
+
+  const onPhoneSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (unregistered) {
+      setHandoffPhone(phone.trim());
+      window.location.assign(SURVEY_JOIN_URL);
+      return;
+    }
+    lookup(phone);
+  };
+
+  // Back from /join after registering: look the new registration up straight away.
+  // Read in a timer the cleanup cancels, so the handoff (read once, then
+  // removed) is consumed by the effect run that actually stays mounted.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (new URLSearchParams(window.location.search).get('from') !== 'join') return;
+      const handedOver = takeHandoffPhone();
+      window.history.replaceState(null, '', window.location.pathname);
+      if (handedOver) lookup(handedOver);
+    }, 0);
+    return () => clearTimeout(t);
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pickRole = (r: Role) => {
     // Switching role starts the other questionnaire fresh.
@@ -128,7 +158,7 @@ export default function EventSurvey() {
       <main className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
         <div className="rounded-[26px] border border-line bg-card p-5 shadow-[0_24px_60px_-30px_rgba(23,20,29,0.3)] sm:p-8">
           {step.at === 'phone' && (
-            <form onSubmit={lookup} noValidate>
+            <form onSubmit={onPhoneSubmit} noValidate>
               <p className="eyebrow">[ While you wait ]</p>
               <h1 className="mt-2 font-display text-[30px] font-extrabold leading-[1.05] tracking-[-0.035em] sm:text-[36px]">
                 Help us build Influnet <span className="text-brand">for you</span>.
@@ -157,20 +187,35 @@ export default function EventSurvey() {
                   onChange={(e) => {
                     setPhone(e.target.value);
                     setError(null);
+                    setUnregistered(false);
                   }}
                   className="h-full min-w-0 flex-1 bg-transparent text-[17px] outline-none focus-visible:outline-none! placeholder:text-muted"
                 />
               </div>
               {error && <p className="mt-2 text-sm text-red-600" role="alert">{error}</p>}
+              {unregistered && (
+                <div role="status" className="mt-4 rounded-2xl bg-magenta-tint px-4 py-3.5">
+                  <p className="text-[15px] font-semibold text-brand-deep">This number isn’t registered yet.</p>
+                  <p className="mt-1 text-[14px] leading-snug text-ink-soft">
+                    Register in under a minute — you’ll come straight back here for the survey.
+                  </p>
+                </div>
+              )}
               <PrimaryButton busy={busy} className="mt-6">
-                Continue <ArrowRight className="size-5" />
+                {unregistered ? 'Register now' : 'Continue'} <ArrowRight className="size-5" />
               </PrimaryButton>
-              <p className="mt-4 text-center text-sm text-muted">
-                Not registered yet?{' '}
-                <Link href="/join" className="font-semibold text-ink-soft underline underline-offset-4">
-                  Get your entry pass
-                </Link>
-              </p>
+              {!unregistered && (
+                <p className="mt-4 text-center text-sm text-muted">
+                  Not registered yet?{' '}
+                  <Link
+                    href={SURVEY_JOIN_URL}
+                    onClick={() => setHandoffPhone(phone.trim())}
+                    className="font-semibold text-ink-soft underline underline-offset-4"
+                  >
+                    Register now
+                  </Link>
+                </p>
+              )}
             </form>
           )}
 
