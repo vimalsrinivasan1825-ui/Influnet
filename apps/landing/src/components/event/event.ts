@@ -27,6 +27,14 @@ export const EVENT = {
     '&details=' + encodeURIComponent('Show your Influnet entry pass (QR) at the entrance.'),
 } as const;
 
+// Shown on the pass (/join) and on the survey's thank-you screen.
+export const AGENDA = [
+  { time: '3:00 – 3:10 PM', title: 'Intro' },
+  { time: '3:10 – 3:50 PM', title: 'Influnet showcase', detail: 'Interaction with creators and influencers' },
+  { time: '4:00 – 5:00 PM', title: 'Business GTM & AI enablement', detail: 'Discussion and product showcase' },
+  { time: '5:00 – 6:00 PM', title: 'Food & networking' },
+] as const;
+
 export type Pass = { passCode: string; name: string };
 
 /** One SVG path for every dark module, in module units (no quiet zone). */

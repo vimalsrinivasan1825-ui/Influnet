@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, AtSign, Briefcase, Check, Loader2, Mail, MapPin,
 import LogoMark from '@/components/brand/logo-mark';
 import { EVENT_API_URL } from '@/components/site/links';
 import { EVENT } from './event';
+import EventAgenda from './event-agenda';
 import { OTHER_SUFFIX, QUESTIONS, type Question, type Role } from './survey-questions';
 import { SURVEY_JOIN_URL, setHandoffPhone, takeHandoffPhone } from './survey-handoff';
 
@@ -311,6 +312,7 @@ export default function EventSurvey() {
               >
                 Change my answers
               </button>
+              <EventAgenda className="mt-8" />
             </div>
           )}
         </div>

@@ -19,6 +19,7 @@ import LogoMark from '@/components/brand/logo-mark';
 import { APP_URL, EVENT_API_URL } from '@/components/site/links';
 import { EVENT, firstName, qrPath, type Pass } from './event';
 import { renderPassPng } from './pass-image';
+import EventAgenda from './event-agenda';
 import { trackMeta } from '@/components/analytics/meta-pixel';
 import { SURVEY_RETURN_URL, cameFromSurvey, peekHandoffPhone, setHandoffPhone } from './survey-handoff';
 
@@ -706,6 +707,8 @@ function PassView({ pass, returning, onReset }: { pass: Pass; returning: boolean
       >
         <CalendarPlus className="size-5" /> Add to calendar
       </a>
+
+      <EventAgenda className="mt-6" />
 
       <div className="mt-6 rounded-2xl border border-line bg-paper-deep p-4 text-[14px] leading-relaxed text-ink-soft">
         While you wait: Influnet is where creators and brands find each other, agree terms and deliver campaigns — every step on the record.{' '}
