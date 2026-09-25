@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, AtSign, Briefcase, Check, Loader2, Mail, MapPin, Sparkles } from 'lucide-react';
 import LogoMark from '@/components/brand/logo-mark';
@@ -48,6 +48,13 @@ export default function EventSurvey() {
   const [error, setError] = useState<string | null>(null);
   const [registrant, setRegistrant] = useState<Registrant | null>(null);
   const name = registrant?.firstName ?? '';
+
+  // Each step is a new screen: start it at the top, not wherever the last one
+  // was scrolled to (on a phone that can be past the question itself).
+  const stepKey = step.at === 'questions' ? `q${step.index}` : step.at;
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [stepKey]);
 
   // The live form comes with the lookup (edited in admin); the built-in set is
   // only a fallback if the server couldn't read it.
@@ -101,7 +108,6 @@ export default function EventSurvey() {
     try {
       await call({ action: 'submit', phone: phone.trim(), role, answers: clean(answers) });
       setStep({ at: 'done' });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setError(err instanceof TypeError ? NETWORK_ERROR : (err as Error).message);
     } finally {
@@ -135,8 +141,8 @@ export default function EventSurvey() {
                 Mobile number
               </label>
               <div
-                className={`mt-2 flex h-14 items-center rounded-2xl border bg-paper px-4 focus-within:border-ink ${
-                  error ? 'border-red-500' : 'border-line'
+                className={`mt-2 flex h-14 items-center rounded-2xl border bg-paper px-4 ${
+                  error ? 'border-red-500' : 'border-line focus-within:border-ink'
                 }`}
               >
                 <span className="mr-3 font-semibold text-muted">+91</span>
@@ -152,7 +158,7 @@ export default function EventSurvey() {
                     setPhone(e.target.value);
                     setError(null);
                   }}
-                  className="h-full min-w-0 flex-1 bg-transparent text-[17px] outline-none"
+                  className="h-full min-w-0 flex-1 bg-transparent text-[17px] outline-none focus-visible:outline-none! placeholder:text-muted"
                 />
               </div>
               {error && <p className="mt-2 text-sm text-red-600" role="alert">{error}</p>}
@@ -175,7 +181,7 @@ export default function EventSurvey() {
                 Hi {registrant.firstName} 👋
               </h1>
               <p className="mt-2 text-[16px] text-ink-soft">Here’s what we have from your registration.</p>
-              <div className="mt-5 space-y-2.5">
+              <div className="mt-4 space-y-2">
                 {registrant.location && <Detail icon={<MapPin className="size-4" />} value={registrant.location} />}
                 {registrant.instagram && (
                   <Detail icon={<AtSign className="size-4" />} value={`@${registrant.instagram}`} />
@@ -184,7 +190,7 @@ export default function EventSurvey() {
                 {registrant.checkedIn && <Detail icon={<Check className="size-4" />} value="Checked in at the event" />}
               </div>
 
-              <h2 className="mt-8 text-[18px] font-bold">Which one are you?</h2>
+              <h2 className="mt-6 text-[18px] font-bold">Which one are you?</h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <RoleCard
                   active={role === 'creator'}
@@ -362,7 +368,7 @@ function QuestionStep({
           placeholder={q.placeholder}
           value={typeof value === 'string' ? value : ''}
           onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-          className="mt-5 w-full rounded-2xl border border-line bg-paper p-4 text-[16px] outline-none focus:border-ink"
+          className="mt-5 w-full rounded-2xl border border-line bg-paper p-4 text-[16px] outline-none focus:border-ink focus-visible:outline-none! placeholder:text-muted"
         />
       ) : (
         <div className="mt-5 grid gap-2.5">
@@ -398,7 +404,7 @@ function QuestionStep({
               placeholder="Tell us what"
               value={otherText}
               onChange={(e) => setAnswers((a) => ({ ...a, [otherKey]: e.target.value }))}
-              className="h-12 rounded-2xl border border-line bg-paper px-4 text-[16px] outline-none focus:border-ink"
+              className="h-12 rounded-2xl border border-line bg-paper px-4 text-[16px] outline-none focus:border-ink focus-visible:outline-none! placeholder:text-muted"
             />
           )}
         </div>
@@ -434,9 +440,9 @@ function PrimaryButton({
 
 function Detail({ icon, value }: { icon: React.ReactNode; value: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3">
-      <span className="grid size-8 place-items-center rounded-lg bg-magenta-tint text-brand-deep">{icon}</span>
-      <span className="font-medium">{value}</span>
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-paper px-3.5 py-2.5">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-magenta-tint text-brand-deep">{icon}</span>
+      <span className="min-w-0 truncate font-medium">{value}</span>
     </div>
   );
 }
@@ -459,15 +465,19 @@ function RoleCard({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-2xl border p-4 text-left transition-colors ${
+      className={`flex items-center gap-3.5 rounded-2xl border p-3.5 text-left transition-colors sm:flex-col sm:items-start sm:p-4 ${
         active ? 'border-ink bg-ink text-white' : 'border-line bg-paper hover:border-line-strong'
       }`}
     >
-      <span className={`grid size-10 place-items-center rounded-xl ${active ? 'bg-white/15' : 'bg-magenta-tint text-brand-deep'}`}>
+      <span
+        className={`grid size-10 shrink-0 place-items-center rounded-xl ${active ? 'bg-white/15' : 'bg-magenta-tint text-brand-deep'}`}
+      >
         {icon}
       </span>
-      <div className="mt-3 text-[17px] font-bold">{title}</div>
-      <div className={`mt-0.5 text-sm ${active ? 'text-white/75' : 'text-ink-soft'}`}>{body}</div>
+      <span className="min-w-0">
+        <span className="block text-[17px] font-bold">{title}</span>
+        <span className={`mt-0.5 block text-sm ${active ? 'text-white/75' : 'text-ink-soft'}`}>{body}</span>
+      </span>
     </button>
   );
 }
