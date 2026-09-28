@@ -22,7 +22,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { Reveal, Stagger } from "@/components/ui/motion";
 import { DonutChart } from "@/components/ui/chart";
-import { useAdminTier } from "@/lib/hooks/use-admin-tier";
+import { useAdminAccess } from "@/lib/hooks/use-admin-tier";
 import type { AdminHomeData } from "./types";
 
 function Row({
@@ -46,7 +46,8 @@ function Row({
 }
 
 export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
-  const { isSuperAdmin } = useAdminTier();
+  const { access } = useAdminAccess();
+  const isSuperAdmin = access?.tier === "super";
 
   const audience = [
     { name: "Businesses", value: s.total_businesses, fill: "#6366f1" },
@@ -63,7 +64,7 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
           </span>
           <div>
             <p className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
-              {isSuperAdmin ? "Developer Super Admin" : "Platform Admin"}
+              {isSuperAdmin ? "Developer Super Admin" : access?.tier === "staff" ? "Staff" : "Platform Admin"}
             </p>
             <h1 className="text-xl font-extrabold tracking-tight text-content sm:text-2xl">
               {isSuperAdmin ? "Control Center & Systems" : "Control Center"}

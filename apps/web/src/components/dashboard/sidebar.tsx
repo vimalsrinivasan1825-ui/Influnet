@@ -52,9 +52,11 @@ import {
   FileSpreadsheet,
   MessageSquareLock,
   ChevronDown,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
+import { canOpenPage, type AdminAccess } from "@/lib/admin-access";
 import { useEntitlements } from "@/lib/hooks/use-entitlements";
 
 const SECTION_ROOTS = new Set(["/dashboard", "/dashboard/admin"]);
@@ -167,6 +169,26 @@ const ADMIN_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+/** Who can open the console, and with what. Shown to anyone holding Team. */
+const TEAM_GROUP: NavGroup = {
+  label: "Team",
+  items: [{ label: "Team & roles", href: "/dashboard/admin/team", icon: UsersRound }],
+};
+
+/**
+ * The groups this admin may open. A super admin sees everything; an admin or
+ * staff member sees only the sections it was granted (migration 176), and a
+ * group left empty is dropped. Until the access has loaded nothing is drawn,
+ * so a restricted member never sees a flash of sections it cannot open.
+ */
+function visibleAdminGroups(access: AdminAccess | null): NavGroup[] {
+  if (!access) return [];
+  if (access.tier === "super") return [...ADMIN_GROUPS, TEAM_GROUP, ...DEV_GROUPS];
+  return [...ADMIN_GROUPS, TEAM_GROUP]
+    .map((g) => ({ ...g, items: g.items.filter((i) => canOpenPage(access, i.href)) }))
+    .filter((g) => g.items.length > 0);
+}
 
 /** Developer-only groups, appended for a super admin. */
 const DEV_GROUPS: NavGroup[] = [
@@ -380,20 +402,22 @@ function Brand({ collapsed }: { collapsed: boolean }) {
 
 function RolePill({
   role,
-  isSuperAdmin,
+  adminTier,
   collapsed,
 }: {
   role: UserRole;
-  isSuperAdmin?: boolean;
+  adminTier?: AdminAccess["tier"] | null;
   collapsed: boolean;
 }) {
   const meta = ROLE_META[role];
-  const Icon = role === "admin" && isSuperAdmin ? Terminal : meta.icon;
+  const Icon = role === "admin" && adminTier === "super" ? Terminal : meta.icon;
   const label =
     role === "admin"
-      ? isSuperAdmin
+      ? adminTier === "super"
         ? "Developer workspace"
-        : "Admin workspace"
+        : adminTier === "staff"
+          ? "Staff workspace"
+          : "Admin workspace"
       : `${meta.label} workspace`;
 
   return (
@@ -420,7 +444,8 @@ function RolePill({
 
 interface SidebarProps {
   role: UserRole;
-  isSuperAdmin?: boolean;
+  /** The admin's team access; null until loaded, or for a non-admin. */
+  adminAccess?: AdminAccess | null;
   unreadMessages?: number;
   pendingRequests?: number;
   collapsed: boolean;
@@ -431,7 +456,7 @@ interface SidebarProps {
 
 export default function DashboardSidebar({
   role,
-  isSuperAdmin = false,
+  adminAccess = null,
   unreadMessages = 0,
   pendingRequests = 0,
   collapsed,
@@ -441,7 +466,7 @@ export default function DashboardSidebar({
 }: SidebarProps) {
   const meta = ROLE_META[role] ?? ROLE_META.influencer;
   const navItems = meta.nav;
-  const adminGroups = isSuperAdmin ? [...ADMIN_GROUPS, ...DEV_GROUPS] : ADMIN_GROUPS;
+  const adminGroups = visibleAdminGroups(adminAccess);
 
   return (
     <>
@@ -473,7 +498,7 @@ export default function DashboardSidebar({
           </button>
         </div>
 
-        <RolePill role={role} isSuperAdmin={isSuperAdmin} collapsed={collapsed} />
+        <RolePill role={role} adminTier={adminAccess?.tier} collapsed={collapsed} />
         {role === "admin" ? (
           <GroupedNavList groups={adminGroups} collapsed={collapsed} pendingRequests={pendingRequests} />
         ) : (
@@ -521,7 +546,7 @@ export default function DashboardSidebar({
               <X className="size-5" />
             </button>
           </div>
-          <RolePill role={role} isSuperAdmin={isSuperAdmin} collapsed={false} />
+          <RolePill role={role} adminTier={adminAccess?.tier} collapsed={false} />
           {role === "admin" ? (
             <GroupedNavList
               groups={adminGroups}

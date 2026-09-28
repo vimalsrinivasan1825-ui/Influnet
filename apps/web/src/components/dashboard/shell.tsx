@@ -14,7 +14,7 @@ import { GuideRoot } from "@/components/guides/guide-root";
 import { AnnouncementHost } from "@/components/dashboard/announcement-host";
 import { useNotificationStore, NotificationItem } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
-import { useAdminTier } from "@/lib/hooks/use-admin-tier";
+import { useAdminAccess } from "@/lib/hooks/use-admin-tier";
 import type { UserRole } from "@/types";
 
 const THEME_CLASS: Record<UserRole, string> = {
@@ -328,7 +328,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     (approvalStatus === "pending_review" || approvalStatus === "rejected") &&
     !bannerDismissed;
   const isRejected = approvalStatus === "rejected";
-  const { isSuperAdmin } = useAdminTier(role === "admin");
+  const { access: adminAccess } = useAdminAccess(role === "admin");
 
   if (!isLoaded) {
     return (
@@ -351,7 +351,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     <div className={`${themeClass} flex min-h-screen bg-surface text-content`}>
       <DashboardSidebar
         role={role || "influencer"}
-        isSuperAdmin={isSuperAdmin}
+        adminAccess={adminAccess}
         unreadMessages={summary.unread_messages_count || 0}
         pendingRequests={summary.pending_requests_count || 0}
         collapsed={collapsed}
