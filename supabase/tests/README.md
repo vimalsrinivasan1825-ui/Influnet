@@ -55,6 +55,15 @@ flow logic under test.
   Without those grants the harness is *more* restrictive than production and the
   tests pass vacuously.
 
+- `admin_team_roles_test.sql` — migration 176, the admin team (super admin →
+  admin → staff). An admin creates staff but never another admin, a grant never
+  exceeds the creator's own access or reveals a field hidden from them,
+  narrowing an admin clamps their staff, and a disabled member fails
+  `is_admin()`. To mirror Supabase, set default privileges *before* applying
+  the migrations (`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES
+  TO anon, authenticated`) — a blanket `GRANT ... ON ALL TABLES` afterwards would
+  re-open `admin_members`, which the migration deliberately revokes.
+
 - `cancellation_test.sql` — migration 072. Cancelling a project is a state
   change, never a delete: the row, its payment ledger and its timeline survive,
   both sides must agree, and a cancelled project is frozen against further edits.
