@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * GET /api/admin/dashboard → { stats: AdminHomeData }
@@ -45,7 +44,7 @@ export async function GET(req: Request) {
       keys.map((k, i) => [k, (results[i] as any).count as number])
     ) as Record<keyof typeof queries, number>;
 
-    return NextResponse.json({ stats });
+    return adminJson(req, { stats });
   } catch (error) {
     return jsonError(500, 'Could not load the admin dashboard', error);
   }

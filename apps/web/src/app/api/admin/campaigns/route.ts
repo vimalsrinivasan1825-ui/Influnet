@@ -6,9 +6,8 @@
  *
  * Admin-only: list campaigns in pending_review, approve/remove them.
  */
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { callerClient, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 
 const PatchSchema = z.object({
   action: z.enum(['approve', 'reject', 'remove']),
@@ -38,7 +37,7 @@ export async function GET(req: Request) {
       .limit(50);
 
     if (error) return jsonError(500, 'Failed to fetch campaigns', error);
-    return NextResponse.json({ campaigns: campaigns ?? [] });
+    return adminJson(req, { campaigns: campaigns ?? [] });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }

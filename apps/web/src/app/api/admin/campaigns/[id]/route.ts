@@ -5,9 +5,8 @@
  *
  * Admin-only: approve (pending_review → live), reject, or remove a campaign.
  */
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { callerClient, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 
 const PatchSchema = z.object({
   action: z.enum(['approve', 'reject', 'remove']),
@@ -29,7 +28,7 @@ export async function PATCH(
 
     const parsed = PatchSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json(
+      return adminJson(req, 
         { error: 'Validation failed', details: parsed.error.format() },
         { status: 400 },
       );
@@ -63,7 +62,7 @@ export async function PATCH(
 
     if (error || !campaign) return jsonError(404, 'Campaign not found');
 
-    return NextResponse.json({ campaign });
+    return adminJson(req, { campaign });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }

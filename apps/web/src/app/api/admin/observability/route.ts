@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withSuperAdmin } from '@/lib/api';
+import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { loadObservability } from '@/lib/observability-dashboard';
 
@@ -29,7 +28,7 @@ export async function GET(req: Request) {
     }
 
     const snapshot = await loadObservability({ refresh });
-    return NextResponse.json(snapshot, { headers: { 'Cache-Control': 'no-store' } });
+    return adminJson(req, snapshot, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return jsonError(500, 'Could not load observability data', error);
   }

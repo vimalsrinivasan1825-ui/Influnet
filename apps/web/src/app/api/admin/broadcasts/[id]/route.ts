@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { callerClient, isSuperAdmin, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, callerClient, isSuperAdmin, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin, type AdminAction } from '@/lib/admin-audit';
 import { BroadcastUpdateSchema, approvalThreshold } from '@/lib/broadcast-schema';
 import { runBroadcastCycle } from '@/lib/broadcasts';
@@ -35,7 +34,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       p_offset: intParam(q, 'offset', 0, 0, 100_000),
     });
     if (error) return jsonError(500, 'Could not load this broadcast', error);
-    return NextResponse.json({ data });
+    return adminJson(req, { data });
   } catch (error) {
     return jsonError(500, 'Could not load this broadcast', error);
   }
@@ -67,7 +66,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       }
       const parsed = BroadcastUpdateSchema.safeParse(body);
       if (!parsed.success) {
-        return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+        return adminJson(req, { error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
       }
       const patch: Record<string, unknown> = { ...parsed.data };
       // Any content change invalidates a previous approval.
@@ -78,7 +77,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         actorId: user.id, actorEmail: user.email ?? null, action: 'broadcast_updated',
         targetId: id, targetType: 'broadcast', metadata: { fields: Object.keys(parsed.data) }, req,
       });
-      return NextResponse.json({ broadcast: data });
+      return adminJson(req, { broadcast: data });
     }
 
     // ── Actions ────────────────────────────────────────────────────────────
@@ -98,7 +97,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       }
       await supabase.from('broadcasts').update({ approved_by: user.id }).eq('id', id);
       await audit('broadcast_approved');
-      return NextResponse.json({ ok: true, approved: true });
+      return adminJson(req, { ok: true, approved: true });
     }
 
     if (action === 'pause' || action === 'resume' || action === 'cancel') {
@@ -116,7 +115,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           .in('status', ['queued', 'deferred']);
       }
       await audit(action === 'pause' ? 'broadcast_paused' : action === 'cancel' ? 'broadcast_cancelled' : 'broadcast_scheduled');
-      return NextResponse.json({ ok: true, status });
+      return adminJson(req, { ok: true, status });
     }
 
     if (action === 'test') {
@@ -129,7 +128,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       // Deliver immediately so the admin sees it on their own phone now.
       const cycle = await runBroadcastCycle(supabase, { skipDue: true, skipReceipts: true });
       await audit('broadcast_test_sent', { run });
-      return NextResponse.json({ ok: true, run, cycle });
+      return adminJson(req, { ok: true, run, cycle });
     }
 
     // schedule | send_now
@@ -144,7 +143,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     });
     const total = Number((preview as any)?.total ?? 0);
     if (total > approvalThreshold() && !b.approved_by) {
-      return NextResponse.json(
+      return adminJson(req, 
         {
           error: `This reaches ${total.toLocaleString('en-IN')} people. A second admin has to approve it first.`,
           needsApproval: true,
@@ -176,7 +175,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       cycle = await runBroadcastCycle(supabase, { skipReceipts: true });
     }
     await audit(action === 'send_now' ? 'broadcast_sent' : 'broadcast_scheduled', { recipients: total, sendAt });
-    return NextResponse.json({ ok: true, recipients: total, cycle });
+    return adminJson(req, { ok: true, recipients: total, cycle });
   } catch (error) {
     return jsonError(500, 'Could not update this broadcast', error);
   }
@@ -203,7 +202,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       actorId: user.id, actorEmail: user.email ?? null, action: 'broadcast_deleted',
       targetId: id, targetType: 'broadcast', metadata: { name: (b as any).name }, req,
     });
-    return NextResponse.json({ ok: true });
+    return adminJson(req, { ok: true });
   } catch (error) {
     return jsonError(500, 'Could not delete this draft', error);
   }

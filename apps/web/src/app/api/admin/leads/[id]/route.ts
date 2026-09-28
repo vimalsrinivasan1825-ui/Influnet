@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 
 /**
@@ -44,7 +43,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         .limit(100),
     ]);
     if (!lead.data) return jsonError(404, 'Lead not found');
-    return NextResponse.json({ lead: lead.data, notes: notes.data ?? [] });
+    return adminJson(req, { lead: lead.data, notes: notes.data ?? [] });
   } catch (error) {
     return jsonError(500, 'Could not load this lead', error);
   }
@@ -60,7 +59,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
     const parsed = UpdateSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+      return adminJson(req, { error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
 
     const { data: before } = await supabase.from('crm_leads').select('stage').eq('id', id).maybeSingle();
@@ -82,7 +81,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       actorId: user.id, actorEmail: user.email ?? null, action: 'lead_updated',
       targetId: id, targetType: 'lead', metadata: { fields: Object.keys(parsed.data) }, req,
     });
-    return NextResponse.json({ lead: data });
+    return adminJson(req, { lead: data });
   } catch (error) {
     return jsonError(500, 'Could not update this lead', error);
   }
@@ -98,7 +97,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const parsed = NoteSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+      return adminJson(req, { error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
     const { data, error } = await supabase
       .from('crm_lead_notes')
@@ -111,7 +110,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       actorId: user.id, actorEmail: user.email ?? null, action: 'lead_note_added',
       targetId: id, targetType: 'lead', metadata: { kind: parsed.data.kind ?? 'note' }, req,
     });
-    return NextResponse.json({ note: data }, { status: 201 });
+    return adminJson(req, { note: data }, { status: 201 });
   } catch (error) {
     return jsonError(500, 'Could not add this note', error);
   }

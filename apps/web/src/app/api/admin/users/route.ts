@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import { chunk, fetchAllRows, mapLimit } from '@/lib/paginate';
 
@@ -152,7 +151,7 @@ export async function GET(req: Request) {
         email_confirmed: !!u.emailConfirmedAt,
       }));
 
-    return NextResponse.json({
+    return adminJson(req, {
       users: enrichedUsers,
       orphans,
       counts: { profiled: enrichedUsers.length, orphaned: orphans.length },

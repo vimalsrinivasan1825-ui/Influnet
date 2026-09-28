@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { callerClient, isSuperAdmin, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, adminRows, callerClient, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 import { CSV_SENSITIVE, DATASETS, csvResponse, intParam, parseRange } from '@/lib/admin-insights';
 
@@ -33,8 +32,9 @@ export async function GET(req: Request) {
     if (error) return jsonError(500, 'Could not build this report', error);
 
     if (isCsv) {
-      const rows = ((data as any)?.rows ?? []) as Record<string, unknown>[];
-      const superAdmin = await isSuperAdmin(auth.supabase, auth.user.id);
+      // Hidden field groups are masked in the export exactly as on screen.
+      const rows = adminRows(req, ((data as any)?.rows ?? []) as Record<string, unknown>[]);
+      const superAdmin = auth.access.tier === 'super';
       await auditAdmin({
         actorId: auth.user.id, actorEmail: auth.user.email ?? null, action: 'report_exported',
         targetType: 'report', metadata: { dataset, rows: rows.length, ...range }, req,
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       return csvResponse(`influnet-${dataset}-${range.from}-to-${range.to}.csv`, rows, superAdmin ? [] : CSV_SENSITIVE);
     }
 
-    return NextResponse.json({ data, range });
+    return adminJson(req, { data, range });
   } catch (error) {
     return jsonError(500, 'Could not build this report', error);
   }

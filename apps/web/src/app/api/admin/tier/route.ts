@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { isSuperAdmin, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, isSuperAdmin, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * GET /api/admin/tier → { isSuperAdmin: boolean }
@@ -17,7 +16,7 @@ export async function GET(req: Request) {
     const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
 
-    return NextResponse.json(
+    return adminJson(req, 
       { isSuperAdmin: await isSuperAdmin(auth.supabase, auth.user.id) },
       { headers: { 'Cache-Control': 'no-store' } },
     );

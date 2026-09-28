@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { withSuperAdmin, jsonError } from '@/lib/api';
+import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getTemplate, listTemplates } from '@/lib/email/templates';
 import { emailsEnabled, emailConfigured, fromAddress, isValidEmail } from '@/lib/email/client';
@@ -33,7 +32,7 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: false })
     .limit(20);
 
-  return NextResponse.json({
+  return adminJson(req, {
     templates: listTemplates(),
     config: {
       enabled: emailsEnabled(),
@@ -76,7 +75,7 @@ export async function POST(req: Request) {
   const data = { ...(tpl.sample as Record<string, unknown>), ...(payload.data || {}) };
 
   if (payload.action === 'preview') {
-    return NextResponse.json({
+    return adminJson(req, {
       subject: tpl.subject(data),
       html: tpl.render(data, {
         unsubscribeUrl: tpl.tier === 'account' ? undefined : `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/email/unsubscribe?t=preview`,
@@ -127,7 +126,7 @@ export async function POST(req: Request) {
       return jsonError(502, explain[result.reason] || 'Send failed.');
     }
 
-    return NextResponse.json({ ok: true, id: result.id, to, subject: tpl.subject(data) });
+    return adminJson(req, { ok: true, id: result.id, to, subject: tpl.subject(data) });
   }
 
   return jsonError(400, 'action must be "preview" or "send"');

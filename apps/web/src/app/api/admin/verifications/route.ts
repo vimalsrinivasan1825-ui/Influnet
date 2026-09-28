@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin, withAuth } from '@/lib/api';
+import { adminJson, jsonError, withAdmin, withAuth } from '@/lib/api';
 import { VERIFICATION_NOTIFICATION } from '@/lib/verification';
 import { auditAdmin } from '@/lib/admin-audit';
 
@@ -109,7 +108,7 @@ export async function GET(req: Request) {
       openAttempts: openAttempts.get(c.user_id) ?? 1,
     }));
 
-    return NextResponse.json({ queue });
+    return adminJson(req, { queue });
   } catch (error) {
     return jsonError(500, 'Could not load verification requests', error);
   }
@@ -135,10 +134,10 @@ export async function PATCH(req: Request) {
     const { user_id, status, notes } = body as { user_id?: string; status?: string; notes?: string };
 
     if (!user_id || !status) {
-      return NextResponse.json({ error: 'user_id and status are required' }, { status: 400 });
+      return adminJson(req, { error: 'user_id and status are required' }, { status: 400 });
     }
     if (!VALID.includes(status as (typeof VALID)[number])) {
-      return NextResponse.json({ error: `status must be one of ${VALID.join(', ')}` }, { status: 400 });
+      return adminJson(req, { error: `status must be one of ${VALID.join(', ')}` }, { status: 400 });
     }
 
     const notif = VERIFICATION_NOTIFICATION[status as keyof typeof VERIFICATION_NOTIFICATION];
@@ -158,7 +157,7 @@ export async function PATCH(req: Request) {
       metadata: { status, notes: notes ?? null }, req,
     });
 
-    return NextResponse.json({ result: data });
+    return adminJson(req, { result: data });
   } catch (error) {
     return jsonError(500, 'Could not update this verification request', error);
   }

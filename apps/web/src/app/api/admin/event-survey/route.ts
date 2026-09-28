@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 import { SURVEY_EVENTS, SURVEY_ROLES, SurveyFormSchema, loadSurveyForms } from '@/lib/event-survey';
 
 // Admin view of the pre-event survey (migrations 174, 175).
@@ -34,7 +33,7 @@ export async function GET(req: Request) {
     if (responses.error) return jsonError(500, 'Could not load survey responses', responses.error);
     if (!forms) return jsonError(500, 'Could not load the survey form');
 
-    return NextResponse.json({
+    return adminJson(req, {
       responses: responses.data ?? [],
       forms,
       formsUpdatedAt: Object.fromEntries((stamps.data ?? []).map((r: { role: string; updated_at: string }) => [r.role, r.updated_at])),
@@ -85,7 +84,7 @@ export async function PUT(req: Request) {
     );
     if (error) return jsonError(500, 'Could not save the form', error);
 
-    return NextResponse.json({ ok: true, questions });
+    return adminJson(req, { ok: true, questions });
   } catch (error) {
     return jsonError(500, 'Could not save the form', error);
   }

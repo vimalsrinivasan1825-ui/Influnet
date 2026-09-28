@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { callerClient, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 import { BroadcastCreateSchema } from '@/lib/broadcast-schema';
 import { intParam, strParam } from '@/lib/admin-insights';
@@ -22,7 +21,7 @@ export async function GET(req: Request) {
       p_offset: intParam(q, 'offset', 0, 0, 10_000),
     });
     if (error) return jsonError(500, 'Could not load broadcasts', error);
-    return NextResponse.json({ data });
+    return adminJson(req, { data });
   } catch (error) {
     return jsonError(500, 'Could not load broadcasts', error);
   }
@@ -36,7 +35,7 @@ export async function POST(req: Request) {
 
     const parsed = BroadcastCreateSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+      return adminJson(req, { error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
     const b = parsed.data;
 
@@ -74,7 +73,7 @@ export async function POST(req: Request) {
       action: 'broadcast_created', targetId: (data as any).id, targetType: 'broadcast',
       metadata: { name: b.name, kind: b.kind, channels: b.channels }, req,
     });
-    return NextResponse.json({ broadcast: data }, { status: 201 });
+    return adminJson(req, { broadcast: data }, { status: 201 });
   } catch (error) {
     return jsonError(500, 'Could not save this broadcast', error);
   }

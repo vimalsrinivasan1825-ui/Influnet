@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 
 /** The product feedback board. */
 
@@ -30,7 +29,7 @@ export async function GET(req: Request) {
     const { data, error } = await query;
     if (error) return jsonError(500, 'Could not load feedback', error);
 
-    return NextResponse.json({ feedback: data ?? [] });
+    return adminJson(req, { feedback: data ?? [] });
   } catch (error) {
     return jsonError(500, 'Could not load feedback', error);
   }
@@ -74,7 +73,7 @@ export async function PATCH(req: Request) {
     if (error) return jsonError(500, 'Could not update this feedback', error);
     if (!data) return jsonError(404, 'Feedback not found');
 
-    return NextResponse.json({ feedback: data });
+    return adminJson(req, { feedback: data });
   } catch (error) {
     return jsonError(500, 'Could not update this feedback', error);
   }

@@ -10,6 +10,7 @@ import {
   SUPER_ACCESS,
   allows,
   levelFor,
+  redactHidden,
   requiredLevel,
   sectionForApiPath,
   type AdminAccess,
@@ -90,6 +91,24 @@ const accessByRequest = new WeakMap<Request, AdminAccess>();
 
 export function adminAccessFor(req: Request): AdminAccess | null {
   return accessByRequest.get(req) ?? null;
+}
+
+/**
+ * NextResponse.json for /api/admin routes: masks the field groups hidden from
+ * the caller (email, phone, money…) before anything leaves the server.
+ *
+ * Masking happens on the way OUT, never on the data client: a route that reads
+ * an email to send a broadcast must still get the real address. Use this for
+ * every admin response; `adminRows` does the same for CSV exports.
+ */
+export function adminJson(req: Request, body: unknown, init?: ResponseInit) {
+  const hidden = accessByRequest.get(req)?.hiddenFields ?? [];
+  return NextResponse.json(hidden.length ? redactHidden(body, hidden) : body, init);
+}
+
+export function adminRows<T>(req: Request, rows: T): T {
+  const hidden = accessByRequest.get(req)?.hiddenFields ?? [];
+  return hidden.length ? redactHidden(rows, hidden) : rows;
 }
 
 /**

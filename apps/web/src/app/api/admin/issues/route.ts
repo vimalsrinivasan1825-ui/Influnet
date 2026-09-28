@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withSuperAdmin } from '@/lib/api';
+import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
 
 /**
  * The admin issue/fix tracker (see migration 101_admin_issue_tracker.sql).
@@ -72,7 +71,7 @@ export async function GET(req: Request) {
     const { data, error } = await query;
     if (error) return jsonError(500, 'Could not load issues', error);
 
-    return NextResponse.json({ issues: data ?? [] });
+    return adminJson(req, { issues: data ?? [] });
   } catch (error) {
     return jsonError(500, 'Could not load issues', error);
   }
@@ -130,7 +129,7 @@ export async function POST(req: Request) {
       return jsonError(500, 'Could not create issue', error);
     }
 
-    return NextResponse.json({ issue: data }, { status: 201 });
+    return adminJson(req, { issue: data }, { status: 201 });
   } catch (error) {
     return jsonError(500, 'Could not create issue', error);
   }
@@ -207,7 +206,7 @@ export async function PATCH(req: Request) {
     if (error) return jsonError(500, 'Could not update this issue', error);
     if (!data) return jsonError(404, 'Issue not found');
 
-    return NextResponse.json({ issue: data });
+    return adminJson(req, { issue: data });
   } catch (error) {
     return jsonError(500, 'Could not update this issue', error);
   }
@@ -226,7 +225,7 @@ export async function DELETE(req: Request) {
     const { error } = await supabase.from('admin_issues').delete().eq('id', id);
     if (error) return jsonError(500, 'Could not delete this issue', error);
 
-    return NextResponse.json({ ok: true });
+    return adminJson(req, { ok: true });
   } catch (error) {
     return jsonError(500, 'Could not delete this issue', error);
   }

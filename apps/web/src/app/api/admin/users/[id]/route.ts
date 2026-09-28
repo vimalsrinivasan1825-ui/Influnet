@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { jsonError, withAdmin, callerClient } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 import { logger } from '@/lib/logger';
 import { hardDeleteAccount, recordAccountDeletion } from '@/lib/account-deletion';
@@ -85,7 +84,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       console.error('[admin/users/[id]] activity RPC failed:', activityRes.error.message);
     }
 
-    return NextResponse.json({
+    return adminJson(req, {
       user: enriched,
       projects: projects || [],
       requests: requests || [],
@@ -154,7 +153,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       req,
     });
 
-    return NextResponse.json({ ok: true });
+    return adminJson(req, { ok: true });
   } catch (error) {
     return jsonError(500, 'Could not update this user', error);
   }
@@ -242,7 +241,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
       req,
     });
 
-    return NextResponse.json({ ok: true });
+    return adminJson(req, { ok: true });
   } catch (error) {
     return jsonError(500, 'Could not delete this user', error);
   }

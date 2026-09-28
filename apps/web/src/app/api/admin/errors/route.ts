@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { loadObservability } from '@/lib/observability-dashboard';
 
@@ -39,7 +38,7 @@ export async function GET(req: Request) {
       isNew: i.isNew,
     }));
 
-    return NextResponse.json(
+    return adminJson(req, 
       {
         configured: sentry.configured,
         ok: sentry.ok,

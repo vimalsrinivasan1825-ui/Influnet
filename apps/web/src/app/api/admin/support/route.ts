@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * The admin support inbox.
@@ -46,7 +45,7 @@ export async function GET(req: Request) {
         .order('created_at', { ascending: true });
 
       if (messagesError) return jsonError(500, 'Could not load the ticket', messagesError);
-      return NextResponse.json({ ticket, messages: messages ?? [] });
+      return adminJson(req, { ticket, messages: messages ?? [] });
     }
 
     let query = supabase
@@ -75,7 +74,7 @@ export async function GET(req: Request) {
     // in the list can never disagree because of a different WHERE clause.
     const { data: stats } = await supabase.rpc('get_admin_support_stats');
 
-    return NextResponse.json({ tickets: data ?? [], stats: stats ?? null });
+    return adminJson(req, { tickets: data ?? [], stats: stats ?? null });
   } catch (error) {
     return jsonError(500, 'Could not load the support queue', error);
   }
@@ -125,7 +124,7 @@ export async function POST(req: Request) {
       target_type: 'support_ticket',
     });
 
-    return NextResponse.json({ message: data }, { status: 201 });
+    return adminJson(req, { message: data }, { status: 201 });
   } catch (error) {
     return jsonError(500, 'Could not send the reply', error);
   }
@@ -196,7 +195,7 @@ export async function PATCH(req: Request) {
       metadata: update,
     });
 
-    return NextResponse.json({ ticket: data });
+    return adminJson(req, { ticket: data });
   } catch (error) {
     return jsonError(500, 'Could not update the ticket', error);
   }

@@ -44,7 +44,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://x.supabase.co';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'service';
 
-const { withAdmin, withSuperAdmin, adminAccessFor } = await import('@/lib/api');
+const { withAdmin, withSuperAdmin, adminAccessFor, adminJson, adminRows } = await import('@/lib/api');
 
 const req = (path: string, method = 'GET') =>
   new Request(`https://app.test${path}`, { method, headers: { Authorization: 'Bearer t' } });
@@ -135,5 +135,34 @@ describe('withSuperAdmin', () => {
     state.isSuper = true;
     const r2 = await withSuperAdmin(req('/api/admin/tier'));
     expect(r2.ok).toBe(true);
+  });
+});
+
+describe('adminJson — hidden fields never leave the server', () => {
+  const body = { users: [{ id: '1', name: 'Asha', email: 'a@x.com', phone: '+91999', city: 'Chennai' }] };
+
+  it('masks the caller\'s hidden groups in JSON and CSV rows', async () => {
+    state.member = { tier: 'staff', permissions: { users: 'view' }, hidden_fields: ['email', 'phone'], disabled_at: null };
+    const r = req('/api/admin/users');
+    await withAdmin(r);
+    const out = await adminJson(r, body).json();
+    expect(out.users[0]).toEqual({ id: '1', name: 'Asha', email: 'Hidden', phone: 'Hidden', city: 'Chennai' });
+    expect(adminRows(r, body.users)[0].email).toBe('Hidden');
+  });
+
+  it('passes everything through for a super admin', async () => {
+    state.isSuper = true;
+    const r = req('/api/admin/users');
+    await withAdmin(r);
+    expect(await adminJson(r, body).json()).toEqual(body);
+  });
+
+  it('keeps the status and headers it was given', async () => {
+    state.isSuper = true;
+    const r = req('/api/admin/users');
+    await withAdmin(r);
+    const res = adminJson(r, { error: 'x' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
+    expect(res.status).toBe(409);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 });
