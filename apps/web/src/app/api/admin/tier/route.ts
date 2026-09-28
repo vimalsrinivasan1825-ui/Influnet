@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
 
-    return adminJson(req, 
+    return adminJson(req,
       { isSuperAdmin: await isSuperAdmin(auth.supabase, auth.user.id) },
       { headers: { 'Cache-Control': 'no-store' } },
     );

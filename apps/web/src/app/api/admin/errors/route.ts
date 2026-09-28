@@ -38,7 +38,7 @@ export async function GET(req: Request) {
       isNew: i.isNew,
     }));
 
-    return adminJson(req, 
+    return adminJson(req,
       {
         configured: sentry.configured,
         ok: sentry.ok,

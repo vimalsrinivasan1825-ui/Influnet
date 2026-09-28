@@ -143,7 +143,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     });
     const total = Number((preview as any)?.total ?? 0);
     if (total > approvalThreshold() && !b.approved_by) {
-      return adminJson(req, 
+      return adminJson(req,
         {
           error: `This reaches ${total.toLocaleString('en-IN')} people. A second admin has to approve it first.`,
           needsApproval: true,

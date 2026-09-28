@@ -84,7 +84,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ module: string 
       return csv;
     }
 
-    return adminJson(req, 
+    return adminJson(req,
       { module, data, range, generated_at: new Date().toISOString() },
       { headers: { 'Cache-Control': 'no-store' } },
     );

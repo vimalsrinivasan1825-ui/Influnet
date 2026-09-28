@@ -28,7 +28,7 @@ export async function PATCH(
 
     const parsed = PatchSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return adminJson(req, 
+      return adminJson(req,
         { error: 'Validation failed', details: parsed.error.format() },
         { status: 400 },
       );
