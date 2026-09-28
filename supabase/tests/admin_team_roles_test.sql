@@ -167,5 +167,6 @@ SELECT t_refused('admin_members is not readable from a user session',
 RESET ROLE;
 RESET request.test.uid;
 
-SELECT t_check('every team change is in the audit log',
-  (SELECT count(*) FROM public.admin_audit_log WHERE action LIKE 'admin_member_%') >= 6);
+SELECT t_check('every team change is in the audit log, with who did it',
+  (SELECT count(*) FROM public.admin_audit_log WHERE action LIKE 'admin_member_%') >= 6
+  AND NOT EXISTS (SELECT 1 FROM public.admin_audit_log WHERE action LIKE 'admin_member_%' AND actor_email IS NULL));

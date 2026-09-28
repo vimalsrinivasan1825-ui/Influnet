@@ -293,8 +293,8 @@ BEGIN
            updated_at = now()
      WHERE s.created_by = p_user AND s.tier = 'staff';
 
-    INSERT INTO public.admin_audit_log (actor_id, action, target_id, target_type, metadata)
-    VALUES (p_actor, 'admin_member_updated', p_user, 'admin_member',
+    INSERT INTO public.admin_audit_log (actor_id, actor_email, action, target_id, target_type, metadata)
+    VALUES (p_actor, (SELECT email FROM public.profiles WHERE id = p_actor), 'admin_member_updated', p_user, 'admin_member',
             jsonb_build_object(
               'tier', p_tier, 'previous_tier', v_existing.tier,
               'permissions', p_permissions, 'previous_permissions', v_existing.permissions,
@@ -314,8 +314,8 @@ BEGIN
     VALUES (p_user, p_tier, p_permissions, v_hidden, p_actor)
     RETURNING * INTO v_row;
 
-    INSERT INTO public.admin_audit_log (actor_id, action, target_id, target_type, metadata)
-    VALUES (p_actor, 'admin_member_created', p_user, 'admin_member',
+    INSERT INTO public.admin_audit_log (actor_id, actor_email, action, target_id, target_type, metadata)
+    VALUES (p_actor, (SELECT email FROM public.profiles WHERE id = p_actor), 'admin_member_created', p_user, 'admin_member',
             jsonb_build_object('email', p_email, 'tier', p_tier,
                                'permissions', p_permissions, 'hidden_fields', v_hidden));
   END IF;
@@ -350,8 +350,8 @@ BEGIN
    WHERE user_id = p_user
   RETURNING * INTO v_row;
 
-  INSERT INTO public.admin_audit_log (actor_id, action, target_id, target_type, metadata)
-  VALUES (p_actor, CASE WHEN p_disabled THEN 'admin_member_disabled' ELSE 'admin_member_enabled' END,
+  INSERT INTO public.admin_audit_log (actor_id, actor_email, action, target_id, target_type, metadata)
+  VALUES (p_actor, (SELECT email FROM public.profiles WHERE id = p_actor), CASE WHEN p_disabled THEN 'admin_member_disabled' ELSE 'admin_member_enabled' END,
           p_user, 'admin_member', jsonb_build_object('tier', v_row.tier));
 
   RETURN to_jsonb(v_row);
