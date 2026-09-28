@@ -1,27 +1,24 @@
 import * as React from "react";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Figure } from "@/components/ui/figure";
 
 type Tone = "brand" | "success" | "warning" | "info" | "neutral";
 
-const toneMap: Record<Tone, { icon: string; ring: string }> = {
-  brand: { icon: "bg-brand-soft text-brand", ring: "before:bg-brand" },
-  success: { icon: "bg-ok-soft text-ok", ring: "before:bg-ok" },
-  warning: { icon: "bg-warn-soft text-warn", ring: "before:bg-warn" },
-  info: { icon: "bg-info-soft text-info", ring: "before:bg-info" },
-  neutral: { icon: "bg-surface-muted text-content-soft", ring: "before:bg-content-muted" },
-};
-
 /**
- * KPI tile: label, value, optional icon, delta chip, and a hint line.
- * A thin colored rail on the left encodes the tone.
+ * A single headline metric.
+ *
+ * Deliberately plain: a label, the number, an optional delta and hint. The
+ * coloured edge bar and tinted icon chip it used to carry told the reader
+ * nothing (the tone was chosen per tile for variety, not meaning) and were
+ * most of why a row of these looked generated. `tone` is still accepted so
+ * existing callers compile; it no longer paints the tile.
  */
 function StatCard({
   label,
   value,
   hint,
   icon,
-  tone = "brand",
   delta,
   className,
 }: {
@@ -33,39 +30,26 @@ function StatCard({
   delta?: { value: string; direction: "up" | "down" };
   className?: string;
 }) {
-  const t = toneMap[tone];
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-hairline bg-surface-card p-4 shadow-[var(--shadow-card)] sm:p-5",
-        "before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-full before:content-['']",
-        t.ring,
+        "flex flex-col rounded-xl border border-hairline bg-surface-card p-4 shadow-[var(--shadow-card)]",
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
-          {label}
-        </p>
-        {icon && (
-          <span
-            className={cn(
-              "flex size-9 items-center justify-center rounded-xl [&_svg]:size-4",
-              t.icon,
-            )}
-          >
-            {icon}
-          </span>
-        )}
+      <div className="flex items-start gap-1.5 text-content-muted">
+        {icon && <span className="mt-[0.2rem] flex shrink-0 [&_svg]:size-3.5">{icon}</span>}
+        <p className="text-[0.8125rem] font-medium leading-snug text-content-soft">{label}</p>
       </div>
-      <div className="mt-2 flex items-end gap-2">
-        <span className="text-2xl font-extrabold leading-none tracking-tight text-content">
-          {value}
-        </span>
+      <div className="mt-2.5 flex items-baseline gap-2">
+        <Figure
+          value={value}
+          className="text-[1.625rem] font-semibold leading-none tracking-[-0.02em] text-content"
+        />
         {delta && (
           <span
             className={cn(
-              "mb-0.5 inline-flex items-center gap-0.5 text-xs font-bold",
+              "inline-flex items-center gap-0.5 text-xs font-medium tabular-nums",
               delta.direction === "up" ? "text-ok" : "text-danger",
             )}
           >
@@ -78,9 +62,7 @@ function StatCard({
           </span>
         )}
       </div>
-      {hint && (
-        <p className="mt-1 text-xs font-medium text-content-muted">{hint}</p>
-      )}
+      {hint && <p className="mt-1.5 text-xs text-content-muted">{hint}</p>}
     </div>
   );
 }
