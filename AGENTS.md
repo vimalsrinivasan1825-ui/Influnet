@@ -198,6 +198,39 @@ Other things that are easy to get wrong here:
   delivery only exist from 152/156/157/160 onward; the screens say so rather than
   drawing an empty chart that reads as "the business died".
 
+## The admin console has a team: super admin → admin → staff
+
+Migration 176. A **super admin** (`profiles.is_super_admin`, made only by
+`scripts/create-admin.mjs --super`) holds everything. From **Team & roles** it
+creates **admins** and **staff**, each holding a `view` or `manage` level per
+console section and a set of hidden field groups (email, phone, money,
+location, device). An admin with Team access creates staff — never another
+admin — and only from within its own access. Staff create nobody. The rule is
+enforced in SQL (`admin_grant_problem`, `admin_can_manage`) and mirrored in
+`lib/admin-access.ts` for the UI.
+
+- **A new `/api/admin` route is super-admin-only until you place it in a
+  section.** `withAdmin` maps the path to a section through `ADMIN_MODULES` in
+  `lib/admin-access.ts`; an unmapped path is refused for everyone else.
+  `tests/unit/admin-access.test.ts` fails if a route, insight report or console
+  page has no section — that is the reminder, not a bug in the test.
+- **GET needs `view`; every other method needs `manage`.** A route that changes
+  state on GET would be reachable by view-only staff. Don't.
+- **Answer with `adminJson(req, …)`, never `NextResponse.json`**, and pass CSV
+  rows through `adminRows`. That is where hidden fields are masked. Masking is
+  on the way out only — the data client still sees real values, so a broadcast
+  still reaches the real address.
+- **Adding a section is two changes:** a row in `ADMIN_MODULES` and a migration
+  replacing `admin_delegable_modules()`. The unit test compares the two.
+- **Every member keeps `role = 'admin'`,** so `is_admin()` is still true for
+  staff, and a disabled member fails it. Section scoping is enforced by the
+  API, not by RLS: a staff member calling an `admin_*` RPC directly through
+  PostgREST reaches data outside their sections. Moving each RPC to a
+  per-section check is the known follow-up.
+- **No row is not the same as no table.** An admin with no `admin_members` row
+  is refused; a database where the table does not exist yet (176 unapplied)
+  keeps the pre-team behaviour.
+
 ## Testing
 
 `tests/e2e/` holds an API-level multi-account harness — far faster than the
