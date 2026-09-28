@@ -8,7 +8,7 @@
  */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { withAuth, jsonError } from '@/lib/api';
+import { callerClient, jsonError, withAdmin } from '@/lib/api';
 
 const PatchSchema = z.object({
   action: z.enum(['approve', 'reject', 'remove']),
@@ -17,17 +17,12 @@ const PatchSchema = z.object({
 
 export async function GET(req: Request) {
   try {
-    const auth = await withAuth(req);
+    // withAdmin is the gate (admin role + the Campaigns section). Queries keep
+    // running as the caller, so RLS and the campaign triggers see the admin's
+    // own JWT exactly as before.
+    const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
-    const { supabase, user } = auth;
-
-    // Admin check
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if ((profile as any)?.role !== 'admin') return jsonError(403, 'Admin only');
+    const supabase = callerClient(req);
 
     const url = new URL(req.url);
     const status = url.searchParams.get('status') || 'pending_review';
