@@ -35,7 +35,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.375rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -47,65 +47,83 @@
 
   /* ── Dashboard design system ─────────────────────────────
      Role-accent driven: the shell sets a theme class that
-     overrides --brand*, so every primitive re-tints itself.  */
-  --surface: #f6f7f9;
+     overrides --brand*, so every primitive re-tints itself.
+
+     The look is an operations tool, not a landing page: cool
+     neutral surfaces, ONE accent used for action and selection
+     only, hairline structure, and depth reserved for things
+     that actually float. Neutrals are cool grey rather than
+     slate-blue, and --content-muted clears 4:1 on white — the
+     old #94a3b8 did not, and it carries half the labels.   */
+  --surface: #f4f5f7;
   --surface-card: #ffffff;
-  --surface-muted: #f8fafc;
-  --hairline: #eef0f4;
-  --hairline-strong: #e3e6ec;
+  --surface-muted: #f7f8fa;
+  /* Hover wells. Used by a dozen controls long before it existed —
+     every one of those hovers was silently a no-op. */
+  --surface-subtle: #eff1f4;
+  --hairline: #e7e9ee;
+  --hairline-strong: #d6dae1;
 
-  --content: #0f172a;
-  --content-soft: #475569;
-  --content-muted: #94a3b8;
+  --content: #14161b;
+  --content-soft: #4b5160;
+  --content-muted: #767c89;
 
-  --brand: #ee3e96;
-  --brand-2: #f26e59;
-  --brand-strong: #d6358a;
-  --brand-soft: #fdf2f8;
-  --brand-ring: rgba(238, 62, 150, 0.35);
+  --brand: #d92d7f;
+  --brand-2: #e8674f;
+  --brand-strong: #b8226a;
+  --brand-soft: #fcedf4;
+  --brand-ring: rgba(217, 45, 127, 0.28);
 
-  --ok: #16a34a;
-  --ok-soft: #f0fdf4;
-  --warn: #d97706;
-  --warn-soft: #fffbeb;
-  --info: #2563eb;
-  --info-soft: #eff6ff;
-  --danger: #dc2626;
-  --danger-soft: #fef2f2;
+  --ok: #17784b;
+  --ok-soft: #e9f5ee;
+  --warn: #945a08;
+  --warn-soft: #fcf3e2;
+  --info: #2a66d1;
+  --info-soft: #ebf1fc;
+  --danger: #c8372d;
+  --danger-soft: #fcecea;
 
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
-  --shadow-raised: 0 10px 30px -12px rgba(15, 23, 42, 0.18);
-  --shadow-pop: 0 16px 48px -16px rgba(15, 23, 42, 0.22);
-  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.04);
+  /* Elevation. Resting surfaces get a 1px contact shadow and lean on
+     their border; only what floats above the page (menus, popovers,
+     dialogs) gets real depth. No coloured glows anywhere. */
+  --shadow-card: 0 1px 2px rgba(20, 22, 27, 0.05);
+  --shadow-soft: 0 1px 2px rgba(20, 22, 27, 0.05);
+  --shadow-raised: 0 1px 2px rgba(20, 22, 27, 0.05), 0 6px 16px -6px rgba(20, 22, 27, 0.12);
+  --shadow-pop: 0 2px 6px rgba(20, 22, 27, 0.06), 0 18px 44px -14px rgba(20, 22, 27, 0.26);
 }
 
 /* Per-role accent themes — set on the dashboard shell wrapper */
+/* Deeper than the old neon values, and off Tailwind's default violet and
+   indigo — those two hexes are the signature of a generated dashboard.
+   Business keeps the Influnet raspberry; admin is a plain working blue,
+   because the console is a tool, not a brand surface. */
 .theme-brand {
-  --brand: #ee3e96;
-  --brand-2: #f26e59;
-  --brand-strong: #d6358a;
-  --brand-soft: #fdf2f8;
-  --brand-ring: rgba(238, 62, 150, 0.35);
+  --brand: #d92d7f;
+  --brand-2: #e8674f;
+  --brand-strong: #b8226a;
+  --brand-soft: #fcedf4;
+  --brand-ring: rgba(217, 45, 127, 0.28);
 }
 .theme-creator {
-  --brand: #7c3aed;
-  --brand-2: #8b5cf6;
-  --brand-strong: #6d28d9;
-  --brand-soft: #f5f3ff;
-  --brand-ring: rgba(124, 58, 237, 0.35);
+  --brand: #6b46d9;
+  --brand-2: #8a6ae6;
+  --brand-strong: #5534bd;
+  --brand-soft: #f1edfc;
+  --brand-ring: rgba(107, 70, 217, 0.28);
 }
 .theme-admin {
-  --brand: #6366f1;
-  --brand-2: #8b5cf6;
-  --brand-strong: #4f46e5;
-  --brand-soft: #eef2ff;
-  --brand-ring: rgba(99, 102, 241, 0.35);
+  --brand: #3558d4;
+  --brand-2: #5b7be0;
+  --brand-strong: #2745b1;
+  --brand-soft: #edf1fc;
+  --brand-ring: rgba(53, 88, 212, 0.28);
 }
 
 @theme inline {
   --color-surface: var(--surface);
   --color-surface-card: var(--surface-card);
   --color-surface-muted: var(--surface-muted);
+  --color-surface-subtle: var(--surface-subtle);
   --color-hairline: var(--hairline);
   --color-hairline-strong: var(--hairline-strong);
   --color-content: var(--content);
@@ -161,13 +179,16 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Explicit steps rather than multiples of --radius: the multiples put
+     cards at 18px and dialogs at 22px, which is what made every panel
+     read soft and generic. Controls 6, cards 8–10, dialogs 12. */
+  --radius-sm: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+  --radius-4xl: 14px;
 }
 
 body {
@@ -180,9 +201,9 @@ body {
 
 input, textarea, select {
   background-color: #fff;
-  border: 1px solid #e5e7eb;
-  color: #020617;
-  border-radius: 0.5rem;
+  border: 1px solid var(--hairline-strong);
+  color: var(--content);
+  border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   transition: border-color 0.15s;
@@ -190,12 +211,12 @@ input, textarea, select {
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: #ee3e96;
-  box-shadow: 0 0 0 2px rgba(238, 62, 150, 0.15);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
 }
 
 input::placeholder, textarea::placeholder {
-  color: #9ca3af;
+  color: var(--content-muted);
 }
 
 button {
