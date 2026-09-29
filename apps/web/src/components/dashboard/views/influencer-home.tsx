@@ -25,7 +25,6 @@ import { MediaKitNudge } from "@/components/dashboard/media-kit-nudge";
 import { VerifyOwnershipNudge } from "@/components/dashboard/verify-ownership-nudge";
 import { BrandEarningsChart } from "@/components/dashboard/brand-earnings-chart";
 
-export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
 /**
  * The breakdown is by request state, so it wears the status tokens. The API
  * still sends hex fills because the mobile app reads the same payload and
@@ -56,10 +55,11 @@ function orderedBreakdown<T extends { name: string; fill?: string }>(rows: T[]):
     .map((d) => ({ ...d, fill: STATUS_FILL[d.name] ?? d.fill }));
 }
 
+export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
   const p = data.profile;
   const s = data.stats;
-  // The welcome card, the ownership nudge, and the media-kit nudge all compete
   const breakdown = orderedBreakdown(data.request_breakdown);
+  // The welcome card, the ownership nudge, and the media-kit nudge all compete
   // for a first-time creator's attention. Hold both nudges back until the
   // welcome card is out of the way, and show at most one nudge at a time —
   // ownership takes priority since it gates auto-verification and the
