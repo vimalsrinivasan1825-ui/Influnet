@@ -251,7 +251,7 @@ function NavList({
             onClick={onNavigate}
             title={collapsed ? item.label : undefined}
             className={cn(
-              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+              "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
               collapsed && "justify-center px-0",
               // Same treatment for both roles — the surface stays white/near-white
               // and only the accent (brand-soft / brand-strong) carries the role
@@ -261,20 +261,17 @@ function NavList({
               // what made the creator sidebar read as "everything is the same
               // color" instead of "here is where I am".
               active
-                ? "bg-brand-soft text-brand-strong"
+                ? "bg-surface-subtle font-semibold text-content [&>svg]:text-brand"
                 : "text-content-soft hover:bg-surface-muted hover:text-content",
             )}
           >
-            {active && !collapsed && (
-              <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand" />
-            )}
             <Icon className="size-[1.15rem] shrink-0" />
             {!collapsed && <span className="flex-1">{item.label}</span>}
             {count > 0 &&
               (collapsed ? (
                 <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand ring-2 ring-surface-card" />
               ) : (
-                <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[0.625rem] font-bold text-white tabular-nums">
+                <span className="min-w-5 rounded-md bg-brand px-1.5 py-px text-center text-[0.6875rem] font-medium text-white tabular-nums">
                   {count > 99 ? "99+" : count}
                 </span>
               ))}
@@ -359,23 +356,20 @@ function GroupedNavList({
                     onClick={onNavigate}
                     title={collapsed ? item.label : undefined}
                     className={cn(
-                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+                      "group relative flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
                       collapsed && "justify-center px-0",
                       active
-                        ? "bg-brand-soft text-brand-strong"
+                        ? "bg-surface-subtle font-semibold text-content [&>svg]:text-brand"
                         : "text-content-soft hover:bg-surface-muted hover:text-content",
                     )}
                   >
-                    {active && !collapsed && (
-                      <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand" />
-                    )}
                     <Icon className="size-[1.15rem] shrink-0" />
                     {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
                     {count > 0 &&
                       (collapsed ? (
                         <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand ring-2 ring-surface-card" />
                       ) : (
-                        <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[0.625rem] font-bold text-white tabular-nums">
+                        <span className="min-w-5 rounded-md bg-brand px-1.5 py-px text-center text-[0.6875rem] font-medium text-white tabular-nums">
                           {count > 99 ? "99+" : count}
                         </span>
                       ))}
@@ -422,18 +416,17 @@ function RolePill({
 
   return (
     <div className="px-3 pt-3">
-      {/* Brand-soft everywhere — the role color still differs (pink for
-          business, purple for creator) via the theme-* class on the shell, so
-          this pill is the only place that color needs to live at all. */}
+      {/* A label, not a badge: which workspace you are in is context, so it
+          sits muted, and only the icon carries the role accent. */}
       <div
         className={cn(
-          "flex items-center gap-2 rounded-lg bg-brand-soft px-2.5 py-1.5 text-brand-strong",
+          "flex items-center gap-2 px-2.5 py-1 text-content-muted",
           collapsed && "justify-center px-0",
         )}
       >
-        <Icon className="size-3.5 shrink-0" />
+        <Icon className="size-3.5 shrink-0 text-brand" />
         {!collapsed && (
-          <span className="text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
+          <span className="text-[0.6875rem] font-medium uppercase tracking-[0.06em]">
             {label}
           </span>
         )}
@@ -600,10 +593,10 @@ function FooterLink({
       onClick={onNavigate}
       title={collapsed ? label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+        "flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
         collapsed && "justify-center px-0",
         active
-          ? "bg-brand-soft text-brand-strong"
+          ? "bg-surface-subtle font-semibold text-content [&>svg]:text-brand"
           : "text-content-soft hover:bg-surface-muted hover:text-content",
         // Gold sits on top of the resting state only. An accented link that is
         // also the ACTIVE one keeps the active background, so "where am I" never
