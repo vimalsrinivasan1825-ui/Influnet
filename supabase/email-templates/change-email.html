@@ -4,9 +4,7 @@
   GENERATED FILE — do not edit by hand.
   Source: apps/web/src/lib/email/templates.ts
   Rebuild: npm run email:auth-templates  (from apps/web)
-
-  Paste the whole file into Supabase Dashboard → Authentication → Emails →
-  Change Email Address → Message body (source view).
+  Not pushed by --apply yet — see the note on this entry in scripts/build-auth-email-templates.ts.
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -87,7 +85,7 @@
           <tr>
             <td class="sm-px" style="padding:24px 36px 8px;text-align:center;">
               <p style="margin:0 0 12px;font-size:12px;line-height:1.6;color:#8b919b;">This is an account security email for your Influnet account. We send these regardless of your notification settings.</p>
-              <p style="margin:0 0 10px;font-size:12px;line-height:1.6;color:#8b919b;"><a href="http://localhost:3000/dashboard" style="color:#8b919b;text-decoration:underline;">Dashboard</a><span style="color:#b4b9c1;"> &nbsp;·&nbsp; </span><a href="mailto:support@influnet.io" style="color:#8b919b;text-decoration:underline;">support@influnet.io</a></p>
+              <p style="margin:0 0 10px;font-size:12px;line-height:1.6;color:#8b919b;"><a href="{{ .SiteURL }}/dashboard" style="color:#8b919b;text-decoration:underline;">Dashboard</a><span style="color:#b4b9c1;"> &nbsp;·&nbsp; </span><a href="mailto:support@influnet.io" style="color:#8b919b;text-decoration:underline;">support@influnet.io</a></p>
               <p style="margin:0;font-size:12px;line-height:1.6;color:#b4b9c1;">&copy; 2026 Influnet &nbsp;·&nbsp; Made for creators and brands in India</p>
             </td>
           </tr>

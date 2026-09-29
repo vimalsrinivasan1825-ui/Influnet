@@ -15,7 +15,7 @@ const state: {
 
 const createUser = vi.fn(async () => ({ data: { user: { id: '11111111-1111-1111-1111-111111111111' } }, error: null }));
 const deleteUser = vi.fn(async () => ({ error: null }));
-const generateLink = vi.fn(async () => ({ data: { properties: { action_link: 'https://link.test/once' } }, error: null }));
+const generateLink = vi.fn(async () => ({ data: { properties: { action_link: 'https://link.test/once', hashed_token: 'abc123' } }, error: null }));
 const updateUserById = vi.fn(async () => ({ error: null }));
 const rpc = vi.fn(async (fn: string) => {
   if (fn === 'admin_grant_problem') return { data: state.sqlProblem, error: null };
@@ -105,7 +105,8 @@ describe('POST /api/admin/team', () => {
     const res = await post({ ...base, tier: 'staff' });
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.credentials).toEqual({ kind: 'invite', link: 'https://link.test/once' });
+    expect(body.credentials.kind).toBe('invite');
+    expect(body.credentials.link).toMatch(/^https?:\/\/[^/]+\/reset-password\?token_hash=abc123&type=recovery$/);
     expect(updateUserById).not.toHaveBeenCalled();
   });
 

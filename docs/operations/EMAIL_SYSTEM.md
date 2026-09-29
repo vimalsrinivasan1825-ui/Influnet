@@ -20,8 +20,14 @@ This distinction explains most of the setup, so it comes first.
 
 Our app never sees an auth email. That's why `password_reset` exists in our template registry
 purely as the *design source* — [scripts/build-auth-email-templates.ts](../../apps/web/scripts/build-auth-email-templates.ts)
-renders it with Supabase's Go placeholders substituted in, and you paste the result into the
-dashboard. Both kinds then look identical in the inbox.
+renders it with Supabase's Go placeholders substituted in and, with `--apply`, pushes it into the
+project through the Management API. Both kinds then look identical in the inbox.
+
+The reset link is `{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery`, not
+`{{ .ConfirmationURL }}`. `/reset-password` verifies the token itself when the form is submitted,
+so the link works in any browser (web requests reset under PKCE, whose code only redeems in the
+browser that asked; mobile asks from the app) and a mail scanner opening it cannot spend it. That
+makes the project's **Site URL** load-bearing — `--apply` refuses a project still on localhost.
 
 ---
 
@@ -52,9 +58,11 @@ dashboard. Both kinds then look identical in the inbox.
    Host `smtp.resend.com`, port `465`, user `resend`, password = the Resend API key, sender =
    your `EMAIL_FROM`, sender name `Influnet`.
 
-6. **Supabase → Authentication → Emails → Templates:** run `npm run email:auth-templates` in
-   `apps/web`, then paste each file from `supabase/email-templates/` into the matching template.
-   The file's header comment names the template.
+6. **Supabase → Authentication → Emails → Templates:** from `apps/web`, run
+   `npm run email:auth-templates -- --apply dev` (or `staging`; add `--set-site-url` to correct a
+   localhost Site URL first). Only the reset template is pushed; the others are generated but held
+   back — each entry in the script says why. Deploy the web app first: the template links to the
+   `token_hash` form of `/reset-password`, which older builds don't understand.
 
 7. **Supabase → Authentication → URL Configuration:** Site URL = production URL; allow
    `https://<prod>/**`, the Vercel preview domain, and `influnet://**` so reset links open in the

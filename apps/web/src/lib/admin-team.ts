@@ -60,9 +60,11 @@ export async function issueAccess(
     email,
     options: { redirectTo: `${origin}/reset-password` },
   });
-  const link = data?.properties?.action_link;
-  if (error || !link) return { kind: 'failed', reason: error?.message ?? 'No link returned' };
-  return { kind: 'invite', link };
+  // Same link shape as the reset email, so it opens in any browser and does not
+  // depend on /reset-password being in the project's redirect allow-list.
+  const hashed = data?.properties?.hashed_token;
+  if (error || !hashed) return { kind: 'failed', reason: error?.message ?? 'No link returned' };
+  return { kind: 'invite', link: `${origin}/reset-password?token_hash=${encodeURIComponent(hashed)}&type=recovery` };
 }
 
 /**

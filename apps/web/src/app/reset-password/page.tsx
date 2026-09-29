@@ -19,12 +19,28 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // One-time recovery token from the reset email (?token_hash=…&type=recovery).
+  const [tokenHash, setTokenHash] = useState<string | null>(null);
 
   useEffect(() => {
     const sb = createClient();
 
+    // The reset email links here with a token_hash rather than Supabase's
+    // /verify redirect. That works in any browser — a PKCE link only works in
+    // the browser that asked for it, and mobile asks from the app — and it is
+    // only spent when the form is submitted, so a mail scanner opening the link
+    // cannot burn it. The token is dropped from the address bar straight away.
+    const search = new URLSearchParams(window.location.search);
+    const th = search.get('token_hash');
+    if (th && search.get('type') === 'recovery') {
+      setTokenHash(th);
+      setMode('update');
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
     // Recovery links can arrive with an error (expired/used link) in the URL hash
-    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    const hash = window.location.hash;
     if (hash.includes('error=')) {
       const params = new URLSearchParams(hash.slice(1));
       setError(
@@ -85,6 +101,17 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
     try {
       const sb = createClient();
+      if (tokenHash) {
+        const { error: otpErr } = await sb.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
+        if (otpErr) {
+          setError('This reset link has expired or was already used. Please request a new one.');
+          setTokenHash(null);
+          setMode('request');
+          return;
+        }
+        // Spent — a retry after a rejected password reuses the session instead.
+        setTokenHash(null);
+      }
       const { error: err } = await sb.auth.updateUser({ password });
       if (err) throw err;
       setMode('done');
