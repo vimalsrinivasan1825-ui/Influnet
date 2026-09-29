@@ -236,7 +236,10 @@ export function toCsv(rows: Record<string, unknown>[], omit: string[] = []): str
   const cols = Object.keys(rows[0]).filter((c) => !omit.includes(c));
   const cell = (v: unknown) => {
     if (v == null) return '';
-    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    let s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    // Spreadsheet apps run cells starting with = + - @ (or tab/CR) as formulas;
+    // several columns hold text typed by anonymous visitors.
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return `"${s.replace(/"/g, '""')}"`;
   };
   return [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\r\n');
