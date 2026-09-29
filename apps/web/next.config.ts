@@ -29,6 +29,23 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Baseline hardening headers. A CSP is deliberately not set here: it needs an
+  // inventory of every script/style/img origin (Razorpay, Stream, Cloudinary,
+  // Sentry) and would break pages if guessed.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       // Discover is disabled for V1 (see the destination page's comment for
