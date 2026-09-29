@@ -33,7 +33,7 @@ export default function NotFound() {
       <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center">
         <Link href="/" className="mb-8 inline-flex items-center gap-2.5">
           <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" priority />
-          <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
+          <span className="text-2xl font-bold tracking-tight text-content">influnet</span>
         </Link>
 
         <div className="w-full rounded-3xl border border-hairline bg-surface-card p-10 shadow-[var(--shadow-soft)]">
@@ -42,7 +42,7 @@ export default function NotFound() {
           </div>
 
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand">404</p>
-          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-content">Page not found</h1>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-content">Page not found</h1>
           <p className="mt-2.5 text-sm leading-relaxed text-content-soft">
             The page you're looking for doesn't exist, moved, or the link was mistyped.
           </p>

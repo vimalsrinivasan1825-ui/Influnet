@@ -394,7 +394,7 @@ function Brand({ collapsed }: { collapsed: boolean }) {
     <Link href="/" className="flex items-center gap-2.5">
       <Image src="/influet_logo.png" alt="" width={28} height={28} className="size-7 shrink-0" />
       {!collapsed && (
-        <span className="text-lg font-extrabold tracking-tight text-content">influnet</span>
+        <span className="text-lg font-bold tracking-tight text-content">influnet</span>
       )}
     </Link>
   );

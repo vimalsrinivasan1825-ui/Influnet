@@ -339,7 +339,7 @@ function MessagesContent() {
         )}
       >
         <div className="flex items-center justify-between px-4 pb-2 pt-4">
-          <h2 className="text-base font-extrabold tracking-tight text-content">Messages</h2>
+          <h2 className="text-base font-semibold tracking-tight text-content">Messages</h2>
           {streamStatus === "connecting" && <Loader2 className="size-3.5 animate-spin text-content-muted" />}
         </div>
 

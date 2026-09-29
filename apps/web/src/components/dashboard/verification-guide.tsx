@@ -83,7 +83,7 @@ export function VerificationGuide({
             <ShieldCheck className="size-5" />
           </span>
           <div>
-            <p className="text-sm font-extrabold text-content">
+            <p className="text-sm font-semibold text-content">
               Get verified in 3 easy steps
             </p>
             <p className="mt-0.5 text-xs text-content-soft">
@@ -104,7 +104,7 @@ export function VerificationGuide({
       <div className="flex flex-col gap-0 divide-y divide-hairline">
         {/* Step 1: Copy your link */}
         <div className="flex items-start gap-3 px-5 py-3.5">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-[0.6875rem] font-extrabold text-white">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-[0.6875rem] font-semibold text-white">
             1
           </span>
           <div className="min-w-0 flex-1">
@@ -133,7 +133,7 @@ export function VerificationGuide({
 
         {/* Step 2: Add to the Instagram links field (the clickable one) */}
         <div className="flex items-start gap-3 px-5 py-3.5">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-[0.6875rem] font-extrabold text-white">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-[0.6875rem] font-semibold text-white">
             2
           </span>
           <div className="min-w-0 flex-1">
@@ -153,7 +153,7 @@ export function VerificationGuide({
 
         {/* Step 3: Come back and verify */}
         <div className="flex items-start gap-3 px-5 py-3.5">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-[0.6875rem] font-extrabold text-white">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-[0.6875rem] font-semibold text-white">
             3
           </span>
           <div className="min-w-0 flex-1">

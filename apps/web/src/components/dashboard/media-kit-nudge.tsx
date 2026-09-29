@@ -90,7 +90,7 @@ export function MediaKitNudge() {
         <Sparkles className="size-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-extrabold text-content">Complete your media kit</p>
+        <p className="text-sm font-semibold text-content">Complete your media kit</p>
         <p className="mt-0.5 text-sm leading-relaxed text-content-soft">
           Add {list} so brands see the full picture when they view your profile.
         </p>

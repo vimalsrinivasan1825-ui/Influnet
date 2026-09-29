@@ -56,7 +56,7 @@ function StageNode({ data, selected }: NodeProps) {
         <span className="flex size-6 items-center justify-center rounded-full text-[0.625rem] font-bold text-white" style={{ background: s.dot }}>
           {d.status === 'done' ? <Check size={13} /> : d.status === 'skipped' ? <SkipForward size={12} /> : d.index + 1}
         </span>
-        <span className="text-sm font-extrabold text-content">{d.label}</span>
+        <span className="text-sm font-semibold text-content">{d.label}</span>
       </div>
       <div className="mt-2 flex items-center gap-2">
         <span className={`rounded-full px-2 py-0.5 text-[0.5625rem] font-bold uppercase ${s.pill}`}>{d.status}</span>
@@ -164,7 +164,7 @@ export function ProjectFlow({ project, entries, userId, onPreviewImage }: { proj
           <>
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-[0.08em] text-brand">Stage</span>
-              <span className="text-lg font-extrabold text-content">{flow.labels[selected as string] || STAGE_LABELS[selected as Stage] || selected}</span>
+              <span className="text-lg font-semibold text-content">{flow.labels[selected as string] || STAGE_LABELS[selected as Stage] || selected}</span>
             </div>
             {/* What this stage is for, and what each side does in it — always
                 shown, not just for stages not yet reached, so "what happens

@@ -278,7 +278,7 @@ export default function HomePage() {
             />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-2xl font-extrabold tracking-tight text-content">
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-content">
                   {isCreator ? data.profile.name : pp.company_name || data.profile.name}
                 </h1>
                 {/* Gold on a Pro subscriber's mark. `pro` only ever gilds a
@@ -466,7 +466,7 @@ export default function HomePage() {
                 <c.icon className="size-4" />
               </span>
               <div className="min-w-0">
-                <div className="text-lg font-extrabold tabular-nums text-content">{c.value}</div>
+                <div className="text-lg font-semibold tabular-nums text-content">{c.value}</div>
                 <div className="truncate text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
                   {c.label}
                 </div>
@@ -548,7 +548,7 @@ export default function HomePage() {
                   <p className="text-[0.6875rem] font-bold uppercase tracking-wide text-content-muted">
                     {isCreator ? "Settled to you" : "Paid out"}
                   </p>
-                  <p className="mt-1 text-4xl font-extrabold tracking-tight tabular-nums text-content">
+                  <p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums text-content">
                     {rupees(money.earned)}
                   </p>
                 </div>
@@ -558,7 +558,7 @@ export default function HomePage() {
                       <CreditCard className="size-4" />
                     </span>
                     <div>
-                      <p className="text-xl font-extrabold tabular-nums text-warn">
+                      <p className="text-xl font-semibold tabular-nums text-warn">
                         {rupees(money.pending)}
                       </p>
                       <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
@@ -577,7 +577,7 @@ export default function HomePage() {
                 <div className="flex gap-6">
                   <div>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-2xl font-extrabold tabular-nums text-content">
+                      <span className="text-2xl font-semibold tabular-nums text-content">
                         {compact(attention.profile_views) ?? attention.profile_views}
                       </span>
                       {attention.profile_views_delta_pct != null && (
@@ -598,7 +598,7 @@ export default function HomePage() {
                   </div>
                   {isCreator && attention.business_viewers != null && (
                     <Link href="/dashboard/profile-viewers" className="group">
-                      <span className="text-2xl font-extrabold tabular-nums text-content group-hover:text-brand">
+                      <span className="text-2xl font-semibold tabular-nums text-content group-hover:text-brand">
                         {compact(attention.business_viewers) ?? attention.business_viewers}
                       </span>
                       <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted group-hover:text-brand">
@@ -702,7 +702,7 @@ export default function HomePage() {
                         </p>
                       </div>
                       {p.budget != null && p.budget !== "" && (
-                        <span className="hidden shrink-0 text-sm font-extrabold text-content sm:block">
+                        <span className="hidden shrink-0 text-sm font-semibold text-content sm:block">
                           ₹{Number(p.budget).toLocaleString("en-IN")}
                         </span>
                       )}
@@ -739,7 +739,7 @@ export default function HomePage() {
             >
               {analytics.map((a) => (
                 <div key={a.label} className="px-4 py-3">
-                  <div className="text-lg font-extrabold text-content">{a.value}</div>
+                  <div className="text-lg font-semibold text-content">{a.value}</div>
                   <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
                     {a.label}
                   </div>
@@ -901,7 +901,7 @@ export default function HomePage() {
                 <Star className="size-3.5" /> Brand ratings
               </p>
               <span className="flex items-center gap-1.5">
-                <span className="text-lg font-extrabold tabular-nums text-content">
+                <span className="text-lg font-semibold tabular-nums text-content">
                   {reviews.average?.toFixed(1) ?? "—"}
                 </span>
                 <span className="flex">
@@ -983,7 +983,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   {p.budget != null && p.budget !== "" && (
-                    <span className="hidden shrink-0 text-sm font-extrabold text-content sm:block">
+                    <span className="hidden shrink-0 text-sm font-semibold text-content sm:block">
                       ₹{Number(p.budget).toLocaleString("en-IN")}
                     </span>
                   )}

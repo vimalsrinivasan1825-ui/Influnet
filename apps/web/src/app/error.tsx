@@ -64,7 +64,7 @@ export default function ErrorPage({
           <div className="flex flex-col gap-3">
             <button
               onClick={() => reset()}
-              className="w-full bg-[#ee3e96] hover:bg-[#db2777] active:scale-[0.98] text-white font-extrabold rounded-2xl h-13 transition-all outline-none text-base shadow-sm shadow-pink-200 flex items-center justify-center font-sans cursor-pointer"
+              className="w-full bg-[#ee3e96] hover:bg-[#db2777] active:scale-[0.98] text-white font-semibold rounded-2xl h-13 transition-all outline-none text-base shadow-sm shadow-pink-200 flex items-center justify-center font-sans cursor-pointer"
             >
               Try Again
             </button>

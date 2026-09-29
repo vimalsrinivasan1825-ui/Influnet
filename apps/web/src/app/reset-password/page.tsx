@@ -244,7 +244,7 @@ export default function ResetPasswordPage() {
         <p className="mt-8 text-center text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>
           Remembered it?{' '}
           <Link href="/login"
-            className="font-extrabold transition-colors hover:opacity-80"
+            className="font-semibold transition-colors hover:opacity-80"
             style={{ color: 'var(--color-brand)' }}>
             Back to sign in
           </Link>

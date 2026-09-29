@@ -268,7 +268,7 @@ export default function CampaignsPage() {
                     )}
                   </div>
 
-                  <h3 className="line-clamp-1 text-base font-extrabold tracking-tight text-content">
+                  <h3 className="line-clamp-1 text-base font-semibold tracking-tight text-content">
                     {c.title}
                   </h3>
 

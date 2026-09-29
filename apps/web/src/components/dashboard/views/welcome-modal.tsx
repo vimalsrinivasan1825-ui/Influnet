@@ -122,7 +122,7 @@ export function WelcomeModal({
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand">
             <PartyPopper className="size-8" />
           </div>
-          <h2 id="welcome-modal-title" className="mb-2 text-2xl font-extrabold text-content">Account created!</h2>
+          <h2 id="welcome-modal-title" className="mb-2 text-2xl font-semibold text-content">Account created!</h2>
 
           {hasUsername ? (
             <>

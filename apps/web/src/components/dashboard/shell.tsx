@@ -386,7 +386,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                   {isRejected ? <XCircle className="size-5" /> : <Clock className="size-5" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-extrabold text-content">
+                  <p className="text-sm font-semibold text-content">
                     {isRejected ? "Your account wasn’t approved" : "Your profile is being verified"}
                   </p>
                   <p className="mt-0.5 text-sm leading-relaxed text-content-soft">

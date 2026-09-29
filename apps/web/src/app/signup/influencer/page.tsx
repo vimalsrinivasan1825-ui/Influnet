@@ -139,7 +139,7 @@ function InstagramVerifyStep({
           </span>
         </div>
         <div>
-          <p className="text-base font-extrabold text-content">@{handle} is yours</p>
+          <p className="text-base font-semibold text-content">@{handle} is yours</p>
           <p className="mt-1 text-sm text-content-soft">Verified from your profile link. Taking you to the next step…</p>
         </div>
       </div>
@@ -589,9 +589,9 @@ function InfluencerSignupContent() {
         <div className="mb-5 text-center">
           <Link href="/" className="mb-4 inline-flex items-center gap-2.5">
             <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
-            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
+            <span className="text-2xl font-bold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-2xl font-extrabold tracking-tight text-content">Create your account</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-content">Create your account</h1>
           <p className="mt-1.5 text-sm text-content-soft">Join as a creator.</p>
         </div>
 
@@ -630,7 +630,7 @@ function InfluencerSignupContent() {
 
           {step === 1 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Account details</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Account details</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>First name</Label>
@@ -788,7 +788,7 @@ function InfluencerSignupContent() {
 
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Profile details</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Profile details</h2>
               <div>
                 <Label>Gender</Label>
                 <Select value={gender} onChange={(e) => setGender(e.target.value)}>
@@ -829,7 +829,7 @@ function InfluencerSignupContent() {
 
           {step === 3 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Creator positioning</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Creator positioning</h2>
               <div>
                 <Label>Primary niche</Label>
                 <Select value={primaryNiche} onChange={(e) => setPrimaryNiche(e.target.value)}>
@@ -930,7 +930,7 @@ function InfluencerSignupContent() {
 
           {step === 4 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Verify your Instagram</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Verify your Instagram</h2>
               {cleanInstagramHandle ? (
                 <>
                   <p className="text-sm text-content-soft">
@@ -955,7 +955,7 @@ function InfluencerSignupContent() {
 
           {step === 5 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Collaboration preferences</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Collaboration preferences</h2>
               <div>
                 <Label>Content types</Label>
                 <div className="flex flex-wrap gap-2">
@@ -981,7 +981,7 @@ function InfluencerSignupContent() {
                           : "border-hairline-strong bg-surface-muted hover:border-content-muted",
                       )}
                     >
-                      <div className={cn("text-sm font-extrabold", priceRange === tier.value ? "text-brand-strong" : "text-content")}>
+                      <div className={cn("text-sm font-semibold", priceRange === tier.value ? "text-brand-strong" : "text-content")}>
                         {tier.label}
                       </div>
                       <div className="mt-0.5 text-xs font-semibold text-content-muted">{tier.range}</div>

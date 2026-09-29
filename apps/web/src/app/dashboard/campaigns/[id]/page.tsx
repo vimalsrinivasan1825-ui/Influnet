@@ -273,7 +273,7 @@ export default function CampaignDetailPage() {
       {isOwner && (
         <Card className="p-5">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-extrabold text-content">
+            <span className="text-sm font-semibold text-content">
               Status: <Badge variant={campaign.status === "live" ? "success" : campaign.status === "closed" ? "neutral" : "neutral"}>{campaign.status}</Badge>
             </span>
             <div className="flex gap-2">
@@ -346,7 +346,7 @@ export default function CampaignDetailPage() {
             <Button variant="brand" onClick={() => setShowApplyForm(true)}>Apply to this campaign</Button>
           ) : (
             <Card className="p-5">
-              <h3 className="text-sm font-extrabold text-content mb-3">Your application</h3>
+              <h3 className="text-sm font-semibold text-content mb-3">Your application</h3>
               <div className="flex flex-col gap-3">
                 <div>
                   <label className="text-xs font-bold text-content-muted">Pitch</label>
@@ -395,7 +395,7 @@ export default function CampaignDetailPage() {
       {/* Applications list for owner */}
       {isOwner && (
         <div>
-          <h3 className="text-sm font-extrabold text-content mb-3">Applications ({applications.length})</h3>
+          <h3 className="text-sm font-semibold text-content mb-3">Applications ({applications.length})</h3>
           {applications.length === 0 ? (
             <Card><EmptyState icon={<Users />} title="No applications yet" description="Creators will appear here when they apply." /></Card>
           ) : (

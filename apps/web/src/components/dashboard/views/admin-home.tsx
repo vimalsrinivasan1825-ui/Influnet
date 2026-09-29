@@ -66,7 +66,7 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
             <p className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
               {isSuperAdmin ? "Developer Super Admin" : access?.tier === "staff" ? "Staff" : "Platform Admin"}
             </p>
-            <h1 className="text-xl font-extrabold tracking-tight text-content sm:text-2xl">
+            <h1 className="text-xl font-semibold tracking-tight text-content sm:text-2xl">
               {isSuperAdmin ? "Control Center & Systems" : "Control Center"}
             </h1>
           </div>

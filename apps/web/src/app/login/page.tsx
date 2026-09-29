@@ -206,9 +206,9 @@ function LoginContent() {
         <div className="mb-8 text-center">
           <Link href="/" className="mb-6 inline-flex items-center gap-2.5">
             <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
-            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
+            <span className="text-2xl font-bold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-3xl font-extrabold tracking-tight text-content">Welcome back</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-content">Welcome back</h1>
           <p className="mt-1.5 text-sm text-content-soft">Sign in to your account to continue.</p>
         </div>
 

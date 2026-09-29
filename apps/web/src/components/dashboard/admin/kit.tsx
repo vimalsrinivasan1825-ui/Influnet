@@ -482,7 +482,7 @@ export function FunnelBars({
                 {i > 0 && dropped > 0 && (
                   <span className="text-xs font-semibold text-danger">−{nf.format(dropped)}</span>
                 )}
-                <span className="text-base font-extrabold tabular-nums text-content">{nf.format(step.value)}</span>
+                <span className="text-base font-semibold tabular-nums text-content">{nf.format(step.value)}</span>
                 <span className="w-10 text-xs font-semibold tabular-nums text-content-muted">{share}%</span>
               </div>
             </div>

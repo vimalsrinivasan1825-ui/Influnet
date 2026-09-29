@@ -37,7 +37,7 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
             <p className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
               Brand partner portal
             </p>
-            <h1 className="truncate text-xl font-extrabold tracking-tight text-content sm:text-2xl">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-content sm:text-2xl">
               Welcome back, {p?.name || "there"}
             </h1>
             {p?.industry && (

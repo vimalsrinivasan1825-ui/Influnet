@@ -54,9 +54,9 @@ function SignupSelectionContent() {
         <div className="mb-8 text-center">
           <Link href="/" className="mb-6 inline-flex items-center gap-2.5">
             <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
-            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
+            <span className="text-2xl font-bold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-3xl font-extrabold tracking-tight text-content">Join Influnet</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-content">Join Influnet</h1>
           <p className="mt-1.5 text-sm text-content-soft">Sign in, or create an account to get started.</p>
         </div>
 
@@ -71,7 +71,7 @@ function SignupSelectionContent() {
               <LogIn className="size-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-lg font-extrabold tracking-tight text-brand-strong">
+              <span className="block text-lg font-semibold tracking-tight text-brand-strong">
                 I already have an account
               </span>
               <span className="mt-0.5 block text-sm text-content-soft">Sign in to continue where you left off.</span>
@@ -99,7 +99,7 @@ function SignupSelectionContent() {
                   {r.icon}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-lg font-extrabold tracking-tight text-content group-hover:text-brand-strong">
+                  <span className="block text-lg font-semibold tracking-tight text-content group-hover:text-brand-strong">
                     {r.title}
                   </span>
                   <span className="mt-0.5 block text-sm text-content-soft">{r.body}</span>

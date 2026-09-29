@@ -307,7 +307,7 @@ export default function ProjectsPage() {
                             </>
                           )}
                         </div>
-                        <h3 className="mt-1.5 text-lg font-extrabold tracking-tight text-content">
+                        <h3 className="mt-1.5 text-lg font-semibold tracking-tight text-content">
                           {p.title}
                         </h3>
                         {p.description && (
@@ -350,7 +350,7 @@ export default function ProjectsPage() {
                               <div className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">
                                 Budget
                               </div>
-                              <div className="text-lg font-extrabold text-content">
+                              <div className="text-lg font-semibold text-content">
                                 ₹{Number(p.budget).toLocaleString()}
                               </div>
                             </div>

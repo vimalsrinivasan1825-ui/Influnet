@@ -94,7 +94,7 @@ export default function AdminCampaignsPage() {
                     </span>
                     <Badge variant="warning" size="sm">Pending review</Badge>
                   </div>
-                  <h3 className="mt-1 text-lg font-extrabold text-content">{c.title}</h3>
+                  <h3 className="mt-1 text-lg font-semibold text-content">{c.title}</h3>
                   {c.description && (
                     <p className="mt-1 text-sm text-content-soft line-clamp-3">{c.description}</p>
                   )}

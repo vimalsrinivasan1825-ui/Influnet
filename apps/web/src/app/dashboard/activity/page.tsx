@@ -122,7 +122,7 @@ function NetworkingFunnel({ funnel }: { funnel: Funnel }) {
     <Card className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4 sm:p-5">
       {steps.map((s) => (
         <div key={s.label} className="flex flex-col gap-1">
-          <span className="text-2xl font-extrabold tabular-nums text-content">{s.value}</span>
+          <span className="text-2xl font-semibold tabular-nums text-content">{s.value}</span>
           <span className="text-xs font-semibold text-content-muted">{s.label}</span>
         </div>
       ))}

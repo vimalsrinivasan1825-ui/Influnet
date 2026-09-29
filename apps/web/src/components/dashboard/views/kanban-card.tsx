@@ -50,7 +50,7 @@ export function KanbanCard({
         </div>
 
         {/* Title */}
-        <h4 className="text-sm font-extrabold leading-tight tracking-tight text-content">
+        <h4 className="text-sm font-semibold leading-tight tracking-tight text-content">
           {title}
         </h4>
 
@@ -67,7 +67,7 @@ export function KanbanCard({
         {budget && (
           <div className="mt-1 flex items-center justify-between border-t border-hairline pt-3">
             <span className="text-[0.65rem] font-bold uppercase tracking-wide text-content-muted">Budget</span>
-            <span className="text-sm font-extrabold text-content">₹{Number(budget).toLocaleString()}</span>
+            <span className="text-sm font-semibold text-content">₹{Number(budget).toLocaleString()}</span>
           </div>
         )}
       </div>

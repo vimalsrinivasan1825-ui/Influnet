@@ -228,7 +228,7 @@ function DonutChart({
         </RechartsPieChart>
       </AutoResponsive>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-extrabold tracking-tight text-content tabular-nums">
+        <span className="text-2xl font-semibold tracking-tight text-content tabular-nums">
           {prefix}
           {typeof total === "number" ? total.toLocaleString() : total}
         </span>
