@@ -24,7 +24,7 @@ function SegmentedTabs<T extends string>({
     <div
       role="tablist"
       className={cn(
-        "inline-flex items-center gap-1 rounded-xl border border-hairline bg-surface-muted p-1",
+        "inline-flex items-center gap-0.5 rounded-lg border border-hairline bg-surface-muted p-0.5",
         className,
       )}
     >
@@ -37,7 +37,7 @@ function SegmentedTabs<T extends string>({
             aria-selected={active}
             onClick={() => onValueChange(tab.value)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg font-semibold transition-all",
+              "inline-flex items-center gap-1.5 rounded-md font-medium transition-colors",
               size === "sm" ? "px-2.5 py-1 text-xs" : "px-3.5 py-1.5 text-sm",
               active
                 ? "bg-surface-card text-content shadow-[var(--shadow-card)]"
@@ -48,9 +48,9 @@ function SegmentedTabs<T extends string>({
             {typeof tab.count === "number" && (
               <span
                 className={cn(
-                  "rounded-full px-1.5 py-0.5 text-[0.625rem] font-bold tabular-nums",
+                  "rounded px-1.5 py-px text-[0.6875rem] font-medium tabular-nums",
                   active
-                    ? "bg-brand-soft text-brand-strong"
+                    ? "bg-surface-muted text-content-soft"
                     : "bg-surface-card text-content-muted",
                 )}
               >
