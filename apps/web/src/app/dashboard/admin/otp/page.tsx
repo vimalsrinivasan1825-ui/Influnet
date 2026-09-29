@@ -88,9 +88,10 @@ export default function OtpLogsPage() {
             <AreaChart
               data={series}
               config={{
-                Sent: { label: "Sent", color: CHART_COLORS[1] },
-                Verified: { label: "Verified", color: CHART_COLORS[2] },
-                Failed: { label: "Failed or expired", color: CHART_COLORS[6] },
+                // Verified and failed are states, so they wear the status colours.
+                Sent: { label: "Sent", color: CHART_COLORS[0] },
+                Verified: { label: "Verified", color: "var(--ok-mark)" },
+                Failed: { label: "Failed or expired", color: "var(--danger-mark)" },
               }}
               areas={[{ dataKey: "Sent" }, { dataKey: "Verified" }, { dataKey: "Failed" }]}
               height={240}

@@ -1,3 +1,4 @@
+import { CHART_COLORS, CHART_SINGLE } from "@/lib/chart-palette";
 /**
  * A stable, distinct color for a person or brand — the WhatsApp trick.
  *
@@ -87,20 +88,14 @@ export function colorForKey(key: string | null | undefined): string {
  * cost of a brand's line no longer matching its avatar's color — the
  * trade this function makes on purpose for anything with more than ~2 series.
  */
-const CHART_SEQUENCE = [
-  "#F04438", // red
-  "#2E90FA", // blue
-  "#12B76A", // emerald
-  "#7A5AF8", // violet
-  "#EF6820", // orange
-  "#0E9384", // teal
-  "#C11574", // magenta
-  "#66C61C", // lime
-  "#F63D68", // rose
-  "#F79009", // amber
-] as const;
+// The validated categorical palette (lib/chart-palette.ts). The old
+// hand-ordered sequence opened on red, so every single-brand earnings chart
+// read as a warning.
+const CHART_SEQUENCE = CHART_COLORS;
 
 export function chartSeriesColors(count: number): string[] {
+  // One series needs no identity colour: it wears the role accent.
+  if (count === 1) return [CHART_SINGLE];
   return Array.from({ length: count }, (_, i) => CHART_SEQUENCE[i % CHART_SEQUENCE.length]);
 }
 

@@ -83,6 +83,13 @@
   --danger: #c8372d;
   --danger-soft: #fcecea;
 
+  /* Status as a chart mark. The text steps above are dark enough to read
+     at 12px on a tint, which makes them muddy as a large fill. */
+  --ok-mark: #2e9d63;
+  --warn-mark: #e09a1a;
+  --info-mark: #3b78de;
+  --danger-mark: #d9493e;
+
   /* Elevation. Resting surfaces get a 1px contact shadow and lean on
      their border; only what floats above the page (menus, popovers,
      dialogs) gets real depth. No coloured glows anywhere. */

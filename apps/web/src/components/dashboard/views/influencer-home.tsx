@@ -26,9 +26,40 @@ import { VerifyOwnershipNudge } from "@/components/dashboard/verify-ownership-nu
 import { BrandEarningsChart } from "@/components/dashboard/brand-earnings-chart";
 
 export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
+/**
+ * The breakdown is by request state, so it wears the status tokens. The API
+ * still sends hex fills because the mobile app reads the same payload and
+ * cannot resolve CSS variables; the web maps them here.
+ */
+const STATUS_FILL: Record<string, string> = {
+  Pending: "var(--warn-mark)",
+  Active: "var(--info-mark)",
+  Completed: "var(--ok-mark)",
+  Declined: "var(--danger-mark)",
+};
+
+/**
+ * Segment order around the ring. Completed (green) and Declined (red) must
+ * never touch — that pair is indistinguishable under deuteranopia — and the
+ * ring wraps, so Declined also sits against Pending. Validated with the
+ * dataviz palette checker, adjacent pairs and the wrap.
+ */
+const STATUS_ORDER = ["Pending", "Completed", "Active", "Declined"];
+
+function orderedBreakdown<T extends { name: string; fill?: string }>(rows: T[]): T[] {
+  const rank = (n: string) => {
+    const i = STATUS_ORDER.indexOf(n);
+    return i === -1 ? STATUS_ORDER.length : i;
+  };
+  return [...rows]
+    .sort((a, b) => rank(a.name) - rank(b.name))
+    .map((d) => ({ ...d, fill: STATUS_FILL[d.name] ?? d.fill }));
+}
+
   const p = data.profile;
   const s = data.stats;
   // The welcome card, the ownership nudge, and the media-kit nudge all compete
+  const breakdown = orderedBreakdown(data.request_breakdown);
   // for a first-time creator's attention. Hold both nudges back until the
   // welcome card is out of the way, and show at most one nudge at a time —
   // ownership takes priority since it gates auto-verification and the
@@ -146,11 +177,18 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
         <Reveal delay={0.15}>
           <SectionCard eyebrow="Requests" title="Collaboration breakdown" className="h-full">
             {data.request_breakdown.some((d) => d.value > 0) ? (
-              <DonutChart
-                data={data.request_breakdown}
-                height={220}
-                centerLabel="Requests"
-              />
+              <>
+                <DonutChart data={breakdown} height={200} centerLabel="Requests" />
+                <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  {breakdown.map((d) => (
+                    <li key={d.name} className="flex items-center gap-2 text-[0.8125rem]">
+                      <span className="size-2 shrink-0 rounded-sm" style={{ background: d.fill }} aria-hidden />
+                      <span className="text-content-soft">{d.name}</span>
+                      <span className="ml-auto font-medium tabular-nums text-content">{d.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
               <EmptyState
                 icon={<Sparkles />}

@@ -107,7 +107,9 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
           <SectionCard eyebrow="Pipeline" title="Campaign stages" className="h-full">
             {data.pipeline_data.some((d) => d.value > 0) ? (
               <BarChart
-                data={data.pipeline_data}
+                // One measure across stages, so one colour. The payload carries a
+                // per-stage fill (the mobile app uses it); the web ignores it.
+                data={data.pipeline_data.map(({ name, value }) => ({ name, value }))}
                 config={pipelineConfig}
                 xKey="name"
                 bars={[{ dataKey: "value" }]}

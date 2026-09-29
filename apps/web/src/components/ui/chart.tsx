@@ -18,24 +18,14 @@ import {
   Cell,
 } from "recharts";
 
-/** Shared categorical palette, aligned with the design tokens. */
-const CHART_COLORS = [
-  "var(--brand)",
-  "#2563eb",
-  "#16a34a",
-  "#d97706",
-  "#8b5cf6",
-  "#0d9488",
-  "#f26e59",
-  "#db2777",
-];
+import { CHART_COLORS, CHART_SINGLE } from "@/lib/chart-palette";
 
 interface ChartConfig {
   [key: string]: { label: string; color: string };
 }
 
-const axisTick = { fontSize: 11, fontWeight: 600, fill: "#94a3b8" } as const;
-const gridStroke = "#eef0f4";
+const axisTick = { fontSize: 11, fontWeight: 500, fill: "var(--content-muted)" } as const;
+const gridStroke = "var(--hairline)";
 
 function fmtCompact(v: number) {
   if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`;
@@ -110,10 +100,10 @@ function AreaChart({
       <RechartsAreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
           {areas.map((a, i) => {
-            const color = a.color ?? CHART_COLORS[i % CHART_COLORS.length];
+            const color = a.color ?? config[a.dataKey]?.color ?? (areas.length === 1 ? CHART_SINGLE : CHART_COLORS[i % CHART_COLORS.length]);
             return (
               <linearGradient key={a.dataKey} id={`${gid}-${a.dataKey}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity={0.28} />
+                <stop offset="0%" stopColor={color} stopOpacity={0.14} />
                 <stop offset="100%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             );
@@ -122,9 +112,9 @@ function AreaChart({
         <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
         <XAxis dataKey={xKey} tick={axisTick} tickLine={false} axisLine={false} dy={4} />
         <YAxis tick={axisTick} tickLine={false} axisLine={false} width={38} tickFormatter={fmtCompact} />
-        <Tooltip cursor={{ stroke: "#e3e6ec" }} content={<ChartTooltip config={config} prefix={prefix} />} />
+        <Tooltip cursor={{ stroke: "var(--hairline-strong)" }} content={<ChartTooltip config={config} prefix={prefix} />} />
         {areas.map((a, i) => {
-          const color = a.color ?? CHART_COLORS[i % CHART_COLORS.length];
+          const color = a.color ?? config[a.dataKey]?.color ?? (areas.length === 1 ? CHART_SINGLE : CHART_COLORS[i % CHART_COLORS.length]);
           return (
             <Area
               key={a.dataKey}
@@ -167,12 +157,12 @@ function BarChart({
         <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
         <XAxis dataKey={xKey} tick={axisTick} tickLine={false} axisLine={false} dy={4} />
         <YAxis tick={axisTick} tickLine={false} axisLine={false} width={38} tickFormatter={fmtCompact} />
-        <Tooltip cursor={{ fill: "rgba(148,163,184,0.08)" }} content={<ChartTooltip config={config} prefix={prefix} />} />
+        <Tooltip cursor={{ fill: "var(--surface-muted)" }} content={<ChartTooltip config={config} prefix={prefix} />} />
         {bars.map((bar, bi) => (
           <Bar
             key={bar.dataKey}
             dataKey={bar.dataKey}
-            radius={[6, 6, 0, 0]}
+            radius={[4, 4, 0, 0]}
             maxBarSize={44}
             isAnimationActive={false}
             stackId={stacked ? bar.stackId || "stack" : undefined}
@@ -180,7 +170,7 @@ function BarChart({
             {data.map((entry, idx) => (
               <Cell
                 key={idx}
-                fill={entry.fill || bar.color || CHART_COLORS[bi % CHART_COLORS.length]}
+                fill={entry.fill || bar.color || config[bar.dataKey]?.color || (bars.length === 1 ? CHART_SINGLE : CHART_COLORS[bi % CHART_COLORS.length])}
               />
             ))}
           </Bar>
@@ -216,8 +206,9 @@ function DonutChart({
             nameKey="name"
             innerRadius="62%"
             outerRadius="88%"
-            paddingAngle={2}
-            stroke="none"
+            paddingAngle={0}
+            stroke="var(--surface-card)"
+            strokeWidth={2}
             isAnimationActive={false}
           >
             {data.map((entry, idx) => (
@@ -233,7 +224,7 @@ function DonutChart({
           {typeof total === "number" ? total.toLocaleString() : total}
         </span>
         {centerLabel && (
-          <span className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
+          <span className="text-xs font-medium text-content-muted">
             {centerLabel}
           </span>
         )}
@@ -246,7 +237,7 @@ function DonutChart({
 function Sparkline({
   data,
   dataKey = "value",
-  color = "var(--brand)",
+  color = CHART_SINGLE,
   height = 40,
 }: {
   data: any[];
@@ -300,5 +291,6 @@ export {
   Sparkline,
   ChartLegend,
   CHART_COLORS,
+  CHART_SINGLE,
 };
 export type { ChartConfig };

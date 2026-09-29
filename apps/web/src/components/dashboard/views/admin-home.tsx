@@ -21,7 +21,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { Reveal, Stagger } from "@/components/ui/motion";
-import { DonutChart } from "@/components/ui/chart";
+import { CHART_COLORS, DonutChart } from "@/components/ui/chart";
 import { useAdminAccess } from "@/lib/hooks/use-admin-tier";
 import type { AdminHomeData } from "./types";
 
@@ -50,8 +50,8 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
   const isSuperAdmin = access?.tier === "super";
 
   const audience = [
-    { name: "Businesses", value: s.total_businesses, fill: "#6366f1" },
-    { name: "Influencers", value: s.total_influencers, fill: "#f26e59" },
+    { name: "Businesses", value: s.total_businesses, fill: CHART_COLORS[0] },
+    { name: "Influencers", value: s.total_influencers, fill: CHART_COLORS[1] },
   ];
 
   return (
