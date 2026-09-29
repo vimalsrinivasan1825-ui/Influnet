@@ -315,10 +315,14 @@ a {
 }
 
 /* ── Dashboard motion + surface utilities ───────────────── */
+/* Content settles in rather than performing an entrance: a 3px drift over a
+   quarter second, and stagger delays compressed to 40% so a whole page is in
+   place in about 0.3s. The old 10px/0.5s cascade made every load feel like a
+   landing-page reveal. Callers keep their delays; the scale lives here. */
 @keyframes ds-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
@@ -342,13 +346,13 @@ a {
 }
 
 .ds-rise {
-  animation: ds-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: var(--ds-delay, 0s);
+  animation: ds-rise 0.24s cubic-bezier(0.2, 0, 0, 1) both;
+  animation-delay: calc(var(--ds-delay, 0s) * 0.4);
 }
 
 .ds-fade {
-  animation: ds-fade 0.5s ease both;
-  animation-delay: var(--ds-delay, 0s);
+  animation: ds-fade 0.2s ease both;
+  animation-delay: calc(var(--ds-delay, 0s) * 0.4);
 }
 
 /* Dotted background pattern for empty/hero surfaces */
