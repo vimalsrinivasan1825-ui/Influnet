@@ -1,5 +1,6 @@
 "use client";
 
+import { safeNextPath } from "@/lib/safe-next";
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -21,10 +22,7 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextParam = (() => {
-    const n = searchParams.get("next");
-    return n && n.startsWith("/") && !n.startsWith("//") ? n : null;
-  })();
+  const nextParam = safeNextPath(searchParams.get("next"));
   // Reflected from the URL (e.g. the "check your email" hint after signup).
   // React escapes it, but cap the length so it can't be abused for phishing.
   const message = searchParams.get("message")?.slice(0, 120) || null;
