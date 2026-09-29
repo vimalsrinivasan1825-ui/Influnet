@@ -53,6 +53,22 @@ describe('resolveMockMode', () => {
     expect(resolveMockMode('off')).toBe(false);
     expect(resolveMockMode('1')).toBe(true);
   });
+  it('ignores the ?mock query in production builds', () => {
+    const env = process.env as Record<string, string | undefined>;
+    const prevNode = env.NODE_ENV;
+    const prevFlag = env.NEXT_PUBLIC_PROFILE_MOCK;
+    env.NODE_ENV = 'production';
+    delete env.NEXT_PUBLIC_PROFILE_MOCK;
+    try {
+      expect(resolveMockMode('1')).toBe(false);
+      env.NEXT_PUBLIC_PROFILE_MOCK = 'on';
+      expect(resolveMockMode(undefined)).toBe(true);
+    } finally {
+      env.NODE_ENV = prevNode;
+      if (prevFlag === undefined) delete env.NEXT_PUBLIC_PROFILE_MOCK;
+      else env.NEXT_PUBLIC_PROFILE_MOCK = prevFlag;
+    }
+  });
 });
 
 describe('buildCreatorProfileView — mock mode', () => {

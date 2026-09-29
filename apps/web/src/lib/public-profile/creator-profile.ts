@@ -262,6 +262,12 @@ export function formatCount(n: number | null | undefined): string {
  */
 export function resolveMockMode(searchParam?: string | string[]): boolean {
   const q = Array.isArray(searchParam) ? searchParam[0] : searchParam;
+  // The query override fabricates reach/follower numbers on a real profile URL,
+  // so it is a local-development affordance only. Deployed builds (staging
+  // included) take the env flag alone.
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.NEXT_PUBLIC_PROFILE_MOCK === 'on';
+  }
   if (q === '0' || q === 'off' || q === 'false') return false;
   if (q === '1' || q === 'on' || q === 'true') return true;
   return process.env.NEXT_PUBLIC_PROFILE_MOCK === 'on';
