@@ -100,13 +100,6 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden font-sans"
       style={{ background: 'var(--color-surface)' }}>
 
-      {/* Ambient blobs — same as login */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full blur-[130px]"
-          style={{ background: 'color-mix(in oklch, var(--color-brand) 8%, transparent)' }} />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[130px]"
-          style={{ background: 'color-mix(in oklch, var(--color-brand) 5%, transparent)' }} />
-      </div>
 
       <div className="relative z-10 w-full max-w-[450px]">
         {/* Logo */}

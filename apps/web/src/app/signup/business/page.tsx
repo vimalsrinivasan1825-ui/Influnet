@@ -272,16 +272,6 @@ function BusinessSignupContent() {
 
   return (
     <div className="relative flex h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-4">
-      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
-        <div
-          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
-        />
-        <div
-          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
-        />
-      </div>
 
       <div className="relative z-10 flex max-h-full w-full max-w-lg flex-col overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mb-5 text-center">
@@ -321,7 +311,7 @@ function BusinessSignupContent() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-7">
+        <div className="rounded-xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-7">
           {error && (
             <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
               <AlertTriangle className="size-4 shrink-0" /> {error}

@@ -190,17 +190,6 @@ function LoginContent() {
 
   return (
     <div className="relative flex h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-6">
-      {/* Ambient brand glows */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
-        <div
-          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
-        />
-        <div
-          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
-        />
-      </div>
 
       <div className="relative z-10 flex max-h-full w-full max-w-md flex-col overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mb-8 text-center">
@@ -212,7 +201,7 @@ function LoginContent() {
           <p className="mt-1.5 text-sm text-content-soft">Sign in to your account to continue.</p>
         </div>
 
-        <div className="rounded-3xl border border-hairline bg-surface-card p-8 shadow-[var(--shadow-raised)]">
+        <div className="rounded-xl border border-hairline bg-surface-card p-8 shadow-[var(--shadow-raised)]">
           {message && !error && (
             <div className="mb-5 rounded-xl border border-brand/20 bg-brand-soft px-4 py-3 text-sm font-semibold text-brand-strong">
               {message}
