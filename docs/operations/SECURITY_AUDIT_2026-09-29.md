@@ -33,9 +33,16 @@ directly with the anon key. `staging` is production, so every fix below is live 
 3. Purge `test-data-backup-*.json`, `madan-gowri-backup*`, `phase0-cleanup-backup*` from git history if the repo is shared; confirm `qacreator` password was changed.
 4. Migrations were syntax-checked only, not run against a database. Apply to a scratch Supabase project first.
 
+## Later in the same pass
+
+Migrations 190 (analytics insert policies closed) and 191 (removed campaigns stay removed, owner frozen), the Stream webhook now ignores non-participant senders, and a report-only CSP was added.
+
 ## Not fixed (needs a design decision or a coordinated client release)
 
-- Stage machine and checklist gates are enforced only in the API (`ALLOWED_TRANSITIONS` lives in packages/core; a SQL mirror needs a product decision).
-- Admin section scoping is API-only; `admin_*` RPCs reachable by any staff JWT (migration 176 known limit).
-- Cloudinary signing has no `allowed_formats` / size cap: adding signed params breaks already-installed mobile builds, needs an OTA first.
-- No CSP (needs an origin inventory), audit-log fail-open, Stream token expiry and webhook sender check, OTP token single-use and phone uniqueness, analytics INSERT forgery, admin-removed campaign reinstatement.
+- Stage machine and checklist gates are enforced only in the API (a SQL mirror needs a product decision).
+- Admin section scoping is API-only; `admin_*` RPCs are reachable by any staff JWT.
+- Cloudinary signing has no `allowed_formats` / size cap: adding signed params breaks installed mobile builds, so it needs an OTA first.
+- CSP is report-only, not enforcing.
+- Audit log fails open by design (a failed audit write does not block the admin action).
+- Stream tokens never expire (clients need a token refresher first).
+- OTP verification token is not single-use and phones are not unique (needs a data check for duplicates first).
