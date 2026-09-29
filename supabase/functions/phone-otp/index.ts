@@ -129,6 +129,11 @@ Deno.serve(async (req) => {
       const phone = String(body.phone || "");
       const otp = String(body.otp || "").replace(/\D/g, "");
       const providerSessionId = String(body.providerSessionId || body.sessionId || "");
+      // Interpolated into the 2Factor URL path below; anything but a plain token
+      // could redirect the request to a different 2Factor endpoint.
+      if (providerSessionId && !/^[A-Za-z0-9-]{1,128}$/.test(providerSessionId)) {
+        return json({ error: "Invalid verification session." }, 400);
+      }
 
       if (!otp || otp.length !== 6) {
         return json({ error: "Enter the 6-digit verification code." }, 400);
@@ -192,14 +197,9 @@ Deno.serve(async (req) => {
       });
       if (verErr) return json({ error: verErr.message }, 500);
 
-      const userId = body.userId ? String(body.userId) : null;
-      if (userId) {
-        await sb.rpc("mark_profile_phone_verified", {
-          p_user_id: userId,
-          p_phone: phone,
-          p_provider: "2factor",
-        });
-      }
+      // The profile is stamped by /api/auth/register under the caller's own
+      // session. This endpoint is unauthenticated, so it must not accept a
+      // client-supplied userId and write another user's profile.
 
       return json({
         ok: true,
