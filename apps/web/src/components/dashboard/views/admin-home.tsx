@@ -35,12 +35,12 @@ function Row({
   value: number;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-muted px-4 py-3">
+    <div className="flex items-center justify-between py-2.5">
       <div className="flex items-center gap-2.5">
         <span className="size-2 rounded-full" style={{ background: color }} />
-        <span className="text-sm font-semibold text-content-soft">{label}</span>
+        <span className="text-sm text-content-soft">{label}</span>
       </div>
-      <span className="text-base font-extrabold text-content tabular-nums">{value}</span>
+      <span className="text-sm font-semibold text-content tabular-nums">{value.toLocaleString("en-IN")}</span>
     </div>
   );
 }
@@ -117,10 +117,10 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
               </ButtonLink>
             }
           >
-            <div className="flex flex-col gap-2.5">
-              <Row color="#6366f1" label="Total requests" value={s.total_collabs} />
-              <Row color="#16a34a" label="Active" value={s.active_collabs} />
-              <Row color="#d97706" label="Pending response" value={s.pending_collabs} />
+            <div className="-my-2.5 flex flex-col divide-y divide-hairline">
+              <Row color="var(--content-muted)" label="Total requests" value={s.total_collabs} />
+              <Row color="var(--ok-mark)" label="Active" value={s.active_collabs} />
+              <Row color="var(--warn-mark)" label="Pending response" value={s.pending_collabs} />
             </div>
           </SectionCard>
         </Reveal>
@@ -136,9 +136,9 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
               </ButtonLink>
             }
           >
-            <div className="flex flex-col gap-2.5">
-              <Row color="#2563eb" label="Active projects" value={s.active_projects} />
-              <Row color="#16a34a" label="Completed" value={s.completed_projects} />
+            <div className="-my-2.5 flex flex-col divide-y divide-hairline">
+              <Row color="var(--info-mark)" label="Active projects" value={s.active_projects} />
+              <Row color="var(--ok-mark)" label="Completed" value={s.completed_projects} />
             </div>
             <div className="mt-4 flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-4 py-3">
               <FolderKanban className="size-4 text-content-muted" />

@@ -15,6 +15,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
+import { Figure } from "@/components/ui/figure";
 import { SectionCard } from "@/components/ui/section-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal, Stagger } from "@/components/ui/motion";
@@ -254,21 +255,21 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
                 }
               />
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="-my-2 divide-y divide-hairline">
                 {data.recent_collabs.map((c) => (
                   <li
                     key={c.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-muted px-3.5 py-3"
+                    className="flex items-center justify-between gap-3 py-3"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar name={c.name} size="sm" square />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-content">{c.name}</p>
+                        <p className="truncate text-sm font-medium text-content">{c.name}</p>
                         <p className="text-xs text-content-muted">Brand partner</p>
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="text-sm font-bold text-content">{c.amount}</span>
+                      <Figure value={c.amount} className="text-sm font-semibold text-content" />
                       <Badge variant={statusVariant(c.status)} size="sm" dot>
                         {c.status}
                       </Badge>
