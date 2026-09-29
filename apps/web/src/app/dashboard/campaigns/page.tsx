@@ -255,7 +255,7 @@ export default function CampaignsPage() {
 
                 <div className="flex flex-1 flex-col gap-2 p-4">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="truncate text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
+                    <span className="truncate text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-content-muted">
                       {c.business_user?.name || "Brand"}
                     </span>
                     {isClosingSoon && (

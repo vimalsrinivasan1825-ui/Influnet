@@ -14,12 +14,12 @@ function Card({
     <div
       data-slot="card"
       className={cn(
-        // rounded-2xl, not -3xl: matches StatCard's own radius, and a 22px
-        // corner on every panel is what reads as playful/rounded rather than
-        // as a dashboard. 18px keeps the softness without it.
-        "rounded-2xl border border-hairline bg-surface-card text-content shadow-[var(--shadow-soft)]",
+        // 8px corners and a contact shadow: a panel sits ON the page, it does
+        // not float over it. Clickable cards answer hover with a firmer
+        // border and a little depth — no lift, which reads as a toy.
+        "rounded-xl border border-hairline bg-surface-card text-content shadow-[var(--shadow-card)]",
         interactive &&
-          "transition-all duration-200 hover:-translate-y-0.5 hover:border-hairline-strong hover:shadow-[var(--shadow-raised)]",
+          "transition-[border-color,box-shadow] duration-150 hover:border-hairline-strong hover:shadow-[var(--shadow-raised)]",
         className,
       )}
       {...props}
@@ -40,12 +40,12 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-/** Uppercase mono-ish eyebrow used above panel titles. */
+/** Small muted label above a panel title — structure, not decoration. */
 function CardEyebrow({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       className={cn(
-        "text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand",
+        "text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-content-muted",
         className,
       )}
       {...props}
@@ -58,7 +58,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
     <h3
       data-slot="card-title"
       className={cn(
-        "text-[0.95rem] font-bold leading-tight tracking-tight text-content",
+        "text-[0.9375rem] font-semibold leading-tight tracking-[-0.01em] text-content",
         className,
       )}
       {...props}

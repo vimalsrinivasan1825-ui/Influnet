@@ -288,7 +288,7 @@ export default function ProjectsPage() {
                       <ProjectIcon title={p.title} seed={p.id} size={44} className="mt-0.5" />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
+                          <span className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-content-muted">
                             {isOwner ? "Client portal" : "Creator portal"}
                           </span>
                           <span className="text-content-muted">·</span>
