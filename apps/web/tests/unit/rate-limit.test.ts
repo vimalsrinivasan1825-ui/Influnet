@@ -52,14 +52,30 @@ describe('clientKey', () => {
     expect(clientKey(req)).toBe('10.0.0.1');
   });
 
-  it('prefers x-vercel-forwarded-for over x-forwarded-for when present', () => {
+  it('prefers x-vercel-forwarded-for only when running on Vercel', () => {
     const req = new Request('https://x.test', {
       headers: {
         'x-vercel-forwarded-for': '198.51.100.7',
         'x-forwarded-for': '203.0.113.9, 10.0.0.1',
       },
     });
-    expect(clientKey(req)).toBe('198.51.100.7');
+    process.env.VERCEL = '1';
+    try {
+      expect(clientKey(req)).toBe('198.51.100.7');
+    } finally {
+      delete process.env.VERCEL;
+    }
+  });
+
+  it('ignores a client-supplied x-vercel-forwarded-for off Vercel', () => {
+    delete process.env.VERCEL;
+    const req = new Request('https://x.test', {
+      headers: {
+        'x-vercel-forwarded-for': 'spoofed',
+        'x-forwarded-for': '203.0.113.9, 10.0.0.1',
+      },
+    });
+    expect(clientKey(req)).toBe('10.0.0.1');
   });
 
   it('falls back to x-real-ip, then unknown', () => {
