@@ -59,11 +59,9 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
       {/* Header */}
       <Reveal className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_6px_16px_-6px_var(--brand-ring)]">
-            {isSuperAdmin ? <Terminal className="size-5" /> : <Shield className="size-5" />}
-          </span>
           <div>
-            <p className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
+            <p className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-content-muted">
+              {isSuperAdmin ? <Terminal className="size-3.5" /> : <Shield className="size-3.5" />}
               {isSuperAdmin ? "Developer Super Admin" : access?.tier === "staff" ? "Staff" : "Platform Admin"}
             </p>
             <h1 className="text-xl font-semibold tracking-tight text-content sm:text-2xl">
