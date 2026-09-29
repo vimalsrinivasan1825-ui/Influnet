@@ -525,7 +525,7 @@ export default function DashboardSidebar({
       >
         <div
           className={cn(
-            "absolute inset-0 bg-content/40 backdrop-blur-sm transition-opacity duration-200",
+            "absolute inset-0 bg-content/35 transition-opacity duration-200",
             mobileOpen ? "opacity-100" : "opacity-0",
           )}
           onClick={onCloseMobile}

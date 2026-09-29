@@ -68,7 +68,7 @@ export function CreatorProfileOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex justify-center overflow-y-auto bg-content/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[300] flex justify-center overflow-y-auto bg-content/35"
       onClick={onClose}
       role="presentation"
     >

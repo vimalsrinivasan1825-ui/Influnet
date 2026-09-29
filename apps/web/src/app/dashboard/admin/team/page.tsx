@@ -252,8 +252,8 @@ export default function TeamPage() {
       )}
 
       {issued && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4">
-          <div role="dialog" aria-modal="true" aria-label="New sign-in link" className="w-full overflow-hidden rounded-t-3xl border border-hairline bg-surface-card shadow-2xl sm:max-w-lg sm:rounded-3xl">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-content/35 sm:items-center sm:p-4">
+          <div role="dialog" aria-modal="true" aria-label="New sign-in link" className="w-full overflow-hidden rounded-t-3xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)] sm:max-w-lg sm:rounded-3xl">
             <div className="border-b border-hairline px-5 py-4">
               <h2 className="text-base font-bold text-content">New sign-in link</h2>
               <p className="text-xs text-content-muted">{issued.email}</p>

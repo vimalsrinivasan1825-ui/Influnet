@@ -533,7 +533,7 @@ function RegistrationCard({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-content/35 p-0 sm:items-center sm:p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -542,7 +542,7 @@ function RegistrationCard({
         role="dialog"
         aria-modal="true"
         aria-labelledby="registration-title"
-        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-hairline bg-surface-card shadow-2xl sm:max-w-md sm:rounded-3xl"
+        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)] sm:max-w-md sm:rounded-3xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-hairline px-5 py-4">
           <div className="min-w-0">

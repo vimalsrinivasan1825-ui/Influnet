@@ -137,7 +137,7 @@ export function TeamMemberEditor({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-content/35 p-0 sm:items-center sm:p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !saving) onClose();
       }}
@@ -146,7 +146,7 @@ export function TeamMemberEditor({
         role="dialog"
         aria-modal="true"
         aria-labelledby="team-editor-title"
-        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-hairline bg-surface-card shadow-2xl sm:max-w-3xl sm:rounded-3xl"
+        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)] sm:max-w-3xl sm:rounded-3xl"
       >
         <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
           <div>

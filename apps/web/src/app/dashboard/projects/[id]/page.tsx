@@ -517,7 +517,7 @@ function CardDetailModal({ card, onClose, onSave, onDelete }: {
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/35 p-5"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -1055,7 +1055,7 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/35 p-5">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold tracking-tight text-content">Propose a change</h3>
@@ -1114,7 +1114,7 @@ function CancelProjectModal({
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/35 p-5">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold tracking-tight text-content">Request to cancel this project</h3>
@@ -1189,7 +1189,7 @@ function StageUpdateModal({ stageLabel, onClose, onSubmit, busy }: {
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/35 p-5">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold tracking-tight text-content">Send an update · {stageLabel}</h3>
@@ -1308,7 +1308,7 @@ function StageCelebration({ label, onClose }: { label: string; onClose: () => vo
   const colors = ['#ee3e96', '#10b981', '#f59e0b', '#6366f1', '#06b6d4', '#f43f5e'];
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[1100] flex items-center justify-center bg-content/40 p-5 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[1100] flex items-center justify-center bg-content/35 p-5">
       <style>{`
         @keyframes inf-pop { 0%{transform:scale(.7);opacity:0} 60%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
         @keyframes inf-check { to { stroke-dashoffset: 0 } }
@@ -2821,9 +2821,9 @@ export default function ProjectKanbanPage() {
       )}
 
       {lightboxImage && (
-        <div onClick={() => setLightboxImage(null)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm cursor-zoom-out">
+        <div onClick={() => setLightboxImage(null)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4 cursor-zoom-out">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightboxImage} alt="Expanded preview" className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" />
+          <img src={lightboxImage} alt="Expanded preview" className="max-h-full max-w-full rounded-lg object-contain shadow-[var(--shadow-pop)]" />
         </div>
       )}
 
@@ -2833,7 +2833,7 @@ export default function ProjectKanbanPage() {
 
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-[var(--shadow-pop)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-content">Report this user</h3>
               <button onClick={() => { setShowReportModal(false); setReportDone(false); setAlsoBlock(false); }} className="text-content-muted hover:text-content">
@@ -3031,7 +3031,7 @@ export default function ProjectKanbanPage() {
 
       {showReviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-[var(--shadow-pop)]">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-xl font-semibold text-content">Project Reviews</h3>
               <button onClick={() => setShowReviewModal(false)} className="text-content-muted hover:text-content">

@@ -105,7 +105,7 @@ export default function DashboardHeader({
 
   return (
     <>
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-hairline bg-surface-card/85 px-3 backdrop-blur-xl sm:px-5">
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-hairline bg-surface-card px-3 sm:px-5">
       <button
         onClick={onOpenMobile}
         aria-label="Open menu"

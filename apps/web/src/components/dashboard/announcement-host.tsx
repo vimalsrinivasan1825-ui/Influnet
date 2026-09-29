@@ -104,7 +104,7 @@ export function AnnouncementHost() {
       )}
 
       {modal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-content/40 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-content/35 p-4">
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)]">
             {modal.image_url && (
               <div className="relative h-40 w-full bg-surface-muted">
