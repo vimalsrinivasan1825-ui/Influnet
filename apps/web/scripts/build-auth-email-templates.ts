@@ -2,27 +2,22 @@
  * Builds the Supabase Auth email templates from our own email design, and
  * (with --apply) pushes them into a hosted Supabase project.
  *
- * Why a generator instead of hand-written HTML: Supabase Auth sends signup
- * confirmation, password reset, magic link, email change and reauthentication
- * itself — our app code never sees those. Without this script those five mails
- * would be maintained separately from the twenty in lib/email/templates.ts and
- * would drift the first time the brand colour changed. Here they are built
- * from the same shell, with Supabase's Go template variables
- * ({{ .ConfirmationURL }} etc.) substituted in place of our data.
+ * Supabase Auth sends signup confirmation, invites, magic link, email change,
+ * password reset and reauthentication itself — our app code never sees those.
+ * Their designs live in src/lib/email/auth-templates.ts, built from the same
+ * shell as every other Influnet email so they cannot drift from the brand.
  *
  * Run:    npm run email:auth-templates
  * Apply:  npm run email:auth-templates -- --apply dev       (or staging, or a project ref)
  *         add --set-site-url to also correct the project's Site URL first
  *
  * --apply needs SUPABASE_ACCESS_TOKEN (sbp_…), from the shell or apps/web/.env.local.
- * It only pushes templates marked `apply: true` — the others are still the
- * wrong design for their purpose (see each entry) and would read worse than
- * Supabase's plain default.
  *
  * Links use {{ .SiteURL }}, never NEXT_PUBLIC_APP_URL: one generated file
  * serves dev and staging, and each project's Site URL points at its own app.
  * That makes the Site URL load-bearing, so --apply refuses a project whose
- * Site URL is still localhost.
+ * Site URL is still localhost. The reset and invite links go to the
+ * token_hash form of /reset-password — deploy the web app before applying.
  *
  * NOTE: the placeholders must survive escaping. esc() would turn the Go
  * delimiters into entities, so they are injected via a sentinel that is
@@ -61,134 +56,30 @@ function substitute(html: string): string {
 // Footer and dashboard links come from appUrl(); point it at the sentinel so
 // they become {{ .SiteURL }} rather than whatever this machine has set.
 process.env.NEXT_PUBLIC_APP_URL = S.siteUrl;
-const { verifyEmailEmail, passwordResetEmail, emailChangeEmail, verificationCodeEmail, welcomeEmail } =
-  await import('../src/lib/email/templates');
+const { authEmails } = await import('../src/lib/email/auth-templates');
 
 const outDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../supabase/email-templates');
 mkdirSync(outDir, { recursive: true });
 
-type AuthTemplate = {
-  name: string;
-  supabaseTemplate: string;
-  /** Management API key suffix: mailer_templates_<key>_content / mailer_subjects_<key>. */
-  key: string;
-  subject: string;
-  html: string;
-  /** Pushed by --apply. False = not yet the right design for this mail. */
-  apply: boolean;
-};
-
-const files: AuthTemplate[] = [
-  {
-    name: 'confirm-signup.html',
-    supabaseTemplate: 'Confirm signup',
-    key: 'confirmation',
-    subject: verifyEmailEmail.subject({} as never),
-    // Held back: autoconfirm is on, so this is never sent yet, and it still
-    // uses the /verify redirect that breaks across browsers under PKCE.
-    apply: false,
-    html: verifyEmailEmail.render({
-      name: 'there',
-      verifyUrl: S.confirmationUrl,
-      expiresInHours: 24,
-    }),
-  },
-  {
-    name: 'reset-password.html',
-    supabaseTemplate: 'Reset password',
-    key: 'recovery',
-    subject: passwordResetEmail.subject({} as never),
-    apply: true,
-    // token_hash, not {{ .ConfirmationURL }}: /reset-password verifies it
-    // itself, so the link works in any browser (web asks with PKCE, whose code
-    // only redeems in the asking browser; mobile asks from the app) and does
-    // not depend on the redirect allow-list.
-    html: passwordResetEmail.render({
-      name: 'there',
-      resetUrl: `${S.siteUrl}/reset-password?token_hash=${S.tokenHash}&type=recovery`,
-      expiresInMinutes: 60,
-    }),
-  },
-  {
-    name: 'magic-link.html',
-    supabaseTemplate: 'Magic Link',
-    key: 'magic_link',
-    subject: verifyEmailEmail.subject({} as never),
-    // Held back: reuses the "Confirm your email" design. The app has no
-    // magic-link sign-in, so Supabase's default is never seen anyway.
-    apply: false,
-    html: verifyEmailEmail.render({
-      name: 'there',
-      verifyUrl: S.confirmationUrl,
-      expiresInHours: 1,
-    }),
-  },
-  {
-    name: 'change-email.html',
-    supabaseTemplate: 'Change Email Address',
-    key: 'email_change',
-    subject: emailChangeEmail.subject({} as never),
-    // Held back: not reviewed against the live change-email flow yet.
-    apply: false,
-    html: emailChangeEmail.render({
-      name: 'there',
-      oldEmail: S.email,
-      newEmail: S.newEmail,
-      confirmUrl: S.confirmationUrl,
-    }),
-  },
-  {
-    name: 'reauthentication.html',
-    supabaseTemplate: 'Reauthentication',
-    key: 'reauthentication',
-    subject: verificationCodeEmail.subject({} as never),
-    // Held back: this is the social-handle ownership design, not a sign-in code.
-    apply: false,
-    html: verificationCodeEmail.render({
-      name: 'there',
-      platform: 'Influnet',
-      handle: S.email,
-      code: S.token,
-      expiresInMinutes: 60,
-      dashboardUrl: '/dashboard',
-    }),
-  },
-  {
-    name: 'invite.html',
-    supabaseTemplate: 'Invite user',
-    key: 'invite',
-    subject: welcomeEmail.subject({} as never),
-    // Held back: renders as "Welcome, there". Team invites are links shown to
-    // the admin (lib/admin-team.ts), not this mail.
-    apply: false,
-    html: welcomeEmail.render({
-      name: 'there',
-      role: 'influencer',
-      dashboardUrl: S.confirmationUrl,
-    }),
-  },
-];
-
-const rendered = files.map((file) => ({
-  ...file,
-  html: substitute(file.html),
-  subject: substitute(file.subject),
+const rendered = authEmails(S).map((email) => ({
+  ...email,
+  html: substitute(email.html),
+  subject: substitute(email.subject),
 }));
 
-for (const file of rendered) {
+for (const email of rendered) {
   const banner = `<!--
-  Influnet · Supabase Auth template: "${file.supabaseTemplate}"
+  Influnet · Supabase Auth template: "${email.dashboardName}"
+  Subject: ${email.subject}
 
   GENERATED FILE — do not edit by hand.
-  Source: apps/web/src/lib/email/templates.ts
+  Source: apps/web/src/lib/email/auth-templates.ts
   Rebuild: npm run email:auth-templates  (from apps/web)
-  ${file.apply
-    ? `Push:    npm run email:auth-templates -- --apply dev|staging`
-    : `Not pushed by --apply yet — see the note on this entry in scripts/build-auth-email-templates.ts.`}
+  Push:    npm run email:auth-templates -- --apply dev|staging
 -->
 `;
-  writeFileSync(resolve(outDir, file.name), banner + file.html, 'utf8');
-  console.log(`✓ ${file.name}  →  Supabase template "${file.supabaseTemplate}"${file.apply ? '' : '  (not applied)'}`);
+  writeFileSync(resolve(outDir, email.file), banner + email.html, 'utf8');
+  console.log(`✓ ${email.file.padEnd(22)} →  "${email.dashboardName}"  (subject: ${email.subject})`);
 }
 console.log(`\nWritten to supabase/email-templates/`);
 
@@ -239,9 +130,9 @@ async function apply(ref: string, expectedSiteUrl: string, setSiteUrl: boolean) 
     );
   }
 
-  for (const file of rendered.filter((f) => f.apply)) {
-    patch[`mailer_templates_${file.key}_content`] = file.html;
-    patch[`mailer_subjects_${file.key}`] = file.subject;
+  for (const email of rendered) {
+    patch[`mailer_templates_${email.key}_content`] = email.html;
+    patch[`mailer_subjects_${email.key}`] = email.subject;
   }
 
   const res = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify(patch) });

@@ -19,8 +19,10 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  // One-time recovery token from the reset email (?token_hash=…&type=recovery).
+  // One-time token from the reset or invite email (?token_hash=…&type=recovery|invite).
   const [tokenHash, setTokenHash] = useState<string | null>(null);
+  const [tokenType, setTokenType] = useState<'recovery' | 'invite'>('recovery');
+  const invite = tokenType === 'invite';
 
   useEffect(() => {
     const sb = createClient();
@@ -31,9 +33,12 @@ export default function ResetPasswordPage() {
     // only spent when the form is submitted, so a mail scanner opening the link
     // cannot burn it. The token is dropped from the address bar straight away.
     const search = new URLSearchParams(window.location.search);
+    // Invites use the same form: the invitee has no password yet and picks one.
     const th = search.get('token_hash');
-    if (th && search.get('type') === 'recovery') {
+    const type = search.get('type');
+    if (th && (type === 'recovery' || type === 'invite')) {
       setTokenHash(th);
+      setTokenType(type);
       setMode('update');
       window.history.replaceState(null, '', window.location.pathname);
       return;
@@ -102,9 +107,13 @@ export default function ResetPasswordPage() {
     try {
       const sb = createClient();
       if (tokenHash) {
-        const { error: otpErr } = await sb.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
+        const { error: otpErr } = await sb.auth.verifyOtp({ type: tokenType, token_hash: tokenHash });
         if (otpErr) {
-          setError('This reset link has expired or was already used. Please request a new one.');
+          setError(
+            invite
+              ? 'This invitation has expired or was already used. Ask the person who invited you to send a new one, or reset your password below.'
+              : 'This reset link has expired or was already used. Please request a new one.',
+          );
           setTokenHash(null);
           setMode('request');
           return;
@@ -145,11 +154,13 @@ export default function ResetPasswordPage() {
           </Link>
 
           <h1 className="text-3xl font-black tracking-tight mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            {mode === 'update' ? 'Set a new password' : 'Reset your password'}
+            {mode === 'update' ? (invite ? 'Choose your password' : 'Set a new password') : 'Reset your password'}
           </h1>
           <p className="font-semibold" style={{ color: 'var(--color-text-muted)' }}>
             {mode === 'update'
-              ? 'Choose a strong password for your account'
+              ? invite
+                ? 'Accept your invitation by choosing a password for your account'
+                : 'Choose a strong password for your account'
               : "Enter your email and we'll send you a reset link"}
           </p>
         </div>

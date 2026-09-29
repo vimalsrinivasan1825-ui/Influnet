@@ -1,10 +1,11 @@
 <!--
   Influnet · Supabase Auth template: "Reauthentication"
+  Subject: {{ .Token }} is your Influnet verification code
 
   GENERATED FILE — do not edit by hand.
-  Source: apps/web/src/lib/email/templates.ts
+  Source: apps/web/src/lib/email/auth-templates.ts
   Rebuild: npm run email:auth-templates  (from apps/web)
-  Not pushed by --apply yet — see the note on this entry in scripts/build-auth-email-templates.ts.
+  Push:    npm run email:auth-templates -- --apply dev|staging
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -14,7 +15,7 @@
 <meta name="x-apple-disable-message-reformatting" />
 <meta name="color-scheme" content="light" />
 <meta name="supported-color-schemes" content="light" />
-<title>Verify your account</title>
+<title>Confirm it’s you</title>
 <!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
 <style>
   /* Progressive enhancement only — everything critical is inlined below. */
@@ -31,7 +32,7 @@
 </style>
 </head>
 <body style="margin:0;padding:0;background:#f5f6f8;font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;-webkit-font-smoothing:antialiased;">
-  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Add your Influnet profile link to your Influnet bio to get verified.</div>
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">Enter this code to confirm it is you. It expires in an hour.</div>
   <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f6f8;">
@@ -45,8 +46,8 @@
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr><td><span style="font-size:21px;font-weight:700;letter-spacing:-0.02em;color:#ffffff;">influnet<span style="color:#ffe3f0;">.</span></span></td></tr>
                 <tr><td style="padding-top:22px;">
-                  <h1 class="sm-h1" style="margin:0;font-size:26px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;color:#ffffff;">Verify your account</h1>
-                  <p style="margin:8px 0 0;font-size:15px;line-height:1.5;color:#ffe9f3;">To verify {{ .Email }} on Influnet.</p>
+                  <h1 class="sm-h1" style="margin:0;font-size:26px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;color:#ffffff;">Confirm it’s you</h1>
+                  <p style="margin:8px 0 0;font-size:15px;line-height:1.5;color:#ffe9f3;">You are changing a sensitive setting.</p>
                 </td></tr>
               </table>
             </td>
@@ -55,23 +56,21 @@
           <!-- Card -->
           <tr>
             <td class="sm-px sm-py" bgcolor="#ffffff" style="padding:32px 36px 28px;background:#ffffff;border:1px solid #e6e8ec;border-top:0;border-radius:0 0 14px 14px;">
-              <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#4a5058;">Hi there, add this link anywhere in your Influnet bio, keep the account public, then come back and hit Check.</p>
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#4a5058;">Hi there, enter this code in Influnet to confirm it is really you before we make the change:</p>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
     <tr>
       <td align="center" bgcolor="#f7f8fa" style="padding:20px;border:1px dashed #e6e8ec;border-radius:12px;">
         <span style="font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:28px;font-weight:700;letter-spacing:0.24em;color:#101317;">{{ .Token }}</span>
       </td>
     </tr>
-  </table><p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#4a5058;">You can leave it there for good — it is the page you want brands landing on anyway, and it keeps your verified badge from lapsing.</p><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">This verification window stays open for 60 minutes. If it closes before you finish, just start it again from the dashboard — there is no limit.</p>
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
+  </table><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">This code expires in 1 hour and can only be used once.</p>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
     <tr>
-      <td align="center" bgcolor="#ee3e96" style="border-radius:10px;">
-        <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ .SiteURL }}/dashboard" style="height:46px;v-text-anchor:middle;width:240px;" arcsize="22%" stroke="f" fillcolor="#ee3e96"><w:anchorlock/><center style="color:#ffffff;font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;font-weight:600;"><![endif]-->
-        <a href="{{ .SiteURL }}/dashboard" style="display:inline-block;padding:14px 30px;font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:10px;">Check my bio</a>
-        <!--[if mso]></center></v:roundrect><![endif]-->
+      <td bgcolor="#fff8ec" style="padding:18px 20px;border:1px solid #f3dcb4;border-radius:12px;">
+        <p style="margin:0 0 8px;font-size:15px;line-height:1.5;font-weight:700;color:#101317;">Didn&#39;t request this?</p><p style="margin:0;font-size:14px;line-height:1.7;color:#4a5058;">Someone may know your password. Do not share this code — change your password and reply to this email so we can help.</p>
       </td>
     </tr>
-  </table><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;"><tr><td height="1" bgcolor="#e6e8ec" style="line-height:1px;font-size:0;">&nbsp;</td></tr></table><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">We never ask for your Influnet password. Verification only ever reads your public bio, and nothing is ever posted to your account.</p>
+  </table>
             </td>
           </tr>
 

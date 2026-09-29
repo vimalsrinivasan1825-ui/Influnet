@@ -60,9 +60,9 @@ makes the project's **Site URL** load-bearing — `--apply` refuses a project st
 
 6. **Supabase → Authentication → Emails → Templates:** from `apps/web`, run
    `npm run email:auth-templates -- --apply dev` (or `staging`; add `--set-site-url` to correct a
-   localhost Site URL first). Only the reset template is pushed; the others are generated but held
-   back — each entry in the script says why. Deploy the web app first: the template links to the
-   `token_hash` form of `/reset-password`, which older builds don't understand.
+   localhost Site URL first). It pushes all six auth templates and their subjects; the designs live
+   in `apps/web/src/lib/email/auth-templates.ts`. Deploy the web app first: the reset and invite
+   emails link to the `token_hash` form of `/reset-password`, which older builds don't understand.
 
 7. **Supabase → Authentication → URL Configuration:** Site URL = production URL; allow
    `https://<prod>/**`, the Vercel preview domain, and `influnet://**` so reset links open in the
