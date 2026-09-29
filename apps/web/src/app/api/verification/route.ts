@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { privileged } from '@/lib/service-client';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { buildSignals } from '@/lib/verification-scraper';
@@ -186,7 +187,8 @@ export async function POST(req: Request) {
     const reason = note ? `${decision.reason} — ${note}` : decision.reason;
     const notif = VERIFICATION_NOTIFICATION[decision.status];
 
-    const { data: result, error: rpcErr } = await supabase.rpc('submit_verification', {
+    const { data: result, error: rpcErr } = await (privileged(supabase) as typeof supabase).rpc('submit_verification', {
+      p_user_id: user.id,
       p_signals: signals,
       p_score: decision.score,
       p_reason: reason,
