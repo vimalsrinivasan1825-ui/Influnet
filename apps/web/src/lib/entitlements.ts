@@ -31,6 +31,7 @@
  * trade cheap — a blip does not downgrade anyone, and a real cancellation
  * still takes effect within a minute.
  */
+import { privileged } from '@/lib/service-client';
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -352,7 +353,7 @@ export async function requireQuota(
  */
 export async function releaseQuota(auth: AuthCtx, meter: MonthlyMeter): Promise<void> {
   try {
-    await (auth.supabase.rpc as any)('release_quota', { p_meter: meter });
+    await (privileged(auth.supabase).rpc as any)('release_quota', { p_user_id: auth.user.id, p_meter: meter });
   } catch {
     /* best-effort */
   }
@@ -434,7 +435,7 @@ export async function releaseWeeklyQuota(
   // throws "not a function" instead of swallowing the RPC's own error the way
   // this was meant to. Awaiting it inside a real try/catch works either way.
   try {
-    await (auth.supabase.rpc as any)('release_weekly_quota', { p_meter: meter });
+    await (privileged(auth.supabase).rpc as any)('release_weekly_quota', { p_user_id: auth.user.id, p_meter: meter });
   } catch {
     /* best-effort — a failed release just means the unit isn't given back */
   }
