@@ -26,6 +26,7 @@
  * Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
  */
 
+import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const args = process.argv.slice(2);
@@ -49,7 +50,11 @@ if (!KEY.startsWith('eyJ')) {
 }
 
 const sb = createClient(URL_, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-const PASSWORD = val('password') || 'Test@12345';
+// No shared default: these accounts live on the same project real users do
+// (staging is production), so a password published in the repo would be a
+// standing credential. Pass --password to choose one, else a random one is
+// generated and printed once.
+const PASSWORD = val('password') || `Tst-${randomBytes(9).toString('base64url')}!1`;
 
 /**
  * The two accounts. Deliberately filled in past the bare minimum — a creator
