@@ -124,15 +124,19 @@ export function HomeHeader({
 
         <GuideLauncherButton />
 
-        <Pressable
-          onPress={() => router.push('/search')}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Search for a creator"
-          style={({ pressed }) => ({ padding: 4, opacity: pressed ? 0.5 : 1 })}
-        >
-          <Search size={22} color={t.color.contentSoft} />
-        </Pressable>
+        {/* Businesses only: a creator has no roster to look through, so this
+            opened a screen that could only tell them so. */}
+        {isCreator ? null : (
+          <Pressable
+            onPress={() => router.push('/search')}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Find a creator"
+            style={({ pressed }) => ({ padding: 4, opacity: pressed ? 0.5 : 1 })}
+          >
+            <Search size={22} color={t.color.contentSoft} />
+          </Pressable>
+        )}
 
         <Pressable
           onPress={() => router.push('/notifications')}

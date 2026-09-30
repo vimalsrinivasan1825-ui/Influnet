@@ -1,33 +1,40 @@
 /**
- * Creator search.
+ * Find creator — an exact lookup, not a search.
  *
- * A real search as of 2026-09-02, not the username-only lookup it used to be:
- * the query matches name, username, Instagram handle, headline, bio and niche
- * tag (see /api/discover and the RPC in migration 145). So "food" finds food
- * creators, which is what a brand actually opens this screen to do.
+ * ── What this screen deliberately does not do ─────────────────────────────
+ * It used to be a real search: the query matched name, headline, bio and niche
+ * tags, and a niche rail offered topics to browse. All of that is gone as of
+ * 2026-09-30. Influnet does not publish a browsable roster of creators, so
+ * this resolves ONE username — or a pasted Influnet profile link — to ONE
+ * creator, and says "no creator with that username" for everything else. No
+ * suggestions, no partial matches, no topic chips.
  *
- * The niche rail is the vocabulary, offered rather than assumed — the same
- * @influnet/core NICHES creators pick from, so a tap is guaranteed to be a term
- * the roster contains. They go in as `q`, not as the `niche` filter: `niche`
- * with no query is the Pro "browse the roster" feature and would 403 a Free
- * user, while a typed query is free for everyone.
+ * ── Why it resolves on submit, not on keystroke ───────────────────────────
+ * The old screen fired a debounced request per keystroke. That is what makes a
+ * box feel like a directory you can wander through, which is exactly the
+ * behaviour being removed — so the lookup runs when the user asks for it.
  *
- * Selecting a result pushes to creator/[username], which renders the profile
- * natively from the same view model the web page is built from — inside our own
- * screen, never a hand-off to the system browser.
+ * ── Why there is no username parser here ──────────────────────────────────
+ * The whole input is handed to /api/discover and the SERVER resolves it
+ * (lib/search-query.ts). A second copy of that rule in the app would be a copy
+ * frozen into every installed build the moment the rule changed — and the rule
+ * is about which hosts count as our profile links, which is exactly the sort
+ * of thing that changes.
+ *
+ * Businesses only. A creator has no creator to look up, so it says so rather
+ * than offering a box that can only disappoint.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search as SearchIcon, X } from 'lucide-react-native';
+import { Search as SearchIcon, UserRoundSearch, X } from 'lucide-react-native';
 import { Pressable } from 'react-native';
-import { NICHES } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
+import { useIsCreator } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import {
   Avatar,
-  Chip,
-  ChipRail,
+  Button,
   EmptyState,
   Field,
   ListGroup,
@@ -40,58 +47,77 @@ interface CreatorResult {
   user_id: string;
   username: string;
   headline: string | null;
-  niche?: string[];
   verified_badge?: boolean;
   profile: { name: string; location: string | null };
 }
 
-export default function SearchScreen() {
+type Outcome =
+  | { kind: 'idle' }
+  | { kind: 'looking' }
+  | { kind: 'found'; creator: CreatorResult }
+  | { kind: 'missing' }
+  | { kind: 'error' };
+
+export default function FindCreatorScreen() {
   const t = useTheme();
   const router = useRouter();
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<CreatorResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const requestId = useRef(0);
+  const isCreator = useIsCreator();
+  const [term, setTerm] = useState('');
+  const [outcome, setOutcome] = useState<Outcome>({ kind: 'idle' });
 
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setLoading(false);
+  const trimmed = term.trim();
+
+  async function lookup() {
+    if (!trimmed) return;
+    setOutcome({ kind: 'looking' });
+    const res = await endpoints.discover<{ results: CreatorResult[] }>(
+      `q=${encodeURIComponent(trimmed)}`,
+    );
+    if (!res.ok) {
+      setOutcome({ kind: 'error' });
       return;
     }
-    setLoading(true);
-    const id = ++requestId.current;
-    const timer = setTimeout(async () => {
-      const res = await endpoints.discover<{ results: CreatorResult[] }>(`q=${encodeURIComponent(q)}`);
-      if (id !== requestId.current) return; // a newer keystroke already won
-      setResults(res.ok ? (res.data?.results ?? []) : []);
-      setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+    const creator = res.data?.results?.[0];
+    setOutcome(creator ? { kind: 'found', creator } : { kind: 'missing' });
+  }
 
-  const showEmpty = !loading && query.trim().length >= 2 && results.length === 0;
-
-  const trimmed = query.trim();
+  if (isCreator) {
+    return (
+      <ScreenScroll padded>
+        <EmptyState
+          icon={<UserRoundSearch size={24} color={t.color.brand} />}
+          title="For business accounts"
+          body="Looking a creator up is something brands do. Your collaborations start from campaigns you apply to and requests brands send you."
+        />
+      </ScreenScroll>
+    );
+  }
 
   return (
     <ScreenScroll padded>
       <Field
-        placeholder="Search creators â name, @handle, or a topic"
-        value={query}
-        onChangeText={setQuery}
+        placeholder="username or influnet.io/username"
+        value={term}
+        onChangeText={(v) => {
+          setTerm(v);
+          if (outcome.kind !== 'idle') setOutcome({ kind: 'idle' });
+        }}
         autoFocus
         autoCapitalize="none"
         autoCorrect={false}
+        returnKeyType="search"
+        onSubmitEditing={lookup}
         left={<SearchIcon size={17} color={t.color.contentMuted} />}
         right={
           trimmed ? (
             <Pressable
-              onPress={() => setQuery('')}
+              onPress={() => {
+                setTerm('');
+                setOutcome({ kind: 'idle' });
+              }}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel="Clear search"
+              accessibilityLabel="Clear"
             >
               <X size={16} color={t.color.contentMuted} />
             </Pressable>
@@ -99,52 +125,55 @@ export default function SearchScreen() {
         }
       />
 
-      <ChipRail>
-        {NICHES.map((n) => (
-          <Chip
-            key={n}
-            label={n}
-            selected={trimmed.toLowerCase() === n.toLowerCase()}
-            onPress={() => setQuery(trimmed.toLowerCase() === n.toLowerCase() ? '' : n)}
-          />
-        ))}
-      </ChipRail>
+      <Button
+        label={outcome.kind === 'looking' ? 'Looking up…' : 'Look up'}
+        onPress={lookup}
+        disabled={!trimmed || outcome.kind === 'looking'}
+        size="md"
+        style={{ marginTop: t.spacing.sm }}
+      />
 
-      {trimmed.length < 2 ? (
+      {outcome.kind === 'idle' ? (
         <EmptyState
-          icon={<SearchIcon size={24} color={t.color.brand} />}
+          icon={<UserRoundSearch size={24} color={t.color.brand} />}
           title="Find a creator"
-          body="Search by name or @handle, or type a topic like “food” or “tech” to find creators in that niche."
+          body="Enter a creator's username, or paste their Influnet profile link. This finds the one creator with that username — it does not suggest others."
         />
-      ) : showEmpty ? (
+      ) : null}
+
+      {outcome.kind === 'missing' ? (
         <EmptyState
-          title="No one found"
-          body={`No creator matches “${trimmed}”. Try a broader word, or pick a topic above.`}
+          title="No creator with that username"
+          body={`Nothing matches “${trimmed}”. Check the spelling, or ask them for their profile link.`}
         />
-      ) : (
+      ) : null}
+
+      {outcome.kind === 'error' ? (
+        <EmptyState
+          title="That did not go through"
+          body="We could not complete the lookup. Try again in a moment."
+        />
+      ) : null}
+
+      {outcome.kind === 'found' ? (
         <ListGroup>
-          {results.map((r, i) => (
-            <ListRow
-              key={r.user_id}
-              title={r.profile.name}
-              /* Niche over location when we have it: on a topic search it is the
-                 line that says WHY this creator came back. */
-              subtitle={`@${r.username}${
-                r.niche?.length
-                  ? ` · ${r.niche.slice(0, 2).join(', ')}`
-                  : r.profile.location
-                    ? ` · ${r.profile.location}`
-                    : ''
-              }`}
-              left={<Avatar name={r.profile.name} />}
-              right={r.verified_badge ? <VerifiedBadge size={16} /> : undefined}
-              index={i}
-              style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.color.hairline } : undefined}
-              onPress={() => router.push({ pathname: '/creator/[username]', params: { username: r.username } })}
-            />
-          ))}
+          <ListRow
+            title={outcome.creator.profile.name}
+            subtitle={`@${outcome.creator.username}${
+              outcome.creator.profile.location ? ` · ${outcome.creator.profile.location}` : ''
+            }`}
+            left={<Avatar name={outcome.creator.profile.name} />}
+            right={outcome.creator.verified_badge ? <VerifiedBadge size={16} /> : undefined}
+            index={0}
+            onPress={() =>
+              router.push({
+                pathname: '/creator/[username]',
+                params: { username: outcome.creator.username },
+              })
+            }
+          />
         </ListGroup>
-      )}
+      ) : null}
 
       <View style={{ height: t.spacing.xl }} />
     </ScreenScroll>

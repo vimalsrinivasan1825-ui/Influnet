@@ -47,6 +47,40 @@ export function usernameFromProfileUrl(raw: string): string | null {
 }
 
 /**
+ * The username a Find-creator box was pointed at, or null if it was not
+ * pointed at one.
+ *
+ * This is a LOOKUP resolver, not a search parser, and the difference is the
+ * point: it accepts an Influnet username, an `@username`, or a pasted Influnet
+ * profile link, and refuses everything else — a person's name, a topic, a
+ * half-typed word. Returning null for those is the feature. A brand has to
+ * already know who it wants; the platform does not offer a roster to browse.
+ *
+ * Deliberately NOT built on `extractSearchHandle` below. That one falls back
+ * to passing unrecognised text through so it can be matched loosely, and it
+ * maps an instagram.com URL to the Instagram handle — which is a different
+ * namespace from ours and would resolve to whoever happens to hold the same
+ * string here.
+ */
+export function resolveLookupUsername(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // A pasted link wins: /c/ and /b/ legacy paths and a trailing /media-kit are
+  // all handled there, and a link to something that is not a profile fails the
+  // schema rather than resolving to a plausible-looking wrong account.
+  const fromUrl = usernameFromProfileUrl(trimmed);
+  if (fromUrl) return fromUrl;
+
+  // Anything still URL-shaped was a link we do not own — refuse rather than
+  // strip it down to a bare word and look that up.
+  if (/^https?:\/\//i.test(trimmed) || trimmed.includes('/')) return null;
+
+  const candidate = trimmed.replace(/^@/, '').toLowerCase();
+  return UsernameSchema.safeParse(candidate).success ? candidate : null;
+}
+
+/**
  * Reduce whatever the user pasted to the handle the RPC can match on: an
  * `instagram.com/<handle>` URL, an Influnet profile URL, or a bare `@handle`.
  * Anything unrecognised is passed through untouched, so a plain name search

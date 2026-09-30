@@ -26,11 +26,9 @@ interface Item {
   label: string;
   sub?: string;
   href: string;
-  group: "Go to" | "Projects" | "People" | "Creators";
+  group: "Go to" | "Projects" | "People";
   icon?: React.ElementType;
   avatar?: string;
-  /** Set on "Creators" items — opens the in-app profile overlay instead of navigating. */
-  username?: string;
 }
 
 const sections = (role: UserRole | null): Item[] => {
@@ -46,36 +44,49 @@ const sections = (role: UserRole | null): Item[] => {
     { id: "s-act", label: "My activity", href: "/dashboard/activity", group: "Go to", icon: History },
     { id: "s-set", label: "Settings", href: "/dashboard/settings", group: "Go to", icon: Settings },
   ];
+  // Reaching a creator is a business action, and it is a lookup with a result
+  // rather than a jump to a section — so the palette only points at the page.
+  if (role === "business_owner") {
+    base.splice(2, 0, {
+      id: "s-find",
+      label: "Find creator",
+      href: "/dashboard/find-creator",
+      group: "Go to",
+      icon: Search,
+    });
+  }
   return base;
 };
 
 /**
- * Search across the app: jump to a section, find one of your own projects or
- * collaborators by name, or look up any creator by name/username to preview
- * their public profile in-app.
+ * Search across YOUR OWN workspace: jump to a section, or find one of your own
+ * projects or the people you are already talking to.
  *
- * Sections/projects/conversations are matched locally against data already
- * fetched for the signed-in user. Creator matches are the exception — they're
- * looked up server-side (debounced) via /api/discover, which is the only
- * platform-wide search surface exposed here.
+ * ── No longer a people search (2026-09-30) ────────────────────────────────
+ * This used to query /api/discover as you typed and offer any creator on the
+ * platform as a result, which made the palette a directory of everyone. That
+ * is switched off: a brand reaches a creator it already knows, by username or
+ * profile link, from /dashboard/find-creator.
+ *
+ * What is left is matched entirely against data already fetched for the
+ * signed-in user — their projects, their conversations — so nothing typed here
+ * reaches the server at all. Keep it that way: the moment this calls a lookup
+ * endpoint on keystroke it is a people search again, whatever it is called.
  */
 export function CommandPalette({
   open,
   onClose,
   role,
-  onOpenCreator,
 }: {
   open: boolean;
   onClose: () => void;
   role: UserRole | null;
-  onOpenCreator: (username: string) => void;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const [records, setRecords] = useState<Item[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [creatorItems, setCreatorItems] = useState<Item[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -134,46 +145,10 @@ export function CommandPalette({
     if (open) {
       setQuery("");
       setCursor(0);
-      setCreatorItems([]);
       // Focus after paint so the dialog is mounted.
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
-
-  // Creator lookup is server-side and debounced — everything else here is
-  // matched instantly against data already in memory.
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setCreatorItems([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      const res = await apiFetch<{ results: any[] }>(
-        `/api/discover?q=${encodeURIComponent(q)}`,
-      );
-      if (cancelled) return;
-      const list = res.ok ? (res.data?.results ?? []) : [];
-      setCreatorItems(
-        list.slice(0, 6).map(
-          (r): Item => ({
-            id: `creator-${r.user_id}`,
-            label: r.profile?.name || r.username,
-            sub: r.headline ? r.headline : r.username ? `@${r.username}` : undefined,
-            href: `/${r.username}`,
-            group: "Creators",
-            avatar: r.profile?.name || r.username,
-            username: r.username,
-          }),
-        ),
-      );
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query]);
 
   const results = useMemo(() => {
     const pool = [...sections(role), ...records];
@@ -191,21 +166,17 @@ export function CommandPalette({
         return ap - bp;
       })
       .slice(0, 12);
-    return [...local, ...creatorItems];
-  }, [query, records, role, creatorItems]);
+    return local;
+  }, [query, records, role]);
 
   useEffect(() => setCursor(0), [query]);
 
   const go = useCallback(
     (item: Item) => {
       onClose();
-      if (item.group === "Creators" && item.username) {
-        onOpenCreator(item.username);
-        return;
-      }
       router.push(item.href);
     },
-    [onClose, router, onOpenCreator],
+    [onClose, router],
   );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -249,7 +220,7 @@ export function CommandPalette({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Search sections, projects, people, or any creator…"
+          placeholder="Search sections, your projects and conversations…"
           className="w-full bg-transparent text-sm text-content outline-none placeholder:text-content-muted"
         />
         <kbd className="rounded border border-hairline-strong bg-surface-muted px-1.5 py-0.5 text-[0.625rem] font-semibold text-content-muted">

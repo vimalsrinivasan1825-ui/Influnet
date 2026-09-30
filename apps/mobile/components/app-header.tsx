@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Bell, Search } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+import { useIsCreator } from '@/lib/session';
 import { Txt } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { GuideLauncherButton } from '@/components/guides/guide-launcher';
@@ -22,7 +23,12 @@ export function AppHeader({
   title: string;
   subtitle?: string | null;
   showBell?: boolean;
-  /** Look up a creator by username and view their public profile in-app. */
+  /**
+   * The creator-lookup affordance. Businesses only — a creator has no reason
+   * to look creators up, and the platform publishes no roster to browse, so
+   * for them this button led to a screen with nothing to do. Passing `true`
+   * does NOT force it on for a creator; see the render below.
+   */
   showSearch?: boolean;
   /** The mark on the left. On by default — it's how the app signs its screens. */
   showLogo?: boolean;
@@ -42,6 +48,7 @@ export function AppHeader({
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const isCreator = useIsCreator();
 
   return (
     <View
@@ -99,7 +106,7 @@ export function AppHeader({
         </Txt>
       </View>
 
-      {showSearch ? (
+      {showSearch && !isCreator ? (
         <Pressable
           onPress={() => router.push('/search')}
           hitSlop={10}

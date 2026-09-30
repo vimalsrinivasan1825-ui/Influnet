@@ -171,7 +171,7 @@ export default function RootLayout() {
               <Stack.Screen name="verification" options={{ title: 'Verify Instagram' }} />
               <Stack.Screen name="verification-guide" options={{ title: 'How to verify' }} />
               <Stack.Screen name="guides" options={{ title: 'How things work' }} />
-              <Stack.Screen name="search" options={{ title: 'Search' }} />
+              <Stack.Screen name="search" options={{ title: 'Find creator' }} />
               <Stack.Screen name="creator/[username]" options={{ headerShown: false }} />
               <Stack.Screen name="business/[username]" options={{ title: '' }} />
               <Stack.Screen name="portfolio/add" options={{ title: 'Add past work' }} />

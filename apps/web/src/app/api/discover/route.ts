@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
-import { extractSearchHandle } from '@/lib/search-query';
-import { requireFeature } from '@/lib/entitlements';
+import { resolveLookupUsername } from '@/lib/search-query';
 import { z } from 'zod';
 
 const PAGE_SIZE = 24;
@@ -16,31 +15,44 @@ const QuerySchema = z.object({
   id: z.string().uuid().optional(),
 });
 
-// Creator search, open to any signed-in role (used by the topbar command
-// palette and the mobile search screen).
-//
-// It was a strict LOOKUP until 2026-09-02: the RPC matched broadly but this
-// route then discarded everything that had not matched a username or Instagram
-// handle, so you could only find a creator you could already name. A brand
-// searching "food" found nobody, however carefully those creators had tagged
-// themselves. It is a real search now — name, username, handle, headline, bio
-// and niche tag, per the RPC (migration 048, extended by 102 and 145).
-//
-// The paid line moved rather than disappeared. See the plan gate below: typing
-// a query is free, browsing the roster with filters and NO query is Pro.
-
-// Pasted-URL handling (Instagram links and our own profile links) lives in
-// lib/search-query.ts so it can be unit tested — route files can only export
-// route handlers.
-
+/**
+ * Creator LOOKUP. Not a search, as of 2026-09-30.
+ *
+ * ── What changed and why ─────────────────────────────────────────────────
+ * This route spent most of its life as a real search: the RPC matched name,
+ * headline, bio and niche tags, so typing "food" returned a roster of food
+ * creators. That roster is now switched off deliberately — a brand reaches a
+ * creator it already knows, by username or by a pasted profile link, and the
+ * platform does not offer a directory of people to browse through.
+ *
+ * Two things follow from that, and both are load-bearing:
+ *
+ *   • A query that does not resolve to a username returns `{ results: [] }`,
+ *     not an error and not a near-miss. No suggestions, no "did you mean" —
+ *     those are the browse behaviour wearing a different hat.
+ *   • The niche / industry / location filters are accepted and IGNORED rather
+ *     than rejected. Older mobile builds still send them; 400-ing those
+ *     installs would break a screen that otherwise degrades to a lookup
+ *     cleanly. They are parsed only so an old client cannot 400 itself.
+ *
+ * The `search.browse` plan gate that used to guard filter-only queries is gone
+ * with the feature it guarded. The `search.browse` key stays in @influnet/core
+ * because nothing else about the plan vocabulary changed and removing a key
+ * from a shipped mobile bundle's expectations buys nothing.
+ *
+ * The RPC (migration 048, extended by 102 and 145) is unchanged and still
+ * matches broadly — this route discards everything that is not an exact
+ * username hit, which is how it behaved before 2026-09-02. Narrowing here
+ * rather than in SQL keeps the one RPC serving the admin match tooling too.
+ */
 export async function GET(req: Request) {
   try {
     const auth = await withAuth(req);
     if (!auth.ok) return auth.res;
     const { supabase, role, user } = auth;
 
-    // Rate limit: creator search is a paid-resource route (RPC behind the
-    // scenes) and can be used for data-scraping at scale. Authenticated.
+    // Still rate limited: a lookup is cheap per call, but an unthrottled exact
+    // lookup is a username enumerator.
     const limited = await enforceRateLimit(req, {
       bucket: 'discover:search', limit: 30, windowMs: 60_000, key: user.id,
     });
@@ -58,74 +70,58 @@ export async function GET(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid query parameters' }, { status: 400 });
     }
-    const { q, niche, industry, location, cursor, id } = parsed.data;
-    const searchHandle = q ? extractSearchHandle(q) : undefined;
+    const { q, cursor, id } = parsed.data;
 
-    // ── Plan gate ────────────────────────────────────────────────────────
-    // Handle/username lookup is free and always has been — that is the
-    // behaviour the block comment above describes, and it stays exactly as it
-    // was. What Pro adds is BROWSE: filtering by niche, industry or location
-    // WITHOUT already knowing who you are looking for.
-    //
-    // The distinction is the whole product: a lookup answers "show me this
-    // creator", a browse answers "find me creators like this", and only the
-    // second one is worth paying for. Note this also means a Free user loses
-    // nothing they could do before the gate existed except query-less browse.
-    const wantsBrowse = !q && !id && Boolean(niche || industry || location);
-    if (wantsBrowse) {
-      const blocked = await requireFeature(
-        { supabase, user },
-        'search.browse',
-        'Browsing creators by niche, industry or location is a Pro feature. You can still look up any creator by their username or Instagram handle.',
-      );
-      if (blocked) return blocked;
+    // `id` is a different question — "give me this one creator, by uuid" — and
+    // is how /dashboard/requests/new renders the person a request is being
+    // addressed to. It never took a query and is untouched by the above.
+    const username = id ? null : q ? resolveLookupUsername(q) : null;
+
+    if (!id && !username) {
+      // Nothing to look up: free text, a half-typed word, or filters alone.
+      return NextResponse.json({ userRole: role, results: [], nextCursor: null });
     }
 
     const { data, error } = await supabase.rpc('search_influencers', {
-      p_q: searchHandle ?? q ?? null,
-      p_niche: niche ?? null,
-      p_location: location ?? null,
+      p_q: username,
+      p_niche: null,
+      p_location: null,
       p_cursor: cursor ?? null,
       p_limit: PAGE_SIZE,
       p_id: id ?? null,
     });
     if (error) return jsonError(500, 'Failed to fetch creators', error);
 
-    /**
-     * The RPC's own matching now stands as the answer.
-     *
-     * This used to re-filter the results down to username-or-handle hits,
-     * throwing away every row that had matched on name, headline, bio or (as of
-     * migration 145) a niche tag. That made the search a strict lookup: you
-     * could find a creator only if you already knew their handle, which is not
-     * a search, and it meant a brand hunting for "food" creators found nobody
-     * however well those creators had tagged themselves.
-     *
-     * The plan gate above is untouched and is where the paid line still sits:
-     * typing a query is free, browsing the roster with only filter dropdowns
-     * and no query is Pro.
-     */
-    const results = (data as any[]) || [];
+    const rows = (data as any[]) || [];
+
+    // The exact-match narrowing. The RPC matched loosely to find the row; only
+    // the one whose username IS what was asked for is an answer. Without this
+    // a lookup for "vimal" would also return every creator with "vimal" in
+    // their bio, which is the roster this route no longer serves.
+    const results = username
+      ? rows.filter((r) => String(r.username ?? '').toLowerCase() === username)
+      : rows;
 
     /**
-     * Match analytics (migration 160). Structured filters and a result count
-     * only — the typed query is NEVER stored, it routinely contains a person's
-     * name or handle. Fire-and-forget: a logging failure must not fail a search.
+     * Match analytics (migration 160). The typed query is NEVER stored — it is
+     * now always a username, which makes it more identifying than before, not
+     * less. Fire-and-forget: a logging failure must not fail a lookup.
      */
     void (supabase.rpc as any)('log_search_event', {
       p_surface: 'discover',
-      p_has_query: Boolean(q || searchHandle),
+      p_has_query: Boolean(username),
       p_query_length: (q ?? '').length,
-      p_niche: niche ?? null,
-      p_industry: industry ?? null,
-      p_location: location ?? null,
+      p_niche: null,
+      p_industry: null,
+      p_location: null,
       p_result_count: results.length,
     }).then(() => {}, () => {});
 
     return NextResponse.json({
       userRole: role,
       results,
-      nextCursor: results.length === PAGE_SIZE ? results[results.length - 1].user_id : null,
+      // An exact lookup returns at most one row, so there is never a next page.
+      nextCursor: null,
     });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);

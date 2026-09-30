@@ -52,6 +52,7 @@ import {
   FileSpreadsheet,
   MessageSquareLock,
   ChevronDown,
+  Search,
   UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -95,6 +96,9 @@ const CREATOR_NAV: NavItem[] = [
 const BUSINESS_NAV: NavItem[] = [
   { label: "Home", href: "/dashboard/home", icon: Home },
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  // Businesses only. A creator has no reason to look creators up, and the
+  // platform deliberately offers no roster to browse — see the page itself.
+  { label: "Find creator", href: "/dashboard/find-creator", icon: Search },
   { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },

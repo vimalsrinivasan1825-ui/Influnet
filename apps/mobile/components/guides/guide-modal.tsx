@@ -22,7 +22,7 @@ import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
 const CTA: Record<string, { label: string; href: string }> = {
   'connect-instagram': { label: 'Verify now', href: '/verification' },
   'connect-socials': { label: 'Edit profile', href: '/edit-profile' },
-  'discover-people': { label: 'Open search', href: '/search' },
+  'discover-people': { label: 'Find a creator', href: '/search' },
   'edit-profile': { label: 'Edit my profile', href: '/edit-profile' },
   'send-message': { label: 'Open messages', href: '/(tabs)/messages' },
   'respond-request': { label: 'Open requests', href: '/(tabs)/requests' },
