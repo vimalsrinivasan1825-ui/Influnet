@@ -12,6 +12,9 @@ import { AdminHomeView } from "@/components/dashboard/views/admin-home";
 import DashboardSidebar from "@/components/dashboard/sidebar";
 import DashboardHeader from "@/components/dashboard/header";
 import { SegmentedTabs } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { TeamMemberEditor } from "@/components/dashboard/admin/team-member-editor";
+import { ADMIN_MODULE_KEYS, type AdminAccess, type AdminLevel } from "@/lib/admin-access";
 import type { UserRole } from "@/types";
 import type {
   AdminHomeData,
@@ -104,27 +107,44 @@ const admin: AdminHomeData = {
   completed_projects: 512,
 };
 
-type Role = "influencer" | "business" | "admin";
+// A full client admin (every non-developer section), and an admin with a
+// narrower grant — what a super admin might hand out — for the Team preview.
+const fullAdmin: AdminAccess = {
+  tier: "admin",
+  permissions: Object.fromEntries(ADMIN_MODULE_KEYS.map((k) => [k, "manage" as AdminLevel])),
+  hiddenFields: [],
+};
+const limitedAdmin: AdminAccess = {
+  tier: "admin",
+  permissions: { overview: "view", users: "manage", support: "manage", leads: "manage", payments: "view", team: "manage" },
+  hiddenFields: ["phone", "money"],
+};
+
+type Role = "influencer" | "business" | "admin" | "team";
 const THEME: Record<Role, string> = {
   business: "theme-brand",
   influencer: "theme-creator",
   admin: "theme-admin",
+  team: "theme-admin",
 };
 const ROLE_TO_USERROLE: Record<Role, UserRole> = {
   influencer: "influencer",
   business: "business_owner",
   admin: "admin",
+  team: "admin",
 };
 
 export default function UiPreviewPage() {
   const [role, setRole] = useState<Role>("influencer");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(true);
 
   return (
     <div className={`${THEME[role]} flex min-h-screen bg-surface text-content`}>
       <DashboardSidebar
         role={ROLE_TO_USERROLE[role]}
+        adminAccess={role === "team" ? limitedAdmin : role === "admin" ? fullAdmin : null}
         unreadMessages={3}
         pendingRequests={6}
         collapsed={collapsed}
@@ -150,6 +170,7 @@ export default function UiPreviewPage() {
               { value: "influencer", label: "Creator" },
               { value: "business", label: "Business" },
               { value: "admin", label: "Admin" },
+              { value: "team", label: "Team" },
             ]}
           />
         </div>
@@ -157,6 +178,25 @@ export default function UiPreviewPage() {
           {role === "influencer" && <InfluencerHomeView data={influencer} />}
           {role === "business" && <BusinessHomeView data={business} />}
           {role === "admin" && <AdminHomeView data={admin} />}
+          {role === "team" && (
+            <div className="mx-auto flex max-w-3xl flex-col items-start gap-3 p-6">
+              <p className="text-sm text-content-soft">
+                An admin holding six sections, with phone and money hidden, adding staff. Anything
+                beyond its own access is locked in the editor.
+              </p>
+              <Button variant="brand" onClick={() => setEditorOpen(true)}>Open access editor</Button>
+              {editorOpen && (
+                <TeamMemberEditor
+                  mode="create"
+                  actor={limitedAdmin}
+                  creatableTiers={["staff"]}
+                  initial={{ name: "", email: "", tier: "staff", permissions: {}, hiddenFields: ["phone", "money"], delivery: "invite" }}
+                  onClose={() => setEditorOpen(false)}
+                  onSubmit={async () => ({ credentials: { kind: "invite", link: "https://example.test/one-time-link" } })}
+                />
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>

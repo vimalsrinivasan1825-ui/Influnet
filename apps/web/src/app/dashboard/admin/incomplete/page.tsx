@@ -83,7 +83,7 @@ export default function IncompleteSignupsPage() {
               bucket === b.key ? "border-brand bg-brand-soft" : "border-hairline bg-surface-card hover:border-content-muted"
             }`}
           >
-            <p className="text-2xl font-extrabold tabular-nums text-content">{nf.format(counts[b.key] ?? 0)}</p>
+            <p className="text-2xl font-semibold tabular-nums text-content">{nf.format(counts[b.key] ?? 0)}</p>
             <p className="text-sm font-bold text-content">{b.label}</p>
             <p className="text-xs text-content-muted">{b.hint}</p>
           </button>

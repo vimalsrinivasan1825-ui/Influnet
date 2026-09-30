@@ -195,7 +195,7 @@ export function UpgradeCard({
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E0C99B] bg-white/70 px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-[#8A5A08] shadow-[0_0_10px_-2px_rgba(224,165,38,0.7)]">
               <Sparkles className="size-3" /> Influnet Pro
             </span>
-            <h3 className="mt-3 text-xl font-extrabold tracking-tight text-[#4A3405]">
+            <h3 className="mt-3 text-xl font-semibold tracking-tight text-[#4A3405]">
               Everything is unlocked
             </h3>
             <p className="mt-1 text-sm text-[#6B4A05]">
@@ -236,7 +236,7 @@ export function UpgradeCard({
             <span className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-content-muted">
               Current plan
             </span>
-            <h3 className="mt-1 text-xl font-extrabold tracking-tight text-content">Free</h3>
+            <h3 className="mt-1 text-xl font-semibold tracking-tight text-content">Free</h3>
           </div>
           {atAnyCap && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-danger">
@@ -298,12 +298,12 @@ export function UpgradeCard({
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E0C99B] bg-white/70 px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-[#8A5A08] shadow-[0_0_10px_-2px_rgba(224,165,38,0.7)]">
               <Sparkles className="size-3" /> Influnet Pro
             </span>
-            <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-[#4A3405] sm:text-3xl">
+            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-[#4A3405] sm:text-3xl">
               Find creators, not just look them up
             </h3>
           </div>
           <p className="shrink-0 text-[#6B4A05] sm:text-right">
-            <span className="text-5xl font-extrabold tracking-tight text-[#4A3405] sm:text-6xl">
+            <span className="text-5xl font-semibold tracking-tight text-[#4A3405] sm:text-6xl">
               {formatPrice(entitlements.price.paise, entitlements.price.currency)}
             </span>
             <span className="ml-1.5 block text-sm sm:mt-1 sm:inline-block">for 30 days</span>

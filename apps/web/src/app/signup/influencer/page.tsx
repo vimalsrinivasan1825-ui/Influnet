@@ -139,7 +139,7 @@ function InstagramVerifyStep({
           </span>
         </div>
         <div>
-          <p className="text-base font-extrabold text-content">@{handle} is yours</p>
+          <p className="text-base font-semibold text-content">@{handle} is yours</p>
           <p className="mt-1 text-sm text-content-soft">Verified from your profile link. Taking you to the next step…</p>
         </div>
       </div>
@@ -272,7 +272,6 @@ function InfluencerSignupContent() {
   const [youtubeHandle, setYoutubeHandle] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
   const [facebookHandle, setFacebookHandle] = useState("");
-  const [snapchatHandle, setSnapchatHandle] = useState("");
   const [collabTypes, setCollabTypes] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -304,7 +303,6 @@ function InfluencerSignupContent() {
         if (data.youtubeHandle) setYoutubeHandle(data.youtubeHandle);
         if (data.twitterHandle) setTwitterHandle(data.twitterHandle);
         if (data.facebookHandle) setFacebookHandle(data.facebookHandle);
-        if (data.snapchatHandle) setSnapchatHandle(data.snapchatHandle);
         if (data.collabTypes) setCollabTypes(data.collabTypes);
         if (data.priceRange) setPriceRange(data.priceRange);
       }
@@ -322,13 +320,13 @@ function InfluencerSignupContent() {
       JSON.stringify({
         step, firstName, lastName, username, city, state,
         languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
-        facebookHandle, snapchatHandle, collabTypes, priceRange,
+        facebookHandle, collabTypes, priceRange,
       })
     );
   }, [
     step, firstName, lastName, username, city, state,
     languages, primaryNiche, secondaryNiches, bio, instagramHandle, youtubeHandle, twitterHandle,
-    facebookHandle, snapchatHandle, collabTypes, priceRange,
+    facebookHandle, collabTypes, priceRange,
   ]);
 
   const { status: usernameStatus, message: usernameMessage } = useUsernameAvailability(username);
@@ -343,7 +341,6 @@ function InfluencerSignupContent() {
   const youtubeConnect = useSocialConnect("youtube", youtubeHandle);
   const facebookConnect = useSocialConnect("facebook", facebookHandle);
   const twitterConnect = useSocialConnect("twitter", twitterHandle);
-  const snapchatConnect = useSocialConnect("snapchat", snapchatHandle);
 
   // Fail open on network/server errors — the register RPC is the source of truth
   // and will still reject a taken name, so we never hard-block on a flaky check.
@@ -488,7 +485,6 @@ function InfluencerSignupContent() {
         youtubeHandle,
         twitterHandle,
         facebookHandle: facebookHandle.trim().replace(/^@/, "") || undefined,
-        snapchatHandle: snapchatHandle.trim().replace(/^@/, "") || undefined,
         // Audience numbers from the Connect lookups the creator already ran —
         // otherwise a creator lands with NULL followers and ranks below
         // everyone in discovery until their first in-app refresh hours later.
@@ -578,24 +574,14 @@ function InfluencerSignupContent() {
 
   return (
     <div className="relative flex h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-4">
-      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
-        <div
-          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
-        />
-        <div
-          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
-        />
-      </div>
 
       <div className="relative z-10 flex max-h-full w-full max-w-lg flex-col overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mb-5 text-center">
           <Link href="/" className="mb-4 inline-flex items-center gap-2.5">
             <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
-            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
+            <span className="text-2xl font-bold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-2xl font-extrabold tracking-tight text-content">Create your account</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-content">Create your account</h1>
           <p className="mt-1.5 text-sm text-content-soft">Join as a creator.</p>
         </div>
 
@@ -625,7 +611,7 @@ function InfluencerSignupContent() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-7">
+        <div className="rounded-xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-7">
           {error && (
             <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
               <AlertTriangle className="size-4 shrink-0" /> {error}
@@ -634,7 +620,7 @@ function InfluencerSignupContent() {
 
           {step === 1 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Account details</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Account details</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>First name</Label>
@@ -792,7 +778,7 @@ function InfluencerSignupContent() {
 
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Profile details</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Profile details</h2>
               <div>
                 <Label>Gender</Label>
                 <Select value={gender} onChange={(e) => setGender(e.target.value)}>
@@ -833,7 +819,7 @@ function InfluencerSignupContent() {
 
           {step === 3 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Creator positioning</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Creator positioning</h2>
               <div>
                 <Label>Primary niche</Label>
                 <Select value={primaryNiche} onChange={(e) => setPrimaryNiche(e.target.value)}>
@@ -926,23 +912,6 @@ function InfluencerSignupContent() {
                         />
                       ),
                     },
-                    {
-                      platform: "snapchat",
-                      label: "Snapchat",
-                      filled: snapchatHandle.trim().length > 0,
-                      body: (
-                        <SocialConnectField
-                          platform="snapchat"
-                          value={snapchatHandle}
-                          onChange={setSnapchatHandle}
-                          connect={snapchatConnect}
-                          placeholder="username"
-                          optional
-                          linkOnly
-                          helper="Shown as a link on your profile — Snapchat doesn't publish stats we can read."
-                        />
-                      ),
-                    },
                   ]}
                 />
               </div>
@@ -951,7 +920,7 @@ function InfluencerSignupContent() {
 
           {step === 4 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Verify your Instagram</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Verify your Instagram</h2>
               {cleanInstagramHandle ? (
                 <>
                   <p className="text-sm text-content-soft">
@@ -976,7 +945,7 @@ function InfluencerSignupContent() {
 
           {step === 5 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Collaboration preferences</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Collaboration preferences</h2>
               <div>
                 <Label>Content types</Label>
                 <div className="flex flex-wrap gap-2">
@@ -1002,7 +971,7 @@ function InfluencerSignupContent() {
                           : "border-hairline-strong bg-surface-muted hover:border-content-muted",
                       )}
                     >
-                      <div className={cn("text-sm font-extrabold", priceRange === tier.value ? "text-brand-strong" : "text-content")}>
+                      <div className={cn("text-sm font-semibold", priceRange === tier.value ? "text-brand-strong" : "text-content")}>
                         {tier.label}
                       </div>
                       <div className="mt-0.5 text-xs font-semibold text-content-muted">{tier.range}</div>

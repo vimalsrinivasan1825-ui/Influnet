@@ -163,7 +163,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-hairline pb-2 last:border-0">
       <span className="text-sm text-content-soft">{label}</span>
-      <span className="text-sm font-extrabold tabular-nums text-content">{value}</span>
+      <span className="text-sm font-semibold tabular-nums text-content">{value}</span>
     </div>
   );
 }
@@ -175,7 +175,7 @@ function Queue({ label, value, href }: { label: string; value: number; href: str
       className="rounded-xl border border-hairline bg-surface-muted px-3 py-2 transition-colors hover:border-brand"
     >
       <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">{label}</p>
-      <p className="text-lg font-extrabold tabular-nums text-content">{value}</p>
+      <p className="text-lg font-semibold tabular-nums text-content">{value}</p>
     </a>
   );
 }
@@ -184,7 +184,7 @@ function Big({ label, value, icon }: { label: string; value: string; icon: React
   return (
     <div className="rounded-xl border border-hairline bg-surface-muted px-4 py-3">
       <span className="flex size-8 items-center justify-center rounded-lg bg-brand-soft text-brand [&_svg]:size-4">{icon}</span>
-      <p className="mt-2 text-xl font-extrabold tracking-tight text-content">{value}</p>
+      <p className="mt-2 text-xl font-semibold tracking-tight text-content">{value}</p>
       <p className="text-xs font-medium text-content-muted">{label}</p>
     </div>
   );

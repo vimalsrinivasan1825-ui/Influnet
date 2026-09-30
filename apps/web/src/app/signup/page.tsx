@@ -39,28 +39,18 @@ function SignupSelectionContent() {
 
   return (
     <div className="relative flex h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-6">
-      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
-        <div
-          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
-        />
-        <div
-          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
-        />
-      </div>
 
       <div className="relative z-10 flex max-h-full w-full max-w-lg flex-col overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mb-8 text-center">
           <Link href="/" className="mb-6 inline-flex items-center gap-2.5">
             <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
-            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
+            <span className="text-2xl font-bold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-3xl font-extrabold tracking-tight text-content">Join Influnet</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-content">Join Influnet</h1>
           <p className="mt-1.5 text-sm text-content-soft">Sign in, or create an account to get started.</p>
         </div>
 
-        <div className="rounded-3xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-8">
+        <div className="rounded-xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-8">
           {/* Returning users first — many arrive here from a "Work with me"
               button and already have an account. */}
           <Link
@@ -71,7 +61,7 @@ function SignupSelectionContent() {
               <LogIn className="size-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-lg font-extrabold tracking-tight text-brand-strong">
+              <span className="block text-lg font-semibold tracking-tight text-brand-strong">
                 I already have an account
               </span>
               <span className="mt-0.5 block text-sm text-content-soft">Sign in to continue where you left off.</span>
@@ -99,7 +89,7 @@ function SignupSelectionContent() {
                   {r.icon}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-lg font-extrabold tracking-tight text-content group-hover:text-brand-strong">
+                  <span className="block text-lg font-semibold tracking-tight text-content group-hover:text-brand-strong">
                     {r.title}
                   </span>
                   <span className="mt-0.5 block text-sm text-content-soft">{r.body}</span>

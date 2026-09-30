@@ -4,11 +4,15 @@ import { z } from 'zod';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 
+// z.string().url() also accepts javascript: and data: — these values are
+// rendered as links/downloads for the other party, so only web URLs pass.
+const httpUrl = z.string().url().max(2000).refine((u) => /^https?:\/\//i.test(u), 'Must be an http(s) URL');
+
 const PostSchema = z.object({
   stage_key: z.string().min(1),
   body: z.string().max(4000).optional(),
-  link_url: z.string().url().max(2000).optional(),
-  file_url: z.string().url().max(2000).optional(),
+  link_url: httpUrl.optional(),
+  file_url: httpUrl.optional(),
   file_name: z.string().max(300).optional(),
 }).refine((e) => (e.body && e.body.trim()) || e.link_url || e.file_url, {
   message: 'An update needs a message, a link, or a file.',

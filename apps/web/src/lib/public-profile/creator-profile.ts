@@ -7,6 +7,7 @@
 // off (or pass ?mock=0) once real `social_connections` data is wired in.
 
 import { PRICE_TIERS, creatorLevel as getCreatorLevel, profilePostKey } from '@influnet/core';
+import type { AvailabilityStatus } from '@influnet/types';
 import { publicOrigin } from '@/lib/site';
 import type { PublicPortfolioItem } from './get-portfolio';
 
@@ -171,6 +172,13 @@ export interface CreatorProfileView {
   collabTypes: string[];
   /** Human-readable rate, e.g. "₹25K+". Null when the creator hasn't set one. */
   priceLabel: string | null;
+  /**
+   * The coarse band a rate falls into, e.g. "₹10K – ₹25K". Free viewers get
+   * this in place of the exact figures so a brand can still tell whether this
+   * creator is in budget without the platform giving the negotiation away.
+   * Null only when the creator set no rate at all.
+   */
+  priceBand: string | null;
   /** Sample of the creator's actual work for the collaborate section. */
   postPreview: PostPreview | null;
   /** Recent uploads from the captured YouTube snapshot; null when unconnected. */
@@ -187,6 +195,12 @@ export interface CreatorProfileView {
   creatorLevel: { tier: string; label: string; isSelfReported: boolean } | null;
   /** S2 — the year this creator started, if they set one. Null if they didn't. */
   creatingSince: number | null;
+  /**
+   * Whether the creator is currently taking work on. Free to every viewer on
+   * purpose: it is the first thing a brand needs and the cheapest way to stop
+   * a request that was never going to be answered.
+   */
+  availability: AvailabilityStatus | null;
   /** Every showable post, video and portfolio entry, newest first. */
   showcase: ShowcaseItem[];
   /** Up to four distinct figures for the numbers section. */
@@ -227,6 +241,8 @@ export interface RawPublicProfile {
   engagementRate?: number | null;
   /** Migration 134. Optional so this stays backward-compatible before it's applied. */
   creatingSince?: number | null;
+  /** Whether the creator is taking work on. Returned by the RPC since 027. */
+  availabilityStatus?: AvailabilityStatus | null;
 }
 
 /** Format a raw count into a compact label: 1284 → "1,284", 92400 → "92.4K". */
@@ -246,6 +262,12 @@ export function formatCount(n: number | null | undefined): string {
  */
 export function resolveMockMode(searchParam?: string | string[]): boolean {
   const q = Array.isArray(searchParam) ? searchParam[0] : searchParam;
+  // The query override fabricates reach/follower numbers on a real profile URL,
+  // so it is a local-development affordance only. Deployed builds (staging
+  // included) take the env flag alone.
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.NEXT_PUBLIC_PROFILE_MOCK === 'on';
+  }
   if (q === '0' || q === 'off' || q === 'false') return false;
   if (q === '1' || q === 'on' || q === 'true') return true;
   return process.env.NEXT_PUBLIC_PROFILE_MOCK === 'on';
@@ -881,8 +903,10 @@ export function buildCreatorProfileView(
     instagramHandle: cleanHandle(profile.instagramHandle ?? null),
     youtubeHandle: cleanHandle(profile.youtubeHandle ?? (yt as any)?.handle ?? null),
     packages: buildProfilePackages(profile),
+    priceBand: priceBandOf(profile),
     creatorLevel: audienceSize > 0 ? getCreatorLevel(audienceSize, !!(ig || yt)) : null,
     creatingSince: profile.creatingSince ?? null,
+    availability: profile.availabilityStatus ?? null,
     // Never mocked, same as the portfolio: every tile is a claim about a real post.
     showcase: buildShowcase(ig, yt, opts.portfolio ?? []),
     headlineNumbers: useMock
@@ -929,20 +953,37 @@ const PACKAGE_COPY: Record<string, Omit<ProfilePackage, 'priceLabel' | 'featured
   },
 };
 
+const PRICE_RANGE_LABEL: Record<string, string> = {
+  entry: '₹1K – ₹5K',
+  standard: '₹5K – ₹10K',
+  premium: '₹10K – ₹25K',
+  pro: '₹25K+',
+};
+
 function priceLabelOf(profile: RawPublicProfile): string {
   const min = profile.pricingMin;
   const max = profile.pricingMax;
   const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
   if (min != null && max != null) return `${inr(min)} – ${inr(max)}`;
   if (min != null) return `${inr(min)}+`;
-  const PRICE_RANGE_LABEL: Record<string, string> = {
-    entry: '₹1K – ₹5K',
-    standard: '₹5K – ₹10K',
-    premium: '₹10K – ₹25K',
-    pro: '₹25K+',
-  };
   const range = (profile.priceRange ?? '').toLowerCase();
   return PRICE_RANGE_LABEL[range] ?? '₹25,000+';
+}
+
+/**
+ * The band an exact rate sits in. Prefers the tier the creator picked at
+ * signup; falls back to bucketing their typed minimum into the same ladder, so
+ * a creator who gave figures instead of a tier still has a band to show.
+ */
+function priceBandOf(profile: RawPublicProfile): string | null {
+  const tier = PRICE_RANGE_LABEL[(profile.priceRange ?? '').toLowerCase()];
+  if (tier) return tier;
+  const min = profile.pricingMin;
+  if (min == null) return null;
+  if (min < 5_000) return PRICE_RANGE_LABEL.entry;
+  if (min < 10_000) return PRICE_RANGE_LABEL.standard;
+  if (min < 25_000) return PRICE_RANGE_LABEL.premium;
+  return PRICE_RANGE_LABEL.pro;
 }
 
 function buildProfilePackages(profile: RawPublicProfile): ProfilePackage[] {

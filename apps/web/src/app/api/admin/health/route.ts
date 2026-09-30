@@ -1,6 +1,5 @@
 import { flag } from '@/lib/feature-flags';
-import { NextResponse } from 'next/server';
-import { callerClient, jsonError, withSuperAdmin } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withSuperAdmin } from '@/lib/api';
 import { appEnv } from '@/lib/env';
 import { isDistributedRateLimit } from '@/lib/rate-limit';
 import { isObservabilityEnabled } from '@/lib/observability';
@@ -145,7 +144,7 @@ export async function GET(req: Request) {
       }),
     );
 
-    return NextResponse.json({
+    return adminJson(req, {
       environment: {
         app_env: appEnv,
         node_env: process.env.NODE_ENV,

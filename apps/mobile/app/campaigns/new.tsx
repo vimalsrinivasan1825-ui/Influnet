@@ -15,9 +15,9 @@ import { useTheme } from '@/lib/theme';
 import { Button, Card, ChipWrap, Chip, Field, ScreenScroll, Txt } from '@/components/ui';
 
 const CATEGORIES = ['fashion', 'beauty', 'tech', 'food', 'travel', 'fitness', 'lifestyle', 'gaming'];
-const PLATFORMS = ['instagram', 'youtube', 'facebook', 'twitter', 'snapchat'];
+const PLATFORMS = ['instagram', 'youtube', 'facebook', 'twitter'];
 const PLATFORM_LABEL: Record<string, string> = {
-  instagram: 'Instagram', youtube: 'YouTube', facebook: 'Facebook', twitter: 'X', snapchat: 'Snapchat',
+  instagram: 'Instagram', youtube: 'YouTube', facebook: 'Facebook', twitter: 'X',
 };
 
 export default function NewCampaignScreen() {

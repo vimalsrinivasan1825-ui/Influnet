@@ -52,7 +52,7 @@ export default async function MyPublicProfilePage() {
           <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-soft text-brand">
             <UserRound className="size-6" />
           </span>
-          <h1 className="text-xl font-extrabold tracking-tight text-content">
+          <h1 className="text-xl font-semibold tracking-tight text-content">
             Your brand profile is private
           </h1>
           <p className="mx-auto mt-2 max-w-md text-sm text-content-soft">
@@ -92,7 +92,7 @@ export default async function MyPublicProfilePage() {
     return (
       <div className="mx-auto max-w-3xl p-4 sm:p-6">
         <div className="rounded-3xl border border-hairline bg-surface-card p-8 text-center">
-          <h1 className="text-xl font-extrabold tracking-tight text-content">
+          <h1 className="text-xl font-semibold tracking-tight text-content">
             You don’t have a public link yet
           </h1>
           <p className="mx-auto mt-2 max-w-md text-sm text-content-soft">
@@ -116,7 +116,7 @@ export default async function MyPublicProfilePage() {
     return (
       <div className="mx-auto max-w-3xl p-4 sm:p-6">
         <div className="rounded-3xl border border-hairline bg-surface-card p-8 text-center">
-          <h1 className="text-xl font-extrabold tracking-tight text-content">
+          <h1 className="text-xl font-semibold tracking-tight text-content">
             Your profile isn’t published yet
           </h1>
           <p className="mx-auto mt-2 max-w-md text-sm text-content-soft">

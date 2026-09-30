@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 
 // GET all collaboration requests (admin view)
@@ -21,7 +20,7 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ collabs: collabs || [] });
+    return adminJson(req, { collabs: collabs || [] });
   } catch (error) {
     return jsonError(500, 'Could not load collaboration requests', error);
   }
@@ -36,7 +35,7 @@ export async function DELETE(req: Request) {
 
     const { collab_id } = await req.json();
     if (!collab_id) {
-      return NextResponse.json({ error: 'collab_id is required' }, { status: 400 });
+      return adminJson(req, { error: 'collab_id is required' }, { status: 400 });
     }
 
     // Fetch the collab request first
@@ -47,7 +46,7 @@ export async function DELETE(req: Request) {
       .single();
 
     if (!collab) {
-      return NextResponse.json({ error: 'Collaboration request not found' }, { status: 404 });
+      return adminJson(req, { error: 'Collaboration request not found' }, { status: 404 });
     }
 
     // Admin force-delete bypasses RLS
@@ -63,7 +62,7 @@ export async function DELETE(req: Request) {
       targetId: String(collab_id), targetType: 'collab_request', req,
     });
 
-    return NextResponse.json({
+    return adminJson(req, {
       ok: true,
       deleted: true,
       message: 'Collaboration request has been deleted by admin.'
@@ -84,11 +83,11 @@ export async function PATCH(req: Request) {
     const { collab_id, status } = body;
 
     if (!collab_id || !status) {
-      return NextResponse.json({ error: 'collab_id and status are required' }, { status: 400 });
+      return adminJson(req, { error: 'collab_id and status are required' }, { status: 400 });
     }
 
     if (!['pending', 'accepted', 'declined', 'cancelled'].includes(status)) {
-      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
+      return adminJson(req, { error: 'Invalid status value' }, { status: 400 });
     }
 
     const { data: updated, error } = await supabase
@@ -106,7 +105,7 @@ export async function PATCH(req: Request) {
       metadata: { override_status: status }, req,
     });
 
-    return NextResponse.json({ collab: updated });
+    return adminJson(req, { collab: updated });
   } catch (error) {
     return jsonError(500, 'Could not update this request', error);
   }

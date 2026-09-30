@@ -8,7 +8,6 @@ import { useNotificationStore } from "@/store/notification-store";
 import { AccountMenu } from "@/components/dashboard/account-menu";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { GuideLauncher } from "@/components/guides/guide-launcher";
-import { CreatorProfileOverlay } from "@/components/dashboard/creator-profile-overlay";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import type { UserRole } from "@/types";
@@ -27,7 +26,6 @@ export default function DashboardHeader({
   onOpenMobile,
 }: DashboardHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
-  const [previewUsername, setPreviewUsername] = useState<string | null>(null);
   const {
     summary,
     notifications,
@@ -104,8 +102,7 @@ export default function DashboardHeader({
   const unreadMessages = summary.unread_messages_count || 0;
 
   return (
-    <>
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-hairline bg-surface-card/85 px-3 backdrop-blur-xl sm:px-5">
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-hairline bg-surface-card px-3 sm:px-5">
       <button
         onClick={onOpenMobile}
         aria-label="Open menu"
@@ -145,7 +142,6 @@ export default function DashboardHeader({
           open={searchOpen}
           onClose={() => setSearchOpen(false)}
           role={role}
-          onOpenCreator={setPreviewUsername}
         />
       </div>
 
@@ -228,8 +224,5 @@ export default function DashboardHeader({
         <AccountMenu userName={userName} avatarUrl={avatarUrl} role={role} />
       </div>
     </header>
-
-    <CreatorProfileOverlay username={previewUsername} onClose={() => setPreviewUsername(null)} />
-    </>
   );
 }

@@ -23,6 +23,19 @@
       "autoPort": true
     },
     {
+      "name": "landing-local-api",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NEXT_PUBLIC_EVENT_API_URL=http://localhost:3000",
+        "npm",
+        "run",
+        "dev",
+        "--workspace=apps/landing"
+      ],
+      "port": 3001,
+      "autoPort": true
+    },
+    {
       "name": "web-e2e",
       "runtimeExecutable": "env",
       "runtimeArgs": [

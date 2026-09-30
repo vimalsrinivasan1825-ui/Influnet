@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { facebookHandler } from '@/lib/social/facebook';
 import { twitterHandler } from '@/lib/social/twitter';
-import { snapchatHandler } from '@/lib/social/snapchat';
 import { postViews, toIso, toNumber, SocialProviderError } from '@/lib/social/types';
 
 /**
@@ -46,16 +45,6 @@ describe('handle normalisation', () => {
     expect(twitterHandler.normalizeHandle('sixteencharacters')).toBeNull();
     expect(twitterHandler.normalizeHandle('has spaces')).toBeNull();
     expect(facebookHandler.normalizeHandle('a')).toBeNull();
-    // Snapchat usernames must start with a letter.
-    expect(snapchatHandler.normalizeHandle('1abc')).toBeNull();
-    expect(snapchatHandler.normalizeHandle('https://www.snapchat.com/add/creator')).toBe('creator');
-  });
-});
-
-describe('snapchat is link-only', () => {
-  it('never returns a profile, so nothing can be shown as checked', async () => {
-    expect(snapchatHandler.supported).toBe(false);
-    await expect(snapchatHandler.fetchProfile('creator')).resolves.toBeNull();
   });
 });
 

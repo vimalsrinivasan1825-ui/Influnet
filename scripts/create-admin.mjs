@@ -44,6 +44,11 @@
  *   neither                      keep the account's current tier; a new admin
  *                                starts as Business / Client Admin.
  *
+ * ── Team (migration 176) ──────────────────────────────────────────────────
+ *   A plain admin made here gets every non-developer section. Narrower admins
+ *   and staff are created from the console (Team & roles), where a super admin
+ *   picks their sections and hidden fields. Super admins are made ONLY here.
+ *
  * Requires SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL in the env.
  * The service-role key is a full-database credential: run this from a trusted
  * machine, never from CI logs or a shared terminal.
@@ -100,9 +105,17 @@ async function listAdmins() {
     .order('created_at');
   if (error) throw new Error(error.message);
   if (!data.length) return console.log('No admin accounts exist.');
+  // Team tier (migration 176). Missing table = migration not applied yet.
+  const { data: members } = await sb.from('admin_members').select('user_id, tier, disabled_at');
+  const memberOf = new Map((members ?? []).map((m) => [m.user_id, m]));
   console.log(`\n${data.length} admin account(s):\n`);
   for (const a of data) {
-    const tier = a.is_super_admin ? '[Developer / Super Admin]' : '[Business / Client Admin]';
+    const m = memberOf.get(a.id);
+    const tier = a.is_super_admin
+      ? '[Developer / Super Admin]'
+      : m?.tier === 'staff'
+        ? `[Staff${m.disabled_at ? ', disabled' : ''}]`
+        : `[Admin${m?.disabled_at ? ', disabled' : ''}]`;
     console.log(`  ${a.email.padEnd(34)} ${(a.name || '').padEnd(24)} ${tier.padEnd(26)} created ${a.created_at.slice(0, 10)}`);
     console.log(`  ${''.padEnd(34)} id: ${a.id}`);
   }

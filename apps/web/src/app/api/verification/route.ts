@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { privileged } from '@/lib/service-client';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { buildSignals } from '@/lib/verification-scraper';
@@ -111,6 +112,7 @@ export async function POST(req: Request) {
         instagram_handle: b.instagram_handle,
         linkedin_handle: b.linkedin_handle,
         phone,
+        email: b.verification_email,
       };
     } else {
       const { data: inf } = await supabase
@@ -182,11 +184,20 @@ export async function POST(req: Request) {
       });
     }
 
+    // Email-domain proof lives in the DB, not the scrape: the bonus needs both a
+    // confirmed inbox (business_profiles.email_verified, reset whenever the
+    // address changes) and a domain that matches the company.
+    if (role === 'business_owner') {
+      const { data: bizRow } = await supabase.rpc('get_own_business_profile');
+      signals.email_domain_verified = !!(bizRow as any)?.email_verified && !!(bizRow as any)?.verification_email;
+    }
+
     const decision = decide(role as Role, signals);
     const reason = note ? `${decision.reason} — ${note}` : decision.reason;
     const notif = VERIFICATION_NOTIFICATION[decision.status];
 
-    const { data: result, error: rpcErr } = await supabase.rpc('submit_verification', {
+    const { data: result, error: rpcErr } = await (privileged(supabase) as typeof supabase).rpc('submit_verification', {
+      p_user_id: user.id,
       p_signals: signals,
       p_score: decision.score,
       p_reason: reason,

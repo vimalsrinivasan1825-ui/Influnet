@@ -26,12 +26,12 @@ function SectionCard({
         <div className="flex items-start justify-between gap-3 border-b border-hairline px-5 py-4 sm:px-6">
           <div className="min-w-0">
             {eyebrow && (
-              <p className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
+              <p className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-content-muted">
                 {eyebrow}
               </p>
             )}
             {title && (
-              <h3 className="mt-0.5 text-[0.95rem] font-bold tracking-tight text-content">
+              <h3 className="mt-0.5 text-[0.9375rem] font-semibold tracking-[-0.01em] text-content">
                 {title}
               </h3>
             )}

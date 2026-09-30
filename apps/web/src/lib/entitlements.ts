@@ -31,6 +31,7 @@
  * trade cheap — a blip does not downgrade anyone, and a real cancellation
  * still takes effect within a minute.
  */
+import { privileged } from '@/lib/service-client';
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -86,6 +87,8 @@ function unlimitedEntitlements(): Entitlements {
   };
   return {
     tier: 'pro',
+    // The deployment sells nothing, so no account is billable in it either.
+    billingApplies: false,
     status: 'not_applicable',
     currentPeriodEnd: null,
     graceUntil: null,
@@ -114,6 +117,10 @@ function unlimitedEntitlements(): Entitlements {
 function freeFallback(): Entitlements {
   return {
     tier: 'free',
+    // We could not read the account, so we cannot know it is unbilled. Same
+    // direction as the tier below: assume the metered case and let the real
+    // answer arrive on the next attempt.
+    billingApplies: true,
     status: 'unknown',
     currentPeriodEnd: null,
     graceUntil: null,
@@ -218,7 +225,15 @@ export async function resolveEntitlements(
       return freeFallback();
     }
 
-    const value: Entitlements = { ...(data as Entitlements), subscriptionsEnabled: true };
+    // An account the plan does not apply to (a business, migration 192) is
+    // told the product does not exist, exactly as if the deployment sold
+    // nothing. Both clients already hide every price and upgrade path on that
+    // signal, so businesses needed no client-side role check anywhere.
+    const raw = data as Entitlements;
+    const value: Entitlements = {
+      ...raw,
+      subscriptionsEnabled: raw.billingApplies !== false,
+    };
     cache.set(userId, { value, expiresAt: Date.now() + CACHE_TTL_MS });
 
     // Opportunistic prune; the map is otherwise unbounded on a long-lived instance.
@@ -352,7 +367,7 @@ export async function requireQuota(
  */
 export async function releaseQuota(auth: AuthCtx, meter: MonthlyMeter): Promise<void> {
   try {
-    await (auth.supabase.rpc as any)('release_quota', { p_meter: meter });
+    await (privileged(auth.supabase).rpc as any)('release_quota', { p_user_id: auth.user.id, p_meter: meter });
   } catch {
     /* best-effort */
   }
@@ -434,7 +449,7 @@ export async function releaseWeeklyQuota(
   // throws "not a function" instead of swallowing the RPC's own error the way
   // this was meant to. Awaiting it inside a real try/catch works either way.
   try {
-    await (auth.supabase.rpc as any)('release_weekly_quota', { p_meter: meter });
+    await (privileged(auth.supabase).rpc as any)('release_weekly_quota', { p_user_id: auth.user.id, p_meter: meter });
   } catch {
     /* best-effort — a failed release just means the unit isn't given back */
   }

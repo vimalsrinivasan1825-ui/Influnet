@@ -15,6 +15,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
+import { Figure } from "@/components/ui/figure";
 import { SectionCard } from "@/components/ui/section-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal, Stagger } from "@/components/ui/motion";
@@ -25,9 +26,40 @@ import { MediaKitNudge } from "@/components/dashboard/media-kit-nudge";
 import { VerifyOwnershipNudge } from "@/components/dashboard/verify-ownership-nudge";
 import { BrandEarningsChart } from "@/components/dashboard/brand-earnings-chart";
 
+/**
+ * The breakdown is by request state, so it wears the status tokens. The API
+ * still sends hex fills because the mobile app reads the same payload and
+ * cannot resolve CSS variables; the web maps them here.
+ */
+const STATUS_FILL: Record<string, string> = {
+  Pending: "var(--warn-mark)",
+  Active: "var(--info-mark)",
+  Completed: "var(--ok-mark)",
+  Declined: "var(--danger-mark)",
+};
+
+/**
+ * Segment order around the ring. Completed (green) and Declined (red) must
+ * never touch — that pair is indistinguishable under deuteranopia — and the
+ * ring wraps, so Declined also sits against Pending. Validated with the
+ * dataviz palette checker, adjacent pairs and the wrap.
+ */
+const STATUS_ORDER = ["Pending", "Completed", "Active", "Declined"];
+
+function orderedBreakdown<T extends { name: string; fill?: string }>(rows: T[]): T[] {
+  const rank = (n: string) => {
+    const i = STATUS_ORDER.indexOf(n);
+    return i === -1 ? STATUS_ORDER.length : i;
+  };
+  return [...rows]
+    .sort((a, b) => rank(a.name) - rank(b.name))
+    .map((d) => ({ ...d, fill: STATUS_FILL[d.name] ?? d.fill }));
+}
+
 export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
   const p = data.profile;
   const s = data.stats;
+  const breakdown = orderedBreakdown(data.request_breakdown);
   // The welcome card, the ownership nudge, and the media-kit nudge all compete
   // for a first-time creator's attention. Hold both nudges back until the
   // welcome card is out of the way, and show at most one nudge at a time —
@@ -47,7 +79,7 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
           <Avatar name={p.name} src={p.avatar_url} size="lg" />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-2xl font-extrabold tracking-tight text-content sm:text-3xl">
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-content sm:text-3xl">
                 Welcome back, {p.name.split(' ')[0]}!
               </h1>
               {p.verified_badge && (
@@ -146,11 +178,18 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
         <Reveal delay={0.15}>
           <SectionCard eyebrow="Requests" title="Collaboration breakdown" className="h-full">
             {data.request_breakdown.some((d) => d.value > 0) ? (
-              <DonutChart
-                data={data.request_breakdown}
-                height={220}
-                centerLabel="Requests"
-              />
+              <>
+                <DonutChart data={breakdown} height={200} centerLabel="Requests" />
+                <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  {breakdown.map((d) => (
+                    <li key={d.name} className="flex items-center gap-2 text-[0.8125rem]">
+                      <span className="size-2 shrink-0 rounded-sm" style={{ background: d.fill }} aria-hidden />
+                      <span className="text-content-soft">{d.name}</span>
+                      <span className="ml-auto font-medium tabular-nums text-content">{d.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
               <EmptyState
                 icon={<Sparkles />}
@@ -216,21 +255,21 @@ export function InfluencerHomeView({ data }: { data: InfluencerHomeData }) {
                 }
               />
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="-my-2 divide-y divide-hairline">
                 {data.recent_collabs.map((c) => (
                   <li
                     key={c.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-muted px-3.5 py-3"
+                    className="flex items-center justify-between gap-3 py-3"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar name={c.name} size="sm" square />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-content">{c.name}</p>
+                        <p className="truncate text-sm font-medium text-content">{c.name}</p>
                         <p className="text-xs text-content-muted">Brand partner</p>
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="text-sm font-bold text-content">{c.amount}</span>
+                      <Figure value={c.amount} className="text-sm font-semibold text-content" />
                       <Badge variant={statusVariant(c.status)} size="sm" dot>
                         {c.status}
                       </Badge>

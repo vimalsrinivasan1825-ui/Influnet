@@ -4,6 +4,18 @@ import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Database, UserRole } from '@/types';
 import { logger } from './logger';
 import { captureException } from './observability';
+import {
+  ADMIN_MODULES,
+  ADMIN_MODULE_KEYS,
+  SUPER_ACCESS,
+  allows,
+  levelFor,
+  redactHidden,
+  requiredLevel,
+  sectionForApiPath,
+  type AdminAccess,
+  type AdminLevel,
+} from './admin-access';
 
 /**
  * Is this "error" actually an HTML page from something in front of the database?
@@ -70,9 +82,106 @@ function tokenAal(req: Request): string | null {
   }
 }
 
+/**
+ * The access of the admin behind a request, set by `withAdmin`. Keyed by the
+ * Request object so `adminJson` can hide fields without every route threading
+ * the access through by hand.
+ */
+const accessByRequest = new WeakMap<Request, AdminAccess>();
+
+export function adminAccessFor(req: Request): AdminAccess | null {
+  return accessByRequest.get(req) ?? null;
+}
+
+/**
+ * NextResponse.json for /api/admin routes: masks the field groups hidden from
+ * the caller (email, phone, money…) before anything leaves the server.
+ *
+ * Masking happens on the way OUT, never on the data client: a route that reads
+ * an email to send a broadcast must still get the real address. Use this for
+ * every admin response; `adminRows` does the same for CSV exports.
+ */
+export function adminJson(req: Request, body: unknown, init?: ResponseInit) {
+  const hidden = accessByRequest.get(req)?.hiddenFields ?? [];
+  return NextResponse.json(hidden.length ? redactHidden(body, hidden) : body, init);
+}
+
+export function adminRows<T>(req: Request, rows: T): T {
+  const hidden = accessByRequest.get(req)?.hiddenFields ?? [];
+  return hidden.length ? redactHidden(rows, hidden) : rows;
+}
+
+/**
+ * Everything short of the developer sections, at manage — what a non-super
+ * admin could do before migration 176. Used ONLY when admin_members does not
+ * exist yet (the migration is unapplied on this database), never when the
+ * table exists and the row is missing.
+ */
+const PRE_TEAM_ACCESS: AdminAccess = {
+  tier: 'admin',
+  permissions: Object.fromEntries(ADMIN_MODULE_KEYS.map((k) => [k, 'manage' as AdminLevel])),
+  hiddenFields: [],
+};
+
+/**
+ * Resolve an admin's team access (migration 176). Read with the service-role
+ * client: `authenticated` holds no grant on admin_members or is_super_admin.
+ *
+ * Returns `disabled` for a member switched off, and `none` for an admin with
+ * no member row — both refused. A missing TABLE is different from a missing
+ * ROW: the first means the migration has not reached this database, and the
+ * console keeps its pre-176 behaviour rather than locking every admin out.
+ */
+export async function resolveAdminAccess(
+  serviceClient: any,
+  userId: string,
+): Promise<{ status: 'ok'; access: AdminAccess } | { status: 'disabled' | 'none' | 'error' }> {
+  if (await isSuperAdmin(serviceClient, userId)) return { status: 'ok', access: SUPER_ACCESS };
+
+  const { data, error } = await serviceClient
+    .from('admin_members')
+    .select('tier, permissions, hidden_fields, disabled_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    const msg = error.message ?? '';
+    const tableMissing =
+      error.code === 'PGRST205' ||
+      error.code === '42P01' ||
+      (/admin_members/.test(msg) && /does not exist|schema cache/i.test(msg));
+    if (tableMissing) {
+      logger.warn('admin_members missing — migration 176 not applied; using pre-team admin access', { userId });
+      return { status: 'ok', access: PRE_TEAM_ACCESS };
+    }
+    logger.error('could not resolve admin access', { userId, err: error });
+    return { status: 'error' };
+  }
+  if (!data) return { status: 'none' };
+  if (data.disabled_at) return { status: 'disabled' };
+
+  return {
+    status: 'ok',
+    access: {
+      tier: data.tier === 'staff' ? 'staff' : 'admin',
+      permissions: data.permissions ?? {},
+      hiddenFields: data.hidden_fields ?? [],
+    },
+  };
+}
+
+function sectionLabel(key: string): string {
+  return ADMIN_MODULES.find((m) => m.key === key)?.label ?? key;
+}
+
 // Admin routes: verify the caller's JWT + admin role, then hand back a
 // service-role client so admin queries can read columns (email/phone) that
 // column-level grants hide from the authenticated role.
+//
+// Every /api/admin/* request is also placed in a console section
+// (lib/admin-access.ts) and refused unless the caller holds that section —
+// 'view' for GET, 'manage' for anything else. A route nobody has placed in a
+// section is super-admin-only until someone does.
 //
 // NOTE: the service-role client has no auth.uid(), so any RPC that guards
 // itself with is_admin() must be called with the CALLER's client instead —
@@ -80,7 +189,7 @@ function tokenAal(req: Request): string | null {
 export async function withAdmin(
   req: Request
 ): Promise<
-  | { ok: true; supabase: any; user: User }
+  | { ok: true; supabase: any; user: User; access: AdminAccess }
   | { ok: false; res: NextResponse }
 > {
   const auth = await withAuth(req, { role: 'admin' as UserRole });
@@ -112,7 +221,52 @@ export async function withAdmin(
     }
   );
 
-  return { ok: true, supabase, user: auth.user };
+  const resolved = await resolveAdminAccess(supabase, auth.user.id);
+  if (resolved.status === 'disabled') {
+    return { ok: false, res: jsonError(403, 'Your team account has been disabled. Ask the person who added you to re-enable it.') };
+  }
+  if (resolved.status === 'none') {
+    return { ok: false, res: jsonError(403, 'Your account has no console access yet. Ask a super admin to add you to the team.') };
+  }
+  if (resolved.status !== 'ok') {
+    return { ok: false, res: jsonError(503, 'Could not check your console access. Please try again.') };
+  }
+  const access = resolved.access;
+
+  let pathname = '';
+  try {
+    pathname = new URL(req.url).pathname;
+  } catch {
+    // A request without a parseable URL is not an HTTP route; refuse below.
+  }
+  const section = sectionForApiPath(pathname);
+
+  if (access.tier !== 'super') {
+    if (section.kind === 'developer') {
+      return { ok: false, res: jsonError(403, 'Developer access required. This technical section is restricted to super administrators.') };
+    }
+    if (section.kind === 'unknown') {
+      return { ok: false, res: jsonError(403, 'This section is limited to super administrators.') };
+    }
+    if (section.kind === 'module') {
+      const need = requiredLevel(req.method);
+      if (!allows(access, section.module, need)) {
+        const held = levelFor(access, section.module);
+        return {
+          ok: false,
+          res: jsonError(
+            403,
+            held
+              ? `You have view-only access to ${sectionLabel(section.module)}.`
+              : `Your account does not have access to ${sectionLabel(section.module)}.`,
+          ),
+        };
+      }
+    }
+  }
+
+  accessByRequest.set(req, access);
+  return { ok: true, supabase, user: auth.user, access };
 }
 
 /**
@@ -147,13 +301,13 @@ export async function isSuperAdmin(serviceClient: any, userId: string): Promise<
 export async function withSuperAdmin(
   req: Request
 ): Promise<
-  | { ok: true; supabase: any; user: User }
+  | { ok: true; supabase: any; user: User; access: AdminAccess }
   | { ok: false; res: NextResponse }
 > {
   const auth = await withAdmin(req);
   if (!auth.ok) return auth;
 
-  if (await isSuperAdmin(auth.supabase, auth.user.id)) {
+  if (auth.access.tier === 'super') {
     return auth;
   }
 

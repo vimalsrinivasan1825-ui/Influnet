@@ -84,6 +84,23 @@ function verification(ctx: ProfileContext): { label: string; tone: 'verified' | 
   };
 }
 
+/**
+ * Whether this creator is taking work on. Null when they never set it — an
+ * absent status is not "paused", and guessing either way misleads the brand.
+ */
+function availability(ctx: ProfileContext): { label: string; tone: 'open' | 'limited' | 'paused' } | null {
+  switch (ctx.data.availability) {
+    case 'open':
+      return { label: 'Open to work', tone: 'open' };
+    case 'limited':
+      return { label: 'Limited availability', tone: 'limited' };
+    case 'paused':
+      return { label: 'Not taking work', tone: 'paused' };
+    default:
+      return null;
+  }
+}
+
 function facts(ctx: ProfileContext): string[] {
   const { data } = ctx;
   return [
@@ -147,6 +164,7 @@ export function TopBar({ ctx, tone = 'ink', className }: { ctx: ProfileContext; 
 function HeroCard({ ctx }: { ctx: ProfileContext }) {
   const { data } = ctx;
   const v = verification(ctx);
+  const avail = availability(ctx);
   const card = useRef<HTMLDivElement>(null);
   const thumbs = ctx.work.filter((w) => w.thumbUrl).slice(0, 3);
   const band = ctx.heroPost?.thumbUrl ?? thumbs[0]?.thumbUrl ?? null;
@@ -182,6 +200,7 @@ function HeroCard({ ctx }: { ctx: ProfileContext }) {
                   {v.tone === 'verified' && <VerifiedMark className={s.chipMark} pro={ctx.isPro} />}
                   {v.tone === 'verified' ? 'Verified' : v.label}
                 </span>
+                {avail && <span className={cx(s.chip, s[`chip_${avail.tone}`])}>{avail.label}</span>}
               </div>
               <div>
                 <h1 className={s.vname}>{data.name}</h1>
@@ -258,6 +277,7 @@ function HeroCard({ ctx }: { ctx: ProfileContext }) {
 function HeroCover({ ctx }: { ctx: ProfileContext }) {
   const { data } = ctx;
   const v = verification(ctx);
+  const avail = availability(ctx);
   const [first, rest] = splitName(data.name);
   const post = ctx.heroPost;
   return (
@@ -271,6 +291,7 @@ function HeroCover({ ctx }: { ctx: ProfileContext }) {
               <span className={cx(s.status, v.tone === 'verified' ? s.statusVerified : s.statusPending)} title={v.detail}>
                 {v.label}
               </span>
+              {avail && <span className={cx(s.status, s[`status_${avail.tone}`])}>{avail.label}</span>}
             </div>
             <h1 className={s.coverName}>
               <span className={s.line}>
@@ -339,6 +360,7 @@ function HeroCover({ ctx }: { ctx: ProfileContext }) {
 function HeroShowreel({ ctx }: { ctx: ProfileContext }) {
   const { data } = ctx;
   const v = verification(ctx);
+  const avail = availability(ctx);
   const [first, rest] = splitName(data.name);
   const post = ctx.heroPost;
   const image = post?.thumbUrl ?? data.avatarUrl;
@@ -395,6 +417,7 @@ function HeroShowreel({ ctx }: { ctx: ProfileContext }) {
             <span className={cx(s.status, v.tone === 'verified' ? s.statusVerified : s.statusPending)} title={v.detail}>
               {v.label}
             </span>
+            {avail && <span className={cx(s.status, s[`status_${avail.tone}`])}>{avail.label}</span>}
           </div>
           <div className={cx(s.ctas, s.rise)} style={{ '--d': '0.7s' } as CSSProperties}>
             <CtaButton ctx={ctx} className={s.btnBrand} />

@@ -19,12 +19,33 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // One-time token from the reset or invite email (?token_hash=…&type=recovery|invite).
+  const [tokenHash, setTokenHash] = useState<string | null>(null);
+  const [tokenType, setTokenType] = useState<'recovery' | 'invite'>('recovery');
+  const invite = tokenType === 'invite';
 
   useEffect(() => {
     const sb = createClient();
 
+    // The reset email links here with a token_hash rather than Supabase's
+    // /verify redirect. That works in any browser — a PKCE link only works in
+    // the browser that asked for it, and mobile asks from the app — and it is
+    // only spent when the form is submitted, so a mail scanner opening the link
+    // cannot burn it. The token is dropped from the address bar straight away.
+    const search = new URLSearchParams(window.location.search);
+    // Invites use the same form: the invitee has no password yet and picks one.
+    const th = search.get('token_hash');
+    const type = search.get('type');
+    if (th && (type === 'recovery' || type === 'invite')) {
+      setTokenHash(th);
+      setTokenType(type);
+      setMode('update');
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
     // Recovery links can arrive with an error (expired/used link) in the URL hash
-    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    const hash = window.location.hash;
     if (hash.includes('error=')) {
       const params = new URLSearchParams(hash.slice(1));
       setError(
@@ -85,6 +106,21 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
     try {
       const sb = createClient();
+      if (tokenHash) {
+        const { error: otpErr } = await sb.auth.verifyOtp({ type: tokenType, token_hash: tokenHash });
+        if (otpErr) {
+          setError(
+            invite
+              ? 'This invitation has expired or was already used. Ask the person who invited you to send a new one, or reset your password below.'
+              : 'This reset link has expired or was already used. Please request a new one.',
+          );
+          setTokenHash(null);
+          setMode('request');
+          return;
+        }
+        // Spent — a retry after a rejected password reuses the session instead.
+        setTokenHash(null);
+      }
       const { error: err } = await sb.auth.updateUser({ password });
       if (err) throw err;
       setMode('done');
@@ -100,13 +136,6 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden font-sans"
       style={{ background: 'var(--color-surface)' }}>
 
-      {/* Ambient blobs — same as login */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full blur-[130px]"
-          style={{ background: 'color-mix(in oklch, var(--color-brand) 8%, transparent)' }} />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[130px]"
-          style={{ background: 'color-mix(in oklch, var(--color-brand) 5%, transparent)' }} />
-      </div>
 
       <div className="relative z-10 w-full max-w-[450px]">
         {/* Logo */}
@@ -125,11 +154,13 @@ export default function ResetPasswordPage() {
           </Link>
 
           <h1 className="text-3xl font-black tracking-tight mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            {mode === 'update' ? 'Set a new password' : 'Reset your password'}
+            {mode === 'update' ? (invite ? 'Choose your password' : 'Set a new password') : 'Reset your password'}
           </h1>
           <p className="font-semibold" style={{ color: 'var(--color-text-muted)' }}>
             {mode === 'update'
-              ? 'Choose a strong password for your account'
+              ? invite
+                ? 'Accept your invitation by choosing a password for your account'
+                : 'Choose a strong password for your account'
               : "Enter your email and we'll send you a reset link"}
           </p>
         </div>
@@ -244,7 +275,7 @@ export default function ResetPasswordPage() {
         <p className="mt-8 text-center text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>
           Remembered it?{' '}
           <Link href="/login"
-            className="font-extrabold transition-colors hover:opacity-80"
+            className="font-semibold transition-colors hover:opacity-80"
             style={{ color: 'var(--color-brand)' }}>
             Back to sign in
           </Link>

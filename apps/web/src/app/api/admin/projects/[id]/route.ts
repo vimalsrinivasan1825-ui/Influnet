@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * Admin project detail — participants, stage, budget, checklist, activity,
@@ -45,7 +44,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         .order('created_at', { ascending: false }),
     ]);
 
-    return NextResponse.json({
+    return adminJson(req, {
       project,
       stageItems: stageItems || [],
       activity: activity || [],

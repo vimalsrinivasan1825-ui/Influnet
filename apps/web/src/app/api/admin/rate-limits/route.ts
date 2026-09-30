@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withSuperAdmin } from '@/lib/api';
+import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -101,7 +100,7 @@ export async function GET(req: Request) {
       }))
       .sort((a, b) => b.requestCount - a.requestCount);
 
-    return NextResponse.json({ hours, buckets });
+    return adminJson(req, { hours, buckets });
   } catch (error) {
     return jsonError(500, 'Could not load rate-limit stats', error);
   }

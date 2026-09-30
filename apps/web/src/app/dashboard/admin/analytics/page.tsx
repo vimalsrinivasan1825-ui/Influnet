@@ -178,7 +178,7 @@ export default function AdminAnalyticsPage() {
                           {dropped} lost
                         </span>
                       )}
-                      <span className="text-base font-extrabold tabular-nums text-content">
+                      <span className="text-base font-semibold tabular-nums text-content">
                         {value}
                       </span>
                       <span className="w-10 text-xs font-semibold tabular-nums text-content-muted">

@@ -45,6 +45,18 @@ export async function POST(req: Request) {
     // Already Pro: creating another order would take a second ₹999 for a
     // period they are still inside. Renewal near expiry is a separate flow.
     const ent = await resolveEntitlements(supabase, user.id);
+
+    // Businesses are not billed at all (migration 192). Refused ahead of the
+    // already-Pro check below, which would otherwise answer a brand with
+    // "You are already on Pro" — true of the reported tier, meaningless to
+    // them, and it implies a plan they could later lose.
+    if (!ent.billingApplies) {
+      return NextResponse.json(
+        { error: 'Influnet Pro is a creator plan. Your business account has no usage limits.' },
+        { status: 403 },
+      );
+    }
+
     if (ent.tier === 'pro') {
       return NextResponse.json(
         { error: 'You are already on Pro.', tier: ent.tier, currentPeriodEnd: ent.currentPeriodEnd },

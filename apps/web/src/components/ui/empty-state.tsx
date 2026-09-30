@@ -26,13 +26,13 @@ function EmptyState({
       )}
     >
       {icon && (
-        <div className="ds-dots mb-4 flex size-14 items-center justify-center rounded-2xl border border-hairline bg-surface-muted text-content-muted [&_svg]:size-6">
+        <div className="mb-3 flex size-10 items-center justify-center rounded-lg border border-hairline bg-surface-card text-content-muted shadow-[var(--shadow-card)] [&_svg]:size-5">
           {icon}
         </div>
       )}
-      <p className="text-sm font-bold text-content">{title}</p>
+      <p className="text-sm font-semibold text-content">{title}</p>
       {description && (
-        <p className="mt-1 max-w-xs text-xs leading-relaxed text-content-muted">
+        <p className="mt-1 max-w-sm text-[0.8125rem] leading-relaxed text-content-muted">
           {description}
         </p>
       )}

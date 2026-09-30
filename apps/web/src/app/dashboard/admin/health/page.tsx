@@ -107,7 +107,7 @@ export default function AdminHealthPage() {
           {/* Anything actually broken, stated first and plainly. */}
           {(missingRequired.length > 0 || pendingMigrations.length > 0 || !health.database.reachable) && (
             <Card className="flex flex-col gap-2 border-warn/30 bg-warn-soft p-4">
-              <p className="flex items-center gap-2 text-sm font-extrabold text-warn">
+              <p className="flex items-center gap-2 text-sm font-semibold text-warn">
                 <AlertTriangle className="size-4" /> Needs attention
               </p>
               {!health.database.reachable && (

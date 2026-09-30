@@ -272,24 +272,14 @@ function BusinessSignupContent() {
 
   return (
     <div className="relative flex h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-4">
-      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
-        <div
-          className="absolute -left-40 -top-40 size-[32rem] rounded-full opacity-30 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)" }}
-        />
-        <div
-          className="absolute -bottom-40 -right-40 size-[32rem] rounded-full opacity-25 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--brand-2), transparent 70%)" }}
-        />
-      </div>
 
       <div className="relative z-10 flex max-h-full w-full max-w-lg flex-col overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mb-5 text-center">
           <Link href="/" className="mb-4 inline-flex items-center gap-2.5">
             <Image src="/influet_logo.png" alt="" width={36} height={36} className="size-9" />
-            <span className="text-2xl font-extrabold tracking-tight text-content">influnet</span>
+            <span className="text-2xl font-bold tracking-tight text-content">influnet</span>
           </Link>
-          <h1 className="text-2xl font-extrabold tracking-tight text-content">Create your business account</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-content">Create your business account</h1>
           <p className="mt-1.5 text-sm text-content-soft">Join as a business partner.</p>
         </div>
 
@@ -321,7 +311,7 @@ function BusinessSignupContent() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-7">
+        <div className="rounded-xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)] sm:p-7">
           {error && (
             <div className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
               <AlertTriangle className="size-4 shrink-0" /> {error}
@@ -330,7 +320,7 @@ function BusinessSignupContent() {
 
           {step === 1 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Account details</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Account details</h2>
               <div>
                 <Label>Full name</Label>
                 <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" />
@@ -478,7 +468,7 @@ function BusinessSignupContent() {
 
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Company details</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Company details</h2>
               <div>
                 <Label>Industry</Label>
                 <Select value={industry} onChange={(e) => setIndustry(e.target.value)}>
@@ -509,7 +499,7 @@ function BusinessSignupContent() {
 
           {step === 3 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Verification & address</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Verification & address</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>City</Label>
@@ -548,7 +538,7 @@ function BusinessSignupContent() {
 
           {step === 4 && (
             <div className="flex flex-col gap-4">
-              <h2 className="border-b border-hairline pb-2 text-lg font-extrabold text-content">Collaboration intent</h2>
+              <h2 className="border-b border-hairline pb-2 text-lg font-semibold text-content">Collaboration intent</h2>
               <div>
                 <Label>Monthly marketing budget</Label>
                 <div className="grid grid-cols-2 gap-3">

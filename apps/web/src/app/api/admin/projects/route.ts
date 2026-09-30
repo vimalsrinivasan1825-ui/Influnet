@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 
 // GET all campaign projects (admin view)
@@ -21,7 +20,7 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ projects: projects || [] });
+    return adminJson(req, { projects: projects || [] });
   } catch (error) {
     return jsonError(500, 'Could not load projects', error);
   }
@@ -36,7 +35,7 @@ export async function DELETE(req: Request) {
 
     const { project_id } = await req.json();
     if (!project_id) {
-      return NextResponse.json({ error: 'project_id is required' }, { status: 400 });
+      return adminJson(req, { error: 'project_id is required' }, { status: 400 });
     }
 
     // Fetch the project first to confirm it exists
@@ -47,7 +46,7 @@ export async function DELETE(req: Request) {
       .single();
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return adminJson(req, { error: 'Project not found' }, { status: 404 });
     }
 
     // Admin force-delete bypasses RLS
@@ -64,7 +63,7 @@ export async function DELETE(req: Request) {
       metadata: { title: project.title }, req,
     });
 
-    return NextResponse.json({
+    return adminJson(req, {
       ok: true,
       deleted: true,
       message: `Project "${project.title}" has been deleted by admin.`

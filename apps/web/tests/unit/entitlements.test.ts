@@ -119,7 +119,10 @@ describe('toFreeProfileView', () => {
       collabTypes: ['reel'],
       usingMock: false,
       snapshotAge: '2d',
-      packages: [],
+      // The rate card carries the creator's EXACT figures; Free is rewritten
+      // down to `priceBand` rather than losing the section entirely.
+      packages: [{ platform: 'instagram', title: 'Reel', description: '', perks: [], priceLabel: '₹12,000 – ₹18,000' }],
+      priceBand: '₹10K – ₹25K',
 
       // Premium — none of these may survive the projection.
       audience: {
@@ -179,9 +182,20 @@ describe('toFreeProfileView', () => {
       audience: { locations: [], ages: [], genders: [], interests: [] },
       contact: [],
       priceLabel: null,
+      packages: [],
+      priceBand: null,
     };
     const free = toFreeProfileView(sparse) as any;
     expect(free.lockedSections).toEqual([]);
+  });
+
+  it('shows Free the rate BAND rather than a padlock', () => {
+    // "Is this creator in our budget" is the question that decides whether a
+    // brand sends a request at all. Locking it sends them back to Instagram
+    // DMs, which is the behaviour this product exists to replace.
+    const free = toFreeProfileView(fullView()) as any;
+    expect(free.packages[0].priceLabel).toBe('₹10K – ₹25K');
+    expect(JSON.stringify(free)).not.toContain('12,000');
   });
 });
 
@@ -217,6 +231,43 @@ describe('resolveEntitlements', () => {
     expect(ent.subscriptionsEnabled).toBe(false);
     // And the database is never consulted — one code path, no per-route branch.
     expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('reports an unbilled account as having no paid product at all', async () => {
+    // A business (migration 192). get_entitlements() answers tier 'pro' so
+    // every `tier === 'pro'` short-circuit opens, and billingApplies:false is
+    // what stops the UI calling that a subscription. Both hooks derive their
+    // `enabled` from subscriptionsEnabled, so this one field is what hides
+    // pricing, upgrade buttons and the Pro badge on web AND mobile.
+    process.env.SUBSCRIPTIONS_ENABLED = 'true';
+    const { resolveEntitlements } = await load();
+    const supabase = clientReturning({
+      data: { tier: 'pro', billingApplies: false, status: 'not_applicable' },
+      error: null,
+    });
+
+    const ent = await resolveEntitlements(supabase, 'business-1');
+
+    expect(ent.billingApplies).toBe(false);
+    expect(ent.subscriptionsEnabled).toBe(false);
+    expect(ent.tier).toBe('pro');
+  });
+
+  it('still reports the product as present for a billable free account', async () => {
+    // The regression guard for the line above: if billingApplies were ever
+    // read with a loose falsy check, an ordinary Free creator — who has no
+    // subscription row — would stop being offered the upgrade at all.
+    process.env.SUBSCRIPTIONS_ENABLED = 'true';
+    const { resolveEntitlements } = await load();
+    const supabase = clientReturning({
+      data: { tier: 'free', billingApplies: true, status: 'inactive' },
+      error: null,
+    });
+
+    const ent = await resolveEntitlements(supabase, 'creator-1');
+
+    expect(ent.subscriptionsEnabled).toBe(true);
+    expect(ent.tier).toBe('free');
   });
 
   it('FAILS CLOSED to free when the entitlement lookup errors', async () => {

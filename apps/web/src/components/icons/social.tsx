@@ -100,7 +100,6 @@ export const SOCIAL_MARKS = {
   youtube: YouTubeMark,
   facebook: FacebookMark,
   twitter: XMark,
-  snapchat: SnapchatMark,
 } as const;
 
 export type SocialMarkName = keyof typeof SOCIAL_MARKS;

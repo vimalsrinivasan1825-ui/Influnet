@@ -34,10 +34,10 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
         <div className="flex items-center gap-3">
           <Avatar name={company} size="lg" square />
           <div className="min-w-0">
-            <p className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
+            <p className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-content-muted">
               Brand partner portal
             </p>
-            <h1 className="truncate text-xl font-extrabold tracking-tight text-content sm:text-2xl">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-content sm:text-2xl">
               Welcome back, {p?.name || "there"}
             </h1>
             {p?.industry && (
@@ -107,7 +107,9 @@ export function BusinessHomeView({ data }: { data: BusinessHomeData }) {
           <SectionCard eyebrow="Pipeline" title="Campaign stages" className="h-full">
             {data.pipeline_data.some((d) => d.value > 0) ? (
               <BarChart
-                data={data.pipeline_data}
+                // One measure across stages, so one colour. The payload carries a
+                // per-stage fill (the mobile app uses it); the web ignores it.
+                data={data.pipeline_data.map(({ name, value }) => ({ name, value }))}
                 config={pipelineConfig}
                 xKey="name"
                 bars={[{ dataKey: "value" }]}

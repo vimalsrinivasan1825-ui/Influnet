@@ -21,6 +21,7 @@ import {
   LayoutDashboard,
   UserRound,
   Ticket,
+  ListChecks,
   Mail,
   BarChart3,
   Inbox,
@@ -51,9 +52,12 @@ import {
   FileSpreadsheet,
   MessageSquareLock,
   ChevronDown,
+  Search,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
+import { canOpenPage, type AdminAccess } from "@/lib/admin-access";
 import { useEntitlements } from "@/lib/hooks/use-entitlements";
 
 const SECTION_ROOTS = new Set(["/dashboard", "/dashboard/admin"]);
@@ -92,6 +96,9 @@ const CREATOR_NAV: NavItem[] = [
 const BUSINESS_NAV: NavItem[] = [
   { label: "Home", href: "/dashboard/home", icon: Home },
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  // Businesses only. A creator has no reason to look creators up, and the
+  // platform deliberately offers no roster to browse — see the page itself.
+  { label: "Find creator", href: "/dashboard/find-creator", icon: Search },
   { label: "Public profile", href: "/dashboard/profile", icon: UserRound },
   { label: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "unread" },
   { label: "Requests", href: "/dashboard/requests", icon: Send, badge: "pending" },
@@ -144,6 +151,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { label: "Leads", href: "/dashboard/admin/leads", icon: ContactRound },
       { label: "Early access", href: "/dashboard/admin/early-access", icon: Sparkles },
       { label: "Event registrations", href: "/dashboard/admin/event-registrations", icon: Ticket },
+      { label: "Event survey", href: "/dashboard/admin/event-survey", icon: ListChecks },
     ],
   },
   {
@@ -165,6 +173,26 @@ const ADMIN_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+/** Who can open the console, and with what. Shown to anyone holding Team. */
+const TEAM_GROUP: NavGroup = {
+  label: "Team",
+  items: [{ label: "Team & roles", href: "/dashboard/admin/team", icon: UsersRound }],
+};
+
+/**
+ * The groups this admin may open. A super admin sees everything; an admin or
+ * staff member sees only the sections it was granted (migration 176), and a
+ * group left empty is dropped. Until the access has loaded nothing is drawn,
+ * so a restricted member never sees a flash of sections it cannot open.
+ */
+function visibleAdminGroups(access: AdminAccess | null): NavGroup[] {
+  if (!access) return [];
+  if (access.tier === "super") return [...ADMIN_GROUPS, TEAM_GROUP, ...DEV_GROUPS];
+  return [...ADMIN_GROUPS, TEAM_GROUP]
+    .map((g) => ({ ...g, items: g.items.filter((i) => canOpenPage(access, i.href)) }))
+    .filter((g) => g.items.length > 0);
+}
 
 /** Developer-only groups, appended for a super admin. */
 const DEV_GROUPS: NavGroup[] = [
@@ -227,7 +255,7 @@ function NavList({
             onClick={onNavigate}
             title={collapsed ? item.label : undefined}
             className={cn(
-              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+              "group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
               collapsed && "justify-center px-0",
               // Same treatment for both roles — the surface stays white/near-white
               // and only the accent (brand-soft / brand-strong) carries the role
@@ -237,20 +265,17 @@ function NavList({
               // what made the creator sidebar read as "everything is the same
               // color" instead of "here is where I am".
               active
-                ? "bg-brand-soft text-brand-strong"
+                ? "bg-surface-subtle font-semibold text-content [&>svg]:text-brand"
                 : "text-content-soft hover:bg-surface-muted hover:text-content",
             )}
           >
-            {active && !collapsed && (
-              <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand" />
-            )}
             <Icon className="size-[1.15rem] shrink-0" />
             {!collapsed && <span className="flex-1">{item.label}</span>}
             {count > 0 &&
               (collapsed ? (
                 <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand ring-2 ring-surface-card" />
               ) : (
-                <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[0.625rem] font-bold text-white tabular-nums">
+                <span className="min-w-5 rounded-md bg-brand px-1.5 py-px text-center text-[0.6875rem] font-medium text-white tabular-nums">
                   {count > 99 ? "99+" : count}
                 </span>
               ))}
@@ -335,23 +360,20 @@ function GroupedNavList({
                     onClick={onNavigate}
                     title={collapsed ? item.label : undefined}
                     className={cn(
-                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+                      "group relative flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
                       collapsed && "justify-center px-0",
                       active
-                        ? "bg-brand-soft text-brand-strong"
+                        ? "bg-surface-subtle font-semibold text-content [&>svg]:text-brand"
                         : "text-content-soft hover:bg-surface-muted hover:text-content",
                     )}
                   >
-                    {active && !collapsed && (
-                      <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand" />
-                    )}
                     <Icon className="size-[1.15rem] shrink-0" />
                     {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
                     {count > 0 &&
                       (collapsed ? (
                         <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-brand ring-2 ring-surface-card" />
                       ) : (
-                        <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[0.625rem] font-bold text-white tabular-nums">
+                        <span className="min-w-5 rounded-md bg-brand px-1.5 py-px text-center text-[0.6875rem] font-medium text-white tabular-nums">
                           {count > 99 ? "99+" : count}
                         </span>
                       ))}
@@ -370,7 +392,7 @@ function Brand({ collapsed }: { collapsed: boolean }) {
     <Link href="/" className="flex items-center gap-2.5">
       <Image src="/influet_logo.png" alt="" width={28} height={28} className="size-7 shrink-0" />
       {!collapsed && (
-        <span className="text-lg font-extrabold tracking-tight text-content">influnet</span>
+        <span className="text-lg font-bold tracking-tight text-content">influnet</span>
       )}
     </Link>
   );
@@ -378,36 +400,37 @@ function Brand({ collapsed }: { collapsed: boolean }) {
 
 function RolePill({
   role,
-  isSuperAdmin,
+  adminTier,
   collapsed,
 }: {
   role: UserRole;
-  isSuperAdmin?: boolean;
+  adminTier?: AdminAccess["tier"] | null;
   collapsed: boolean;
 }) {
   const meta = ROLE_META[role];
-  const Icon = role === "admin" && isSuperAdmin ? Terminal : meta.icon;
+  const Icon = role === "admin" && adminTier === "super" ? Terminal : meta.icon;
   const label =
     role === "admin"
-      ? isSuperAdmin
+      ? adminTier === "super"
         ? "Developer workspace"
-        : "Admin workspace"
+        : adminTier === "staff"
+          ? "Staff workspace"
+          : "Admin workspace"
       : `${meta.label} workspace`;
 
   return (
     <div className="px-3 pt-3">
-      {/* Brand-soft everywhere — the role color still differs (pink for
-          business, purple for creator) via the theme-* class on the shell, so
-          this pill is the only place that color needs to live at all. */}
+      {/* A label, not a badge: which workspace you are in is context, so it
+          sits muted, and only the icon carries the role accent. */}
       <div
         className={cn(
-          "flex items-center gap-2 rounded-lg bg-brand-soft px-2.5 py-1.5 text-brand-strong",
+          "flex items-center gap-2 px-2.5 py-1 text-content-muted",
           collapsed && "justify-center px-0",
         )}
       >
-        <Icon className="size-3.5 shrink-0" />
+        <Icon className="size-3.5 shrink-0 text-brand" />
         {!collapsed && (
-          <span className="text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
+          <span className="text-[0.6875rem] font-medium uppercase tracking-[0.06em]">
             {label}
           </span>
         )}
@@ -418,7 +441,8 @@ function RolePill({
 
 interface SidebarProps {
   role: UserRole;
-  isSuperAdmin?: boolean;
+  /** The admin's team access; null until loaded, or for a non-admin. */
+  adminAccess?: AdminAccess | null;
   unreadMessages?: number;
   pendingRequests?: number;
   collapsed: boolean;
@@ -429,7 +453,7 @@ interface SidebarProps {
 
 export default function DashboardSidebar({
   role,
-  isSuperAdmin = false,
+  adminAccess = null,
   unreadMessages = 0,
   pendingRequests = 0,
   collapsed,
@@ -439,7 +463,7 @@ export default function DashboardSidebar({
 }: SidebarProps) {
   const meta = ROLE_META[role] ?? ROLE_META.influencer;
   const navItems = meta.nav;
-  const adminGroups = isSuperAdmin ? [...ADMIN_GROUPS, ...DEV_GROUPS] : ADMIN_GROUPS;
+  const adminGroups = visibleAdminGroups(adminAccess);
 
   return (
     <>
@@ -471,7 +495,7 @@ export default function DashboardSidebar({
           </button>
         </div>
 
-        <RolePill role={role} isSuperAdmin={isSuperAdmin} collapsed={collapsed} />
+        <RolePill role={role} adminTier={adminAccess?.tier} collapsed={collapsed} />
         {role === "admin" ? (
           <GroupedNavList groups={adminGroups} collapsed={collapsed} pendingRequests={pendingRequests} />
         ) : (
@@ -498,7 +522,7 @@ export default function DashboardSidebar({
       >
         <div
           className={cn(
-            "absolute inset-0 bg-content/40 backdrop-blur-sm transition-opacity duration-200",
+            "absolute inset-0 bg-content/35 transition-opacity duration-200",
             mobileOpen ? "opacity-100" : "opacity-0",
           )}
           onClick={onCloseMobile}
@@ -519,7 +543,7 @@ export default function DashboardSidebar({
               <X className="size-5" />
             </button>
           </div>
-          <RolePill role={role} isSuperAdmin={isSuperAdmin} collapsed={false} />
+          <RolePill role={role} adminTier={adminAccess?.tier} collapsed={false} />
           {role === "admin" ? (
             <GroupedNavList
               groups={adminGroups}
@@ -573,10 +597,10 @@ function FooterLink({
       onClick={onNavigate}
       title={collapsed ? label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+        "flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
         collapsed && "justify-center px-0",
         active
-          ? "bg-brand-soft text-brand-strong"
+          ? "bg-surface-subtle font-semibold text-content [&>svg]:text-brand"
           : "text-content-soft hover:bg-surface-muted hover:text-content",
         // Gold sits on top of the resting state only. An accented link that is
         // also the ACTIVE one keeps the active background, so "where am I" never

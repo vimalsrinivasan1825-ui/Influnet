@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { callerClient, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * Platform analytics, computed from our own database.
@@ -58,7 +57,7 @@ export async function GET(req: Request) {
 
     if (growth.error) return jsonError(500, 'Could not load platform analytics', growth.error);
 
-    return NextResponse.json({
+    return adminJson(req, {
       days,
       growth: growth.data ?? [],
       funnel: funnel.data ?? null,

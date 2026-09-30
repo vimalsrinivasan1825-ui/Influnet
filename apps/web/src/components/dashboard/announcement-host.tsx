@@ -82,7 +82,7 @@ export function AnnouncementHost() {
                 <Megaphone className="size-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-extrabold text-content">{a.title}</p>
+                <p className="text-sm font-semibold text-content">{a.title}</p>
                 <p className="mt-0.5 text-sm leading-relaxed text-content-soft">{a.body}</p>
                 {a.deep_link && (
                   <Button variant="brand" size="sm" className="mt-2" onClick={() => close(a, "clicked")}>
@@ -104,7 +104,7 @@ export function AnnouncementHost() {
       )}
 
       {modal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-content/40 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-content/35 p-4">
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-hairline bg-surface-card shadow-[var(--shadow-pop)]">
             {modal.image_url && (
               <div className="relative h-40 w-full bg-surface-muted">
@@ -112,7 +112,7 @@ export function AnnouncementHost() {
               </div>
             )}
             <div className="p-6">
-              <p className="text-lg font-extrabold tracking-tight text-content">{modal.title}</p>
+              <p className="text-lg font-semibold tracking-tight text-content">{modal.title}</p>
               <p className="mt-2 text-sm leading-relaxed text-content-soft">{modal.body}</p>
               <div className="mt-5 flex justify-end gap-2">
                 <Button variant="ghost" size="lg" onClick={() => close(modal, "dismissed")}>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { privileged } from '@/lib/service-client';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { fetchInstagramProfile, normalizeHandle, InstagramProviderError } from '@/lib/instagram';
@@ -205,7 +206,8 @@ export async function POST(req: Request) {
           }
         : null;
 
-      const { data: result, error: confErr } = await supabase.rpc('confirm_social_claim', {
+      const { data: result, error: confErr } = await (privileged(supabase) as typeof supabase).rpc('confirm_social_claim', {
+        p_user_id: user.id,
         p_platform: platform,
         p_handle: normHandle,
         p_matched: found,

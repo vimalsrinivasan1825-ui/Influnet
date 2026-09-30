@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0",
+  "inline-flex items-center gap-1 rounded-md font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -20,7 +20,7 @@ const badgeVariants = cva(
         // positive states (payments, approvals, etc.) and from `brand`
         // (which recolors per role/theme). A verified badge should read as
         // "Influnet confirmed this," not blend into ordinary UI chrome.
-        verified: "bg-[#FFE4F3] text-[#FF0B8D]",
+        verified: "rounded-full bg-[#FFE4F3] text-[#FF0B8D]",
         // Pro subscriber's verified mark. A warm gold gradient with a soft
         // outer glow, deliberately the only place in the UI that glows — the
         // whole value of a paid badge is that it is instantly distinguishable
@@ -31,6 +31,7 @@ const badgeVariants = cva(
         // on a badge creates a containing block that breaks `position: sticky`
         // ancestors, which is a genuinely horrible bug to track down later.
         pro: [
+          "rounded-full",
           "bg-gradient-to-r from-[#F7E7BE] via-[#F3D890] to-[#E8BE5C]",
           "text-[#6B4A05]",
           "shadow-[0_0_0_1px_rgba(200,150,40,0.35),0_0_10px_-1px_rgba(232,190,92,0.85)]",

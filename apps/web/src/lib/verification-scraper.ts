@@ -21,6 +21,8 @@ export interface BusinessProfileInput {
   instagram_handle?: string | null;
   linkedin_handle?: string | null;
   phone?: string | null;
+  /** The email being verified for the domain-match signal — see emailDomainMatch(). */
+  email?: string | null;
 }
 
 export interface CreatorProfileInput {
@@ -48,6 +50,76 @@ function domainOf(website: string): string | null {
   }
 }
 
+// Free / personal mail providers. A business on one of these has no company
+// domain to prove, so "no match" is structural, not suspicious — this list is
+// what lets the UI say "personal email" instead of an unexplained miss.
+const PERSONAL_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.in', 'yahoo.in', 'yahoo.co.uk',
+  'outlook.com', 'outlook.in', 'hotmail.com', 'hotmail.co.in', 'live.com', 'msn.com',
+  'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com', 'proton.me',
+  'zoho.com', 'zohomail.com', 'rediffmail.com', 'gmx.com', 'mail.com', 'yandex.com', 'rocketmail.com',
+]);
+
+export function isPersonalEmailDomain(domain: string): boolean {
+  return PERSONAL_EMAIL_DOMAINS.has(domain.trim().toLowerCase());
+}
+
+export function emailDomainOf(email: string | null | undefined): string | null {
+  const value = (email ?? '').trim().toLowerCase();
+  const at = value.lastIndexOf('@');
+  if (at < 1) return null;
+  const domain = value.slice(at + 1);
+  return domain.includes('.') ? domain : null;
+}
+
+export interface EmailDomainMatch {
+  domain: string | null;
+  /** Domain is a free/personal mail provider. */
+  personal: boolean;
+  /** Domain lines up with the business's own domain. Never true when personal. */
+  matches: boolean;
+  /** What the match was made against, for UI copy. */
+  basis: 'website' | 'company_name' | null;
+}
+
+/**
+ * Does this email sit on the business's own domain?
+ *
+ * Two sources, in order of trust:
+ *   1. website on file — its domain IS the company's domain; the email domain
+ *      must equal it or be a subdomain of it.
+ *   2. no website — fall back to the company name: the first word (slugified)
+ *      must appear in the email domain. Same structural proxy as
+ *      website_mentions_name; it is a string comparison, not proof of domain
+ *      ownership. A live WHOIS/DNS/registry check is deliberately not built yet.
+ */
+export function emailDomainMatch(input: {
+  companyName?: string | null;
+  website?: string | null;
+  email?: string | null;
+}): EmailDomainMatch {
+  const domain = emailDomainOf(input.email);
+  if (!domain) return { domain: null, personal: false, matches: false, basis: null };
+  if (isPersonalEmailDomain(domain)) return { domain, personal: true, matches: false, basis: null };
+
+  const site = input.website?.trim() ? domainOf(input.website.trim()) : null;
+  if (site) {
+    const s = site.toLowerCase();
+    return { domain, personal: false, matches: domain === s || domain.endsWith(`.${s}`), basis: 'website' };
+  }
+
+  const first = (input.companyName ?? '').trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-z0-9]/g, '') ?? '';
+  if (first.length >= 3) {
+    return {
+      domain,
+      personal: false,
+      matches: domain.replace(/[^a-z0-9]/g, '').includes(first),
+      basis: 'company_name',
+    };
+  }
+  return { domain, personal: false, matches: false, basis: null };
+}
+
 export function buildBusinessSignals(p: BusinessProfileInput): VerificationSignals {
   const flags: string[] = [];
   const website = (p.website ?? '').trim();
@@ -61,7 +133,13 @@ export function buildBusinessSignals(p: BusinessProfileInput): VerificationSigna
   if (p.gst_number && !gstValid) flags.push('gst_format_invalid');
   if (!website && !p.gst_number) flags.push('no_business_evidence');
 
+  // Informational flag only (not matched by hasFraudFlag) — never escalates.
+  const emailMatch = emailDomainMatch({ companyName: p.company_name, website: p.website, email: p.email });
+  if (emailMatch.personal) flags.push('personal_email_domain');
+
   return {
+    email_domain_matches_company: emailMatch.matches,
+    uses_personal_email: emailMatch.personal,
     website_resolves: websiteValid,
     // Structural proxy for "the domain relates to the company": the registrable
     // domain contains a slug of the company name. A real fetch would confirm.

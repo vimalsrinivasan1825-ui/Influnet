@@ -154,7 +154,7 @@ export default function SupportPage() {
             <ArrowLeft />
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-extrabold text-content">
+            <h1 className="truncate text-lg font-semibold text-content">
               {ticket?.subject ?? "Your request"}
             </h1>
             {ticket && (
@@ -247,7 +247,7 @@ export default function SupportPage() {
 
       {composing && (
         <Card className="flex flex-col gap-3 p-4 sm:p-5">
-          <h2 className="text-sm font-extrabold text-content">What do you need help with?</h2>
+          <h2 className="text-sm font-semibold text-content">What do you need help with?</h2>
           <div className="flex flex-wrap gap-1.5">
             {CATEGORIES.map((c) => (
               <button

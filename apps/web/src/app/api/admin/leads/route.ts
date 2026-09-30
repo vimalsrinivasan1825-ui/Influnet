@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 
 /**
@@ -32,7 +31,7 @@ export async function POST(req: Request) {
 
     const parsed = LeadSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+      return adminJson(req, { error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
 
     const { data, error } = await supabase
@@ -49,7 +48,7 @@ export async function POST(req: Request) {
       actorId: user.id, actorEmail: user.email ?? null, action: 'lead_created',
       targetId: (data as any).id, targetType: 'lead', metadata: { name: parsed.data.name, kind: parsed.data.kind }, req,
     });
-    return NextResponse.json({ lead: data }, { status: 201 });
+    return adminJson(req, { lead: data }, { status: 201 });
   } catch (error) {
     return jsonError(500, 'Could not save this lead', error);
   }

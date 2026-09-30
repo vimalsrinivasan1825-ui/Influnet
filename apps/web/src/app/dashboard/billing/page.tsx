@@ -50,9 +50,9 @@ export default function BillingPage() {
             <h3 className="text-base font-semibold">Everything is included</h3>
           </div>
           <p className="mt-2 text-sm text-content-soft">
-            Paid plans are not switched on for this environment, so your account
-            has no limits — every feature is available. There is nothing to buy
-            and nothing to manage here.
+            {entitlements.billingApplies
+              ? 'Paid plans are not switched on for this environment, so your account has no limits — every feature is available. There is nothing to buy and nothing to manage here.'
+              : 'Influnet Pro is a creator plan. Your business account has no usage limits — campaigns, projects and requests are all unlimited — so there is nothing to buy or manage here.'}
           </p>
         </Card>
       )}

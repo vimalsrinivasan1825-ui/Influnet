@@ -517,14 +517,14 @@ function CardDetailModal({ card, onClose, onSave, onDelete }: {
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/35 p-5"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-extrabold tracking-tight text-content">Card details</h3>
+          <h3 className="text-base font-semibold tracking-tight text-content">Card details</h3>
           <button
             onClick={onClose}
             className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"
@@ -712,7 +712,7 @@ function StagePipeline({
           <span className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-content-muted">
             Stage {currentIdx + 1}/{stageConfig.length}
           </span>
-          <span className="truncate text-sm font-extrabold text-content">
+          <span className="truncate text-sm font-semibold text-content">
             {isComplete ? 'Completed' : stage?.label}
           </span>
         </div>
@@ -744,7 +744,7 @@ function StagePipeline({
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex items-center gap-2">
               <span className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-brand">Current stage</span>
-              <span className="text-sm font-extrabold text-content">{stage.label}</span>
+              <span className="text-sm font-semibold text-content">{stage.label}</span>
             </div>
             <div className="flex flex-col gap-1.5">
               {items.length === 0 && (
@@ -968,7 +968,7 @@ function ChangeRequestsPanel({ requests, userId, onAct, onOpenPropose, busy, con
         const keys = Object.keys(cr.changes || {});
         return (
           <div key={cr.id} className="rounded-2xl border border-brand/30 bg-brand-soft/30 p-4">
-            <div className="mb-2 flex items-center gap-2 text-sm font-extrabold text-content">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-content">
               <Pencil size={15} className="text-brand" />
               {mine ? 'You proposed a change' : 'A change was proposed'}
             </div>
@@ -1055,10 +1055,10 @@ function ProposeChangeModal({ project, onClose, onSubmit, busy }: {
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/35 p-5">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-extrabold tracking-tight text-content">Propose a change</h3>
+          <h3 className="text-base font-semibold tracking-tight text-content">Propose a change</h3>
           <button onClick={onClose} className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"><X size={16} /></button>
         </div>
         <p className="mb-4 text-xs text-content-muted">The other party has to accept before it takes effect.</p>
@@ -1114,10 +1114,10 @@ function CancelProjectModal({
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/35 p-5">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-extrabold tracking-tight text-content">Request to cancel this project</h3>
+          <h3 className="text-base font-semibold tracking-tight text-content">Request to cancel this project</h3>
           <button onClick={onClose} className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"><X size={16} /></button>
         </div>
         <p className="mb-4 text-xs text-content-muted">
@@ -1189,10 +1189,10 @@ function StageUpdateModal({ stageLabel, onClose, onSubmit, busy }: {
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/45 p-5 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[1000] flex items-center justify-center bg-content/35 p-5">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-hairline bg-surface-card p-5 shadow-[var(--shadow-pop)]">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-extrabold tracking-tight text-content">Send an update · {stageLabel}</h3>
+          <h3 className="text-base font-semibold tracking-tight text-content">Send an update · {stageLabel}</h3>
           <button onClick={onClose} className="rounded-lg bg-surface-muted p-1.5 text-content-soft transition-colors hover:text-content"><X size={16} /></button>
         </div>
         <div className="flex flex-col gap-3.5">
@@ -1279,7 +1279,7 @@ function ActivityTimeline({ activity, userId }: { activity: any[]; userId: strin
                 <div className="rounded-2xl border border-hairline bg-surface-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="text-base font-semibold text-content">
-                      {who && <span className="font-extrabold">{who} </span>}
+                      {who && <span className="font-semibold">{who} </span>}
                       {who ? ev.summary.charAt(0).toLowerCase() + ev.summary.slice(1) : ev.summary}
                     </span>
                     {ev.type === 'payment_paid' && amount != null && (
@@ -1308,7 +1308,7 @@ function StageCelebration({ label, onClose }: { label: string; onClose: () => vo
   const colors = ['#ee3e96', '#10b981', '#f59e0b', '#6366f1', '#06b6d4', '#f43f5e'];
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[1100] flex items-center justify-center bg-content/40 p-5 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[1100] flex items-center justify-center bg-content/35 p-5">
       <style>{`
         @keyframes inf-pop { 0%{transform:scale(.7);opacity:0} 60%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
         @keyframes inf-check { to { stroke-dashoffset: 0 } }
@@ -1333,8 +1333,8 @@ function StageCelebration({ label, onClose }: { label: string; onClose: () => vo
         <div className="flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ok">
           <PartyPopper size={14} /> Stage complete
         </div>
-        <h3 className="mt-1.5 text-xl font-extrabold text-content">Nice work!</h3>
-        <p className="mt-1 text-base font-medium text-content-soft">Moving on to <span className="font-extrabold text-brand-strong">{label}</span>.</p>
+        <h3 className="mt-1.5 text-xl font-semibold text-content">Nice work!</h3>
+        <p className="mt-1 text-base font-medium text-content-soft">Moving on to <span className="font-semibold text-brand-strong">{label}</span>.</p>
         <Button variant="brand" size="sm" className="mt-5" onClick={onClose}>Continue</Button>
       </div>
     </div>
@@ -1451,7 +1451,7 @@ function GuidedFlow({
               <span className="text-xs font-bold uppercase tracking-[0.08em] text-brand">
                 Step {currentIdx + 1} of {stageConfig.length}
               </span>
-              <span className="text-xl font-extrabold text-content">{stage.label}</span>
+              <span className="text-xl font-semibold text-content">{stage.label}</span>
             </div>
             {guide && <p className="text-base font-medium leading-relaxed text-content-soft">{guide.summary}</p>}
           </div>
@@ -2409,7 +2409,7 @@ export default function ProjectKanbanPage() {
                     ).name}`
                   : ''}
               </div>
-              <h1 className="truncate text-[0.95rem] font-extrabold tracking-tight text-content">{project?.title || (loading ? 'Loading…' : 'Project')}</h1>
+              <h1 className="truncate text-[0.95rem] font-semibold tracking-tight text-content">{project?.title || (loading ? 'Loading…' : 'Project')}</h1>
             </div>
             {/* Stage badge rides along on the identity row (mobile only) */}
             <Badge variant="neutral" size="sm" className="ml-auto shrink-0 lg:hidden">
@@ -2615,7 +2615,7 @@ export default function ProjectKanbanPage() {
         </div>
       ) : notAccessible ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <h2 className="text-base font-extrabold text-content">{error}</h2>
+          <h2 className="text-base font-semibold text-content">{error}</h2>
           <p className="max-w-sm text-sm text-content-soft">
             Only the business and the creator on a project can open it.
           </p>
@@ -2623,12 +2623,12 @@ export default function ProjectKanbanPage() {
         </div>
       ) : error ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3">
-          <h2 className="text-base font-extrabold text-content">{error}</h2>
+          <h2 className="text-base font-semibold text-content">{error}</h2>
           <Button variant="brand" onClick={fetchData}>Retry</Button>
         </div>
       ) : !project ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3">
-          <h2 className="text-base font-extrabold text-content">Project not found</h2>
+          <h2 className="text-base font-semibold text-content">Project not found</h2>
           <ButtonLink href="/dashboard/projects" variant="brand">Back to projects</ButtonLink>
         </div>
       ) : view === 'guided' ? (
@@ -2821,9 +2821,9 @@ export default function ProjectKanbanPage() {
       )}
 
       {lightboxImage && (
-        <div onClick={() => setLightboxImage(null)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm cursor-zoom-out">
+        <div onClick={() => setLightboxImage(null)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4 cursor-zoom-out">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightboxImage} alt="Expanded preview" className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" />
+          <img src={lightboxImage} alt="Expanded preview" className="max-h-full max-w-full rounded-lg object-contain shadow-[var(--shadow-pop)]" />
         </div>
       )}
 
@@ -2833,9 +2833,9 @@ export default function ProjectKanbanPage() {
 
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-[var(--shadow-pop)]">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-content">Report this user</h3>
+              <h3 className="text-lg font-semibold text-content">Report this user</h3>
               <button onClick={() => { setShowReportModal(false); setReportDone(false); setAlsoBlock(false); }} className="text-content-muted hover:text-content">
                 <X size={20} />
               </button>
@@ -2937,7 +2937,7 @@ export default function ProjectKanbanPage() {
       <div className="rounded-2xl border border-hairline bg-surface-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-extrabold text-content">Documents</h3>
+            <h3 className="text-sm font-semibold text-content">Documents</h3>
             {invoiceLimit !== null && (
               <p className={`text-xs ${invoicesAtCap ? 'text-warn' : 'text-content-muted'}`}>
                 {invoicesUsed} of {invoiceLimit} invoices this month
@@ -3031,9 +3031,9 @@ export default function ProjectKanbanPage() {
 
       {showReviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-[var(--shadow-pop)]">
             <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-xl font-extrabold text-content">Project Reviews</h3>
+              <h3 className="text-xl font-semibold text-content">Project Reviews</h3>
               <button onClick={() => setShowReviewModal(false)} className="text-content-muted hover:text-content">
                 <X size={20} />
               </button>

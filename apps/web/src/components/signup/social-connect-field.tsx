@@ -25,7 +25,6 @@ const PLATFORM_LABEL: Record<SocialMarkName, string> = {
   youtube: "YouTube",
   facebook: "Facebook",
   twitter: "X (Twitter)",
-  snapchat: "Snapchat",
 };
 
 export interface SocialConnectFieldProps {

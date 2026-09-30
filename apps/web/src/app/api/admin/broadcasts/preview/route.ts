@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { callerClient, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 import { AudienceSchema } from '@/lib/broadcast-schema';
 import { z } from 'zod';
 
@@ -20,7 +19,7 @@ export async function POST(req: Request) {
     if (!auth.ok) return auth.res;
     const parsed = Schema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+      return adminJson(req, { error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
     const { data, error } = await callerClient(req).rpc('admin_preview_audience', {
       p_segment: parsed.data.audience ?? {},
@@ -32,7 +31,7 @@ export async function POST(req: Request) {
       }
       return jsonError(500, 'Could not preview this audience', error);
     }
-    return NextResponse.json({ data });
+    return adminJson(req, { data });
   } catch (error) {
     return jsonError(500, 'Could not preview this audience', error);
   }

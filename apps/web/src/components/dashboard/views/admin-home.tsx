@@ -21,8 +21,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { Reveal, Stagger } from "@/components/ui/motion";
-import { DonutChart } from "@/components/ui/chart";
-import { useAdminTier } from "@/lib/hooks/use-admin-tier";
+import { CHART_COLORS, DonutChart } from "@/components/ui/chart";
+import { useAdminAccess } from "@/lib/hooks/use-admin-tier";
 import type { AdminHomeData } from "./types";
 
 function Row({
@@ -35,22 +35,23 @@ function Row({
   value: number;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-muted px-4 py-3">
+    <div className="flex items-center justify-between py-2.5">
       <div className="flex items-center gap-2.5">
         <span className="size-2 rounded-full" style={{ background: color }} />
-        <span className="text-sm font-semibold text-content-soft">{label}</span>
+        <span className="text-sm text-content-soft">{label}</span>
       </div>
-      <span className="text-base font-extrabold text-content tabular-nums">{value}</span>
+      <span className="text-sm font-semibold text-content tabular-nums">{value.toLocaleString("en-IN")}</span>
     </div>
   );
 }
 
 export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
-  const { isSuperAdmin } = useAdminTier();
+  const { access } = useAdminAccess();
+  const isSuperAdmin = access?.tier === "super";
 
   const audience = [
-    { name: "Businesses", value: s.total_businesses, fill: "#6366f1" },
-    { name: "Influencers", value: s.total_influencers, fill: "#f26e59" },
+    { name: "Businesses", value: s.total_businesses, fill: CHART_COLORS[0] },
+    { name: "Influencers", value: s.total_influencers, fill: CHART_COLORS[1] },
   ];
 
   return (
@@ -58,14 +59,12 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
       {/* Header */}
       <Reveal className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-2 text-white shadow-[0_6px_16px_-6px_var(--brand-ring)]">
-            {isSuperAdmin ? <Terminal className="size-5" /> : <Shield className="size-5" />}
-          </span>
           <div>
-            <p className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
-              {isSuperAdmin ? "Developer Super Admin" : "Platform Admin"}
+            <p className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-content-muted">
+              {isSuperAdmin ? <Terminal className="size-3.5" /> : <Shield className="size-3.5" />}
+              {isSuperAdmin ? "Developer Super Admin" : access?.tier === "staff" ? "Staff" : "Platform Admin"}
             </p>
-            <h1 className="text-xl font-extrabold tracking-tight text-content sm:text-2xl">
+            <h1 className="text-xl font-semibold tracking-tight text-content sm:text-2xl">
               {isSuperAdmin ? "Control Center & Systems" : "Control Center"}
             </h1>
           </div>
@@ -118,10 +117,10 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
               </ButtonLink>
             }
           >
-            <div className="flex flex-col gap-2.5">
-              <Row color="#6366f1" label="Total requests" value={s.total_collabs} />
-              <Row color="#16a34a" label="Active" value={s.active_collabs} />
-              <Row color="#d97706" label="Pending response" value={s.pending_collabs} />
+            <div className="-my-2.5 flex flex-col divide-y divide-hairline">
+              <Row color="var(--content-muted)" label="Total requests" value={s.total_collabs} />
+              <Row color="var(--ok-mark)" label="Active" value={s.active_collabs} />
+              <Row color="var(--warn-mark)" label="Pending response" value={s.pending_collabs} />
             </div>
           </SectionCard>
         </Reveal>
@@ -137,9 +136,9 @@ export function AdminHomeView({ data: s }: { data: AdminHomeData }) {
               </ButtonLink>
             }
           >
-            <div className="flex flex-col gap-2.5">
-              <Row color="#2563eb" label="Active projects" value={s.active_projects} />
-              <Row color="#16a34a" label="Completed" value={s.completed_projects} />
+            <div className="-my-2.5 flex flex-col divide-y divide-hairline">
+              <Row color="var(--info-mark)" label="Active projects" value={s.active_projects} />
+              <Row color="var(--ok-mark)" label="Completed" value={s.completed_projects} />
             </div>
             <div className="mt-4 flex items-center gap-2 rounded-xl border border-hairline bg-surface-muted px-4 py-3">
               <FolderKanban className="size-4 text-content-muted" />

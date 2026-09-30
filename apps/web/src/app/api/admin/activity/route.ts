@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { callerClient, jsonError, withAdmin } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * Platform-wide activity — "who signed up, and what is happening right now".
@@ -53,7 +52,7 @@ export async function GET(req: Request) {
 
     if (activity.error) return jsonError(500, 'Could not load platform activity', activity.error);
 
-    return NextResponse.json({
+    return adminJson(req, {
       events: activity.data ?? [],
       pulse: pulse.data ?? null,
       hours,

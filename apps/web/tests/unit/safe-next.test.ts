@@ -7,7 +7,7 @@ describe('safeNextPath', () => {
     expect(safeNextPath('/giresh')).toBe('/giresh');
   });
   it('refuses anything a browser would read as another host', () => {
-    for (const bad of ['//evil.test', '/\\evil.test', 'https://evil.test', 'evil.test', '', null, undefined, `/${'a'.repeat(600)}`]) {
+    for (const bad of ['//evil.test', '/\\evil.test', 'https://evil.test', 'evil.test', '/\t/evil.test', '/\n/evil.test', '', null, undefined, `/${'a'.repeat(600)}`]) {
       expect(safeNextPath(bad as string)).toBeNull();
     }
   });

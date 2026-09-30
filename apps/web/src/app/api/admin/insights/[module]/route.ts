@@ -1,7 +1,5 @@
-import { NextResponse } from 'next/server';
-import { callerClient, jsonError, withAdmin, withSuperAdmin } from '@/lib/api';
+import { adminJson, adminRows, callerClient, jsonError, withAdmin, withSuperAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
-import { isSuperAdmin } from '@/lib/api';
 import {
   CSV_SENSITIVE,
   MODULES,
@@ -67,10 +65,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ module: string 
         exportData = { ...(data as object), rows: all.rows };
         truncated = all.truncated;
       }
-      const rows = mod.csv(exportData);
+      // Hidden field groups are masked in the export exactly as on screen.
+      const rows = adminRows(req, mod.csv(exportData));
       // Exporting is a bulk read of personal data: audit it, and keep phone
       // numbers and provider ids out unless the caller is a super admin.
-      const superAdmin = await isSuperAdmin(auth.supabase, auth.user.id);
+      const superAdmin = auth.access.tier === 'super';
       await auditAdmin({
         actorId: auth.user.id,
         actorEmail: auth.user.email ?? null,
@@ -85,7 +84,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ module: string 
       return csv;
     }
 
-    return NextResponse.json(
+    return adminJson(req,
       { module, data, range, generated_at: new Date().toISOString() },
       { headers: { 'Cache-Control': 'no-store' } },
     );

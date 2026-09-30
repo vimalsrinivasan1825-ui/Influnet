@@ -1,12 +1,11 @@
 <!--
-  Influnet · Supabase Auth template: "Confirm signup"
+  Influnet · Supabase Auth template: "Confirm sign up"
+  Subject: Confirm your Influnet email address
 
   GENERATED FILE — do not edit by hand.
-  Source: apps/web/src/lib/email/templates.ts
+  Source: apps/web/src/lib/email/auth-templates.ts
   Rebuild: npm run email:auth-templates  (from apps/web)
-
-  Paste the whole file into Supabase Dashboard → Authentication → Emails →
-  Confirm signup → Message body (source view).
+  Push:    npm run email:auth-templates -- --apply dev|staging
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -57,7 +56,7 @@
           <!-- Card -->
           <tr>
             <td class="sm-px sm-py" bgcolor="#ffffff" style="padding:32px 36px 28px;background:#ffffff;border:1px solid #e6e8ec;border-top:0;border-radius:0 0 14px 14px;">
-              <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#4a5058;">Hi there, confirm this address to finish setting up your Influnet account.</p>
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#4a5058;">Hi there, confirm that <strong>{{ .Email }}</strong> is your address to finish setting up your Influnet account.</p>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
     <tr>
       <td align="center" bgcolor="#ee3e96" style="border-radius:10px;">
@@ -66,7 +65,7 @@
         <!--[if mso]></center></v:roundrect><![endif]-->
       </td>
     </tr>
-  </table><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">This link expires in 24 hours. If it has expired, sign in and we will send you a new one.</p><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">If you did not create an Influnet account, ignore this email — nothing will be activated.</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;"><tr><td height="1" bgcolor="#e6e8ec" style="line-height:1px;font-size:0;">&nbsp;</td></tr></table><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">Button not working? Paste this into your browser:<br /><span style="color:#8b919b;word-break:break-all;">{{ .ConfirmationURL }}</span></p>
+  </table><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">This link expires in 1 hour and can only be used once. If it has expired, sign in and we will send you a new one.</p><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">If you did not create an Influnet account, ignore this email — nothing will be activated.</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;"><tr><td height="1" bgcolor="#e6e8ec" style="line-height:1px;font-size:0;">&nbsp;</td></tr></table><p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8b919b;">Button not working? Paste this into your browser:<br /><span style="color:#8b919b;word-break:break-all;">{{ .ConfirmationURL }}</span></p>
             </td>
           </tr>
 
@@ -74,7 +73,7 @@
           <tr>
             <td class="sm-px" style="padding:24px 36px 8px;text-align:center;">
               <p style="margin:0 0 12px;font-size:12px;line-height:1.6;color:#8b919b;">This is an account security email for your Influnet account. We send these regardless of your notification settings.</p>
-              <p style="margin:0 0 10px;font-size:12px;line-height:1.6;color:#8b919b;"><a href="http://localhost:3000/dashboard" style="color:#8b919b;text-decoration:underline;">Dashboard</a><span style="color:#b4b9c1;"> &nbsp;·&nbsp; </span><a href="mailto:support@influnet.io" style="color:#8b919b;text-decoration:underline;">support@influnet.io</a></p>
+              <p style="margin:0 0 10px;font-size:12px;line-height:1.6;color:#8b919b;"><a href="{{ .SiteURL }}/dashboard" style="color:#8b919b;text-decoration:underline;">Dashboard</a><span style="color:#b4b9c1;"> &nbsp;·&nbsp; </span><a href="mailto:support@influnet.io" style="color:#8b919b;text-decoration:underline;">support@influnet.io</a></p>
               <p style="margin:0;font-size:12px;line-height:1.6;color:#b4b9c1;">&copy; 2026 Influnet &nbsp;·&nbsp; Made for creators and brands in India</p>
             </td>
           </tr>

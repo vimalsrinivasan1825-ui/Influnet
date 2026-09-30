@@ -318,8 +318,11 @@ export default function MessagesScreen() {
             {/* Always last, always present. "Who else could I be talking to"
                 is a live question at any list length. */}
             <SectionLabel>Start a new chat</SectionLabel>
+            {/* A creator has no creator to look up — the card already told them
+                a conversation starts from a brand's request, and now it goes
+                there instead of to a lookup screen they cannot use. */}
             <PressableScale
-              onPress={() => router.push('/search')}
+              onPress={() => router.push(isCreator ? '/(tabs)/requests' : '/search')}
               accessibilityRole="button"
               accessibilityLabel="Start a new conversation"
             >

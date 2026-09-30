@@ -9,7 +9,7 @@ requests, a 12-stage campaign pipeline with Kanban workspace, chat, and an admin
 ├── apps/
 │   └── web/          # Next.js 16 app — frontend + API routes (the entire product)
 ├── packages/         # (reserved) future shared packages
-├── supabase/         # Database migrations, edge functions (phone-otp, auth-signup), config
+├── supabase/         # Database migrations, edge functions (phone-otp), config
 ├── docs/             # Architecture, analysis, and setup documentation
 ├── .agents/          # AI-agent workflow rules, execution plan, lessons-learned log
 ├── .github/          # CI/CD pipeline (typecheck, lint, tests, build)
@@ -60,13 +60,13 @@ Migrations live in `supabase/migrations/` (numbered `001_…` onward). Apply wit
 supabase db push
 ```
 
-Edge functions (`supabase/functions/`): `phone-otp` (2Factor SMS OTP), `auth-signup`.
+Edge functions (`supabase/functions/`): `phone-otp` (2Factor SMS OTP).
 
 ## Deployment (cloud)
 
 **Before deploying, read [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)** (runbook) and [docs/operations/QA_AND_GO_LIVE.md](docs/operations/QA_AND_GO_LIVE.md) (test script). Short version:
 
-1. **Provision a separate _production_ Supabase project** (do not reuse the dev project `jaajosocopoicmqcffuu`). `supabase link --project-ref <PROD_REF>` then `supabase db push`, and `supabase functions deploy phone-otp auth-signup`.
+1. **Provision a separate _production_ Supabase project** (do not reuse the dev project `jaajosocopoicmqcffuu`). `supabase link --project-ref <PROD_REF>` then `supabase db push`, and `supabase functions deploy phone-otp`.
 2. In Supabase Auth, set **Site URL + Redirect URLs** to your production domain and configure the SMTP sender.
 3. **Host `apps/web` on Vercel.** Set every env var from `apps/web/.env.example` in the host's secret store — `SUPABASE_SERVICE_ROLE_KEY` and `STREAM_API_SECRET` are **server-only, never `NEXT_PUBLIC`**. Do **not** ship `SUPABASE_ACCESS_TOKEN`.
 4. Point the **Stream webhook** at `https://<domain>/api/stream/webhook`.

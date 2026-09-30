@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 import { deliverEmail } from '@/lib/email/policy';
 
@@ -22,7 +21,7 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ businesses: businesses || [] });
+    return adminJson(req, { businesses: businesses || [] });
   } catch (error) {
     return jsonError(500, 'Could not load businesses', error);
   }
@@ -42,11 +41,11 @@ export async function PATCH(req: Request) {
     const { user_id, approval_status, reason } = body;
 
     if (!user_id || !approval_status) {
-      return NextResponse.json({ error: 'user_id and approval_status are required' }, { status: 400 });
+      return adminJson(req, { error: 'user_id and approval_status are required' }, { status: 400 });
     }
 
     if (!['approved', 'rejected'].includes(approval_status)) {
-      return NextResponse.json({ error: 'approval_status must be "approved" or "rejected"' }, { status: 400 });
+      return adminJson(req, { error: 'approval_status must be "approved" or "rejected"' }, { status: 400 });
     }
 
     const { data: updated, error } = await supabase
@@ -90,7 +89,7 @@ export async function PATCH(req: Request) {
       console.error('[admin/businesses] approval email failed:', emailErr);
     }
 
-    return NextResponse.json({ business: updated });
+    return adminJson(req, { business: updated });
   } catch (error) {
     return jsonError(500, 'Could not update this business', error);
   }

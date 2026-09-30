@@ -116,6 +116,12 @@ describe('CSV export', () => {
     expect(csv).toContain('"said ""yes"""');
   });
 
+  it('neutralises spreadsheet formulas in text cells but leaves numbers alone', () => {
+    const csv = toCsv([{ a: '=HYPERLINK("http://x")', b: '@SUM(1)', c: '+1', d: 'ok', e: -5 }]);
+    const line = csv.split('\r\n')[1];
+    expect(line).toBe(`"'=HYPERLINK(""http://x"")","'@SUM(1)","'+1","ok","-5"`);
+  });
+
   it('omits sensitive columns for a non-super admin', () => {
     const csv = toCsv(rows, CSV_SENSITIVE);
     expect(csv).not.toContain('phone');

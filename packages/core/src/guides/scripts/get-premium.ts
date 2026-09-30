@@ -5,6 +5,9 @@ export const getPremium: GuideScript = {
   title: 'Upgrade to Pro',
   blurb: 'What Pro unlocks and how to turn it on.',
   category: 'growth',
+  // Pro is a creator plan (migration 192). A business has no limits to lift,
+  // so a tour of the upgrade screen would sell it something that isn't there.
+  roles: ['influencer'],
   routes: ['/dashboard/billing', '/billing'],
   beats: [
     { ms: 2400, screen: 'inf-billing', focus: 'bill-feature', flag: true, caption: 'Pro lifts the limits on projects and requests' },

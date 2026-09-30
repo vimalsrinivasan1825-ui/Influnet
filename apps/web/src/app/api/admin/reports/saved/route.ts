@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * GET    /api/admin/reports/saved        → { reports }
@@ -24,7 +23,7 @@ export async function GET(req: Request) {
       .order('updated_at', { ascending: false })
       .limit(100);
     if (error) return jsonError(500, 'Could not load saved reports', error);
-    return NextResponse.json({ reports: data ?? [] });
+    return adminJson(req, { reports: data ?? [] });
   } catch (error) {
     return jsonError(500, 'Could not load saved reports', error);
   }
@@ -36,7 +35,7 @@ export async function POST(req: Request) {
     if (!auth.ok) return auth.res;
     const parsed = SaveSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
+      return adminJson(req, { error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
     const { data, error } = await auth.supabase
       .from('saved_reports')
@@ -44,7 +43,7 @@ export async function POST(req: Request) {
       .select('*')
       .single();
     if (error) return jsonError(400, `Could not save this report: ${error.message}`, error);
-    return NextResponse.json({ report: data }, { status: 201 });
+    return adminJson(req, { report: data }, { status: 201 });
   } catch (error) {
     return jsonError(500, 'Could not save this report', error);
   }
@@ -58,7 +57,7 @@ export async function DELETE(req: Request) {
     if (!id) return jsonError(400, 'Missing report id');
     const { error } = await auth.supabase.from('saved_reports').delete().eq('id', id);
     if (error) return jsonError(500, 'Could not delete this report', error);
-    return NextResponse.json({ ok: true });
+    return adminJson(req, { ok: true });
   } catch (error) {
     return jsonError(500, 'Could not delete this report', error);
   }

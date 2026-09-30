@@ -151,19 +151,22 @@ interface HomeData {
 const rupees = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
 /**
- * One icon + one color per pipeline step, so the funnel reads as six distinct
- * places rather than six identical purple boxes with different numbers. Keyed
+ * One icon per pipeline step, so the funnel reads as six distinct places
+ * rather than six identical boxes with different numbers. Colour does not do
+ * that job: six hues on one strip read as decoration, and the stages are an
+ * ordered sequence, not six unrelated categories. A step with work in it gets
+ * the role accent; an empty one goes quiet. Keyed
  * off the same step keys /api/home sends (see PIPELINE_STEPS there) — mobile's
  * strip and this one can never draw a different funnel because both read the
  * same six keys, but each picks its own presentation for its own screen.
  */
-const PIPELINE_STEP_STYLE: Record<string, { icon: typeof Inbox; color: string }> = {
-  requests: { icon: Inbox, color: "#0BA5EC" },
-  setup: { icon: Handshake, color: "#6172F3" },
-  production: { icon: Camera, color: "#9E77ED" },
-  review: { icon: Eye, color: "#F79009" },
-  payment: { icon: CreditCard, color: "#12B76A" },
-  completed: { icon: BadgeCheck, color: "#16A34A" },
+const PIPELINE_STEP_STYLE: Record<string, { icon: typeof Inbox }> = {
+  requests: { icon: Inbox },
+  setup: { icon: Handshake },
+  production: { icon: Camera },
+  review: { icon: Eye },
+  payment: { icon: CreditCard },
+  completed: { icon: BadgeCheck },
 };
 
 const compact = (n: unknown) => {
@@ -278,7 +281,7 @@ export default function HomePage() {
             />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-2xl font-extrabold tracking-tight text-content">
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-content">
                   {isCreator ? data.profile.name : pp.company_name || data.profile.name}
                 </h1>
                 {/* Gold on a Pro subscriber's mark. `pro` only ever gilds a
@@ -415,13 +418,9 @@ export default function HomePage() {
                 <Link href="/dashboard/messages">
                   <Card
                     interactive
-                    className="flex cursor-pointer items-center gap-3 p-4 transition-colors"
-                    style={{ backgroundColor: "#9E77ED14", borderColor: "#9E77ED40" }}
+                    className="flex cursor-pointer items-center gap-3 border-brand/25 bg-brand-soft p-4 transition-colors"
                   >
-                    <span
-                      className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/60"
-                      style={{ color: "#7C3AED" }}
-                    >
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/60 text-brand">
                       <FileClock className="size-4.5" />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -430,7 +429,7 @@ export default function HomePage() {
                       </p>
                       <p className="text-xs text-content-soft">Review and accept, or send changes</p>
                     </div>
-                    <ArrowRight className="size-4 shrink-0" style={{ color: "#7C3AED" }} />
+                    <ArrowRight className="size-4 shrink-0 text-brand" />
                   </Card>
                 </Link>
               )}
@@ -466,7 +465,7 @@ export default function HomePage() {
                 <c.icon className="size-4" />
               </span>
               <div className="min-w-0">
-                <div className="text-lg font-extrabold tabular-nums text-content">{c.value}</div>
+                <div className="text-lg font-semibold tabular-nums text-content">{c.value}</div>
                 <div className="truncate text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
                   {c.label}
                 </div>
@@ -497,29 +496,23 @@ export default function HomePage() {
                   <div key={step.key} className="flex items-center gap-2">
                     <Link
                       href={step.key === "requests" ? "/dashboard/requests" : "/dashboard/projects"}
-                      className="flex min-w-[6.5rem] flex-col items-center gap-1.5 rounded-xl border px-4 py-3 transition-opacity hover:opacity-80"
-                      style={
+                      className={cn(
+                        "flex min-w-[6.5rem] flex-col items-center gap-1 rounded-lg border px-4 py-3 transition-colors",
                         step.count > 0
-                          ? { borderColor: `${style.color}40`, backgroundColor: `${style.color}14` }
-                          : undefined
-                      }
+                          ? "border-hairline-strong bg-surface-card hover:bg-surface-muted"
+                          : "border-hairline bg-surface-muted/60 hover:bg-surface-muted",
+                      )}
                     >
+                      <Icon className={cn("size-4", step.count > 0 ? "text-brand" : "text-content-muted")} />
                       <span
-                        className="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                        style={{
-                          backgroundColor: step.count > 0 ? style.color : "var(--surface-muted)",
-                          color: step.count > 0 ? "#fff" : "var(--content-muted)",
-                        }}
-                      >
-                        <Icon className="size-4" />
-                      </span>
-                      <span
-                        className="text-lg font-extrabold tabular-nums"
-                        style={{ color: step.count > 0 ? style.color : "var(--content-muted)" }}
+                        className={cn(
+                          "text-lg font-semibold tabular-nums",
+                          step.count > 0 ? "text-content" : "text-content-muted",
+                        )}
                       >
                         {step.count}
                       </span>
-                      <span className="text-[0.6875rem] font-semibold text-content-muted">
+                      <span className="text-[0.6875rem] font-medium text-content-muted">
                         {step.label}
                       </span>
                     </Link>
@@ -548,7 +541,7 @@ export default function HomePage() {
                   <p className="text-[0.6875rem] font-bold uppercase tracking-wide text-content-muted">
                     {isCreator ? "Settled to you" : "Paid out"}
                   </p>
-                  <p className="mt-1 text-4xl font-extrabold tracking-tight tabular-nums text-content">
+                  <p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums text-content">
                     {rupees(money.earned)}
                   </p>
                 </div>
@@ -558,7 +551,7 @@ export default function HomePage() {
                       <CreditCard className="size-4" />
                     </span>
                     <div>
-                      <p className="text-xl font-extrabold tabular-nums text-warn">
+                      <p className="text-xl font-semibold tabular-nums text-warn">
                         {rupees(money.pending)}
                       </p>
                       <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
@@ -577,7 +570,7 @@ export default function HomePage() {
                 <div className="flex gap-6">
                   <div>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-2xl font-extrabold tabular-nums text-content">
+                      <span className="text-2xl font-semibold tabular-nums text-content">
                         {compact(attention.profile_views) ?? attention.profile_views}
                       </span>
                       {attention.profile_views_delta_pct != null && (
@@ -598,7 +591,7 @@ export default function HomePage() {
                   </div>
                   {isCreator && attention.business_viewers != null && (
                     <Link href="/dashboard/profile-viewers" className="group">
-                      <span className="text-2xl font-extrabold tabular-nums text-content group-hover:text-brand">
+                      <span className="text-2xl font-semibold tabular-nums text-content group-hover:text-brand">
                         {compact(attention.business_viewers) ?? attention.business_viewers}
                       </span>
                       <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted group-hover:text-brand">
@@ -702,7 +695,7 @@ export default function HomePage() {
                         </p>
                       </div>
                       {p.budget != null && p.budget !== "" && (
-                        <span className="hidden shrink-0 text-sm font-extrabold text-content sm:block">
+                        <span className="hidden shrink-0 text-sm font-semibold text-content sm:block">
                           ₹{Number(p.budget).toLocaleString("en-IN")}
                         </span>
                       )}
@@ -739,7 +732,7 @@ export default function HomePage() {
             >
               {analytics.map((a) => (
                 <div key={a.label} className="px-4 py-3">
-                  <div className="text-lg font-extrabold text-content">{a.value}</div>
+                  <div className="text-lg font-semibold text-content">{a.value}</div>
                   <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-content-muted">
                     {a.label}
                   </div>
@@ -901,7 +894,7 @@ export default function HomePage() {
                 <Star className="size-3.5" /> Brand ratings
               </p>
               <span className="flex items-center gap-1.5">
-                <span className="text-lg font-extrabold tabular-nums text-content">
+                <span className="text-lg font-semibold tabular-nums text-content">
                   {reviews.average?.toFixed(1) ?? "—"}
                 </span>
                 <span className="flex">
@@ -983,7 +976,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   {p.budget != null && p.budget !== "" && (
-                    <span className="hidden shrink-0 text-sm font-extrabold text-content sm:block">
+                    <span className="hidden shrink-0 text-sm font-semibold text-content sm:block">
                       ₹{Number(p.budget).toLocaleString("en-IN")}
                     </span>
                   )}

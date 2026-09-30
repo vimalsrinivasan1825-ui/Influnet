@@ -9,9 +9,6 @@ enabled = true
 [functions.phone-otp]
 verify_jwt = false
 
-[functions.auth-signup]
-verify_jwt = false
-
 # ── Auth Email (SMTP via Resend) ──────────────────────────────────────────────
 [auth.email]
 enable_confirmations = true

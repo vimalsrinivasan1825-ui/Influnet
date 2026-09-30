@@ -312,7 +312,7 @@ export default function CampaignDetailScreen() {
                 <View style={{ gap: 6 }}>
                   <Txt variant="footnote" tone="soft">Platforms *</Txt>
                   <ChipWrap>
-                    {['instagram', 'youtube', 'facebook', 'twitter', 'snapchat'].map((p) => (
+                    {['instagram', 'youtube', 'facebook', 'twitter'].map((p) => (
                       <Chip key={p} label={p} selected={editPlatforms.includes(p)} onPress={() => togglePlatform(editPlatforms, setEditPlatforms, p)} />
                     ))}
                   </ChipWrap>

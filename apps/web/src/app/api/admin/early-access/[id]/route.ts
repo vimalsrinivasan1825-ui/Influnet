@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -25,7 +24,7 @@ export async function DELETE(
       return jsonError(500, 'Could not delete early access signup', error);
     }
 
-    return NextResponse.json({ ok: true, deleted: id });
+    return adminJson(req, { ok: true, deleted: id });
   } catch (error) {
     return jsonError(500, 'Could not delete early access signup', error);
   }

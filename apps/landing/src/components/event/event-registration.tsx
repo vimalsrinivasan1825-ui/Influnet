@@ -19,7 +19,9 @@ import LogoMark from '@/components/brand/logo-mark';
 import { APP_URL, EVENT_API_URL } from '@/components/site/links';
 import { EVENT, firstName, qrPath, type Pass } from './event';
 import { renderPassPng } from './pass-image';
+import EventAgenda from './event-agenda';
 import { trackMeta } from '@/components/analytics/meta-pixel';
+import { SURVEY_RETURN_URL, cameFromSurvey, peekHandoffPhone, setHandoffPhone } from './survey-handoff';
 
 const STORE_KEY = `influnet.pass.${EVENT.slug}`;
 
@@ -92,12 +94,32 @@ export default function EventRegistration() {
   // Set on submit; takes precedence so the pass shows even if storage is blocked.
   const [fresh, setFresh] = useState<{ pass: Pass; returning: boolean } | null>(null);
   const [posterOpen, setPosterOpen] = useState(false);
-  const pass = fresh?.pass ?? storedPass;
+  // Sent here by /join/survey with an unregistered number: prefill it, and once
+  // the pass is issued go back to the survey. A pass saved on this device is
+  // ignored then — on a shared phone it is someone else's.
+  const fromSurvey = useSyncExternalStore(noopSubscribe, cameFromSurvey, () => false);
+  const surveyPhone = useSyncExternalStore(noopSubscribe, peekHandoffPhone, () => '');
+  const pass = fresh?.pass ?? (fromSurvey ? null : storedPass);
   const returning = fresh ? fresh.returning : Boolean(storedPass);
 
-  const onRegistered = (p: Pass, already: boolean) => {
+  // From the survey they only need the form: skip the poster and details.
+  useEffect(() => {
+    if (!fromSurvey) return;
+    const t = setTimeout(() => {
+      document.getElementById('pass')?.scrollIntoView({ block: 'start' });
+      document.getElementById('name')?.focus({ preventScroll: true });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [fromSurvey]);
+
+  const onRegistered = (p: Pass, already: boolean, phone: string) => {
     setFresh({ pass: p, returning: already });
     passStore.set(p);
+    if (fromSurvey) {
+      setHandoffPhone(phone);
+      window.location.assign(SURVEY_RETURN_URL);
+      return;
+    }
     requestAnimationFrame(() =>
       document.getElementById('pass')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
     );
@@ -181,7 +203,12 @@ export default function EventRegistration() {
           {pass ? (
             <PassView pass={pass} returning={returning} onReset={reset} />
           ) : (
-            <RegisterForm onRegistered={onRegistered} />
+            <RegisterForm
+              key={surveyPhone}
+              initialPhone={surveyPhone}
+              fromSurvey={fromSurvey}
+              onRegistered={onRegistered}
+            />
           )}
         </section>
       </main>
@@ -284,10 +311,18 @@ function PosterLightbox({ onClose }: { onClose: () => void }) {
 
 /* ───────────────────────────── Form ───────────────────────────── */
 
-function RegisterForm({ onRegistered }: { onRegistered: (p: Pass, already: boolean) => void }) {
+function RegisterForm({
+  initialPhone = '',
+  fromSurvey = false,
+  onRegistered,
+}: {
+  initialPhone?: string;
+  fromSurvey?: boolean;
+  onRegistered: (p: Pass, already: boolean, phone: string) => void;
+}) {
   const [values, setValues] = useState<Record<Field, string>>({
     name: '',
-    phone: '',
+    phone: initialPhone,
     email: '',
     location: '',
     instagram: '',
@@ -339,7 +374,11 @@ function RegisterForm({ onRegistered }: { onRegistered: (p: Pass, already: boole
       if (res.ok && json?.ok) {
         // Counted once per person: a re-registration just shows the existing pass.
         if (!json.alreadyRegistered) trackMeta('CompleteRegistration', { content_name: EVENT.slug });
-        onRegistered({ passCode: json.passCode, name: json.name }, Boolean(json.alreadyRegistered));
+        onRegistered(
+          { passCode: json.passCode, name: json.name },
+          Boolean(json.alreadyRegistered),
+          values.phone.trim(),
+        );
         return;
       }
       if (res.status === 429) {
@@ -373,6 +412,11 @@ function RegisterForm({ onRegistered }: { onRegistered: (p: Pass, already: boole
         Get your entry pass
       </h2>
       <p className="mt-2 text-[15px] text-ink-soft">Takes under a minute. Fields marked * are required.</p>
+      {fromSurvey && (
+        <p className="mt-4 rounded-2xl bg-magenta-tint px-4 py-3 text-[15px] font-medium text-brand-deep">
+          Register first — you’ll go straight back to the survey after.
+        </p>
+      )}
 
       <div className="mt-6 space-y-4">
         <Input
@@ -663,6 +707,8 @@ function PassView({ pass, returning, onReset }: { pass: Pass; returning: boolean
       >
         <CalendarPlus className="size-5" /> Add to calendar
       </a>
+
+      <EventAgenda className="mt-6" />
 
       <div className="mt-6 rounded-2xl border border-line bg-paper-deep p-4 text-[14px] leading-relaxed text-ink-soft">
         While you wait: Influnet is where creators and brands find each other, agree terms and deliver campaigns — every step on the record.{' '}

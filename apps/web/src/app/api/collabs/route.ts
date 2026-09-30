@@ -1,4 +1,5 @@
 import { checkContent, contentProblemBody } from '@/lib/content-filter';
+import { privileged } from '@/lib/service-client';
 import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
@@ -272,7 +273,7 @@ export async function POST(req: Request) {
       // 23505 branch below — pays two units for the one request they got.
       // Fire-and-forget: failing to refund must never turn a handled 4xx into
       // a 500, and the counter resets monthly regardless.
-      void (supabase.rpc as any)('release_quota', { p_meter: 'requests_month' }).then(
+      void (privileged(supabase).rpc as any)('release_quota', { p_user_id: user.id, p_meter: 'requests_month' }).then(
         () => {},
         () => {},
       );

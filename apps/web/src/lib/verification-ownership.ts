@@ -23,6 +23,7 @@
  * accepts — so this grants nothing that flow would not have granted a minute
  * later anyway.
  */
+import { privileged } from '@/lib/service-client';
 import {
   VERIFICATION_NOTIFICATION,
   decide,
@@ -294,7 +295,8 @@ export async function syncOwnershipFromBio(
     // is a legitimate refusal, not an error to surface here.
     if (initErr) return false;
 
-    const { error: confirmErr } = await db.rpc('confirm_social_claim', {
+    const { error: confirmErr } = await (privileged(db) as Db).rpc('confirm_social_claim', {
+      p_user_id: userId,
       p_platform: 'instagram',
       p_handle: handle,
       p_matched: true,
@@ -406,7 +408,8 @@ export async function rescoreAfterOwnership(
     const decision = decide(opts.role, updated);
     const notif = VERIFICATION_NOTIFICATION[decision.status];
 
-    await db.rpc('submit_verification', {
+    await (privileged(db) as Db).rpc('submit_verification', {
+      p_user_id: opts.userId,
       p_signals: updated,
       p_score: decision.score,
       p_reason: `${decision.reason} — re-scored after ownership was confirmed.`,

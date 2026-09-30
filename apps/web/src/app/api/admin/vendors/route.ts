@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withSuperAdmin } from '@/lib/api';
+import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
 import { VENDOR_KEYS, allVendors, type VendorKey } from '@/lib/feature-flags';
 import { breakerStatus } from '@/lib/circuit-breaker';
 
@@ -88,7 +87,7 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json({
+    return adminJson(req, {
       vendors,
       // Everything healthy is the boring, expected answer.
       healthy: vendors.every((v) => v.serving || !v.configured),

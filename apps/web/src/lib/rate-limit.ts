@@ -170,8 +170,13 @@ export async function checkRateLimit(opts: {
  * which is preferred here when present.
  */
 export function clientKey(req: Request): string {
-  const vercel = req.headers.get('x-vercel-forwarded-for');
-  if (vercel) return vercel.trim();
+  // Only Vercel's edge overwrites this header. On any other host (Azure
+  // Container Apps) the client controls it, so trusting it would let a caller
+  // pick a fresh bucket per request.
+  if (process.env.VERCEL) {
+    const vercel = req.headers.get('x-vercel-forwarded-for');
+    if (vercel) return vercel.trim();
+  }
 
   const xff = req.headers.get('x-forwarded-for');
   if (xff) {

@@ -24,12 +24,7 @@ export default function ErrorPage({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-[#fafafb] flex items-center justify-center px-4 relative overflow-hidden font-sans">
-      {/* Soft Light Ambient Glows */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-pink-100/30 blur-[130px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-100/30 blur-[130px]" />
-      </div>
+    <div className="min-h-screen bg-surface flex items-center justify-center px-4 relative overflow-hidden font-sans">
 
       <div className="relative z-10 w-full max-w-[450px] text-center">
         {/* Logo */}
@@ -64,7 +59,7 @@ export default function ErrorPage({
           <div className="flex flex-col gap-3">
             <button
               onClick={() => reset()}
-              className="w-full bg-[#ee3e96] hover:bg-[#db2777] active:scale-[0.98] text-white font-extrabold rounded-2xl h-13 transition-all outline-none text-base shadow-sm shadow-pink-200 flex items-center justify-center font-sans cursor-pointer"
+              className="w-full bg-[#ee3e96] hover:bg-[#db2777] active:scale-[0.98] text-white font-semibold rounded-2xl h-13 transition-all outline-none text-base shadow-sm shadow-pink-200 flex items-center justify-center font-sans cursor-pointer"
             >
               Try Again
             </button>

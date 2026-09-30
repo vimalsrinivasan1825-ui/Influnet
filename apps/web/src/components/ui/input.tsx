@@ -38,8 +38,11 @@ function InputGroup({
       <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-content-muted [&_svg]:size-4">
         {icon}
       </span>
+      {/* `!`: globals.css styles bare `input` with a padding shorthand outside
+          any layer, which outranks every Tailwind utility — without it the
+          text starts underneath the icon. */}
       {React.cloneElement(children, {
-        className: cn("pl-10", children.props.className),
+        className: cn("pl-10!", children.props.className),
       })}
     </div>
   );

@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 
 // GET: moderation queue — open/reviewing reports with reporter + reported names.
 export async function GET(req: Request) {
@@ -20,7 +19,7 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return NextResponse.json({ reports: data || [] });
+    return adminJson(req, { reports: data || [] });
   } catch (error) {
     return jsonError(500, 'Could not load reports', error);
   }
@@ -36,8 +35,8 @@ export async function PATCH(req: Request) {
     const { supabase } = auth;
 
     const { id, status } = (await req.json()) as { id?: string; status?: string };
-    if (!id || !status) return NextResponse.json({ error: 'id and status are required' }, { status: 400 });
-    if (!VALID.includes(status)) return NextResponse.json({ error: `status must be one of ${VALID.join(', ')}` }, { status: 400 });
+    if (!id || !status) return adminJson(req, { error: 'id and status are required' }, { status: 400 });
+    if (!VALID.includes(status)) return adminJson(req, { error: `status must be one of ${VALID.join(', ')}` }, { status: 400 });
 
     const { data, error } = await supabase
       .from('user_reports')
@@ -47,7 +46,7 @@ export async function PATCH(req: Request) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ report: data });
+    return adminJson(req, { report: data });
   } catch (error) {
     return jsonError(500, 'Could not update this report', error);
   }

@@ -60,7 +60,7 @@ export function ImageLightbox({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -119,7 +119,7 @@ export function ImageLightbox({
         key={current}
         src={cloudinaryFull(current)}
         alt={`Screenshot ${index + 1} of ${images.length}`}
-        className="max-h-[88vh] max-w-full rounded-xl object-contain shadow-2xl"
+        className="max-h-[88vh] max-w-full rounded-xl object-contain shadow-[var(--shadow-pop)]"
       />
     </div>
   );

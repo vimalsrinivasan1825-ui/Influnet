@@ -207,15 +207,12 @@ export async function POST(req: Request) {
     }
 
     // Columns register_profile doesn't know about. That RPC writes a fixed
-    // column list (migrations 031/032/049); snapchat_handle and
-    // twitter_followers postdate it, and re-issuing a function three migrations
-    // have already rewritten — to carry one link and one integer — is a much
-    // larger blast radius than this follow-up write. Non-fatal by design: the
-    // account exists either way, and both fields are editable in Settings.
+    // column list (migrations 031/032/049); twitter_followers postdates it, and
+    // re-issuing a function three migrations have already rewritten — to carry
+    // one integer — is a much larger blast radius than this follow-up write.
+    // Non-fatal by design: the account exists either way, and the field is
+    // editable in Settings.
     const extraColumns: Record<string, unknown> = {};
-    if (payload.snapchatHandle) {
-      extraColumns.snapchat_handle = String(payload.snapchatHandle).replace(/^@/, '').toLowerCase();
-    }
     if (payload.role === 'influencer' && typeof payload.twitterFollowers === 'number') {
       extraColumns.twitter_followers = payload.twitterFollowers;
     }

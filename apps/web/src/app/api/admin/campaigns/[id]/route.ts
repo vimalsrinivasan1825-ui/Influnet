@@ -5,9 +5,8 @@
  *
  * Admin-only: approve (pending_review → live), reject, or remove a campaign.
  */
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { withAuth, jsonError } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 
 const PatchSchema = z.object({
   action: z.enum(['approve', 'reject', 'remove']),
@@ -19,22 +18,17 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await withAuth(req);
+    // withAdmin is the gate (admin role + the Campaigns section). Queries keep
+    // running as the caller, so RLS and the campaign triggers see the admin's
+    // own JWT exactly as before.
+    const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
-    const { supabase, user } = auth;
+    const supabase = callerClient(req);
     const { id } = await context.params;
-
-    // Admin check
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if ((profile as any)?.role !== 'admin') return jsonError(403, 'Admin only');
 
     const parsed = PatchSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json(
+      return adminJson(req,
         { error: 'Validation failed', details: parsed.error.format() },
         { status: 400 },
       );
@@ -68,7 +62,7 @@ export async function PATCH(
 
     if (error || !campaign) return jsonError(404, 'Campaign not found');
 
-    return NextResponse.json({ campaign });
+    return adminJson(req, { campaign });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }

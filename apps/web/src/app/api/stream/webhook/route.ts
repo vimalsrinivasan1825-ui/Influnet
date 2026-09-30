@@ -65,6 +65,19 @@ export async function POST(req: Request) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
 
+      // Only mirror and notify for real participants: a Stream user id alone
+      // is not proof that the sender belongs to this conversation.
+      const { data: senderRow } = await supabaseAdmin
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', senderId)
+        .maybeSingle();
+      if (!senderRow) {
+        console.warn(`[Stream Webhook] Sender ${senderId} is not a participant of ${conversationId} — ignored`);
+        return NextResponse.json({ ok: true });
+      }
+
       /**
        * Mirror the message into Postgres.
        *

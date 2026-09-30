@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { jsonError, withAdmin, callerClient } from '@/lib/api';
+import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
 import { logger } from '@/lib/logger';
 import { hardDeleteAccount, recordAccountDeletion } from '@/lib/account-deletion';
@@ -85,7 +84,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       console.error('[admin/users/[id]] activity RPC failed:', activityRes.error.message);
     }
 
-    return NextResponse.json({
+    return adminJson(req, {
       user: enriched,
       projects: projects || [],
       requests: requests || [],
@@ -123,6 +122,24 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (!parsed.success) return jsonError(400, parsed.error.issues[0]?.message ?? 'Validation failed');
     const body = parsed.data;
 
+    if (auth.access.tier !== 'super') {
+      // Changing an admin's email is an account takeover: set it to an address
+      // you control, then reset the password. Only a super admin edits another
+      // console account here; team members are managed on the Team page.
+      const { data: target } = await supabase.from('profiles').select('role').eq('id', id).maybeSingle();
+      if (target?.role === 'admin') {
+        return jsonError(403, 'Console accounts can only be edited by a super admin.');
+      }
+      // A field you cannot see is not one you may overwrite.
+      const hidden = auth.access.hiddenFields;
+      const blocked = (['email', 'phone', 'location'] as const).filter(
+        (f) => body[f] !== undefined && hidden.includes(f),
+      );
+      if (blocked.length) {
+        return jsonError(403, `You cannot change fields hidden from you (${blocked.join(', ')}).`);
+      }
+    }
+
     const profileUpdate: Record<string, unknown> = {};
     if (body.name !== undefined) profileUpdate.name = body.name;
     if (body.phone !== undefined) profileUpdate.phone = body.phone || null;
@@ -154,7 +171,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       req,
     });
 
-    return NextResponse.json({ ok: true });
+    return adminJson(req, { ok: true });
   } catch (error) {
     return jsonError(500, 'Could not update this user', error);
   }
@@ -242,7 +259,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
       req,
     });
 
-    return NextResponse.json({ ok: true });
+    return adminJson(req, { ok: true });
   } catch (error) {
     return jsonError(500, 'Could not delete this user', error);
   }

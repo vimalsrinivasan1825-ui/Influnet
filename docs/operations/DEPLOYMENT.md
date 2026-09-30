@@ -38,7 +38,7 @@ The dev project is `jaajosocopoicmqcffuu` — keep it as dev/staging. Create a *
 supabase link --project-ref <PROD_REF>
 supabase db push                       # applies supabase/migrations/001..0NN in order
 supabase functions deploy phone-otp
-supabase functions deploy auth-signup
+
 ```
 - Both edge functions are `verify_jwt = false` in `supabase/config.toml` — normal (phone-otp is public); confirm the OTP rate-limit migrations (022/026) applied.
 - `supabase db push` **must apply cleanly through the latest migration.** If it errors, stop and capture output (a bad migration = no prod DB).

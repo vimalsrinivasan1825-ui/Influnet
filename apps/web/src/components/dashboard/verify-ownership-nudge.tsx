@@ -107,7 +107,7 @@ export function VerifyOwnershipNudge({ onVisibilityChange }: { onVisibilityChang
         <BadgeCheck className="size-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-extrabold text-content">
+        <p className="text-sm font-semibold text-content">
           {state === "pending"
             ? "Finish verifying your Instagram"
             : state === "no_handle"

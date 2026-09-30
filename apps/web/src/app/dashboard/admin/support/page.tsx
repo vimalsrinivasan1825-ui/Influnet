@@ -304,7 +304,7 @@ export default function AdminSupportPage() {
                   <ArrowLeft />
                 </Button>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-base font-extrabold text-content">{selected.subject}</h2>
+                  <h2 className="text-base font-semibold text-content">{selected.subject}</h2>
                   <p className="text-xs text-content-muted">
                     {selected.user?.name} · {selected.user?.email} · opened{" "}
                     {new Date(selected.created_at).toLocaleDateString()}

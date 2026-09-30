@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { jsonError, withSuperAdmin } from '@/lib/api';
+import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
 
 /**
  * The admin audit trail (migration 070).
@@ -37,7 +36,7 @@ export async function GET(req: Request) {
     const { data, error } = await query;
     if (error) return jsonError(500, 'Could not load the audit log', error);
 
-    return NextResponse.json({ entries: data ?? [] });
+    return adminJson(req, { entries: data ?? [] });
   } catch (error) {
     return jsonError(500, 'Could not load the audit log', error);
   }

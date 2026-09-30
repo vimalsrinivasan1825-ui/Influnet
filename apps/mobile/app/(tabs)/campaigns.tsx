@@ -150,26 +150,30 @@ export default function CampaignsScreen() {
       <AppHeader title="Campaigns" showBell={false} />
 
       <View style={{ gap: t.spacing.md, paddingBottom: t.spacing.xs }}>
-        <Field
-          placeholder="Search campaigns — food, tech, fitness…"
-          value={query}
-          onChangeText={setQuery}
-          autoCorrect={false}
-          returnKeyType="search"
-          left={<Search size={17} color={t.color.contentMuted} />}
-          right={
-            searching ? (
-              <Pressable
-                onPress={() => setQuery('')}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-              >
-                <X size={16} color={t.color.contentMuted} />
-              </Pressable>
-            ) : null
-          }
-        />
+        {/* The header runs full-bleed (ScreenScroll cancels its gutter for it),
+            and ChipRail pads itself — everything else here needs the gutter. */}
+        <View style={{ paddingHorizontal: t.spacing.screen }}>
+          <Field
+            placeholder="Search campaigns — food, tech, fitness…"
+            value={query}
+            onChangeText={setQuery}
+            autoCorrect={false}
+            returnKeyType="search"
+            left={<Search size={17} color={t.color.contentMuted} />}
+            right={
+              searching ? (
+                <Pressable
+                  onPress={() => setQuery('')}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                >
+                  <X size={16} color={t.color.contentMuted} />
+                </Pressable>
+              ) : null
+            }
+          />
+        </View>
 
         {/* The vocabulary, offered rather than assumed. Tapping one runs it as
             a real query, so the box always shows what produced the results. */}
@@ -191,6 +195,7 @@ export default function CampaignsScreen() {
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: t.spacing.sm,
+              paddingHorizontal: t.spacing.screen,
             }}
           >
             <View style={{ flexDirection: 'row', gap: t.spacing.sm }}>
@@ -232,7 +237,7 @@ export default function CampaignsScreen() {
             empty board look identical, and a creator concludes there is no work
             rather than that their word found none. */}
         {searching && !loading && !error ? (
-          <Txt variant="caption" tone="muted">
+          <Txt variant="caption" tone="muted" style={{ paddingHorizontal: t.spacing.screen }}>
             {campaigns.length === 0
               ? `No campaigns for “${trimmed}”`
               : `${campaigns.length} ${campaigns.length === 1 ? 'campaign' : 'campaigns'} for “${trimmed}”`}

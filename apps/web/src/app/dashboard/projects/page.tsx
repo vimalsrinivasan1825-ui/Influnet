@@ -288,7 +288,7 @@ export default function ProjectsPage() {
                       <ProjectIcon title={p.title} seed={p.id} size={44} className="mt-0.5" />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[0.625rem] font-bold uppercase tracking-[0.1em] text-brand">
+                          <span className="text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-content-muted">
                             {isOwner ? "Client portal" : "Creator portal"}
                           </span>
                           <span className="text-content-muted">·</span>
@@ -307,7 +307,7 @@ export default function ProjectsPage() {
                             </>
                           )}
                         </div>
-                        <h3 className="mt-1.5 text-lg font-extrabold tracking-tight text-content">
+                        <h3 className="mt-1.5 text-lg font-semibold tracking-tight text-content">
                           {p.title}
                         </h3>
                         {p.description && (
@@ -350,7 +350,7 @@ export default function ProjectsPage() {
                               <div className="text-[0.625rem] font-bold uppercase tracking-wide text-content-muted">
                                 Budget
                               </div>
-                              <div className="text-lg font-extrabold text-content">
+                              <div className="text-lg font-semibold text-content">
                                 ₹{Number(p.budget).toLocaleString()}
                               </div>
                             </div>
