@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
 import { uploadToCloudinary } from "@/lib/storage/upload-client";
 import { VerificationPanel } from "@/components/dashboard/verification-panel";
+import { BusinessEmailPanel } from "@/components/dashboard/business-email-panel";
 import { NotificationPreferences } from "@/components/dashboard/notification-preferences";
 import { BlockedAccountsPanel } from "@/components/dashboard/blocked-accounts-panel";
 import { EmailPreferencesPanel } from "@/components/dashboard/email-preferences-panel";
@@ -203,6 +204,7 @@ function Field({
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [verifyTick, setVerifyTick] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
@@ -407,7 +409,9 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {(isBusiness || isInfluencer) && <VerificationPanel />}
+      {(isBusiness || isInfluencer) && <VerificationPanel key={verifyTick} />}
+
+      {isBusiness && <BusinessEmailPanel onVerified={() => setVerifyTick((t) => t + 1)} />}
 
       {isInfluencer && profile?.instagram_handle && (
         <InstagramOwnershipPanel

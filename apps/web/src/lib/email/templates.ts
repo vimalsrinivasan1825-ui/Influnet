@@ -287,6 +287,28 @@ export const verificationCodeEmail = define({
     }),
 });
 
+export const businessEmailCodeEmail = define({
+  id: 'business_email_code',
+  label: 'Business email code',
+  description: 'One-time code a business enters to prove it controls the email it is verifying.',
+  tier: 'account',
+  category: 'account',
+  sample: { name: 'Rohan', companyName: 'Nomad Coffee Co.', email: 'rohan@nomadcoffee.in', code: '482913', expiresInMinutes: 15 },
+  subject: (d) => `Your Influnet verification code for ${d.companyName || 'your business'}`,
+  render: (d) =>
+    renderEmail({
+      preheader: `Your code is ${d.code}. It expires in ${duration(d.expiresInMinutes)}.`,
+      heading: 'Verify your business email',
+      kicker: `Confirming ${d.email} for ${d.companyName || 'your business'}.`,
+      reason: REASON.account,
+      body: [
+        p(`Hi ${esc(d.name)}, enter this code in Influnet to confirm you control this email address.`),
+        code(d.code),
+        fineprint(`The code expires in ${duration(d.expiresInMinutes)}. If you did not ask for it, you can ignore this email — nothing changes on your account.`),
+      ].join(''),
+    }),
+});
+
 export const businessApprovedEmail = define({
   id: 'business_approved',
   label: 'Business verified',
@@ -870,6 +892,7 @@ export const TEMPLATES = {
   link_expired: linkExpiredEmail,
   email_change: emailChangeEmail,
   verification_code: verificationCodeEmail,
+  business_email_code: businessEmailCodeEmail,
   business_approved: businessApprovedEmail,
   business_rejected: businessRejectedEmail,
   collab_request: collabRequestEmail,

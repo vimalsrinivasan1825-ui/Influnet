@@ -112,6 +112,7 @@ export async function POST(req: Request) {
         instagram_handle: b.instagram_handle,
         linkedin_handle: b.linkedin_handle,
         phone,
+        email: b.verification_email,
       };
     } else {
       const { data: inf } = await supabase
@@ -181,6 +182,14 @@ export async function POST(req: Request) {
         links: (liveProfile as { externalUrls?: string[] | null } | null)?.externalUrls ?? null,
         origin: originFromHeaders(req.headers),
       });
+    }
+
+    // Email-domain proof lives in the DB, not the scrape: the bonus needs both a
+    // confirmed inbox (business_profiles.email_verified, reset whenever the
+    // address changes) and a domain that matches the company.
+    if (role === 'business_owner') {
+      const { data: bizRow } = await supabase.rpc('get_own_business_profile');
+      signals.email_domain_verified = !!(bizRow as any)?.email_verified && !!(bizRow as any)?.verification_email;
     }
 
     const decision = decide(role as Role, signals);

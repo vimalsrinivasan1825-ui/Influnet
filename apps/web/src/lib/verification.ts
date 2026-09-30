@@ -22,6 +22,18 @@ export interface VerificationSignals {
   website_mentions_name?: boolean;
   gst_format_valid?: boolean;
   domain_age_days?: number;
+  // The business's email sits on a domain that matches their website/company
+  // name (structural comparison — see emailDomainMatch() in
+  // verification-scraper.ts). A personal-mail address (gmail.com etc.) can
+  // never set this true.
+  email_domain_matches_company?: boolean;
+  // They proved control of that inbox via a one-time code (email_domain_claims).
+  // Only meaningful alongside email_domain_matches_company — verifying a
+  // personal address is allowed but earns no score bonus either way.
+  email_domain_verified?: boolean;
+  // Informational, not penalised beyond the missing bonus above: lets the UI
+  // explain *why* no domain-match points were earned.
+  uses_personal_email?: boolean;
   // creator
   social_handles_live?: Record<string, boolean>;
   follower_count?: number;
@@ -83,6 +95,9 @@ export function scoreBusinessSignals(s: VerificationSignals): number {
   if (s.has_contactable_channel) score += 0.1;
   // A platform-verified (Instagram blue-check) business account is strong proof.
   if (s.platform_verified) score += 0.2;
+  // Confirmed control of an inbox on the company's own domain — same weight
+  // as website_mentions_name, the other "this really is your company" signal.
+  if (s.email_domain_verified && s.email_domain_matches_company) score += 0.25;
   return clamp01(score);
 }
 
@@ -141,6 +156,12 @@ export function scoreBreakdown(role: Role, s: VerificationSignals): ScoreBreakdo
       { key: 'domain_age', label: 'Website domain is at least 6 months old', met: (s.domain_age_days ?? 0) >= 180, weight: 0.1 },
       { key: 'contactable', label: 'A contactable channel is on file', met: !!s.has_contactable_channel, weight: 0.1 },
       { key: 'platform_badge', label: "Instagram's own verified badge", met: !!s.platform_verified, weight: 0.2 },
+      {
+        key: 'email_domain',
+        label: 'Business email verified on your company domain',
+        met: !!(s.email_domain_verified && s.email_domain_matches_company),
+        weight: 0.25,
+      },
     ];
   }
   const live = s.social_handles_live ?? {};
