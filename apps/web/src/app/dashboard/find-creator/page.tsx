@@ -251,7 +251,7 @@ export default function FindCreatorPage() {
         <section
           ref={profileRef}
           aria-label={`${outcome.creator.profile.name}'s public profile`}
-          className="mx-auto w-full max-w-5xl scroll-mt-24 overflow-hidden rounded-2xl border border-hairline bg-surface-card"
+          className="w-full scroll-mt-24 overflow-hidden rounded-2xl border border-hairline bg-surface-card"
         >
           <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3 sm:px-5">
             <p className="min-w-0 truncate text-sm text-content-soft">
