@@ -6,11 +6,13 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getAuthToken } from "@/lib/api-client";
 import { INDUSTRIES, BUSINESS_TYPES, BUDGET_RANGES, INDIAN_STATES } from "@/lib/constants";
-import { isValidGstin, isValidWebsite, isStrongEnoughPassword, normalizeWebsite, passwordStrengthScore } from "@influnet/core";
+import { isValidGstin, isValidWebsite, isStrongEnoughPassword, normalizeWebsite, passwordStrengthScore, businessEmailHint } from "@influnet/core";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { CityInput } from "@/components/ui/city-input";
+import { BusinessEmailPanel } from "@/components/dashboard/business-email-panel";
 import { PhoneOtpField, usePhoneOtpEnabled } from "@/components/signup/phone-otp-field";
 import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from "@/components/signup/consent-fields";
 import { cn } from "@/lib/utils";
@@ -54,6 +56,8 @@ function BusinessSignupContent() {
     return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard";
   })();
   const [step, setStep] = useState<Step>(1);
+  // Set once the account exists: the wizard hands over to "verify your email".
+  const [verifyStage, setVerifyStage] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -221,7 +225,9 @@ function BusinessSignupContent() {
           headers: { Authorization: `Bearer ${data.session.access_token}` },
         }).catch(() => {});
         sessionStorage.removeItem("businessSignupState");
-        router.push(nextParam);
+        // The profile exists now, so the business email can be verified while
+        // they are still here. Skippable — Settings has the same card.
+        setVerifyStage(true);
       } else {
         // Email confirmation required: no session yet, so register_profile can't
         // run now. The signup answers already live on the auth user as
@@ -269,6 +275,40 @@ function BusinessSignupContent() {
       }
     } catch { /* ignore */ }
   };
+
+  if (verifyStage) {
+    const goOn = () => router.push(nextParam);
+    return (
+      <div className="relative flex min-h-[100dvh] items-center justify-center bg-surface px-4 py-6">
+        <div className="flex w-full max-w-lg flex-col gap-4">
+          <div className="text-center">
+            <h1 className="text-2xl font-semibold tracking-tight text-content">Verify your business email</h1>
+            <p className="mt-1.5 text-sm text-content-soft">
+              Your account is ready. Confirm this address to raise your verification score. You can skip this and do it later from Settings.
+            </p>
+          </div>
+          <div className="rounded-xl border border-hairline bg-surface-card p-6 shadow-[var(--shadow-raised)]">
+            <BusinessEmailPanel
+              bare
+              autoSend
+              initialEmail={email.trim().toLowerCase()}
+              onVerified={() => {
+                // Re-score now that the inbox is proven (the signup-time run
+                // started before there was an address to count).
+                void getAuthToken().then((token) =>
+                  fetch("/api/verification", { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} }).catch(() => {}),
+                );
+                setTimeout(goOn, 1500);
+              }}
+            />
+            <Button variant="surface" size="lg" className="mt-4 w-full" onClick={goOn}>
+              Skip for now
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-4">
@@ -381,7 +421,7 @@ function BusinessSignupContent() {
                 )}
               </div>
               <div>
-                <Label>Work email</Label>
+                <Label>Business email</Label>
                 <div className="relative">
                   <Input
                     type="email"
@@ -401,6 +441,26 @@ function BusinessSignupContent() {
                 {email.length > 0 && !emailValid && (
                   <p className="mt-1.5 text-xs font-semibold text-danger">Enter a valid email address</p>
                 )}
+                {emailValid && emailStatus !== "taken" && emailStatus !== "invalid" && (() => {
+                  const hint = businessEmailHint({
+                    companyName,
+                    website: websiteValid && website.trim() ? website : undefined,
+                    email,
+                  });
+                  if (!hint) return null;
+                  return (
+                    <p
+                      className={cn(
+                        "mt-1.5 text-xs font-semibold",
+                        hint.tone === "good" && "text-emerald-600",
+                        hint.tone === "warn" && "text-amber-600",
+                        hint.tone === "info" && "text-content-muted",
+                      )}
+                    >
+                      {hint.text}
+                    </p>
+                  );
+                })()}
                 {emailMessage && emailValid && (
                   <p
                     className={cn(

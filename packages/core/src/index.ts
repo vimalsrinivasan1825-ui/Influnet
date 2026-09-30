@@ -20,3 +20,4 @@ export * from './validators';
 export * from './creator-level';
 export * from './metric-state';
 export * from './guides';
+export * from './email-domain';
