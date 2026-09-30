@@ -307,6 +307,10 @@ export function createEndpoints(api: ApiClient) {
     // ── Verification ───────────────────────────────────────────────
     getVerification: <T = unknown>() => api.get<T>('/api/verification'),
     startVerification: <T = unknown>(body: unknown) => api.post<T>('/api/verification', body),
+    /** Business email-domain verification (business accounts only). */
+    getBusinessEmail: <T = unknown>() => api.get<T>('/api/verification/email-domain'),
+    businessEmailAction: <T = unknown>(body: { action: 'initiate' | 'confirm'; email: string; code?: string }) =>
+      api.post<T>('/api/verification/email-domain', body),
     /**
      * GET returns the current claim; POST drives it with
      * { action: 'initiate' | 'confirm' }.

@@ -60,3 +60,17 @@ describe('business scoring with email domain', () => {
     expect(item?.met).toBe(true);
   });
 });
+
+describe('businessEmailHint (signup)', () => {
+  it('says nothing until there is a complete address', async () => {
+    const { businessEmailHint } = await import('@influnet/core');
+    expect(businessEmailHint({ companyName: 'Acme', email: 'me@' })).toBeNull();
+  });
+
+  it('warns on personal, praises a match, and stays neutral otherwise', async () => {
+    const { businessEmailHint } = await import('@influnet/core');
+    expect(businessEmailHint({ companyName: 'Acme Foods', email: 'me@gmail.com' })).toMatchObject({ tone: 'warn' });
+    expect(businessEmailHint({ companyName: 'Acme Foods', email: 'me@acmefoods.in' })).toMatchObject({ tone: 'good' });
+    expect(businessEmailHint({ companyName: 'Acme Foods', email: 'me@random.io' })).toMatchObject({ tone: 'info' });
+  });
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Loader2, Mail } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,20 @@ interface EmailState {
   suggested_domain: string | null;
 }
 
-export function BusinessEmailPanel({ onVerified }: { onVerified?: () => void }) {
+export function BusinessEmailPanel({
+  onVerified,
+  initialEmail,
+  autoSend,
+  bare,
+}: {
+  onVerified?: () => void;
+  /** Prefill (signup passes the address they just registered with). */
+  initialEmail?: string;
+  /** Send the code as soon as the panel loads — for the signup step. */
+  autoSend?: boolean;
+  /** No card wrapper, for embedding in another screen. */
+  bare?: boolean;
+}) {
   const [state, setState] = useState<EmailState | null>(null);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -31,10 +44,23 @@ export function BusinessEmailPanel({ onVerified }: { onVerified?: () => void }) 
     setEmail((cur) => cur || s.verification_email || "");
   };
 
+  const autoSent = useRef(false);
+
   useEffect(() => {
-    apiFetch<EmailState>("/api/verification/email-domain").then((res) => {
-      if (res.ok && res.data) apply(res.data);
+    apiFetch<EmailState>("/api/verification/email-domain").then(async (res) => {
+      if (!(res.ok && res.data)) return;
+      apply(res.data);
+      if (initialEmail && !res.data.email_verified) setEmail(initialEmail);
+      if (autoSend && initialEmail && !autoSent.current && !res.data.email_verified) {
+        autoSent.current = true;
+        const sent = await act({ action: "initiate", email: initialEmail });
+        if (sent.ok && sent.data) {
+          apply(sent.data);
+          setCodeSent(true);
+        } else setError(sent.error || "Could not send the code.");
+      }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const act = async (body: Record<string, unknown>) => {
@@ -71,8 +97,7 @@ export function BusinessEmailPanel({ onVerified }: { onVerified?: () => void }) 
   const verified = state.email_verified;
   const companyDomain = state.suggested_domain;
 
-  return (
-    <SectionCard title="Business email">
+  const body = (
       <div className="flex flex-col gap-3">
         <p className="-mt-1 text-xs text-content-muted">
           Verify one email address. An address on your company's own domain gives the highest verification score.
@@ -144,6 +169,7 @@ export function BusinessEmailPanel({ onVerified }: { onVerified?: () => void }) 
 
         {error && <p className="text-xs font-semibold text-danger">{error}</p>}
       </div>
-    </SectionCard>
   );
+
+  return bare ? body : <SectionCard title="Business email">{body}</SectionCard>;
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Check, X } from 'lucide-react-native';
 import {
   BUDGET_RANGES,
@@ -13,6 +13,7 @@ import {
   normalizeWebsite,
   isStrongEnoughPassword,
   passwordStrengthScore,
+  businessEmailHint,
 } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { completeSignup, useUsernameAvailability, useEmailAvailability, useUsernameSuggestions } from '@/lib/use-signup';
@@ -62,6 +63,7 @@ export default function BusinessSignup() {
   const usernameOk = usernameAvailability === 'available' || usernameAvailability === 'error';
   const emailOk = emailAvailability.status === 'available' || emailAvailability.status === 'error';
 
+
   // Both optional, so blank stays valid — only a filled-in value is checked.
   // Mirrors the web wizard's gstValid / websiteValid.
   //
@@ -73,6 +75,14 @@ export default function BusinessSignup() {
   // creation outright, on fields labelled optional.
   const gstValid = !gstNumber.trim() || isValidGstin(gstNumber);
   const websiteValid = !website.trim() || isValidWebsite(website);
+
+  // Personal address -> tell them now that it lowers the verification score.
+  // Same wording and matching rules as web and the server (packages/core).
+  const emailHint =
+    emailAvailability.status === 'available' || emailAvailability.status === 'error'
+      ? (businessEmailHint({ companyName: company, website: websiteValid && website.trim() ? website : undefined, email })?.text ??
+        (emailAvailability.status === 'available' ? emailAvailability.message : null))
+      : null;
 
   async function submit() {
     setBusy(true);
@@ -126,7 +136,7 @@ export default function BusinessSignup() {
       // back a step instead of entering the app. Stand it down first.
       allowLeave();
       // New businesses land on the review screen, not the tabs.
-      router.replace('/');
+      router.replace(`/verify-business-email?onboarding=1&email=${encodeURIComponent(email.trim().toLowerCase())}` as Href);
     } catch {
       // Something unexpected threw (a network layer error, not a handled
       // { ok: false } result) — surface it rather than leaving the button
@@ -209,7 +219,7 @@ export default function BusinessSignup() {
       body: (
         <View style={{ gap: t.spacing.lg }}>
           <Field
-            label="Work email"
+            label="Business email"
             value={email}
             onChangeText={setEmail}
             // See the note on the sign-in email field: keyboardType
@@ -218,7 +228,7 @@ export default function BusinessSignup() {
             autoComplete="email"
             placeholder="you@company.com"
             error={emailAvailability.status === 'taken' || emailAvailability.status === 'invalid' ? emailAvailability.message : null}
-            hint={emailAvailability.status === 'available' ? emailAvailability.message : null}
+            hint={emailHint}
             right={
               emailAvailability.status === 'checking' ? (
                 <ActivityIndicator size="small" color={t.color.contentMuted} />

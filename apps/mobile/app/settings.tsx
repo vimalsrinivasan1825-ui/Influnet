@@ -239,6 +239,20 @@ export default function SettingsScreen() {
           </>
         ) : null}
 
+        {profile?.role === 'business_owner' ? (
+          <>
+            <SectionLabel>Verification</SectionLabel>
+            <ListGroup>
+              <ListRow
+                title="Verify business email"
+                subtitle="A company-domain address raises your verification score"
+                left={<Mail size={19} color={t.color.brand} />}
+                onPress={() => router.push('/verify-business-email' as Href)}
+              />
+            </ListGroup>
+          </>
+        ) : null}
+
         <SectionLabel>Help</SectionLabel>
         <ListGroup>
           <ListRow
