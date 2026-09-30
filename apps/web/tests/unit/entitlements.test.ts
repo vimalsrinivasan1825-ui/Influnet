@@ -233,6 +233,43 @@ describe('resolveEntitlements', () => {
     expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
+  it('reports an unbilled account as having no paid product at all', async () => {
+    // A business (migration 192). get_entitlements() answers tier 'pro' so
+    // every `tier === 'pro'` short-circuit opens, and billingApplies:false is
+    // what stops the UI calling that a subscription. Both hooks derive their
+    // `enabled` from subscriptionsEnabled, so this one field is what hides
+    // pricing, upgrade buttons and the Pro badge on web AND mobile.
+    process.env.SUBSCRIPTIONS_ENABLED = 'true';
+    const { resolveEntitlements } = await load();
+    const supabase = clientReturning({
+      data: { tier: 'pro', billingApplies: false, status: 'not_applicable' },
+      error: null,
+    });
+
+    const ent = await resolveEntitlements(supabase, 'business-1');
+
+    expect(ent.billingApplies).toBe(false);
+    expect(ent.subscriptionsEnabled).toBe(false);
+    expect(ent.tier).toBe('pro');
+  });
+
+  it('still reports the product as present for a billable free account', async () => {
+    // The regression guard for the line above: if billingApplies were ever
+    // read with a loose falsy check, an ordinary Free creator — who has no
+    // subscription row — would stop being offered the upgrade at all.
+    process.env.SUBSCRIPTIONS_ENABLED = 'true';
+    const { resolveEntitlements } = await load();
+    const supabase = clientReturning({
+      data: { tier: 'free', billingApplies: true, status: 'inactive' },
+      error: null,
+    });
+
+    const ent = await resolveEntitlements(supabase, 'creator-1');
+
+    expect(ent.subscriptionsEnabled).toBe(true);
+    expect(ent.tier).toBe('free');
+  });
+
   it('FAILS CLOSED to free when the entitlement lookup errors', async () => {
     // The deliberate opposite of lib/rate-limit.ts, which fails open. A paying
     // brand losing Pro for a moment is a support ticket; a free account gaining

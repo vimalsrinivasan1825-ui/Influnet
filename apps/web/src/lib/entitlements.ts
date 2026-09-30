@@ -87,6 +87,8 @@ function unlimitedEntitlements(): Entitlements {
   };
   return {
     tier: 'pro',
+    // The deployment sells nothing, so no account is billable in it either.
+    billingApplies: false,
     status: 'not_applicable',
     currentPeriodEnd: null,
     graceUntil: null,
@@ -115,6 +117,10 @@ function unlimitedEntitlements(): Entitlements {
 function freeFallback(): Entitlements {
   return {
     tier: 'free',
+    // We could not read the account, so we cannot know it is unbilled. Same
+    // direction as the tier below: assume the metered case and let the real
+    // answer arrive on the next attempt.
+    billingApplies: true,
     status: 'unknown',
     currentPeriodEnd: null,
     graceUntil: null,
@@ -219,7 +225,15 @@ export async function resolveEntitlements(
       return freeFallback();
     }
 
-    const value: Entitlements = { ...(data as Entitlements), subscriptionsEnabled: true };
+    // An account the plan does not apply to (a business, migration 192) is
+    // told the product does not exist, exactly as if the deployment sold
+    // nothing. Both clients already hide every price and upgrade path on that
+    // signal, so businesses needed no client-side role check anywhere.
+    const raw = data as Entitlements;
+    const value: Entitlements = {
+      ...raw,
+      subscriptionsEnabled: raw.billingApplies !== false,
+    };
     cache.set(userId, { value, expiresAt: Date.now() + CACHE_TTL_MS });
 
     // Opportunistic prune; the map is otherwise unbounded on a long-lived instance.

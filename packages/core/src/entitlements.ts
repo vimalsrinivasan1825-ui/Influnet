@@ -58,6 +58,20 @@ export type GatedFeature = (typeof GATED_FEATURES)[number];
  */
 export interface Entitlements {
   tier: PlanTier;
+  /**
+   * Whether a paid plan exists for THIS ACCOUNT at all (migration 192).
+   *
+   * False for businesses: they pay creators for collaborations, not us for
+   * software, so there is no plan to be on and no ceiling to hit. Distinct
+   * from `subscriptionsEnabled`, which says the same thing about the whole
+   * deployment — an account can be unbilled in a deployment that does sell
+   * plans, and the UI has to hide pricing in both cases.
+   *
+   * Such an account reports `tier: 'pro'` so that every existing
+   * `tier === 'pro'` short-circuit opens without a parallel code path. Read
+   * THIS, never the tier, when deciding whether to call someone a subscriber.
+   */
+  billingApplies: boolean;
   /** Razorpay's own status string, passed through unmapped. */
   status: string;
   currentPeriodEnd: string | null;
