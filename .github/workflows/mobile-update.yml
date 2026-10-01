@@ -1,22 +1,24 @@
 name: Deploy Mobile OTA Update
 
-# OTA publishes go only where they are safe to be automatic:
+# OTA publishes:
 #   - preview channel ← pushes to dev (dev is the test environment)
-#   - production channel ← MANUAL ONLY (workflow_dispatch), behind the
-#     `production` GitHub Environment so the owner can require reviewers on it.
+#   - production channel ← pushes to staging (staging is production), full
+#     rollout, AND workflow_dispatch for a manual/partial-rollout push.
 #
-# F3 (launch audit 2026-09-18): this job used to fire on every push to
-# `staging` — staging is production since 2026-09-16 — so merging to staging
-# pushed new JS straight to every installed app with no approval and no
-# rollout. It now runs only when a human starts it, and can roll out to a
-# percentage of users first (--rollout-percentage, verified against
-# eas-cli 21+; see `eas update --help`). Partial rollouts are reverted with
-# `eas update:revert-update-rollout` if something goes wrong.
+# F3 (launch audit 2026-09-18) removed auto-fire-on-push-to-staging after it
+# shipped untested JS to every installed app with no approval and no rollout
+# control. Reinstated 2026-10-01 at the owner's explicit request — staging's
+# own CI (ci.yml / Deploy Staging to Azure Container Apps) is the review gate
+# now, so a push to staging is treated as already vetted. If that stops being
+# true, revert to manual-only. Partial rollouts from workflow_dispatch are
+# reverted with `eas update:revert-update-rollout` if something goes wrong;
+# a bad auto-fired 100% rollout needs a follow-up `eas update:rollback`.
 
 on:
   push:
     branches:
       - dev
+      - staging
     paths:
       - 'apps/mobile/**'
       - 'packages/**'
@@ -66,12 +68,13 @@ jobs:
           EXPO_PUBLIC_STREAM_API_KEY: ${{ vars.STREAM_API_KEY || '2rpeptjh9ug8' }}
 
   update-production:
-    name: Publish OTA Update (Production Channel — manual)
-    # Manual only. A push to staging must never reach installed apps by itself.
-    if: github.event_name == 'workflow_dispatch'
+    name: Publish OTA Update (Production Channel)
+    # Fires on push to staging (full rollout) or on manual workflow_dispatch
+    # (rollout_percentage input, for a partial/manual push).
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/staging')
     runs-on: ubuntu-latest
     # The owner adds required reviewers to the `production` GitHub Environment
-    # (Settings → Environments → production). The job waits for approval there.
+    # (Settings → Environments → production) if a manual gate is still wanted.
     environment: production
     steps:
       - name: Checkout Code
@@ -81,7 +84,7 @@ jobs:
         env:
           # Passed through the environment, never interpolated into the script: a
           # dispatch input is attacker-controlled text as far as the shell goes.
-          ROLLOUT: ${{ inputs.rollout_percentage }}
+          ROLLOUT: ${{ github.event_name == 'workflow_dispatch' && inputs.rollout_percentage || '100' }}
         run: |
           p="$ROLLOUT"
           case "$p" in
@@ -111,8 +114,8 @@ jobs:
           --message "$MESSAGE ($GITHUB_SHA)"
           --non-interactive
         env:
-          ROLLOUT: ${{ inputs.rollout_percentage }}
-          MESSAGE: ${{ inputs.message }}
+          ROLLOUT: ${{ github.event_name == 'workflow_dispatch' && inputs.rollout_percentage || '100' }}
+          MESSAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.message || 'Production automated update' }}
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           # An OTA bundles JS with THIS environment, not eas.json's `production`
           # profile. Without this an update would switch the Pro purchase UI back on
