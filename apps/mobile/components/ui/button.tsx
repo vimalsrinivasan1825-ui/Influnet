@@ -9,7 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/lib/theme';
 import { Txt } from './text';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'brand' | 'secondary' | 'ghost' | 'danger';
 type Size = 'md' | 'lg';
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
@@ -49,14 +49,20 @@ export function Button({
   const t = useTheme();
   const isDisabled = disabled || loading;
 
+  // v2: the everyday action is ink; pink is saved for the one action per
+  // screen that moves a deal forward (`brand`).
   const bg: Record<Variant, string> = {
-    primary: t.color.brand,
+    primary: t.color.content,
+    brand: t.color.brand,
     secondary: t.color.surfaceCard,
     ghost: 'transparent',
     danger: t.color.danger,
   };
   const fg: Record<Variant, string> = {
-    primary: t.color.white,
+    // The page colour, not white: ink-on-light in light mode, and dark text
+    // on the near-white button in dark mode.
+    primary: t.color.surfaceCard,
+    brand: t.color.white,
     secondary: t.color.content,
     ghost: t.color.brand,
     danger: t.color.white,
@@ -73,8 +79,8 @@ export function Button({
       }}
       style={({ pressed }) => [
         {
-          height: size === 'lg' ? 52 : 44,
-          borderRadius: t.radii.md,
+          height: size === 'lg' ? 56 : 44,
+          borderRadius: t.radii.pill,
           paddingHorizontal: t.spacing.xl,
           alignItems: 'center',
           justifyContent: 'center',
@@ -82,7 +88,7 @@ export function Button({
           gap: t.spacing.sm,
           backgroundColor: bg[variant],
           alignSelf: inline ? 'flex-start' : 'stretch',
-          borderWidth: variant === 'secondary' ? 1 : 0,
+          borderWidth: variant === 'secondary' ? 1.5 : 0,
           borderColor: t.color.hairlineStrong,
           opacity: isDisabled ? 0.45 : pressed ? 0.85 : 1,
           // Scale rather than a hover state — the finger covers the button, so

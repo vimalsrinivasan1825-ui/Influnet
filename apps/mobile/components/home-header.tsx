@@ -111,16 +111,16 @@ export function HomeHeader({
           headline start at the left margin at full width instead of being
           squeezed into whatever the icons leave over — which is the actual
           reason the old header could not run large type. */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
-        <Txt variant="callout" tone="soft" numberOfLines={1} style={{ flex: 1 }}>
-          {greeting}
-          {firstName ? (
-            <Txt variant="callout" style={{ fontWeight: '700', color: t.color.content }}>
-              {`, ${firstName} `}
-            </Txt>
-          ) : null}
-          👋
-        </Txt>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <ProfileAvatarButton size={46} />
+        <View style={{ flex: 1, gap: 1 }}>
+          <Txt variant="footnote" tone="muted" numberOfLines={1}>
+            {greeting}
+          </Txt>
+          <Txt variant="bodyStrong" numberOfLines={1} style={{ fontWeight: '700' }}>
+            {firstName ?? 'Welcome'}
+          </Txt>
+        </View>
 
         <GuideLauncherButton />
 
@@ -129,54 +129,68 @@ export function HomeHeader({
         {isCreator ? null : (
           <Pressable
             onPress={() => router.push('/search')}
-            hitSlop={12}
+            hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel="Find a creator"
-            style={({ pressed }) => ({ padding: 4, opacity: pressed ? 0.5 : 1 })}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: t.color.surfaceCard,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
           >
-            <Search size={22} color={t.color.contentSoft} />
+            <Search size={20} color={t.color.content} />
           </Pressable>
         )}
 
         <Pressable
           onPress={() => router.push('/notifications')}
-          hitSlop={12}
+          hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={
             unread ? `Notifications, ${unread} unread` : 'Notifications'
           }
-          style={({ pressed }) => ({ padding: 4, opacity: pressed ? 0.5 : 1 })}
+          style={({ pressed }) => ({
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: t.color.surfaceCard,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.6 : 1,
+          })}
         >
-          <Bell size={22} color={unread ? t.color.brand : t.color.contentSoft} />
+          <Bell size={20} color={t.color.content} />
           {/* A number, not a dot. "How many" is what decides whether you tap. */}
           {unread && unread > 0 ? (
             <View
               style={{
                 position: 'absolute',
-                top: -2,
-                right: -2,
+                top: 4,
+                right: 2,
                 minWidth: 18,
                 height: 18,
                 paddingHorizontal: 4,
                 borderRadius: 9,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: t.color.brand,
+                backgroundColor: t.color.brand2,
                 borderWidth: 2,
-                borderColor: t.color.surface,
+                borderColor: t.color.surfaceCard,
               }}
             >
               <Txt
                 variant="caption"
-                style={{ color: t.color.white, fontSize: 10, lineHeight: 12, fontWeight: '700' }}
+                style={{ color: t.color.white, fontSize: 10, lineHeight: 12, fontWeight: '800' }}
               >
                 {unread > 99 ? '99+' : unread}
               </Txt>
             </View>
           ) : null}
         </Pressable>
-
-        <ProfileAvatarButton size={40} />
       </View>
 
       {/* ── The headline ─────────────────────────────────────────────
@@ -185,7 +199,7 @@ export function HomeHeader({
           200% text size gets four lines of readable headline instead of two
           lines of clipped one. */}
       <Appear distance={10}>
-        <Txt variant="hero">
+        <Txt variant="hero" style={{ marginTop: t.spacing.xs }}>
           {lead}
           {'\n'}
           <Txt variant="hero" style={{ color: t.color.brand }}>

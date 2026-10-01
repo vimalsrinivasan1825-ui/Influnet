@@ -21,7 +21,8 @@ import { usePhoneOtp, useOtpRequirement } from '@/lib/use-phone-otp';
 import { useWizardBack } from '@/lib/use-wizard-back';
 import { WizardStep } from '@/components/wizard';
 import { PhoneOtpStep } from '@/components/phone-otp-step';
-import { Chip, ChipWrap, Field, Txt } from '@/components/ui';
+import { Chip, ChipWrap, Field, OptionRow, Txt } from '@/components/ui';
+import { BrandPreview } from '@/components/signup-preview';
 import { CityField } from '@/components/city-field';
 import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from '@/components/consent-fields';
 
@@ -156,7 +157,10 @@ export default function BusinessSignup() {
 
   const steps = [
     {
-      title: 'Tell us about your business',
+      title: 'Tell us about',
+      accent: 'your brand.',
+      preview: <BrandPreview company={company} username={usernameOk && username ? username : undefined} />,
+      previewLabel: 'How creators will see you',
       valid: name.trim().length > 1 && company.trim().length > 1 && !!username && usernameOk,
       body: (
         <View style={{ gap: t.spacing.lg }}>
@@ -202,7 +206,7 @@ export default function BusinessSignup() {
           />
           {suggestions.length > 0 && (
             <View style={{ gap: t.spacing.sm, marginTop: t.spacing.md }}>
-              <Txt variant="footnote" tone="soft">Try:</Txt>
+              <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>Try:</Txt>
               <ChipWrap>
                 {suggestions.map((s) => (
                   <Chip key={s} label={s} selected={false} onPress={() => setUsername(s)} />
@@ -214,7 +218,9 @@ export default function BusinessSignup() {
       ),
     },
     {
-      title: 'Create your login',
+      title: 'Create your',
+      accent: 'login.',
+      subtitle: "Use your work email — you'll sign in with it on any device.",
       valid: /\S+@\S+\.\S+/.test(email) && isStrongEnoughPassword(password) && emailOk,
       body: (
         <View style={{ gap: t.spacing.lg }}>
@@ -266,7 +272,8 @@ export default function BusinessSignup() {
     // Always present: the number is collected either way. Only the verification
     // requirement is server-driven — see useOtpRequirement().
     {
-      title: otpRequired ? 'Verify your mobile' : 'Your mobile number',
+      title: otpRequired ? 'Verify your' : 'Your mobile',
+      accent: otpRequired ? 'mobile.' : 'number.',
       subtitle:
         otpRequired === null
           ? 'Checking whether verification is required…'
@@ -278,18 +285,22 @@ export default function BusinessSignup() {
       body: <PhoneOtpStep otp={otp} required={otpRequired === true} />,
     },
     {
-      title: 'What industry are you in?',
+      title: 'What does',
+      accent: 'your brand do?',
+      subtitle: 'Creators see this before they reply.',
+      preview: <BrandPreview company={company} username={username} industry={industry || undefined} />,
+      previewLabel: 'How creators will see you',
       valid: !!industry,
       body: (
         <View style={{ gap: t.spacing.xl }}>
-          <ChipWrap>
+          <View style={{ gap: t.spacing.sm }}>
             {INDUSTRIES.map((i) => (
-              <Chip key={i} label={i} selected={industry === i} onPress={() => setIndustry(i)} />
+              <OptionRow key={i} title={i} selected={industry === i} onPress={() => setIndustry(i)} />
             ))}
-          </ChipWrap>
+          </View>
 
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               Business type
             </Txt>
             <ChipWrap>
@@ -307,13 +318,14 @@ export default function BusinessSignup() {
       ),
     },
     {
-      title: 'How do you want to collaborate?',
-      subtitle: 'This shapes the creators we surface for you.',
+      title: 'How do you',
+      accent: 'want to work?',
+      subtitle: 'This shapes the creators we show you.',
       valid: !!budget && collabPreferences.length > 0,
       body: (
         <View style={{ gap: t.spacing.xl }}>
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               Monthly marketing budget
             </Txt>
             <ChipWrap>
@@ -324,7 +336,7 @@ export default function BusinessSignup() {
           </View>
 
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               Content formats you need
             </Txt>
             <ChipWrap>
@@ -342,7 +354,8 @@ export default function BusinessSignup() {
       ),
     },
     {
-      title: 'Where are you based?',
+      title: 'Where are',
+      accent: 'you based?',
       subtitle: 'Your account goes to our team for a quick review after this.',
       // Registered address is required on web too — it is what the review team
       // checks the business against. GST and website are deliberately NOT in
@@ -383,7 +396,7 @@ export default function BusinessSignup() {
           />
 
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               State
             </Txt>
             <ChipWrap>
@@ -406,7 +419,10 @@ export default function BusinessSignup() {
       step={step}
       total={steps.length}
       title={current.title}
-      subtitle={current.subtitle}
+      accent={'accent' in current ? current.accent : undefined}
+      subtitle={'subtitle' in current ? current.subtitle : undefined}
+      preview={'preview' in current ? current.preview : undefined}
+      previewLabel={'previewLabel' in current ? current.previewLabel : undefined}
       onNext={next}
       onBack={step > 0 ? back : undefined}
       isLastStep={step === steps.length - 1}

@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { palette } from '@influnet/tokens';
+import { fontFor } from '@/lib/fonts';
 
 export default function AuthLayout() {
   return (
@@ -8,7 +9,8 @@ export default function AuthLayout() {
         headerShadowVisible: false,
         headerStyle: { backgroundColor: palette.surface },
         headerTintColor: palette.content,
-        headerTitleStyle: { fontSize: 17, fontWeight: '600', color: palette.content },
+        headerTitleStyle: { fontSize: 17, fontFamily: fontFor('700'), color: palette.content },
+        headerBackButtonDisplayMode: 'minimal',
         contentStyle: { backgroundColor: palette.surface },
       }}
     >
@@ -16,11 +18,13 @@ export default function AuthLayout() {
       {/* No header title on the two mark-led screens — the AuthHeader below it
           already names the screen, and printing it twice looked like chrome
           nobody designed. The bare chevron keeps the back gesture discoverable. */}
-      <Stack.Screen name="login" options={{ title: '' }} />
+      {/* Welcome, the role choice and log in draw their own back chevron and
+          follow light/dark themselves, so no native bar over them. */}
+      <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="forgot-password" options={{ title: '' }} />
-      <Stack.Screen name="signup/index" options={{ title: '' }} />
-      <Stack.Screen name="signup/creator" options={{ title: 'Creator sign-up' }} />
-      <Stack.Screen name="signup/business" options={{ title: 'Business sign-up' }} />
+      <Stack.Screen name="signup/index" options={{ headerShown: false }} />
+      <Stack.Screen name="signup/creator" options={{ title: '' }} />
+      <Stack.Screen name="signup/business" options={{ title: '' }} />
       <Stack.Screen name="pending" options={{ headerShown: false }} />
     </Stack>
   );

@@ -15,8 +15,14 @@ export function createEndpoints(api: ApiClient) {
   return {
     // ── Home & dashboards ──────────────────────────────────────────
     home: <T = unknown>() => api.get<T>('/api/home'),
-    influencerDashboard: <T = unknown>() => api.get<T>('/api/influencer/dashboard'),
-    businessDashboard: <T = unknown>() => api.get<T>('/api/business/dashboard'),
+    /**
+     * `range` buckets `earnings_by_brand` by week (default, 6), calendar month
+     * (6) or year (4). The flat `earnings_trend` / `weekly_spend` stay weekly.
+     */
+    influencerDashboard: <T = unknown>(range?: 'week' | 'month' | 'year') =>
+      api.get<T>(`/api/influencer/dashboard${range ? `?range=${range}` : ''}`),
+    businessDashboard: <T = unknown>(range?: 'week' | 'month' | 'year') =>
+      api.get<T>(`/api/business/dashboard${range ? `?range=${range}` : ''}`),
     activity: <T = unknown>() => api.get<T>('/api/activity'),
     /** S4 — the networking funnel: requests sent/accepted, projects, completions. */
     statsFunnel: <T = unknown>() => api.get<T>('/api/stats/funnel'),

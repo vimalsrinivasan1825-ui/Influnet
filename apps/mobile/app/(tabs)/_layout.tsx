@@ -35,6 +35,8 @@ import { useSession } from '@/lib/session';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { AccountSwitcher } from '@/components/account-switcher';
 import { FloatingTabBar } from '@/components/floating-tab-bar';
+import { TabSwipe } from '@/components/tab-swipe';
+import { Easing } from 'react-native';
 import { startRealtime, stopRealtime } from '@/lib/realtime';
 
 export default function TabsLayout() {
@@ -101,7 +103,19 @@ export default function TabsLayout() {
           },
         }}
         tabBar={(props) => <FloatingTabBar {...props} />}
-        screenOptions={{ headerShown: false }}
+        // Swipe left/right anywhere on a tab to move to the next/previous one.
+        screenLayout={({ children, route, navigation }) => (
+          <TabSwipe routeName={route.name} onNavigate={(name) => navigation.navigate(name)}>
+            {children}
+          </TabSwipe>
+        )}
+        screenOptions={{
+          headerShown: false,
+          // The new tab slides in from the side it sits on, so a tap on the
+          // bar and a swipe on the screen read as the same movement.
+          animation: 'shift',
+          transitionSpec: { animation: 'timing', config: { duration: 280, easing: Easing.out(Easing.cubic) } },
+        }}
       >
         <Tabs.Screen
           name="home"

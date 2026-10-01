@@ -35,7 +35,7 @@ import { useTheme } from '@/lib/theme';
 import { formatCurrency } from '@/lib/format';
 import { lookForProject } from '@/lib/project-icon';
 import { ProjectIcon } from '@/components/project-cover';
-import { Badge, Card, PressableScale, ProgressBar, Txt } from '@/components/ui';
+import { Badge, Card, PressableScale, Txt } from '@/components/ui';
 
 export interface ProjectCardData {
   id: string;
@@ -179,7 +179,23 @@ export function ProjectCard({ data, onPress }: { data: ProjectCardData; onPress:
           </View>
         </View>
 
-        {known ? <ProgressBar progress={progress} style={{ marginTop: t.spacing.md }} /> : null}
+        {/* One capsule per stage — done in ink, the current one pink. Reads as
+            "where in the deal" at a glance, which a bare percentage bar can't. */}
+        {known ? (
+          <View style={{ flexDirection: 'row', gap: 3, marginTop: t.spacing.md }}>
+            {flow.stages.map((s, i) => (
+              <View
+                key={s}
+                style={{
+                  flex: i === index ? 1.6 : 1,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: i < index ? t.color.content : i === index ? t.color.brand : t.color.hairline,
+                }}
+              />
+            ))}
+          </View>
+        ) : null}
 
         {/* Only when there is something to say. A footer rule above an empty
             row is a divider separating nothing from nothing. */}

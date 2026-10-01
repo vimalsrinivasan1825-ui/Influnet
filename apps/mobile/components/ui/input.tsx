@@ -1,6 +1,7 @@
 import { useState, useRef, type ReactNode } from 'react';
 import { TextInput, View, Pressable, type TextInputProps, type ViewStyle } from 'react-native';
 import { useTheme } from '@/lib/theme';
+import { fontFor } from '@/lib/fonts';
 import { Txt } from './text';
 import { useRevealFocusedInput } from './keyboard-avoider';
 
@@ -35,13 +36,13 @@ export function Field({
   const borderColor = error
     ? t.color.danger
     : focused
-      ? t.color.brand
-      : t.color.hairlineStrong;
+      ? t.color.content
+      : t.color.hairline;
 
   return (
     <View style={[{ gap: 6 }, containerStyle]}>
       {label ? (
-        <Txt variant="footnote" tone="soft">
+        <Txt variant="footnote" tone="muted" style={{ fontWeight: '600' }}>
           {label}
         </Txt>
       ) : null}
@@ -51,13 +52,13 @@ export function Field({
         style={{
           flexDirection: 'row',
           alignItems: multiline ? 'flex-start' : 'center',
-          borderWidth: 1,
+          borderWidth: 1.5,
           borderColor,
-          borderRadius: t.radii.md,
+          borderRadius: 18,
           backgroundColor: t.color.surfaceCard,
-          paddingHorizontal: t.spacing.md,
+          paddingHorizontal: t.spacing.lg,
           // A focus ring the finger doesn't hide.
-          ...(focused && !error ? { shadowColor: t.color.brand, shadowOpacity: 0.18, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } } : null),
+          ...(focused && !error ? { shadowColor: t.color.content, shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } } : null),
         }}
       >
         {left ? <View style={{ marginRight: t.spacing.sm }}>{left}</View> : null}
@@ -66,10 +67,11 @@ export function Field({
           style={[
             {
               flex: 1,
-              minHeight: multiline ? 96 : 50,
+              minHeight: multiline ? 96 : 54,
               paddingVertical: multiline ? t.spacing.md : 0,
               color: t.color.content,
-              fontSize: t.typography.body.fontSize,
+              fontSize: 16.5,
+              fontFamily: fontFor('600'),
             },
             style,
           ]}

@@ -6,6 +6,7 @@
  */
 import { useRef } from 'react';
 import { ActivityIndicator, TextInput, View } from 'react-native';
+import { fontFor } from '@/lib/fonts';
 import { ShieldCheck } from 'lucide-react-native';
 import { isValidIndianPhone, sanitizePhoneInput } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
@@ -89,14 +90,14 @@ function OtpBoxes({
           selectTextOnFocus
           style={{
             flex: 1,
-            height: 56,
-            borderWidth: 1,
-            borderColor: digit ? t.color.brand : t.color.hairlineStrong,
-            borderRadius: t.radii.md,
+            height: 62,
+            borderWidth: 1.5,
+            borderColor: digit ? t.color.content : t.color.hairline,
+            borderRadius: 16,
             backgroundColor: t.color.surfaceCard,
             textAlign: 'center',
             fontSize: t.typography.body.fontSize + 6,
-            fontWeight: '700',
+            fontFamily: fontFor('700'),
             color: t.color.content,
           }}
         />

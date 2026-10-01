@@ -22,7 +22,8 @@ import { PhoneOtpStep } from '@/components/phone-otp-step';
 import { SocialConnectField } from '@/components/social-connect-field';
 import { SocialDisclosure } from '@/components/social-disclosure';
 import { BioVerifyStep, useBioVerification } from '@/components/bio-verify-step';
-import { Button, Chip, ChipWrap, Field, Txt } from '@/components/ui';
+import { Button, Chip, ChipWrap, Field, OptionRow, Txt } from '@/components/ui';
+import { CreatorPreview } from '@/components/signup-preview';
 import { CityField } from '@/components/city-field';
 import { ConsentFields, NO_CONSENT, consentComplete, consentPayload, type ConsentState } from '@/components/consent-fields';
 
@@ -227,8 +228,10 @@ export default function CreatorSignup() {
 
   const steps = [
     {
-      title: "What's your name?",
-      subtitle: 'This is what brands see first.',
+      title: 'First, what should',
+      accent: 'brands call you?',
+      subtitle: 'Use the name your audience already knows.',
+      preview: <CreatorPreview name={name} />,
       valid: name.trim().length > 1,
       body: (
         <Field
@@ -242,8 +245,10 @@ export default function CreatorSignup() {
       ),
     },
     {
-      title: 'Claim your handle',
-      subtitle: 'It becomes your public profile link.',
+      title: 'Claim your',
+      accent: 'profile link.',
+      subtitle: "It's the link you'll put in your bio.",
+      preview: <CreatorPreview name={name} username={availability === 'available' ? username : undefined} />,
       valid: usernameOk,
       body: (
         <View style={{ gap: t.spacing.lg }}>
@@ -288,7 +293,9 @@ export default function CreatorSignup() {
     ),
   },
   {
-    title: 'Create your login',
+    title: 'Create your',
+    accent: 'login.',
+    subtitle: "You'll use these to sign in on any device.",
     valid: /\S+@\S+\.\S+/.test(email) && isStrongEnoughPassword(password) && emailOk,
     body: (
       <View style={{ gap: t.spacing.lg }}>
@@ -340,7 +347,8 @@ export default function CreatorSignup() {
     // Always present: the number is collected either way. Only the verification
     // requirement is server-driven — see useOtpRequirement().
     {
-      title: otpRequired ? 'Verify your mobile' : 'Your mobile number',
+      title: otpRequired ? 'Verify your' : 'Your mobile',
+      accent: otpRequired ? 'mobile.' : 'number.',
       subtitle:
         otpRequired === null
           ? 'Checking whether verification is required…'
@@ -354,8 +362,9 @@ export default function CreatorSignup() {
       body: <PhoneOtpStep otp={otp} required={otpRequired === true} />,
     },
     {
-      title: 'Link your socials',
-      subtitle: 'We pull your follower count and engagement so brands see real numbers.',
+      title: 'Connect where',
+      accent: 'you post.',
+      subtitle: 'We pull your followers and engagement, so brands see real numbers.',
       // Web requires at least one handle rather than Instagram specifically.
       // Any handle that was TYPED must be one we actually found — connecting it
       // is what turns a string into a checked account; clearing the field is
@@ -451,7 +460,8 @@ export default function CreatorSignup() {
       ? [
           {
             key: 'bio-verify' as const,
-            title: 'Prove the account is yours',
+            title: "Prove it's",
+            accent: 'really you.',
             subtitle:
               'Put your Influnet link in your Instagram links so brands know the handle really belongs to you.',
             valid: bioVerify.status === 'verified',
@@ -470,8 +480,10 @@ export default function CreatorSignup() {
         ]
       : []),
     {
-      title: 'What do you make?',
-      subtitle: 'Pick the niches and formats you work in. Brands filter by these.',
+      title: 'What do you',
+      accent: 'create?',
+      subtitle: 'Pick your niches and formats. They show on your profile.',
+      preview: <CreatorPreview name={name} username={username} niches={niche} />,
       valid: niche.length > 0 && collabTypes.length > 0 && bio.trim().length > 0,
       body: (
         <View style={{ gap: t.spacing.xl }}>
@@ -485,7 +497,7 @@ export default function CreatorSignup() {
           />
 
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               Niches
             </Txt>
             <ChipWrap>
@@ -496,7 +508,7 @@ export default function CreatorSignup() {
           </View>
 
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               Formats
             </Txt>
             <ChipWrap>
@@ -512,7 +524,7 @@ export default function CreatorSignup() {
           </View>
 
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               Languages
             </Txt>
             <ChipWrap>
@@ -530,13 +542,14 @@ export default function CreatorSignup() {
       ),
     },
     {
-      title: 'Rate and location',
-      subtitle: 'You can change these any time.',
+      title: 'Your rate',
+      accent: 'and city.',
+      subtitle: 'A rough guide for brands. You can change it any time.',
       valid: !!priceRange && !!state && !!gender && consentComplete(consent),
       body: (
         <View style={{ gap: t.spacing.xl }}>
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               Gender
             </Txt>
             <ChipWrap>
@@ -552,25 +565,24 @@ export default function CreatorSignup() {
           </View>
 
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               Typical rate per collaboration
             </Txt>
-            <ChipWrap>
-              {PRICE_TIERS.map((p) => (
-                <Chip
-                  key={p.value}
-                  label={`${p.label} · ${p.range}`}
-                  selected={priceRange === p.value}
-                  onPress={() => setPriceRange(p.value)}
-                />
-              ))}
-            </ChipWrap>
+            {PRICE_TIERS.map((p) => (
+              <OptionRow
+                key={p.value}
+                title={p.range}
+                hint={p.label}
+                selected={priceRange === p.value}
+                onPress={() => setPriceRange(p.value)}
+              />
+            ))}
           </View>
 
           <CityField label="City" value={city} onChangeText={setCity} placeholder="Bengaluru" />
 
           <View style={{ gap: t.spacing.sm }}>
-            <Txt variant="footnote" tone="soft">
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
               State
             </Txt>
             <ChipWrap>
@@ -600,7 +612,9 @@ export default function CreatorSignup() {
       step={step}
       total={steps.length}
       title={current.title}
+      accent={'accent' in current ? current.accent : undefined}
       subtitle={current.subtitle}
+      preview={'preview' in current ? current.preview : undefined}
       onNext={next}
       onBack={step > 0 ? back : undefined}
       isLastStep={step === steps.length - 1}

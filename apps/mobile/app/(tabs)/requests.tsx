@@ -279,12 +279,16 @@ export default function RequestsScreen() {
   let step = 0;
   const nextStep = () => step++;
 
+  // The first request waiting on you leads as the large card (v2); only one,
+  // and only an actionable one — a closed request never gets the spotlight.
+  const leadId = actionItems[0]?.id;
   const cardsFor = (list: CollabRow[]) =>
     list.map((c) => (
       <RequestCard
         key={c.id}
         data={toCard(c)}
         isCreator={isCreator}
+        featured={c.id === leadId}
         onPress={() => openRequest(c.id)}
       />
     ));

@@ -23,7 +23,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Pressable, View, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Calendar, Clock, MapPin, Plus, Search, Users, X } from 'lucide-react-native';
+import { Plus, Search, X } from 'lucide-react-native';
 import { NICHES } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
@@ -36,13 +36,13 @@ import {
   ChipRail,
   Screen,
   ScreenScroll,
-  Card,
   CoverArt,
   Field,
   Txt,
   EmptyState,
   ErrorState,
   SkeletonCard,
+  Scrim,
 } from '@/components/ui';
 import { AppHeader } from '@/components/app-header';
 import { PlatformMark } from '@/components/platform-mark';
@@ -280,174 +280,130 @@ export default function CampaignsScreen() {
             }
           />
         ) : (
-          campaigns.map((c) => {
-            const daysLeft = daysUntil(c.expires_at);
-            const isClosingSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
-            const budget = budgetLabel(c);
-
-            return (
-              <Pressable
+          campaigns.map((c, i) =>
+            // v2: the first result leads as one big card; the rest are a quiet
+            // list. One thing to look at first beats a column of equal cards.
+            i === 0 ? (
+              <FeaturedCampaign
                 key={c.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${c.title} by ${c.business_user?.name || 'a brand'}`}
+                c={c}
+                mine={view === 'mine'}
                 onPress={() => router.push(`/campaigns/${c.id}` as any)}
-                style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
-              >
-                <Card raised padded={false} style={{ marginBottom: t.spacing.md }}>
-                  {/* Generated cover art, seeded on the campaign id — the same
-                      art this campaign wears in the Home rail, because the seed
-                      is the row id and nothing else. The campaigns table has no
-                      image column; see ui/cover-art.tsx for why this is
-                      generated rather than fetched or bundled. */}
-                  <CoverArt seed={c.id} width={COVER_WIDTH} height={104} style={{ width: '100%' }}>
-                    {/* Real platform marks, not a generic outline — every
-                        channel a brand asked for, so a creator can tell at a
-                        glance whether it is their platform. */}
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      {(c.platforms ?? []).slice(0, 3).map((p) => (
-                        <PlatformMark key={p} platform={p} size={26} />
-                      ))}
-                    </View>
-                  </CoverArt>
-
-                  {/* The money, on the art. It is the first thing a creator
-                      looks for and it used to be a grey caption three rows
-                      down, indistinguishable from the delivery date. */}
-                  {budget ? (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        top: 104 - 15,
-                        right: t.spacing.lg,
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
-                        borderRadius: t.radii.pill,
-                        backgroundColor: t.color.surfaceCard,
-                        ...t.shadows.card,
-                      }}
-                    >
-                      <Txt variant="caption" style={{ fontWeight: '800', color: t.color.content }}>
-                        {budget}
-                      </Txt>
-                    </View>
-                  ) : null}
-
-                  <View style={{ padding: t.spacing.lg, gap: t.spacing.sm }}>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 6,
-                        paddingRight: budget ? 88 : 0,
-                      }}
-                    >
-                      <Txt
-                        variant="caption"
-                        numberOfLines={1}
-                        style={{ color: t.color.brand, fontWeight: '700', flexShrink: 1 }}
-                      >
-                        {c.business_user?.name || 'Brand'}
-                      </Txt>
-                      {isClosingSoon ? (
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 3,
-                            backgroundColor: t.color.warnSoft,
-                            borderRadius: 4,
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
-                          }}
-                        >
-                          <Clock size={10} color={t.color.warn} />
-                          <Txt variant="caption" style={{ color: t.color.warn, fontWeight: '600' }}>
-                            {daysLeft}d left
-                          </Txt>
-                        </View>
-                      ) : null}
-                      {view === 'mine' && c.status !== 'live' ? (
-                        <Badge label={c.status} tone="neutral" />
-                      ) : null}
-                    </View>
-
-                    <Txt variant="title3" numberOfLines={2}>
-                      {c.title}
-                    </Txt>
-
-                    {c.description ? (
-                      <Txt variant="footnote" tone="soft" numberOfLines={2}>
-                        {c.description}
-                      </Txt>
-                    ) : null}
-
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        gap: t.spacing.md,
-                        paddingTop: 2,
-                      }}
-                    >
-                      {c.delivery_by ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Calendar size={12} color={t.color.contentMuted} />
-                          <Txt variant="caption" tone="muted">
-                            {new Date(c.delivery_by).toLocaleDateString('en-IN', {
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </Txt>
-                        </View>
-                      ) : null}
-                      {c.follower_min ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Users size={12} color={t.color.contentMuted} />
-                          <Txt variant="caption" tone="muted">
-                            {formatCount(c.follower_min)}+
-                          </Txt>
-                        </View>
-                      ) : null}
-                      {c.location ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <MapPin size={12} color={t.color.contentMuted} />
-                          <Txt variant="caption" tone="muted" numberOfLines={1}>
-                            {c.location}
-                          </Txt>
-                        </View>
-                      ) : null}
-                    </View>
-
-                    {c.categories.length > 0 ? (
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
-                        {c.categories.slice(0, 3).map((cat) => (
-                          <View
-                            key={cat}
-                            style={{
-                              backgroundColor: t.color.brandSoft,
-                              borderRadius: t.radii.sm,
-                              paddingHorizontal: 8,
-                              paddingVertical: 3,
-                            }}
-                          >
-                            <Txt
-                              variant="caption"
-                              style={{ color: t.color.brand, fontWeight: '600' }}
-                            >
-                              {cat}
-                            </Txt>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                  </View>
-                </Card>
-              </Pressable>
-            );
-          })
+              />
+            ) : (
+              <CampaignRow
+                key={c.id}
+                c={c}
+                mine={view === 'mine'}
+                onPress={() => router.push(`/campaigns/${c.id}` as any)}
+              />
+            ),
+          )
         )}
       </ScreenScroll>
     </Screen>
+  );
+}
+
+/** The lead campaign: full-width cover, the brand and title over it, one action. */
+function FeaturedCampaign({ c, mine, onPress }: { c: Campaign; mine: boolean; onPress: () => void }) {
+  const t = useTheme();
+  const daysLeft = daysUntil(c.expires_at);
+  const budget = budgetLabel(c);
+  const brand = c.business_user?.name || 'Brand';
+  const pill = (label: string) => (
+    <View style={{ height: 28, paddingHorizontal: 11, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center' }}>
+      <Txt style={{ color: '#fff', fontSize: 12.5, fontWeight: '700' }}>{label}</Txt>
+    </View>
+  );
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${c.title} by ${brand}${budget ? `, ${budget}` : ''}`}
+      onPress={onPress}
+      style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.985 : 1 }], marginBottom: t.spacing.md })}
+    >
+      <View style={{ height: 340, borderRadius: 30, overflow: 'hidden', ...t.shadows.raised }}>
+        <CoverArt seed={c.id} width={COVER_WIDTH} height={340} style={{ width: '100%', height: '100%' }}>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {(c.platforms ?? []).slice(0, 3).map((pl) => (
+              <PlatformMark key={pl} platform={pl} size={30} />
+            ))}
+          </View>
+        </CoverArt>
+        <Scrim from={0.3} />
+        {daysLeft !== null && daysLeft > 0 ? (
+          <View style={{ position: 'absolute', top: 14, left: 14, height: 28, paddingHorizontal: 11, borderRadius: 14, backgroundColor: '#fff', justifyContent: 'center' }}>
+            <Txt style={{ fontSize: 12, fontWeight: '700', color: '#111114' }}>
+              {daysLeft === 1 ? 'Closes tomorrow' : `Closes in ${daysLeft} days`}
+            </Txt>
+          </View>
+        ) : null}
+        {mine && c.status !== 'live' ? (
+          <View style={{ position: 'absolute', top: 14, right: 14 }}>
+            <Badge label={c.status} tone="neutral" />
+          </View>
+        ) : null}
+        <View style={{ position: 'absolute', left: 18, right: 18, bottom: 18, gap: 10 }}>
+          <Txt style={{ color: '#fff', fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{brand}</Txt>
+          <Txt style={{ color: '#fff', fontSize: 26, lineHeight: 30, fontWeight: '800', letterSpacing: -0.9 }} numberOfLines={3}>
+            {c.title}
+          </Txt>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {budget ? pill(budget) : null}
+            {c.categories.slice(0, 2).map((cat) => <View key={cat}>{pill(cat)}</View>)}
+          </View>
+          <View style={{ height: 48, borderRadius: 24, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+            <Txt style={{ fontSize: 15, fontWeight: '700', color: '#111114' }}>View brief</Txt>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+/** Everything after the lead: a compact row — cover chip, title, brand, budget. */
+function CampaignRow({ c, mine, onPress }: { c: Campaign; mine: boolean; onPress: () => void }) {
+  const t = useTheme();
+  const daysLeft = daysUntil(c.expires_at);
+  const budget = budgetLabel(c);
+  const brand = c.business_user?.name || 'Brand';
+  const closingSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${c.title} by ${brand}${budget ? `, ${budget}` : ''}`}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        backgroundColor: t.color.surfaceCard,
+        borderRadius: 24,
+        padding: 10,
+        paddingRight: 16,
+        marginBottom: t.spacing.sm,
+        opacity: pressed ? 0.85 : 1,
+      })}
+    >
+      <View style={{ width: 64, height: 64, borderRadius: 18, overflow: 'hidden' }}>
+        <CoverArt seed={c.id} width={64} height={64} />
+      </View>
+      <View style={{ flex: 1, gap: 3, minWidth: 0 }}>
+        <Txt variant="bodyStrong" numberOfLines={1} style={{ fontWeight: '700' }}>{c.title}</Txt>
+        <Txt variant="footnote" tone="muted" numberOfLines={1}>
+          {brand}
+          {closingSoon ? ` · ${daysLeft}d left` : ''}
+          {mine && c.status !== 'live' ? ` · ${c.status}` : ''}
+        </Txt>
+      </View>
+      {budget ? (
+        <Txt style={{ fontSize: 14.5, fontWeight: '800', fontVariant: ['tabular-nums'] }} numberOfLines={1}>
+          {budget}
+        </Txt>
+      ) : null}
+    </Pressable>
   );
 }

@@ -46,6 +46,7 @@ import {
   type ChatTextSize,
 } from '@/lib/use-chat-display';
 import { ChatPaper } from '@/components/chat-paper';
+import { ChatSignoffCard } from '@/components/chat-signoff-card';
 import { dealStateOf, DEAL_STATE_LABEL, flowOf } from '@influnet/core';
 
 /**
@@ -1132,13 +1133,16 @@ export default function ConversationScreen() {
             >
               <View
                 style={{
-                  backgroundColor: mine ? t.color.brand : t.color.surfaceCard,
+                  // v2: your messages are ink, theirs white — pink is kept for
+                  // the deal cards that need an action, so a wall of your own
+                  // bubbles never out-shouts them.
+                  backgroundColor: mine ? t.color.content : t.color.surfaceCard,
                   borderWidth: mine ? 0 : 1,
                   borderColor: t.color.hairline,
                   borderRadius: t.radii.lg,
                   // Tail corner on the sender's side.
-                  borderBottomRightRadius: mine ? 4 : t.radii.lg,
-                  borderBottomLeftRadius: mine ? t.radii.lg : 4,
+                  borderBottomRightRadius: mine ? 6 : t.radii.lg,
+                  borderBottomLeftRadius: mine ? t.radii.lg : 6,
                   paddingHorizontal: t.spacing.md,
                   paddingVertical: 10,
                   gap: 6,
@@ -1149,14 +1153,14 @@ export default function ConversationScreen() {
                   <View
                     style={{
                       borderLeftWidth: 2,
-                      borderLeftColor: mine ? t.color.white : t.color.brand,
+                      borderLeftColor: mine ? t.color.brand2 : t.color.brand,
                       paddingLeft: t.spacing.sm,
                       opacity: 0.85,
                     }}
                   >
                     <Txt
                       variant="caption"
-                      style={{ fontWeight: '700', color: mine ? t.color.white : t.color.brand }}
+                      style={{ fontWeight: '700', color: mine ? t.color.brand2 : t.color.brand }}
                     >
                       {quotedSender}
                     </Txt>
@@ -1312,6 +1316,10 @@ export default function ConversationScreen() {
         }}
       />
       </ChatPaper>
+
+      {/* The design's in-thread sign-off: shown only while the live project's
+          current stage is a sign-off waiting on you. */}
+      {deal?.projectId ? <ChatSignoffCard projectId={deal.projectId} me={me} onSigned={() => void load()} /> : null}
 
       {replyTo ? (
         <View

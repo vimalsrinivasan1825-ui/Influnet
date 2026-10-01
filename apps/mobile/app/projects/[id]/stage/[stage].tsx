@@ -32,6 +32,7 @@ import {
   Field,
   ScreenScroll,
   SkeletonCard,
+  SlideToConfirm,
   StickyFooter,
   Txt,
 } from '@/components/ui';
@@ -748,7 +749,8 @@ export default function StageScreen() {
             </>
           ) : (
             <>
-              <Button label="Confirm this stage" onPress={() => act('signoff')} loading={busy} />
+              {/* A drag, not a tap: this binds both sides to the stage. */}
+              <SlideToConfirm label="Slide to confirm this stage" onConfirm={() => act('signoff')} busy={busy} />
               {isSkippableStage(stageKey, flow) ? (
                 <Button
                   label="Propose skipping this stage"

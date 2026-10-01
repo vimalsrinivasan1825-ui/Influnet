@@ -4,8 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
 import { palette } from '@influnet/tokens';
 import { ThemeProvider } from '@/lib/theme';
+import { FONT_ASSETS, fontFor } from '@/lib/fonts';
 import { useSession } from '@/lib/session';
 import { setUnauthorizedHandler } from '@/lib/api';
 import { logger } from '@/lib/logger';
@@ -38,6 +40,12 @@ export default function RootLayout() {
   const loadingProfile = useSession((s) => s.loadingProfile);
 
   const [introDone, setIntroDone] = useState(false);
+
+  // Plus Jakarta Sans, the app's only face. A failed load still resolves
+  // (`error` set) so a bad font file can never hold the splash forever —
+  // the app just renders in the system face.
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
+  const fontsReady = fontsLoaded || !!fontError;
 
   /**
    * The splash must outlast the *profile* fetch, not just the session read.
@@ -151,7 +159,8 @@ export default function RootLayout() {
               screenOptions={{
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: palette.surface },
-                headerTitleStyle: { fontSize: 17, fontWeight: '600', color: palette.content },
+                headerTitleStyle: { fontSize: 17, fontFamily: fontFor('700'), color: palette.content },
+                headerBackButtonDisplayMode: 'minimal',
                 headerTintColor: palette.content,
                 contentStyle: { backgroundColor: palette.surface },
               }}
@@ -202,7 +211,7 @@ export default function RootLayout() {
               stored session has been read, so no screen renders signed-out and
               then swaps to signed-in. */}
           {!introDone ? (
-            <BrandSplash canExit={appReady} onDone={() => setIntroDone(true)} />
+            <BrandSplash canExit={appReady && fontsReady} onDone={() => setIntroDone(true)} />
           ) : null}
 
           {/* Only after the intro has played — a download nudge fighting the

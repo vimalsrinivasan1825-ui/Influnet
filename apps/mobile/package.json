@@ -24,6 +24,7 @@
     "eas-build-pre-install": "node ../../scripts/check-mobile-production-target.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo/metro-runtime": "~57.0.6",
     "@expo/ui": "~57.0.7",
     "@gorhom/bottom-sheet": "^5.2.14",

@@ -73,7 +73,8 @@
  * the `dormant` state in ui/stat-card.tsx (an instruction instead of a zero),
  * and the headline in components/home-header.tsx.
  */
-import { useState } from 'react';
+import { YourMoveHero } from '@/components/your-move-hero';
+import { HomeMoneyCard } from '@/components/home-money-card';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -82,7 +83,6 @@ import {
   BadgeCheck,
   ChevronRight,
   Clock,
-  CreditCard,
   Eye,
   FolderKanban,
   Handshake,
@@ -92,14 +92,13 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react-native';
-import { STAGES, flowOf, type Stage } from '@influnet/core';
+import { STAGES, flowOf, isMutualSignoffStage, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { useFetch } from '@/lib/use-fetch';
 import {
-  formatCompactCurrency,
   formatCount,
   formatCurrency,
   humanizeStage,
@@ -138,11 +137,9 @@ import {
   Screen,
   ScreenScroll,
   SectionLabel,
-  SegmentedControl,
   SkeletonCard,
   StatCard,
   StatGrid,
-  TrendBars,
   Txt,
   type BarListItem,
   type TrendPoint,
@@ -165,6 +162,11 @@ interface OngoingProject {
   next_action: string;
   /** Days since anything happened on this project. */
   idle_days: number;
+  /**
+   * The current stage's sign-off state; null on a stage that leaves by another
+   * exit. Absent on an older backend, which falls back to the stage kind.
+   */
+  signoff?: { mine_at: string | null; theirs_at: string | null } | null;
 }
 
 /**
@@ -304,7 +306,13 @@ interface HomePayload {
 interface DashboardPayload {
   stats?: { pipeline_value?: number; completed_value?: number };
   earnings_trend?: { week: string; amount: number }[];
-  weekly_spend?: { week: string; amount: number }[];
+  /** The business route's key is `spend`; `amount` is kept for older payloads. */
+  weekly_spend?: { week: string; spend?: number; amount?: number }[];
+  /**
+   * Per-counterparty buckets, `{ period, s0, s1, …, other }` — calendar months
+   * because Home asks with ?range=month. Summed across keys for the money card.
+   */
+  earnings_by_brand?: Record<string, number | string>[];
   request_breakdown?: { name: string; value: number }[];
   pipeline_data?: { name: string; value: number }[];
 }
@@ -320,8 +328,6 @@ interface HomeData {
    */
   campaigns: RailCampaign[] | null;
 }
-
-type MoneyWindow = 'week' | 'month' | 'year';
 
 function greeting() {
   const h = new Date().getHours();
@@ -374,7 +380,6 @@ export default function HomeScreen() {
   );
   const unreadMessages = useNotificationSummary((s) => s.summary?.unread_messages_count ?? 0);
 
-  const [moneyWindow, setMoneyWindow] = useState<MoneyWindow>('month');
 
   /**
    * Home first, then the dashboard its `role` selects. Sequential rather than
@@ -401,8 +406,8 @@ export default function HomeScreen() {
      */
     const [dashboard, campaigns] = await Promise.all([
       creator
-        ? endpoints.influencerDashboard<DashboardPayload>()
-        : endpoints.businessDashboard<DashboardPayload>(),
+        ? endpoints.influencerDashboard<DashboardPayload>('month')
+        : endpoints.businessDashboard<DashboardPayload>('month'),
       endpoints.campaigns<{ campaigns: RailCampaign[] }>(creator ? undefined : { mine: true }),
     ]);
 
@@ -538,7 +543,24 @@ export default function HomeScreen() {
 
   // ── Chart series ────────────────────────────────────────────────
   const trendSource = dashboard?.earnings_trend ?? dashboard?.weekly_spend ?? [];
-  const moneyTrend: TrendPoint[] = trendSource.map((w) => ({ label: w.week, value: w.amount }));
+  /**
+   * Six calendar months for the money card. Older backends ignore ?range and
+   * send no per-brand buckets; the weekly series stands in there. (`spend`, not
+   * `amount`, is the business route's key — reading only `amount` drew NaN
+   * bars for every brand.)
+   */
+  const moneyTrend: TrendPoint[] = dashboard?.earnings_by_brand?.length
+    ? dashboard.earnings_by_brand.map((row) => ({
+        label: String(row.period ?? ''),
+        value: Object.entries(row).reduce(
+          (sum, [k, v]) => (k === 'period' ? sum : sum + (Number(v) || 0)),
+          0,
+        ),
+      }))
+    : trendSource.map((w) => ({
+        label: w.week,
+        value: Number(('spend' in w ? w.spend : undefined) ?? w.amount) || 0,
+      }));
   const pipelineValue = dashboard?.stats?.pipeline_value ?? 0;
   const completedValue = dashboard?.stats?.completed_value ?? 0;
 
@@ -559,7 +581,6 @@ export default function HomeScreen() {
    * money that arrived with money that was promised.
    */
   const hasSettled = money?.settled_payments_exist ?? false;
-  const windowValue = money ? money.windows[moneyWindow] : 0;
 
   const reachChannels: BarListItem[] = (reach?.channels ?? []).map((c) => ({
     label: platformLabel(c.link_type),
@@ -722,11 +743,47 @@ export default function HomeScreen() {
                 answer to "what now?" is on the row rather than two taps in. */}
             {yourMove.length > 0 ? (
               <Appear index={nextStep()}>
-                <SectionLabel>
-                  {yourMove.length === 1 ? 'Your move' : `Your move · ${yourMove.length}`}
-                </SectionLabel>
+                {(() => {
+                  const top = yourMove[0];
+                  const { index, total } = stageProgress(top.current_stage, top.flow_key);
+                  return (
+                    <YourMoveHero
+                      action={top.next_action}
+                      title={top.title}
+                      partner={top.partner ?? 'Partner'}
+                      stageLabel={humanizeStage(top.current_stage)}
+                      stageIndex={index}
+                      stageTotal={total}
+                      more={yourMove.length - 1}
+                      onPress={() => router.push(`/projects/${top.id}`)}
+                      // Sign off right here when that's all the step is. Payment
+                      // stages open only from the signed Razorpay webhook, so
+                      // they always go through the project.
+                      theirSignoffAt={top.signoff?.theirs_at ?? null}
+                      onSignOff={
+                        isMutualSignoffStage(top.current_stage, flowOf(top)) &&
+                        !['advance_payment', 'final_payment', 'quick_payment'].includes(top.current_stage) &&
+                        // Already signed (both sides, stuck un-advanced): the
+                        // project's own screen is what moves it on, not a
+                        // second sign-off the server would refuse.
+                        !top.signoff?.mine_at
+                          ? async () => {
+                              const res = await endpoints.updateProject(top.id, {
+                                action: 'signoff',
+                                stage: top.current_stage,
+                              });
+                              if (!res.ok) return res.error;
+                              refresh();
+                              return null;
+                            }
+                          : undefined
+                      }
+                    />
+                  );
+                })()}
+                {yourMove.length > 1 ? <SectionLabel>Also waiting on you</SectionLabel> : null}
                 <View style={{ gap: t.spacing.sm }}>
-                  {yourMove.map((p) => {
+                  {yourMove.slice(1).map((p) => {
                     const { index, ratio, total } = stageProgress(p.current_stage, p.flow_key);
 
                     return (
@@ -1048,118 +1105,12 @@ export default function HomeScreen() {
                 that is least worth saying. */}
             {hasSettled || moneyTrend.some((w) => w.value > 0) ? (
               <Appear index={nextStep()}>
-                <SectionLabel>{isCreator ? 'Earnings' : 'Spend'}</SectionLabel>
-                <Card style={{ gap: t.spacing.lg }}>
-                  {hasSettled && money ? (
-                    <>
-                      <SegmentedControl<MoneyWindow>
-                        segments={[
-                          { value: 'week', label: 'This week' },
-                          { value: 'month', label: 'This month' },
-                          { value: 'year', label: 'This year' },
-                        ]}
-                        value={moneyWindow}
-                        onChange={setMoneyWindow}
-                      />
-
-                      <View style={{ gap: 2 }}>
-                        <Txt
-                          variant="display"
-                          style={{ fontVariant: ['tabular-nums'], letterSpacing: -1 }}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                        >
-                          {formatCurrency(windowValue)}
-                        </Txt>
-                        <Txt
-                          variant="caption"
-                          tone="muted"
-                          style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}
-                        >
-                          {isCreator ? 'Settled to you' : 'Paid out'}
-                        </Txt>
-                      </View>
-
-                      {/* Outstanding sits BESIDE settled, never added into it. A
-                          card that shows one number for "money" and quietly means
-                          both is the fastest way to lose a creator's trust.
-                          Its own amber-tinted row with its own icon, matching the
-                          web card — pinned to the right of the settled figure it
-                          read as a second, smaller version of the same number. */}
-                      {money.pending > 0 ? (
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: t.spacing.md,
-                            backgroundColor: t.color.warnSoft,
-                            borderRadius: t.radii.md,
-                            paddingHorizontal: t.spacing.md,
-                            paddingVertical: t.spacing.md,
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: 34,
-                              height: 34,
-                              borderRadius: t.radii.sm,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: t.color.white,
-                            }}
-                          >
-                            <CreditCard size={16} color={t.color.warn} />
-                          </View>
-                          <View style={{ gap: 1 }}>
-                            <Txt
-                              variant="title3"
-                              style={{ fontVariant: ['tabular-nums'], color: t.color.warn }}
-                            >
-                              {formatCurrency(money.pending)}
-                            </Txt>
-                            <Txt
-                              variant="caption"
-                              tone="muted"
-                              style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}
-                            >
-                              {isCreator ? 'Awaiting payment' : 'Due to pay'}
-                            </Txt>
-                          </View>
-                        </View>
-                      ) : null}
-                    </>
-                  ) : (
-                    <View style={{ gap: 4 }}>
-                      <Txt
-                        variant="title1"
-                        style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}
-                      >
-                        {formatCurrency(analytics?.month.current ?? 0)}
-                      </Txt>
-                      <Txt variant="caption" tone="muted">
-                        {isCreator ? 'Delivered' : 'Committed'} in{' '}
-                        {analytics?.month.label ?? 'this month'} · agreed value
-                      </Txt>
-                    </View>
-                  )}
-
-                  <TrendBars
-                    data={moneyTrend}
-                    formatValue={formatCompactCurrency}
-                    emptyLabel={
-                      isCreator
-                        ? 'No accepted budgets in the last six weeks'
-                        : 'No committed budgets in the last six weeks'
-                    }
-                  />
-
-                  {!hasSettled && moneyTrend.some((w) => w.value > 0) ? (
-                    <Txt variant="caption" tone="muted">
-                      No payment has settled through Influnet yet, so this shows agreed deal
-                      value rather than money received.
-                    </Txt>
-                  ) : null}
-                </Card>
+                <HomeMoneyCard
+                  months={moneyTrend}
+                  isCreator={isCreator}
+                  settled={hasSettled}
+                  pending={money?.pending ?? 0}
+                />
               </Appear>
             ) : null}
 
