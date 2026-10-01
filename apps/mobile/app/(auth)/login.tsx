@@ -3,14 +3,28 @@ import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { Pressable } from 'react-native';
-import { useTheme } from '@/lib/theme';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft } from 'lucide-react-native';
+import { SchemeThemeProvider, useTheme } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/session';
-import { AuthHeader } from '@/components/brand/auth-header';
+import { LogoLockup } from '@/components/brand/logo-lockup';
+import { SoftGlow } from '@/components/onboarding/glow';
 import { Button, Field, KeyboardAvoider, ScreenScroll, Txt } from '@/components/ui';
 
 export default function Login() {
+  return (
+    <SchemeThemeProvider>
+      <LoginScreen />
+    </SchemeThemeProvider>
+  );
+}
+
+function LoginScreen() {
   const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const ground = t.scheme === 'dark' ? t.color.surface : t.color.surfaceCard;
   const router = useRouter();
   const { add } = useLocalSearchParams<{ add?: string }>();
   const adding = add === '1';
@@ -82,19 +96,32 @@ export default function Login() {
   const canSubmit = email.trim().length > 0 && password.length > 0 && !busy;
 
   return (
+    <View style={{ flex: 1, backgroundColor: ground }}>
+    <StatusBar style={t.scheme === 'dark' ? 'light' : 'dark'} />
+    <SoftGlow height={380} />
+    <View style={{ paddingTop: insets.top + 8, paddingHorizontal: t.spacing.screen - 6, height: insets.top + 52, justifyContent: 'center' }}>
+      {router.canGoBack() ? (
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back" style={{ width: 44, height: 44, justifyContent: 'center' }}>
+          <ChevronLeft size={26} color={t.color.content} />
+        </Pressable>
+      ) : null}
+    </View>
     <KeyboardAvoider>
-      <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing['2xl'], gap: t.spacing.lg }}>
-        <AuthHeader
-          title={adding ? 'Add an account' : 'Welcome back'}
-          subtitle={
-            adding
-              ? 'Sign in to another account — you can switch between them any time.'
-              : 'Sign in to pick up where you left off.'
-          }
-          compact
-        />
+      <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing.xl, gap: t.spacing.lg }}>
+        <View style={{ alignItems: 'center', marginBottom: t.spacing.lg }}>
+          <LogoLockup size={44} />
+        </View>
 
-        <View style={{ height: t.spacing.sm }} />
+        <View style={{ gap: 8, marginBottom: t.spacing.xs }}>
+          <Txt style={{ fontSize: 31, lineHeight: 35, fontWeight: '800', letterSpacing: -1 }}>
+            {adding ? 'Add an account' : 'Welcome back'}
+          </Txt>
+          <Txt tone="muted" style={{ fontSize: 15.5, lineHeight: 23 }}>
+            {adding
+              ? 'Sign in to another account — you can switch between them any time.'
+              : 'Log in to pick up where you left off.'}
+          </Txt>
+        </View>
 
         <Field
           label="Email"
@@ -153,7 +180,7 @@ export default function Login() {
           </View>
         ) : null}
 
-        <Button label="Sign in" onPress={signIn} loading={busy} disabled={!canSubmit} />
+        <Button label="Log in" onPress={signIn} loading={busy} disabled={!canSubmit} />
 
         <Button
           label="Forgot password?"
@@ -168,5 +195,6 @@ export default function Login() {
         />
       </ScreenScroll>
     </KeyboardAvoider>
+    </View>
   );
 }

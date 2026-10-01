@@ -1,202 +1,144 @@
 /**
- * First screen. The store listing is the marketing page, so this does one job:
- * say what Influnet is in a line and fork by who you are.
+ * The signed-out front door: four short slides, then the creator/business
+ * choice (signup/index). Each slide shows one real piece of the product — a
+ * brand request, live follower numbers, the both-sides sign-off, a payment —
+ * with the official platform logos and a real photo; no illustrations.
  *
- * Centred and mark-led, matching the launch animation that precedes it — the
- * logo lands in roughly the place it just animated to, so the app opens as one
- * continuous movement rather than a splash followed by an unrelated form.
+ * Follows the phone's light/dark setting (SchemeThemeProvider). Skip and
+ * "Log in" are on every slide, so nobody is made to sit through it.
  */
-import { Pressable, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as Updates from 'expo-updates';
-import Constants from 'expo-constants';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Building2, Sparkles } from 'lucide-react-native';
-import { accents } from '@influnet/tokens';
-import { useTheme } from '@/lib/theme';
-import { API_BASE_URL, SUPABASE_URL } from '@/lib/supabase';
-import { LAST_COMMIT_TIME } from '@/lib/build-info';
-import { AuthHeader } from '@/components/brand/auth-header';
-import { Button, Card, Screen, Txt } from '@/components/ui';
+import * as Haptics from 'expo-haptics';
+import { SchemeThemeProvider, useTheme } from '@/lib/theme';
+import { Button, Txt } from '@/components/ui';
+import { LogoLockup } from '@/components/brand/logo-lockup';
+import { SoftGlow } from '@/components/onboarding/glow';
+import { ART_HEIGHT, DealsArt, NumbersArt, PaidArt, SignOffArt } from '@/components/onboarding/intro-art';
 
-function RoleCard({
-  title,
-  body,
-  icon,
-  accent,
-  onPress,
-}: {
-  title: string;
-  body: string;
-  icon: React.ReactNode;
-  accent: string;
-  onPress: () => void;
-}) {
+const SLIDES = [
+  {
+    title: 'Brand deals,',
+    accent: 'without the DM chaos.',
+    body: 'Requests, terms, content and payment in one place.',
+    Art: DealsArt,
+  },
+  {
+    title: 'Real numbers,',
+    accent: 'straight from your socials.',
+    body: 'Connect Instagram, YouTube, Facebook or X. We pull followers and engagement for you.',
+    Art: NumbersArt,
+  },
+  {
+    title: 'Every stage,',
+    accent: 'signed off by both sides.',
+    body: 'Nothing moves until you and the brand both agree.',
+    Art: SignOffArt,
+  },
+  {
+    title: 'Get paid',
+    accent: 'as the work moves.',
+    body: 'An advance before you shoot, the rest when the brand approves.',
+    Art: PaidArt,
+  },
+] as const;
+
+function Intro() {
   const t = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  // The art gives way on short phones (SE-class) so the buttons never fall
+  // off the bottom; 470 is the copy + controls + header budget.
+  const artH = Math.max(220, Math.min(ART_HEIGHT, height - insets.top - insets.bottom - 470));
+  const artScale = artH / ART_HEIGHT;
+  const pager = useRef<ScrollView>(null);
+  const [index, setIndex] = useState(0);
+  const last = index === SLIDES.length - 1;
+  const ground = t.scheme === 'dark' ? t.color.surface : t.color.surfaceCard;
+
+  const goTo = (i: number) => {
+    pager.current?.scrollTo({ x: i * width, animated: true });
+    setIndex(i);
+  };
+
   return (
-    <Pressable onPress={onPress} accessibilityRole="button">
-      {({ pressed }) => (
-        <Card
-          raised
-          style={{
-            borderColor: pressed ? accent : t.color.hairline,
-            opacity: pressed ? 0.95 : 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: t.spacing.lg,
-          }}
-        >
-          <View
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: `${accent}18`,
-            }}
-          >
-            {icon}
+    <View style={{ flex: 1, backgroundColor: ground }}>
+      <StatusBar style={t.scheme === 'dark' ? 'light' : 'dark'} />
+      <SoftGlow />
+
+      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: t.spacing.screen, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: insets.top + 56 }}>
+        <LogoLockup size={26} />
+        {!last ? (
+          <Pressable onPress={() => router.push('/signup')} hitSlop={12} accessibilityRole="button">
+            <Txt style={{ fontSize: 15, fontWeight: '600', color: t.color.contentSoft }}>Skip</Txt>
+          </Pressable>
+        ) : null}
+      </View>
+
+      <ScrollView
+        ref={pager}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => {
+          const i = Math.round(e.nativeEvent.contentOffset.x / width);
+          if (i !== index) void Haptics.selectionAsync();
+          setIndex(i);
+        }}
+        style={{ flexGrow: 0 }}
+      >
+        {SLIDES.map(({ title, accent, body, Art }) => (
+          <View key={title} style={{ width }}>
+            <View style={{ height: artH, marginTop: t.spacing.md }}>
+              <View style={{ transform: [{ scale: artScale }], transformOrigin: 'top' }}>
+                <Art width={width} />
+              </View>
+            </View>
+            <View style={{ paddingHorizontal: t.spacing.screen + 4, gap: 10, marginTop: t.spacing.lg }}>
+              <Txt style={{ fontSize: 33, lineHeight: 37, fontWeight: '800', letterSpacing: -1.1 }}>
+                {title}
+                <Txt style={{ fontSize: 33, lineHeight: 37, fontWeight: '800', letterSpacing: -1.1, color: t.color.brand }}>{`\n${accent}`}</Txt>
+              </Txt>
+              <Txt tone="muted" style={{ fontSize: 15.5, lineHeight: 23 }}>
+                {body}
+              </Txt>
+            </View>
           </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Txt variant="title3">{title}</Txt>
-            <Txt variant="footnote" tone="muted">
-              {body}
-            </Txt>
-          </View>
-        </Card>
-      )}
-    </Pressable>
+        ))}
+      </ScrollView>
+
+      <View style={{ flex: 1 }} />
+
+      <View style={{ paddingHorizontal: t.spacing.screen, paddingBottom: insets.bottom + t.spacing.lg, gap: t.spacing.lg }}>
+        <View style={{ flexDirection: 'row', gap: 6, paddingLeft: 4 }} accessibilityLabel={`Slide ${index + 1} of ${SLIDES.length}`}>
+          {SLIDES.map((s, i) => (
+            <Pressable key={s.title} onPress={() => goTo(i)} hitSlop={8}>
+              <View style={{ height: 7, width: i === index ? 24 : 7, borderRadius: 4, backgroundColor: i === index ? t.color.brand : t.color.hairlineStrong }} />
+            </Pressable>
+          ))}
+        </View>
+        <Button
+          label={last ? 'Get started' : 'Continue'}
+          onPress={() => (last ? router.push('/signup') : goTo(index + 1))}
+        />
+        <Pressable onPress={() => router.push('/login')} hitSlop={8} accessibilityRole="button" style={{ alignItems: 'center', paddingVertical: 4 }}>
+          <Txt tone="muted" style={{ fontSize: 14.5 }}>
+            Already have an account? <Txt style={{ fontSize: 14.5, fontWeight: '700' }}>Log in</Txt>
+          </Txt>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 export default function Welcome() {
-  const t = useTheme();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-
   return (
-    <Screen style={{ paddingTop: insets.top + t.spacing['3xl'] }}>
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'space-between',
-          paddingBottom: insets.bottom + t.spacing.xl,
-        }}
-      >
-        <AuthHeader
-          title="Influnet"
-          subtitle="Where brands and creators run campaigns end to end — discovery, terms, delivery and payment in one place."
-        />
-
-        <View style={{ gap: t.spacing.md }}>
-          <Txt
-            variant="caption"
-            tone="muted"
-            center
-            style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}
-          >
-            Get started as
-          </Txt>
-
-          <RoleCard
-            title="Creator"
-            body="Get discovered, agree terms, get paid on time."
-            accent={accents.creator.brand}
-            icon={<Sparkles size={22} color={accents.creator.brand} />}
-            onPress={() => router.push('/signup/creator')}
-          />
-
-          <RoleCard
-            title="Business"
-            body="Find creators who fit, and run the campaign."
-            accent={accents.brand.brand}
-            icon={<Building2 size={22} color={accents.brand.brand} />}
-            onPress={() => router.push('/signup/business')}
-          />
-        </View>
-
-        <Button
-          label="I already have an account"
-          variant="secondary"
-          onPress={() => router.push('/login')}
-        />
-
-        <BuildStrip />
-      </View>
-    </Screen>
-  );
-}
-
-/**
- * Which bundle is this, and which backend is it talking to?
- *
- * Deliberately on the SIGNED-OUT screen. The same information exists in
- * Settings, but Settings is behind sign-in — so it is unreachable in exactly
- * the situation where you most need it ("I cannot log in, and I do not know
- * whether the fix I was sent is even on this phone").
- *
- * An OTA update downloads in the background and applies on the NEXT launch, so
- * a single reopen after a publish still runs the old code. `Updates.updateId`
- * is the only reliable way to tell which one is actually running.
- *
- * Nothing here is a secret: the API host is in every request the app makes and
- * the Supabase ref is the first half of the publicly-shipped anon key.
- */
-function BuildStrip() {
-  const t = useTheme();
-  const apiHost = API_BASE_URL.replace(/^https?:\/\//, '');
-  const sbRef = (() => {
-    try {
-      return new URL(SUPABASE_URL).hostname.split('.')[0];
-    } catch {
-      return 'unknown';
-    }
-  })();
-  const update = Updates.isEmbeddedLaunch
-    ? 'embedded (no OTA applied)'
-    : (Updates.updateId ?? 'unknown').slice(0, 8);
-
-  // The channel is baked into the binary at build time and never changes for
-  // that install — it is what decides which OTA updates this app can ever
-  // receive. Worth showing beside the build id: "why did my fix not arrive?"
-  // is almost always answered by the channel, not by the update.
-  const channel = Updates.channel ?? 'none (local build)';
-
-  /**
-   * The bundle identifier of the INSTALLED binary.
-   *
-   * This is the line that settles "which app is this really?". Before
-   * 2026-08-04 the preview profile produced `com.influnet.app` — the same
-   * identifier the production profile uses — so a preview APK installed back
-   * then is indistinguishable from a production build by name or icon, and
-   * follows the preview channel forever. Showing the id next to the channel
-   * makes that visible instead of inferable.
-   *
-   * CAVEAT: this reads `expoConfig`, which an OTA carries its own copy of — so
-   * strictly it reports what the running BUNDLE believes the id is, not what
-   * the installed binary's id actually is. In practice the two agree, because
-   * app.config.js derives the id from EAS_BUILD_PROFILE and an update built
-   * from the same profile resolves it identically.
-   *
-   * The authoritative reading is `Application.applicationId` from
-   * expo-application, which asks the OS. That package is not a dependency here
-   * and adding a native module to settle a diagnostic is a poor trade — the
-   * channel line above already answers the question this one corroborates.
-   */
-  const bundleId =
-    (Constants.expoConfig as { ios?: { bundleIdentifier?: string }; android?: { package?: string } } | null)
-      ?.ios?.bundleIdentifier ??
-    (Constants.expoConfig as { android?: { package?: string } } | null)?.android?.package ??
-    'unknown';
-
-  return (
-    <Txt variant="caption" tone="muted" style={{ textAlign: 'center', marginTop: t.spacing.md }}>
-      {`build ${LAST_COMMIT_TIME} · update ${update}`}
-      {'\n'}
-      {`channel ${channel} · ${bundleId}`}
-      {'\n'}
-      {`api ${apiHost} · db ${sbRef}`}
-    </Txt>
+    <SchemeThemeProvider>
+      <Intro />
+    </SchemeThemeProvider>
   );
 }

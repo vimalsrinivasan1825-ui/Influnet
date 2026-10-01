@@ -2,8 +2,9 @@
  * Typography primitive. Every piece of text in the app goes through this so
  * the scale stays honest — no ad-hoc fontSize values scattered across screens.
  */
-import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native';
+import { StyleSheet, Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native';
 import { useTheme } from '@/lib/theme';
+import { withFont } from '@/lib/fonts';
 
 type Variant = keyof ReturnType<typeof useTheme>['typography'];
 type Tone = 'default' | 'soft' | 'muted' | 'brand' | 'ok' | 'warn' | 'danger' | 'inverse';
@@ -34,17 +35,18 @@ export function Txt({
     inverse: t.color.white,
   };
 
-  return (
-    <RNText
-      style={[
-        t.typography[variant] as TextStyle,
-        { color: toneColor[tone] },
-        center && { textAlign: 'center' },
-        style,
-      ]}
-      {...rest}
-    />
+  // Flattened so a fontWeight from any layer (variant, caller style) picks the
+  // matching Plus Jakarta file — see lib/fonts.ts for why weights can't pass through.
+  const resolved = withFont(
+    StyleSheet.flatten([
+      t.typography[variant] as TextStyle,
+      { color: toneColor[tone] },
+      center && { textAlign: 'center' },
+      style,
+    ]) as TextStyle,
   );
+
+  return <RNText style={resolved} {...rest} />;
 }
 
 /**

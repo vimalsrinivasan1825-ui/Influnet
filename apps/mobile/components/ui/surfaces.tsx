@@ -370,13 +370,14 @@ export function SectionCard({
 /** Section label above a group of cards. */
 export function SectionLabel({ children }: { children: ReactNode }) {
   const t = useTheme();
+  // v2 drops shouty uppercase labels: a quiet, bold sentence-case label
+  // groups a section without competing with the cards under it.
   return (
     <Txt
-      variant="caption"
+      variant="footnote"
       tone="muted"
       style={{
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
+        fontWeight: '700',
         marginTop: t.spacing.md,
         marginBottom: t.spacing.xs,
       }}

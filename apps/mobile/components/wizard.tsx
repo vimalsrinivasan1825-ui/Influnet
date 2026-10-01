@@ -15,19 +15,27 @@ import { Button, KeyboardAvoider, ScreenScroll, StickyFooter, Txt } from '@/comp
 /** Segmented progress rail — filled segments, not a percentage. */
 export function WizardProgress({ step, total }: { step: number; total: number }) {
   const t = useTheme();
+  // Done steps ink, the current one pink, the rest quiet — you can read where
+  // you are and how far is left without counting.
   return (
-    <View style={{ flexDirection: 'row', gap: 4, marginBottom: t.spacing.lg }}>
-      {Array.from({ length: total }).map((_, i) => (
-        <View
-          key={i}
-          style={{
-            flex: 1,
-            height: 3,
-            borderRadius: 2,
-            backgroundColor: i <= step ? t.color.brand : t.color.hairlineStrong,
-          }}
-        />
-      ))}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+      <View style={{ flex: 1, flexDirection: 'row', gap: 5 }}>
+        {Array.from({ length: total }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              flex: 1,
+              height: 5,
+              borderRadius: 3,
+              backgroundColor:
+                i < step ? t.color.content : i === step ? t.color.brand : t.color.hairlineStrong,
+            }}
+          />
+        ))}
+      </View>
+      <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
+        {`${step + 1}/${total}`}
+      </Txt>
     </View>
   );
 }
@@ -36,8 +44,11 @@ export function WizardStep({
   step,
   total,
   title,
+  accent,
   subtitle,
   children,
+  preview,
+  previewLabel = 'How brands will see you',
   onNext,
   onBack,
   nextLabel = 'Continue',
@@ -57,8 +68,13 @@ export function WizardStep({
   step: number;
   total: number;
   title: string;
+  /** Second line of the title, set in pink — the part of the question that matters. */
+  accent?: string;
   subtitle?: string;
   children: ReactNode;
+  /** A live card under the inputs showing what brands will see as you type. */
+  preview?: ReactNode;
+  previewLabel?: string;
   onNext: () => void;
   /**
    * Steps back one question. Omitted on the first step, where the only way
@@ -137,16 +153,28 @@ export function WizardStep({
       <ScreenScroll contentContainerStyle={{ paddingTop: t.spacing.lg, gap: t.spacing.lg }}>
         <WizardProgress step={step} total={total} />
 
-        <View style={{ gap: 6 }}>
-          <Txt variant="title1">{title}</Txt>
+        <View style={{ gap: 8 }}>
+          <Txt variant="display" style={{ fontSize: 31, lineHeight: 35 }}>
+            {title}
+            {accent ? <Txt variant="display" style={{ fontSize: 31, lineHeight: 35, color: t.color.brand }}>{`\n${accent}`}</Txt> : null}
+          </Txt>
           {subtitle ? (
-            <Txt variant="callout" tone="muted">
+            <Txt variant="callout" tone="muted" style={{ fontSize: 15.5, lineHeight: 23 }}>
               {subtitle}
             </Txt>
           ) : null}
         </View>
 
         {children}
+
+        {preview ? (
+          <View style={{ gap: t.spacing.sm, marginTop: t.spacing.xs }}>
+            <Txt variant="footnote" tone="muted" style={{ fontWeight: '700' }}>
+              {previewLabel}
+            </Txt>
+            {preview}
+          </View>
+        ) : null}
 
         {error ? (
           <View

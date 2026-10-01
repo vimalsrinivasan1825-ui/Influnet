@@ -15,7 +15,9 @@ export function AppHeader({
   subtitle,
   showBell = true,
   showSearch = true,
-  showLogo = true,
+  // v2: the big title carries the screen; a mark beside it was a second
+  // headline. Kept as an option for screens that have no other identity.
+  showLogo = false,
   showAvatar = true,
   showBack = false,
   unread,
@@ -63,8 +65,8 @@ export function AppHeader({
          * and the signal bars and the screen reads as clipped rather than as
          * dense. A fixed 10pt is the smallest gap that survives both.
          */
-        paddingTop: insets.top + 10,
-        paddingBottom: t.spacing.sm,
+        paddingTop: insets.top + 12,
+        paddingBottom: t.spacing.md,
         paddingHorizontal: t.spacing.screen,
         flexDirection: 'row',
         alignItems: 'center',
@@ -79,9 +81,9 @@ export function AppHeader({
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Back"
-          style={{ padding: 4, marginLeft: -4 }}
+          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.color.surfaceCard, alignItems: 'center', justifyContent: 'center' }}
         >
-          <ArrowLeft size={24} color={t.color.content} />
+          <ArrowLeft size={21} color={t.color.content} />
         </Pressable>
       ) : null}
 
@@ -98,9 +100,8 @@ export function AppHeader({
             in the largest type on the screen is the most conspicuous thing on
             it — two lines costs a little height and reads correctly. */}
         <Txt
-          variant={title.length > 16 ? 'title2' : 'title1'}
+          variant={title.length > 16 ? 'title1' : 'hero'}
           numberOfLines={2}
-          style={{ letterSpacing: -0.4 }}
         >
           {title}
         </Txt>
@@ -112,9 +113,9 @@ export function AppHeader({
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Search for a creator"
-          style={{ padding: 6 }}
+          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.color.surfaceCard, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Search size={22} color={t.color.contentSoft} />
+          <Search size={20} color={t.color.content} />
         </Pressable>
       ) : null}
 
@@ -126,9 +127,9 @@ export function AppHeader({
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Notifications"
-          style={{ padding: 6 }}
+          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.color.surfaceCard, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Bell size={22} color={unread ? t.color.brand : t.color.contentSoft} />
+          <Bell size={20} color={t.color.content} />
           {/* A number, not a 9px dot. The dot was easy to miss entirely next to
               the numbered tab-bar badges, and "how many" is the thing you want
               to know before deciding whether to tap. */}
@@ -136,8 +137,8 @@ export function AppHeader({
             <View
               style={{
                 position: 'absolute',
-                top: -1,
-                right: -1,
+                top: 4,
+                right: 2,
                 minWidth: 17,
                 height: 17,
                 paddingHorizontal: 4,
@@ -160,7 +161,7 @@ export function AppHeader({
         </Pressable>
       ) : null}
 
-      {showAvatar ? <ProfileAvatarButton size={38} /> : null}
+      {showAvatar ? <ProfileAvatarButton size={44} /> : null}
     </View>
   );
 }

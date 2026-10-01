@@ -20,21 +20,21 @@ export const palette = {
    * itself, and it does it together with the card shadows below: neither is
    * enough alone.
    */
-  surface: '#f2f4f8',
+  surface: '#f3f3f5',
   surfaceCard: '#ffffff',
-  surfaceMuted: '#f8fafc',
+  surfaceMuted: '#f7f7f9',
 
-  hairline: '#eef0f4',
-  hairlineStrong: '#e3e6ec',
+  hairline: '#ececf0',
+  hairlineStrong: '#e2e2e8',
 
-  content: '#0f172a',
-  contentSoft: '#475569',
-  contentMuted: '#94a3b8',
+  content: '#111114',
+  contentSoft: '#3b3b44',
+  contentMuted: '#6e6e79',
 
-  ok: '#16a34a',
-  okSoft: '#f0fdf4',
-  warn: '#d97706',
-  warnSoft: '#fffbeb',
+  ok: '#11805b',
+  okSoft: '#e0f4ea',
+  warn: '#985a00',
+  warnSoft: '#fff0d4',
   info: '#2563eb',
   infoSoft: '#eff6ff',
   danger: '#dc2626',
@@ -66,18 +66,18 @@ export interface BrandAccent {
 export const accents = {
   /** Business / default. */
   brand: {
-    brand: '#ee3e96',
-    brand2: '#f26e59',
-    brandStrong: '#d6358a',
-    brandSoft: '#fdf2f8',
-    brandRing: 'rgba(238, 62, 150, 0.35)',
+    brand: '#d90b7c',
+    brand2: '#ff0b8d',
+    brandStrong: '#b8086a',
+    brandSoft: '#ffe6f3',
+    brandRing: 'rgba(217, 11, 124, 0.3)',
   },
   creator: {
-    brand: '#7c3aed',
-    brand2: '#8b5cf6',
-    brandStrong: '#6d28d9',
-    brandSoft: '#f5f3ff',
-    brandRing: 'rgba(124, 58, 237, 0.35)',
+    brand: '#d90b7c',
+    brand2: '#ff0b8d',
+    brandStrong: '#b8086a',
+    brandSoft: '#ffe6f3',
+    brandRing: 'rgba(217, 11, 124, 0.3)',
   },
   admin: {
     brand: '#6366f1',
@@ -115,14 +115,14 @@ export const spacing = {
   '2xl': 24,
   '3xl': 32,
   '4xl': 40,
-  screen: 16,
+  screen: 20,
 } as const;
 
 export const radii = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
+  sm: 10,
+  md: 14,
+  lg: 22,
+  xl: 28,
   pill: 999,
 } as const;
 
@@ -139,16 +139,16 @@ export const typography = {
    * Tracking is negative because at 30pt the default letter-spacing reads
    * loose and web-like; large type needs less air between glyphs, not more.
    */
-  hero: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8 },
-  display: { fontSize: 32, lineHeight: 38, fontWeight: '700' },
-  title1: { fontSize: 26, lineHeight: 32, fontWeight: '700' },
-  title2: { fontSize: 21, lineHeight: 27, fontWeight: '700' },
-  title3: { fontSize: 18, lineHeight: 24, fontWeight: '600' },
+  hero: { fontSize: 30, lineHeight: 34, fontWeight: '800', letterSpacing: -1 },
+  display: { fontSize: 32, lineHeight: 36, fontWeight: '800', letterSpacing: -1.1 },
+  title1: { fontSize: 26, lineHeight: 31, fontWeight: '800', letterSpacing: -0.8 },
+  title2: { fontSize: 21, lineHeight: 26, fontWeight: '800', letterSpacing: -0.5 },
+  title3: { fontSize: 17, lineHeight: 23, fontWeight: '700', letterSpacing: -0.2 },
   body: { fontSize: 16, lineHeight: 23, fontWeight: '400' },
   bodyStrong: { fontSize: 16, lineHeight: 23, fontWeight: '600' },
   callout: { fontSize: 15, lineHeight: 21, fontWeight: '400' },
   footnote: { fontSize: 13, lineHeight: 18, fontWeight: '400' },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  caption: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
 } as const;
 
 /**
@@ -175,10 +175,10 @@ export const shadows = {
    * on Android than the equivalent iOS shadow.
    */
   card: {
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#111114',
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 2,
   },
   /**

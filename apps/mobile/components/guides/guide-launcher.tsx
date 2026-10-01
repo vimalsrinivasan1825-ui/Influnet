@@ -24,9 +24,9 @@ export function GuideLauncherButton({ size = 22 }: { size?: number }) {
       hitSlop={10}
       accessibilityRole="button"
       accessibilityLabel="Guides"
-      style={({ pressed }) => ({ padding: 6, opacity: pressed ? 0.5 : 1 })}
+      style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: t.color.surfaceCard, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
     >
-      <CirclePlay size={size} color={t.color.contentSoft} />
+      <CirclePlay size={size - 2} color={t.color.content} />
       {hasUnseen ? (
         <View
           style={{

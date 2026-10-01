@@ -27,6 +27,7 @@
  */
 import { useContext } from 'react';
 import { Pressable, View } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BottomTabBarHeightCallbackContext,
@@ -35,6 +36,12 @@ import {
 import { useTheme } from '@/lib/theme';
 import { Txt } from '@/components/ui';
 
+/**
+ * v2 pill bar: the current tab is a labelled pink pill; the others are quiet
+ * grey circles. The label only appears where you are, so five destinations fit
+ * without five cramped captions — and the pill growing into place on a tab
+ * change (LinearTransition) is the bar's one bit of motion.
+ */
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -50,43 +57,35 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
         right: 0,
         bottom: 0,
         backgroundColor: 'transparent',
-        paddingHorizontal: t.spacing.md,
+        paddingHorizontal: t.spacing.screen,
         paddingTop: t.spacing.sm,
         // The home-indicator gap on a notched phone; a fixed cushion elsewhere.
         paddingBottom: insets.bottom > 0 ? insets.bottom : t.spacing.md,
       }}
     >
       <View
-        style={[
-          {
-            flexDirection: 'row',
-            alignItems: 'center',
-            height: 60,
-            borderRadius: 24,
-            paddingHorizontal: t.spacing.xs,
-            backgroundColor: t.color.surfaceCard,
-            borderWidth: 1,
-            borderColor: t.color.hairline,
-          },
-          // A touch heavier than `shadows.raised`, and with a small offset
-          // rather than a big downward one: content now scrolls BEHIND this,
-          // so the separation has to read around the sides and top — a shadow
-          // thrown mostly downward is thrown off the bottom of the screen.
-          {
-            shadowColor: '#0f172a',
-            shadowOpacity: 0.14,
-            shadowRadius: 20,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 12,
-          },
-        ]}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: 66,
+          borderRadius: 33,
+          paddingHorizontal: 9,
+          backgroundColor: t.color.surfaceCard,
+          // Content scrolls BEHIND the bar, so the separation has to read
+          // around the sides and top, not be thrown off the bottom edge.
+          shadowColor: '#111114',
+          shadowOpacity: 0.16,
+          shadowRadius: 22,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 12,
+        }}
       >
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
-          const color = isFocused ? t.color.brand : t.color.contentMuted;
-          const label =
-            typeof options.title === 'string' ? options.title : route.name;
+          const color = isFocused ? t.color.white : t.color.contentSoft;
+          const label = typeof options.title === 'string' ? options.title : route.name;
           const badge = options.tabBarBadge;
 
           const onPress = () => {
@@ -105,60 +104,57 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           };
 
           return (
-            <Pressable
-              key={route.key}
-              onPress={onPress}
-              onLongPress={onLongPress}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isFocused }}
-              accessibilityLabel={label}
-              style={{
-                flex: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 3,
-                paddingVertical: 6,
-              }}
-            >
-              <View>
-                {options.tabBarIcon?.({ focused: isFocused, color, size: 22 })}
-                {badge != null && badge !== '' ? (
+            <Animated.View key={route.key} layout={LinearTransition.springify().damping(18).stiffness(180)}>
+              <Pressable
+                onPress={onPress}
+                onLongPress={onLongPress}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isFocused }}
+                accessibilityLabel={badge ? `${label}, ${badge} new` : label}
+                hitSlop={4}
+                style={{
+                  height: 48,
+                  minWidth: 48,
+                  borderRadius: 24,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  paddingLeft: isFocused ? 15 : 0,
+                  paddingRight: isFocused ? 18 : 0,
+                  backgroundColor: isFocused ? t.color.brand : t.color.surface,
+                }}
+              >
+                {options.tabBarIcon?.({ focused: isFocused, color, size: 21 })}
+                {isFocused ? (
+                  <Txt numberOfLines={1} style={{ fontSize: 14.5, lineHeight: 18, fontWeight: '700', color: t.color.white }}>
+                    {label}
+                  </Txt>
+                ) : null}
+                {!isFocused && badge != null && badge !== '' ? (
                   <View
                     style={{
                       position: 'absolute',
-                      top: -5,
-                      right: -10,
-                      minWidth: 16,
-                      height: 16,
+                      top: 4,
+                      right: 2,
+                      minWidth: 17,
+                      height: 17,
                       paddingHorizontal: 4,
-                      borderRadius: 8,
+                      borderRadius: 9,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: t.color.brand,
-                      borderWidth: 1.5,
-                      borderColor: t.color.surfaceCard,
+                      backgroundColor: t.color.brand2,
+                      borderWidth: 2,
+                      borderColor: t.color.surface,
                     }}
                   >
-                    <Txt
-                      style={{
-                        color: t.color.white,
-                        fontSize: 9,
-                        lineHeight: 11,
-                        fontWeight: '700',
-                      }}
-                    >
+                    <Txt style={{ color: t.color.white, fontSize: 9, lineHeight: 11, fontWeight: '800' }}>
                       {badge}
                     </Txt>
                   </View>
                 ) : null}
-              </View>
-              <Txt
-                numberOfLines={1}
-                style={{ fontSize: 10, lineHeight: 13, fontWeight: '600', color }}
-              >
-                {label}
-              </Txt>
-            </Pressable>
+              </Pressable>
+            </Animated.View>
           );
         })}
       </View>

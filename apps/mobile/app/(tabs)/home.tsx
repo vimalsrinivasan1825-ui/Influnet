@@ -74,6 +74,7 @@
  * and the headline in components/home-header.tsx.
  */
 import { useState } from 'react';
+import { YourMoveHero } from '@/components/your-move-hero';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -722,11 +723,25 @@ export default function HomeScreen() {
                 answer to "what now?" is on the row rather than two taps in. */}
             {yourMove.length > 0 ? (
               <Appear index={nextStep()}>
-                <SectionLabel>
-                  {yourMove.length === 1 ? 'Your move' : `Your move · ${yourMove.length}`}
-                </SectionLabel>
+                {(() => {
+                  const top = yourMove[0];
+                  const { index, total } = stageProgress(top.current_stage, top.flow_key);
+                  return (
+                    <YourMoveHero
+                      action={top.next_action}
+                      title={top.title}
+                      partner={top.partner ?? 'Partner'}
+                      stageLabel={humanizeStage(top.current_stage)}
+                      stageIndex={index}
+                      stageTotal={total}
+                      more={yourMove.length - 1}
+                      onPress={() => router.push(`/projects/${top.id}`)}
+                    />
+                  );
+                })()}
+                {yourMove.length > 1 ? <SectionLabel>Also waiting on you</SectionLabel> : null}
                 <View style={{ gap: t.spacing.sm }}>
-                  {yourMove.map((p) => {
+                  {yourMove.slice(1).map((p) => {
                     const { index, ratio, total } = stageProgress(p.current_stage, p.flow_key);
 
                     return (

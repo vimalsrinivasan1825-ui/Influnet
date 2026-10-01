@@ -23,18 +23,18 @@ export function Chip({
       onPress={onPress}
       style={({ pressed }) => [
         {
-          paddingHorizontal: t.spacing.md,
-          paddingVertical: 9,
+          paddingHorizontal: 15,
+          paddingVertical: 10,
           borderRadius: t.radii.pill,
-          borderWidth: 1,
-          borderColor: selected ? t.color.brand : t.color.hairlineStrong,
+          borderWidth: 1.5,
+          borderColor: selected ? t.color.brand : t.color.hairline,
           backgroundColor: selected ? t.color.brandSoft : t.color.surfaceCard,
           opacity: pressed ? 0.7 : 1,
         },
         style,
       ]}
     >
-      <Txt variant="footnote" style={{ color: selected ? t.color.brandStrong : t.color.contentSoft }}>
+      <Txt variant="footnote" style={{ fontSize: 14, fontWeight: '600', color: selected ? t.color.brandStrong : t.color.content }}>
         {label}
       </Txt>
     </Pressable>

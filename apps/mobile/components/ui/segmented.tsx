@@ -25,10 +25,10 @@ export function SegmentedControl<T extends string>({
     <View
       style={{
         flexDirection: 'row',
-        backgroundColor: t.color.surfaceMuted,
-        borderRadius: t.radii.md,
-        padding: 3,
-        gap: 3,
+        backgroundColor: t.color.hairline,
+        borderRadius: t.radii.pill,
+        padding: 4,
+        gap: 4,
       }}
     >
       {segments.map((s) => {
@@ -45,15 +45,15 @@ export function SegmentedControl<T extends string>({
               gap: 6,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingVertical: 9,
-              borderRadius: t.radii.sm,
+              paddingVertical: 10,
+              borderRadius: t.radii.pill,
               backgroundColor: active ? t.color.surfaceCard : 'transparent',
               // `thumb`, not `card` — see the note in @influnet/tokens. A card's
               // ambient falloff under a 30pt pill is a smudge.
               ...(active ? t.shadows.thumb : null),
             }}
           >
-            <Txt variant="footnote" style={{ color: active ? t.color.content : t.color.contentSoft, fontWeight: active ? '600' : '400' }}>
+            <Txt variant="footnote" style={{ color: active ? t.color.content : t.color.contentSoft, fontWeight: active ? '700' : '600' }}>
               {s.label}
             </Txt>
             {s.count ? (
@@ -63,7 +63,7 @@ export function SegmentedControl<T extends string>({
                   paddingHorizontal: 5,
                   paddingVertical: 1,
                   borderRadius: t.radii.pill,
-                  backgroundColor: active ? t.color.brand : t.color.hairlineStrong,
+                  backgroundColor: active ? t.color.content : t.color.hairlineStrong,
                   alignItems: 'center',
                 }}
               >

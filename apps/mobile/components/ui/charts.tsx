@@ -19,32 +19,42 @@
  * rendering and flex layout for free. SVG is reserved for arc geometry, which
  * views genuinely cannot express.
  */
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import { View, type ViewStyle } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '@/lib/theme';
 import { Txt } from './text';
 
 /** Height of the plot area for the weekly bars. */
-const TREND_PLOT_HEIGHT = 92;
-/** A bar that rounds to nothing still has to be visible as "zero, not missing". */
-const MIN_BAR_HEIGHT = 3;
+const TREND_PLOT_HEIGHT = 132;
+const MIN_BAR_HEIGHT = 6;
 
 export interface TrendPoint {
-  /** Short axis label, e.g. "6 Jul". */
   label: string;
   value: number;
 }
 
+/** One capsule that grows to its height on first paint. */
+function GrowBar({ height, color, delay, label }: { height: number; color: string; delay: number; label: string }) {
+  const reduced = useReducedMotion();
+  const h = useSharedValue(reduced ? height : 0);
+  useEffect(() => {
+    h.value = reduced ? height : withDelay(delay, withTiming(height, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [h, height, delay, reduced]);
+  const style = useAnimatedStyle(() => ({ height: h.value }));
+  return (
+    <Animated.View
+      accessibilityLabel={label}
+      style={[{ width: '100%', maxWidth: 40, alignSelf: 'center', borderRadius: 999, backgroundColor: color }, style]}
+    />
+  );
+}
+
 /**
- * Discrete totals over time — six weekly buckets, newest last.
- *
- * Bars rather than a line on purpose: these are per-week sums, not a continuous
- * quantity, and real accounts have mostly-empty weeks. A line across five zeros
- * and one spike looks like a rendering fault; bars read as what they are.
- *
- * Only the tallest bar is labelled with its value. A number over every bar is
- * noise, and the axis plus that one anchor is enough to read the rest against.
+ * v2 capsule bars. The CURRENT period (the last bar) is the pink one and the
+ * only one carrying its value — "how am I doing now" is the question; the
+ * grey history is context for it, not six numbers to read.
  */
 export function TrendBars({
   data,
@@ -58,7 +68,7 @@ export function TrendBars({
   const t = useTheme();
 
   const max = Math.max(...data.map((d) => d.value), 0);
-  const peakIndex = data.findIndex((d) => d.value === max);
+  const current = data.length - 1;
 
   if (data.length === 0 || max <= 0) {
     return (
@@ -81,39 +91,38 @@ export function TrendBars({
         }}
       >
         {data.map((point, i) => {
-          const isPeak = i === peakIndex;
+          const isCurrent = i === current;
           const ratio = point.value / max;
+          const h = Math.max(ratio * (TREND_PLOT_HEIGHT - 24), MIN_BAR_HEIGHT);
 
           return (
-            <View key={`${point.label}-${i}`} style={{ flex: 1, justifyContent: 'flex-end', gap: 5 }}>
-              {isPeak ? (
-                <Txt variant="caption" tone="soft" center numberOfLines={1}>
+            <View key={`${point.label}-${i}`} style={{ flex: 1, justifyContent: 'flex-end', gap: 6 }}>
+              {isCurrent && point.value > 0 ? (
+                <Txt variant="caption" center numberOfLines={1} style={{ fontWeight: '800', color: t.color.brand }}>
                   {formatValue(point.value)}
                 </Txt>
               ) : null}
-              <View
-                accessibilityLabel={`${point.label}: ${formatValue(point.value)}`}
-                style={{
-                  height: Math.max(ratio * (TREND_PLOT_HEIGHT - 22), MIN_BAR_HEIGHT),
-                  // Rounded data-end, square against the baseline it sits on.
-                  borderTopLeftRadius: 4,
-                  borderTopRightRadius: 4,
-                  // Empty weeks stay visible as a faint stub rather than vanishing.
-                  backgroundColor: point.value > 0 ? t.color.brand : t.color.hairlineStrong,
-                  opacity: point.value > 0 && !isPeak ? 0.45 : 1,
-                }}
+              <GrowBar
+                height={h}
+                delay={i * 50}
+                label={`${point.label}: ${formatValue(point.value)}`}
+                color={isCurrent ? t.color.brand : point.value > 0 ? '#e4e4ea' : t.color.hairline}
               />
             </View>
           );
         })}
       </View>
 
-      {/* Baseline. Recessive — it orients the bars, it isn't data. */}
-      <View style={{ height: 1, backgroundColor: t.color.hairline }} />
-
       <View style={{ flexDirection: 'row', gap: t.spacing.sm }}>
         {data.map((point, i) => (
-          <Txt key={`${point.label}-label-${i}`} variant="caption" tone="muted" center style={{ flex: 1 }} numberOfLines={1}>
+          <Txt
+            key={`${point.label}-label-${i}`}
+            variant="caption"
+            tone={i === current ? 'default' : 'muted'}
+            center
+            style={{ flex: 1, fontWeight: i === current ? '800' : '600' }}
+            numberOfLines={1}
+          >
             {point.label}
           </Txt>
         ))}
