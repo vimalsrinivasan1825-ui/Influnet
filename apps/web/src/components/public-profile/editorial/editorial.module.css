@@ -1827,8 +1827,20 @@
     grid-template-columns: 1fr;
     min-height: 0;
   }
+  .cardPanel {
+    padding: 32px 16px 24px;
+  }
+  .tiltZone {
+    padding: 0;
+  }
+  .ring {
+    /* The decorative ring reads fine behind a large desktop panel; stacked
+       single-column on mobile it shows as a stray curved line disconnected
+       from the card below it, with no panel height left to contain it. */
+    display: none;
+  }
   .cardRight {
-    padding: 56px 16px 0;
+    padding: 48px 16px 56px;
   }
   .coverGrid {
     grid-template-columns: 1fr;
