@@ -13,9 +13,9 @@
  * board is live on web now too, so surfacing it here no longer puts mobile
  * ahead of web.
  *
- * The bar itself is components/floating-tab-bar.tsx: a detached rounded bar,
- * not a full-width strip. Not glassmorphic — that needs a native module and the
- * flat redesign is otherwise intact.
+ * The bar itself is components/floating-tab-bar.tsx: a detached glass pill,
+ * not a full-width strip. On Android its blur can only see content wrapped in a
+ * blur target, so every screen is wrapped in TabBlurTarget below.
  *
  * `Tabs` is imported from `expo-router/js-tabs`; the bare `expo-router` export
  * is deprecated.
@@ -34,7 +34,7 @@ import {
 import { useSession } from '@/lib/session';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { AccountSwitcher } from '@/components/account-switcher';
-import { FloatingTabBar } from '@/components/floating-tab-bar';
+import { FloatingTabBar, TabBlurTarget } from '@/components/floating-tab-bar';
 import { TabSwipe } from '@/components/tab-swipe';
 import { Easing } from 'react-native';
 import { startRealtime, stopRealtime } from '@/lib/realtime';
@@ -105,9 +105,11 @@ export default function TabsLayout() {
         tabBar={(props) => <FloatingTabBar {...props} />}
         // Swipe left/right anywhere on a tab to move to the next/previous one.
         screenLayout={({ children, route, navigation }) => (
-          <TabSwipe routeName={route.name} onNavigate={(name) => navigation.navigate(name)}>
-            {children}
-          </TabSwipe>
+          <TabBlurTarget routeKey={route.key}>
+            <TabSwipe routeName={route.name} onNavigate={(name) => navigation.navigate(name)}>
+              {children}
+            </TabSwipe>
+          </TabBlurTarget>
         )}
         screenOptions={{
           headerShown: false,
