@@ -117,6 +117,7 @@ import {
 import { HomeMilestoneCard } from '@/components/home-milestone-card';
 import { HomeCampaignsRail, type RailCampaign } from '@/components/home-campaigns-rail';
 import { ApprovalBanner } from '@/components/approval-banner';
+import { HomeSkeleton } from '@/components/home-skeleton';
 import { PlatformMark, platformColor, platformLabel } from '@/components/platform-mark';
 import { PipelineStrip, type PipelineStep } from '@/components/pipeline-strip';
 import { ReviewQueue, type ReviewItem } from '@/components/review-queue';
@@ -138,7 +139,6 @@ import {
   Screen,
   ScreenScroll,
   SectionLabel,
-  SkeletonCard,
   StatCard,
   StatGrid,
   Txt,
@@ -645,10 +645,7 @@ export default function HomeScreen() {
 
       <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
         {loading ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
+          <HomeSkeleton />
         ) : error ? (
           <ErrorState message={error} onRetry={refresh} />
         ) : (

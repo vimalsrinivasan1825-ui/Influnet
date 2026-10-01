@@ -7,49 +7,104 @@
 import { useEffect, type ReactNode } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import Animated, {
+  Easing,
+  cancelAnimation,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
+  withDelay,
   withRepeat,
+  withSequence,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useTheme } from '@/lib/theme';
 import { Txt } from './text';
 import { Button } from './button';
 
+/**
+ * A placeholder block with a light sweep across it.
+ *
+ * A sweep rather than the old whole-block opacity pulse: a pulse reads as
+ * "blinking", a sweep reads as "arriving" — it has a direction, and every
+ * block on the screen sweeps in step because they all mount in the same
+ * frame and run the same clock.
+ *
+ * `tone` lets a block sit on something other than a white card — the brand
+ * tint for placeholders standing in for a pink hero, for instance.
+ */
 export function Skeleton({
   height = 16,
   width = '100%',
   radius,
+  tone,
   style,
 }: {
   height?: number;
   width?: number | `${number}%`;
   radius?: number;
+  /** Base colour of the block. Defaults to the hairline grey. */
+  tone?: string;
   style?: ViewStyle;
 }) {
   const t = useTheme();
-  const pulse: SharedValue<number> = useSharedValue(0.4);
+  const reduced = useReducedMotion();
+  const sweep: SharedValue<number> = useSharedValue(0);
+  const boxW = useSharedValue(0);
 
   useEffect(() => {
-    pulse.value = withRepeat(withTiming(1, { duration: 850 }), -1, true);
-  }, [pulse]);
+    if (reduced) return;
+    sweep.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1150, easing: Easing.inOut(Easing.quad) }),
+        withDelay(250, withTiming(1, { duration: 0 })),
+      ),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(sweep);
+  }, [sweep, reduced]);
 
-  const animated = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  const band = useAnimatedStyle(() => {
+    const w = boxW.value;
+    const bw = Math.max(80, w * 0.6);
+    return { width: bw, transform: [{ translateX: -bw + sweep.value * (w + bw) }] };
+  });
+
+  const highlight = t.scheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.7)';
 
   return (
-    <Animated.View
+    <View
+      onLayout={(e) => {
+        boxW.value = e.nativeEvent.layout.width;
+      }}
       style={[
         {
           height,
           width,
           borderRadius: radius ?? t.radii.sm,
-          backgroundColor: t.color.hairline,
+          backgroundColor: tone ?? t.color.hairline,
+          overflow: 'hidden',
         },
-        animated,
         style,
       ]}
-    />
+    >
+      {reduced ? null : (
+        <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0 }, band]}>
+          <Svg width="100%" height="100%" preserveAspectRatio="none">
+            <Defs>
+              <LinearGradient id="sweep" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={highlight} stopOpacity={0} />
+                <Stop offset="0.5" stopColor={highlight} stopOpacity={1} />
+                <Stop offset="1" stopColor={highlight} stopOpacity={0} />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill="url(#sweep)" />
+          </Svg>
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
