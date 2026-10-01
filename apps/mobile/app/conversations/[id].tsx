@@ -46,6 +46,7 @@ import {
   type ChatTextSize,
 } from '@/lib/use-chat-display';
 import { ChatPaper } from '@/components/chat-paper';
+import { ChatSignoffCard } from '@/components/chat-signoff-card';
 import { dealStateOf, DEAL_STATE_LABEL, flowOf } from '@influnet/core';
 
 /**
@@ -1315,6 +1316,10 @@ export default function ConversationScreen() {
         }}
       />
       </ChatPaper>
+
+      {/* The design's in-thread sign-off: shown only while the live project's
+          current stage is a sign-off waiting on you. */}
+      {deal?.projectId ? <ChatSignoffCard projectId={deal.projectId} me={me} onSigned={() => void load()} /> : null}
 
       {replyTo ? (
         <View
