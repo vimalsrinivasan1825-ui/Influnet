@@ -20,6 +20,7 @@ import { clearPushToken } from './push';
 import { stopNotificationSummary } from './notification-summary';
 import { resetEntitlements } from './use-entitlements';
 import { stopRealtime } from './realtime';
+import { clearSnapshots, readSnapshot, setSnapshotUser, writeSnapshot } from './boot-cache';
 import {
   recordSignIn,
   syncActive,
@@ -181,7 +182,21 @@ export const useSession = create<SessionState>((set, get) => ({
       if (gen === profileLoadGen) set({ profile: null, loadingProfile: false });
       return;
     }
+    setSnapshotUser(uid);
     set({ loadingProfile: true });
+
+    // Open on last launch's copy while the live one loads (lib/boot-cache.ts).
+    // Only fills an empty slot for THIS user, and only while this load is
+    // still the one in charge — it never overwrites a live response.
+    if (get().profile?.id !== uid) {
+      void readSnapshot<MeProfile>(uid, 'profile').then((snap) => {
+        if (!snap || snap.id !== uid) return;
+        const st = get();
+        if (gen !== profileLoadGen || !st.loadingProfile) return;
+        if (st.session?.user.id !== uid || st.profile?.id === uid) return;
+        set({ profile: snap });
+      });
+    }
 
     // /api/profile wraps the merged profile as { profile: {...} }. Storing the
     // envelope instead of its contents leaves every field undefined, which
@@ -191,6 +206,9 @@ export const useSession = create<SessionState>((set, get) => ({
     // otherwise pins `loadingProfile: true` — which is the splash's "not ready"
     // signal, i.e. a permanent "Getting things ready…".
     let profile: MeProfile | null = null;
+    // True only when the server actually answered "no profile" — as opposed
+    // to a timeout or a network/server failure, which says nothing about it.
+    let definitive = false;
     try {
       const TIMED_OUT = Symbol('timeout');
       const race = await Promise.race([
@@ -199,6 +217,7 @@ export const useSession = create<SessionState>((set, get) => ({
       ]);
       if (race !== TIMED_OUT) {
         profile = race.ok ? (race.data?.profile ?? null) : null;
+        definitive = race.ok || race.status === 404;
       }
     } catch {
       profile = null;
@@ -212,7 +231,13 @@ export const useSession = create<SessionState>((set, get) => ({
     // account changed under us mid-fetch, this profile is for the wrong user —
     // keep whatever is there, but never leave the flag stuck.
     const stillSameUser = get().session?.user.id === uid;
-    set({ loadingProfile: false, ...(stillSameUser ? { profile } : {}) });
+    // A failed load keeps the copy already on screen (last launch's snapshot,
+    // or an earlier load) rather than blanking it — a slow API on a cold start
+    // is not a reason to throw the user into the signup-repair path.
+    const kept = get().profile?.id === uid ? get().profile : null;
+    const next = profile ?? (definitive ? null : kept);
+    set({ loadingProfile: false, ...(stillSameUser ? { profile: next } : {}) });
+    if (stillSameUser && profile) writeSnapshot(uid, 'profile', profile);
 
     // Record this account in the multi-account book so the switcher can list
     // it. Best-effort, non-blocking — a failure here never affects the app.
@@ -234,6 +259,7 @@ export const useSession = create<SessionState>((set, get) => ({
     // still gets to await the real completion.
     if (signOutInFlight) return signOutInFlight;
 
+    const leavingUserId = get().session?.user.id ?? null;
     signOutInFlight = (async () => {
       try {
         // Stop background work FIRST, while the token is still valid. Anything
@@ -301,6 +327,10 @@ export const useSession = create<SessionState>((set, get) => ({
         clearFetchCache();
         resetEntitlements();
         set({ session: null, profile: null, authStranded: false });
+        // Sign-out removes the account from the device, so its last-launch
+        // snapshots go with it.
+        setSnapshotUser(null);
+        if (leavingUserId) void clearSnapshots(leavingUserId);
 
         // Multi-account: signing out REMOVES this account from the device
         // (product decision 2026-08-31 — it is not left as a re-login entry).
@@ -442,7 +472,10 @@ export const useSession = create<SessionState>((set, get) => ({
       // (retry button, an auto-refresh tick that finally got through).
       if (session) set({ authStranded: false });
       if (session && session.user.id !== had) void get().loadProfile();
-      if (!session) set({ profile: null });
+      if (!session) {
+        set({ profile: null });
+        setSnapshotUser(null);
+      }
       // supabase-js rotates the refresh token on every refresh; keep the
       // active account's stored copy current so a later switch back still works.
       if (event === 'TOKEN_REFRESHED' && session) void syncActive(session).catch(() => {});
@@ -462,6 +495,10 @@ export const useSession = create<SessionState>((set, get) => ({
         // Flag it so the gate shows "Reconnecting", not the login form.
         const stranded = !d.session && (await hasPersistedAuth());
         set({ session: d.session, ready: true, authStranded: stranded });
+        // If this read won the race with the auth listener, the listener will
+        // see the same user id and skip loadProfile — so start it here, or the
+        // app opens with no profile and drops into the signup-repair path.
+        if (d.session && !get().profile && !get().loadingProfile) void get().loadProfile();
       })
       .catch(async (err) => {
         logger.error('[session] getSession() failed on init — clearing auth storage', { err });

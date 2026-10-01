@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import type { ApiResult } from '@influnet/api';
+import { snapshotUser, writeSnapshot } from './boot-cache';
 
 /**
  * Last good payload per screen. Module-level so it survives unmount — that is
@@ -28,14 +29,92 @@ import type { ApiResult } from '@influnet/api';
  */
 const cache = new Map<string, unknown>();
 
+/** When each entry last came off the network. 0 = seeded from a snapshot. */
+const fetchedAt = new Map<string, number>();
+
+/**
+ * Requests started before their screen mounted (prefetchFetch). A screen that
+ * mounts while one is in flight joins it instead of firing a duplicate.
+ */
+const inflight = new Map<string, Promise<ApiResult<unknown>>>();
+
+/**
+ * Bumped by clearFetchCache. A prefetch that started for the previous account
+ * and lands after a sign-out or switch must not write that account's data into
+ * the next one's cache.
+ */
+let epoch = 0;
+
+/**
+ * Keys whose last good payload is also kept on disk (lib/boot-cache.ts), so the
+ * next cold start paints them before the network answers. Only Home today —
+ * it is the screen every launch opens on.
+ */
+const PERSISTED = new Set(['home']);
+
+/** A payload that came back within this window is not refetched on mount. */
+const FRESH_MS = 15_000;
+
+function store(key: string, data: unknown) {
+  cache.set(key, data);
+  fetchedAt.set(key, Date.now());
+  const uid = snapshotUser();
+  if (uid && PERSISTED.has(key)) writeSnapshot(uid, key, data);
+}
+
 /** Drop everything. Called on sign-out so the next account starts clean. */
 export function clearFetchCache() {
+  epoch += 1;
   cache.clear();
+  fetchedAt.clear();
+  inflight.clear();
 }
 
 /** Drop one entry, for when a mutation elsewhere invalidates a screen. */
 export function invalidateFetchCache(cacheKey: string) {
   cache.delete(cacheKey);
+  fetchedAt.delete(cacheKey);
+}
+
+export function hasFetchCache(cacheKey: string) {
+  return cache.has(cacheKey);
+}
+
+/**
+ * Paint-fast seed from a last-launch snapshot. Never overwrites anything — a
+ * live response that already landed is always newer — and marked stale so the
+ * screen still revalidates the moment it mounts.
+ */
+export function seedFetchCache(cacheKey: string, data: unknown) {
+  if (cache.has(cacheKey) || data == null) return;
+  cache.set(cacheKey, data);
+  fetchedAt.set(cacheKey, 0);
+}
+
+/**
+ * Start a screen's request before the screen exists — the launch screen uses
+ * this to load Home while the logo is still up. Resolves `true` once the cache
+ * holds a good payload. Shares one request with any caller already waiting.
+ */
+export function prefetchFetch<T>(cacheKey: string, fetcher: () => Promise<ApiResult<T>>): Promise<boolean> {
+  let p = inflight.get(cacheKey) as Promise<ApiResult<T>> | undefined;
+  if (!p) {
+    const myEpoch = epoch;
+    const started: Promise<ApiResult<T>> = fetcher()
+      .catch(
+        (err): ApiResult<T> => ({ ok: false, status: 0, data: null, error: err instanceof Error ? err.message : 'Request failed' }),
+      )
+      .then((res) => {
+        if (myEpoch === epoch && res.ok && res.data !== null) store(cacheKey, res.data);
+        return res;
+      })
+      .finally(() => {
+        if (inflight.get(cacheKey) === started) inflight.delete(cacheKey);
+      });
+    p = started;
+    inflight.set(cacheKey, p as Promise<ApiResult<unknown>>);
+  }
+  return p.then((res) => res.ok);
 }
 
 export interface FetchState<T> {
@@ -109,13 +188,16 @@ export function useFetch<T>(
     if (mode === 'pull') setRefreshing(true);
     const myGen = ++generation.current;
 
-    const res = await fetcherRef.current();
+    // A prefetch for this screen already in flight is the same request — join
+    // it. A pull-to-refresh is the user asking for a NEW one, so never joins.
+    const pending = mode !== 'pull' && keyRef.current ? inflight.get(keyRef.current) : undefined;
+    const res = pending ? ((await pending) as ApiResult<T>) : await fetcherRef.current();
     if (!mounted.current || myGen !== generation.current) return;
 
     if (res.ok) {
       setData(res.data);
       setError(null);
-      if (keyRef.current && res.data !== null) cache.set(keyRef.current, res.data);
+      if (keyRef.current && res.data !== null) store(keyRef.current, res.data);
     } else {
       // A failed background revalidate keeps the stale content on screen — the
       // user is reading something that was true a moment ago, which beats
@@ -128,6 +210,12 @@ export function useFetch<T>(
   }, []);
 
   useEffect(() => {
+    // Just loaded (a launch prefetch that finished a moment ago): nothing to
+    // revalidate yet. A snapshot seed is stamped 0, so it always revalidates.
+    if (cached !== undefined && cacheKey && Date.now() - (fetchedAt.get(cacheKey) ?? 0) < FRESH_MS) {
+      setLoading(false);
+      return;
+    }
     void run(cached === undefined ? 'initial' : 'silent');
     // Intentionally once per mount: `cached` is only read to choose the first
     // mode, and re-running on it would loop.
@@ -163,7 +251,7 @@ export function useFetch<T>(
       setData((prev) => {
         const next =
           typeof updater === 'function' ? (updater as (p: T | null) => T | null)(prev) : updater;
-        if (keyRef.current && next !== null) cache.set(keyRef.current, next);
+        if (keyRef.current && next !== null) store(keyRef.current, next);
         return next;
       });
     },
