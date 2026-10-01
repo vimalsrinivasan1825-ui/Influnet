@@ -23,7 +23,7 @@ import { View } from 'react-native';
 import { ShieldAlert } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { formatCurrency } from '@/lib/format';
-import { Avatar, Badge, Card, PressableScale, Txt } from '@/components/ui';
+import { Avatar, Badge, Button, Card, PressableScale, Txt } from '@/components/ui';
 import { RequestStageStrip } from '@/components/request-stage-strip';
 
 export interface RequestCardData {
@@ -59,16 +59,85 @@ function sentOn(iso: string): string {
   });
 }
 
+/**
+ * v2 lead card: the first request that's waiting on you, drawn large — the
+ * offer as the headline figure and one clear action. Everything after it uses
+ * the standard card, so only one thing on the screen asks to be looked at first.
+ */
+function FeaturedRequestCard({ data, isCreator, onPress }: { data: RequestCardData; isCreator: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        backgroundColor: t.color.surfaceCard,
+        borderRadius: 28,
+        padding: 18,
+        gap: 16,
+        ...t.shadows.raised,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Avatar name={data.partnerName ?? undefined} size={52} />
+        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Txt variant="title3" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {data.partnerName || 'Someone'}
+            </Txt>
+            {data.unverifiedSender ? <Badge label="Unverified" tone="warn" /> : null}
+          </View>
+          <Txt variant="footnote" tone="muted" numberOfLines={1}>
+            {`${isCreator ? 'Received' : 'Sent'} ${sentOn(data.created_at)} · ${data.stateLabel}`}
+          </Txt>
+        </View>
+      </View>
+
+      {data.project?.title ? (
+        <Txt style={{ fontSize: 16, lineHeight: 23, color: t.color.contentSoft }} numberOfLines={2}>
+          {data.project.title}
+        </Txt>
+      ) : null}
+
+      <View style={{ borderTopWidth: 1, borderTopColor: t.color.hairline, paddingTop: 14, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <View style={{ gap: 2 }}>
+          <Txt variant="footnote" tone="muted">{isCreator ? 'Offered' : 'Your offer'}</Txt>
+          <Txt style={{ fontSize: 30, lineHeight: 34, fontWeight: '800', letterSpacing: -1, fontVariant: ['tabular-nums'] }}>
+            {data.budget ? formatCurrency(data.budget) : 'Open budget'}
+          </Txt>
+        </View>
+      </View>
+
+      {data.project?.current_stage ? (
+        <RequestStageStrip currentStage={data.project.current_stage} flowKey={data.project.flow_key} />
+      ) : null}
+
+      {data.unverifiedSender ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.color.warnSoft, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 }}>
+          <ShieldAlert size={15} color={t.color.warn} />
+          <Txt variant="caption" style={{ color: t.color.warn, flex: 1 }}>
+            Influnet hasn't verified this business yet.
+          </Txt>
+        </View>
+      ) : null}
+
+      <Button variant="brand" label={isCreator ? 'Review request' : 'Open request'} onPress={onPress} />
+    </View>
+  );
+}
+
 export function RequestCard({
   data,
   isCreator,
   onPress,
+  featured,
 }: {
   data: RequestCardData;
   isCreator: boolean;
   onPress: () => void;
+  /** Draw as the large lead card (the first request waiting on you). */
+  featured?: boolean;
 }) {
   const t = useTheme();
+  if (featured) return <FeaturedRequestCard data={data} isCreator={isCreator} onPress={onPress} />;
   const meta = [data.budget ? formatCurrency(data.budget) : null, `${isCreator ? 'Received' : 'Sent'} on ${sentOn(data.created_at)}`]
     .filter(Boolean)
     .join(' · ');

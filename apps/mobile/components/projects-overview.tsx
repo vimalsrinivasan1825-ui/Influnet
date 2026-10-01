@@ -25,7 +25,8 @@
 import { View } from 'react-native';
 import { Activity, CheckCircle2, Clock, XCircle } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
-import { Card, Txt } from '@/components/ui';
+import { Card, Txt, useCountUp } from '@/components/ui';
+import { formatCurrency } from '@/lib/format';
 
 /** Two projects before a summary of them is worth a third of the viewport. */
 export const OVERVIEW_MIN_PROJECTS = 2;
@@ -107,5 +108,65 @@ export function ProjectsOverview({
         })}
       </View>
     </Card>
+  );
+}
+
+const SPLIT = ['#ff0b8d', '#ffb98f', '#b9a5ff', '#7fd8b0', '#8ec5ff'];
+
+/**
+ * v2 summary: the one dark card on Projects. Money in flight is the headline
+ * (it is what a person checks this tab for), with how many projects and how
+ * many are waiting on you under it, and a bar split by project so one big
+ * deal and five small ones don't read the same.
+ */
+export function ProjectsSummaryCard({
+  budgets,
+  yourMove,
+  completed,
+  cancelled,
+}: {
+  /** Agreed value of each ongoing project, largest first reads best. */
+  budgets: number[];
+  yourMove: number;
+  completed: number;
+  cancelled: number;
+}) {
+  const t = useTheme();
+  const total = budgets.reduce((a, b) => a + b, 0);
+  const shown = useCountUp(total, 900);
+  const parts = budgets.filter((b) => b > 0).sort((a, b) => b - a);
+  const n = budgets.length;
+
+  return (
+    <View style={{ backgroundColor: '#111114', borderRadius: 28, padding: 20, gap: 14 }}>
+      <View style={{ gap: 6 }}>
+        <Txt style={{ color: '#a9a9b4', fontSize: 13.5, fontWeight: '600' }}>In progress</Txt>
+        <Txt style={{ color: '#fff', fontSize: 38, lineHeight: 42, fontWeight: '800', letterSpacing: -1.4, fontVariant: ['tabular-nums'] }}>
+          {formatCurrency(Math.round(shown))}
+        </Txt>
+        <Txt style={{ color: '#a9a9b4', fontSize: 13.5 }}>
+          {`across ${n} ${n === 1 ? 'project' : 'projects'}${yourMove > 0 ? ` · ${yourMove} waiting on you` : ''}`}
+        </Txt>
+      </View>
+      {parts.length > 0 ? (
+        <View style={{ flexDirection: 'row', gap: 4, height: 10 }}>
+          {parts.map((b, i) => (
+            <View key={i} style={{ flex: b, borderRadius: 5, backgroundColor: SPLIT[i % SPLIT.length] }} />
+          ))}
+        </View>
+      ) : null}
+      {completed + cancelled > 0 ? (
+        <View style={{ flexDirection: 'row', gap: 16 }}>
+          <Txt style={{ color: '#a9a9b4', fontSize: 12.5 }}>
+            <Txt style={{ color: '#fff', fontSize: 12.5, fontWeight: '800' }}>{completed}</Txt> completed
+          </Txt>
+          {cancelled > 0 ? (
+            <Txt style={{ color: '#a9a9b4', fontSize: 12.5 }}>
+              <Txt style={{ color: '#fff', fontSize: 12.5, fontWeight: '800' }}>{cancelled}</Txt> cancelled
+            </Txt>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
   );
 }

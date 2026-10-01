@@ -589,6 +589,16 @@ export default function ProjectDetailScreen() {
                   side={isOwner ? 'business' : 'creator'}
                   partner={partner}
                   onOpenStage={() => router.push(`/projects/${id}/stage/${project.current_stage}`)}
+                  onSignOff={async () => {
+                    const res = await endpoints.updateProject(id, {
+                      action: 'signoff',
+                      stage: project.current_stage,
+                    });
+                    if (!res.ok) return res.error;
+                    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    revalidate();
+                    return null;
+                  }}
                 />
               </>
             ) : null}

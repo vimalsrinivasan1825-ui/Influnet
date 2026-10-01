@@ -1,4 +1,7 @@
-import { Pressable, ScrollView, View, type ViewStyle } from 'react-native';
+import { Pressable, View, type ViewStyle } from 'react-native';
+// Gesture-handler ScrollView: a chip rail's horizontal drag must win over the
+// tab-swipe gesture wrapped around each tab screen.
+import { ScrollView } from 'react-native-gesture-handler';
 import { useTheme } from '@/lib/theme';
 import { Txt } from './text';
 

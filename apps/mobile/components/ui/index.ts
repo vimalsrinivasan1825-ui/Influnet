@@ -8,6 +8,7 @@ export { Field } from './input';
 export { Chip, ChipWrap, ChipRail } from './chip';
 export { OptionRow } from './option-row';
 export { SlideToConfirm } from './slide-to-confirm';
+export { Scrim } from './scrim';
 export { Skeleton, SkeletonCard, EmptyState, ErrorState } from './feedback';
 export { SegmentedControl, type Segment } from './segmented';
 export { StatCard, StatGrid } from './stat-card';

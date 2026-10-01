@@ -25,7 +25,9 @@
  * legible steps you can push with a thumb beat six unreadable ones that fit.
  */
 import type { ComponentType } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+// Gesture-handler ScrollView: wins horizontal drags over the tab swipe.
+import { ScrollView } from 'react-native-gesture-handler';
 import {
   BadgeCheck,
   Camera,

@@ -93,7 +93,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react-native';
-import { STAGES, flowOf, type Stage } from '@influnet/core';
+import { STAGES, flowOf, isMutualSignoffStage, type Stage } from '@influnet/core';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
@@ -147,6 +147,7 @@ import {
   Txt,
   type BarListItem,
   type TrendPoint,
+  useCountUp,
 } from '@/components/ui';
 
 /** One active project, with the API's verdict on whose move it is. */
@@ -323,6 +324,21 @@ interface HomeData {
 }
 
 type MoneyWindow = 'week' | 'month' | 'year';
+
+/** The headline money figure: big, tabular, counting up the first time it paints. */
+function CountUpMoney({ value }: { value: number }) {
+  const shown = useCountUp(value, 900);
+  return (
+    <Txt
+      style={{ fontSize: 42, lineHeight: 46, fontWeight: '800', letterSpacing: -1.6, fontVariant: ['tabular-nums'] }}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      accessibilityLabel={formatCurrency(value)}
+    >
+      {formatCurrency(Math.round(shown))}
+    </Txt>
+  );
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -736,6 +752,23 @@ export default function HomeScreen() {
                       stageTotal={total}
                       more={yourMove.length - 1}
                       onPress={() => router.push(`/projects/${top.id}`)}
+                      // Sign off right here when that's all the step is. Payment
+                      // stages open only from the signed Razorpay webhook, so
+                      // they always go through the project.
+                      onSignOff={
+                        isMutualSignoffStage(top.current_stage, flowOf(top)) &&
+                        !['advance_payment', 'final_payment', 'quick_payment'].includes(top.current_stage)
+                          ? async () => {
+                              const res = await endpoints.updateProject(top.id, {
+                                action: 'signoff',
+                                stage: top.current_stage,
+                              });
+                              if (!res.ok) return res.error;
+                              refresh();
+                              return null;
+                            }
+                          : undefined
+                      }
                     />
                   );
                 })()}
@@ -1067,32 +1100,31 @@ export default function HomeScreen() {
                 <Card style={{ gap: t.spacing.lg }}>
                   {hasSettled && money ? (
                     <>
-                      <SegmentedControl<MoneyWindow>
-                        segments={[
-                          { value: 'week', label: 'This week' },
-                          { value: 'month', label: 'This month' },
-                          { value: 'year', label: 'This year' },
-                        ]}
-                        value={moneyWindow}
-                        onChange={setMoneyWindow}
-                      />
-
-                      <View style={{ gap: 2 }}>
-                        <Txt
-                          variant="display"
-                          style={{ fontVariant: ['tabular-nums'], letterSpacing: -1 }}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                        >
-                          {formatCurrency(windowValue)}
+                      <View style={{ gap: 6 }}>
+                        <Txt variant="footnote" tone="muted" style={{ fontSize: 14, fontWeight: '700' }}>
+                          {`${isCreator ? 'Earned' : 'Paid out'} ${moneyWindow === 'week' ? 'this week' : moneyWindow === 'year' ? 'this year' : 'this month'}`}
                         </Txt>
-                        <Txt
-                          variant="caption"
-                          tone="muted"
-                          style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}
-                        >
-                          {isCreator ? 'Settled to you' : 'Paid out'}
-                        </Txt>
+                        <CountUpMoney value={windowValue} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          {moneyWindow === 'month' && analytics?.month.delta_pct != null ? (
+                            <View
+                              style={{
+                                height: 26,
+                                paddingHorizontal: 10,
+                                borderRadius: 13,
+                                justifyContent: 'center',
+                                backgroundColor: analytics.month.delta_pct >= 0 ? t.color.okSoft : t.color.dangerSoft,
+                              }}
+                            >
+                              <Txt style={{ fontSize: 12.5, fontWeight: '800', color: analytics.month.delta_pct >= 0 ? t.color.ok : t.color.danger }}>
+                                {`${analytics.month.delta_pct >= 0 ? '▲' : '▼'} ${Math.abs(analytics.month.delta_pct)}%`}
+                              </Txt>
+                            </View>
+                          ) : null}
+                          <Txt variant="footnote" tone="muted">
+                            {isCreator ? 'settled to you' : 'paid through influnet'}
+                          </Txt>
+                        </View>
                       </View>
 
                       {/* Outstanding sits BESIDE settled, never added into it. A
@@ -1132,11 +1164,7 @@ export default function HomeScreen() {
                             >
                               {formatCurrency(money.pending)}
                             </Txt>
-                            <Txt
-                              variant="caption"
-                              tone="muted"
-                              style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}
-                            >
+                            <Txt variant="caption" tone="muted">
                               {isCreator ? 'Awaiting payment' : 'Due to pay'}
                             </Txt>
                           </View>
@@ -1167,6 +1195,18 @@ export default function HomeScreen() {
                         : 'No committed budgets in the last six weeks'
                     }
                   />
+
+                  {hasSettled && money ? (
+                    <SegmentedControl<MoneyWindow>
+                      segments={[
+                        { value: 'week', label: 'Week' },
+                        { value: 'month', label: 'Month' },
+                        { value: 'year', label: 'Year' },
+                      ]}
+                      value={moneyWindow}
+                      onChange={setMoneyWindow}
+                    />
+                  ) : null}
 
                   {!hasSettled && moneyTrend.some((w) => w.value > 0) ? (
                     <Txt variant="caption" tone="muted">

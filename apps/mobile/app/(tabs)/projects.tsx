@@ -23,7 +23,7 @@ import { AppHeader } from '@/components/app-header';
 import { ProjectCard } from '@/components/project-card';
 import {
   OVERVIEW_MIN_PROJECTS,
-  ProjectsOverview,
+  ProjectsOverview, ProjectsSummaryCard,
 } from '@/components/projects-overview';
 import {
   Badge,
@@ -188,6 +188,15 @@ export default function ProjectsScreen() {
           />
         ) : (
           <>
+            {ongoing.length > 0 ? (
+              <ProjectsSummaryCard
+                budgets={ongoing.map((p) => p.budget ?? 0)}
+                yourMove={groups.yours.length}
+                completed={groups.completed.length}
+                cancelled={groups.cancelled.length}
+              />
+            ) : null}
+
             {/* Filter tabs */}
             <ChipRail>
               {FILTERS.map((f) => {
@@ -208,8 +217,8 @@ export default function ProjectsScreen() {
 
             {/* Only once there is something to summarise — see the note in
                 projects-overview.tsx. */}
-            {ongoing.length + groups.completed.length + groups.cancelled.length >=
-            OVERVIEW_MIN_PROJECTS ? (
+            {ongoing.length === 0 &&
+            groups.completed.length + groups.cancelled.length >= OVERVIEW_MIN_PROJECTS ? (
               <>
                 <SectionLabel>Overview</SectionLabel>
                 <ProjectsOverview

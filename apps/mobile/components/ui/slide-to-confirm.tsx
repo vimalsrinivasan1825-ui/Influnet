@@ -39,14 +39,19 @@ export function SlideToConfirm({
   onConfirm: () => void;
   busy?: boolean;
   disabled?: boolean;
-  /** `ink` for use on a pink surface, where a pink track would disappear. */
-  tone?: 'brand' | 'ink';
+  /**
+   * `ink` — a dark track, for light surfaces that already use pink nearby.
+   * `onBrand` — a translucent white track, for sitting on a pink card.
+   */
+  tone?: 'brand' | 'ink' | 'onBrand';
 }) {
   const t = useTheme();
   const [width, setWidth] = useState(0);
   const max = Math.max(0, width - KNOB - PAD * 2);
   const x = useSharedValue(0);
-  const track = tone === 'ink' ? t.color.content : t.color.brand;
+  const track = tone === 'ink' ? t.color.content : tone === 'onBrand' ? 'rgba(255,255,255,0.22)' : t.color.brand;
+  // The knob's tick takes the colour of what it sits on.
+  const mark = tone === 'ink' ? t.color.content : t.color.brand;
 
   const fire = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -134,7 +139,7 @@ export function SlideToConfirm({
             knobStyle,
           ]}
         >
-          {busy ? <ActivityIndicator color={track} /> : <Check size={22} color={track} strokeWidth={2.8} />}
+          {busy ? <ActivityIndicator color={mark} /> : <Check size={22} color={mark} strokeWidth={2.8} />}
         </Animated.View>
       </GestureDetector>
     </View>

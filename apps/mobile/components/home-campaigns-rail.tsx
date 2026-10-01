@@ -31,7 +31,10 @@
  * campaigns CTA further down that works whether or not the board has anything
  * on it today. One empty section removed beats one empty state designed.
  */
-import { Image, ScrollView, View } from 'react-native';
+import { Image, View } from 'react-native';
+// The gesture-handler ScrollView, so a horizontal drag on this rail wins over
+// the tab-swipe gesture around the screen (components/tab-swipe.tsx).
+import { ScrollView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Clock } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';

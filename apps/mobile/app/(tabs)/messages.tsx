@@ -33,6 +33,9 @@
  */
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
+// Gesture-handler ScrollView so the faces row keeps its horizontal drags from
+// the tab-swipe gesture (components/tab-swipe.tsx).
+import { ScrollView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { FolderKanban, MessageSquare, Pin, Search, UserPlus, X } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
@@ -245,6 +248,47 @@ export default function MessagesScreen() {
                   Nothing matches “{query.trim()}”.
                 </Txt>
               </Card>
+            ) : null}
+
+            {/* v2: recent people as a row of faces, unread ones ringed in pink
+                — the "who's talking to me" glance before reading the list. */}
+            {!q && chats.length > 2 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginHorizontal: -t.spacing.screen }}
+                contentContainerStyle={{ paddingHorizontal: t.spacing.screen, gap: 14, paddingVertical: 4 }}
+              >
+                {chats.slice(0, 10).map((row) => {
+                  const state = live.get(row.id);
+                  const unread = (state?.unread ?? 0) > 0 || (state === undefined && row.lastFromThem);
+                  return (
+                    <Pressable
+                      key={row.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${row.name ?? 'Chat'}${unread ? ', unread' : ''}`}
+                      onPress={() =>
+                        router.push({ pathname: '/conversations/[id]', params: { id: row.id, name: row.name ?? 'Chat' } })
+                      }
+                      style={({ pressed }) => ({ width: 64, alignItems: 'center', gap: 6, opacity: pressed ? 0.7 : 1 })}
+                    >
+                      <View
+                        style={{
+                          padding: 3,
+                          borderRadius: 34,
+                          borderWidth: 2.5,
+                          borderColor: unread ? t.color.brand2 : 'transparent',
+                        }}
+                      >
+                        <Avatar name={row.name} seed={row.otherUserId} size={52} />
+                      </View>
+                      <Txt variant="caption" numberOfLines={1} style={{ fontWeight: unread ? '800' : '600', color: unread ? t.color.content : t.color.contentSoft }}>
+                        {(row.name ?? 'Chat').split(/\s+/)[0]}
+                      </Txt>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             ) : null}
 
             {chats.some((c) => c.pinned) && !q ? (
