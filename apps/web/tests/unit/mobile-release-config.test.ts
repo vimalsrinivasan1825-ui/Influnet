@@ -35,17 +35,22 @@ describe('production OTA job vs the eas.json production profile', () => {
     expect(envValue(prodJob, 'EXPO_PUBLIC_API_BASE_URL')).toBe(easProd.EXPO_PUBLIC_API_BASE_URL);
   });
 
-  it('is manual only: a push can never publish to the production channel', () => {
-    expect(prodJob).toMatch(/if:\s*github\.event_name == 'workflow_dispatch'/);
+  it('publishes to production only from a manual dispatch or a push to staging — never from dev', () => {
+    // Auto-fire on push to staging was reinstated 2026-10-01 at the owner's request
+    // (4c4366e3); staging is production. A push to dev must still never reach it.
+    const cond = prodJob.match(/^\s+if:\s*(.+)$/m)?.[1] ?? '';
+    expect(cond).toMatch(/github\.event_name == 'workflow_dispatch'/);
+    expect(cond).toMatch(/github\.event_name == 'push' && github\.ref == 'refs\/heads\/staging'/);
+    expect(cond).not.toMatch(/refs\/heads\/(dev|main)/);
     expect(prodJob).toMatch(/environment:\s*production/);
-    expect(workflow).not.toMatch(/branches:\s*\n\s*-\s*(staging|main)/);
   });
 
   it('never interpolates a dispatch input into a shell command (script injection)', () => {
     // Inputs must reach the shell through env vars ($ROLLOUT, $MESSAGE), not ${{ inputs.* }} inside `run:`.
     const runBlocks = prodJob.split(/\n\s+env:\n/).map((chunk) => chunk.split(/\n\s+run:/).slice(1).join('\n'));
-    for (const block of runBlocks) expect(block).not.toMatch(/\$\{\{\s*inputs\./);
-    expect(prodJob).toMatch(/ROLLOUT:\s*\$\{\{\s*inputs\.rollout_percentage\s*\}\}/);
-    expect(prodJob).toMatch(/MESSAGE:\s*\$\{\{\s*inputs\.message\s*\}\}/);
+    for (const block of runBlocks) expect(block).not.toMatch(/\$\{\{[^}]*inputs\./);
+    // A push has no inputs, so each falls back to a fixed value — still only via env.
+    expect(prodJob).toMatch(/ROLLOUT:\s*\$\{\{[^}\n]*inputs\.rollout_percentage[^}\n]*\}\}/);
+    expect(prodJob).toMatch(/MESSAGE:\s*\$\{\{[^}\n]*inputs\.message[^}\n]*\}\}/);
   });
 });
