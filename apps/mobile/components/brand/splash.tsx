@@ -126,11 +126,14 @@ export function BrandSplash({
 
   const mountedAt = useRef(Date.now());
   const exiting = useRef(false);
+  /** When the lockup finishes forming — the exit never starts before it. */
+  const formedAt = useRef<number | null>(null);
 
   // 2. Form the lockup once there is a font to set the wordmark in.
   useEffect(() => {
-    if (!fontsReady || !wordW || reduced) return;
+    if (!fontsReady || !wordW || reduced || formedAt.current !== null) return;
     const ease = Easing.bezier(0.22, 1, 0.36, 1);
+    formedAt.current = Date.now() + 720;
     form.value = withDelay(80, withTiming(1, { duration: 640, easing: ease }));
     chrome.value = withDelay(320, withTiming(1, { duration: 420 }));
   }, [fontsReady, wordW, reduced, form, chrome]);
@@ -172,7 +175,12 @@ export function BrandSplash({
     // The lockup has to have formed (fonts in) before it can step back.
     if (!fontsReady && !forceExit) return;
     exiting.current = true;
-    const remaining = Math.max(0, (reduced ? 300 : HOLD_UNTIL) - (Date.now() - mountedAt.current));
+    const now = Date.now();
+    const remaining = Math.max(
+      0,
+      (reduced ? 300 : HOLD_UNTIL) - (now - mountedAt.current),
+      reduced ? 0 : (formedAt.current ?? 0) - now,
+    );
     const finish = () => onDone();
 
     cancelAnimation(bar);
@@ -184,7 +192,12 @@ export function BrandSplash({
     }
 
     const start = remaining + 260;
-    form.value = 1; // a forced exit before the lockup formed jumps to it
+    // A forced exit before the lockup ever started forming: form it quickly
+    // now rather than diving out of a still mark.
+    if (formedAt.current === null) {
+      formedAt.current = now;
+      form.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
+    }
     chrome.value = withDelay(start, withTiming(0, { duration: 180 }));
     back.value = withDelay(start, withTiming(1, { duration: 420, easing: Easing.in(Easing.cubic) }));
     disc.value = withDelay(
