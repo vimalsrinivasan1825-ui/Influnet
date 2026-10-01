@@ -73,8 +73,8 @@
  * the `dormant` state in ui/stat-card.tsx (an instruction instead of a zero),
  * and the headline in components/home-header.tsx.
  */
-import { useState } from 'react';
 import { YourMoveHero } from '@/components/your-move-hero';
+import { HomeMoneyCard } from '@/components/home-money-card';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -83,7 +83,6 @@ import {
   BadgeCheck,
   ChevronRight,
   Clock,
-  CreditCard,
   Eye,
   FolderKanban,
   Handshake,
@@ -100,7 +99,6 @@ import { endpoints } from '@/lib/api';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { useFetch } from '@/lib/use-fetch';
 import {
-  formatCompactCurrency,
   formatCount,
   formatCurrency,
   humanizeStage,
@@ -139,15 +137,12 @@ import {
   Screen,
   ScreenScroll,
   SectionLabel,
-  SegmentedControl,
   SkeletonCard,
   StatCard,
   StatGrid,
-  TrendBars,
   Txt,
   type BarListItem,
   type TrendPoint,
-  useCountUp,
 } from '@/components/ui';
 
 /** One active project, with the API's verdict on whose move it is. */
@@ -306,7 +301,13 @@ interface HomePayload {
 interface DashboardPayload {
   stats?: { pipeline_value?: number; completed_value?: number };
   earnings_trend?: { week: string; amount: number }[];
-  weekly_spend?: { week: string; amount: number }[];
+  /** The business route's key is `spend`; `amount` is kept for older payloads. */
+  weekly_spend?: { week: string; spend?: number; amount?: number }[];
+  /**
+   * Per-counterparty buckets, `{ period, s0, s1, …, other }` — calendar months
+   * because Home asks with ?range=month. Summed across keys for the money card.
+   */
+  earnings_by_brand?: Record<string, number | string>[];
   request_breakdown?: { name: string; value: number }[];
   pipeline_data?: { name: string; value: number }[];
 }
@@ -321,23 +322,6 @@ interface HomeData {
    * but only the section, never the screen.
    */
   campaigns: RailCampaign[] | null;
-}
-
-type MoneyWindow = 'week' | 'month' | 'year';
-
-/** The headline money figure: big, tabular, counting up the first time it paints. */
-function CountUpMoney({ value }: { value: number }) {
-  const shown = useCountUp(value, 900);
-  return (
-    <Txt
-      style={{ fontSize: 42, lineHeight: 46, fontWeight: '800', letterSpacing: -1.6, fontVariant: ['tabular-nums'] }}
-      numberOfLines={1}
-      adjustsFontSizeToFit
-      accessibilityLabel={formatCurrency(value)}
-    >
-      {formatCurrency(Math.round(shown))}
-    </Txt>
-  );
 }
 
 function greeting() {
@@ -391,7 +375,6 @@ export default function HomeScreen() {
   );
   const unreadMessages = useNotificationSummary((s) => s.summary?.unread_messages_count ?? 0);
 
-  const [moneyWindow, setMoneyWindow] = useState<MoneyWindow>('month');
 
   /**
    * Home first, then the dashboard its `role` selects. Sequential rather than
@@ -418,8 +401,8 @@ export default function HomeScreen() {
      */
     const [dashboard, campaigns] = await Promise.all([
       creator
-        ? endpoints.influencerDashboard<DashboardPayload>()
-        : endpoints.businessDashboard<DashboardPayload>(),
+        ? endpoints.influencerDashboard<DashboardPayload>('month')
+        : endpoints.businessDashboard<DashboardPayload>('month'),
       endpoints.campaigns<{ campaigns: RailCampaign[] }>(creator ? undefined : { mine: true }),
     ]);
 
@@ -555,7 +538,24 @@ export default function HomeScreen() {
 
   // ── Chart series ────────────────────────────────────────────────
   const trendSource = dashboard?.earnings_trend ?? dashboard?.weekly_spend ?? [];
-  const moneyTrend: TrendPoint[] = trendSource.map((w) => ({ label: w.week, value: w.amount }));
+  /**
+   * Six calendar months for the money card. Older backends ignore ?range and
+   * send no per-brand buckets; the weekly series stands in there. (`spend`, not
+   * `amount`, is the business route's key — reading only `amount` drew NaN
+   * bars for every brand.)
+   */
+  const moneyTrend: TrendPoint[] = dashboard?.earnings_by_brand?.length
+    ? dashboard.earnings_by_brand.map((row) => ({
+        label: String(row.period ?? ''),
+        value: Object.entries(row).reduce(
+          (sum, [k, v]) => (k === 'period' ? sum : sum + (Number(v) || 0)),
+          0,
+        ),
+      }))
+    : trendSource.map((w) => ({
+        label: w.week,
+        value: Number(('spend' in w ? w.spend : undefined) ?? w.amount) || 0,
+      }));
   const pipelineValue = dashboard?.stats?.pipeline_value ?? 0;
   const completedValue = dashboard?.stats?.completed_value ?? 0;
 
@@ -576,7 +576,6 @@ export default function HomeScreen() {
    * money that arrived with money that was promised.
    */
   const hasSettled = money?.settled_payments_exist ?? false;
-  const windowValue = money ? money.windows[moneyWindow] : 0;
 
   const reachChannels: BarListItem[] = (reach?.channels ?? []).map((c) => ({
     label: platformLabel(c.link_type),
@@ -1096,125 +1095,12 @@ export default function HomeScreen() {
                 that is least worth saying. */}
             {hasSettled || moneyTrend.some((w) => w.value > 0) ? (
               <Appear index={nextStep()}>
-                <SectionLabel>{isCreator ? 'Earnings' : 'Spend'}</SectionLabel>
-                <Card style={{ gap: t.spacing.lg }}>
-                  {hasSettled && money ? (
-                    <>
-                      <View style={{ gap: 6 }}>
-                        <Txt variant="footnote" tone="muted" style={{ fontSize: 14, fontWeight: '700' }}>
-                          {`${isCreator ? 'Earned' : 'Paid out'} ${moneyWindow === 'week' ? 'this week' : moneyWindow === 'year' ? 'this year' : 'this month'}`}
-                        </Txt>
-                        <CountUpMoney value={windowValue} />
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          {moneyWindow === 'month' && analytics?.month.delta_pct != null ? (
-                            <View
-                              style={{
-                                height: 26,
-                                paddingHorizontal: 10,
-                                borderRadius: 13,
-                                justifyContent: 'center',
-                                backgroundColor: analytics.month.delta_pct >= 0 ? t.color.okSoft : t.color.dangerSoft,
-                              }}
-                            >
-                              <Txt style={{ fontSize: 12.5, fontWeight: '800', color: analytics.month.delta_pct >= 0 ? t.color.ok : t.color.danger }}>
-                                {`${analytics.month.delta_pct >= 0 ? '▲' : '▼'} ${Math.abs(analytics.month.delta_pct)}%`}
-                              </Txt>
-                            </View>
-                          ) : null}
-                          <Txt variant="footnote" tone="muted">
-                            {isCreator ? 'settled to you' : 'paid through influnet'}
-                          </Txt>
-                        </View>
-                      </View>
-
-                      {/* Outstanding sits BESIDE settled, never added into it. A
-                          card that shows one number for "money" and quietly means
-                          both is the fastest way to lose a creator's trust.
-                          Its own amber-tinted row with its own icon, matching the
-                          web card — pinned to the right of the settled figure it
-                          read as a second, smaller version of the same number. */}
-                      {money.pending > 0 ? (
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: t.spacing.md,
-                            backgroundColor: t.color.warnSoft,
-                            borderRadius: t.radii.md,
-                            paddingHorizontal: t.spacing.md,
-                            paddingVertical: t.spacing.md,
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: 34,
-                              height: 34,
-                              borderRadius: t.radii.sm,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: t.color.white,
-                            }}
-                          >
-                            <CreditCard size={16} color={t.color.warn} />
-                          </View>
-                          <View style={{ gap: 1 }}>
-                            <Txt
-                              variant="title3"
-                              style={{ fontVariant: ['tabular-nums'], color: t.color.warn }}
-                            >
-                              {formatCurrency(money.pending)}
-                            </Txt>
-                            <Txt variant="caption" tone="muted">
-                              {isCreator ? 'Awaiting payment' : 'Due to pay'}
-                            </Txt>
-                          </View>
-                        </View>
-                      ) : null}
-                    </>
-                  ) : (
-                    <View style={{ gap: 4 }}>
-                      <Txt
-                        variant="title1"
-                        style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}
-                      >
-                        {formatCurrency(analytics?.month.current ?? 0)}
-                      </Txt>
-                      <Txt variant="caption" tone="muted">
-                        {isCreator ? 'Delivered' : 'Committed'} in{' '}
-                        {analytics?.month.label ?? 'this month'} · agreed value
-                      </Txt>
-                    </View>
-                  )}
-
-                  <TrendBars
-                    data={moneyTrend}
-                    formatValue={formatCompactCurrency}
-                    emptyLabel={
-                      isCreator
-                        ? 'No accepted budgets in the last six weeks'
-                        : 'No committed budgets in the last six weeks'
-                    }
-                  />
-
-                  {hasSettled && money ? (
-                    <SegmentedControl<MoneyWindow>
-                      segments={[
-                        { value: 'week', label: 'Week' },
-                        { value: 'month', label: 'Month' },
-                        { value: 'year', label: 'Year' },
-                      ]}
-                      value={moneyWindow}
-                      onChange={setMoneyWindow}
-                    />
-                  ) : null}
-
-                  {!hasSettled && moneyTrend.some((w) => w.value > 0) ? (
-                    <Txt variant="caption" tone="muted">
-                      No payment has settled through Influnet yet, so this shows agreed deal
-                      value rather than money received.
-                    </Txt>
-                  ) : null}
-                </Card>
+                <HomeMoneyCard
+                  months={moneyTrend}
+                  isCreator={isCreator}
+                  settled={hasSettled}
+                  pending={money?.pending ?? 0}
+                />
               </Appear>
             ) : null}
 

@@ -60,10 +60,13 @@ export function TrendBars({
   data,
   formatValue,
   emptyLabel = 'No activity in this period yet',
+  quiet,
 }: {
   data: TrendPoint[];
   formatValue: (value: number) => string;
   emptyLabel?: string;
+  /** No value over the current bar — for a card that already headlines it. */
+  quiet?: boolean;
 }) {
   const t = useTheme();
 
@@ -97,7 +100,7 @@ export function TrendBars({
 
           return (
             <View key={`${point.label}-${i}`} style={{ flex: 1, justifyContent: 'flex-end', gap: 6 }}>
-              {isCurrent && point.value > 0 ? (
+              {!quiet && isCurrent && point.value > 0 ? (
                 <Txt variant="caption" center numberOfLines={1} style={{ fontWeight: '800', color: t.color.brand }}>
                   {formatValue(point.value)}
                 </Txt>
