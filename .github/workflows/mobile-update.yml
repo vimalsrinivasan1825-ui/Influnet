@@ -108,11 +108,14 @@ jobs:
 
       - name: Publish to Production Channel
         working-directory: ./apps/mobile
-        run: >-
-          npx eas-cli update --channel production
-          --rollout-percentage "$ROLLOUT"
-          --message "$MESSAGE ($GITHUB_SHA)"
-          --non-interactive
+        # eas update --rollout-percentage only accepts 0-99; 100 means "full
+        # rollout", which is the default when the flag is omitted entirely.
+        run: |
+          if [ "$ROLLOUT" = "100" ]; then
+            npx eas-cli update --channel production --message "$MESSAGE ($GITHUB_SHA)" --non-interactive
+          else
+            npx eas-cli update --channel production --rollout-percentage "$ROLLOUT" --message "$MESSAGE ($GITHUB_SHA)" --non-interactive
+          fi
         env:
           ROLLOUT: ${{ github.event_name == 'workflow_dispatch' && inputs.rollout_percentage || '100' }}
           MESSAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.message || 'Production automated update' }}
