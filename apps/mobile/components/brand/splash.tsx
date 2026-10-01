@@ -10,13 +10,14 @@
  * somewhere else, in a pink that wasn't the artwork's. One logo, one source —
  * see components/brand/logo.tsx.
  *
- * ── Why the wordmark waits for the font ───────────────────────────────────
- * "influnet" is live text in Plus Jakarta Sans Bold (design system v2: bold,
- * lowercase, −2.5% tracking). Rendered before expo-font has registered the
- * family, React Native silently falls back to the system face — which is the
- * "different font while loading" people saw on a cold start. Nothing with
- * text is shown until `fontsReady`; the bundled fonts register in a few
- * hundred ms, well inside the time the logo is on screen anyway.
+ * ── Why the lockup waits for the font ─────────────────────────────────────
+ * The wordmark is outlines (components/brand/wordmark.tsx), so it needs no
+ * font. The status line under it is text, and rendered before expo-font has
+ * registered Plus Jakarta Sans, React Native silently falls back to the system
+ * face — the "different font while loading" people saw on a cold start. So
+ * the lockup forms, and anything with text shows, only once `fontsReady`; the
+ * bundled fonts register in a few hundred ms, well inside the time the logo is
+ * on screen anyway.
  *
  * ── Sequence ──────────────────────────────────────────────────────────────
  *   1. Still mark (matches the OS splash).
@@ -48,6 +49,7 @@ import Animated, {
 import { Image } from 'expo-image';
 import { Txt } from '@/components/ui';
 import { LOGO_SOURCE } from './logo';
+import { Wordmark, WORDMARK_EM } from './wordmark';
 
 // Design system v2.
 const LOGO_PINK = '#FF0B8D';
@@ -61,8 +63,8 @@ const NATIVE_MARK = 124;
 const MARK = 58;
 const GAP = 14;
 const WORD_SIZE = 44;
-/** Until the wordmark has been measured. Close to the real width at 44pt. */
-const WORD_ESTIMATE = 188;
+const WORD_W = WORD_SIZE * WORDMARK_EM.width;
+const WORD_H = WORD_SIZE * WORDMARK_EM.height;
 
 /**
  * The big top-right node, as a fraction of logo-mark.png (measured from the
@@ -100,8 +102,7 @@ export function BrandSplash({
   const reduced = useReducedMotion();
   const { width: W, height: H } = useWindowDimensions();
 
-  const [wordW, setWordW] = useState(0);
-  const lockupW = MARK + GAP + (wordW || WORD_ESTIMATE);
+  const lockupW = MARK + GAP + WORD_W;
   const lockupLeft = (W - lockupW) / 2;
   // Where the mark's centre ends up, relative to where the OS splash put it.
   const markDx = lockupLeft + MARK / 2 - W / 2;
@@ -129,14 +130,14 @@ export function BrandSplash({
   /** When the lockup finishes forming — the exit never starts before it. */
   const formedAt = useRef<number | null>(null);
 
-  // 2. Form the lockup once there is a font to set the wordmark in.
+  // 2. Form the lockup once there is a font for the status line under it.
   useEffect(() => {
-    if (!fontsReady || !wordW || reduced || formedAt.current !== null) return;
+    if (!fontsReady || reduced || formedAt.current !== null) return;
     const ease = Easing.bezier(0.22, 1, 0.36, 1);
     formedAt.current = Date.now() + 720;
     form.value = withDelay(80, withTiming(1, { duration: 640, easing: ease }));
     chrome.value = withDelay(320, withTiming(1, { duration: 420 }));
-  }, [fontsReady, wordW, reduced, form, chrome]);
+  }, [fontsReady, reduced, form, chrome]);
 
   // 3. The bar: reach the milestone, then keep creeping toward the next one so
   // a slow step reads as "working", never as "stuck". Never moves backwards.
@@ -276,35 +277,19 @@ export function BrandSplash({
         />
       </Animated.View>
 
-      {/* Wordmark. Not rendered at all until the font is registered — see top. */}
-      {fontsReady ? (
-        <Animated.View
-          style={[
-            {
-              position: 'absolute',
-              left: lockupLeft + MARK + GAP,
-              top: H / 2 - WORD_SIZE * 0.62,
-            },
-            wordStyle,
-          ]}
-        >
-          <Txt
-            onLayout={(e) => {
-              const w = Math.ceil(e.nativeEvent.layout.width);
-              if (w && w !== wordW) setWordW(w);
-            }}
-            style={{
-              fontSize: WORD_SIZE,
-              lineHeight: WORD_SIZE * 1.24,
-              fontWeight: '700',
-              letterSpacing: -WORD_SIZE * 0.025,
-              color: INK,
-            }}
-          >
-            influnet
-          </Txt>
-        </Animated.View>
-      ) : null}
+      {/* Wordmark. Hidden (opacity 0) until the lockup forms. */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            left: lockupLeft + MARK + GAP,
+            top: H / 2 - WORD_H / 2,
+          },
+          wordStyle,
+        ]}
+      >
+        <Wordmark size={WORD_SIZE} color={INK} />
+      </Animated.View>
 
       {/* Progress + status. Same reasoning: text only once the face is in. */}
       {fontsReady ? (
@@ -385,9 +370,7 @@ export function BootScreen({ status }: { status: string }) {
     >
       <View style={{ position: 'absolute', left: 0, right: 0, top: h / 2 - MARK / 2, height: MARK, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: GAP }}>
         <Image source={LOGO_SOURCE} style={{ width: MARK, height: MARK }} contentFit="contain" cachePolicy="memory-disk" transition={0} />
-        <Txt style={{ fontSize: WORD_SIZE, lineHeight: WORD_SIZE * 1.24, fontWeight: '700', letterSpacing: -WORD_SIZE * 0.025, color: INK }}>
-          influnet
-        </Txt>
+        <Wordmark size={WORD_SIZE} color={INK} />
       </View>
       <View style={{ position: 'absolute', left: 0, right: 0, top: h / 2 + 64, alignItems: 'center', gap: 14 }}>
         <View style={styles.track}>
