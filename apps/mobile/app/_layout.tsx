@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -13,6 +13,7 @@ import { setUnauthorizedHandler } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import { syncPushToken, usePushNotificationRouting } from '@/lib/push';
 import { BrandSplash } from '@/components/brand/splash';
+import { useBootProgress } from '@/lib/use-boot-progress';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppUpdateBanner } from '@/components/app-update-banner';
 import { NotificationToastHost } from '@/components/notification-toast-host';
@@ -58,6 +59,11 @@ export default function RootLayout() {
    */
   const appReady = ready && !(session && !profile && loadingProfile);
 
+  // ...and, signed in, past Home's data too: the splash hands over to a
+  // loaded Home rather than to a skeleton. Also drives the splash's progress
+  // bar and status line. See lib/use-boot-progress.ts.
+  const boot = useBootProgress(fontsReady);
+
   useEffect(() => init(), [init]);
 
   // Register (or re-register) this device's push token whenever a session
@@ -79,12 +85,20 @@ export default function RootLayout() {
 
   usePushNotificationRouting(router, appReady);
 
-  // Drop the native splash as soon as there is something of ours to show. The
-  // animated splash stays on top until it has played out, so the session read
-  // happens behind it rather than in front of a spinner.
-  useEffect(() => {
+  // Drop the native splash once ours has PAINTED its first frame — the same
+  // logo in the same place, so the swap is invisible. Hiding on mount instead
+  // could show a blank white frame while the image decoded. The timer is the
+  // net for an image that never reports in.
+  const nativeHidden = useRef(false);
+  const hideNative = useCallback(() => {
+    if (nativeHidden.current) return;
+    nativeHidden.current = true;
     void SplashScreen.hideAsync();
   }, []);
+  useEffect(() => {
+    const timer = setTimeout(hideNative, 800);
+    return () => clearTimeout(timer);
+  }, [hideNative]);
 
   /**
    * A 401 on a request that carried a token means the session died server-side.
@@ -207,11 +221,18 @@ export default function RootLayout() {
             </Stack>
           </ErrorBoundary>
 
-          {/* Covers the first frame until the animation has played AND the
-              stored session has been read, so no screen renders signed-out and
-              then swaps to signed-in. */}
+          {/* Covers the first frame until the stored session has been read and
+              the first screen's data is in, so nothing renders signed-out and
+              swaps to signed-in, and Home opens loaded rather than skeletal. */}
           {!introDone ? (
-            <BrandSplash canExit={appReady && fontsReady} onDone={() => setIntroDone(true)} />
+            <BrandSplash
+              canExit={appReady && fontsReady && boot.done}
+              fontsReady={fontsReady}
+              progress={boot.progress}
+              status={boot.status}
+              onReady={hideNative}
+              onDone={() => setIntroDone(true)}
+            />
           ) : null}
 
           {/* Only after the intro has played — a download nudge fighting the

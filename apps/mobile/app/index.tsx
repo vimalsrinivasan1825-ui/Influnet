@@ -5,12 +5,13 @@
  * Also the place a half-finished registration gets repaired. See below.
  */
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
-import { palette, spacing } from '@influnet/tokens';
+import { spacing } from '@influnet/tokens';
 import { useSession, useSignOutAction } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { Button, Screen, Txt } from '@/components/ui';
+import { BootScreen } from '@/components/brand/splash';
 
 type Recovery = 'idle' | 'running' | 'failed';
 
@@ -206,21 +207,20 @@ export default function Index() {
   }
 
   if (!ready || switching || (session && !profile && (loadingProfile || recovery === 'running'))) {
+    // The launch screen's own resting state, not a bare system spinner: when
+    // this shows at all it is straight after the splash (an account switch,
+    // repairing a half-finished signup, the splash's 14s safety exit), and it
+    // has to read as the same loading screen carrying on — not a second one.
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: spacing.md,
-          backgroundColor: palette.surface,
-        }}
-      >
-        <ActivityIndicator color={palette.verified} />
-        <Txt variant="footnote" tone="muted">
-          {switching ? 'Switching account…' : 'Getting things ready…'}
-        </Txt>
-      </View>
+      <BootScreen
+        status={
+          switching
+            ? 'Switching account…'
+            : recovery === 'running'
+              ? 'Finishing your account setup…'
+              : 'Signing you in…'
+        }
+      />
     );
   }
 

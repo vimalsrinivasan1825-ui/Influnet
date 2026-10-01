@@ -1,157 +1,168 @@
 /**
- * The launch animation — the landing site's logo sting, rebuilt for the app.
+ * The launch screen — the native splash, carried on until the app is ready.
  *
- * Intro (≈1.2s): the four spokes draw out from the ring, the ring closes, the
- * nodes pop, and the "influnet" wordmark rises under the mark.
- * Exit (≈1.3s): the wordmark lifts away, the camera dives into the big pink
- * node until it fills the screen, and the pink collapses to a point to reveal
- * the first screen — the same move as apps/landing/src/components/gate/
- * page-intro.tsx, so the app and the website open the same way.
+ * ── Why it starts as a still logo ─────────────────────────────────────────
+ * The OS splash (app.json → expo-splash-screen) draws assets/logo-mark.png,
+ * 124pt wide, dead centre on white. This screen's first frame is the SAME
+ * bitmap at the SAME size and place, so the hand-off from native to JS is
+ * invisible. The previous version redrew the mark as SVG geometry above
+ * centre and started it empty: the logo vanished, then re-drew itself
+ * somewhere else, in a pink that wasn't the artwork's. One logo, one source —
+ * see components/brand/logo.tsx.
  *
- * White ground, matching the native splash (app.json), so the OS → JS
- * hand-off is invisible: the mark simply starts drawing.
+ * ── Why the lockup waits for the font ─────────────────────────────────────
+ * The wordmark is outlines (components/brand/wordmark.tsx), so it needs no
+ * font. The status line under it is text, and rendered before expo-font has
+ * registered Plus Jakarta Sans, React Native silently falls back to the system
+ * face — the "different font while loading" people saw on a cold start. So
+ * the lockup forms, and anything with text shows, only once `fontsReady`; the
+ * bundled fonts register in a few hundred ms, well inside the time the logo is
+ * on screen anyway.
  *
- * Geometry is the landing's own redraw of the mark (logo-mark.tsx: ring at
- * 752,520; nodes; spokes starting at the ring's outer edge) — it has to be
- * vector to draw itself, and it is the version the website animates.
+ * ── Sequence ──────────────────────────────────────────────────────────────
+ *   1. Still mark (matches the OS splash).
+ *   2. Fonts in → the mark eases left and shrinks into the horizontal
+ *      lockup, the wordmark slides out from behind it, and a progress bar
+ *      with a live status line fades in underneath.
+ *   3. While loading → the bar tracks real milestones (session, profile,
+ *      home data — see lib/use-boot-progress.ts) and creeps between them,
+ *      so it is never frozen. The status line says what is happening.
+ *   4. Ready → the bar completes, the lockup steps back, a pink disc grows
+ *      out of the big node to fill the screen and collapses back into it,
+ *      revealing the first screen — already loaded, not a skeleton.
  *
- * ── The long wait ────────────────────────────────────────────────────────
- * A cold start on a slow connection can hold the splash for 10–20s. Once it
- * has been up LOADER_AFTER ms and the app still isn't ready, a "Getting
- * things ready…" line fades in and the four nodes pulse in turn. A fast launch
- * never sees it. MAX_HOLD hands over to the entry gate regardless.
- *
- * Reduce Motion: the finished mark and wordmark, then a plain fade.
+ * Reduce Motion: the finished lockup and bar, then a plain fade.
  */
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
+  cancelAnimation,
   runOnJS,
-  useAnimatedProps,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withDelay,
-  withRepeat,
   withSequence,
   withTiming,
-  type SharedValue,
 } from 'react-native-reanimated';
-import Svg, { Circle, Line } from 'react-native-svg';
+import { Image } from 'expo-image';
 import { Txt } from '@/components/ui';
+import { LOGO_SOURCE } from './logo';
+import { Wordmark, WORDMARK_EM } from './wordmark';
 
-const PINK = '#ff078e';
-const AnimatedLine = Animated.createAnimatedComponent(Line);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+// Design system v2.
+const LOGO_PINK = '#FF0B8D';
+const PINK_TINT = '#FFE6F3';
+const INK = '#111114';
+const MUTED = '#6E6E79';
 
-// viewBox 430 150 690 720 — see apps/landing/src/components/brand/logo-mark.tsx
-const VB = { x: 430, y: 150, w: 690, h: 720 };
-const RING = { cx: 752, cy: 520, r: 96 };
-const NODES = [
-  { cx: 960, cy: 246, r: 87 },
-  { cx: 525, cy: 396, r: 76 },
-  { cx: 1013, cy: 617, r: 80 },
-  { cx: 566, cy: 774, r: 84 },
-];
-const SPOKES = NODES.map((n) => {
-  const dx = n.cx - RING.cx;
-  const dy = n.cy - RING.cy;
-  const len = Math.hypot(dx, dy);
-  const x1 = RING.cx + (dx / len) * 118;
-  const y1 = RING.cy + (dy / len) * 118;
-  return { x1, y1, x2: n.cx, y2: n.cy, len: Math.hypot(n.cx - x1, n.cy - y1) };
-});
-const RING_LEN = 2 * Math.PI * RING.r;
+/** The native splash's imageWidth (app.json). Must stay in step with it. */
+const NATIVE_MARK = 124;
+/** The mark's size in the finished lockup. */
+const MARK = 58;
+const GAP = 14;
+const WORD_SIZE = 44;
+const WORD_W = WORD_SIZE * WORDMARK_EM.width;
+const WORD_H = WORD_SIZE * WORDMARK_EM.height;
 
-const MARK = 128;
-const MARK_H = MARK * (VB.h / VB.w);
-// The big top-right node, as a fraction of the mark box — where the camera dives.
-const DIVE = { x: (NODES[0].cx - VB.x) / VB.w, y: (NODES[0].cy - VB.y) / VB.h };
+/**
+ * The big top-right node, as a fraction of logo-mark.png (measured from the
+ * artwork: centre ≈ 376,92 of 512, radius ≈ 56). Where the exit dives.
+ */
+const NODE = { x: 0.735, y: 0.18, r: 0.11 };
 
-const HOLD_UNTIL = 1500;
-const LOADER_AFTER = 2400;
+const BAR_W = 168;
+
+/** Earliest the exit may start — long enough to see the lockup form. */
+const HOLD_UNTIL = 1000;
+/** Hand over regardless. The entry gate then shows the same lockup. */
 const MAX_HOLD = 14000;
-
-function Spoke({ i, draw }: { i: number; draw: SharedValue<number> }) {
-  const s = SPOKES[i];
-  const props = useAnimatedProps(() => {
-    const p = Math.min(1, Math.max(0, (draw.value - i * 0.06) / 0.55));
-    return { strokeDashoffset: s.len * (1 - p) };
-  });
-  return (
-    <AnimatedLine
-      x1={s.x1}
-      y1={s.y1}
-      x2={s.x2}
-      y2={s.y2}
-      stroke={PINK}
-      strokeWidth={44}
-      strokeLinecap="round"
-      strokeDasharray={[s.len, s.len]}
-      animatedProps={props}
-    />
-  );
-}
-
-function Node({ i, pop, pulse }: { i: number; pop: SharedValue<number>; pulse: SharedValue<number> }) {
-  const n = NODES[i];
-  const props = useAnimatedProps(() => {
-    const p = Math.min(1, Math.max(0, (pop.value - i * 0.12) / 0.5));
-    // Overshoot a touch, like back.out — nodes land, they don't fade in.
-    const overshoot = p < 1 ? Math.sin(p * Math.PI) * 0.18 : 0;
-    // Long wait: each node takes its turn to swell, clockwise.
-    const turn = (pulse.value * 4 - [0, 3, 1, 2][i] + 4) % 4;
-    const swell = pulse.value > 0 && turn < 1 ? Math.sin(turn * Math.PI) * 0.12 : 0;
-    return { r: n.r * (p + overshoot + swell) };
-  });
-  return <AnimatedCircle cx={n.cx} cy={n.cy} fill={PINK} animatedProps={props} />;
-}
 
 export function BrandSplash({
   canExit,
+  fontsReady,
+  progress,
+  status,
+  onReady,
   onDone,
 }: {
   /** The app is ready. The intro is a floor on time shown, never a ceiling. */
   canExit: boolean;
+  /** Plus Jakarta Sans is registered — nothing with text renders before. */
+  fontsReady: boolean;
+  /** 0–1, the last milestone reached. The bar creeps on between them. */
+  progress: number;
+  /** One short line saying what is happening right now. */
+  status: string;
+  /** The mark has painted — the moment the OS splash can be dropped. */
+  onReady: () => void;
   onDone: () => void;
 }) {
   const reduced = useReducedMotion();
-  const { width, height } = useWindowDimensions();
+  const { width: W, height: H } = useWindowDimensions();
 
-  const draw = useSharedValue(reduced ? 1 : 0);
-  const ring = useSharedValue(reduced ? 1 : 0);
-  const pop = useSharedValue(reduced ? 1 : 0);
-  const word = useSharedValue(reduced ? 1 : 0);
-  const dive = useSharedValue(0);
-  const cover = useSharedValue(0);
+  const lockupW = MARK + GAP + WORD_W;
+  const lockupLeft = (W - lockupW) / 2;
+  // Where the mark's centre ends up, relative to where the OS splash put it.
+  const markDx = lockupLeft + MARK / 2 - W / 2;
+  const markScale = MARK / NATIVE_MARK;
+
+  // The big node's position on screen once the lockup has formed.
+  const nodeX = lockupLeft + NODE.x * MARK;
+  const nodeY = H / 2 - MARK / 2 + NODE.y * MARK;
+  const nodeR = NODE.r * MARK;
+  // A disc centred on the node that reaches the farthest corner.
+  const discR = Math.hypot(Math.max(nodeX, W - nodeX), Math.max(nodeY, H - nodeY)) + 4;
+
+  const form = useSharedValue(reduced ? 1 : 0); // 0 still mark → 1 lockup
+  const chrome = useSharedValue(reduced ? 1 : 0); // bar + status opacity
+  const bar = useSharedValue(0);
+  const statusFade = useSharedValue(1);
+  const back = useSharedValue(0); // lockup steps back on exit
+  const disc = useSharedValue(0); // 0 → 1 the pink grows out of the node
+  const covered = useSharedValue(0);
   const collapse = useSharedValue(0);
   const fade = useSharedValue(1);
-  const loader = useSharedValue(0);
-  const pulse = useSharedValue(0);
 
   const mountedAt = useRef(Date.now());
   const exiting = useRef(false);
+  /** When the lockup finishes forming — the exit never starts before it. */
+  const formedAt = useRef<number | null>(null);
 
+  // 2. Form the lockup once there is a font for the status line under it.
   useEffect(() => {
-    if (reduced) return;
-    const ease = Easing.inOut(Easing.cubic);
-    draw.value = withDelay(120, withTiming(1, { duration: 620, easing: ease }));
-    ring.value = withDelay(150, withTiming(1, { duration: 700, easing: ease }));
-    pop.value = withDelay(420, withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }));
-    word.value = withDelay(720, withTiming(1, { duration: 620, easing: Easing.out(Easing.exp) }));
-  }, [draw, ring, pop, word, reduced]);
+    if (!fontsReady || reduced || formedAt.current !== null) return;
+    const ease = Easing.bezier(0.22, 1, 0.36, 1);
+    formedAt.current = Date.now() + 720;
+    form.value = withDelay(80, withTiming(1, { duration: 640, easing: ease }));
+    chrome.value = withDelay(320, withTiming(1, { duration: 420 }));
+  }, [fontsReady, reduced, form, chrome]);
 
-  // The "still working" affordance — only if not ready by LOADER_AFTER.
+  // 3. The bar: reach the milestone, then keep creeping toward the next one so
+  // a slow step reads as "working", never as "stuck". Never moves backwards.
   useEffect(() => {
-    if (canExit) return;
-    const timer = setTimeout(() => {
-      if (exiting.current) return;
-      loader.value = withTiming(1, { duration: 300 });
-      if (!reduced) pulse.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.linear }), -1);
-    }, LOADER_AFTER);
-    return () => clearTimeout(timer);
-  }, [canExit, loader, pulse, reduced]);
+    if (exiting.current) return;
+    const target = Math.max(progress, bar.value);
+    const creepTo = Math.min(0.94, target + (1 - target) * 0.45);
+    cancelAnimation(bar);
+    bar.value = withSequence(
+      withTiming(target, { duration: 420, easing: Easing.out(Easing.cubic) }),
+      withTiming(creepTo, { duration: 9000, easing: Easing.out(Easing.quad) }),
+    );
+  }, [progress, bar]);
+
+  // Status line: cross-fade rather than snap from one sentence to the next.
+  const [shown, setShown] = useState(status);
+  useEffect(() => {
+    if (status === shown) return;
+    statusFade.value = withTiming(0, { duration: 140 }, (ok) => {
+      if (ok) runOnJS(setShown)(status);
+    });
+  }, [status, shown, statusFade]);
+  useEffect(() => {
+    statusFade.value = withTiming(1, { duration: 200 });
+  }, [shown, statusFade]);
 
   const [forceExit, setForceExit] = useState(false);
   useEffect(() => {
@@ -159,128 +170,237 @@ export function BrandSplash({
     return () => clearTimeout(timer);
   }, []);
 
+  // 4. Exit.
   useEffect(() => {
     if ((!canExit && !forceExit) || exiting.current) return;
+    // The lockup has to have formed (fonts in) before it can step back.
+    if (!fontsReady && !forceExit) return;
     exiting.current = true;
-    const remaining = Math.max(0, (reduced ? 300 : HOLD_UNTIL) - (Date.now() - mountedAt.current));
+    const now = Date.now();
+    const remaining = Math.max(
+      0,
+      (reduced ? 300 : HOLD_UNTIL) - (now - mountedAt.current),
+      reduced ? 0 : (formedAt.current ?? 0) - now,
+    );
     const finish = () => onDone();
 
+    cancelAnimation(bar);
+    bar.value = withDelay(remaining, withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) }));
+
     if (reduced) {
-      fade.value = withDelay(remaining, withTiming(0, { duration: 280 }, (ok) => ok && runOnJS(finish)()));
+      fade.value = withDelay(remaining + 260, withTiming(0, { duration: 260 }, (ok) => ok && runOnJS(finish)()));
       return;
     }
 
-    pulse.value = 0;
-    loader.value = withDelay(remaining, withTiming(0, { duration: 160 }));
-    // Wordmark lifts away, then the camera dives into the pink node.
-    word.value = withDelay(remaining, withTiming(2, { duration: 320, easing: Easing.in(Easing.cubic) }));
-    dive.value = withDelay(
-      remaining + 220,
-      withTiming(1, { duration: 720, easing: Easing.in(Easing.exp) }, (ok) => {
+    const start = remaining + 260;
+    // A forced exit before the lockup ever started forming: form it quickly
+    // now rather than diving out of a still mark.
+    if (formedAt.current === null) {
+      formedAt.current = now;
+      form.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
+    }
+    chrome.value = withDelay(start, withTiming(0, { duration: 180 }));
+    back.value = withDelay(start, withTiming(1, { duration: 420, easing: Easing.in(Easing.cubic) }));
+    disc.value = withDelay(
+      start + 80,
+      withTiming(1, { duration: 460, easing: Easing.in(Easing.cubic) }, (ok) => {
         if (!ok) return;
-        cover.value = 1;
-        collapse.value = withTiming(1, { duration: 620, easing: Easing.inOut(Easing.exp) }, (done) => done && runOnJS(finish)());
+        covered.value = 1;
+        collapse.value = withTiming(1, { duration: 420, easing: Easing.inOut(Easing.cubic) }, (done) => {
+          if (done) runOnJS(finish)();
+        });
       }),
     );
-  }, [canExit, forceExit, reduced, onDone, word, dive, cover, collapse, fade, loader, pulse]);
+  }, [canExit, forceExit, fontsReady, reduced, onDone, bar, fade, form, chrome, back, disc, covered, collapse]);
 
-  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING_LEN * (1 - ring.value) }));
-
-  const markStyle = useAnimatedStyle(() => ({
-    opacity: cover.value ? 0 : 1,
-    transform: [{ scale: 1 + dive.value * 46 }],
-  }));
-  const wordStyle = useAnimatedStyle(() => {
-    const v = word.value;
-    // 0→1 rises in from below; 1→2 lifts out upward.
-    const y = v <= 1 ? (1 - v) * 26 : -(v - 1) * 30;
-    const o = v <= 1 ? v : 2 - v;
-    return { opacity: o, transform: [{ translateY: y }] };
-  });
   const screenStyle = useAnimatedStyle(() => ({
     opacity: fade.value,
-    backgroundColor: cover.value ? 'transparent' : '#ffffff',
+    backgroundColor: covered.value ? 'transparent' : '#ffffff',
   }));
-  const diag = Math.hypot(width, height);
-  const coverStyle = useAnimatedStyle(() => ({
-    opacity: cover.value,
-    transform: [{ scale: 1 - collapse.value }],
-  }));
-  const loaderStyle = useAnimatedStyle(() => ({ opacity: loader.value }));
+
+  const markStyle = useAnimatedStyle(() => {
+    const f = form.value;
+    return {
+      opacity: covered.value ? 0 : 1,
+      transform: [
+        { translateX: markDx * f },
+        { scale: (1 - (1 - markScale) * f) * (1 + back.value * 0.12) },
+      ],
+    };
+  });
+
+  const wordStyle = useAnimatedStyle(() => {
+    // The wordmark slides out from behind the mark, a beat after it moves.
+    const p = Math.min(1, Math.max(0, (form.value - 0.25) / 0.75));
+    return {
+      opacity: covered.value ? 0 : p * (1 - back.value),
+      transform: [{ translateX: (1 - p) * -18 }],
+    };
+  });
+
+  const chromeStyle = useAnimatedStyle(() => ({ opacity: covered.value ? 0 : chrome.value }));
+  const barFill = useAnimatedStyle(() => ({ width: BAR_W * bar.value }));
+  const statusStyle = useAnimatedStyle(() => ({ opacity: statusFade.value }));
+
+  const discStyle = useAnimatedStyle(() => {
+    const grow = nodeR / discR + (1 - nodeR / discR) * disc.value;
+    return {
+      opacity: disc.value > 0 ? 1 : 0,
+      transform: [{ scale: grow * (1 - collapse.value) }],
+    };
+  });
 
   return (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.screen, screenStyle]}>
-      <View style={styles.stack}>
-        <Animated.View
-          style={[
-            { width: MARK, height: MARK_H, transformOrigin: [MARK * DIVE.x, MARK_H * DIVE.y, 0] },
-            markStyle,
-          ]}
-        >
-          <Svg width={MARK} height={MARK_H} viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`} accessibilityLabel="influnet">
-            {SPOKES.map((_, i) => (
-              <Spoke key={i} i={i} draw={draw} />
-            ))}
-            {NODES.map((_, i) => (
-              <Node key={i} i={i} pop={pop} pulse={pulse} />
-            ))}
-            <AnimatedCircle
-              cx={RING.cx}
-              cy={RING.cy}
-              r={RING.r}
-              fill="none"
-              stroke={PINK}
-              strokeWidth={44}
-              strokeDasharray={[RING_LEN, RING_LEN]}
-              animatedProps={ringProps}
-            />
-          </Svg>
-        </Animated.View>
-
-        <Animated.View style={wordStyle}>
-          <Txt style={{ fontSize: 40, lineHeight: 46, fontWeight: '700', letterSpacing: -1, color: '#111114' }}>influnet</Txt>
-        </Animated.View>
-      </View>
-
-      {/* The dive ends with the screen fully pink; this circle then shrinks to
-          a point and the first screen is revealed around it. */}
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, screenStyle]}>
+      {/* The mark: starts exactly where the OS splash drew it. */}
       <Animated.View
         style={[
           {
             position: 'absolute',
-            width: diag,
-            height: diag,
-            borderRadius: diag / 2,
-            left: (width - diag) / 2,
-            top: (height - diag) / 2,
-            backgroundColor: PINK,
+            left: W / 2 - NATIVE_MARK / 2,
+            top: H / 2 - NATIVE_MARK / 2,
+            width: NATIVE_MARK,
+            height: NATIVE_MARK,
           },
-          coverStyle,
+          markStyle,
+        ]}
+      >
+        <Image
+          source={LOGO_SOURCE}
+          style={{ width: NATIVE_MARK, height: NATIVE_MARK }}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          transition={0}
+          accessibilityLabel="influnet"
+          onDisplay={onReady}
+          onError={onReady}
+        />
+      </Animated.View>
+
+      {/* Wordmark. Hidden (opacity 0) until the lockup forms. */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            left: lockupLeft + MARK + GAP,
+            top: H / 2 - WORD_H / 2,
+          },
+          wordStyle,
+        ]}
+      >
+        <Wordmark size={WORD_SIZE} color={INK} />
+      </Animated.View>
+
+      {/* Progress + status. Same reasoning: text only once the face is in. */}
+      {fontsReady ? (
+        <Animated.View
+          style={[{ position: 'absolute', left: 0, right: 0, top: H / 2 + 64, alignItems: 'center', gap: 14 }, chromeStyle]}
+          accessibilityRole="progressbar"
+          accessibilityLabel={shown}
+        >
+          <View style={styles.track}>
+            <Animated.View style={[styles.fill, barFill]} />
+          </View>
+          <Animated.View style={statusStyle}>
+            <Txt style={{ fontSize: 13.5, lineHeight: 18, fontWeight: '500', color: MUTED, letterSpacing: 0.1 }}>
+              {shown}
+            </Txt>
+          </Animated.View>
+        </Animated.View>
+      ) : null}
+
+      {/* Exit: grows out of the big node until the screen is pink, then
+          collapses back into it with the first screen revealed around it. */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            left: nodeX - discR,
+            top: nodeY - discR,
+            width: discR * 2,
+            height: discR * 2,
+            borderRadius: discR,
+            backgroundColor: LOGO_PINK,
+          },
+          discStyle,
         ]}
       />
-
-      <Animated.View style={[styles.loader, loaderStyle]}>
-        <Txt variant="footnote" tone="muted" style={{ letterSpacing: 0.2 }}>
-          Getting things ready…
-        </Txt>
-      </Animated.View>
     </Animated.View>
   );
 }
 
+/**
+ * The resting state of the splash, static: lockup, an indeterminate bar and a
+ * status line. For the rare wait AFTER the splash has handed over (account
+ * switch, repairing a half-finished signup, the 14s safety exit), so that
+ * reads as the same loading screen continuing — not a second, different one
+ * with a bare system spinner.
+ */
+export function BootScreen({ status }: { status: string }) {
+  const reduced = useReducedMotion();
+  const { height: H } = useWindowDimensions();
+  // Laid out against its own box rather than flex-centred, so the lockup and
+  // bar sit exactly where the splash left them.
+  const [h, setH] = useState(H);
+  const sweep = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduced) return;
+    const loop = () => {
+      sweep.value = 0;
+      sweep.value = withTiming(1, { duration: 1300, easing: Easing.inOut(Easing.cubic) }, (ok) => {
+        if (ok) runOnJS(loop)();
+      });
+    };
+    loop();
+    return () => cancelAnimation(sweep);
+  }, [reduced, sweep]);
+
+  const SEG = BAR_W * 0.38;
+  const segStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -SEG + sweep.value * (BAR_W + SEG) }],
+  }));
+
+  return (
+    <View
+      style={styles.boot}
+      onLayout={(e) => setH(e.nativeEvent.layout.height)}
+      accessibilityRole="progressbar"
+      accessibilityLabel={status}
+    >
+      <View style={{ position: 'absolute', left: 0, right: 0, top: h / 2 - MARK / 2, height: MARK, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: GAP }}>
+        <Image source={LOGO_SOURCE} style={{ width: MARK, height: MARK }} contentFit="contain" cachePolicy="memory-disk" transition={0} />
+        <Wordmark size={WORD_SIZE} color={INK} />
+      </View>
+      <View style={{ position: 'absolute', left: 0, right: 0, top: h / 2 + 64, alignItems: 'center', gap: 14 }}>
+        <View style={styles.track}>
+          {reduced ? (
+            <View style={[styles.fill, { width: BAR_W * 0.5 }]} />
+          ) : (
+            <Animated.View style={[styles.fill, { width: SEG }, segStyle]} />
+          )}
+        </View>
+        <Txt style={{ fontSize: 13.5, lineHeight: 18, fontWeight: '500', color: MUTED, letterSpacing: 0.1 }}>{status}</Txt>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  track: {
+    width: BAR_W,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: PINK_TINT,
+    overflow: 'hidden',
   },
-  stack: {
-    alignItems: 'center',
-    gap: 18,
-    marginBottom: 40,
+  fill: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: LOGO_PINK,
   },
-  loader: {
-    position: 'absolute',
-    bottom: 96,
-    alignItems: 'center',
+  boot: {
+    flex: 1,
+    backgroundColor: '#ffffff',
   },
 });

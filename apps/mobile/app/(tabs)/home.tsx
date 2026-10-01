@@ -98,6 +98,7 @@ import { useSession } from '@/lib/session';
 import { endpoints } from '@/lib/api';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { useFetch } from '@/lib/use-fetch';
+import { HOME_CACHE_KEY, loadHomeData } from '@/lib/home-data';
 import {
   formatCount,
   formatCurrency,
@@ -116,6 +117,7 @@ import {
 import { HomeMilestoneCard } from '@/components/home-milestone-card';
 import { HomeCampaignsRail, type RailCampaign } from '@/components/home-campaigns-rail';
 import { ApprovalBanner } from '@/components/approval-banner';
+import { HomeSkeleton } from '@/components/home-skeleton';
 import { PlatformMark, platformColor, platformLabel } from '@/components/platform-mark';
 import { PipelineStrip, type PipelineStep } from '@/components/pipeline-strip';
 import { ReviewQueue, type ReviewItem } from '@/components/review-queue';
@@ -137,7 +139,6 @@ import {
   Screen,
   ScreenScroll,
   SectionLabel,
-  SkeletonCard,
   StatCard,
   StatGrid,
   Txt,
@@ -381,51 +382,11 @@ export default function HomeScreen() {
   const unreadMessages = useNotificationSummary((s) => s.summary?.unread_messages_count ?? 0);
 
 
-  /**
-   * Home first, then the dashboard its `role` selects. Sequential rather than
-   * parallel on purpose: the session store may not have loaded a role yet on a
-   * cold start, and picking the endpoint off the response is always right where
-   * picking it off local state is a race.
-   */
-  const { data, error, loading, refreshing, refresh } = useFetch<HomeData>(async () => {
-    const home = await endpoints.home<HomePayload>();
-    if (!home.ok || !home.data) {
-      return { ok: false, status: home.status, error: home.error, data: null };
-    }
-
-    const creator = home.data.role === 'influencer';
-
-    /**
-     * Both follow-ups in parallel — they depend on `role`, not on each other.
-     *
-     * The campaign query differs by side and that is the whole point of it: a
-     * creator wants the open board (work they can apply for), while a brand
-     * wants THEIR campaigns (work they are running). Showing a brand other
-     * brands' listings on their own home screen is a competitor feed, not a
-     * feature.
-     */
-    const [dashboard, campaigns] = await Promise.all([
-      creator
-        ? endpoints.influencerDashboard<DashboardPayload>('month')
-        : endpoints.businessDashboard<DashboardPayload>('month'),
-      endpoints.campaigns<{ campaigns: RailCampaign[] }>(creator ? undefined : { mine: true }),
-    ]);
-
-    // A failed dashboard costs the charts; a failed campaign list costs the
-    // rail. Neither costs the screen.
-    return {
-      ok: true,
-      status: home.status,
-      error: null,
-      data: {
-        home: home.data,
-        dashboard: dashboard.ok ? dashboard.data : null,
-        // `{campaigns}` — this route's own envelope, not a shared one. See the
-        // envelope note in AGENTS.md.
-        campaigns: campaigns.ok ? (campaigns.data?.campaigns ?? []) : null,
-      },
-    };
-  }, { cacheKey: 'home' });
+  // Usually already in the cache: the launch screen loads Home while the logo
+  // is up (lib/home-data.ts), so this paints on mount instead of a skeleton.
+  const { data, error, loading, refreshing, refresh } = useFetch<HomeData>(loadHomeData, {
+    cacheKey: HOME_CACHE_KEY,
+  });
 
   const home = data?.home;
   const dashboard = data?.dashboard;
@@ -684,10 +645,7 @@ export default function HomeScreen() {
 
       <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
         {loading ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
+          <HomeSkeleton />
         ) : error ? (
           <ErrorState message={error} onRetry={refresh} />
         ) : (
