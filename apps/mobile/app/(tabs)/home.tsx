@@ -162,6 +162,11 @@ interface OngoingProject {
   next_action: string;
   /** Days since anything happened on this project. */
   idle_days: number;
+  /**
+   * The current stage's sign-off state; null on a stage that leaves by another
+   * exit. Absent on an older backend, which falls back to the stage kind.
+   */
+  signoff?: { mine_at: string | null; theirs_at: string | null } | null;
 }
 
 /**
@@ -754,9 +759,14 @@ export default function HomeScreen() {
                       // Sign off right here when that's all the step is. Payment
                       // stages open only from the signed Razorpay webhook, so
                       // they always go through the project.
+                      theirSignoffAt={top.signoff?.theirs_at ?? null}
                       onSignOff={
                         isMutualSignoffStage(top.current_stage, flowOf(top)) &&
-                        !['advance_payment', 'final_payment', 'quick_payment'].includes(top.current_stage)
+                        !['advance_payment', 'final_payment', 'quick_payment'].includes(top.current_stage) &&
+                        // Already signed (both sides, stuck un-advanced): the
+                        // project's own screen is what moves it on, not a
+                        // second sign-off the server would refuse.
+                        !top.signoff?.mine_at
                           ? async () => {
                               const res = await endpoints.updateProject(top.id, {
                                 action: 'signoff',

@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
+import { timeAgo } from '@/lib/format';
 import { SlideToConfirm, Txt } from '@/components/ui';
 
 export function YourMoveHero({
@@ -23,6 +24,7 @@ export function YourMoveHero({
   more,
   onPress,
   onSignOff,
+  theirSignoffAt,
 }: {
   action: string;
   title: string;
@@ -40,6 +42,8 @@ export function YourMoveHero({
    * comes back here as text rather than the slide silently doing nothing.
    */
   onSignOff?: () => Promise<string | null>;
+  /** When the partner signed this stage, if they have — "Arjun signed 2h ago". */
+  theirSignoffAt?: string | null;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,6 +105,14 @@ export function YourMoveHero({
         </View>
 
         <Txt style={{ color: '#fff', fontSize: 27, lineHeight: 31, fontWeight: '800', letterSpacing: -0.9 }}>{action}</Txt>
+
+        {/* The design's social proof: the other side has already put their name
+            to this stage, so the slider is the last thing it needs. */}
+        {onSignOff && theirSignoffAt ? (
+          <Txt style={{ color: 'rgba(255,255,255,0.95)', fontSize: 13.5, fontWeight: '600' }}>
+            {`${partner.split(/\s+/)[0] || partner} signed ${timeAgo(theirSignoffAt)} — your turn`}
+          </Txt>
+        ) : null}
 
         {onSignOff ? (
           <View style={{ gap: 10 }}>

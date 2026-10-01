@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
-import { projectTurn, STAGE_PHASES, phaseOf, flowOf, participantView } from '@influnet/core';
+import {
+  projectTurn,
+  STAGE_PHASES,
+  phaseOf,
+  flowOf,
+  participantView,
+  isMutualSignoffStage,
+  stageSignoffAt,
+} from '@influnet/core';
 import { withAuth, jsonError } from '@/lib/api';
 import { settleAll } from '@/lib/settle';
 import { enforceRateLimit } from '@/lib/rate-limit';
@@ -299,6 +307,20 @@ export async function GET(req: Request) {
         my_side: side,
         turn,
         next_action: action,
+        // The current stage's sign-off state, so Home can offer slide-to-sign-off
+        // on the project itself instead of a tap into it. Null on a stage that
+        // leaves by another exit (review fork, revisions, completion) — those
+        // keep their own controls inside the project.
+        signoff: isMutualSignoffStage(p.current_stage, flow)
+          ? {
+              mine_at: stageSignoffAt(p.stage_progress, p.current_stage, side),
+              theirs_at: stageSignoffAt(
+                p.stage_progress,
+                p.current_stage,
+                side === 'business' ? 'creator' : 'business',
+              ),
+            }
+          : null,
         // Days since anything happened on this project. The single most useful
         // number for "what should I chase today" — a stage nobody has touched
         // in a fortnight is the thing quietly killing a collaboration.
