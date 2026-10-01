@@ -25,9 +25,9 @@
   --night-2: #1e1a24;
   --night-soft: #c9c1d1;
   --night-line: #2e2836;
-  --display: var(--pf-display), 'Bricolage Grotesque', system-ui, sans-serif;
-  --sans: var(--pf-sans), 'Instrument Sans', system-ui, sans-serif;
-  --mono: var(--pf-mono), 'Spline Sans Mono', ui-monospace, monospace;
+  --display: var(--pf-display), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --sans: var(--pf-display), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --mono: var(--pf-display), 'Plus Jakarta Sans', system-ui, sans-serif;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   background: var(--paper);
