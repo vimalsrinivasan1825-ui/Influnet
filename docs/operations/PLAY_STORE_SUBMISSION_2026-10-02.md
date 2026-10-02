@@ -16,7 +16,7 @@ from memory. Where a question is a business decision it says so.
 | 1 | Merge PR #78 (`dev` → `staging`) — published legal text live on staging.influnet.io. | ✅ done 2026-10-02 |
 | 2 | Staging deploy + production OTA green; `/legal/privacy` has no draft markers. | ✅ done |
 | 3 | Mail for `influnet.io`: the domain has **no MX record**, so `support@influnet.io` and `grievance@influnet.io` (named in the privacy policy, and your Play contact) bounce. Cloudflare → Email → Email Routing → forward both to a real inbox. | ❌ you |
-| 4 | Reviewer account (§3). Phone OTP is on for signup, so it must be created through the app with a phone that receives the SMS. | ❌ you |
+| 4 | Reviewer accounts (§3) — SMS step off for ten minutes, two test numbers, back on. | ❌ you |
 | 5 | Upload `4621c358`'s `.aab` (finished) to a **Production** release. | ❌ you |
 
 ---
