@@ -16,9 +16,12 @@
     "check:push": "node scripts/check-push-tokens.mjs"
   },
   "devDependencies": {
-    "expo": "~57.0.7",
+    "expo": "~57.0.26",
     "expo-router": "~57.0.7",
     "playwright": "^1.62.0",
     "turbo": "^2.5.0"
+  },
+  "overrides": {
+    "react-native-worklets": "0.10.2"
   }
 }
