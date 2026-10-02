@@ -37,7 +37,9 @@ AS $$
       || COALESCE(' from ' || NULLIF(btrim(b.city), ''), '')
     WHEN p.role = 'influencer' THEN
       'A '
-      || COALESCE(NULLIF(btrim(i.niche[1]), '') || ' ', '')
+      -- niche is jsonb in the database (the generated TS type says string[]);
+      -- to_jsonb() reads the first entry as text whichever it is.
+      || COALESCE(NULLIF(btrim(to_jsonb(i.niche) ->> 0), '') || ' ', '')
       || 'creator'
       || COALESCE(' from ' || NULLIF(btrim(i.city), ''), '')
     ELSE 'Someone'
