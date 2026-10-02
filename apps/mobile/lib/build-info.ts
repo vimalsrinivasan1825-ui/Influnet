@@ -14,7 +14,7 @@ import { requireOptionalNativeModule } from 'expo';
  * The Update ID and OTA date shown beside it come from expo-updates at runtime
  * and need no maintenance.
  */
-export const LAST_COMMIT_TIME = '2026-10-02T07:14:39Z';
+export const LAST_COMMIT_TIME = '2026-10-02T08:03:14Z';
 
 /**
  * The INSTALLED binary's version and build number, e.g. "1.0.0 (8)", asked of

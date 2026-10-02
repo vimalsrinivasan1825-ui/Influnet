@@ -33,9 +33,14 @@ in-app (Settings → Delete account) and on the web:
 **Shared with third parties:** **None.** Every outside company we send data to
 acts on our behalf as a service provider (Supabase — database/auth, Microsoft
 Azure — hosting, Stream — chat, Resend — email, Razorpay — payments, Expo —
-push delivery), which Google does not count as "sharing". We don't sell data
-and the app has no ads or analytics SDKs (production build has no Sentry/PostHog
-keys).
+push delivery, Sentry — crash reports, PostHog — product analytics), which
+Google does not count as "sharing". We don't sell data and the app has no ads.
+
+> **Changed 2026-10-02 — update the live form.** Sentry crash reporting and
+> PostHog analytics were switched on for production (`eas.json` + the production
+> OTA job). The form you sent with build 8 said "no crash logs / diagnostics".
+> Edit Data safety in Play Console to match the table below **before merging
+> `dev` → `staging`**, because that merge is what delivers the keys to installed phones.
 
 ### Collected data types
 
@@ -53,17 +58,16 @@ For every row: **Collected = Yes · Shared = No · Processed ephemerally = No.**
 | Financial info → **Purchase history** (project payment records and invoices; card/UPI details go to Razorpay, never to us) | Optional | App functionality |
 | Messages → **Other in-app messages** (chat with brands/creators) | Optional | App functionality |
 | Photos and videos → **Photos** (profile picture/logo, portfolio images) | Optional | App functionality |
-| App activity → **App interactions** (profile views are recorded and shown to the creator viewed) | Optional | App functionality |
+| App activity → **App interactions** (profile views shown to the creator viewed; screens and funnel steps sent to PostHog) | Required | App functionality, Analytics |
 | App activity → **Other user-generated content** (campaign briefs, requests, reviews, portfolio entries) | Optional | App functionality |
 | Device or other IDs → **Device or other IDs** (push-notification token) | Optional | App functionality |
+| App info and performance → **Crash logs** (JS errors sent to Sentry) | Required | Analytics |
+| App info and performance → **Diagnostics** (error context: app version, OS) | Required | Analytics |
 
 Not collected: precise location, contacts, calendar, health, files/docs beyond
-what a user attaches in a project, audio, web browsing, installed apps, crash
-logs/diagnostics (none configured in production), advertising ID.
-
-> If you later add `EXPO_PUBLIC_SENTRY_DSN` / `EXPO_PUBLIC_POSTHOG_KEY` to the
-> EAS `production` environment, add **Crash logs**, **Diagnostics** and **App
-> interactions → Analytics** here before the update ships.
+what a user attaches in a project, audio, web browsing, installed apps,
+advertising ID. Analytics events are sent only after sign-in, under the user's
+own id. No anonymous device identifier is created.
 
 ---
 

@@ -54,6 +54,10 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://aokdansyqxracuwsosji.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_ihsN1x749RpcTUckCMEV0Q_wZNrjiBZ",
         "EXPO_PUBLIC_STREAM_API_KEY": "5z6hhrgmrdj9",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://b0815eae6e722ca60bda801192080857@o4511831305355264.ingest.de.sentry.io/4512090752483408",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_rE4q6gQga73C4NkA7dzvxhvv6ywPUHgAkjSnesfZoNy3",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://eu.i.posthog.com",
+        "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_HIDE_PRO_PURCHASE": "1"
       },
       "android": {

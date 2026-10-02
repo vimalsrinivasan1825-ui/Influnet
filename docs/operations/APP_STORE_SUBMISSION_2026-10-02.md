@@ -23,7 +23,7 @@ is in [APP_STORE_READINESS_2026-09-17.md](APP_STORE_READINESS_2026-09-17.md).
 | Pro purchase hidden (3.1.1) | ✅ `EXPO_PUBLIC_HIDE_PRO_PURCHASE=1` in the profile and in the production OTA job. |
 | **A build of today's code** | ❌ Build 7 predates the redesign, glass tab bar and new font. Needs a fresh production build (§1). |
 | **App Store Connect record** | ❓ you — create it if it doesn't exist (§2). |
-| Crash reporting | ⚠️ EAS `production` env has no `EXPO_PUBLIC_SENTRY_DSN`. Not a blocker; review-time crashes just won't be visible. |
+| Crash reporting + analytics | ✅ Sentry + PostHog keys in the production profile and the production OTA job (2026-10-02), same projects as the website. Declared in §3. |
 | `support@influnet.io` mail | ⚠️ same as Play §0.3 — the domain has no MX record. Use `influnet@tecstellar.com` as the support contact until it's fixed. |
 
 ---
@@ -97,12 +97,15 @@ Every type below is **linked to the user's identity**.
 | User Content → Other User Content (bio, briefs, reviews, portfolio) | App Functionality |
 | Identifiers → User ID | App Functionality |
 | Purchases → Purchase History (project payments, invoices) | App Functionality |
-| Usage Data → Product Interaction (profile views shown to the creator viewed) | App Functionality |
+| Usage Data → Product Interaction (profile views; screens and funnel steps to PostHog) | App Functionality, Analytics |
+| Diagnostics → Crash Data (JS errors to Sentry) | App Functionality |
+| Diagnostics → Other Diagnostic Data (app version, OS on an error) | App Functionality |
 
 Not collected: precise location, contacts, health, financial info (card/UPI go
-to Razorpay), browsing history, search history, diagnostics. **If you add
-Sentry or PostHog keys later, add Diagnostics → Crash Data / Usage Data →
-Product Interaction (Analytics) before that build ships.**
+to Razorpay), browsing history, search history, device ID. PostHog and Sentry
+are first-party analytics we run for ourselves. Nothing is combined with other
+companies' data or used for ads, so none of it counts as **tracking**, and the
+app needs no App Tracking Transparency prompt.
 
 ---
 
