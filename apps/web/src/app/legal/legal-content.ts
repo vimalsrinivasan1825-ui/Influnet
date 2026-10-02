@@ -1,24 +1,20 @@
 /**
  * The legal pages' content, in one file.
  *
- * ── Read this before publishing ──────────────────────────────────────────
- * Every `[[ ... ]]` marker below is a fact only the business owner knows, and
- * the pages REFUSE TO RENDER as published while any of them remain — see
- * `unresolved()` and how `app/legal/[slug]/page.tsx` uses it. That is
- * deliberate: a policy page carrying "[[LEGAL ENTITY NAME]]" in production is
- * worse than no page at all, because Razorpay's reviewer and a user reading it
- * draw the same conclusion about how seriously this is taken.
+ * ── Where the text comes from ────────────────────────────────────────────
+ * Terms, Privacy and Refunds are the PUBLISHED text from the landing site
+ * (apps/landing/src/lib/legal-data.ts → influnet.io/terms, /privacy, /refunds),
+ * copied verbatim so the app, the dashboard and the store listings all show
+ * one binding text. tests/unit/legal-content.test.ts fails if the two drift —
+ * change the landing file first, then copy it here.
  *
- * ── What this is and is not ─────────────────────────────────────────────
- * This is a structured starting point that covers what Razorpay's merchant
- * onboarding actually checks for and what India's Consumer Protection
- * (E-Commerce) Rules 2020 require — notably a named grievance officer with a
- * response window, which is a legal obligation rather than a nicety.
+ * Contact is ours alone (the landing site has no contact page) and uses only
+ * facts the published text already states.
  *
- * It is NOT legal advice and has not been reviewed by a lawyer. The clauses
- * that decide real money — refund eligibility, the platform's liability, who
- * owns delivered content — are business decisions. Have them reviewed before
- * you take a rupee from a stranger.
+ * ── The placeholder guard stays ─────────────────────────────────────────
+ * `unresolved()` still scans for `[[ ... ]]` markers and the page shows a
+ * draft banner + noindex while any remain, so an unfinished edit can never
+ * look published.
  */
 
 export interface LegalSection {
@@ -36,289 +32,205 @@ export interface LegalDoc {
   sections: LegalSection[];
 }
 
-/** Facts only the business owner can supply. */
-export const PLACEHOLDERS = {
-  entity: '[[LEGAL ENTITY NAME]]',
-  address: '[[REGISTERED ADDRESS]]',
-  email: '[[SUPPORT EMAIL]]',
-  grievanceName: '[[GRIEVANCE OFFICER NAME]]',
-  grievanceEmail: '[[GRIEVANCE OFFICER EMAIL]]',
-  jurisdiction: '[[CITY]], India',
-  gst: '[[GSTIN, or delete this line if not registered]]',
-} as const;
-
-const E = PLACEHOLDERS;
-
-export const LEGAL_DOCS: LegalDoc[] = [
-  {
+const PUBLISHED: Record<'terms' | 'privacy' | 'refunds', LegalDoc> = {
+  terms: {
     slug: 'terms',
     title: 'Terms of Service',
-    summary: 'The agreement between you and Influnet when you use the platform.',
-    updated: '[[DATE PUBLISHED]]',
+    summary: 'The legal agreement governing your use of the Influnet platform, collaboration workflows, and payment milestones.',
+    updated: 'September 2026',
     sections: [
       {
-        heading: 'Who we are',
+        heading: '1. Introduction & Overview',
         body: [
-          `Influnet is operated by ${E.entity}, registered at ${E.address}. ${E.gst}. Contact us at ${E.email}.`,
-          'Influnet is a marketplace that connects brands with content creators. We provide the platform on which you find each other, agree terms, track work through its stages, and settle payment.',
+          'Welcome to Influnet ("Platform", "we", "our", or "us"). By creating an account, connecting social profiles, or interacting with collaboration requests on Influnet, you agree to comply with and be bound by these Terms of Service.',
+          'Influnet is a specialized collaboration and deal-management platform matching verified social media creators with businesses and brands. We provide the infrastructure for discovery, brief negotiations, stage-gated collaboration workflows, and verified milestone payments.',
         ],
       },
       {
-        heading: 'What we are not',
+        heading: '2. Nature of Platform & Scope of Agency',
         body: [
-          'We are not a party to the agreement between a brand and a creator. The scope of work, the deliverables, the deadlines and the fee are agreed between the two of you, and the resulting contract is yours, not ours.',
-          'We do not employ creators, and we do not guarantee the quality, legality or timeliness of anything a creator delivers or anything a brand asks for.',
-          'We do not guarantee that any campaign will produce any particular commercial result.',
+          'Influnet acts as a technology platform connecting independent creators and brands. We are not an employer, talent agency, or advertising broker. The specific deliverables, creative briefs, revision limits, usage rights, and fee structures are negotiated directly between the creator and the brand.',
+          'While we enforce bilateral consent and milestone payment gates through our platform tools, Influnet is not a direct signatory to the collaboration contract between parties, and we do not guarantee specific marketing metrics, sales conversions, or organic algorithmic reach from any campaign.',
         ],
       },
       {
-        heading: 'Your account',
+        heading: '3. Eligibility, Accounts & Verification',
         body: [
-          'You must be at least 18 years old and able to enter a binding contract.',
-          'You are responsible for everything done through your account and for keeping your credentials secure. Tell us promptly at ' + E.email + ' if you believe someone else has access.',
-          'One person or business, one account. Accounts may not be sold or transferred.',
-          'We verify creator ownership of social accounts through a one-time code. Misrepresenting who you are, or claiming an account you do not control, is grounds for immediate removal.',
+          'Users must be at least 18 years of age or possess legal parental/guardian consent where permitted by applicable local laws to enter into binding agreements.',
+          'You agree to provide authentic, accurate, and current information during registration. Creator account ownership is verified through an automated bio-token verification handshake. Falsifying account metrics, purchasing bot engagement, or impersonating individuals or brands is strictly prohibited and constitutes grounds for immediate account termination.',
+          'You are solely responsible for maintaining the confidentiality of your credentials and all activities occurring under your account.',
         ],
       },
       {
-        heading: 'Projects, stages and sign-off',
+        heading: '4. Collaboration Workflow & Stage Gating',
         body: [
-          'Work moves through defined stages. Most stages require BOTH parties to sign off before the project moves on — that is the mechanism that protects each of you from the other declaring something finished unilaterally.',
-          'Payment stages open only when a payment is actually confirmed by our payment provider. Neither party, and no member of our staff, can tick them by hand.',
-          'If a project stalls, either party may raise it with us at ' + E.email + '. We can mediate, but we cannot compel either of you to perform.',
+          'Influnet enforces structured project milestones through our stage machine. Key stages require bilateral sign-off (both brand and creator mutual approval) before a project advances.',
+          'Advance and final payment gates open exclusively upon cryptographic confirmation from our authorized payment gateway (Razorpay). Project progress cannot be manually bypassed by either counterparty without verified payment clearance.',
         ],
       },
       {
-        heading: 'Fees and payment',
+        heading: '5. Fees, Invoices & Milestone Payments',
         body: [
-          'Campaign payments are made through our payment provider, Razorpay. Amounts are calculated from the terms the two parties agreed and are never taken from the browser.',
-          '[[DRAFT — REVIEW BEFORE PUBLISHING: Influnet charges a platform fee of 10% of the campaign value, deducted from the amount released to the creator at final payment. The brand pays the agreed campaign amount in full; no additional fee is added on top.]]',
-          '[[DRAFT — REVIEW BEFORE PUBLISHING: A creator is paid out once both parties confirm completion of the final stage. Funds are released to the creator’s registered payout method within 5–7 business days of confirmation.]]',
-          'Subscription plans, where offered, are billed in advance and described at the point of purchase.',
+          'Payments for campaigns and deliverables are processed securely through certified payment partner APIs. The agreed split, advance percentages, and final balances are locked upon mutual acceptance of the collaboration terms.',
+          'GST-compliant invoices and tax receipts are generated for completed commercial milestones where applicable based on the business entity information provided.',
         ],
       },
       {
-        heading: 'Content and ownership',
+        heading: '6. Content Licensing & Intellectual Property Rights',
         body: [
-          '[[DRAFT — REVIEW BEFORE PUBLISHING: The creator retains copyright in the content they deliver. On confirmation of final payment, the creator grants the brand a non-exclusive, worldwide licence to use, reproduce and distribute the delivered content for the purposes agreed in the campaign brief (including paid promotion of that content), for 12 months from delivery unless the two parties agree a longer term in the brief. Any use beyond what was agreed — a different campaign, a different brand, or use after the licence period — requires the creator’s separate consent.]]',
-          'You keep ownership of what you upload to your own profile. You grant us a limited licence to display it on the platform for the purpose of operating it.',
-          'Creators must disclose paid partnerships as the law and the relevant platform require. That obligation is yours, not ours.',
+          'Unless expressly amended in writing within the project brief terms, creators retain underlying copyright in the original content they produce. Upon confirmation of final payment, creators grant the commissioning brand a non-exclusive, worldwide license to display and distribute the approved deliverables for the duration and media channels stipulated in the project agreement.',
+          'Creators warrant that their content is original, does not infringe third-party intellectual property or privacy rights, and complies with applicable advertising standards and mandatory sponsored-content disclosure regulations (e.g. ASCI guidelines).',
         ],
       },
       {
-        heading: 'What is not allowed',
+        heading: '7. Prohibited Conduct',
         body: [
-          'Misrepresenting your identity, audience or engagement, including buying followers or engagement.',
-          'Taking a conversation off-platform in order to avoid fees, where fees apply.',
-          'Harassment, discrimination, or any unlawful content.',
-          'Attempting to access another account, probe our systems, or bypass rate limits and other protections.',
+          'Users agree not to: (a) engage in fraudulent activities, harassment, hate speech, or defamatory conduct; (b) reverse engineer, scrape, or probe vulnerabilities in the Influnet infrastructure; (c) attempt to circumvent platform escrow gates or take conversations off-platform to evade agreed terms; or (d) violate any applicable local, state, national, or international laws.',
         ],
       },
       {
-        heading: 'Suspension',
+        heading: '8. Termination & Suspension',
         body: [
-          'We may suspend or remove an account that breaches these terms. Where we reasonably can, we will say why and give you an opportunity to respond.',
-          'You may close your account at any time. Closing it does not cancel obligations you have already taken on toward another user.',
+          'We reserve the right to suspend or terminate accounts that breach these Terms, misrepresent social credentials, or fail stage-machine payment commitments. You may delete your account at any time through account settings, provided all active, funded collaboration commitments have reached formal completion or mutual cancellation.',
         ],
       },
       {
-        heading: 'Liability',
+        heading: '9. Limitation of Liability & Governing Law',
         body: [
-          'The platform is provided as-is. We do not warrant that it will be uninterrupted or error-free.',
-          '[[DRAFT — REVIEW BEFORE PUBLISHING (have a lawyer confirm this fits your actual exposure): to the fullest extent permitted by law, our total liability to you arising out of or relating to your use of Influnet is limited to the platform fees we received from you in the twelve months before the claim arose.]]',
-          'Nothing here limits liability that cannot lawfully be limited.',
-        ],
-      },
-      {
-        heading: 'Governing law',
-        body: [
-          `These terms are governed by the laws of India, and the courts at ${E.jurisdiction} have exclusive jurisdiction.`,
-        ],
-      },
-      {
-        heading: 'Changes',
-        body: [
-          'We may update these terms. Material changes will be notified in the app or by email before they take effect. Continuing to use Influnet after that means you accept the updated terms.',
+          'Influnet is provided on an "as-is" and "as-available" basis without warranties of any kind. To the maximum extent permitted by applicable law, our aggregate liability for claims arising out of your use of the Platform is strictly limited to the platform service fees collected in relation to the relevant project.',
+          'These Terms are governed by and construed in accordance with the laws of India. Any disputes arising hereunder shall be subject to the exclusive jurisdiction of the competent courts in India.',
         ],
       },
     ],
   },
 
-  {
+  privacy: {
     slug: 'privacy',
     title: 'Privacy Policy',
-    summary: 'What we collect, why, who else sees it, and what you can ask us to do.',
-    updated: '[[DATE PUBLISHED]]',
+    summary: 'How Influnet collects, stores, protects, and handles your personal and professional profile information.',
+    updated: 'September 2026',
     sections: [
       {
-        heading: 'Who controls your data',
+        heading: '1. Information We Collect',
         body: [
-          `${E.entity}, at ${E.address}, is the data controller. Write to ${E.email} with any question about this policy.`,
+          'Account & Identity Data: When you register, we collect your name, email address, contact telephone number (for SMS/WhatsApp OTP verification), and account role (creator or brand representative). Passwords are encrypted using irreversible salted cryptographic hashes.',
+          'Public Social Media Data: When creators connect their channels (such as Instagram, YouTube, X, Facebook), we ingest only public metrics: handle names, follower tallies, public post counts, engagement averages, and public media thumbnails.',
+          'Commercial & Transactional Data: We record collaboration contracts, stage sign-offs, deliverables feedback, and transaction references. Financial details (credit/debit cards, UPI VPA, net banking credentials) are processed directly by our RBI-licensed payment aggregator (Razorpay) and never stored on Influnet servers.',
+          'Device & Telemetry Data: IP addresses, browser types, session timestamps, and diagnostic logs collected to ensure security, enforce rate-limits, and prevent unauthorized scraping.',
+          'Event Registration Data: When you register for an Influnet event (for example through influnet.io/join), we collect your name, phone number, and, if you choose to give them, your email address, city, and Instagram handle. We use these only to issue your entry pass, manage attendance, and contact you about that event.',
         ],
       },
       {
-        heading: 'What we collect',
+        heading: '2. Purpose & Legal Basis for Processing',
         body: [
-          'Account details: your name, email address, phone number where you give it, role, and password (stored only as a hash, never in readable form).',
-          'Profile details: your bio, niche, location, rates, portfolio, and the social handles you choose to connect.',
-          'Public social data: follower counts, engagement figures and recent public posts for the accounts you connect. We read only what is already public, and only for accounts you have claimed.',
-          'Activity: projects, messages, requests, reviews and the stages a project has moved through.',
-          'Payment records: what was paid, when, and for which project. Card details are handled by Razorpay and never reach our servers.',
-          'Technical data: IP address, browser and device information, and pages visited, used for security, rate limiting and diagnosing faults.',
+          'We process your data to: (a) operate and maintain the platform marketplace; (b) facilitate instant notifications when brands send deal requests; (c) verify creator identity and prevent fraudulent accounts; (d) manage stage milestones, payment clearances, and GST invoice generation; (e) safeguard platform infrastructure from malicious attacks; (f) run and admit attendees to events you register for; and (g) measure how well our advertising performs.',
         ],
       },
       {
-        heading: 'Why we use it',
+        heading: '3. Data Sharing & Third-Party Processors',
         body: [
-          'To operate the platform — matching brands with creators, running projects, and settling payments.',
-          'To keep it safe: detecting fraud, abuse and automated scraping.',
-          'To support you when you contact us.',
-          'To understand how the product is used in aggregate, so we can improve it.',
-          'To send you notifications about your own projects and, where you have not opted out, occasional product updates. Every marketing email has a working unsubscribe link.',
+          'Public Visibility: Creator profile metrics (handle, follower tier, niche, portfolio links, city) are displayed on your custom public influnet.io link and discovery search for prospective brand collaborations.',
+          'Trusted Infrastructure Partners: We share minimal necessary data with vetted infrastructure partners: Microsoft Azure (cloud hosting & compute), Supabase (relational database & authentication), Razorpay (milestone payments & payouts), Stream (in-app messaging), and Resend (transactional notification emails).',
+          'Advertising Measurement: Our event registration page (influnet.io/join) uses the Meta Pixel, provided by Meta Platforms (Facebook and Instagram), to measure which of our ads bring visitors and how many of them register. Meta receives that you viewed the page and whether you completed a registration, along with standard browser and device information and its own cookies, and may link this to your Meta account under Meta’s own privacy policy. We do not send Meta your name, phone number, email address, or any other details you type into the form.',
+          'No Data Brokering: We never sell, rent, or trade your personal or contact information to third-party data brokers or advertisers.',
         ],
       },
       {
-        heading: 'Who else sees it',
+        heading: '4. Security & Data Retention',
         body: [
-          'Other users see your public profile, and the brands and creators you work with see what you share in that project.',
-          'Our service providers process data on our behalf, each for one purpose: Supabase (database and authentication), Microsoft Azure (hosting), Razorpay (payments), Stream (chat), Cloudinary (images), Resend (email), Apify (public social data), Sentry (error diagnostics), PostHog (product analytics), Meta (measuring our ads, on our event registration page only).',
-          'We may disclose data where the law requires it.',
-          'We do not sell your personal data.',
+          'We employ enterprise-grade security controls including Row-Level Security (RLS) policies, TLS 1.3 encryption in transit, AES-256 encryption at rest, and automated audit trails.',
+          'Personal account information is retained for the active lifecycle of your account. Transaction and invoice records are preserved following account deactivation in compliance with applicable statutory taxation and auditing guidelines.',
         ],
       },
       {
-        heading: 'Where it is stored',
+        heading: '5. Your Rights & Account Control',
         body: [
-          'Our application hosting (Microsoft Azure) is in the South India region. [[CONFIRM YOUR SUPABASE PROJECT REGION here — could not be verified from the codebase in this session. If any data leaves India, say so plainly.]]',
+          'You maintain full authority over your data. Through your dashboard, you can edit profile details, revoke linked social accounts, and adjust public visibility.',
+          'You may request a complete export of your personal information or request permanent account deletion via your settings or by writing to support@influnet.io.',
         ],
       },
       {
-        heading: 'How long we keep it',
+        heading: '6. Cookies & Advertising Choices',
         body: [
-          'Account data: for as long as your account exists.',
-          'Project and payment records: retained after account closure where we must, for tax and accounting purposes. [[CONFIRM THE PERIOD WITH YOUR ACCOUNTANT — commonly eight years in India.]]',
-          'Technical logs: a short rolling window, used for security and diagnostics.',
+          'We use cookies and similar browser storage that are necessary to keep you signed in, keep the platform secure, and remember your event pass on your device.',
+          'On our event registration page only, the Meta Pixel sets advertising cookies as described in section 3. You can block them with your browser’s privacy settings or an ad blocker (registration still works) and control how Meta uses this activity in your Facebook or Instagram ad settings under “Ad preferences”.',
         ],
       },
       {
-        heading: 'Your rights',
+        heading: '7. Grievance Redressal Officer',
         body: [
-          'You can ask us to show you the personal data we hold about you, correct it, delete it, or export it. Write to ' + E.email + ' and we will respond within 30 days.',
-          'You can edit most of your data yourself in Settings, and you can control which sections of your profile are publicly visible.',
-          'Deleting your account removes your profile. Records tied to completed transactions are retained as described above.',
-        ],
-      },
-      {
-        heading: 'Grievance officer',
-        body: [
-          `As required by Indian law: ${E.grievanceName}, reachable at ${E.grievanceEmail}. Complaints are acknowledged within 48 hours and resolved within 30 days.`,
-        ],
-      },
-      {
-        heading: 'Cookies',
-        body: [
-          'We use cookies that are necessary to keep you signed in and to keep the platform secure. Where analytics are enabled, they are used to understand aggregate usage. Our event registration page (influnet.io/join) also uses the Meta Pixel, which sets Meta’s advertising cookies so we can see which ads bring visitors and how many register; Meta is not sent the details you type into the form. You can clear cookies in your browser, though signing in will stop working without the necessary ones.',
-        ],
-      },
-      {
-        heading: 'Children',
-        body: [
-          'Influnet is not for anyone under 18. If we learn that we hold a child’s data, we delete it.',
+          'In accordance with India’s Information Technology Act, 2000 and the Consumer Protection (E-Commerce) Rules, 2020, our appointed Grievance Officer can be contacted for data inquiries, regulatory notices, or privacy complaints at grievance@influnet.io. Inquiries are acknowledged within 48 hours and resolved within statutory timeframes.',
         ],
       },
     ],
   },
 
-  {
+  refunds: {
     slug: 'refunds',
     title: 'Cancellation & Refund Policy',
-    summary: 'When money comes back, when it does not, and how to ask.',
-    updated: '[[DATE PUBLISHED]]',
+    summary: 'Rules and procedures governing collaboration cancellations, escrow returns, and payment resolutions.',
+    updated: 'September 2026',
     sections: [
       {
-        heading: 'What this covers',
+        heading: '1. Stage-Gated Milestone Framework',
         body: [
-          'Payments made through Influnet for campaign work, and subscription fees where a paid plan applies.',
-          'Because Influnet is a marketplace, a campaign payment is for work a creator performs. Once that work has been delivered and accepted, it has been performed — which is why the timing below matters.',
+          'Influnet utilizes a milestone-gated project workflow to safeguard funds for both brands and creators. Payments for campaigns are held in stage escrow and released only upon bilateral confirmation of completed milestones.',
         ],
       },
       {
-        heading: 'Cancelling before work starts',
+        heading: '2. Cancellation Prior to Work Commencement',
         body: [
-          'Either party may withdraw before both sides have signed off on the agreed terms. Nothing is owed.',
-          '[[DRAFT — REVIEW BEFORE PUBLISHING: if an advance has already been paid and either party withdraws before the creator has started work, it is refunded to the brand in full, minus any payment-gateway processing fee that is not refundable to us.]]',
+          'Either party may mutually cancel a collaboration before formal agreement sign-off without financial penalty.',
+          'If an advance payment has been funded into escrow and both parties agree to cancel prior to the creator initiating production or content drafting, the advance amount is returned to the brand’s original payment method, less any non-refundable banking/gateway processing fees.',
         ],
       },
       {
-        heading: 'Cancelling once work is under way',
+        heading: '3. Cancellation During Active Production',
         body: [
-          '[[DRAFT — REVIEW BEFORE PUBLISHING: once a creator has begun work (marked as such in the project stages), the advance is non-refundable, because it compensates work already under way. If the creator has delivered only part of the agreed work when the project is cancelled, we will mediate a fair partial payment based on the stage record.]]',
-          'Where the two parties agree a different outcome between themselves, we will honour it.',
+          'Once a project has moved into active production (e.g. script approval, shooting, initial drafts delivered), the advance payment compensates the creator for time and resources expended.',
+          'If a dispute arises regarding deliverable quality or revised scopes, parties can submit a review request. Influnet evaluates the project history, agreed brief clauses, and draft revisions to mediate an equitable resolution or prorated adjustment.',
         ],
       },
       {
-        heading: 'If the work is not delivered',
+        heading: '4. Final Payment & Completion',
         body: [
-          'If a creator does not deliver what was agreed, raise it at ' + E.email + ' with the project reference. We will review the project record — the agreed terms, the stage history and the sign-offs — and mediate.',
-          '[[DRAFT — REVIEW BEFORE PUBLISHING: if a creator does not deliver the agreed work by the agreed deadline and has not begun it, we will refund the brand’s advance in full. If work was partly delivered, we will mediate a fair partial refund based on what the stage record shows was actually completed.]]',
+          'Final milestone payments are authorized only when both the brand and creator explicitly sign off on completed deliverables. Once mutual sign-off is recorded, final milestone disbursements are non-reversible.',
         ],
       },
       {
-        heading: 'Final payment',
+        heading: '5. Processing & Timelines',
         body: [
-          'Final payment is released when both parties confirm completion. Once confirmed, it is not reversible through Influnet.',
-        ],
-      },
-      {
-        heading: 'Subscriptions',
-        body: [
-          'Paid plans are billed in advance. You can cancel at any time and keep access until the end of the period you have paid for.',
-          '[[DRAFT — REVIEW BEFORE PUBLISHING: we do not refund part of a billing period. If you cancel, you keep access until the end of the period you already paid for, and you will not be charged again.]]',
-        ],
-      },
-      {
-        heading: 'How to request a refund',
-        body: [
-          `Email ${E.email} with the project reference and what happened. We acknowledge within 48 hours.`,
-          'Approved refunds are returned to the original payment method within 5–7 business days. Your bank may take longer to show it.',
-        ],
-      },
-      {
-        heading: 'Chargebacks',
-        body: [
-          'Please talk to us before raising a chargeback with your bank — we can almost always resolve it faster. Accounts with an unresolved chargeback may be suspended while it is investigated.',
+          'Approved refunds are initiated within 48 hours of dispute resolution and processed back to the original source payment instrument (Card, UPI, or Net Banking) within 5 to 7 business days, depending on issuing banking institution protocols.',
         ],
       },
     ],
   },
+};
 
-  {
-    slug: 'contact',
-    title: 'Contact',
-    summary: 'How to reach a person.',
-    updated: '[[DATE PUBLISHED]]',
-    sections: [
-      {
-        heading: 'Support',
-        body: [
-          `${E.email} — for anything about your account, a project, or a payment.`,
-          'We aim to respond within one business day.',
-        ],
-      },
-      {
-        heading: 'Registered office',
-        body: [`${E.entity}`, E.address, E.gst],
-      },
-      {
-        heading: 'Grievance officer',
-        body: [
-          `${E.grievanceName} — ${E.grievanceEmail}`,
-          'Acknowledged within 48 hours, resolved within 30 days, as required by the Consumer Protection (E-Commerce) Rules, 2020.',
-        ],
-      },
-    ],
-  },
-];
+const CONTACT: LegalDoc = {
+  slug: 'contact',
+  title: 'Contact',
+  summary: 'How to reach a person.',
+  updated: 'October 2026',
+  sections: [
+    {
+      heading: 'Support',
+      body: [
+        'support@influnet.io — for anything about your account, a project, or a payment, including a request to export or delete your data.',
+        'You can also delete your account yourself from Settings in the app.',
+      ],
+    },
+    {
+      heading: 'Grievance officer',
+      body: [
+        'grievance@influnet.io — for data inquiries, regulatory notices, or privacy complaints, under India’s Information Technology Act, 2000 and the Consumer Protection (E-Commerce) Rules, 2020.',
+        'Inquiries are acknowledged within 48 hours and resolved within statutory timeframes.',
+      ],
+    },
+  ],
+};
+
+export const LEGAL_DOCS: LegalDoc[] = [PUBLISHED.terms, PUBLISHED.privacy, PUBLISHED.refunds, CONTACT];
 
 export function getLegalDoc(slug: string): LegalDoc | undefined {
   return LEGAL_DOCS.find((d) => d.slug === slug);
