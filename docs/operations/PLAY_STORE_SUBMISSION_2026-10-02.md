@@ -139,14 +139,16 @@ Instagram first — fine for review; the request itself is visible either way.
 
 ---
 
-## 4. Store listing basics
+## 4. Store listing
+
+Everything except screenshots is ready in [`play-store/`](play-store/):
+[`LISTING.md`](play-store/LISTING.md) (name, short + full description, release
+notes, which screenshots to take), `icon-512.png`, `feature-graphic-1024x500.png`.
 
 - **Privacy policy URL:** `https://influnet.io/privacy`
-- **Developer contact email:** one that receives mail (see §0 step 3).
-- **App category:** Business (or Social).
-- Still needed from you: 512×512 icon (export `apps/mobile/assets/icon.png`),
-  1024×500 feature graphic, at least 2 phone screenshots, short + full
-  description.
+- **Developer contact email:** `influnet@tecstellar.com` works today;
+  `support@influnet.io` only once §0 step 3 (MX) is done.
+- **App category:** Business. **Countries:** India.
 
 ---
 
