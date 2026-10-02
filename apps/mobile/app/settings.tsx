@@ -24,7 +24,7 @@ import {
 } from 'lucide-react-native';
 import { useGuides } from '@/components/guides/use-guides';
 import { useTheme } from '@/lib/theme';
-import { LAST_COMMIT_TIME } from '@/lib/build-info';
+import { LAST_COMMIT_TIME, nativeBuildLabel } from '@/lib/build-info';
 import { useSession, useSignOutAction } from '@/lib/session';
 import { SUPPORT_EMAIL } from '@influnet/core';
 import { API_BASE_URL } from '@/lib/supabase';
@@ -405,7 +405,7 @@ export default function SettingsScreen() {
         />
 
         <Txt variant="caption" tone="muted" center>
-          Influnet {Constants.expoConfig?.version ?? ''}
+          Influnet {nativeBuildLabel() ?? Constants.expoConfig?.version ?? ''}
         </Txt>
         <Txt variant="caption" tone="muted" center>
           {Updates.isEmbeddedLaunch
