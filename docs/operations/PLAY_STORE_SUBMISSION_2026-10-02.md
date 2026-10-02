@@ -13,11 +13,11 @@ from memory. Where a question is a business decision it says so.
 
 | # | Step | Status |
 |---|---|---|
-| 1 | Merge PR #78 (`dev` → `staging`). Until then the app's Privacy/Terms links on `staging.influnet.io/legal/*` still show the **draft with placeholders** — a reviewer will open them. | ❌ you |
-| 2 | Staging deploy green after the merge (migration 194 + web). Check `https://staging.influnet.io/legal/privacy` has no "Draft" banner. | after 1 |
+| 1 | Merge PR #78 (`dev` → `staging`) — published legal text live on staging.influnet.io. | ✅ done 2026-10-02 |
+| 2 | Staging deploy + production OTA green; `/legal/privacy` has no draft markers. | ✅ done |
 | 3 | Mail for `influnet.io`: the domain has **no MX record**, so `support@influnet.io` and `grievance@influnet.io` (named in the privacy policy, and your Play contact) bounce. Cloudflare → Email → Email Routing → forward both to a real inbox. | ❌ you |
 | 4 | Reviewer account (§3). Phone OTP is on for signup, so it must be created through the app with a phone that receives the SMS. | ❌ you |
-| 5 | Upload `4621c358`'s `.aab` to a **Production** release (internal track first if you want a smoke test). | after build |
+| 5 | Upload `4621c358`'s `.aab` (finished) to a **Production** release. | ❌ you |
 
 ---
 
@@ -85,23 +85,57 @@ confirmation). Not designed for children.
 
 ---
 
-## 3. App access
+## 3. App access — reviewer accounts with ONE phone number
 
-Choose **"All or some functionality is restricted"** and add one set of
-credentials. Create it yourself, in the app, before submitting:
+Signup needs an SMS code, and the signup form refuses a number that's already
+registered (`check_phone_available`, migration 107) — so a second account on
+your own number won't work. Don't insert users with SQL either: that skips
+`/api/auth/register`, which writes the profile rows. Instead, switch the SMS
+step off for ten minutes. The app reads it at runtime (`/api/auth/config`), so
+no build is involved.
 
-1. Sign up as a **creator** with an inbox you can read (e.g.
-   `influnet+playreview@tecstellar.com`) and a phone that receives the SMS code.
-2. Complete onboarding; link a public Instagram handle so Profile has numbers.
-3. Optional but worth it: from a second (business) account, send this creator a
-   request, so the reviewer sees Requests, a chat and a notification.
+**Run in the Supabase SQL editor of the STAGING project (`aokdansyqxracuwsosji`):**
 
-Instructions text for Play Console:
+```sql
+-- 1. SMS code OFF (takes ~1 minute: the flag is cached 45s per server)
+insert into public.feature_flags (key, enabled, description)
+values ('phone_otp', false, 'off: creating Play review accounts')
+on conflict (key) do update set enabled = excluded.enabled, description = excluded.description;
+```
+
+Then, in the **production app** (or staging.influnet.io):
+
+| Account | Email (plus-addressing lands in your own inbox) | Phone (no SMS is sent) |
+|---|---|---|
+| Creator — the one Google logs in with | `influnet+playcreator@tecstellar.com` | `9000000001` |
+| Brand — only to give the creator real content | `influnet+playbrand@tecstellar.com` | `9000000002` |
+
+Use a strong password each and note them. Give the creator a bio, a niche,
+a city and a public Instagram handle so Profile isn't empty.
+
+```sql
+-- 2. SMS code back ON — straight after both accounts exist
+insert into public.feature_flags (key, enabled, description)
+values ('phone_otp', true, 're-enabled')
+on conflict (key) do update set enabled = excluded.enabled, description = excluded.description;
+```
+
+Then:
+3. Admin console → **Approvals** → approve the review brand.
+4. Log in as the brand (web is fine): open the creator's profile (they get a
+   "viewed your profile" notification) and **send a collaboration request**.
+5. Log out. Only the **creator** login goes into Play Console.
+
+Play Console → App content → App access → "All or some functionality is
+restricted" → add the creator's email + password, with:
 
 > Log in with the email and password below (no SMS code is needed to log in —
-> the phone code is only asked at sign-up). The account is a creator. Requests,
+> the phone code is only asked at sign-up). This is a creator account. Requests,
 > Messages and Projects are on the bottom bar; Profile is the avatar top-right;
-> Notifications is the bell on Home.
+> Notifications is the bell on Home. A brand has already sent a request.
+
+If `ownership_gate` is on, accepting that request asks the creator to verify
+Instagram first — fine for review; the request itself is visible either way.
 
 ---
 
