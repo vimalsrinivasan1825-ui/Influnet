@@ -15,7 +15,7 @@ is in [APP_STORE_READINESS_2026-09-17.md](APP_STORE_READINESS_2026-09-17.md).
 
 | Item | State |
 |---|---|
-| Distribution certificate | ✅ Fixed — production build 7 (22 Sep, `8ebc9560`) signed and finished. |
+| Distribution certificate | ❌ **Revoked again.** Build 7 (22 Sep) signed fine; build 8 (`bfb1a428`, 2 Oct) failed: Apple rejects cert `6DD002CE…`. Second revocation in a month, so find out who else uses team `S54MPG8G9M` and how they manage certificates. Fix: §1, run the build command **interactively** and log in with your Apple ID; when it says the certificate is invalid, let it create a new one. |
 | Push on the App ID + APNs key | ✅ Production push proven on iOS on 22 Sep. |
 | Privacy manifest, export compliance, permission strings | ✅ In `app.json` (`ITSAppUsesNonExemptEncryption: false`). |
 | Sign in with Apple | ✅ Not required — email/password only, no Google/Facebook login. |
