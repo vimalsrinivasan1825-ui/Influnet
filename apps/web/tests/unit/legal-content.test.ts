@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { LEGAL_DOCS, getLegalDoc, unresolved } from '@/app/legal/legal-content';
+// The published text the landing site serves at influnet.io/terms, /privacy, /refunds.
+import { LEGAL_DOCS as LANDING } from '../../../landing/src/lib/legal-data';
 
 describe('legal documents', () => {
   it('ships the four pages Razorpay onboarding checks for', () => {
@@ -13,37 +15,35 @@ describe('legal documents', () => {
     expect(headings.some((h) => h.includes('grievance'))).toBe(true);
   });
 
-  it('detects unfilled placeholders so the draft banner can appear', () => {
-    for (const doc of LEGAL_DOCS) {
-      expect(unresolved(doc).length).toBeGreaterThan(0);
+  it('is the same text as the landing site — one binding policy, not two', () => {
+    // The app opens these pages and the store listings link to them; if they
+    // said something different from influnet.io, which one binds?
+    for (const slug of ['terms', 'privacy', 'refunds'] as const) {
+      expect(getLegalDoc(slug)).toEqual(LANDING[slug]);
     }
   });
 
-  it('reports each distinct placeholder once, not once per occurrence', () => {
-    const terms = getLegalDoc('terms')!;
-    const gaps = unresolved(terms);
-    expect(new Set(gaps).size).toBe(gaps.length);
+  it('is published: no page has an unfilled placeholder', () => {
+    // A store reviewer opens these from the app. Any [[MARKER]] left would
+    // also put the draft banner back on the page.
+    for (const doc of LEGAL_DOCS) {
+      expect(unresolved(doc), doc.slug).toEqual([]);
+    }
   });
 
-  it('finds placeholders in the updated date, not only the body', () => {
-    const doc = getLegalDoc('contact')!;
-    expect(unresolved(doc)).toContain('[[DATE PUBLISHED]]');
+  it('detects a placeholder, including one in the updated date', () => {
+    const draft = {
+      slug: 'x',
+      title: 'X',
+      summary: 'draft',
+      updated: '[[DATE PUBLISHED]]',
+      sections: [{ heading: 'Who', body: ['[[LEGAL ENTITY NAME]] and [[LEGAL ENTITY NAME]] again.'] }],
+    };
+    // Each distinct marker once, not once per occurrence.
+    expect(unresolved(draft).sort()).toEqual(['[[DATE PUBLISHED]]', '[[LEGAL ENTITY NAME]]']);
   });
 
   it('returns nothing for an unknown slug', () => {
     expect(getLegalDoc('nope')).toBeUndefined();
-  });
-
-  it('reports NO gaps once every placeholder is replaced', () => {
-    // Proves the banner actually disappears on its own rather than needing a
-    // flag flipped — which is the whole design of the guard.
-    const filled = {
-      slug: 'x',
-      title: 'X',
-      summary: 'done',
-      updated: '2026-09-14',
-      sections: [{ heading: 'All set', body: ['No markers here.'] }],
-    };
-    expect(unresolved(filled)).toEqual([]);
   });
 });

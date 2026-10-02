@@ -36,7 +36,8 @@ import {
   Star,
   Users,
 } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/lib/theme';
 import { useSession, useSignOutAction } from '@/lib/session';
 import { API_BASE_URL } from '@/lib/supabase';
@@ -68,7 +69,8 @@ import { AppHeader } from '@/components/app-header';
 import { useAccountSheet } from '@/lib/use-account-sheet';
 import { Logo } from '@/components/brand/logo';
 import { PostGrid, VideoList } from '@/components/content-grid';
-import { PortfolioGrid, type PortfolioItem } from '@/components/portfolio-grid';
+import { type PortfolioItem } from '@/components/portfolio-grid';
+import { ProfileHero, WorkGrid } from '@/components/profile-hero';
 import { ProfileVisibilityToggles } from '@/components/profile-visibility-toggles';
 import { isSectionVisible } from '@influnet/core';
 import {
@@ -77,6 +79,7 @@ import {
   type RawConversationProject,
 } from '@/lib/conversations';
 import { HIDE_PRO_PURCHASE } from '@/lib/use-upgrade';
+import type { ApiResult } from '@influnet/api';
 
 interface ProfilePayload {
   role: string;
@@ -132,6 +135,11 @@ interface ProfilePayload {
   counts: { ongoing: number; completed: number };
 }
 
+/** formatCount renders "—" for an unknown figure; the hero shows its own dash. */
+function known(v: string): string | null {
+  return v && v !== '—' && v !== '0' ? v : null;
+}
+
 export default function ProfileScreen() {
   const t = useTheme();
   const router = useRouter();
@@ -185,6 +193,19 @@ export default function ProfileScreen() {
     profile: { profile_section_visibility?: Record<string, boolean> };
   }>(() => endpoints.getProfile(), { cacheKey: 'profile-full' });
   const [savingSection, setSavingSection] = useState<string | null>(null);
+
+  /** "Who viewed your profile" — creators only; businesses would get a 403. */
+  const isCreatorRole = (profile?.role ?? null) === 'influencer';
+  const { data: viewerSummary } = useFetch<{ total: number; thisWeek?: number }>(
+    useCallback(
+      () =>
+        isCreatorRole
+          ? endpoints.profileViewers<{ total: number; thisWeek?: number }>()
+          : Promise.resolve({ ok: true, status: 204, data: null, error: null } as ApiResult<{ total: number; thisWeek?: number }>),
+      [isCreatorRole],
+    ),
+    { cacheKey: isCreatorRole ? 'profile-viewers' : undefined },
+  );
 
   const isCreator = (data?.role ?? profile?.role) === 'influencer';
   const pp = data?.public_profile ?? {};
@@ -396,9 +417,46 @@ export default function ProfileScreen() {
 
   return (
     <Screen padded={false}>
-      <AppHeader title="Profile" showBell={false} showAvatar={false} showBack />
+      {/* Creators get the v2 hero: the photo runs under the status bar, so the
+          bar goes light and this screen draws its own back button. */}
+      {isCreator ? (
+        <StatusBar style="light" />
+      ) : (
+        <AppHeader title="Profile" showBell={false} showAvatar={false} showBack />
+      )}
 
-      <ScreenScroll refreshing={refreshing} onRefresh={refresh}>
+      <ScreenScroll padded={false} refreshing={refreshing} onRefresh={refresh}>
+        {isCreator ? (
+          <ProfileHero
+            name={displayName ?? 'Your profile'}
+            username={username}
+            city={data?.profile.location ?? profile?.location ?? null}
+            photoUrl={avatar ?? null}
+            verified={!!verified}
+            followers={known(formatCount(data?.social?.followers ?? pp.instagram_followers ?? null))}
+            engagement={data?.social?.engagement_rate != null ? `${data.social.engagement_rate}%` : null}
+            collabs={data?.counts.completed ?? 0}
+            bio={pp.bio ?? profile?.headline ?? profile?.tagline ?? null}
+            niches={pp.niche?.length ? pp.niche : profile?.niche ?? []}
+            instagram={{
+              handle: pp.instagram_handle ?? null,
+              followers: known(formatCount(data?.social?.followers ?? pp.instagram_followers ?? null)),
+            }}
+            youtube={{
+              handle: pp.youtube_handle ?? null,
+              subscribers: known(formatCount(data?.youtube?.subscribers ?? pp.youtube_subscribers ?? null)),
+            }}
+            avatarBusy={avatarBusy}
+            onBack={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+            onShare={publicUrl ? share : null}
+            onChangePhoto={changeAvatar}
+            onEdit={() => router.push('/edit-profile')}
+            onLinkAccounts={() => router.push('/settings')}
+          />
+        ) : null}
+
+        <View style={{ paddingHorizontal: t.spacing.screen, paddingTop: isCreator ? t.spacing.sm : 0, gap: t.spacing.md }}>
+        {!isCreator ? (
         <Card raised style={{ gap: t.spacing.md, alignItems: 'center' }}>
           <Pressable
             onPress={changeAvatar}
@@ -472,6 +530,7 @@ export default function ProfileScreen() {
             />
           ) : null}
         </Card>
+        ) : null}
 
         {/* ── Connections, up top per user request — was buried in Manage ── */}
         <Pressable onPress={() => router.push('/connections')} accessibilityRole="button">
@@ -496,23 +555,40 @@ export default function ProfileScreen() {
           </Card>
         </Pressable>
 
-        {loading && !data ? <SkeletonCard /> : null}
-
-        {/* ── The numbers a brand judges you on ───────────────────── */}
-        {isCreator && stats.length > 0 ? (
-          <Card style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            {stats.map((s) => (
-              <View key={s.label} style={{ gap: 2 }}>
-                <Txt variant="caption" tone="muted">
-                  {s.label}
+        {/* ── Who viewed your profile — LinkedIn's most-opened card ── */}
+        {isCreator ? (
+          <Pressable onPress={() => router.push('/profile-viewers')} accessibilityRole="button">
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: t.color.brandSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Eye size={17} color={t.color.brand} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt variant="bodyStrong">
+                  {viewerSummary?.total
+                    ? `${viewerSummary.total} profile ${viewerSummary.total === 1 ? 'view' : 'views'}`
+                    : 'Who viewed your profile'}
                 </Txt>
-                <Txt variant="title3" style={{ fontVariant: ['tabular-nums'], letterSpacing: -0.3 }}>
-                  {s.value}
+                <Txt variant="footnote" tone="muted">
+                  {viewerSummary?.thisWeek
+                    ? `${viewerSummary.thisWeek} this week · see who`
+                    : 'Brands and creators who opened your profile'}
                 </Txt>
               </View>
-            ))}
-          </Card>
+              <ChevronRight size={18} color={t.color.contentMuted} />
+            </Card>
+          </Pressable>
         ) : null}
+
+        {loading && !data ? <SkeletonCard /> : null}
 
         {/* Nothing captured yet is a state worth naming — an empty profile with
             no explanation reads as a broken app rather than an unlinked one. */}
@@ -550,7 +626,7 @@ export default function ProfileScreen() {
                 justifyContent: 'space-between',
               }}
             >
-              <SectionLabel>Portfolio</SectionLabel>
+              <Txt style={{ fontSize: 19, lineHeight: 24, fontWeight: '800', letterSpacing: -0.5 }}>Work</Txt>
               {portfolioItems.length > 0 ? (
                 <Button
                   label="Add"
@@ -565,13 +641,11 @@ export default function ProfileScreen() {
             </View>
 
             {portfolioItems.length > 0 ? (
-              <Card>
-                <PortfolioGrid
-                  items={portfolioItems}
-                  onDelete={removePortfolioItem}
-                  onToggleVisible={togglePortfolioItemVisible}
-                />
-              </Card>
+              <WorkGrid
+                items={portfolioItems}
+                onDelete={removePortfolioItem}
+                onToggleVisible={togglePortfolioItemVisible}
+              />
             ) : (
               <Card style={{ gap: t.spacing.sm }}>
                 <Txt variant="bodyStrong">Show the work you've already done</Txt>
@@ -907,6 +981,7 @@ export default function ProfileScreen() {
           <Txt variant="caption" tone="muted">
             Influnet {Constants.expoConfig?.version ?? ''}
           </Txt>
+        </View>
         </View>
       </ScreenScroll>
     </Screen>

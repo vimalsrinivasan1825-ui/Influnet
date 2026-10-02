@@ -112,10 +112,11 @@ export const SUPPORT_EMAIL = 'support@influnet.io';
  * Stored beside the acceptance time (signup_consents, migration 162) so we can
  * always say WHICH text someone agreed to. Bump it whenever the legal text
  * changes materially; existing accounts keep the version they accepted.
- * The current value marks the unreviewed draft: set a dated version when the
- * founder publishes the lawyer-reviewed text.
+ * '2026-09' is the landing site's published text (influnet.io/terms,
+ * "Updated September 2026"), adopted for the app in October 2026. Earlier
+ * signups recorded '2026-09-draft-1', the placeholder draft.
  */
-export const TERMS_VERSION = '2026-09-draft-1';
+export const TERMS_VERSION = '2026-09';
 
 /** The minimum age to hold an account. The Terms say 18+, and signup now enforces it. */
 export const MINIMUM_AGE = 18;

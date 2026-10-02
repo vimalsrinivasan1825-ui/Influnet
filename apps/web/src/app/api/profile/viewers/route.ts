@@ -2,22 +2,99 @@ import { NextResponse } from 'next/server';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { resolveEntitlements } from '@/lib/entitlements';
-import { businessCards } from '@/lib/business-cards';
+import { createServerClient } from '@/lib/supabase/server';
+import { describeViewer } from '@/lib/profile-viewers';
 
 /**
- * "Who viewed your profile" — the identified list, gated by plan.
+ * "Who viewed your profile" — LinkedIn-style, gated by plan.
  *
- * The data has existed since migration 018: creator_profile_views holds one
- * row per (creator, business) with a view count and last-seen time, readable
- * only by the creator (RLS). Nothing has ever rendered the list of WHO.
+ * Source: profile_views (migration 012/075), one row per (creator, viewer,
+ * day) for every SIGNED-IN visitor — brands AND other creators. It used to read
+ * creator_profile_views, which only ever held brands. Signed-out visitors are
+ * not recorded anywhere (record_profile_view needs a session), so they can't
+ * appear here.
  *
- * This is a READ gate, not a paywall: Free still gets a useful screen. It sees
- * the most-recent `limits.profileViewers` viewers identified, plus a count of
- * the rest ("and 23 more"). Pro sees everyone. A 402 here would turn the card
- * into an error; returning less data is what a paywall should look like.
+ * The read gate: the most recent `limits.profileViewers` viewers come back
+ * identified (name, photo, profile link). Everyone after that comes back in
+ * `hidden`, described but never named — "A brand in Food & Beverage from
+ * Bengaluru", "A Fashion creator from Chennai" — with no id that could be
+ * looked up. Pro (or subscriptions switched off) identifies everyone.
  *
- * Envelope: `{ viewers, total, shown, locked }`.
+ * Envelope: `{ viewers, hidden, total, shown, locked, thisWeek }`.
+ * `viewers`, `total`, `shown` and `locked` keep their old meaning so installed
+ * apps that predate `hidden` render exactly as before. `businessId` is kept on
+ * each viewer for those apps; it now holds the viewer's id whatever the role.
  */
+
+/** Rows read per request — ~1000 is PostgREST's own cap anyway. */
+const MAX_ROWS = 1000;
+
+interface ViewRow {
+  viewer_user_id: string | null;
+  viewed_at: string;
+}
+
+interface ViewerCard {
+  role: 'business_owner' | 'influencer' | null;
+  name: string | null;
+  username: string | null;
+  avatarUrl: string | null;
+  category: string | null;
+  city: string | null;
+}
+
+/**
+ * Display cards for viewers. Service-role on purpose: `username`, `logo_url`,
+ * `avatar_url` and `city` are outside `authenticated`'s column grants (053),
+ * and naming any of them on the caller's client fails the whole query (42501).
+ * Only ids read from the caller's OWN profile_views rows (RLS:
+ * influencer_user_id = auth.uid()) are ever passed in.
+ */
+async function viewerCards(ids: string[]): Promise<Map<string, ViewerCard>> {
+  const out = new Map<string, ViewerCard>();
+  if (ids.length === 0 || !process.env.SUPABASE_SERVICE_ROLE_KEY) return out;
+  const serviceClient = createServerClient();
+  const [{ data: base }, { data: biz }, { data: inf }] = await Promise.all([
+    serviceClient.from('profiles').select('id, name, role').in('id', ids),
+    serviceClient.from('business_profiles').select('user_id, company_name, username, logo_url, industry, city').in('user_id', ids),
+    serviceClient.from('influencer_profiles').select('user_id, username, avatar_url, niche, city').in('user_id', ids),
+  ]);
+  for (const p of (base ?? []) as { id: string; name: string | null; role: string | null }[]) {
+    out.set(p.id, {
+      role: p.role === 'business_owner' || p.role === 'influencer' ? p.role : null,
+      name: p.name,
+      username: null,
+      avatarUrl: null,
+      category: null,
+      city: null,
+    });
+  }
+  for (const b of (biz ?? []) as {
+    user_id: string; company_name: string | null; username: string | null;
+    logo_url: string | null; industry: string | null; city: string | null;
+  }[]) {
+    const c = out.get(b.user_id);
+    if (!c || c.role !== 'business_owner') continue;
+    c.name = b.company_name || c.name;
+    c.username = b.username;
+    c.avatarUrl = b.logo_url;
+    c.category = b.industry;
+    c.city = b.city;
+  }
+  for (const i of (inf ?? []) as {
+    user_id: string; username: string | null; avatar_url: string | null;
+    niche: string[] | null; city: string | null;
+  }[]) {
+    const c = out.get(i.user_id);
+    if (!c || c.role !== 'influencer') continue;
+    c.username = i.username;
+    c.avatarUrl = i.avatar_url;
+    c.category = i.niche?.[0] ?? null;
+    c.city = i.city;
+  }
+  return out;
+}
+
 export async function GET(req: Request) {
   try {
     const auth = await withAuth(req);
@@ -34,59 +111,73 @@ export async function GET(req: Request) {
     if (limited) return limited;
 
     const { data: rows, error } = await supabase
-      .from('creator_profile_views')
-      .select('business_id, view_count, last_viewed_at')
-      .eq('creator_id', user.id)
-      .order('last_viewed_at', { ascending: false });
+      .from('profile_views')
+      .select('viewer_user_id, viewed_at')
+      .eq('influencer_user_id', user.id)
+      .not('viewer_user_id', 'is', null)
+      .order('viewed_at', { ascending: false })
+      .limit(MAX_ROWS);
 
     if (error) {
       // Table missing on an environment behind on migrations — an empty list
       // beats a broken screen.
-      return NextResponse.json({ viewers: [], total: 0, shown: 0, locked: 0, degraded: true });
+      return NextResponse.json({ viewers: [], hidden: [], total: 0, shown: 0, locked: 0, thisWeek: 0, degraded: true });
     }
 
-    const all = (rows ?? []) as { business_id: string; view_count: number; last_viewed_at: string }[];
-    const total = all.length;
+    // One entry per viewer, most recent first; viewCount = days they came back.
+    const byViewer = new Map<string, { last: string; days: number }>();
+    for (const r of (rows ?? []) as ViewRow[]) {
+      if (!r.viewer_user_id) continue;
+      const seen = byViewer.get(r.viewer_user_id);
+      if (seen) seen.days += 1;
+      else byViewer.set(r.viewer_user_id, { last: r.viewed_at, days: 1 });
+    }
+    const ordered = [...byViewer.entries()];
+    const total = ordered.length;
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const thisWeek = ordered.filter(([, v]) => new Date(v.last).getTime() >= weekAgo).length;
 
     const ent = await resolveEntitlements(supabase, user.id);
     const cap = ent.subscriptionsEnabled ? ent.limits.profileViewers : null;
-    const visible = typeof cap === 'number' ? all.slice(0, cap) : all;
-    const locked = total - visible.length;
+    const identifiedCount = typeof cap === 'number' ? Math.min(cap, total) : total;
 
-    const businessIds = visible.map((r) => r.business_id);
-    const profiles: Record<string, { name: string | null; avatarUrl: string | null; username: string | null }> = {};
+    const cards = await viewerCards(ordered.map(([id]) => id));
 
-    if (businessIds.length > 0) {
-      // Two traps, both of which silently blanked every viewer's name:
-      // profiles has no avatar column, and business_profiles.username/logo_url
-      // are outside `authenticated`'s column grants (053) — either one fails
-      // the whole query. The ids come from rows RLS already let this creator
-      // read, so resolving their display cards server-side reveals nothing new.
-      const [{ data: baseRows }, cards] = await Promise.all([
-        supabase.from('profiles').select('id, name').in('id', businessIds),
-        businessCards(businessIds),
-      ]);
-      const names = new Map(((baseRows ?? []) as { id: string; name: string | null }[]).map((p) => [p.id, p.name]));
-      for (const id of businessIds) {
-        const card = cards.get(id);
-        profiles[id] = {
-          name: card?.companyName || names.get(id) || null,
-          avatarUrl: card?.logoUrl ?? null,
-          username: card?.username ?? null,
-        };
-      }
-    }
+    const viewers = ordered.slice(0, identifiedCount).map(([id, v]) => {
+      const card = cards.get(id);
+      return {
+        viewerId: id,
+        businessId: id,
+        role: card?.role ?? null,
+        name: card?.name ?? null,
+        username: card?.username ?? null,
+        avatarUrl: card?.avatarUrl ?? null,
+        descriptor: describeViewer(card),
+        viewCount: v.days,
+        lastViewedAt: v.last,
+      };
+    });
 
-    const viewers = visible.map((r) => ({
-      businessId: r.business_id,
-      name: profiles[r.business_id]?.name ?? null,
-      username: profiles[r.business_id]?.username ?? null,
-      avatarUrl: profiles[r.business_id]?.avatarUrl ?? null,
-      viewCount: r.view_count,
-      lastViewedAt: r.last_viewed_at,
-    }));
+    // Described, never identified: no id, name, photo or username leaves here.
+    const hidden = ordered.slice(identifiedCount).map(([, v], i) => {
+      const card = cards.get(ordered[identifiedCount + i][0]);
+      return {
+        key: `hidden-${i}`,
+        role: card?.role ?? null,
+        descriptor: describeViewer(card),
+        viewCount: v.days,
+        lastViewedAt: v.last,
+      };
+    });
 
-    return NextResponse.json({ viewers, total, shown: viewers.length, locked });
+    return NextResponse.json({
+      viewers,
+      hidden,
+      total,
+      shown: viewers.length,
+      locked: hidden.length,
+      thisWeek,
+    });
   } catch (error: any) {
     return jsonError(500, 'Internal server error', error);
   }

@@ -19,10 +19,11 @@
  *     binary does not have would crash, so blur is used only when the module
  *     is actually present (`requireOptionalNativeModule`).
  *
- * The recipe on top of the blur is the landing page nav's: 65% white, a
- * bright 70% white rim, and a soft lifted shadow (`boxShadow`, which like CSS
- * draws only outside the box — an Android `elevation` would show through the
- * glass as a grey smudge).
+ * Around the blur: a bright 70% white rim and a soft lifted shadow
+ * (`boxShadow`, which like CSS draws only outside the box — an Android
+ * `elevation` would show through the glass as a grey smudge). iOS adds a 45%
+ * white wash over its native blur, like the landing page nav; Android keeps
+ * its wash light so the blur actually shows — see Glass() for the numbers.
  *
  * ── MOTION ───────────────────────────────────────────────────────────
  *
@@ -139,16 +140,39 @@ function Glass({ routeKey }: { routeKey: string }) {
   if (LIQUID) {
     return <GlassView style={fill} glassEffectStyle="regular" colorScheme="light" pointerEvents="none" />;
   }
-  if (BLUR) {
+  if (BLUR && Platform.OS === 'android') {
+    /*
+     * Android: expo-blur ties two things to `intensity` (ExpoBlurView.kt,
+     * TintStyle.kt): the blur radius, in PIXELS, is intensity ÷
+     * blurReductionFactor, and the tint is a white wash at intensity × a
+     * per-tint alpha. The first version used tint "light" (0.78 → ~70% white)
+     * at 90, plus a 45% white layer of our own: ~83% opaque white over a 22px
+     * blur — on a 3× screen that's ~7pt of blur nobody could see.
+     *
+     * Now: tint "default" (0.44) at 60 → ~26% white and nothing on top, and
+     * the radius set by the reduction factor instead of the intensity. On
+     * Android 12+ the Dimezis view blurs through RenderEffect, which takes a
+     * large radius: 60px. Below that it uses RenderScript, whose blur throws
+     * past 25 — so 24px there.
+     */
+    const modernBlur = typeof Platform.Version === 'number' && Platform.Version >= 31;
     return (
       <View style={fill} pointerEvents="none">
         <BlurView
           style={StyleSheet.absoluteFill}
-          tint="light"
-          intensity={Platform.OS === 'android' ? 90 : 60}
+          tint="default"
+          intensity={60}
+          blurReductionFactor={modernBlur ? 1 : 2.5}
           blurMethod="dimezisBlurView"
-          blurTarget={Platform.OS === 'android' ? targets.get(routeKey) : undefined}
+          blurTarget={targets.get(routeKey)}
         />
+      </View>
+    );
+  }
+  if (BLUR) {
+    return (
+      <View style={fill} pointerEvents="none">
+        <BlurView style={StyleSheet.absoluteFill} tint="light" intensity={60} />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.45)' }]} />
       </View>
     );

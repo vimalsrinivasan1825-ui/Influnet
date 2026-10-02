@@ -198,6 +198,10 @@ export default function RootLayout() {
               <Stack.Screen name="creator/[username]" options={{ headerShown: false }} />
               <Stack.Screen name="business/[username]" options={{ title: '' }} />
               <Stack.Screen name="portfolio/add" options={{ title: 'Add past work' }} />
+              {/* Unregistered screens fall back to their file path as the title —
+                  this one showed "campaigns/[id]" in the header. */}
+              <Stack.Screen name="campaigns/[id]" options={{ title: 'Campaign' }} />
+              <Stack.Screen name="campaigns/new" options={{ title: 'New campaign' }} />
               <Stack.Screen name="requests/new" options={{ title: 'Send a request' }} />
               <Stack.Screen name="requests/[id]" options={{ title: 'Request' }} />
               <Stack.Screen name="conversations/[id]" options={{ title: '' }} />

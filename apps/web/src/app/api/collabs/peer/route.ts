@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       type: 'collab_request',
       title: 'New collaboration request',
       body: `${nameOf(names, user.id)} wants to collaborate with you. Accept it to open a conversation.`,
-      link: '/dashboard/requests',
+      link: `/dashboard/requests?id=${data.id}`,
     });
 
     return NextResponse.json({ collab: data }, { status: 201 });
