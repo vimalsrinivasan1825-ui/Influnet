@@ -13,6 +13,8 @@ import { useEntitlements } from "@/lib/hooks/use-entitlements";
 
 interface Viewer {
   businessId: string;
+  role: "business_owner" | "influencer" | null;
+  descriptor: string;
   name: string | null;
   username: string | null;
   avatarUrl: string | null;
@@ -20,8 +22,18 @@ interface Viewer {
   lastViewedAt: string;
 }
 
+/** Described, never named — viewers past the plan's limit. */
+interface HiddenViewer {
+  key: string;
+  role: "business_owner" | "influencer" | null;
+  descriptor: string;
+  viewCount: number;
+  lastViewedAt: string;
+}
+
 interface Payload {
   viewers: Viewer[];
+  hidden?: HiddenViewer[];
   total: number;
   shown: number;
   locked: number;
@@ -54,7 +66,7 @@ export default function ProfileViewersPage() {
     <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
       <PageHeader
         title="Who viewed your profile"
-        subtitle="Brands that opened your profile, most recent first."
+        subtitle="Brands and creators who opened your profile, most recent first."
       />
 
       {loading ? (
@@ -67,7 +79,7 @@ export default function ProfileViewersPage() {
         <EmptyState
           icon={<Eye className="size-6" />}
           title="No profile views yet"
-          description="When a brand opens your profile, they'll show up here."
+          description="When a brand or creator opens your profile, they'll show up here."
         />
       ) : (
         <div className="mt-4 flex flex-col gap-2">
@@ -76,7 +88,7 @@ export default function ProfileViewersPage() {
               <Avatar name={v.name} src={v.avatarUrl} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-content">
-                  {v.name ?? "A brand"}
+                  {v.name ?? v.descriptor}
                 </p>
                 <p className="truncate text-xs text-content-muted">
                   {v.username ? `@${v.username} · ` : ""}
@@ -86,12 +98,28 @@ export default function ProfileViewersPage() {
               </div>
               {v.username && (
                 <Link
-                  href={`/${v.username}`}
+                  // Brands live under /b/, creators at the root.
+                  href={v.role === "business_owner" ? `/b/${v.username}` : `/${v.username}`}
                   className="shrink-0 text-xs font-semibold text-brand hover:underline"
                 >
                   View
                 </Link>
               )}
+            </Card>
+          ))}
+
+          {(data.hidden ?? []).map((h) => (
+            <Card key={h.key} className="flex items-center gap-3 p-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-muted text-content-muted">
+                <Lock className="size-3.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-content">{h.descriptor}</p>
+                <p className="truncate text-xs text-content-muted">
+                  {timeAgo(h.lastViewedAt)}
+                  {h.viewCount > 1 ? ` · viewed ${h.viewCount}×` : ""}
+                </p>
+              </div>
             </Card>
           ))}
 
@@ -102,10 +130,10 @@ export default function ProfileViewersPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-content">
-                  {data.locked} more {data.locked === 1 ? "brand" : "brands"} viewed your profile
+                  {data.locked} more {data.locked === 1 ? "person" : "people"} viewed your profile
                 </p>
                 <p className="text-xs text-content-muted">
-                  Free shows your {data.shown} most recent viewers. Upgrade to see everyone.
+                  Free names your {data.shown} most recent viewers. Upgrade to see who the rest are.
                 </p>
               </div>
               {!isPro && (

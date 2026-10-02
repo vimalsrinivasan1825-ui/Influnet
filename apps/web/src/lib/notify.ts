@@ -26,7 +26,10 @@ export type NotificationType =
   // Admin broadcast shown in-app (migration 157) — written by lib/broadcasts.ts.
   | 'announcement'
   // Pro renewal reminder (migration 155) — /api/cron/maintenance.
-  | 'reminder';
+  | 'reminder'
+  // Someone viewed a creator's profile — written by record_profile_view()
+  // (migration 194), in-app only, never named.
+  | 'profile_view';
 
 /**
  * Which opt-out category each notification type falls under, so a user who
@@ -48,6 +51,7 @@ const CATEGORY_BY_TYPE: Record<NotificationType, EmailCategory> = {
   upsell: 'account',
   announcement: 'marketing',
   reminder: 'payment',
+  profile_view: 'account',
 };
 
 export interface NotifyEmailOptions {
