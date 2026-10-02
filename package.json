@@ -17,9 +17,9 @@
   },
   "devDependencies": {
     "expo": "~57.0.26",
-    "expo-router": "~57.0.7",
-    "playwright": "^1.62.0",
-    "turbo": "^2.5.0"
+    "expo-router": "~58.0.9",
+    "playwright": "^1.63.0",
+    "turbo": "^2.11.5"
   },
   "overrides": {
     "react-native-worklets": "0.10.2"
