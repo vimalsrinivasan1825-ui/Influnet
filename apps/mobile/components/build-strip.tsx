@@ -7,7 +7,7 @@ import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
 import { useTheme } from '@/lib/theme';
 import { API_BASE_URL, SUPABASE_URL } from '@/lib/supabase';
-import { LAST_COMMIT_TIME } from '@/lib/build-info';
+import { LAST_COMMIT_TIME, nativeBuildLabel } from '@/lib/build-info';
 import { Txt } from '@/components/ui';
 
 /**
@@ -72,9 +72,12 @@ export function BuildStrip() {
     (Constants.expoConfig as { android?: { package?: string } } | null)?.android?.package ??
     'unknown';
 
+  // Which binary, as opposed to which bundle — see nativeBuildLabel.
+  const binary = nativeBuildLabel() ?? 'unknown';
+
   return (
     <Txt variant="caption" tone="muted" style={{ textAlign: 'center', marginTop: t.spacing.md }}>
-      {`build ${LAST_COMMIT_TIME} · update ${update}`}
+      {`app ${binary} · build ${LAST_COMMIT_TIME} · update ${update}`}
       {'\n'}
       {`channel ${channel} · ${bundleId}`}
       {'\n'}

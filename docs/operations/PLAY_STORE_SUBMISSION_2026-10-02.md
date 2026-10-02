@@ -13,11 +13,11 @@ from memory. Where a question is a business decision it says so.
 
 | # | Step | Status |
 |---|---|---|
-| 1 | Merge PR #78 (`dev` → `staging`). Until then the app's Privacy/Terms links on `staging.influnet.io/legal/*` still show the **draft with placeholders** — a reviewer will open them. | ❌ you |
-| 2 | Staging deploy green after the merge (migration 194 + web). Check `https://staging.influnet.io/legal/privacy` has no "Draft" banner. | after 1 |
+| 1 | Merge PR #78 (`dev` → `staging`) — published legal text live on staging.influnet.io. | ✅ done 2026-10-02 |
+| 2 | Staging deploy + production OTA green; `/legal/privacy` has no draft markers. | ✅ done |
 | 3 | Mail for `influnet.io`: the domain has **no MX record**, so `support@influnet.io` and `grievance@influnet.io` (named in the privacy policy, and your Play contact) bounce. Cloudflare → Email → Email Routing → forward both to a real inbox. | ❌ you |
-| 4 | Reviewer account (§3). Phone OTP is on for signup, so it must be created through the app with a phone that receives the SMS. | ❌ you |
-| 5 | Upload `4621c358`'s `.aab` to a **Production** release (internal track first if you want a smoke test). | after build |
+| 4 | Reviewer accounts (§3) — SMS step off for ten minutes, two test numbers, back on. | ❌ you |
+| 5 | Upload `4621c358`'s `.aab` (finished) to a **Production** release. | ❌ you |
 
 ---
 
@@ -33,9 +33,14 @@ in-app (Settings → Delete account) and on the web:
 **Shared with third parties:** **None.** Every outside company we send data to
 acts on our behalf as a service provider (Supabase — database/auth, Microsoft
 Azure — hosting, Stream — chat, Resend — email, Razorpay — payments, Expo —
-push delivery), which Google does not count as "sharing". We don't sell data
-and the app has no ads or analytics SDKs (production build has no Sentry/PostHog
-keys).
+push delivery, Sentry — crash reports, PostHog — product analytics), which
+Google does not count as "sharing". We don't sell data and the app has no ads.
+
+> **Changed 2026-10-02 — update the live form.** Sentry crash reporting and
+> PostHog analytics were switched on for production (`eas.json` + the production
+> OTA job). The form you sent with build 8 said "no crash logs / diagnostics".
+> Edit Data safety in Play Console to match the table below **before merging
+> `dev` → `staging`**, because that merge is what delivers the keys to installed phones.
 
 ### Collected data types
 
@@ -53,17 +58,16 @@ For every row: **Collected = Yes · Shared = No · Processed ephemerally = No.**
 | Financial info → **Purchase history** (project payment records and invoices; card/UPI details go to Razorpay, never to us) | Optional | App functionality |
 | Messages → **Other in-app messages** (chat with brands/creators) | Optional | App functionality |
 | Photos and videos → **Photos** (profile picture/logo, portfolio images) | Optional | App functionality |
-| App activity → **App interactions** (profile views are recorded and shown to the creator viewed) | Optional | App functionality |
+| App activity → **App interactions** (profile views shown to the creator viewed; screens and funnel steps sent to PostHog) | Required | App functionality, Analytics |
 | App activity → **Other user-generated content** (campaign briefs, requests, reviews, portfolio entries) | Optional | App functionality |
 | Device or other IDs → **Device or other IDs** (push-notification token) | Optional | App functionality |
+| App info and performance → **Crash logs** (JS errors sent to Sentry) | Required | Analytics |
+| App info and performance → **Diagnostics** (error context: app version, OS) | Required | Analytics |
 
 Not collected: precise location, contacts, calendar, health, files/docs beyond
-what a user attaches in a project, audio, web browsing, installed apps, crash
-logs/diagnostics (none configured in production), advertising ID.
-
-> If you later add `EXPO_PUBLIC_SENTRY_DSN` / `EXPO_PUBLIC_POSTHOG_KEY` to the
-> EAS `production` environment, add **Crash logs**, **Diagnostics** and **App
-> interactions → Analytics** here before the update ships.
+what a user attaches in a project, audio, web browsing, installed apps,
+advertising ID. Analytics events are sent only after sign-in, under the user's
+own id. No anonymous device identifier is created.
 
 ---
 
@@ -85,34 +89,70 @@ confirmation). Not designed for children.
 
 ---
 
-## 3. App access
+## 3. App access — reviewer accounts with ONE phone number
 
-Choose **"All or some functionality is restricted"** and add one set of
-credentials. Create it yourself, in the app, before submitting:
+Signup needs an SMS code, and the signup form refuses a number that's already
+registered (`check_phone_available`, migration 107) — so a second account on
+your own number won't work. Don't insert users with SQL either: that skips
+`/api/auth/register`, which writes the profile rows. Instead, switch the SMS
+step off for ten minutes. The app reads it at runtime (`/api/auth/config`), so
+no build is involved.
 
-1. Sign up as a **creator** with an inbox you can read (e.g.
-   `influnet+playreview@tecstellar.com`) and a phone that receives the SMS code.
-2. Complete onboarding; link a public Instagram handle so Profile has numbers.
-3. Optional but worth it: from a second (business) account, send this creator a
-   request, so the reviewer sees Requests, a chat and a notification.
+**Run in the Supabase SQL editor of the STAGING project (`aokdansyqxracuwsosji`):**
 
-Instructions text for Play Console:
+```sql
+-- 1. SMS code OFF (takes ~1 minute: the flag is cached 45s per server)
+insert into public.feature_flags (key, enabled, description)
+values ('phone_otp', false, 'off: creating Play review accounts')
+on conflict (key) do update set enabled = excluded.enabled, description = excluded.description;
+```
+
+Then, in the **production app** (or staging.influnet.io):
+
+| Account | Email (plus-addressing lands in your own inbox) | Phone (no SMS is sent) |
+|---|---|---|
+| Creator — the one Google logs in with | `influnet+playcreator@tecstellar.com` | `9000000001` |
+| Brand — only to give the creator real content | `influnet+playbrand@tecstellar.com` | `9000000002` |
+
+Use a strong password each and note them. Give the creator a bio, a niche,
+a city and a public Instagram handle so Profile isn't empty.
+
+```sql
+-- 2. SMS code back ON — straight after both accounts exist
+insert into public.feature_flags (key, enabled, description)
+values ('phone_otp', true, 're-enabled')
+on conflict (key) do update set enabled = excluded.enabled, description = excluded.description;
+```
+
+Then:
+3. Admin console → **Approvals** → approve the review brand.
+4. Log in as the brand (web is fine): open the creator's profile (they get a
+   "viewed your profile" notification) and **send a collaboration request**.
+5. Log out. Only the **creator** login goes into Play Console.
+
+Play Console → App content → App access → "All or some functionality is
+restricted" → add the creator's email + password, with:
 
 > Log in with the email and password below (no SMS code is needed to log in —
-> the phone code is only asked at sign-up). The account is a creator. Requests,
+> the phone code is only asked at sign-up). This is a creator account. Requests,
 > Messages and Projects are on the bottom bar; Profile is the avatar top-right;
-> Notifications is the bell on Home.
+> Notifications is the bell on Home. A brand has already sent a request.
+
+If `ownership_gate` is on, accepting that request asks the creator to verify
+Instagram first — fine for review; the request itself is visible either way.
 
 ---
 
-## 4. Store listing basics
+## 4. Store listing
+
+Everything except screenshots is ready in [`play-store/`](play-store/):
+[`LISTING.md`](play-store/LISTING.md) (name, short + full description, release
+notes, which screenshots to take), `icon-512.png`, `feature-graphic-1024x500.png`.
 
 - **Privacy policy URL:** `https://influnet.io/privacy`
-- **Developer contact email:** one that receives mail (see §0 step 3).
-- **App category:** Business (or Social).
-- Still needed from you: 512×512 icon (export `apps/mobile/assets/icon.png`),
-  1024×500 feature graphic, at least 2 phone screenshots, short + full
-  description.
+- **Developer contact email:** `influnet@tecstellar.com` works today;
+  `support@influnet.io` only once §0 step 3 (MX) is done.
+- **App category:** Business. **Countries:** India.
 
 ---
 
