@@ -44,8 +44,22 @@ export function toMobileHref(link: string | null | undefined): Href | null {
         : '/messages';
     }
 
-    case 'requests':
-      return id ? { pathname: '/requests/[id]', params: { id } } : '/requests';
+    case 'requests': {
+      // The web has no single-request page, so links name the request as
+      // ?id= on the list path; here it opens that exact request.
+      const requestId = id ?? query.get('id');
+      return requestId ? { pathname: '/requests/[id]', params: { id: requestId } } : '/requests';
+    }
+
+    case 'campaigns':
+      return id && id !== 'new' ? { pathname: '/campaigns/[id]', params: { id } } : '/campaigns';
+
+    case 'profile-viewers':
+      return '/profile-viewers';
+    case 'billing':
+      return '/billing';
+    case 'home':
+      return '/home';
 
     case 'activity':
       return '/activity';
@@ -63,5 +77,26 @@ export function toMobileHref(link: string | null | undefined): Href | null {
 
     default:
       return null;
+  }
+}
+
+/**
+ * Where tapping a notification should land — the exact screen, not the area.
+ *
+ * Mostly `toMobileHref(link)`, but a few rows carry a link that is right for
+ * the web and wrong here. The verification decisions written by SQL
+ * (migrations 055/086) link to /dashboard/settings, where the web shows the
+ * verification panel; on mobile that is a separate screen, and landing on
+ * Settings made people hunt for it. The type says what the row is about, so
+ * it wins over the link for those.
+ */
+export function notificationHref(n: { type?: string | null; link?: string | null }): Href | null {
+  switch (n.type) {
+    case 'verification':
+      return '/verification';
+    case 'profile_view':
+      return '/profile-viewers';
+    default:
+      return toMobileHref(n.link);
   }
 }

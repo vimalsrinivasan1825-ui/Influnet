@@ -309,7 +309,7 @@ export async function POST(req: Request) {
       body: project_title
         ? `A brand reached out about “${project_title}”. Accept it to open a conversation and talk terms.`
         : 'A brand reached out to collaborate. Accept it to open a conversation and talk terms.',
-      link: '/dashboard/requests',
+      link: `/dashboard/requests?id=${data.id}`,
       email: {
         templateId: 'collab_request',
         // Keyed on the request row, so a client retry that hits the unique
@@ -491,7 +491,7 @@ export async function PATCH(req: Request) {
           type: 'collab_declined',
           title: 'Collaboration request declined',
           body: 'The creator passed on this one.',
-          link: '/dashboard/requests',
+          link: `/dashboard/requests?id=${collab.id}`,
           email: {
             templateId: 'collab_declined',
             dedupeKey: `collab_declined:${collab.id}`,
@@ -506,7 +506,7 @@ export async function PATCH(req: Request) {
           type: 'collab_request',
           title: 'A creator reopened your request',
           body: 'They changed their mind — it’s back on. Accept it to open a conversation.',
-          link: '/dashboard/requests',
+          link: `/dashboard/requests?id=${collab.id}`,
           email: {
             // Deliberately `generic`, not collab_request: that template is
             // addressed to the creator ("X wants to work with you") and the
@@ -522,7 +522,7 @@ export async function PATCH(req: Request) {
             data: {
               title: `${creatorName} reopened your request`,
               body: `${creatorName} changed their mind about “${projectName}” — the request is back in your dashboard. Accepting opens a conversation where you agree the details.`,
-              link: '/dashboard/requests',
+              link: `/dashboard/requests?id=${collab.id}`,
               ctaLabel: 'Open the request',
             },
           },

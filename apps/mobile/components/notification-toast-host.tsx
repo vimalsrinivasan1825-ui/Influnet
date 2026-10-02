@@ -23,7 +23,7 @@ import {
 import { useTheme } from '@/lib/theme';
 import { Txt } from '@/components/ui';
 import { endpoints } from '@/lib/api';
-import { toMobileHref } from '@/lib/notification-link';
+import { notificationHref } from '@/lib/notification-link';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { useNotificationToast, type ToastNotification } from '@/lib/notification-toast';
 
@@ -84,7 +84,7 @@ function ToastCard({ item }: { item: ToastNotification }) {
   }, [anim, close]);
 
   const accent = TRUST_TYPES.has(item.type) ? t.color.verified : t.color.brand;
-  const href = toMobileHref(item.link);
+  const href = notificationHref(item);
 
   const onPress = () => {
     // Opening the card is the read receipt — keep the badge honest without a
