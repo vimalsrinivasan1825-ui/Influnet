@@ -112,7 +112,7 @@ app needs no App Tracking Transparency prompt.
 ## 4. App Review Information
 
 **Sign-in required:** Yes. Use the **same creator account as Google Play**
-(`influnet+playcreator@tecstellar.com`, the password you noted). Logging in is
+(`influnet+review-creator@tecstellar.com`, the password you noted). Logging in is
 email and password only, so the reviewer needs no Indian phone number.
 **Contact:** your name, phone, `influnet@tecstellar.com`.
 

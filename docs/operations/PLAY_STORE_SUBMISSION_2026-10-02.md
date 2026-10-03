@@ -89,6 +89,8 @@ confirmation). Not designed for children.
 
 ---
 
+> **Done 2026-10-03:** the two accounts below were created directly on staging (admin API, SMS step untouched) with a pending request from the brand. The password is in `apps/web/.env.app-review` (gitignored). The steps below are only needed to recreate them. Do NOT hand `qa.creator@influnet.io` to reviewers: its username `qacreator` is the deploy smoke fixture.
+
 ## 3. App access — reviewer accounts with ONE phone number
 
 Signup needs an SMS code, and the signup form refuses a number that's already
@@ -111,8 +113,8 @@ Then, in the **production app** (or staging.influnet.io):
 
 | Account | Email (plus-addressing lands in your own inbox) | Phone (no SMS is sent) |
 |---|---|---|
-| Creator — the one Google logs in with | `influnet+playcreator@tecstellar.com` | `9000000001` |
-| Brand — only to give the creator real content | `influnet+playbrand@tecstellar.com` | `9000000002` |
+| Creator — the one Google logs in with | `influnet+review-creator@tecstellar.com` | `9000000011` |
+| Brand — only to give the creator real content | `influnet+review-brand@tecstellar.com` | `9000000012` |
 
 Use a strong password each and note them. Give the creator a bio, a niche,
 a city and a public Instagram handle so Profile isn't empty.
