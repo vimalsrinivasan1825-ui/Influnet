@@ -214,9 +214,22 @@ Built and completely inert. When you want funnels, follow
 the Azure portal afterwards does nothing.
 
 ### 17. Admin two-factor 👤 ✅
-`ADMIN_REQUIRE_MFA=true` forces `aal2` on every admin route. Left off so
-provisioning an admin can't lock them out. Turn it on once your admins have MFA
-enrolled — the admin console now exposes a lot more than it used to.
+Each admin enrols from the console itself: the yellow "Set up two-factor"
+banner → scan the QR with an authenticator app → enter the code. From then on
+that admin needs the code on every sign-in, regardless of any switch.
+
+Once **every** admin has enrolled, set `ADMIN_REQUIRE_MFA=true` on the
+container: anyone still on a password alone is then sent to the setup screen
+and every `/api/admin` call refuses them. It is an env var, not a console
+toggle, on purpose — a console toggle could be switched off with a stolen
+password.
+
+Lost phone: `node --env-file=apps/web/.env.local scripts/reset-admin-mfa.mjs
+--email <admin> --confirm` (dry-run without `--confirm`). Verify the request
+out-of-band first.
+
+First confirm TOTP is on: Supabase → Authentication → Multi-Factor, on both the
+dev and staging projects.
 
 ---
 

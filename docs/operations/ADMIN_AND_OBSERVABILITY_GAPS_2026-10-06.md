@@ -60,7 +60,7 @@ cover those roles.
 | Metabase (BI) | Report builder + 20 insight reports | ✅ adequate | Later, optional (G16) |
 | Audit log | `admin_audit_log` (append-only, service-role write) | ⚠️ partial | G6 |
 | RBAC | Migration 176 team roles + field masking | ✅ | RPC-level scoping (G14) |
-| MFA | **None** | ❌ | **G5** |
+| MFA | TOTP for admins (2026-10-06) | ✅ built | Enrol your admins, then set `ADMIN_REQUIRE_MFA=true` (G5) |
 
 ---
 
@@ -191,7 +191,20 @@ can't be answered.** Do the §6 checklist.
   `deploy-staging.yml` the same way as the other runtime vars.
 
 #### G5. Admin accounts have no second factor 👤💻
-- **Evidence:** no MFA/TOTP/`aal2` handling anywhere in `apps/web/src`.
+
+> **✅ Built 2026-10-06.** Correction to the evidence below: `withAdmin` already
+> had an opt-in `ADMIN_REQUIRE_MFA` check, but there was no way to enrol or to
+> enter a code, so turning it on would have locked every admin out. Now:
+> `AdminMfaGate` (enrol with QR, code prompt, "set it up" banner);
+> `adminMfaProblem` holds an **enrolled** admin to aal2 always and everyone
+> once `ADMIN_REQUIRE_MFA=true`; lost phones reset with
+> `scripts/reset-admin-mfa.mjs`. **Owner steps:** confirm TOTP is enabled in
+> Supabase → Authentication → Multi-Factor on both projects, enrol every
+> admin, then set `ADMIN_REQUIRE_MFA=true` on the containers.
+> **Still open:** `admin_*` RPCs called directly through PostgREST check
+> `is_admin()`, not `aal`; folding aal2 into those is part of G14.
+
+- **Evidence (as first written):** no MFA/TOTP/`aal2` handling anywhere in `apps/web/src`.
 - **Effect:** one leaked admin password exposes every user's email, phone and
   payment history, **and** can send push/email to every real user through
   Broadcasts. This is the most dangerous single credential in the system.

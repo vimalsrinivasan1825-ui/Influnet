@@ -35,7 +35,9 @@ export type AdminAction =
   | 'lead_created'
   | 'lead_updated'
   | 'lead_note_added'
-  | 'user_nudged';
+  | 'user_nudged'
+  // scripts/reset-admin-mfa.mjs writes this one directly (no admin session).
+  | 'admin_mfa_reset';
 
 export interface AuditInput {
   actorId: string;
