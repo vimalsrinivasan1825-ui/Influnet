@@ -119,6 +119,13 @@ Legend: 👤 needs the owner (dashboard, account, decision) · 💻 code change.
 ### P0: before real users depend on it
 
 #### G1. Product analytics is wired but almost no events are sent 💻
+
+> **✅ Done 2026-10-06 (web + server).** Web now identifies users; 26 of the 31
+> events fire (server-side for every database fact, client-side for signup UI
+> steps). Not yet sent: `social_handle_added`, `profile_completed`. Mobile
+> client-only events (signup steps on the phone) are deferred until the store
+> reviews return; the server events already cover mobile's funnel. Event map:
+> [ANALYTICS.md §3a](ANALYTICS.md).
 - **Evidence:** `AnalyticsEvent` (web `lib/analytics.ts`, mobile
   `lib/analytics.ts`) defines **31 events** from `signup_started` to
   `payment_succeeded`. Only **3 are ever called**: `support_ticket_opened`,
