@@ -1,6 +1,7 @@
 import { adminJson, jsonError, withAdmin, withAuth } from '@/lib/api';
 import { VERIFICATION_NOTIFICATION } from '@/lib/verification';
 import { auditAdmin } from '@/lib/admin-audit';
+import { captureServer } from '@/lib/analytics-server';
 
 // GET: escalation queue — checks awaiting a human decision, both roles, newest
 // first, with the AI score/reason and the person's name.
@@ -156,6 +157,10 @@ export async function PATCH(req: Request) {
       targetId: user_id, targetType: 'profile',
       metadata: { status, notes: notes ?? null }, req,
     });
+
+    // Attributed to the CREATOR, not the admin: it is their funnel step. No
+    // `req` — the admin's platform says nothing about the creator's.
+    if (status === 'verified') captureServer('verification_granted', user_id, { via: 'admin' });
 
     return adminJson(req, { result: data });
   } catch (error) {
