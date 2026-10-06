@@ -8,6 +8,7 @@ import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
 import { isSubscriptionEvent, handleSubscriptionEvent } from '@/lib/payments/subscription';
 import { invalidateEntitlements } from '@/lib/entitlements';
+import { captureServer } from '@/lib/analytics-server';
 
 // Razorpay posts server-to-server. We verify the HMAC signature over the RAW
 // body — so we must read req.text(), never req.json(), before parsing.
@@ -111,6 +112,13 @@ export async function POST(req: Request) {
         .update({ status: 'failed', failure_reason: failureReason })
         .eq('id', payment.id);
 
+      // No `req` here: this request is Razorpay's server, so its platform says
+      // nothing about the payer. The payer is the person, from the ledger row.
+      captureServer('payment_failed', payment.payer_id, {
+        project_id: payment.project_id, stage_key: payment.stage_key, amount_paise: payment.amount,
+        reason: (entity?.error_reason as string | undefined) ?? null,
+      });
+
       if (payment.payer_id) {
         const { data: proj } = await admin
           .from('campaign_projects')
@@ -182,6 +190,10 @@ export async function POST(req: Request) {
       .from('project_payments')
       .update({ status: 'paid', razorpay_payment_id: paymentId, paid_at: new Date().toISOString() })
       .eq('id', payment.id);
+
+    captureServer('payment_succeeded', payment.payer_id, {
+      project_id: payment.project_id, stage_key: payment.stage_key, amount_paise: payment.amount,
+    });
 
     // Auto-complete the payment gate item for that stage so the pipeline can advance.
     const { data: gateItem } = await admin
