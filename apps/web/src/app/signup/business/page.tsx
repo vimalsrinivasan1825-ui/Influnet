@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { track } from "@/lib/analytics";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -56,6 +57,16 @@ function BusinessSignupContent() {
     return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard";
   })();
   const [step, setStep] = useState<Step>(1);
+  // Funnel: which wizard step people reach, so the biggest drop-off is
+  // visible. Step 1 on mount doubles as "chose to sign up as a business".
+  // Links (landing, /join, invites) often skip the chooser and land here
+  // directly, so the funnel's first step is recorded here too. PostHog counts
+  // a person once per funnel step, so the chooser path isn't double-counted.
+  useEffect(() => track("signup_started", { entry: "business_owner" }), []);
+  useEffect(() => {
+    if (step === 1) track("signup_role_selected", { role: "business_owner" });
+    else track("profile_step_completed", { role: "business_owner", flow: "signup", step: step - 1 });
+  }, [step]);
   // Set once the account exists: the wizard hands over to "verify your email".
   const [verifyStage, setVerifyStage] = useState(false);
   const [error, setError] = useState("");
