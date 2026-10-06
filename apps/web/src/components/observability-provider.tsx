@@ -14,7 +14,8 @@
 import { useEffect, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useReportWebVitals } from 'next/web-vitals';
-import { analyticsEnabled, track, trackPageView } from '@/lib/analytics';
+import { analyticsEnabled, identify, resetIdentity, track, trackPageView } from '@/lib/analytics';
+import { createClient } from '@/lib/supabase/client';
 import { captureBrowserError, browserReportingEnabled } from '@/lib/observability-client';
 
 /**
@@ -131,9 +132,54 @@ function ClientErrors() {
   return null;
 }
 
+/**
+ * Ties analytics events to the signed-in account.
+ *
+ * Without this every web visitor was an anonymous PostHog person: a creator
+ * who signed up on web and carried on in the app counted as two people, and no
+ * funnel could follow anyone past the first page. Mobile already identifies in
+ * its root layout; this is the web half, using the same id (profiles.id).
+ *
+ * Listening to the auth client here, rather than at each sign-in/sign-out call
+ * site, covers every path at once — password, OTP, account switching, a session
+ * restored on reload, and sign-out from either the login page or the menu.
+ */
+function Identity() {
+  useEffect(() => {
+    if (!analyticsEnabled) return;
+    const sb = createClient();
+    let current: string | null = null;
+
+    const bind = async (userId: string) => {
+      if (current === userId) return;
+      current = userId;
+      // Role is the one segment every funnel splits on (creator vs business).
+      // profiles.role is in the authenticated column allow-list.
+      const { data } = await sb.from('profiles').select('role').eq('id', userId).maybeSingle();
+      if (current === userId) identify(userId, (data as { role?: string } | null)?.role ?? undefined);
+    };
+
+    void sb.auth.getSession().then(({ data }) => {
+      if (data.session) void bind(data.session.user.id);
+    });
+    const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        current = null;
+        resetIdentity();
+      } else if (session) {
+        void bind(session.user.id);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  return null;
+}
+
 export function ObservabilityProvider() {
   return (
     <>
+      <Identity />
       <PageViews />
       <WebVitals />
       <ClientErrors />
