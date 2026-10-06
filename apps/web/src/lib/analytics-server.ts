@@ -1,6 +1,7 @@
 import { after } from 'next/server';
 import type { AnalyticsEvent, AnalyticsProps } from '@/lib/analytics';
 import { parseClientHeader } from '@/lib/api';
+import { appEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
 /**
@@ -39,7 +40,9 @@ async function send(event: AnalyticsEvent, distinctId: string, props?: Analytics
         properties: {
           ...props,
           source: 'server',
-          app_env: process.env.NEXT_PUBLIC_APP_ENV || 'unknown',
+          // APP_ENV, not NEXT_PUBLIC_APP_ENV: the public one is inlined at build
+          // time even in server code, and is not a build arg everywhere.
+          app_env: appEnv,
         },
         timestamp: new Date().toISOString(),
       }),

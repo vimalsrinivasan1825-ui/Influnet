@@ -53,6 +53,11 @@ ARG NEXT_PUBLIC_SENTRY_RELEASE
 # posthog-js at all, so an unset value costs nothing and ships nothing.
 ARG NEXT_PUBLIC_POSTHOG_KEY
 ARG NEXT_PUBLIC_POSTHOG_HOST
+# Which environment the browser bundle belongs to. Tags every analytics event
+# (dev and staging share one PostHog project), and like every NEXT_PUBLIC_* it
+# is frozen at build time — the runtime value set on the container is not seen
+# by browser code.
+ARG NEXT_PUBLIC_APP_ENV
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
     NEXT_PUBLIC_STREAM_API_KEY=$NEXT_PUBLIC_STREAM_API_KEY \
@@ -62,7 +67,8 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_RAZORPAY_KEY_ID=$NEXT_PUBLIC_RAZORPAY_KEY_ID \
     NEXT_PUBLIC_SENTRY_RELEASE=$NEXT_PUBLIC_SENTRY_RELEASE \
     NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY \
-    NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST
+    NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST \
+    NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV
 
 # Build the Next.js app in standalone mode
 RUN npm run build --workspace=web
