@@ -10,6 +10,7 @@ import { requireVerifiedOwnership } from '@/lib/ownership-gate';
 import { ensureStageItems } from '@/lib/stage-items-gate';
 import { resolveEntitlements } from '@/lib/entitlements';
 import { flowOf } from '@influnet/core';
+import { captureServer } from '@/lib/analytics-server';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -284,6 +285,10 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       return mapRpcError(error.message, PROPOSE_ERRORS) ?? jsonError(500, 'Could not send the terms', error);
     }
 
+    captureServer('deal_proposed', user.id, {
+      proposal_id: result?.proposal_id ?? null, flow_key, budget: budget ?? null, is_barter,
+    }, req);
+
     if (result?.awaiting_user_id) {
       const awaitingId = result.awaiting_user_id as string;
       const names = await profileNames([awaitingId]);
@@ -418,6 +423,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             );
       }
       return mapRpcError(error.message, RESPOND_ERRORS) ?? jsonError(500, 'Could not respond to the terms', error);
+    }
+
+    if (accepting && result?.project_id) {
+      // Agreeing the terms IS what creates the project, so both facts are
+      // recorded here, from the one place a proposal turns into a project.
+      captureServer('deal_agreed', user.id, { proposal_id, project_id: result.project_id }, req);
+      captureServer('project_created', user.id, { project_id: result.project_id, via: 'deal' }, req);
     }
 
     // Materialise the new project's stage checklist right away, so a project is
