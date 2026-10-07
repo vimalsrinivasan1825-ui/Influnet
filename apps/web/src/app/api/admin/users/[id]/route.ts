@@ -115,6 +115,28 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
           .order('created_at', { ascending: false })
       : { data: null };
 
+    const [reportsFiled, reportsAgainst, blocks] = allows(auth.access, 'moderation', 'view')
+      ? await Promise.all([
+          supabase
+            .from('user_reports')
+            .select('id, reason, status, context, created_at, reported:profiles!user_reports_reported_id_fkey(id, name)')
+            .eq('reporter_id', id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('user_reports')
+            .select('id, reason, status, context, created_at, reporter:profiles!user_reports_reporter_id_fkey(id, name)')
+            .eq('reported_id', id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('user_blocks')
+            .select(
+              'blocker_id, blocked_id, created_at, blocker:profiles!user_blocks_blocker_id_fkey(id, name), blocked:profiles!user_blocks_blocked_id_fkey(id, name)',
+            )
+            .or(`blocker_id.eq.${id},blocked_id.eq.${id}`)
+            .order('created_at', { ascending: false }),
+        ])
+      : [{ data: null }, { data: null }, { data: null }];
+
     // Opening someone's full detail (email, phone, activity) is itself worth a
     // trace — until now it left none at all.
     await auditAdmin({
@@ -134,6 +156,9 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       payments: payments.data,
       subscription: subscription.data,
       supportTickets: supportTickets.data,
+      reportsFiled: reportsFiled.data,
+      reportsAgainst: reportsAgainst.data,
+      blocks: blocks.data,
     });
   } catch (error) {
     return jsonError(500, 'Could not load this user', error);
