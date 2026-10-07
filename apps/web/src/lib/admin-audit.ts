@@ -23,6 +23,8 @@ export type AdminAction =
   | 'event_registration_updated'
   | 'event_registration_deleted'
   | 'event_survey_form_updated'
+  | 'saved_report_created'
+  | 'saved_report_deleted'
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'

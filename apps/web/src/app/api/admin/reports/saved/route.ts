@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { adminJson, jsonError, withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 /**
  * GET    /api/admin/reports/saved        → { reports }
@@ -43,6 +44,17 @@ export async function POST(req: Request) {
       .select('*')
       .single();
     if (error) return jsonError(400, `Could not save this report: ${error.message}`, error);
+
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'saved_report_created',
+      targetId: String(data.id),
+      targetType: 'saved_report',
+      metadata: { name: parsed.data.name, dataset: parsed.data.dataset },
+      req,
+    });
+
     return adminJson(req, { report: data }, { status: 201 });
   } catch (error) {
     return jsonError(500, 'Could not save this report', error);
@@ -57,6 +69,16 @@ export async function DELETE(req: Request) {
     if (!id) return jsonError(400, 'Missing report id');
     const { error } = await auth.supabase.from('saved_reports').delete().eq('id', id);
     if (error) return jsonError(500, 'Could not delete this report', error);
+
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'saved_report_deleted',
+      targetId: id,
+      targetType: 'saved_report',
+      req,
+    });
+
     return adminJson(req, { ok: true });
   } catch (error) {
     return jsonError(500, 'Could not delete this report', error);
