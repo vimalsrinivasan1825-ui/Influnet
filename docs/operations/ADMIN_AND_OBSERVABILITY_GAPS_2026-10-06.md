@@ -313,11 +313,15 @@ it must be stated in the privacy policy. Don't build unrestricted chat reading.
 
 #### G10. Sign-in and security events aren't visible 💻
 
-> **Half done 2026-10-07.** Per user: sign-ins, sign-outs, password resets and
-> repeat signups from `auth.audit_log_entries` appear on the user page (195,
-> Sign-ins tab) and in the Journey (198), with IP. **Still open:** a
-> platform-wide failed-login / brute-force report, and `login_completed` is
-> still not fired to PostHog.
+> **Wired, but empty — 2026-10-07.** The Sign-ins tab (195) and the Journey
+> (198) read `auth.audit_log_entries`, and on dev that table gets **no rows**:
+> an account that signed in seconds earlier showed zero. Supabase is keeping
+> auth events in its log storage instead of the database. 👤 Turn the database
+> audit log on (Supabase → Authentication → audit log setting) on both
+> projects; the screens fill from then on, with no code change. Until then the
+> only sign-in signal is `last_sign_in_at` plus active days (152). **Still
+> open:** a platform-wide failed-login report, and `login_completed` is not
+> fired to PostHog.
 `login_completed` is defined but never fired, and Supabase's own auth audit
 log isn't surfaced. You can't answer "did this account sign in from a new
 device yesterday" or "is someone brute-forcing logins". Surface

@@ -14,9 +14,10 @@ everything else was seen directly on 2026-10-07.
 
 | # | Do this | How you know it worked |
 |---|---|---|
-| A1 | **Push `dev`** (or let me). CI applies migration **198** to the dev database on deploy (`supabase db push --include-all`). | `node --env-file=apps/web/.env.local tests/e2e/verify-198-journey.mjs` with `BASE_URL=https://dev.influnet.io` reports the journey has events. In the console, a user's **Journey** tab no longer says "appears once migration 198 is applied". |
+| A1 | ✅ **Done 2026-10-07:** pushed to `dev`; CI applied migration **198** and deployed (run 37637451606, all green). | `E2E_BASE_URL=https://dev.influnet.io node --env-file=apps/web/.env.local tests/e2e/verify-198-journey.mjs` reports the journey has events. In the console, a user's **Journey** tab no longer says "appears once migration 198 is applied". |
 | A2 | **Renew `SUPABASE_ACCESS_TOKEN`** in `apps/web/.env.local`. Supabase → Account → Access Tokens → new token. The current one returns **401 Unauthorized** (seen today). | `tests/e2e/lib/sql.mjs` and `scripts/apply-migration.mjs` work again. Without it nobody can apply a migration by hand or run the audit harness's SQL checks. |
 | A3 | **Open the dev → staging PR** when you're happy with dev. Staging gets 196, 197 and 198 from that merge. | Same Journey check against `staging.influnet.io`. |
+| A3b | **Turn on Supabase's database auth audit log** on dev and staging (Supabase → Authentication → the audit-log setting that writes to the database). Today `auth.audit_log_entries` gets no rows: an account that had just signed in showed zero sign-ins. | A user's **Sign-ins** tab lists logins after you sign in once, and the Journey shows "Signed in" rows. Nothing to deploy. |
 | A4 | **Decide: should admins with *Team* access see the Audit log?** Today only a super admin can open it, though every admin's user pages show "what the team did" (names hidden unless they have Team). | Tell me which; it's a one-line change in `lib/admin-access.ts`. |
 
 ---

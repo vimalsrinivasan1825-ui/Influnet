@@ -2,7 +2,7 @@
 // against the running dev server, as the test-only admin.
 //
 // Usage: node --env-file=apps/web/.env.local tests/e2e/verify-198-journey.mjs
-// Needs the dev server (BASE_URL, default http://localhost:3000) and
+// Needs a running server (E2E_BASE_URL, default http://localhost:3000) and
 // seed-personas.mjs run at least once.
 //
 // Before 198 is applied the journey route must answer available:false (so the

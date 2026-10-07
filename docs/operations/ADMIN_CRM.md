@@ -65,7 +65,8 @@ The page answers three questions, top to bottom:
 | **How did they get here?** | **Journey** tab (opens first) | `admin_get_user_journey()` (migration 198): every trace they left, newest first, grouped by IST day |
 
 The Journey merges ~25 tables into one list: sign-ins/sign-outs/password resets
-(Supabase Auth's own log), terms accepted, phone OTP, profile edits, portfolio,
+(Supabase Auth's own log — empty until its database audit log is switched on,
+see OWNER_TODO A3b), terms accepted, phone OTP, profile edits, portfolio,
 profiles they viewed and who viewed theirs, shortlists, verification checks and
 decisions, social-handle and work-email proof, campaigns posted and applied to,
 requests, terms, projects, stage sign-offs, reviews, project payments, Pro
@@ -85,7 +86,7 @@ Approvals → verification, OTP → codes, Campaigns, Feedback). The admin's nam
 "what the team did" entries, and console-view entries, need *Team*. Amounts, IPs
 and admin emails are separate fields, so the hidden-field settings mask them.
 
-**Before 198 is applied** the Journey tab says so and shows the older
+**Applied on dev 2026-10-07.** Before 198 is applied, the Journey tab says so and shows the older
 requests/projects/payments list instead of an empty page. That older list prints
 payments in paise as if they were rupees (₹15,000 shows as ₹1,500,000); the
 Journey prints them correctly.

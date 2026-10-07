@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Play screenshot frame</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --pink: #C8297A; --ink: #111114; --paper: #F3F3F5; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--fg); position: relative; }
+  body.pink { --bg: var(--pink); --fg: #fff; --sub: rgba(255,255,255,.82); --hl: #FFD3E8; }
+  body.ink  { --bg: var(--ink);  --fg: #fff; --sub: rgba(255,255,255,.7);  --hl: #FF5FA8; }
+
+  .copy { position: absolute; top: 88px; left: 60px; right: 60px; text-align: center; }
+  h1 { font-weight: 800; font-size: 82px; line-height: 1.04; letter-spacing: -2.5px; }
+  h1 em { font-style: normal; color: var(--hl); }
+  p { margin-top: 26px; font-weight: 500; font-size: 36px; line-height: 1.3; color: var(--sub); }
+
+  /* Android phone: thin even bezel, punch-hole camera */
+  .phone { position: absolute; left: 50%; top: 400px; transform: translateX(-50%);
+    width: 680px; height: 1470px; background: #0b0b0d; border-radius: 86px; padding: 18px;
+    box-shadow: 0 40px 90px rgba(0,0,0,.35), inset 0 0 0 3px #2a2a2e; }
+  .phone::before { /* side button */
+    content: ''; position: absolute; right: -6px; top: 300px; width: 6px; height: 150px; background: #2a2a2e; border-radius: 0 4px 4px 0; }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 70px; overflow: hidden; background: var(--paper); }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 64px; z-index: 2;
+    display: flex; align-items: center; justify-content: space-between; padding: 6px 52px 0;
+    font-weight: 600; font-size: 25px; color: #111; background: var(--paper); }
+  .status.dark { background: transparent; color: #fff; }
+  .cam { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 30px; height: 30px;
+    border-radius: 50%; background: #050505; z-index: 3; box-shadow: inset 0 0 0 4px #1b1b1f; }
+  .icons { display: flex; gap: 10px; align-items: center; }
+  .shot { position: absolute; top: 64px; left: 0; width: 100%; height: calc(100% - 64px);
+    object-fit: cover; object-position: top center; }
+  .shot.full { top: 0; height: 100%; }
+  .gesture { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    width: 220px; height: 8px; border-radius: 8px; background: rgba(0,0,0,.55); z-index: 2; }
+</style>
+</head>
+<body>
+  <div class="copy"><h1 id="h"></h1><p id="s"></p></div>
+  <div class="phone"><div class="screen">
+    <div class="cam"></div>
+    <div class="status" id="status"><span>9:41</span>
+      <span class="icons">
+        <svg width="30" height="24" viewBox="0 0 30 24" fill="currentColor"><path d="M15 23 0 6a21 21 0 0 1 30 0z"/></svg>
+        <svg width="26" height="24" viewBox="0 0 26 24" fill="currentColor"><path d="M26 0v24H0z"/></svg>
+        <svg width="16" height="28" viewBox="0 0 16 28"><rect x="4" y="0" width="8" height="3" rx="1" fill="currentColor"/><rect x="1" y="3" width="14" height="25" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3.5" y="9" width="9" height="16.5" rx="1.5" fill="currentColor"/></svg>
+      </span></div>
+    <img class="shot" id="img">
+    <div class="gesture"></div>
+  </div></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.body.className = q.get('bg') || 'pink';
+  document.getElementById('h').innerHTML = q.get('h');
+  document.getElementById('s').textContent = q.get('s');
+  const img = document.getElementById('img');
+  img.src = 'src/' + q.get('img');
+  if (q.get('full')) { img.classList.add('full'); document.getElementById('status').classList.add('dark'); }
+</script>
+</body>
+</html>
