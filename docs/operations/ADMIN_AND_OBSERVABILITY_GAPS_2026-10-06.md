@@ -228,6 +228,11 @@ can't be answered.** Do the §6 checklist.
 > `user_updated` now logs `{before, after}`; opening a user's detail page
 > logs `user_viewed`; the audit screen and its API gained actor/action/target
 > filters.
+>
+> **2026-10-07:** the audit screen now expands each row (before → after, IP,
+> reason, raw metadata), names and links the person an action touched, filters
+> by admin, and pages through the whole table. Re-checked: every mutating or
+> exporting `/api/admin` route writes a row. See [ADMIN_CRM.md §1a](ADMIN_CRM.md).
 
 - **Admin write routes that write no audit row:** `campaigns/[id]` (approving
   or removing a campaign), `reports` (resolving a report, even though
@@ -258,6 +263,13 @@ can't be answered.** Do the §6 checklist.
 > new — `admin_get_user_signins()` (migration 195) reads
 > `auth.audit_log_entries` directly, since that schema isn't exposed through
 > PostgREST.
+>
+> **2026-10-07, the rest of the story:** the page opens on a *Right now*
+> lifecycle card and a **Journey** tab (migration 198,
+> `admin_get_user_journey`) that merges ~25 sources into one dated history from
+> signup to today, including what admins did to the account. Every person
+> named anywhere in the console now links to this page. Details:
+> [ADMIN_CRM.md §1a](ADMIN_CRM.md). **198 is not applied anywhere yet.**
 
 `/api/admin/users/[id]` returns: profile, business/creator profile, projects,
 requests, activity timeline. All of the following already exist in tables or
@@ -300,6 +312,12 @@ a conversation named in an open report, logged as `conversation_viewed`*, and
 it must be stated in the privacy policy. Don't build unrestricted chat reading.
 
 #### G10. Sign-in and security events aren't visible 💻
+
+> **Half done 2026-10-07.** Per user: sign-ins, sign-outs, password resets and
+> repeat signups from `auth.audit_log_entries` appear on the user page (195,
+> Sign-ins tab) and in the Journey (198), with IP. **Still open:** a
+> platform-wide failed-login / brute-force report, and `login_completed` is
+> still not fired to PostHog.
 `login_completed` is defined but never fired, and Supabase's own auth audit
 log isn't surfaced. You can't answer "did this account sign in from a new
 device yesterday" or "is someone brute-forcing logins". Surface
@@ -337,7 +355,8 @@ enough for now. Revisit only if App Insights can't explain a slow page.
 > yet, so it's mapped to `early_access` (closest existing section) rather
 > than staying ungated. The `admin_team_*` functions in migration 176 needed
 > no change — they were already revoked from `authenticated` entirely.
-> Migration 196 is new on this branch and not yet applied anywhere.
+> Migration 196 is applied on **dev** (confirmed 2026-10-07: `admin_has_permission`
+> is exposed there); staging gets it with the next dev → staging merge.
 
 Documented in AGENTS.md: staff are still `is_admin()`, so a staff member
 calling an `admin_*` RPC directly through PostgREST can read outside their

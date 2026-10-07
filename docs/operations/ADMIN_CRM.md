@@ -46,6 +46,62 @@ is a row there plus a page — never a new query built from client input.
 
 ---
 
+## 1a. One person, end to end (2026-10-07, migration 198)
+
+**Click any person anywhere in the console** and you land on their page,
+`/dashboard/admin/users/<id>`. Names link from Approvals (business rows and the
+verification queue), Reports (both parties), Support (the open ticket), Feedback,
+Campaigns (the brand), Incomplete signups, Live activity, the Audit log, and
+every report table whose rows carry a `user_id`. One component does this
+(`components/dashboard/admin/user-link.tsx`); a deleted account renders as plain
+text rather than a link to a 404.
+
+The page answers three questions, top to bottom:
+
+| Question | Where | Built from |
+|---|---|---|
+| **Who is this?** | Header | profile, business/creator profile, contact, joined, last sign-in |
+| **Where are they right now?** | "Right now" card | `lib/admin-user-lifecycle.ts`: one state (rejected · in a live project, flagged *stuck* if they've gone quiet · awaiting approval · gone quiet 30d+ · has completed work · still onboarding · set up, no deal yet), days since signup / last seen, live and completed projects, and a role-specific milestone track with dates |
+| **How did they get here?** | **Journey** tab (opens first) | `admin_get_user_journey()` (migration 198): every trace they left, newest first, grouped by IST day |
+
+The Journey merges ~25 tables into one list: sign-ins/sign-outs/password resets
+(Supabase Auth's own log), terms accepted, phone OTP, profile edits, portfolio,
+profiles they viewed and who viewed theirs, shortlists, verification checks and
+decisions, social-handle and work-email proof, campaigns posted and applied to,
+requests, terms, projects, stage sign-offs, reviews, project payments, Pro
+purchases and billing events, support tickets, feedback, reports and blocks (both
+directions), app installs, every active day by platform, and **what the Influnet
+team did to the account** (approvals, edits with the fields changed, nudges).
+Filter by category, or tick *Only what they did* to hide what happened *to* them.
+
+Nothing here is a new log: it reads the rows each feature already writes, so it
+can't drift, and history goes back as far as each table does (active days from
+152, devices from 156, and so on).
+
+**Who sees what.** The Journey needs the *Users* section. Each source inside it
+also needs the section that owns it elsewhere (Support → tickets, Moderation →
+reports/blocks, App activity → devices/usage, Subscribers → Pro billing,
+Approvals → verification, OTP → codes, Campaigns, Feedback). The admin's name on
+"what the team did" entries, and console-view entries, need *Team*. Amounts, IPs
+and admin emails are separate fields, so the hidden-field settings mask them.
+
+**Before 198 is applied** the Journey tab says so and shows the older
+requests/projects/payments list instead of an empty page. That older list prints
+payments in paise as if they were rupees (₹15,000 shows as ₹1,500,000); the
+Journey prints them correctly.
+
+**The Audit log** (super admin) now expands each row to the full record: before →
+after for edits, IP, reason and raw metadata. The person an action touched shows
+by name and links to their page, *Every action on this* filters to them, you can
+filter by admin, and *Load older entries* walks the whole table instead of
+stopping at the newest 250. Every admin route that changes data or exports it
+writes a row; Team changes are written inside SQL (176).
+
+**Check it:** `node --env-file=apps/web/.env.local tests/e2e/verify-198-journey.mjs`
+against a running server, as the test admin.
+
+---
+
 ## 2. Before it is fully useful
 
 | # | Step | Why it matters | Who |
