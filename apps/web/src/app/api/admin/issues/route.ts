@@ -1,4 +1,5 @@
 import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 /**
  * The admin issue/fix tracker (see migration 101_admin_issue_tracker.sql).
@@ -129,6 +130,16 @@ export async function POST(req: Request) {
       return jsonError(500, 'Could not create issue', error);
     }
 
+    await auditAdmin({
+      actorId: user.id,
+      actorEmail: user.email ?? null,
+      action: 'issue_created',
+      targetId: String(data.id),
+      targetType: 'admin_issue',
+      metadata: { title },
+      req,
+    });
+
     return adminJson(req, { issue: data }, { status: 201 });
   } catch (error) {
     return jsonError(500, 'Could not create issue', error);
@@ -206,6 +217,16 @@ export async function PATCH(req: Request) {
     if (error) return jsonError(500, 'Could not update this issue', error);
     if (!data) return jsonError(404, 'Issue not found');
 
+    await auditAdmin({
+      actorId: user.id,
+      actorEmail: user.email ?? null,
+      action: 'issue_updated',
+      targetId: id,
+      targetType: 'admin_issue',
+      metadata: { fields: Object.keys(update).filter((k) => k !== 'updated_by') },
+      req,
+    });
+
     return adminJson(req, { issue: data });
   } catch (error) {
     return jsonError(500, 'Could not update this issue', error);
@@ -216,7 +237,7 @@ export async function DELETE(req: Request) {
   try {
     const auth = await withSuperAdmin(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const url = new URL(req.url);
     const id = url.searchParams.get('id') ?? '';
@@ -224,6 +245,15 @@ export async function DELETE(req: Request) {
 
     const { error } = await supabase.from('admin_issues').delete().eq('id', id);
     if (error) return jsonError(500, 'Could not delete this issue', error);
+
+    await auditAdmin({
+      actorId: user.id,
+      actorEmail: user.email ?? null,
+      action: 'issue_deleted',
+      targetId: id,
+      targetType: 'admin_issue',
+      req,
+    });
 
     return adminJson(req, { ok: true });
   } catch (error) {
