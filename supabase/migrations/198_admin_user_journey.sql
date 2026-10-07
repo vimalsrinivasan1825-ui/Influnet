@@ -30,7 +30,9 @@
 -- on a database where this migration has not been applied yet.
 
 CREATE OR REPLACE FUNCTION public.admin_get_user_journey(
-  p_user_id UUID,
+  -- DEFAULT NULL only so /api/admin/health can probe it with {} (see 110);
+  -- a null id still raises below.
+  p_user_id UUID DEFAULT NULL,
   p_limit   INT DEFAULT 300,
   p_before  TIMESTAMPTZ DEFAULT NULL
 )

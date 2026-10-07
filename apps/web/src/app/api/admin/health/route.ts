@@ -37,6 +37,7 @@ import { isObservabilityEnabled } from '@/lib/observability';
  * — a missing column fails the select, which is exactly the signal.
  */
 const FEATURE_PROBES: { migration: string; label: string; probe: string; kind: 'rpc' | 'table' | 'column' }[] = [
+  { migration: '198', label: 'Admin user journey', probe: 'admin_get_user_journey', kind: 'rpc' },
   { migration: '165', label: 'Single-source request notifications', probe: 'collab_notifications_single_source', kind: 'rpc' },
   { migration: '164', label: 'Business approval guards (DB level)', probe: 'business_approval_guards_installed', kind: 'rpc' },
   { migration: '163', label: 'Report context (campaign / request)', probe: 'user_reports.context', kind: 'column' },
