@@ -137,6 +137,22 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         ])
       : [{ data: null }, { data: null }, { data: null }];
 
+    const devices = allows(auth.access, 'app_activity', 'view')
+      ? await supabase
+          .from('push_devices')
+          .select('id, platform, app_version, os_version, permission, last_seen_at, disabled_at, disabled_reason')
+          .eq('user_id', id)
+          .order('last_seen_at', { ascending: false })
+      : { data: null };
+
+    const socialClaims = allows(auth.access, 'approvals', 'view')
+      ? await supabase
+          .from('social_account_claims')
+          .select('id, platform, handle, status, attempts, expires_at, verified_at, last_attempt_at, created_at')
+          .eq('user_id', id)
+          .order('created_at', { ascending: false })
+      : { data: null };
+
     // Opening someone's full detail (email, phone, activity) is itself worth a
     // trace — until now it left none at all.
     await auditAdmin({
@@ -159,6 +175,8 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       reportsFiled: reportsFiled.data,
       reportsAgainst: reportsAgainst.data,
       blocks: blocks.data,
+      devices: devices.data,
+      socialClaims: socialClaims.data,
     });
   } catch (error) {
     return jsonError(500, 'Could not load this user', error);
