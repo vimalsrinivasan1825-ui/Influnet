@@ -84,6 +84,17 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       console.error('[admin/users/[id]] activity RPC failed:', activityRes.error.message);
     }
 
+    // Opening someone's full detail (email, phone, activity) is itself worth a
+    // trace — until now it left none at all.
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'user_viewed',
+      targetId: id,
+      targetType: 'user',
+      req,
+    });
+
     return adminJson(req, {
       user: enriched,
       projects: projects || [],
