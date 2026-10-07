@@ -133,12 +133,19 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (!parsed.success) return jsonError(400, parsed.error.issues[0]?.message ?? 'Validation failed');
     const body = parsed.data;
 
+    // Fetched once, up front: both the admin-role guard below and the
+    // before/after audit trail need the row as it stood before this edit.
+    const { data: before } = await supabase
+      .from('profiles')
+      .select('role, name, phone, location, email')
+      .eq('id', id)
+      .maybeSingle();
+
     if (auth.access.tier !== 'super') {
       // Changing an admin's email is an account takeover: set it to an address
       // you control, then reset the password. Only a super admin edits another
       // console account here; team members are managed on the Team page.
-      const { data: target } = await supabase.from('profiles').select('role').eq('id', id).maybeSingle();
-      if (target?.role === 'admin') {
+      if (before?.role === 'admin') {
         return jsonError(403, 'Console accounts can only be edited by a super admin.');
       }
       // A field you cannot see is not one you may overwrite.
@@ -172,13 +179,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       await supabase.from('profiles').update({ email: body.email }).eq('id', id);
     }
 
+    const changedFields = (['name', 'phone', 'location', 'email'] as const).filter(
+      (f) => body[f] !== undefined,
+    );
     await auditAdmin({
       actorId: admin.id,
       actorEmail: admin.email ?? null,
       action: 'user_updated',
       targetId: id,
       targetType: 'user',
-      metadata: { fields: Object.keys(body) },
+      metadata: {
+        fields: changedFields,
+        before: Object.fromEntries(changedFields.map((f) => [f, before?.[f] ?? null])),
+        after: Object.fromEntries(changedFields.map((f) => [f, body[f] || null])),
+      },
       req,
     });
 
