@@ -31,6 +31,7 @@ export default function FounderDashboardPage() {
   const topNiches = data?.top_niches ?? [];
   const topBrands = data?.top_brands ?? [];
   const campaignSuccess = data?.campaign_success ?? {};
+  const earningsDistribution = data?.creator_earnings_distribution ?? [];
   const series = (data?.series ?? []).map((r: any) => ({
     name: new Date(r.day).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
     Signups: r.signups,
@@ -177,6 +178,10 @@ export default function FounderDashboardPage() {
           />
         </SectionCard>
       </div>
+
+      <SectionCard eyebrow="Lifetime" title="Creator earnings distribution">
+        <StatRows rows={earningsDistribution.map((b: any) => ({ label: b.bucket, value: b.creators ?? 0 }))} />
+      </SectionCard>
     </AdminPage>
   );
 }
