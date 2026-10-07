@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { privileged } from '@/lib/service-client';
 import { withAuth, jsonError } from '@/lib/api';
+import { captureServer } from '@/lib/analytics-server';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { fetchInstagramProfile, normalizeHandle, InstagramProviderError } from '@/lib/instagram';
 import { originFromHeaders } from '@/lib/site';
@@ -137,6 +138,8 @@ export async function POST(req: Request) {
         console.error('[ownership] verification email failed:', emailErr);
       }
 
+      captureServer('ownership_code_issued', user.id, { network: 'instagram' }, req);
+
       return NextResponse.json({
         code: marker,
         profile_url: marker,
@@ -236,6 +239,8 @@ export async function POST(req: Request) {
         userId: user.id,
         role: auth.role as Role,
       });
+
+      captureServer('ownership_confirmed', user.id, { network: 'instagram' }, req);
 
       return NextResponse.json({ verified: true, result, profile_url: marker, verification: rescored });
     }

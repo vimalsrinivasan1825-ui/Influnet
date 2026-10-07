@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { usePhoneAvailability } from "@/lib/hooks/use-availability";
+import { track } from "@/lib/analytics";
 
 // Long enough for "+91 98765 43210" with room to spare.
 const PHONE_MAX_LENGTH = 20;
@@ -148,6 +149,7 @@ export function PhoneOtpField({
         if (typeof data.retryAfterSec === "number") setResendIn(data.retryAfterSec);
         return;
       }
+      track("signup_otp_sent");
       setProviderSessionId(data.providerSessionId ?? data.sessionId ?? null);
       setDigits(Array(OTP_LENGTH).fill(""));
       setResendIn(data.resendAfterSec ?? 30);
@@ -184,6 +186,7 @@ export function PhoneOtpField({
           }
           return;
         }
+        track("signup_otp_verified");
         onVerifiedChange(data.verificationToken ?? null);
       } catch {
         setError("Network error — could not verify the code.");

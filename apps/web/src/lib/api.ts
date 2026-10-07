@@ -82,6 +82,43 @@ function tokenAal(req: Request): string | null {
   }
 }
 
+export type AdminMfaProblem = 'mfa_required' | 'mfa_enroll_required';
+
+export const ADMIN_MFA_MESSAGES: Record<AdminMfaProblem, string> = {
+  mfa_required: 'Enter the code from your authenticator app to open the admin console.',
+  mfa_enroll_required: 'The admin console requires two-factor authentication. Set up an authenticator app to continue.',
+};
+
+/** True when the user has finished enrolling at least one second factor. */
+export function hasVerifiedFactor(user: Pick<User, 'factors'>): boolean {
+  return (user.factors ?? []).some((f) => f.status === 'verified');
+}
+
+/**
+ * Whether an admin request must be refused for its second factor.
+ *
+ * Two rules, deliberately different:
+ *   - An admin who HAS enrolled is always held to it. Otherwise the factor
+ *     protects nothing: a stolen password alone would still open the console
+ *     through any API call, just not through the login screen.
+ *   - An admin who has NOT enrolled is refused only once ADMIN_REQUIRE_MFA is
+ *     on. That switch stays an env var on purpose — a console toggle could be
+ *     flipped off by exactly the person it is meant to keep out.
+ *
+ * The answer tells the console which screen to show: a code prompt, or the
+ * enrolment flow.
+ */
+export function adminMfaProblem(input: {
+  aal: string | null;
+  hasVerifiedFactor: boolean;
+  required: boolean;
+}): AdminMfaProblem | null {
+  if (input.aal === 'aal2') return null;
+  if (input.hasVerifiedFactor) return 'mfa_required';
+  if (input.required) return 'mfa_enroll_required';
+  return null;
+}
+
 /**
  * The access of the admin behind a request, set by `withAdmin`. Keyed by the
  * Request object so `adminJson` can hide fields without every route threading
@@ -195,13 +232,15 @@ export async function withAdmin(
   const auth = await withAuth(req, { role: 'admin' as UserRole });
   if (!auth.ok) return auth;
 
-  // Opt-in second-factor requirement for the admin surface. Left off by default
-  // so provisioning an admin can't lock them out before they've enrolled; turn
-  // it on once the client has MFA set up.
-  if (process.env.ADMIN_REQUIRE_MFA === 'true' && tokenAal(req) !== 'aal2') {
+  const mfa = adminMfaProblem({
+    aal: tokenAal(req),
+    hasVerifiedFactor: hasVerifiedFactor(auth.user),
+    required: process.env.ADMIN_REQUIRE_MFA === 'true',
+  });
+  if (mfa) {
     return {
       ok: false,
-      res: jsonError(403, 'Admin access requires two-factor authentication. Sign in again and complete your second factor.'),
+      res: NextResponse.json({ error: ADMIN_MFA_MESSAGES[mfa], code: mfa }, { status: 403 }),
     };
   }
 

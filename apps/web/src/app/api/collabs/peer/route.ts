@@ -6,6 +6,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { requireQuota, releaseQuota } from '@/lib/entitlements';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
+import { captureServer } from '@/lib/analytics-server';
 
 /**
  * Creator → creator collaboration request.
@@ -88,6 +89,8 @@ export async function POST(req: Request) {
       }
       return jsonError(500, 'Could not send the request', error);
     }
+
+    captureServer('collab_request_sent', user.id, { request_id: data.id, kind: 'peer' }, req);
 
     const names = await profileNames([user.id]);
     await notifyUser({

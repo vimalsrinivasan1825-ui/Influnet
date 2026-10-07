@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
+import { captureServer } from '@/lib/analytics-server';
 
 // The deal terms that can be changed via the propose → confirm loop.
 const EDITABLE_FIELDS = ['title', 'description', 'deliverables', 'budget', 'advance_amount', 'due_date'] as const;
@@ -115,6 +116,9 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
 
     const counterpartyId = project.owner_user_id === user.id ? project.counterparty_user_id : project.owner_user_id;
     const proposerRole = project.owner_user_id === user.id ? 'brand' : 'creator';
+    captureServer('change_request_opened', user.id, {
+      project_id: projectId, change_request_id: created?.id ?? null, actor_role: proposerRole,
+    }, req);
     const projectLabel = project.title ? `“${project.title}”` : 'your project';
     if (counterpartyId) {
       const projectLink = `/dashboard/projects/${projectId}`;

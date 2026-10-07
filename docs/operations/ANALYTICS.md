@@ -114,6 +114,48 @@ one-line `track('event_name', { … })` — the type stops typos at compile time
 
 ---
 
+## 3a. Where each event fires (2026-10-06)
+
+Server events are sent by `captureServer()` (`lib/analytics-server.ts`) from
+the route that wrote the fact, after the write succeeded, so they cover web
+**and** mobile, can't be blocked, and carry `platform` / `app_version` from the
+`x-influnet-client` header. `distinct_id` is always `profiles.id`, the same
+id web (`ObservabilityProvider` → `Identity`) and mobile (`app/_layout.tsx`)
+`identify()` with.
+
+| Event | Fires from | Side |
+|---|---|---|
+| `signup_started` | `/signup` chooser, and each signup wizard on mount | web |
+| `signup_role_selected` | signup wizard, step 1 | web |
+| `profile_step_completed` | signup wizard, each step reached (`flow: signup`, `step`) | web |
+| `signup_otp_sent` / `signup_otp_verified` | `PhoneOtpField` | web |
+| `signup_completed` | `POST /api/auth/register` | server |
+| `login_completed` | `/login` after password sign-in | web |
+| `ownership_code_issued` / `ownership_confirmed` | `/api/verification/ownership` | server |
+| `verification_submitted` | `POST /api/verification` (with auto outcome) | server |
+| `verification_granted` | auto-approve in `/api/verification`, or admin decision | server |
+| `discover_searched` | `GET /api/discover` (never the query text) | server |
+| `creator_profile_viewed` | `/[username]` page, `GET /api/creators/[username]` | server |
+| `collab_request_sent` | `POST /api/collabs` (`kind: brand`), `/api/collabs/peer` (`kind: peer`) | server |
+| `collab_request_accepted` / `_declined` | `PATCH /api/collabs` | server |
+| `deal_proposed` / `deal_agreed` | `/api/conversations/[id]/deal` | server |
+| `project_created` | deal accepted (the only way a project is created) | server |
+| `project_stage_advanced` | `advance`, or the sign-off that moves the stage | server |
+| `project_stage_skipped` | confirmed skip | server |
+| `change_request_opened` | `POST /api/projects/[id]/change-requests` | server |
+| `project_completed` | `confirm_completion` once both confirmed | server |
+| `project_cancelled` | `accept_cancellation` | server |
+| `payment_started` | Razorpay order created | server |
+| `payment_succeeded` / `payment_failed` | signed Razorpay webhook (attributed to the payer) | server |
+| `support_ticket_opened`, `feedback_submitted` | support / feedback forms | web + mobile |
+| `client_error` | browser errors and Web Vitals (`kind`) | web |
+
+Not wired yet: `social_handle_added`, `profile_completed`. Mobile sends only
+`screen_viewed`, support and feedback from the client; its funnel comes from
+the server events above.
+
+---
+
 ## 4. Mobile crash reporting — read this before promising it
 
 `apps/mobile/lib/analytics.ts` talks to PostHog and Sentry over **plain

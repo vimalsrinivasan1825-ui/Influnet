@@ -5,8 +5,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { useAdminTier } from "@/lib/hooks/use-admin-tier";
 
 /**
- * Wraps the technical admin screens (health, vendors, rate limits, emails,
- * audit, issues) so a Business / Client admin sees an explanation instead of a
+ * Wraps the technical admin screens (health, vendors, observability, rate limits,
+ * emails, issues) so a Business / Client admin sees an explanation instead of a
  * page of failed requests.
  *
  * This is presentation, not protection: every one of those screens reads from

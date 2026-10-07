@@ -161,13 +161,24 @@ export function trackPageView(path: string): void {
 export function identify(userId: string, role?: string): void {
   if (!KEY) return;
   void getClient()
-    .then((c) => c?.identify(userId, role ? { role } : undefined))
+    .then((c) => {
+      if (!c) return;
+      // The web app lets one browser hold several accounts and switch between
+      // them. Identifying a second id on top of the first would make PostHog
+      // treat them as one person, so a switch starts from a clean identity.
+      if (identifiedAs && identifiedAs !== userId) c.reset();
+      identifiedAs = userId;
+      c.identify(userId, role ? { role } : undefined);
+    })
     .catch(() => {});
 }
+
+let identifiedAs: string | null = null;
 
 /** Clear the identity on sign-out so the next user is not merged into it. */
 export function resetIdentity(): void {
   if (!KEY) return;
+  identifiedAs = null;
   void getClient()
     .then((c) => c?.reset())
     .catch(() => {});

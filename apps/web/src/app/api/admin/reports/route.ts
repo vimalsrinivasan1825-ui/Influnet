@@ -1,4 +1,5 @@
 import { adminJson, jsonError, withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 // GET: moderation queue — open/reviewing reports with reporter + reported names.
 export async function GET(req: Request) {
@@ -32,7 +33,7 @@ export async function PATCH(req: Request) {
   try {
     const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const { id, status } = (await req.json()) as { id?: string; status?: string };
     if (!id || !status) return adminJson(req, { error: 'id and status are required' }, { status: 400 });
@@ -46,6 +47,17 @@ export async function PATCH(req: Request) {
       .single();
 
     if (error) throw error;
+
+    await auditAdmin({
+      actorId: user.id,
+      actorEmail: user.email ?? null,
+      action: 'report_resolved',
+      targetId: id,
+      targetType: 'user_report',
+      metadata: { status },
+      req,
+    });
+
     return adminJson(req, { report: data });
   } catch (error) {
     return jsonError(500, 'Could not update this report', error);

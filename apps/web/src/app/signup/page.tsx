@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import React from "react";
+import React, { useEffect } from "react";
+import { track } from "@/lib/analytics";
 import { useSearchParams } from "next/navigation";
 import { Sparkles, Building2, ArrowRight, LogIn } from "lucide-react";
 
@@ -16,6 +17,7 @@ export default function SignupSelectionPage() {
 
 function SignupSelectionContent() {
   const searchParams = useSearchParams();
+  useEffect(() => track("signup_started", { entry: "chooser" }), []);
   const nextParam = (() => {
     const n = searchParams.get("next");
     return n && n.startsWith("/") && !n.startsWith("//") ? n : null;

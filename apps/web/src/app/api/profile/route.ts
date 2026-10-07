@@ -5,6 +5,25 @@ import { withAuth, jsonError, parseClientHeader } from '@/lib/api';
 import { DELETION_REASONS, activeProjectCount, hardDeleteAccount, recordAccountDeletion } from '@/lib/account-deletion';
 import { ProfileUpdateSchema, BusinessProfileUpdateSchema } from '@/lib/validators';
 import { refreshYouTubeSnapshot } from '@/lib/youtube';
+import { captureServer } from '@/lib/analytics-server';
+
+/** Handle fields PATCH may carry, by role — same field names the validators define. */
+const HANDLE_FIELDS: Record<'business_owner' | 'influencer', string[]> = {
+  business_owner: ['instagram_handle', 'facebook_handle', 'linkedin_handle'],
+  influencer: ['instagram_handle', 'youtube_handle', 'twitter_handle', 'facebook_handle', 'linkedin_handle', 'tiktok_handle'],
+};
+
+/** One `social_handle_added` event per handle field present in this PATCH — a
+ *  settings save can change several at once, and the funnel wants to know
+ *  which platform, not just that "something" was connected. */
+function captureHandleAdds(role: 'business_owner' | 'influencer', data: Record<string, unknown>, userId: string, req: Request) {
+  for (const field of HANDLE_FIELDS[role]) {
+    const value = data[field];
+    if (typeof value === 'string' && value.trim()) {
+      captureServer('social_handle_added', userId, { platform: field.replace('_handle', '') }, req);
+    }
+  }
+}
 
 // GET current user's profile (both base profile + extended profile)
 export async function GET(req: Request) {
@@ -211,6 +230,7 @@ export async function PATCH(req: Request) {
         if (bizError.code === '23505') return jsonError(409, 'That username is already taken');
         return jsonError(500, 'Failed to update business profile', bizError);
       }
+      captureHandleAdds('business_owner', validatedData, user.id, req);
     } else if (role === 'influencer' && Object.keys(validatedData).length > 0) {
       const infUpdates: any = { ...validatedData, updated_at: new Date().toISOString() };
       const { data: infRow, error: infError } = await supabase
@@ -223,6 +243,7 @@ export async function PATCH(req: Request) {
         if (infError.code === '23505') return jsonError(409, 'That username is already taken');
         return jsonError(500, 'Failed to update influencer profile', infError);
       }
+      captureHandleAdds('influencer', validatedData, user.id, req);
 
       // Connecting or updating a YouTube channel should populate the profile straight away —
       // a creator who saves their handle and sees an empty video grid assumes it

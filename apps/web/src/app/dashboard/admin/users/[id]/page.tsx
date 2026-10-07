@@ -5,6 +5,15 @@
  * and their activity timeline. No message/chat content anywhere here: a
  * connection shows the other party, the project/request it runs through,
  * and its stage/budget — never what was said inside it.
+ *
+ * G7 (docs/operations/ADMIN_AND_OBSERVABILITY_GAPS_2026-10-06.md): tabbed so
+ * data that used to live only in its own console section — payments,
+ * support, reports/blocks, devices, email/OTP/broadcast logs — is visible
+ * here too. Each tab's data is null (not an error) when the signed-in admin
+ * lacks that section's permission, same convention as the API; a null
+ * section renders nothing rather than an empty state, so a staff member
+ * without, say, Payments access never sees a "no payments" tab that implies
+ * there truly are none.
  */
 
 import { useEffect, useState } from "react";
@@ -16,11 +25,18 @@ import {
   ArrowLeft,
   BadgeCheck,
   Calendar,
+  BellRing,
   History,
+  IndianRupee,
+  LifeBuoy,
   Loader2,
   Mail,
   MapPin,
   Phone,
+  Send,
+  ShieldAlert,
+  ShieldCheck,
+  Smartphone,
   Trash2,
   Users,
 } from "lucide-react";
@@ -31,6 +47,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SegmentedTabs } from "@/components/ui/tabs";
+import { JourneyPanel, LifecycleCard } from "@/components/dashboard/admin/user-journey";
+import type { Lifecycle } from "@/lib/admin-user-lifecycle";
 
 interface PartyRef {
   id: string;
@@ -67,6 +86,111 @@ interface ActivityEvent {
   link: string | null;
 }
 
+interface Payment {
+  id: string;
+  project_id: number;
+  stage_key: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  paid_at: string | null;
+}
+
+interface Subscription {
+  tier: string;
+  status: string;
+  current_period_end: string | null;
+  grace_until: string | null;
+  cancel_at_period_end: boolean;
+}
+
+interface SupportTicket {
+  id: string;
+  subject: string;
+  category: string;
+  status: string;
+  priority: string;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+interface ReportRow {
+  id: string;
+  reason: string;
+  status: string;
+  context: string | null;
+  created_at: string;
+  reported?: PartyRef | null;
+  reporter?: PartyRef | null;
+}
+
+interface BlockRow {
+  blocker_id: string;
+  blocked_id: string;
+  created_at: string;
+  blocker?: PartyRef | null;
+  blocked?: PartyRef | null;
+}
+
+interface DeviceRow {
+  id: string;
+  platform: string;
+  app_version: string | null;
+  os_version: string | null;
+  permission: string;
+  last_seen_at: string;
+  disabled_at: string | null;
+}
+
+interface SocialClaimRow {
+  id: string;
+  platform: string;
+  handle: string;
+  status: string;
+  verified_at: string | null;
+  created_at: string;
+}
+
+interface EmailLogRow {
+  id: string;
+  template: string;
+  category: string;
+  status: string;
+  error: string | null;
+  created_at: string;
+}
+
+interface OtpLogRow {
+  id: string;
+  action: string;
+  status: string | null;
+  created_at: string;
+}
+
+interface BroadcastDeliveryRow {
+  id: number;
+  channel: string;
+  status: string;
+  skip_reason: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
+interface NotificationRow {
+  id: string;
+  type: string;
+  title: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+interface SignInRow {
+  at: string;
+  action: string;
+  ip_address: string | null;
+}
+
 interface UserDetail {
   id: string;
   role: string;
@@ -83,6 +207,28 @@ interface UserDetail {
   approval_status?: string;
   username?: string;
   niche?: string[];
+}
+
+interface UserPageData {
+  user: UserDetail;
+  /** Absent from an API older than this page — the card simply doesn't render. */
+  lifecycle?: Lifecycle;
+  projects: ProjectConnection[];
+  requests: RequestConnection[];
+  activity: ActivityEvent[];
+  payments: Payment[] | null;
+  subscription: Subscription | null;
+  supportTickets: SupportTicket[] | null;
+  reportsFiled: ReportRow[] | null;
+  reportsAgainst: ReportRow[] | null;
+  blocks: BlockRow[] | null;
+  devices: DeviceRow[] | null;
+  socialClaims: SocialClaimRow[] | null;
+  otpLog: OtpLogRow[] | null;
+  broadcastDeliveries: BroadcastDeliveryRow[] | null;
+  notifications: NotificationRow[] | null;
+  signIns: SignInRow[];
+  emailLog: EmailLogRow[] | null;
 }
 
 const roleMeta = (role: string) => {
@@ -119,18 +265,47 @@ const STAGE_LABELS: Record<string, string> = {
   project_completed: "Completed",
 };
 
+type TabKey = "journey" | "money" | "connections" | "safety" | "devices" | "signins";
+
+/** A section the caller lacks permission for is `null`; distinguish that from a genuinely empty `[]`. */
+function Section({
+  title,
+  icon,
+  data,
+  emptyLabel,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  data: unknown[] | null;
+  emptyLabel: string;
+  children: React.ReactNode;
+}) {
+  if (data === null) return null;
+  return (
+    <Card className="flex flex-col gap-3 p-5">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-content">{icon} {title}</h2>
+      {data.length === 0 ? (
+        <EmptyState icon={<>{icon}</>} title="Nothing here" description={emptyLabel} />
+      ) : (
+        children
+      )}
+    </Card>
+  );
+}
+
 export default function AdminUserDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const [user, setUser] = useState<UserDetail | null>(null);
-  const [projects, setProjects] = useState<ProjectConnection[]>([]);
-  const [requests, setRequests] = useState<RequestConnection[]>([]);
-  const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  const [data, setData] = useState<UserPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [tab, setTab] = useState<TabKey>("journey");
+
+  const user = data?.user ?? null;
 
   async function deleteUser() {
     if (!user) return;
@@ -156,17 +331,9 @@ export default function AdminUserDetailPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await apiFetch<{
-          user: UserDetail;
-          projects: ProjectConnection[];
-          requests: RequestConnection[];
-          activity: ActivityEvent[];
-        }>(`/api/admin/users/${id}`);
+        const res = await apiFetch<UserPageData>(`/api/admin/users/${id}`);
         if (!res.ok || !res.data) throw new Error(res.error || "Failed to load user");
-        setUser(res.data.user);
-        setProjects(res.data.projects || []);
-        setRequests(res.data.requests || []);
-        setActivity(res.data.activity || []);
+        setData(res.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load user");
       } finally {
@@ -185,7 +352,7 @@ export default function AdminUserDetailPage() {
     );
   }
 
-  if (error || !user) {
+  if (error || !user || !data) {
     return (
       <div className="mx-auto max-w-4xl p-4 sm:p-6">
         <div className="flex items-center gap-3 rounded-2xl border border-danger/20 bg-danger-soft px-5 py-4 text-sm font-semibold text-danger">
@@ -199,38 +366,14 @@ export default function AdminUserDetailPage() {
   const rm = roleMeta(user.role);
   const pending = user.role === "business_owner" && user.approval_status === "pending_review";
 
-  // The pair of tables merged and sorted newest-first — "who they're
-  // connected to" regardless of whether it's a pending ask or a live deal.
-  const connections = [
-    ...projects.map((p) => {
-      const other = p.owner?.id === id ? p.counterparty : p.owner;
-      return {
-        key: `project-${p.id}`,
-        other,
-        kind: "project" as const,
-        label: p.title,
-        status: p.status,
-        stage: STAGE_LABELS[p.current_stage] || p.current_stage,
-        budget: p.budget,
-        at: p.created_at,
-        href: `/dashboard/admin/projects/${p.id}`,
-      };
-    }),
-    ...requests.map((r) => {
-      const other = r.from_user?.id === id ? r.to_user : r.from_user;
-      return {
-        key: `request-${r.id}`,
-        other,
-        kind: "request" as const,
-        label: r.from_user?.id === id ? "Sent a request" : "Received a request",
-        status: r.status,
-        stage: null,
-        budget: r.budget,
-        at: r.updated_at || r.created_at,
-        href: other ? `/dashboard/admin/users/${other.id}` : undefined,
-      };
-    }),
-  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  const tabs: { value: TabKey; label: string }[] = [
+    { value: "journey", label: "Journey" },
+    { value: "connections", label: "Projects & requests" },
+    { value: "money", label: "Money" },
+    { value: "safety", label: "Support & safety" },
+    { value: "devices", label: "Devices & comms" },
+    { value: "signins", label: "Sign-ins" },
+  ];
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-6">
@@ -276,79 +419,378 @@ export default function AdminUserDetailPage() {
           <div className="flex items-center gap-1.5 text-content-soft"><Calendar className="size-3.5" /> Joined {new Date(user.created_at).toLocaleDateString()}</div>
         </div>
         <div className="text-xs text-content-muted">
-          Last seen: {timeAgo(user.last_sign_in_at)}
+          Last sign-in: {timeAgo(user.last_sign_in_at)}
           {user.verification_status && ` · Verification: ${user.verification_status}`}
         </div>
       </Card>
 
-      <Card className="flex flex-col gap-3 p-5">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-content"><Users className="size-4" /> Connected with</h2>
-        {connections.length === 0 ? (
-          <EmptyState icon={<Users />} title="No connections yet" description="No requests or projects involving this user." />
-        ) : (
-          <div className="flex flex-col divide-y divide-hairline">
-            {connections.map((c) => {
-              const row = (
-                <div className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar name={c.other?.name || "Deleted account"} size="sm" square />
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-content">
-                        {c.other?.name || (c.other == null ? "Deleted account" : "Unknown user")}
-                      </div>
-                      <div className="text-xs text-content-muted">{c.label}</div>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {c.stage && <Badge variant="brand" size="sm">{c.stage}</Badge>}
-                    <Badge variant={c.status === "accepted" || c.status === "active" ? "info" : c.status === "declined" || c.status === "cancelled" ? "neutral" : "warning"} size="sm">
-                      {c.status}
-                    </Badge>
-                    {c.budget != null && c.budget !== "" && (
-                      <span className="text-xs font-semibold text-content-soft">₹{Number(c.budget).toLocaleString()}</span>
-                    )}
-                  </div>
-                </div>
-              );
-              return c.href ? (
-                <Link key={c.key} href={c.href} className="-mx-2 rounded-lg px-2 hover:bg-surface-muted">
-                  {row}
-                </Link>
-              ) : (
-                <div key={c.key}>{row}</div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+      {data.lifecycle && <LifecycleCard lifecycle={data.lifecycle} />}
 
-      <Card className="flex flex-col gap-3 p-5">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-content"><History className="size-4" /> Activity</h2>
-        {activity.length === 0 ? (
-          <EmptyState icon={<History />} title="Nothing recorded" description="This user hasn't done anything yet." />
-        ) : (
-          <div className="flex flex-col divide-y divide-hairline">
-            {activity.map((e, i) => {
-              const row = (
-                <div className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-content">{e.title}</div>
-                    {e.detail && <div className="truncate text-xs text-content-muted">{e.detail}</div>}
-                  </div>
-                  <span className="shrink-0 text-xs text-content-muted">{timeAgo(e.at)}</span>
-                </div>
-              );
-              return e.link ? (
-                <Link key={i} href={e.link} className="-mx-2 rounded-lg px-2 hover:bg-surface-muted">
-                  {row}
-                </Link>
-              ) : (
-                <div key={i}>{row}</div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+      {/* Six tabs overflow a phone; scroll them rather than wrap. */}
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <SegmentedTabs tabs={tabs} value={tab} onValueChange={setTab} className="w-max" />
+      </div>
+
+      {tab === "journey" && <JourneyPanel userId={id} fallback={data.activity} />}
+      {tab === "signins" && <OverviewTab data={data} />}
+      {tab === "money" && <MoneyTab data={data} />}
+      {tab === "connections" && <ConnectionsTab data={data} selfId={id} />}
+      {tab === "safety" && <SafetyTab data={data} />}
+      {tab === "devices" && <DevicesTab data={data} />}
     </div>
+  );
+}
+
+function OverviewTab({ data }: { data: UserPageData }) {
+  return (
+    <Section
+      title="Sign-ins"
+      icon={<History className="size-4" />}
+      data={data.signIns}
+      emptyLabel="No recorded sign-in activity yet."
+    >
+      <div className="flex flex-col divide-y divide-hairline">
+        {data.signIns.map((s, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 py-2.5">
+            <span className="text-sm font-semibold text-content">{s.action}</span>
+            <span className="text-xs text-content-muted">
+              {timeAgo(s.at)}{s.ip_address ? ` · ${s.ip_address}` : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function MoneyTab({ data }: { data: UserPageData }) {
+  return (
+    <>
+      {data.subscription !== null && (
+        <Card className="flex flex-col gap-3 p-5">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-content"><IndianRupee className="size-4" /> Pro subscription</h2>
+          {data.subscription ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant={data.subscription.status === "active" ? "info" : "neutral"} size="sm">
+                {data.subscription.tier} · {data.subscription.status}
+              </Badge>
+              {data.subscription.current_period_end && (
+                <span className="text-content-soft">
+                  Renews {new Date(data.subscription.current_period_end).toLocaleDateString()}
+                </span>
+              )}
+              {data.subscription.cancel_at_period_end && <Badge variant="warning" size="sm">Cancels at period end</Badge>}
+              {data.subscription.grace_until && (
+                <span className="text-content-soft">Grace until {new Date(data.subscription.grace_until).toLocaleDateString()}</span>
+              )}
+            </div>
+          ) : (
+            <EmptyState icon={<IndianRupee />} title="Free tier" description="No Pro subscription on this account." />
+          )}
+        </Card>
+      )}
+
+      <Section
+        title="Payments"
+        icon={<IndianRupee className="size-4" />}
+        data={data.payments}
+        emptyLabel="No payments across this person's projects."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.payments || []).map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <div className="text-sm font-semibold text-content">{STAGE_LABELS[p.stage_key] || p.stage_key}</div>
+                <div className="text-xs text-content-muted">Project #{p.project_id} · {timeAgo(p.paid_at || p.created_at)}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={p.status === "paid" ? "info" : p.status === "refunded" ? "warning" : p.status === "failed" ? "danger" : "neutral"} size="sm">
+                  {p.status}
+                </Badge>
+                <span className="text-xs font-semibold text-content-soft">
+                  {p.currency} {(p.amount / 100).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </>
+  );
+}
+
+function ConnectionsTab({ data, selfId }: { data: UserPageData; selfId: string }) {
+  // The pair of tables merged and sorted newest-first — "who they're
+  // connected to" regardless of whether it's a pending ask or a live deal.
+  const connections = [
+    ...data.projects.map((p) => {
+      const other = p.owner?.id === selfId ? p.counterparty : p.owner;
+      return {
+        key: `project-${p.id}`,
+        other,
+        kind: "project" as const,
+        label: p.title,
+        status: p.status,
+        stage: STAGE_LABELS[p.current_stage] || p.current_stage,
+        budget: p.budget,
+        at: p.created_at,
+        href: `/dashboard/admin/projects/${p.id}`,
+      };
+    }),
+    ...data.requests.map((r) => {
+      const other = r.from_user?.id === selfId ? r.to_user : r.from_user;
+      return {
+        key: `request-${r.id}`,
+        other,
+        kind: "request" as const,
+        label: r.from_user?.id === selfId ? "Sent a request" : "Received a request",
+        status: r.status,
+        stage: null as string | null,
+        budget: r.budget,
+        at: r.updated_at || r.created_at,
+        href: other ? `/dashboard/admin/users/${other.id}` : undefined,
+      };
+    }),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  return (
+    <Card className="flex flex-col gap-3 p-5">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-content"><Users className="size-4" /> Connected with</h2>
+      {connections.length === 0 ? (
+        <EmptyState icon={<Users />} title="No connections yet" description="No requests or projects involving this user." />
+      ) : (
+        <div className="flex flex-col divide-y divide-hairline">
+          {connections.map((c) => {
+            const row = (
+              <div className="flex items-center justify-between gap-3 py-2.5">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Avatar name={c.other?.name || "Deleted account"} size="sm" square />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-content">
+                      {c.other?.name || (c.other == null ? "Deleted account" : "Unknown user")}
+                    </div>
+                    <div className="text-xs text-content-muted">{c.label}</div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {c.stage && <Badge variant="brand" size="sm">{c.stage}</Badge>}
+                  <Badge variant={c.status === "accepted" || c.status === "active" ? "info" : c.status === "declined" || c.status === "cancelled" ? "neutral" : "warning"} size="sm">
+                    {c.status}
+                  </Badge>
+                  {c.budget != null && c.budget !== "" && (
+                    <span className="text-xs font-semibold text-content-soft">₹{Number(c.budget).toLocaleString()}</span>
+                  )}
+                </div>
+              </div>
+            );
+            return c.href ? (
+              <Link key={c.key} href={c.href} className="-mx-2 rounded-lg px-2 hover:bg-surface-muted">
+                {row}
+              </Link>
+            ) : (
+              <div key={c.key}>{row}</div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function SafetyTab({ data }: { data: UserPageData }) {
+  return (
+    <>
+      <Section
+        title="Support tickets"
+        icon={<LifeBuoy className="size-4" />}
+        data={data.supportTickets}
+        emptyLabel="No support tickets from this person."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.supportTickets || []).map((t) => (
+            <div key={t.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-content">{t.subject}</div>
+                <div className="text-xs text-content-muted">{t.category} · {timeAgo(t.created_at)}</div>
+              </div>
+              <Badge variant={t.status === "resolved" || t.status === "closed" ? "neutral" : "warning"} size="sm">
+                {t.status}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Reports filed by this person"
+        icon={<ShieldAlert className="size-4" />}
+        data={data.reportsFiled}
+        emptyLabel="Hasn't reported anyone."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.reportsFiled || []).map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-content">{r.reason}</div>
+                <div className="text-xs text-content-muted">Against {r.reported?.name || "a deleted account"} · {timeAgo(r.created_at)}</div>
+              </div>
+              <Badge variant="neutral" size="sm">{r.status}</Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Reports filed against this person"
+        icon={<ShieldAlert className="size-4" />}
+        data={data.reportsAgainst}
+        emptyLabel="No reports against this person."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.reportsAgainst || []).map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-content">{r.reason}</div>
+                <div className="text-xs text-content-muted">By {r.reporter?.name || "a deleted account"} · {timeAgo(r.created_at)}</div>
+              </div>
+              <Badge variant={r.status === "actioned" ? "danger" : "warning"} size="sm">{r.status}</Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Blocks"
+        icon={<ShieldAlert className="size-4" />}
+        data={data.blocks}
+        emptyLabel="Not blocked by anyone, and hasn't blocked anyone."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.blocks || []).map((b) => (
+            <div key={`${b.blocker_id}-${b.blocked_id}`} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-content">{b.blocker?.name || "Someone"} blocked {b.blocked?.name || "someone"}</span>
+              <span className="text-xs text-content-muted">{timeAgo(b.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </>
+  );
+}
+
+function DevicesTab({ data }: { data: UserPageData }) {
+  return (
+    <>
+      <Section
+        title="Devices"
+        icon={<Smartphone className="size-4" />}
+        data={data.devices}
+        emptyLabel="No app installs registered."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.devices || []).map((d) => (
+            <div key={d.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <div>
+                <div className="font-semibold text-content">{d.platform} · {d.app_version || "unknown version"}</div>
+                <div className="text-xs text-content-muted">{d.os_version || "—"} · last seen {timeAgo(d.last_seen_at)}</div>
+              </div>
+              <Badge variant={d.disabled_at ? "neutral" : d.permission === "granted" ? "info" : "warning"} size="sm">
+                {d.disabled_at ? "disabled" : d.permission}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Social verification"
+        icon={<ShieldCheck className="size-4" />}
+        data={data.socialClaims}
+        emptyLabel="No social ownership claims."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.socialClaims || []).map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-content">{s.platform} · @{s.handle}</span>
+              <div className="flex items-center gap-2">
+                <Badge variant={s.status === "verified" ? "info" : s.status === "expired" || s.status === "revoked" ? "neutral" : "warning"} size="sm">
+                  {s.status}
+                </Badge>
+                <span className="text-xs text-content-muted">{timeAgo(s.verified_at || s.created_at)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Emails sent"
+        icon={<Mail className="size-4" />}
+        data={data.emailLog}
+        emptyLabel="No emails sent to this address."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.emailLog || []).map((e) => (
+            <div key={e.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <div>
+                <div className="font-semibold text-content">{e.template}</div>
+                <div className="text-xs text-content-muted">{e.category} · {timeAgo(e.created_at)}</div>
+              </div>
+              <Badge variant={e.status === "sent" || e.status === "delivered" ? "info" : "danger"} size="sm">{e.status}</Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="OTP attempts"
+        icon={<Send className="size-4" />}
+        data={data.otpLog}
+        emptyLabel="No phone verification attempts."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.otpLog || []).map((o) => (
+            <div key={o.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-content">{o.action}</span>
+              <span className="text-xs text-content-muted">{o.status || "—"} · {timeAgo(o.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Broadcast deliveries"
+        icon={<BellRing className="size-4" />}
+        data={data.broadcastDeliveries}
+        emptyLabel="No broadcasts delivered to this person."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.broadcastDeliveries || []).map((b) => (
+            <div key={b.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-content">{b.channel}</span>
+              <span className="text-xs text-content-muted">
+                {b.status}{b.skip_reason ? ` (${b.skip_reason})` : ""} · {timeAgo(b.sent_at || b.created_at)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="In-app notifications"
+        icon={<BellRing className="size-4" />}
+        data={data.notifications}
+        emptyLabel="No in-app notifications."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.notifications || []).map((n) => (
+            <div key={n.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="truncate text-content">{n.title}</span>
+              <span className="shrink-0 text-xs text-content-muted">{n.read_at ? "read" : "unread"} · {timeAgo(n.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </>
   );
 }

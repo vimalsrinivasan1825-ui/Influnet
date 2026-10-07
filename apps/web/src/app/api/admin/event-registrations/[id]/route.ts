@@ -1,4 +1,5 @@
 import { adminJson, jsonError, withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 // Admin actions on one event registration (migrations 170, 172).
 //   PATCH  { checkedIn: boolean }  → door check-in / undo
@@ -44,6 +45,16 @@ export async function PATCH(req: Request, ctx: Ctx) {
     }
     if (!data) return jsonError(404, 'Registration not found');
 
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'event_registration_updated',
+      targetId: id,
+      targetType: 'event_registration',
+      metadata: patch,
+      req,
+    });
+
     return adminJson(req, { ok: true, ...data });
   } catch (error) {
     return jsonError(500, 'Could not update registration', error);
@@ -68,6 +79,15 @@ export async function DELETE(req: Request, ctx: Ctx) {
 
     if (error) return jsonError(500, 'Could not delete registration', error);
     if (!data) return jsonError(409, 'Only registrations in the Deleted section can be deleted permanently');
+
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'event_registration_deleted',
+      targetId: data.id,
+      targetType: 'event_registration',
+      req,
+    });
 
     return adminJson(req, { ok: true, deleted: data.id });
   } catch (error) {

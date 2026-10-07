@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { getStreamClient } from '@/lib/stream';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types';
+import { captureException } from '@/lib/observability';
+import { logger } from '@/lib/logger';
 
 /**
  * GetStream Webhook Receiver
@@ -38,7 +40,12 @@ export async function POST(req: Request) {
     try {
       event = client.verifyAndParseWebhook(rawBody, signature) as Record<string, any>;
     } catch (err) {
-      console.error('[Stream Webhook] Invalid signature:', (err as Error).message);
+      // console.error alone never reaches Sentry — logger.error() doesn't
+      // either, by itself; captureException is the explicit bridge.
+      logger.error('[stream/webhook] signature verification failed', { err: (err as Error).message });
+      captureException(err instanceof Error ? err : new Error('Stream webhook: signature verification failed'), {
+        tags: { route: 'stream/webhook' },
+      });
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 

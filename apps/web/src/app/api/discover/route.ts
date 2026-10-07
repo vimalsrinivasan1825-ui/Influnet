@@ -3,6 +3,7 @@ import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { resolveLookupUsername } from '@/lib/search-query';
 import { z } from 'zod';
+import { captureServer } from '@/lib/analytics-server';
 
 const PAGE_SIZE = 24;
 
@@ -116,6 +117,9 @@ export async function GET(req: Request) {
       p_location: null,
       p_result_count: results.length,
     }).then(() => {}, () => {});
+
+    // Same rule as log_search_event above: never the query, only its shape.
+    captureServer('discover_searched', user.id, { has_query: Boolean(username), found: results.length > 0 }, req);
 
     return NextResponse.json({
       userRole: role,

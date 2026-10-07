@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { AtSign, BadgeCheck, CheckCircle2, Clock, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { AdminUserLink } from "@/components/dashboard/admin/user-link";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -168,7 +169,7 @@ function QueueRow({
         <Avatar name={name} size="md" square />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-bold text-content">{name}</span>
+            <AdminUserLink id={item.user_id} showIcon className="text-sm font-bold text-content">{name}</AdminUserLink>
             <Badge variant={item.role === "influencer" ? "brand" : "neutral"} size="sm">
               {item.role === "influencer" ? "Creator" : "Business"}
             </Badge>

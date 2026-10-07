@@ -22,6 +22,7 @@ import { applySectionVisibility } from '@/lib/public-profile/profile-layout-view
 import { publicOrigin } from '@/lib/site';
 import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
 import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
+import { captureServer } from '@/lib/analytics-server';
 
 // Anon client for public profile reads.
 const supabaseAnon = createClient(
@@ -109,6 +110,7 @@ export async function CreatorProfile({
     // cleanly through @supabase/ssr's createServerClient (same friction as
     // the get_creator_collaborations call in dashboard/profile/page.tsx).
     (rsc.rpc as any)('record_profile_view', { p_influencer_user_id: profile.userId }).then(() => {}, () => {});
+    captureServer('creator_profile_viewed', user.id, { viewer_role: viewerRole ?? null });
   }
 
   // Primary CTA. Anonymous visitors land on the entry screen (sign in OR sign

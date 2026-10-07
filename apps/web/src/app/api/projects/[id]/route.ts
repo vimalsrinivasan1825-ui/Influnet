@@ -8,6 +8,7 @@ import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { logActivity } from '@/lib/activity';
 import { logger, requestId } from '@/lib/logger';
+import { captureServer } from '@/lib/analytics-server';
 import { CANCELLATION_REASONS, cancellationReasonLabel, flowOf, participantView, type StageFlow } from '@influnet/core';
 
 const CANCELLATION_REASON_VALUES = CANCELLATION_REASONS.map((r) => r.value) as [string, ...string[]];
@@ -316,6 +317,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       // Audit trail: who moved which project from which stage to which.
       log.info('project stage advanced', { from: project.current_stage, to: nextStage, actor: userRole });
+      captureServer('project_stage_advanced', user.id, {
+        project_id: id, from: project.current_stage, to: nextStage, via: 'advance', actor_role: userRole,
+      }, req);
 
       // Timeline entry. The review fork gets its own verbs.
       const advanceActivity =
@@ -481,6 +485,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         .from('campaign_projects').select('*').eq('id', id).single();
 
       log.info('project stage sign-off', { stage: currentStage, actor: userRole, bothSigned, advancedTo: nextStage });
+      // Only the sign-off that actually moves the stage is a funnel step; the
+      // first of the two signatures is not.
+      if (nextStage) {
+        captureServer('project_stage_advanced', user.id, {
+          project_id: id, from: currentStage, to: nextStage, via: 'signoff', actor_role: userRole,
+        }, req);
+      }
 
       if (nextStage) {
         await logActivity(supabase, {
@@ -640,6 +651,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (e) return jsonError(500, 'Failed to skip the stage', e);
 
       log.info('project stage skipped', { stage: currentStage, to: skipNext, by: userRole });
+      captureServer('project_stage_skipped', user.id, {
+        project_id: id, from: currentStage, to: skipNext, actor_role: userRole,
+      }, req);
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, type: 'stage_skipped',
         summary: `Skipped the ${flow.labels[currentStage] || currentStage} stage — both sides agreed`,
@@ -762,6 +776,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (updateErr) return jsonError(500, 'Failed to confirm completion', updateErr);
 
       log.info('project completion confirmed', { actor: userRole, bothConfirmed });
+      if (bothConfirmed) captureServer('project_completed', user.id, { project_id: id, actor_role: userRole }, req);
 
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id,
@@ -1060,6 +1075,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       }
 
       log.info('project cancelled by mutual agreement', { actor: userRole });
+      captureServer('project_cancelled', user.id, { project_id: id, actor_role: userRole }, req);
       await logActivity(supabase, {
         projectId: id, actorUserId: user.id, type: 'cancellation_accepted',
         summary: 'Both sides agreed to cancel the project',

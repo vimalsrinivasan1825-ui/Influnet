@@ -1,4 +1,5 @@
 import { adminJson, jsonError, withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 /**
  * The admin support inbox.
@@ -116,12 +117,13 @@ export async function POST(req: Request) {
 
     if (error) return jsonError(500, 'Could not send the reply', error);
 
-    await supabase.from('admin_audit_log').insert({
-      actor_id: user.id,
-      actor_email: user.email,
-      action: internal ? 'support.note_added' : 'support.replied',
-      target_id: ticketId,
-      target_type: 'support_ticket',
+    await auditAdmin({
+      actorId: user.id,
+      actorEmail: user.email ?? null,
+      action: internal ? 'support_note_added' : 'support_replied',
+      targetId: ticketId,
+      targetType: 'support_ticket',
+      req,
     });
 
     return adminJson(req, { message: data }, { status: 201 });
@@ -186,13 +188,14 @@ export async function PATCH(req: Request) {
     if (error) return jsonError(500, 'Could not update the ticket', error);
     if (!data) return jsonError(404, 'Ticket not found');
 
-    await supabase.from('admin_audit_log').insert({
-      actor_id: user.id,
-      actor_email: user.email,
-      action: 'support.updated',
-      target_id: id,
-      target_type: 'support_ticket',
+    await auditAdmin({
+      actorId: user.id,
+      actorEmail: user.email ?? null,
+      action: 'support_ticket_updated',
+      targetId: id,
+      targetType: 'support_ticket',
       metadata: update,
+      req,
     });
 
     return adminJson(req, { ticket: data });

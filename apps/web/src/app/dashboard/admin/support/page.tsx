@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Send,
 } from "lucide-react";
+import { AdminUserLink } from "@/components/dashboard/admin/user-link";
 import { apiFetch } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -306,7 +307,10 @@ export default function AdminSupportPage() {
                 <div className="min-w-0 flex-1">
                   <h2 className="text-base font-semibold text-content">{selected.subject}</h2>
                   <p className="text-xs text-content-muted">
-                    {selected.user?.name} · {selected.user?.email} · opened{" "}
+                    <AdminUserLink id={selected.user?.id} showIcon className="font-semibold">
+                      {selected.user?.name ?? "Deleted user"}
+                    </AdminUserLink>{" "}
+                    · {selected.user?.email} · opened{" "}
                     {new Date(selected.created_at).toLocaleDateString()}
                   </p>
                 </div>

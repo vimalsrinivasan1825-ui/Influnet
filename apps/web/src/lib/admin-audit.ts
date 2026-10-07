@@ -17,6 +17,22 @@ export type AdminAction =
   | 'collab_deleted'
   | 'project_deleted'
   | 'report_resolved'
+  | 'campaign_moderated'
+  | 'feedback_triaged'
+  | 'early_access_deleted'
+  | 'event_registration_updated'
+  | 'event_registration_deleted'
+  | 'event_survey_form_updated'
+  | 'saved_report_created'
+  | 'saved_report_deleted'
+  | 'email_test_sent'
+  | 'issue_created'
+  | 'issue_updated'
+  | 'issue_deleted'
+  | 'support_replied'
+  | 'support_note_added'
+  | 'support_ticket_updated'
+  | 'user_viewed'
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'
@@ -35,7 +51,9 @@ export type AdminAction =
   | 'lead_created'
   | 'lead_updated'
   | 'lead_note_added'
-  | 'user_nudged';
+  | 'user_nudged'
+  // scripts/reset-admin-mfa.mjs writes this one directly (no admin session).
+  | 'admin_mfa_reset';
 
 export interface AuditInput {
   actorId: string;

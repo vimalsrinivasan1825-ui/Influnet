@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withAuth, jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { captureServer } from '@/lib/analytics-server';
 import {
   isRazorpayConfigured,
   razorpayPublicKeyId,
@@ -162,6 +163,10 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         return jsonError(500, 'Could not record the payment order', insErr);
       }
     }
+
+    captureServer('payment_started', user.id, {
+      project_id: projectId, stage_key, amount_paise: amountPaise,
+    }, req);
 
     return NextResponse.json({
       order_id: order.id,

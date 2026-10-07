@@ -11,6 +11,7 @@
  */
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Download, Loader2, RefreshCw } from "lucide-react";
 import { apiFetch, getAuthToken } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
@@ -367,6 +368,8 @@ export function KpiRow({ items, loading, columns = 4 }: { items: Kpi[]; loading?
 
 // ── Table ───────────────────────────────────────────────────────────────────
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface Column<T> {
   key: string;
   label: string;
@@ -398,6 +401,19 @@ export function DataTable<T extends Record<string, any>>({
   onRowClick?: (row: T) => void;
   historyStarts?: string | null;
 }) {
+  const router = useRouter();
+  // A row that names a person opens their page (who they are + full journey)
+  // unless the page wired its own click. Every report table gets this for free.
+  const rowClick =
+    onRowClick ??
+    (rows.some((r) => typeof r.user_id === "string" && UUID_RE.test(r.user_id))
+      ? (row: T) => {
+          if (typeof row.user_id === "string" && UUID_RE.test(row.user_id)) {
+            router.push(`/dashboard/admin/users/${row.user_id}`);
+          }
+        }
+      : undefined);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-2 p-1">
@@ -426,7 +442,7 @@ export function DataTable<T extends Record<string, any>>({
         </THead>
         <TBody>
           {rows.map((row, i) => (
-            <TRow key={row.id ?? i} interactive={!!onRowClick} onClick={() => onRowClick?.(row)}>
+            <TRow key={row.id ?? i} interactive={!!rowClick} onClick={() => rowClick?.(row)}>
               {columns.map((c) => (
                 <td key={c.key} className={cn(c.align === "right" && "text-right tabular-nums", c.className)}>
                   {c.render ? c.render(row) : (row[c.key] ?? "—")}

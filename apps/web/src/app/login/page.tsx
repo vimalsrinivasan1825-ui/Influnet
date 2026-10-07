@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { recordWebSignIn } from "@/lib/web-accounts";
+import { track } from "@/lib/analytics";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -167,6 +168,7 @@ function LoginContent() {
         }
 
         const role = (profile as { role?: string } | null)?.role;
+        track("login_completed", { role: role ?? null, adding_account: searchParams.get("add") === "1" });
         // A full reload (not router.push) when adding a second account: the
         // previous account's data is cached all over the client tree, and the
         // server needs to re-read the new session cookie from scratch.

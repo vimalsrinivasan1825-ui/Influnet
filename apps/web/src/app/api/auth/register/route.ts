@@ -7,6 +7,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { phoneOtpEnabled, validatePhoneVerification } from '@/lib/phone-otp';
 import { deliverEmail } from '@/lib/email/policy';
 import { consentProblem, consentVersion, stripConsentFields } from '@/lib/signup-consent';
+import { captureServer } from '@/lib/analytics-server';
 
 export async function POST(req: Request) {
   try {
@@ -257,6 +258,13 @@ export async function POST(req: Request) {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
       if (userId) {
+        // The funnel's first fact: a profile now exists for this account.
+        captureServer('signup_completed', userId, { role: payload.role, reconstructed }, req);
+        // register_profile persists the FULL profile (bio/niche/handles/collab
+        // types) in one RPC — unlike the funnel's intended web wizard, there is
+        // no separate "complete your profile" step after account creation, so
+        // this fires at the same instant rather than never firing at all.
+        captureServer('profile_completed', userId, { role: payload.role }, req);
         await deliverEmail({
           userId,
           templateId: 'welcome',

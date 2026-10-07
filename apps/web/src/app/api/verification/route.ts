@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { privileged } from '@/lib/service-client';
 import { withAuth, jsonError } from '@/lib/api';
+import { captureServer } from '@/lib/analytics-server';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { buildSignals } from '@/lib/verification-scraper';
 import { enrichWithLiveData } from '@/lib/verification-live';
@@ -207,6 +208,11 @@ export async function POST(req: Request) {
       p_notif_body: notif.body,
     });
     if (rpcErr) return jsonError(500, 'Failed to record verification', rpcErr);
+
+    captureServer('verification_submitted', user.id, { role, outcome: decision.status, score: decision.score }, req);
+    if (decision.status === 'verified') {
+      captureServer('verification_granted', user.id, { role, via: 'auto', score: decision.score }, req);
+    }
 
     return NextResponse.json({
       status: decision.status,

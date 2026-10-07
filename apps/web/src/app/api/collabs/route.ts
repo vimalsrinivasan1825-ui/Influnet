@@ -8,6 +8,7 @@ import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
 import { requireVerifiedOwnership } from '@/lib/ownership-gate';
 import { requireQuota } from '@/lib/entitlements';
+import { captureServer } from '@/lib/analytics-server';
 import { z } from 'zod';
 
 // PATCH Collab Schema (since it only exists here for now)
@@ -300,6 +301,10 @@ export async function POST(req: Request) {
       return jsonError(500, 'Failed to insert collab request', error);
     }
 
+    captureServer('collab_request_sent', user.id, {
+      request_id: data.id, kind: 'brand', has_budget: Boolean(budget),
+    }, req);
+
     const names = await profileNames([to_user_id, user.id]);
 
     await notifyUser({
@@ -424,6 +429,7 @@ export async function PATCH(req: Request) {
       });
       if (rpcError) return jsonError(500, 'Failed to accept collab request', rpcError);
       conversationId = (rpcResult?.conversation_id as string | undefined) ?? null;
+      captureServer('collab_request_accepted', user.id, { request_id: id }, req);
 
       const chatLink = conversationId
         ? `/dashboard/messages?conv=${conversationId}`
@@ -484,6 +490,8 @@ export async function PATCH(req: Request) {
         return jsonError(500, 'Failed to update request status', updateError);
       }
       updated = stdUpdated;
+
+      if (status === 'declined') captureServer('collab_request_declined', user.id, { request_id: id }, req);
 
       if (status === 'declined') {
         await notifyUser({

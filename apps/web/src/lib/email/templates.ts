@@ -883,6 +883,52 @@ export const deliveryTestEmail = define({
     }),
 });
 
+export const adminDigestEmail = define({
+  id: 'admin_digest',
+  label: 'Admin activity digest',
+  description: 'Daily ops summary sent to super admins by the maintenance cron. Not sent by any user action.',
+  tier: 'account',
+  category: 'account',
+  sample: {
+    dateLabel: '6 October 2026',
+    newSignups: 12,
+    newCreators: 8,
+    newBusinesses: 4,
+    gmvRupees: '₹84,500',
+    openTicketsOver24h: 2,
+    pendingApprovals: 3,
+    pendingVerifications: 1,
+    sentryNewIssues: 0,
+    sentryConfigured: true,
+    dashboardUrl: '/dashboard/admin/founder',
+  },
+  subject: (d) => `Ops digest — ${d.dateLabel}`,
+  render: (d) =>
+    renderEmail({
+      preheader: `${d.newSignups} signups, ${d.gmvRupees} GMV, ${d.openTicketsOver24h} tickets waiting over a day.`,
+      heading: 'Daily ops digest',
+      kicker: d.dateLabel,
+      reason: 'You receive this because your account is a super admin on Influnet.',
+      body: [
+        details([
+          ['New signups', `${d.newSignups} (${d.newCreators} creators, ${d.newBusinesses} businesses)`],
+          ['GMV today', d.gmvRupees],
+          ['Open tickets waiting > 24h', String(d.openTicketsOver24h)],
+          ['Pending business approvals', String(d.pendingApprovals)],
+          ['Pending creator verifications', String(d.pendingVerifications)],
+          d.sentryConfigured ? ['New Sentry issues (24h)', String(d.sentryNewIssues)] : null,
+        ]),
+        !d.sentryConfigured
+          ? panel(
+              { text: 'Sentry is not configured in this environment, so new-issue counts are not included.' },
+              'neutral',
+            )
+          : '',
+        button('Open the founder dashboard', d.dashboardUrl),
+      ].join(''),
+    }),
+});
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 export const TEMPLATES = {
@@ -909,6 +955,7 @@ export const TEMPLATES = {
   decision_outcome: decisionOutcomeEmail,
   generic: genericEmail,
   delivery_test: deliveryTestEmail,
+  admin_digest: adminDigestEmail,
 } satisfies Record<string, TemplateDef<any>>;
 
 export type TemplateId = keyof typeof TEMPLATES;

@@ -1,4 +1,5 @@
 import { adminJson, jsonError, withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,6 +24,15 @@ export async function DELETE(
     if (error) {
       return jsonError(500, 'Could not delete early access signup', error);
     }
+
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'early_access_deleted',
+      targetId: id,
+      targetType: 'early_access_signup',
+      req,
+    });
 
     return adminJson(req, { ok: true, deleted: id });
   } catch (error) {

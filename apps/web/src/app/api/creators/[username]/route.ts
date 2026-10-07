@@ -18,6 +18,7 @@ import { publicOrigin } from '@/lib/site';
 import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
 import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
 import { settleAll } from '@/lib/settle';
+import { captureServer } from '@/lib/analytics-server';
 
 // Same view model as /c/[username] (see that page for the canonical, full-page
 // version), reshaped as JSON so the topbar search can render a creator's public
@@ -42,6 +43,7 @@ export async function GET(
   // Fire-and-forget, same as the full profile page — only counts real visits
   // from someone other than the creator themselves.
   if (!isOwner) {
+    captureServer('creator_profile_viewed', user.id, {}, req);
     (supabase.rpc as any)('record_profile_view', { p_influencer_user_id: profile.userId }).then(
       () => {},
       () => {},

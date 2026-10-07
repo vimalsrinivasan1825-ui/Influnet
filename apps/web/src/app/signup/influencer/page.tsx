@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { track } from "@/lib/analytics";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -247,6 +248,16 @@ function InfluencerSignupContent() {
     return n && n.startsWith("/") && !n.startsWith("//") ? n : "/dashboard";
   })();
   const [step, setStep] = useState<Step>(1);
+  // Funnel: which wizard step people reach, so the biggest drop-off is
+  // visible. Step 1 on mount doubles as "chose to sign up as a creator".
+  // Links (landing, /join, invites) often skip the chooser and land here
+  // directly, so the funnel's first step is recorded here too. PostHog counts
+  // a person once per funnel step, so the chooser path isn't double-counted.
+  useEffect(() => track("signup_started", { entry: "influencer" }), []);
+  useEffect(() => {
+    if (step === 1) track("signup_role_selected", { role: "influencer" });
+    else track("profile_step_completed", { role: "influencer", flow: "signup", step: step - 1 });
+  }, [step]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -416,6 +427,32 @@ function InfluencerSignupContent() {
     return true;
   };
 
+  // Fields that are deliberately never saved to sessionStorage (email, password,
+  // phone token, gender) come back empty after a refresh, while the saved step
+  // is restored. Without this guard a creator could land on step 3, click
+  // through to the end, and submit with no email — Supabase then answers
+  // "Anonymous sign-ins are disabled". This is the earliest step whose
+  // required, non-persisted fields are still missing; the wizard may never sit
+  // beyond it. (Async availability checks are left out on purpose: they are
+  // transiently "checking" on restore and would bounce a valid draft.)
+  const earliestIncompleteStep: Step =
+    !emailValid || !passwordOk || (phoneOtpEnabled && !phoneToken)
+      ? 1
+      : !gender
+        ? 2
+        : 5;
+
+  useEffect(() => {
+    if (step > earliestIncompleteStep) {
+      setStep(earliestIncompleteStep);
+      setError(
+        earliestIncompleteStep === 1
+          ? "Please re-enter your email, password and verified mobile number to continue."
+          : "Please re-select your gender to continue.",
+      );
+    }
+  }, [step, earliestIncompleteStep]);
+
   // Someone else took `username` between step 2 and here. Rather than dead-
   // ending on the last step with a "go back to step 2" instruction the
   // creator has to act on manually, jump the wizard back there ourselves,
@@ -448,6 +485,11 @@ function InfluencerSignupContent() {
    */
   const createAccount = async () => {
     setError("");
+    if (earliestIncompleteStep < 5) {
+      setStep(earliestIncompleteStep);
+      setError("Some earlier details are missing — please complete them first.");
+      return;
+    }
     setIsLoading(true);
     try {
       // Final guard: re-check availability right before creating the auth user.

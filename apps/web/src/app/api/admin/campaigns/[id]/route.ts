@@ -7,6 +7,7 @@
  */
 import { z } from 'zod';
 import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 const PatchSchema = z.object({
   action: z.enum(['approve', 'reject', 'remove']),
@@ -61,6 +62,16 @@ export async function PATCH(
       .single();
 
     if (error || !campaign) return jsonError(404, 'Campaign not found');
+
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'campaign_moderated',
+      targetId: id,
+      targetType: 'campaign',
+      metadata: { action, status: statusMap[action], reason: reason ?? null },
+      req,
+    });
 
     return adminJson(req, { campaign });
   } catch (error: any) {

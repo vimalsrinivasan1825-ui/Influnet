@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
+import { allows } from '@/lib/admin-access';
 import { logger } from '@/lib/logger';
 import { hardDeleteAccount, recordAccountDeletion } from '@/lib/account-deletion';
+import { computeLifecycle } from '@/lib/admin-user-lifecycle';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,7 +25,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 
     const { data: profile, error: profileErr } = await supabase
       .from('profiles')
-      .select('id, role, email, name, phone, location, created_at, updated_at, verification_status, verified_at, verified_badge')
+      .select('id, role, email, name, phone, location, created_at, updated_at, verification_status, verified_at, verified_badge, phone_verified_at, last_active_at')
       .eq('id', id)
       .single();
 
@@ -51,17 +53,23 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     } else if (profile.role === 'influencer') {
       const { data: inf } = await supabase
         .from('influencer_profiles')
-        .select('username, niche')
+        .select('username, niche, is_profile_complete, onboarding_completed')
         .eq('user_id', id)
         .single();
-      if (inf) Object.assign(enriched, { username: inf.username, niche: inf.niche });
+      if (inf) {
+        Object.assign(enriched, {
+          username: inf.username,
+          niche: inf.niche,
+          profile_complete: !!(inf.is_profile_complete || inf.onboarding_completed),
+        });
+      }
     }
 
     const [{ data: projects }, { data: requests }, activityRes] = await Promise.all([
       supabase
         .from('campaign_projects')
         .select(`
-          id, title, status, current_stage, budget, created_at,
+          id, title, status, current_stage, budget, created_at, completed_at,
           owner:profiles!campaign_projects_owner_user_id_fkey(id, name, role),
           counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name, role)
         `)
@@ -84,11 +92,201 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       console.error('[admin/users/[id]] activity RPC failed:', activityRes.error.message);
     }
 
+    // Each extra section is gated by the section it already belongs to
+    // elsewhere in the console, and simply omitted (not errored) when the
+    // caller doesn't hold it — adminJson/adminRows still masks whatever comes
+    // back, same as every other admin route.
+    const projectIds = (projects || []).map((p: any) => p.id);
+    const [payments, subscription] = await Promise.all([
+      allows(auth.access, 'payments', 'view') && projectIds.length
+        ? supabase
+            .from('project_payments')
+            .select('id, project_id, stage_key, amount, currency, status, payer_id, created_at, paid_at')
+            .in('project_id', projectIds)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: null }),
+      allows(auth.access, 'subscribers', 'view')
+        ? supabase
+            .from('subscriptions')
+            .select('tier, status, current_period_end, grace_until, cancel_at_period_end, created_at, updated_at')
+            .eq('user_id', id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const supportTickets = allows(auth.access, 'support', 'view')
+      ? await supabase
+          .from('support_tickets')
+          .select('id, subject, category, status, priority, created_at, resolved_at, last_message_at')
+          .eq('user_id', id)
+          .order('created_at', { ascending: false })
+      : { data: null };
+
+    const [reportsFiled, reportsAgainst, blocks] = allows(auth.access, 'moderation', 'view')
+      ? await Promise.all([
+          supabase
+            .from('user_reports')
+            .select('id, reason, status, context, created_at, reported:profiles!user_reports_reported_id_fkey(id, name)')
+            .eq('reporter_id', id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('user_reports')
+            .select('id, reason, status, context, created_at, reporter:profiles!user_reports_reporter_id_fkey(id, name)')
+            .eq('reported_id', id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('user_blocks')
+            .select(
+              'blocker_id, blocked_id, created_at, blocker:profiles!user_blocks_blocker_id_fkey(id, name), blocked:profiles!user_blocks_blocked_id_fkey(id, name)',
+            )
+            .or(`blocker_id.eq.${id},blocked_id.eq.${id}`)
+            .order('created_at', { ascending: false }),
+        ])
+      : [{ data: null }, { data: null }, { data: null }];
+
+    const devices = allows(auth.access, 'app_activity', 'view')
+      ? await supabase
+          .from('push_devices')
+          .select('id, platform, app_version, os_version, permission, last_seen_at, disabled_at, disabled_reason')
+          .eq('user_id', id)
+          .order('last_seen_at', { ascending: false })
+      : { data: null };
+
+    const socialClaims = allows(auth.access, 'approvals', 'view')
+      ? await supabase
+          .from('social_account_claims')
+          .select('id, platform, handle, status, attempts, expires_at, verified_at, last_attempt_at, created_at')
+          .eq('user_id', id)
+          .order('created_at', { ascending: false })
+      : { data: null };
+
+    const otpLog = allows(auth.access, 'otp', 'view')
+      ? await supabase
+          .from('phone_otp_audit_log')
+          .select('id, action, status, created_at')
+          .eq('user_id', id)
+          .order('created_at', { ascending: false })
+          .limit(100)
+      : { data: null };
+
+    const [broadcastDeliveries, notifications] = allows(auth.access, 'broadcasts', 'view')
+      ? await Promise.all([
+          supabase
+            .from('broadcast_deliveries')
+            .select('id, broadcast_id, channel, status, skip_reason, sent_at, delivered_at, opened_at, created_at')
+            .eq('user_id', id)
+            .order('created_at', { ascending: false })
+            .limit(100),
+          supabase
+            .from('notifications')
+            .select('id, type, title, read_at, created_at')
+            .eq('user_id', id)
+            .order('created_at', { ascending: false })
+            .limit(100),
+        ])
+      : [{ data: null }, { data: null }];
+
+    // Developer-only ('emails' is super-admin-only, never delegable — see
+    // DEVELOPER_API in lib/admin-access.ts) and matched on the CURRENT email,
+    // since email_deliveries is keyed by address, not user id. A past address
+    // change means older sends to the old address won't show here.
+    const emailLog =
+      auth.access.tier === 'super' && enriched.email
+        ? await supabase
+            .from('email_deliveries')
+            .select('id, template, category, status, error, created_at')
+            .eq('to_email', enriched.email)
+            .order('created_at', { ascending: false })
+            .limit(50)
+        : { data: null };
+
+    // Migration 195. Uses the CALLER's own JWT, not the service-role client:
+    // the function guards itself with is_admin() and has no auth.uid() to
+    // check against a service-role call.
+    const signIns = await callerClient(req).rpc('admin_get_user_signins', { p_user_id: id, p_limit: 50 });
+    if (signIns.error) {
+      console.error('[admin/users/[id]] sign-in history RPC failed:', signIns.error.message);
+    }
+
+    // "Where are they now" (lib/admin-user-lifecycle.ts). Only dates and
+    // counts leave these three queries — no amounts — so they run whatever
+    // sections the caller holds.
+    const [firstPaid, campaignsPublished, applicationsSent] = await Promise.all([
+      projectIds.length
+        ? supabase
+            .from('project_payments')
+            .select('paid_at')
+            .in('project_id', projectIds)
+            .eq('status', 'paid')
+            .order('paid_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      profile.role === 'business_owner'
+        ? supabase
+            .from('campaigns')
+            .select('id', { count: 'exact', head: true })
+            .eq('business_user_id', id)
+            .not('published_at', 'is', null)
+        : Promise.resolve({ count: 0 }),
+      profile.role === 'influencer'
+        ? supabase
+            .from('campaign_applications')
+            .select('id', { count: 'exact', head: true })
+            .eq('creator_user_id', id)
+        : Promise.resolve({ count: 0 }),
+    ]);
+
+    const lifecycle = computeLifecycle({
+      role: profile.role,
+      userId: id,
+      createdAt: profile.created_at,
+      phoneVerifiedAt: (profile as any).phone_verified_at ?? null,
+      profileComplete: enriched.profile_complete ?? null,
+      verifiedAt: profile.verified_at ?? null,
+      verifiedBadge: !!profile.verified_badge,
+      approvalStatus: enriched.approval_status ?? null,
+      // last_active_at is stamped by the app on use; last_sign_in_at only on
+      // a fresh login, so a long-lived mobile session would read as absent.
+      lastSeenAt:
+        [(profile as any).last_active_at, lastSignInAt].filter(Boolean).sort().pop() ?? null,
+      projects: (projects || []) as any[],
+      requests: (requests || []) as any[],
+      firstPaidAt: (firstPaid.data as { paid_at?: string } | null)?.paid_at ?? null,
+      campaignsPublished: (campaignsPublished as { count?: number | null }).count ?? 0,
+      applicationsSent: (applicationsSent as { count?: number | null }).count ?? 0,
+    });
+
+    // Opening someone's full detail (email, phone, activity) is itself worth a
+    // trace — until now it left none at all.
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'user_viewed',
+      targetId: id,
+      targetType: 'user',
+      req,
+    });
+
     return adminJson(req, {
       user: enriched,
+      lifecycle,
       projects: projects || [],
       requests: requests || [],
       activity: activityRes.data || [],
+      payments: payments.data,
+      subscription: subscription.data,
+      supportTickets: supportTickets.data,
+      reportsFiled: reportsFiled.data,
+      reportsAgainst: reportsAgainst.data,
+      blocks: blocks.data,
+      devices: devices.data,
+      socialClaims: socialClaims.data,
+      otpLog: otpLog.data,
+      broadcastDeliveries: broadcastDeliveries.data,
+      notifications: notifications.data,
+      signIns: signIns.data || [],
+      emailLog: emailLog.data,
     });
   } catch (error) {
     return jsonError(500, 'Could not load this user', error);
@@ -122,12 +320,19 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (!parsed.success) return jsonError(400, parsed.error.issues[0]?.message ?? 'Validation failed');
     const body = parsed.data;
 
+    // Fetched once, up front: both the admin-role guard below and the
+    // before/after audit trail need the row as it stood before this edit.
+    const { data: before } = await supabase
+      .from('profiles')
+      .select('role, name, phone, location, email')
+      .eq('id', id)
+      .maybeSingle();
+
     if (auth.access.tier !== 'super') {
       // Changing an admin's email is an account takeover: set it to an address
       // you control, then reset the password. Only a super admin edits another
       // console account here; team members are managed on the Team page.
-      const { data: target } = await supabase.from('profiles').select('role').eq('id', id).maybeSingle();
-      if (target?.role === 'admin') {
+      if (before?.role === 'admin') {
         return jsonError(403, 'Console accounts can only be edited by a super admin.');
       }
       // A field you cannot see is not one you may overwrite.
@@ -161,13 +366,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       await supabase.from('profiles').update({ email: body.email }).eq('id', id);
     }
 
+    const changedFields = (['name', 'phone', 'location', 'email'] as const).filter(
+      (f) => body[f] !== undefined,
+    );
     await auditAdmin({
       actorId: admin.id,
       actorEmail: admin.email ?? null,
       action: 'user_updated',
       targetId: id,
       targetType: 'user',
-      metadata: { fields: Object.keys(body) },
+      metadata: {
+        fields: changedFields,
+        before: Object.fromEntries(changedFields.map((f) => [f, before?.[f] ?? null])),
+        after: Object.fromEntries(changedFields.map((f) => [f, body[f] || null])),
+      },
       req,
     });
 

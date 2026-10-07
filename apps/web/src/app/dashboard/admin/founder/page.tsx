@@ -28,6 +28,10 @@ export default function FounderDashboardPage() {
   const totals = data?.totals ?? {};
   const activity = data?.activity ?? {};
   const liquidity = data?.liquidity ?? {};
+  const topNiches = data?.top_niches ?? [];
+  const topBrands = data?.top_brands ?? [];
+  const campaignSuccess = data?.campaign_success ?? {};
+  const earningsDistribution = data?.creator_earnings_distribution ?? [];
   const series = (data?.series ?? []).map((r: any) => ({
     name: new Date(r.day).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
     Signups: r.signups,
@@ -36,6 +40,7 @@ export default function FounderDashboardPage() {
     Projects: r.projects,
     GMV: Math.round((r.gmv_paise ?? 0) / 100),
     Pro: Math.round((r.pro_paise ?? 0) / 100),
+    "Failure rate": r.payment_failure_rate_pct ?? 0,
   }));
 
   return (
@@ -138,6 +143,10 @@ export default function FounderDashboardPage() {
             <Metric label="Requests that became projects" value={pct(liquidity.request_to_project_pct, 0)} />
             <Metric label="Live campaigns with applicants" value={pct(liquidity.live_campaigns_with_applications_pct, 0)} />
             <Metric label="Creators who ever had a project" value={pct(liquidity.creators_with_project_pct, 0)} />
+            <Metric
+              label="Published campaigns that closed a deal"
+              value={`${pct(campaignSuccess.success_rate_pct, 0)} (${campaignSuccess.with_completed_project ?? 0}/${campaignSuccess.published ?? 0})`}
+            />
             <Metric label="Stickiness (DAU ÷ MAU)" value={pct(activity.stickiness, 0)} />
             <div className="mt-1 grid grid-cols-2 gap-2">
               <Queue label="Pending approvals" value={totals.pending_approvals ?? 0} href="/dashboard/admin/approvals" />
@@ -154,6 +163,38 @@ export default function FounderDashboardPage() {
         <Big label="Pro revenue" value={rupees(totals.lifetime_pro_paise, { compact: true })} icon={<Crown />} />
         <Big label="People" value={nf.format(totals.users ?? 0)} icon={<Users />} />
         <Big label="MRR" value={rupees(totals.mrr_paise, { compact: true })} icon={<CircleDollarSign />} />
+      </SectionCard>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SectionCard eyebrow="Lifetime" title="Top niches by GMV">
+          <StatRows
+            rows={topNiches.map((n: any) => ({ label: `${n.niche} · ${n.projects} projects`, value: n.gmv_paise ?? 0 }))}
+            formatter={(v) => rupees(v, { compact: true })}
+          />
+        </SectionCard>
+        <SectionCard eyebrow="Lifetime" title="Top-spending brands">
+          <StatRows
+            rows={topBrands.map((b: any) => ({ label: `${b.company_name ?? "Unnamed"} · ${b.projects} projects`, value: b.gmv_paise ?? 0 }))}
+            formatter={(v) => rupees(v, { compact: true })}
+          />
+        </SectionCard>
+      </div>
+
+      <SectionCard eyebrow="Lifetime" title="Creator earnings distribution">
+        <StatRows rows={earningsDistribution.map((b: any) => ({ label: b.bucket, value: b.creators ?? 0 }))} />
+      </SectionCard>
+
+      <SectionCard eyebrow="Money" title="Payment failure rate">
+        {series.length === 0 ? (
+          <p className="py-12 text-center text-sm text-content-muted">No payments in this range.</p>
+        ) : (
+          <AreaChart
+            data={series}
+            config={{ "Failure rate": { label: "Failed ÷ (failed + paid), %", color: CHART_COLORS[4] ?? CHART_COLORS[0] } }}
+            areas={[{ dataKey: "Failure rate", color: CHART_COLORS[4] ?? CHART_COLORS[0] }]}
+            height={160}
+          />
+        )}
       </SectionCard>
     </AdminPage>
   );

@@ -1,4 +1,5 @@
 import { adminJson, jsonError, withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 
 /** The product feedback board. */
 
@@ -72,6 +73,16 @@ export async function PATCH(req: Request) {
 
     if (error) return jsonError(500, 'Could not update this feedback', error);
     if (!data) return jsonError(404, 'Feedback not found');
+
+    await auditAdmin({
+      actorId: user.id,
+      actorEmail: user.email ?? null,
+      action: 'feedback_triaged',
+      targetId: id,
+      targetType: 'product_feedback',
+      metadata: update,
+      req,
+    });
 
     return adminJson(req, { feedback: data });
   } catch (error) {

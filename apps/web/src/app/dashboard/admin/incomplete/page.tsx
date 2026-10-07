@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { UserPlus } from "lucide-react";
+import { AdminUserLink } from "@/components/dashboard/admin/user-link";
 import { apiFetch } from "@/lib/api-client";
 import {
   AdminPage, Badge, Button, DataTable, ExportButton, SectionCard,
@@ -113,7 +114,9 @@ export default function IncompleteSignupsPage() {
           columns={[
             { key: "name", label: "Who", render: (r: any) => (
               <div className="min-w-0">
-                <p className="truncate font-semibold text-content">{r.name || "(no profile yet)"}</p>
+                <p className="truncate font-semibold text-content">
+                  {r.name ? <AdminUserLink id={r.id}>{r.name}</AdminUserLink> : "(no profile yet)"}
+                </p>
                 <p className="truncate text-xs text-content-muted">{r.email}</p>
               </div>
             ) },
