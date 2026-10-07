@@ -1,4 +1,5 @@
 import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { getTemplate, listTemplates } from '@/lib/email/templates';
 import { emailsEnabled, emailConfigured, fromAddress, isValidEmail } from '@/lib/email/client';
@@ -125,6 +126,16 @@ export async function POST(req: Request) {
       };
       return jsonError(502, explain[result.reason] || 'Send failed.');
     }
+
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'email_test_sent',
+      targetId: result.id ?? null,
+      targetType: 'email_delivery',
+      metadata: { templateId: payload.templateId, to },
+      req,
+    });
 
     return adminJson(req, { ok: true, id: result.id, to, subject: tpl.subject(data) });
   }

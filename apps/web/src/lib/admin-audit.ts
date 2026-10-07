@@ -25,6 +25,7 @@ export type AdminAction =
   | 'event_survey_form_updated'
   | 'saved_report_created'
   | 'saved_report_deleted'
+  | 'email_test_sent'
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'
