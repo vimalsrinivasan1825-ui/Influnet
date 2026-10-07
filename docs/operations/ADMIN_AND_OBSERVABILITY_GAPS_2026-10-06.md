@@ -58,8 +58,8 @@ cover those roles.
 | Loki (logs) | JSON logs to stdout → Log Analytics, correlated by `x-request-id` | ❓ verify by hand | No Loki. Make sure Log Analytics is attached |
 | Sentry | Custom fetch-based reporters (web server, web browser, mobile JS) | ⚠️ partial | Native mobile crashes (G12), alert rules (G2) |
 | Metabase (BI) | Report builder + 20 insight reports | ✅ adequate | Later, optional (G16) |
-| Audit log | `admin_audit_log` (append-only, service-role write) | ⚠️ partial | G6 |
-| RBAC | Migration 176 team roles + field masking | ✅ | RPC-level scoping (G14) |
+| Audit log | `admin_audit_log` (append-only, service-role write) | ✅ done (G6) | — |
+| RBAC | Migration 176 team roles + field masking | ✅ | RPC-level scoping done (G14); needs migration 196 applied |
 | MFA | TOTP for admins (2026-10-06) | ✅ built | Enrol your admins, then set `ADMIN_REQUIRE_MFA=true` (G5) |
 
 ---
@@ -213,6 +213,18 @@ can't be answered.** Do the §6 checklist.
   need MFA, only `role = 'admin'` accounts.
 
 #### G6. The audit log has holes 💻
+
+> **✅ Done 2026-10-06.** Every route below now calls `auditAdmin()`
+> (`campaign_moderated`, `feedback_triaged`, `early_access_deleted`,
+> `event_registration_updated`/`_deleted`, `event_survey_form_updated`,
+> `saved_report_created`/`_deleted`, `email_test_sent`, `issue_created`/
+> `_updated`/`_deleted`); `support/route.ts`'s untyped raw inserts
+> (`support.replied` etc.) were replaced with typed actions
+> (`support_replied`, `support_note_added`, `support_ticket_updated`);
+> `user_updated` now logs `{before, after}`; opening a user's detail page
+> logs `user_viewed`; the audit screen and its API gained actor/action/target
+> filters.
+
 - **Admin write routes that write no audit row:** `campaigns/[id]` (approving
   or removing a campaign), `reports` (resolving a report, even though
   `report_resolved` is a defined action type), `feedback`, `early-access/[id]`,
@@ -233,6 +245,16 @@ can't be answered.** Do the §6 checklist.
 ### P1: "everything about a user in one place"
 
 #### G7. The per-user screen is missing half the story 💻
+
+> **✅ Done 2026-10-06.** The page is now tabbed (Overview · Money ·
+> Projects & requests · Support & safety · Devices & comms · Timeline) and
+> `GET /api/admin/users/[id]` returns every row in the table below, each
+> gated by the same section permission its own console page already uses
+> (and `null`, not an error, when the caller lacks it). Sign-in history is
+> new — `admin_get_user_signins()` (migration 195) reads
+> `auth.audit_log_entries` directly, since that schema isn't exposed through
+> PostgREST.
+
 `/api/admin/users/[id]` returns: profile, business/creator profile, projects,
 requests, activity timeline. All of the following already exist in tables or
 other console screens, but **support can't see them on one page**:
@@ -301,6 +323,18 @@ breadcrumbs. Application Insights covers request latency per endpoint, which is
 enough for now. Revisit only if App Insights can't explain a slow page.
 
 #### G14. Staff section limits stop at the API 💻
+
+> **✅ Done 2026-10-07.** `admin_has_permission(section, level)` (migration
+> 196) does what `is_admin()` plus `lib/admin-access.ts`'s `allows()` would
+> compute together; the 25 `admin_*` RPCs that were granted `EXECUTE` to
+> `authenticated` and checked only `is_admin()` now call it instead, each
+> mapped to the same section key and view/manage level its console page
+> already requires. `admin_creator_applications_report` has no console page
+> yet, so it's mapped to `early_access` (closest existing section) rather
+> than staying ungated. The `admin_team_*` functions in migration 176 needed
+> no change — they were already revoked from `authenticated` entirely.
+> Migration 196 is new on this branch and not yet applied anywhere.
+
 Documented in AGENTS.md: staff are still `is_admin()`, so a staff member
 calling an `admin_*` RPC directly through PostgREST can read outside their
 sections. Move each RPC to a per-section check (`admin_can_view('<section>')`).
@@ -374,13 +408,13 @@ Tick these from the vendor dashboards. Each takes a few minutes.
 | 2 | G2 alerts: Sentry, Azure Monitor, UptimeRobot, Supabase, one channel | 👤 | ½ day |
 | 3 | G5 admin MFA | 💻 + 👤 enrol | 1 day |
 | 4 | G1 analytics events + web identify | 💻 | 1–2 days |
-| 5 | G6 audit gaps + before/after + view logging | 💻 | 1 day |
+| 5 | ~~G6 audit gaps + before/after + view logging~~ | 💻 done 2026-10-06 | — |
 | 6 | G4 Upstash on staging deploy | 💻 + 👤 secret | 1 hour |
-| 7 | G7 user 360 page | 💻 | 2–3 days |
+| 7 | ~~G7 user 360 page~~ | 💻 done 2026-10-06 | — |
 | 8 | G8 disputes + refunds | 👤 decide, 💻 build | 2–3 days |
-| 9 | G10 sign-in history, G11 retention policy | 💻 / 👤 | 1–2 days |
+| 9 | ~~G10 sign-in history~~ done 2026-10-06 (part of G7); G11 retention policy | 💻 / 👤 | 1–2 days |
 | 10 | G9 chat access policy | 👤 decide first | — |
-| 11 | G14 RPC section scoping | 💻 | 1–2 days |
+| 11 | ~~G14 RPC section scoping~~ | 💻 done 2026-10-07 | — |
 | 12 | G12 native crash SDK, at next store build | 👤 approve | with build |
 | 13 | G15–G17 | 💻 | as wanted |
 
