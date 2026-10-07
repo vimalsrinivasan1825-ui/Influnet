@@ -46,10 +46,15 @@ export default function AdminAuditPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const [targetIdFilter, setTargetIdFilter] = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (action: string, targetId: string) => {
     setLoading(true);
-    const res = await apiFetch<{ entries: AuditEntry[] }>("/api/admin/audit?limit=250");
+    const params = new URLSearchParams({ limit: "250" });
+    if (action.trim()) params.set("action", action.trim());
+    if (targetId.trim()) params.set("targetId", targetId.trim());
+    const res = await apiFetch<{ entries: AuditEntry[] }>(`/api/admin/audit?${params.toString()}`);
     if (!res.ok || !res.data) {
       setError(res.error || "Could not load the audit log");
     } else {
@@ -60,9 +65,13 @@ export default function AdminAuditPage() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(actionFilter, targetIdFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionFilter, targetIdFilter]);
 
+  // The action/target filters round-trip to the API (so they work against
+  // the full table, not just the 250 cached rows); actor and free text stay
+  // client-side since they search display fields, not indexed columns.
   const filtered = entries.filter(
     (e) =>
       !search ||
@@ -80,13 +89,27 @@ export default function AdminAuditPage() {
         subtitle="Append-only record of every admin action"
         icon={<History />}
         actions={
-          <InputGroup icon={<Search />} className="w-full sm:w-64">
+          <div className="flex flex-wrap items-center gap-2">
+            <InputGroup icon={<Search />} className="w-full sm:w-56">
+              <Input
+                placeholder="Admin, action or target type…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </InputGroup>
             <Input
-              placeholder="Filter by action or admin…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              className="w-full sm:w-40"
+              placeholder="Action prefix…"
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
             />
-          </InputGroup>
+            <Input
+              className="w-full sm:w-48"
+              placeholder="Target ID…"
+              value={targetIdFilter}
+              onChange={(e) => setTargetIdFilter(e.target.value)}
+            />
+          </div>
         }
       />
 
