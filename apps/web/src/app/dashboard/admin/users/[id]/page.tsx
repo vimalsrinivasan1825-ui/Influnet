@@ -418,6 +418,7 @@ export default function AdminUserDetailPage() {
 
       {tab === "overview" && <OverviewTab data={data} />}
       {tab === "money" && <MoneyTab data={data} />}
+      {tab === "connections" && <ConnectionsTab data={data} selfId={id} />}
       {tab === "timeline" && <TimelineTab activity={data.activity} />}
     </div>
   );
@@ -498,6 +499,84 @@ function MoneyTab({ data }: { data: UserPageData }) {
         </div>
       </Section>
     </>
+  );
+}
+
+function ConnectionsTab({ data, selfId }: { data: UserPageData; selfId: string }) {
+  // The pair of tables merged and sorted newest-first — "who they're
+  // connected to" regardless of whether it's a pending ask or a live deal.
+  const connections = [
+    ...data.projects.map((p) => {
+      const other = p.owner?.id === selfId ? p.counterparty : p.owner;
+      return {
+        key: `project-${p.id}`,
+        other,
+        kind: "project" as const,
+        label: p.title,
+        status: p.status,
+        stage: STAGE_LABELS[p.current_stage] || p.current_stage,
+        budget: p.budget,
+        at: p.created_at,
+        href: `/dashboard/admin/projects/${p.id}`,
+      };
+    }),
+    ...data.requests.map((r) => {
+      const other = r.from_user?.id === selfId ? r.to_user : r.from_user;
+      return {
+        key: `request-${r.id}`,
+        other,
+        kind: "request" as const,
+        label: r.from_user?.id === selfId ? "Sent a request" : "Received a request",
+        status: r.status,
+        stage: null as string | null,
+        budget: r.budget,
+        at: r.updated_at || r.created_at,
+        href: other ? `/dashboard/admin/users/${other.id}` : undefined,
+      };
+    }),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  return (
+    <Card className="flex flex-col gap-3 p-5">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-content"><Users className="size-4" /> Connected with</h2>
+      {connections.length === 0 ? (
+        <EmptyState icon={<Users />} title="No connections yet" description="No requests or projects involving this user." />
+      ) : (
+        <div className="flex flex-col divide-y divide-hairline">
+          {connections.map((c) => {
+            const row = (
+              <div className="flex items-center justify-between gap-3 py-2.5">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Avatar name={c.other?.name || "Deleted account"} size="sm" square />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-content">
+                      {c.other?.name || (c.other == null ? "Deleted account" : "Unknown user")}
+                    </div>
+                    <div className="text-xs text-content-muted">{c.label}</div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {c.stage && <Badge variant="brand" size="sm">{c.stage}</Badge>}
+                  <Badge variant={c.status === "accepted" || c.status === "active" ? "info" : c.status === "declined" || c.status === "cancelled" ? "neutral" : "warning"} size="sm">
+                    {c.status}
+                  </Badge>
+                  {c.budget != null && c.budget !== "" && (
+                    <span className="text-xs font-semibold text-content-soft">₹{Number(c.budget).toLocaleString()}</span>
+                  )}
+                </div>
+              </div>
+            );
+            return c.href ? (
+              <Link key={c.key} href={c.href} className="-mx-2 rounded-lg px-2 hover:bg-surface-muted">
+                {row}
+              </Link>
+            ) : (
+              <div key={c.key}>{row}</div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }
 
