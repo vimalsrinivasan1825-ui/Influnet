@@ -40,6 +40,7 @@ export default function FounderDashboardPage() {
     Projects: r.projects,
     GMV: Math.round((r.gmv_paise ?? 0) / 100),
     Pro: Math.round((r.pro_paise ?? 0) / 100),
+    "Failure rate": r.payment_failure_rate_pct ?? 0,
   }));
 
   return (
@@ -181,6 +182,19 @@ export default function FounderDashboardPage() {
 
       <SectionCard eyebrow="Lifetime" title="Creator earnings distribution">
         <StatRows rows={earningsDistribution.map((b: any) => ({ label: b.bucket, value: b.creators ?? 0 }))} />
+      </SectionCard>
+
+      <SectionCard eyebrow="Money" title="Payment failure rate">
+        {series.length === 0 ? (
+          <p className="py-12 text-center text-sm text-content-muted">No payments in this range.</p>
+        ) : (
+          <AreaChart
+            data={series}
+            config={{ "Failure rate": { label: "Failed ÷ (failed + paid), %", color: CHART_COLORS[4] ?? CHART_COLORS[0] } }}
+            areas={[{ dataKey: "Failure rate", color: CHART_COLORS[4] ?? CHART_COLORS[0] }]}
+            height={160}
+          />
+        )}
       </SectionCard>
     </AdminPage>
   );
