@@ -32,6 +32,7 @@ export type AdminAction =
   | 'support_replied'
   | 'support_note_added'
   | 'support_ticket_updated'
+  | 'user_viewed'
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'
