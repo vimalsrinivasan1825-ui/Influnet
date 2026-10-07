@@ -30,6 +30,7 @@ export default function FounderDashboardPage() {
   const liquidity = data?.liquidity ?? {};
   const topNiches = data?.top_niches ?? [];
   const topBrands = data?.top_brands ?? [];
+  const campaignSuccess = data?.campaign_success ?? {};
   const series = (data?.series ?? []).map((r: any) => ({
     name: new Date(r.day).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
     Signups: r.signups,
@@ -140,6 +141,10 @@ export default function FounderDashboardPage() {
             <Metric label="Requests that became projects" value={pct(liquidity.request_to_project_pct, 0)} />
             <Metric label="Live campaigns with applicants" value={pct(liquidity.live_campaigns_with_applications_pct, 0)} />
             <Metric label="Creators who ever had a project" value={pct(liquidity.creators_with_project_pct, 0)} />
+            <Metric
+              label="Published campaigns that closed a deal"
+              value={`${pct(campaignSuccess.success_rate_pct, 0)} (${campaignSuccess.with_completed_project ?? 0}/${campaignSuccess.published ?? 0})`}
+            />
             <Metric label="Stickiness (DAU ÷ MAU)" value={pct(activity.stickiness, 0)} />
             <div className="mt-1 grid grid-cols-2 gap-2">
               <Queue label="Pending approvals" value={totals.pending_approvals ?? 0} href="/dashboard/admin/approvals" />
