@@ -153,6 +153,32 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
           .order('created_at', { ascending: false })
       : { data: null };
 
+    const otpLog = allows(auth.access, 'otp', 'view')
+      ? await supabase
+          .from('phone_otp_audit_log')
+          .select('id, action, status, created_at')
+          .eq('user_id', id)
+          .order('created_at', { ascending: false })
+          .limit(100)
+      : { data: null };
+
+    const [broadcastDeliveries, notifications] = allows(auth.access, 'broadcasts', 'view')
+      ? await Promise.all([
+          supabase
+            .from('broadcast_deliveries')
+            .select('id, broadcast_id, channel, status, skip_reason, sent_at, delivered_at, opened_at, created_at')
+            .eq('user_id', id)
+            .order('created_at', { ascending: false })
+            .limit(100),
+          supabase
+            .from('notifications')
+            .select('id, type, title, read_at, created_at')
+            .eq('user_id', id)
+            .order('created_at', { ascending: false })
+            .limit(100),
+        ])
+      : [{ data: null }, { data: null }];
+
     // Opening someone's full detail (email, phone, activity) is itself worth a
     // trace — until now it left none at all.
     await auditAdmin({
@@ -177,6 +203,9 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       blocks: blocks.data,
       devices: devices.data,
       socialClaims: socialClaims.data,
+      otpLog: otpLog.data,
+      broadcastDeliveries: broadcastDeliveries.data,
+      notifications: notifications.data,
     });
   } catch (error) {
     return jsonError(500, 'Could not load this user', error);
