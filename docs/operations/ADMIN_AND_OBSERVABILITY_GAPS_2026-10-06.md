@@ -120,12 +120,16 @@ Legend: 👤 needs the owner (dashboard, account, decision) · 💻 code change.
 
 #### G1. Product analytics is wired but almost no events are sent 💻
 
-> **✅ Done 2026-10-06 (web + server).** Web now identifies users; 30 of the 32
-> events fire (server-side for every database fact, client-side for signup UI
-> steps). Not yet sent: `social_handle_added`, `profile_completed`. Mobile
-> client-only events (signup steps on the phone) are deferred until the store
-> reviews return; the server events already cover mobile's funnel. Event map:
-> [ANALYTICS.md §3a](ANALYTICS.md).
+> **✅ Done 2026-10-06 (web + server), completed 2026-10-07.** Web now
+> identifies users; all 32 events fire server-side for every database fact or
+> client-side for signup UI steps. The last two —`social_handle_added` (fires
+> once per handle field changed on a Settings PATCH, not at signup, which
+> already fires `signup_completed`) and `profile_completed` (fires alongside
+> `signup_completed`, since `register_profile` persists the whole profile in
+> one RPC and there's no separate post-signup "complete your profile" step on
+> web) — are wired in now. Mobile client-only events (signup steps on the
+> phone) are deferred until the store reviews return; the server events
+> already cover mobile's funnel. Event map: [ANALYTICS.md §3a](ANALYTICS.md).
 - **Evidence:** `AnalyticsEvent` (web `lib/analytics.ts`, mobile
   `lib/analytics.ts`) defines **32 events** from `signup_started` to
   `payment_succeeded`. Only **3 are ever called**: `support_ticket_opened`,
@@ -166,7 +170,7 @@ Legend: 👤 needs the owner (dashboard, account, decision) · 💻 code change.
 | Container restarting / CPU / memory | Azure Monitor on the Container App | restarts > 0; CPU or memory > 80% for 10 min |
 | DB near limits | Supabase → Usage alerts | egress, DB size, connections at 80% |
 | Payment failures | 💻 cron check on `payments` (failed in last hour > N) or Sentry on webhook errors | >3 failed in an hour |
-| Webhook signature failures (Razorpay, Stream) | 💻 log at `error` level so Sentry/App Insights alert | any |
+| Webhook signature failures (Razorpay, Stream) | ✅ done 2026-10-07 — both now call `captureException` | any |
 | Broadcast/nudge cron failed | GitHub Actions → notify on workflow failure | any failure |
 
 Route all of these to **one** channel (an email group or a Slack channel)
