@@ -18,6 +18,7 @@ export type AdminAction =
   | 'project_deleted'
   | 'report_resolved'
   | 'campaign_moderated'
+  | 'feedback_triaged'
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'
