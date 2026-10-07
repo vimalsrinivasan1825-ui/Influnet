@@ -17,7 +17,12 @@ export async function POST(req: Request) {
   const signature = req.headers.get('x-razorpay-signature');
 
   if (!verifyWebhookSignature(rawBody, signature)) {
-    // Either not configured or a forged/replayed request — reject quietly.
+    // Either not configured or a forged/replayed request. jsonError only
+    // reports to Sentry at >=500 (this is a 401), so a real forged-signature
+    // attempt would otherwise never surface outside a warn-level log line.
+    captureException(new Error('Razorpay webhook: signature verification failed'), {
+      tags: { route: 'payments/webhook', hasSignature: String(!!signature) },
+    });
     return jsonError(401, 'Invalid webhook signature');
   }
 
