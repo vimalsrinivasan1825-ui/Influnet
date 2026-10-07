@@ -28,6 +28,8 @@ export default function FounderDashboardPage() {
   const totals = data?.totals ?? {};
   const activity = data?.activity ?? {};
   const liquidity = data?.liquidity ?? {};
+  const topNiches = data?.top_niches ?? [];
+  const topBrands = data?.top_brands ?? [];
   const series = (data?.series ?? []).map((r: any) => ({
     name: new Date(r.day).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
     Signups: r.signups,
@@ -155,6 +157,21 @@ export default function FounderDashboardPage() {
         <Big label="People" value={nf.format(totals.users ?? 0)} icon={<Users />} />
         <Big label="MRR" value={rupees(totals.mrr_paise, { compact: true })} icon={<CircleDollarSign />} />
       </SectionCard>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SectionCard eyebrow="Lifetime" title="Top niches by GMV">
+          <StatRows
+            rows={topNiches.map((n: any) => ({ label: `${n.niche} · ${n.projects} projects`, value: n.gmv_paise ?? 0 }))}
+            formatter={(v) => rupees(v, { compact: true })}
+          />
+        </SectionCard>
+        <SectionCard eyebrow="Lifetime" title="Top-spending brands">
+          <StatRows
+            rows={topBrands.map((b: any) => ({ label: `${b.company_name ?? "Unnamed"} · ${b.projects} projects`, value: b.gmv_paise ?? 0 }))}
+            formatter={(v) => rupees(v, { compact: true })}
+          />
+        </SectionCard>
+      </div>
     </AdminPage>
   );
 }
