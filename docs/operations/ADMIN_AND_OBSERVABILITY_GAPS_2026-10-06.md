@@ -343,6 +343,16 @@ This matters once staff are people other than the founders.
 ### P2: nice to have
 
 #### G15. Founder dashboard additions 💻
+
+> **✅ Done 2026-10-07.** All 5 added to `admin_founder_dashboard()`
+> (migration 197): `top_niches` and `top_brands` by lifetime GMV,
+> `campaign_success` (published campaigns vs. accepted-applicant-produced-a-
+> completed-project — there's no FK from `campaign_projects` back to the
+> campaign that produced it, so this is the same approximation style as the
+> existing `request_to_project_pct`), `creator_earnings_distribution`
+> (lifetime paid amount bucketed), and a per-day `payment_failure_rate_pct`
+> in `series`. Frontend added to `/dashboard/admin/founder`.
+
 Already present: most of the list you pasted. Missing:
 **top niches/categories** by projects and GMV, **top-spending brands**,
 **campaign success rate** (published → ≥1 completed project), **creator
@@ -355,6 +365,14 @@ add it later, point it at a **read-only Postgres role** (never the service
 key), and preferably a read replica, so ad-hoc queries can't slow the app.
 
 #### G17. Admin activity digest 💻
+
+> **✅ Done 2026-10-07.** `admin_digest` email template +
+> `/api/cron/maintenance` now emails every super admin daily: new
+> signups/GMV (`admin_period_kpis`), tickets waiting on us over 24h, pending
+> approvals/verifications, and new Sentry issues (omitted with a line
+> explaining why when Sentry isn't configured). No new cron — it's a third
+> step inside the existing daily maintenance run.
+
 A daily email to the founders: new users, GMV, open tickets older than 24h,
 pending approvals, new Sentry issues. Built from the existing insights and
 sent by the existing maintenance cron.
@@ -416,7 +434,7 @@ Tick these from the vendor dashboards. Each takes a few minutes.
 | 10 | G9 chat access policy | 👤 decide first | — |
 | 11 | ~~G14 RPC section scoping~~ | 💻 done 2026-10-07 | — |
 | 12 | G12 native crash SDK, at next store build | 👤 approve | with build |
-| 13 | G15–G17 | 💻 | as wanted |
+| 13 | ~~G15 founder additions, G17 admin digest~~ done 2026-10-07; G16 Metabase | 💻 | as wanted |
 
 After items 1–7, the claim "nothing is hidden from the admin" holds, with
 three stated, deliberate exceptions: chat (privacy policy), session replay
