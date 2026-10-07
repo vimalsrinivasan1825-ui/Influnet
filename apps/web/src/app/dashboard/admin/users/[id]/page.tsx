@@ -25,6 +25,7 @@ import {
   ArrowLeft,
   BadgeCheck,
   Calendar,
+  BellRing,
   History,
   IndianRupee,
   LifeBuoy,
@@ -32,7 +33,10 @@ import {
   Mail,
   MapPin,
   Phone,
+  Send,
   ShieldAlert,
+  ShieldCheck,
+  Smartphone,
   Trash2,
   Users,
 } from "lucide-react";
@@ -422,6 +426,7 @@ export default function AdminUserDetailPage() {
       {tab === "money" && <MoneyTab data={data} />}
       {tab === "connections" && <ConnectionsTab data={data} selfId={id} />}
       {tab === "safety" && <SafetyTab data={data} />}
+      {tab === "devices" && <DevicesTab data={data} />}
       {tab === "timeline" && <TimelineTab activity={data.activity} />}
     </div>
   );
@@ -656,6 +661,123 @@ function SafetyTab({ data }: { data: UserPageData }) {
             <div key={`${b.blocker_id}-${b.blocked_id}`} className="flex items-center justify-between gap-3 py-2.5 text-sm">
               <span className="text-content">{b.blocker?.name || "Someone"} blocked {b.blocked?.name || "someone"}</span>
               <span className="text-xs text-content-muted">{timeAgo(b.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </>
+  );
+}
+
+function DevicesTab({ data }: { data: UserPageData }) {
+  return (
+    <>
+      <Section
+        title="Devices"
+        icon={<Smartphone className="size-4" />}
+        data={data.devices}
+        emptyLabel="No app installs registered."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.devices || []).map((d) => (
+            <div key={d.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <div>
+                <div className="font-semibold text-content">{d.platform} · {d.app_version || "unknown version"}</div>
+                <div className="text-xs text-content-muted">{d.os_version || "—"} · last seen {timeAgo(d.last_seen_at)}</div>
+              </div>
+              <Badge variant={d.disabled_at ? "neutral" : d.permission === "granted" ? "info" : "warning"} size="sm">
+                {d.disabled_at ? "disabled" : d.permission}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Social verification"
+        icon={<ShieldCheck className="size-4" />}
+        data={data.socialClaims}
+        emptyLabel="No social ownership claims."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.socialClaims || []).map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-content">{s.platform} · @{s.handle}</span>
+              <div className="flex items-center gap-2">
+                <Badge variant={s.status === "verified" ? "info" : s.status === "expired" || s.status === "revoked" ? "neutral" : "warning"} size="sm">
+                  {s.status}
+                </Badge>
+                <span className="text-xs text-content-muted">{timeAgo(s.verified_at || s.created_at)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Emails sent"
+        icon={<Mail className="size-4" />}
+        data={data.emailLog}
+        emptyLabel="No emails sent to this address."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.emailLog || []).map((e) => (
+            <div key={e.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <div>
+                <div className="font-semibold text-content">{e.template}</div>
+                <div className="text-xs text-content-muted">{e.category} · {timeAgo(e.created_at)}</div>
+              </div>
+              <Badge variant={e.status === "sent" || e.status === "delivered" ? "info" : "danger"} size="sm">{e.status}</Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="OTP attempts"
+        icon={<Send className="size-4" />}
+        data={data.otpLog}
+        emptyLabel="No phone verification attempts."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.otpLog || []).map((o) => (
+            <div key={o.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-content">{o.action}</span>
+              <span className="text-xs text-content-muted">{o.status || "—"} · {timeAgo(o.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Broadcast deliveries"
+        icon={<BellRing className="size-4" />}
+        data={data.broadcastDeliveries}
+        emptyLabel="No broadcasts delivered to this person."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.broadcastDeliveries || []).map((b) => (
+            <div key={b.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-content">{b.channel}</span>
+              <span className="text-xs text-content-muted">
+                {b.status}{b.skip_reason ? ` (${b.skip_reason})` : ""} · {timeAgo(b.sent_at || b.created_at)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="In-app notifications"
+        icon={<BellRing className="size-4" />}
+        data={data.notifications}
+        emptyLabel="No in-app notifications."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.notifications || []).map((n) => (
+            <div key={n.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="truncate text-content">{n.title}</span>
+              <span className="shrink-0 text-xs text-content-muted">{n.read_at ? "read" : "unread"} · {timeAgo(n.created_at)}</span>
             </div>
           ))}
         </div>
