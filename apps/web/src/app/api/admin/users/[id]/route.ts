@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { adminJson, callerClient, jsonError, withAdmin } from '@/lib/api';
 import { auditAdmin } from '@/lib/admin-audit';
+import { allows } from '@/lib/admin-access';
 import { logger } from '@/lib/logger';
 import { hardDeleteAccount, recordAccountDeletion } from '@/lib/account-deletion';
 
@@ -84,6 +85,28 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       console.error('[admin/users/[id]] activity RPC failed:', activityRes.error.message);
     }
 
+    // Each extra section is gated by the section it already belongs to
+    // elsewhere in the console, and simply omitted (not errored) when the
+    // caller doesn't hold it — adminJson/adminRows still masks whatever comes
+    // back, same as every other admin route.
+    const projectIds = (projects || []).map((p: any) => p.id);
+    const [payments, subscription] = await Promise.all([
+      allows(auth.access, 'payments', 'view') && projectIds.length
+        ? supabase
+            .from('project_payments')
+            .select('id, project_id, stage_key, amount, currency, status, payer_id, created_at, paid_at')
+            .in('project_id', projectIds)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: null }),
+      allows(auth.access, 'subscribers', 'view')
+        ? supabase
+            .from('subscriptions')
+            .select('tier, status, current_period_end, grace_until, cancel_at_period_end, created_at, updated_at')
+            .eq('user_id', id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
     // Opening someone's full detail (email, phone, activity) is itself worth a
     // trace — until now it left none at all.
     await auditAdmin({
@@ -100,6 +123,8 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       projects: projects || [],
       requests: requests || [],
       activity: activityRes.data || [],
+      payments: payments.data,
+      subscription: subscription.data,
     });
   } catch (error) {
     return jsonError(500, 'Could not load this user', error);
