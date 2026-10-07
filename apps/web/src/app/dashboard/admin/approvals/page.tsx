@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerificationQueue } from "@/components/dashboard/admin/verification-queue";
+import { AdminUserLink } from "@/components/dashboard/admin/user-link";
 
 interface BusinessUser {
   user_id: string;
@@ -162,9 +163,9 @@ function BusinessRow({
         <Avatar name={b.company_name} size="md" square />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-bold text-content">
+            <AdminUserLink id={b.user_id} className="text-sm font-bold text-content">
               {b.company_name || "Unnamed company"}
-            </span>
+            </AdminUserLink>
             <Badge variant={isPending ? "warning" : isApproved ? "success" : "danger"} size="sm">
               {isPending ? "Pending" : isApproved ? "Approved" : "Rejected"}
             </Badge>
@@ -178,7 +179,11 @@ function BusinessRow({
                 <MapPin className="size-3" /> {b.city}, {b.state}
               </span>
             )}
+            <span>Signed up {new Date(b.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
           </div>
+          <AdminUserLink id={b.user_id} showIcon className="mt-1.5 text-xs font-semibold text-brand">
+            Full profile &amp; journey
+          </AdminUserLink>
         </div>
       </div>
 

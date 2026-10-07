@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Check, ExternalLink, Loader2, X, Megaphone } from "lucide-react";
+import { AdminUserLink } from "@/components/dashboard/admin/user-link";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -89,9 +90,9 @@ export default function AdminCampaignsPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-brand">
+                    <AdminUserLink id={c.business_user?.id} className="text-xs font-bold text-brand">
                       {c.business_user?.name || "Unknown brand"}
-                    </span>
+                    </AdminUserLink>
                     <Badge variant="warning" size="sm">Pending review</Badge>
                   </div>
                   <h3 className="mt-1 text-lg font-semibold text-content">{c.title}</h3>

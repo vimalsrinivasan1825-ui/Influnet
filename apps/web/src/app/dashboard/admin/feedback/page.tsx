@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Lightbulb, MessageSquareHeart, Star } from "lucide-react";
+import { AdminUserLink } from "@/components/dashboard/admin/user-link";
 import { apiFetch } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -150,7 +151,7 @@ export default function AdminFeedbackPage() {
               </p>
 
               <p className="text-xs text-content-muted">
-                {f.user?.name ?? "Deleted user"}
+                <AdminUserLink id={f.user?.id}>{f.user?.name ?? "Deleted user"}</AdminUserLink>
                 {f.user?.role ? ` · ${f.user.role}` : ""}
               </p>
 

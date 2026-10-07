@@ -22,6 +22,7 @@ import {
   Play,
   RefreshCw,
 } from "lucide-react";
+import { AdminUserLink } from "@/components/dashboard/admin/user-link";
 import { apiFetch } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -242,7 +243,13 @@ export default function AdminActivityPage() {
                     <p className="truncate text-xs text-content-soft">{e.detail}</p>
                   )}
                   <p className="text-[0.6875rem] text-content-muted">
-                    {e.actor_name ? `${e.actor_name}` : "System"}
+                    {e.actor_name ? (
+                      <AdminUserLink id={e.actor_id} className="relative z-[1] font-semibold">
+                        {e.actor_name}
+                      </AdminUserLink>
+                    ) : (
+                      "System"
+                    )}
                     {e.actor_role ? ` · ${e.actor_role === "business_owner" ? "business" : e.actor_role}` : ""}
                     {" · "}
                     {relative(e.at)}
@@ -251,12 +258,13 @@ export default function AdminActivityPage() {
               </div>
             );
 
-            return e.link ? (
-              <Link key={`${e.at}-${e.kind}-${i}`} href={e.link} className="block">
+            // Stretched link: the event link covers the row, and the actor's
+            // name sits above it as its own link — <a> inside <a> is invalid.
+            return (
+              <div key={`${e.at}-${e.kind}-${i}`} className="relative">
+                {e.link && <Link href={e.link} className="absolute inset-0" aria-label={e.title} />}
                 {row}
-              </Link>
-            ) : (
-              <div key={`${e.at}-${e.kind}-${i}`}>{row}</div>
+              </div>
             );
           })}
         </Card>

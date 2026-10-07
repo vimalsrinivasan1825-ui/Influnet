@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Flag, ShieldAlert } from "lucide-react";
+import { AdminUserLink } from "@/components/dashboard/admin/user-link";
 import { apiFetch } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -161,9 +162,9 @@ export default function AdminReportsPage() {
                     )}
                   </div>
                   <p className="mt-2 text-sm font-bold text-content">
-                    {r.reported?.name ?? "Deleted user"}
+                    <AdminUserLink id={r.reported?.id}>{r.reported?.name ?? "Deleted user"}</AdminUserLink>
                     <span className="font-medium text-content-muted"> reported by </span>
-                    {r.reporter?.name ?? "Deleted user"}
+                    <AdminUserLink id={r.reporter?.id}>{r.reporter?.name ?? "Deleted user"}</AdminUserLink>
                   </p>
                   <p className="text-xs text-content-muted">
                     {new Date(r.created_at).toLocaleString()}
