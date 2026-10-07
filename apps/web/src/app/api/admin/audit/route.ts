@@ -1,4 +1,4 @@
-import { adminJson, jsonError, withSuperAdmin } from '@/lib/api';
+import { adminJson, jsonError, withAdmin } from '@/lib/api';
 
 /**
  * The admin audit trail (migration 070).
@@ -37,7 +37,10 @@ interface AuditRow {
 
 export async function GET(req: Request) {
   try {
-    const auth = await withSuperAdmin(req);
+    // Team (view) — lib/admin-access.ts maps /api/admin/audit there. Emails,
+    // IPs and anything inside metadata are masked by adminJson for an admin
+    // with those field groups hidden.
+    const auth = await withAdmin(req);
     if (!auth.ok) return auth.res;
     const { supabase } = auth;
 

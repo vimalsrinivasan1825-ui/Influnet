@@ -94,8 +94,10 @@ export const ADMIN_MODULES: AdminModule[] = [
   { key: 'otp', label: 'OTP logs', group: 'Reports & logs', description: 'Phone verification attempts.',
     pages: ['/dashboard/admin/otp'], api: [], insights: ['otp'] },
   // ── Team ─────────────────────────────────────────────────────────────────
-  { key: 'team', label: 'Team', group: 'Team', description: 'Create and manage staff. Admins only — never staff.',
-    pages: ['/dashboard/admin/team'], api: ['team'], insights: [] },
+  // The audit log sits with Team: both answer "who on our side did what", and
+  // Team is already admins-only, never staff.
+  { key: 'team', label: 'Team', group: 'Team', description: 'Create and manage staff, and read the audit log. Admins only — never staff.',
+    pages: ['/dashboard/admin/team', '/dashboard/admin/audit'], api: ['team', 'audit'], insights: [] },
 ];
 
 export type AdminModuleKey = string;
@@ -105,10 +107,10 @@ export const ADMIN_MODULE_KEYS: string[] = ADMIN_MODULES.map((m) => m.key);
 /** Technical sections: super admin only, never delegable. */
 export const DEVELOPER_PAGES = [
   '/dashboard/admin/health', '/dashboard/admin/vendors', '/dashboard/admin/observability',
-  '/dashboard/admin/rate-limits', '/dashboard/admin/emails', '/dashboard/admin/audit',
+  '/dashboard/admin/rate-limits', '/dashboard/admin/emails',
   '/dashboard/admin/issues',
 ];
-export const DEVELOPER_API = ['health', 'vendors', 'observability', 'rate-limits', 'emails', 'audit', 'issues'];
+export const DEVELOPER_API = ['health', 'vendors', 'observability', 'rate-limits', 'emails', 'issues'];
 
 /** Routes every active team member needs regardless of sections. */
 const OPEN_API = ['tier'];

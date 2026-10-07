@@ -177,7 +177,10 @@ const ADMIN_GROUPS: NavGroup[] = [
 /** Who can open the console, and with what. Shown to anyone holding Team. */
 const TEAM_GROUP: NavGroup = {
   label: "Team",
-  items: [{ label: "Team & roles", href: "/dashboard/admin/team", icon: UsersRound }],
+  items: [
+    { label: "Team & roles", href: "/dashboard/admin/team", icon: UsersRound },
+    { label: "Audit log", href: "/dashboard/admin/audit", icon: History },
+  ],
 };
 
 /**
@@ -204,7 +207,6 @@ const DEV_GROUPS: NavGroup[] = [
       { label: "Observability", href: "/dashboard/admin/observability", icon: Bug },
       { label: "Rate limits", href: "/dashboard/admin/rate-limits", icon: Gauge },
       { label: "Email", href: "/dashboard/admin/emails", icon: Mail },
-      { label: "Audit log", href: "/dashboard/admin/audit", icon: History },
       { label: "Issues & fixes", href: "/dashboard/admin/issues", icon: ClipboardList },
     ],
   },

@@ -104,10 +104,15 @@ describe('sectionForApiPath', () => {
   });
 
   it('keeps developer routes developer-only and the tier route open', () => {
-    for (const p of ['health', 'vendors', 'audit', 'issues', 'rate-limits', 'emails', 'observability']) {
+    for (const p of ['health', 'vendors', 'issues', 'rate-limits', 'emails', 'observability']) {
       expect(sectionForApiPath(`/api/admin/${p}`).kind).toBe('developer');
     }
     expect(sectionForApiPath('/api/admin/tier').kind).toBe('open');
+  });
+
+  it('puts the audit log under Team, so admins with Team can read it', () => {
+    expect(sectionForApiPath('/api/admin/audit')).toEqual({ kind: 'module', module: 'team' });
+    expect(sectionForPage('/dashboard/admin/audit')).toEqual({ kind: 'module', module: 'team' });
   });
 });
 

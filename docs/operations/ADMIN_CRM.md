@@ -91,7 +91,8 @@ requests/projects/payments list instead of an empty page. That older list prints
 payments in paise as if they were rupees (₹15,000 shows as ₹1,500,000); the
 Journey prints them correctly.
 
-**The Audit log** (super admin) now expands each row to the full record: before →
+**The Audit log** (super admins, and admins holding *Team* — never staff; it
+sits in the Team nav group since 2026-10-07) now expands each row to the full record: before →
 after for edits, IP, reason and raw metadata. The person an action touched shows
 by name and links to their page, *Every action on this* filters to them, you can
 filter by admin, and *Load older entries* walks the whole table instead of

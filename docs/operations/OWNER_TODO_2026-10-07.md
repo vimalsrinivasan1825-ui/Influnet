@@ -18,7 +18,7 @@ everything else was seen directly on 2026-10-07.
 | A2 | **Renew `SUPABASE_ACCESS_TOKEN`** in `apps/web/.env.local`. Supabase → Account → Access Tokens → new token. The current one returns **401 Unauthorized** (seen today). | `tests/e2e/lib/sql.mjs` and `scripts/apply-migration.mjs` work again. Without it nobody can apply a migration by hand or run the audit harness's SQL checks. |
 | A3 | **Open the dev → staging PR** when you're happy with dev. Staging gets 196, 197 and 198 from that merge. | Same Journey check against `staging.influnet.io`. |
 | A3b | **Turn on Supabase's database auth audit log** on dev and staging (Supabase → Authentication → the audit-log setting that writes to the database). Today `auth.audit_log_entries` gets no rows: an account that had just signed in showed zero sign-ins. | A user's **Sign-ins** tab lists logins after you sign in once, and the Journey shows "Signed in" rows. Nothing to deploy. |
-| A4 | **Decide: should admins with *Team* access see the Audit log?** Today only a super admin can open it, though every admin's user pages show "what the team did" (names hidden unless they have Team). | Tell me which; it's a one-line change in `lib/admin-access.ts`. |
+| A4 | ✅ **Done 2026-10-07:** admins with *Team* access can open the Audit log (Team nav group). Staff never can: the database refuses Team for staff. | Sign in as an admin with Team → *Team → Audit log* opens. |
 
 ---
 
@@ -96,8 +96,6 @@ fail-silently switches** (Sentry DSN, Upstash, `RESEND_WEBHOOK_SECRET`,
 - The **old activity timeline prints payments 100× too large** (paise shown as
   rupees: ₹15,000 reads as ₹1,500,000). It's the fallback until 198 is applied;
   the new Journey is correct. Nothing else reads that function.
-- The **Audit log** is super-admin only, so the shared test admin can't see it.
-  Check it with your own login after A1.
 - The demo/backfilled test data has projects dated **before** their creator
   signed up, so those milestone dates look odd on test accounts. That's the
   data, not the page.
