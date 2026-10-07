@@ -1,4 +1,5 @@
 import { adminJson, jsonError, withAdmin } from '@/lib/api';
+import { auditAdmin } from '@/lib/admin-audit';
 import { SURVEY_EVENTS, SURVEY_ROLES, SurveyFormSchema, loadSurveyForms } from '@/lib/event-survey';
 
 // Admin view of the pre-event survey (migrations 174, 175).
@@ -83,6 +84,16 @@ export async function PUT(req: Request) {
       { onConflict: 'event_slug,role' },
     );
     if (error) return jsonError(500, 'Could not save the form', error);
+
+    await auditAdmin({
+      actorId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      action: 'event_survey_form_updated',
+      targetId: `${event}:${body.role}`,
+      targetType: 'event_survey_form',
+      metadata: { event, role: body.role, questionCount: questions.length },
+      req,
+    });
 
     return adminJson(req, { ok: true, questions });
   } catch (error) {

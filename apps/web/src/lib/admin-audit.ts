@@ -22,6 +22,7 @@ export type AdminAction =
   | 'early_access_deleted'
   | 'event_registration_updated'
   | 'event_registration_deleted'
+  | 'event_survey_form_updated'
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'
