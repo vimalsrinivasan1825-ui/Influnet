@@ -20,6 +20,8 @@ export type AdminAction =
   | 'campaign_moderated'
   | 'feedback_triaged'
   | 'early_access_deleted'
+  | 'event_registration_updated'
+  | 'event_registration_deleted'
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'
