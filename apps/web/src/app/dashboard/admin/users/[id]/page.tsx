@@ -27,10 +27,12 @@ import {
   Calendar,
   History,
   IndianRupee,
+  LifeBuoy,
   Loader2,
   Mail,
   MapPin,
   Phone,
+  ShieldAlert,
   Trash2,
   Users,
 } from "lucide-react";
@@ -419,6 +421,7 @@ export default function AdminUserDetailPage() {
       {tab === "overview" && <OverviewTab data={data} />}
       {tab === "money" && <MoneyTab data={data} />}
       {tab === "connections" && <ConnectionsTab data={data} selfId={id} />}
+      {tab === "safety" && <SafetyTab data={data} />}
       {tab === "timeline" && <TimelineTab activity={data.activity} />}
     </div>
   );
@@ -577,6 +580,87 @@ function ConnectionsTab({ data, selfId }: { data: UserPageData; selfId: string }
         </div>
       )}
     </Card>
+  );
+}
+
+function SafetyTab({ data }: { data: UserPageData }) {
+  return (
+    <>
+      <Section
+        title="Support tickets"
+        icon={<LifeBuoy className="size-4" />}
+        data={data.supportTickets}
+        emptyLabel="No support tickets from this person."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.supportTickets || []).map((t) => (
+            <div key={t.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-content">{t.subject}</div>
+                <div className="text-xs text-content-muted">{t.category} · {timeAgo(t.created_at)}</div>
+              </div>
+              <Badge variant={t.status === "resolved" || t.status === "closed" ? "neutral" : "warning"} size="sm">
+                {t.status}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Reports filed by this person"
+        icon={<ShieldAlert className="size-4" />}
+        data={data.reportsFiled}
+        emptyLabel="Hasn't reported anyone."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.reportsFiled || []).map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-content">{r.reason}</div>
+                <div className="text-xs text-content-muted">Against {r.reported?.name || "a deleted account"} · {timeAgo(r.created_at)}</div>
+              </div>
+              <Badge variant="neutral" size="sm">{r.status}</Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Reports filed against this person"
+        icon={<ShieldAlert className="size-4" />}
+        data={data.reportsAgainst}
+        emptyLabel="No reports against this person."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.reportsAgainst || []).map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-content">{r.reason}</div>
+                <div className="text-xs text-content-muted">By {r.reporter?.name || "a deleted account"} · {timeAgo(r.created_at)}</div>
+              </div>
+              <Badge variant={r.status === "actioned" ? "danger" : "warning"} size="sm">{r.status}</Badge>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Blocks"
+        icon={<ShieldAlert className="size-4" />}
+        data={data.blocks}
+        emptyLabel="Not blocked by anyone, and hasn't blocked anyone."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.blocks || []).map((b) => (
+            <div key={`${b.blocker_id}-${b.blocked_id}`} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-content">{b.blocker?.name || "Someone"} blocked {b.blocked?.name || "someone"}</span>
+              <span className="text-xs text-content-muted">{timeAgo(b.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </>
   );
 }
 
