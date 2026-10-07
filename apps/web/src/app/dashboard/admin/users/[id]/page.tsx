@@ -48,6 +48,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedTabs } from "@/components/ui/tabs";
+import { JourneyPanel, LifecycleCard } from "@/components/dashboard/admin/user-journey";
+import type { Lifecycle } from "@/lib/admin-user-lifecycle";
 
 interface PartyRef {
   id: string;
@@ -209,6 +211,8 @@ interface UserDetail {
 
 interface UserPageData {
   user: UserDetail;
+  /** Absent from an API older than this page — the card simply doesn't render. */
+  lifecycle?: Lifecycle;
   projects: ProjectConnection[];
   requests: RequestConnection[];
   activity: ActivityEvent[];
@@ -261,7 +265,7 @@ const STAGE_LABELS: Record<string, string> = {
   project_completed: "Completed",
 };
 
-type TabKey = "overview" | "money" | "connections" | "safety" | "devices" | "timeline";
+type TabKey = "journey" | "money" | "connections" | "safety" | "devices" | "signins";
 
 /** A section the caller lacks permission for is `null`; distinguish that from a genuinely empty `[]`. */
 function Section({
@@ -299,7 +303,7 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab] = useState<TabKey>("journey");
 
   const user = data?.user ?? null;
 
@@ -363,12 +367,12 @@ export default function AdminUserDetailPage() {
   const pending = user.role === "business_owner" && user.approval_status === "pending_review";
 
   const tabs: { value: TabKey; label: string }[] = [
-    { value: "overview", label: "Overview" },
-    { value: "money", label: "Money" },
+    { value: "journey", label: "Journey" },
     { value: "connections", label: "Projects & requests" },
+    { value: "money", label: "Money" },
     { value: "safety", label: "Support & safety" },
     { value: "devices", label: "Devices & comms" },
-    { value: "timeline", label: "Timeline" },
+    { value: "signins", label: "Sign-ins" },
   ];
 
   return (
@@ -415,19 +419,24 @@ export default function AdminUserDetailPage() {
           <div className="flex items-center gap-1.5 text-content-soft"><Calendar className="size-3.5" /> Joined {new Date(user.created_at).toLocaleDateString()}</div>
         </div>
         <div className="text-xs text-content-muted">
-          Last seen: {timeAgo(user.last_sign_in_at)}
+          Last sign-in: {timeAgo(user.last_sign_in_at)}
           {user.verification_status && ` · Verification: ${user.verification_status}`}
         </div>
       </Card>
 
-      <SegmentedTabs tabs={tabs} value={tab} onValueChange={setTab} className="w-fit" />
+      {data.lifecycle && <LifecycleCard lifecycle={data.lifecycle} />}
 
-      {tab === "overview" && <OverviewTab data={data} />}
+      {/* Six tabs overflow a phone; scroll them rather than wrap. */}
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <SegmentedTabs tabs={tabs} value={tab} onValueChange={setTab} className="w-max" />
+      </div>
+
+      {tab === "journey" && <JourneyPanel userId={id} fallback={data.activity} />}
+      {tab === "signins" && <OverviewTab data={data} />}
       {tab === "money" && <MoneyTab data={data} />}
       {tab === "connections" && <ConnectionsTab data={data} selfId={id} />}
       {tab === "safety" && <SafetyTab data={data} />}
       {tab === "devices" && <DevicesTab data={data} />}
-      {tab === "timeline" && <TimelineTab activity={data.activity} />}
     </div>
   );
 }
@@ -783,37 +792,5 @@ function DevicesTab({ data }: { data: UserPageData }) {
         </div>
       </Section>
     </>
-  );
-}
-
-function TimelineTab({ activity }: { activity: ActivityEvent[] }) {
-  return (
-    <Card className="flex flex-col gap-3 p-5">
-      <h2 className="flex items-center gap-2 text-sm font-bold text-content"><History className="size-4" /> Activity</h2>
-      {activity.length === 0 ? (
-        <EmptyState icon={<History />} title="Nothing recorded" description="This user hasn't done anything yet." />
-      ) : (
-        <div className="flex flex-col divide-y divide-hairline">
-          {activity.map((e, i) => {
-            const row = (
-              <div className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-content">{e.title}</div>
-                  {e.detail && <div className="truncate text-xs text-content-muted">{e.detail}</div>}
-                </div>
-                <span className="shrink-0 text-xs text-content-muted">{timeAgo(e.at)}</span>
-              </div>
-            );
-            return e.link ? (
-              <Link key={i} href={e.link} className="-mx-2 rounded-lg px-2 hover:bg-surface-muted">
-                {row}
-              </Link>
-            ) : (
-              <div key={i}>{row}</div>
-            );
-          })}
-        </div>
-      )}
-    </Card>
   );
 }

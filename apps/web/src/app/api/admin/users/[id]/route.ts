@@ -4,6 +4,7 @@ import { auditAdmin } from '@/lib/admin-audit';
 import { allows } from '@/lib/admin-access';
 import { logger } from '@/lib/logger';
 import { hardDeleteAccount, recordAccountDeletion } from '@/lib/account-deletion';
+import { computeLifecycle } from '@/lib/admin-user-lifecycle';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,7 +25,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 
     const { data: profile, error: profileErr } = await supabase
       .from('profiles')
-      .select('id, role, email, name, phone, location, created_at, updated_at, verification_status, verified_at, verified_badge')
+      .select('id, role, email, name, phone, location, created_at, updated_at, verification_status, verified_at, verified_badge, phone_verified_at, last_active_at')
       .eq('id', id)
       .single();
 
@@ -52,17 +53,23 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     } else if (profile.role === 'influencer') {
       const { data: inf } = await supabase
         .from('influencer_profiles')
-        .select('username, niche')
+        .select('username, niche, is_profile_complete, onboarding_completed')
         .eq('user_id', id)
         .single();
-      if (inf) Object.assign(enriched, { username: inf.username, niche: inf.niche });
+      if (inf) {
+        Object.assign(enriched, {
+          username: inf.username,
+          niche: inf.niche,
+          profile_complete: !!(inf.is_profile_complete || inf.onboarding_completed),
+        });
+      }
     }
 
     const [{ data: projects }, { data: requests }, activityRes] = await Promise.all([
       supabase
         .from('campaign_projects')
         .select(`
-          id, title, status, current_stage, budget, created_at,
+          id, title, status, current_stage, budget, created_at, completed_at,
           owner:profiles!campaign_projects_owner_user_id_fkey(id, name, role),
           counterparty:profiles!campaign_projects_counterparty_user_id_fkey(id, name, role)
         `)
@@ -201,6 +208,55 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       console.error('[admin/users/[id]] sign-in history RPC failed:', signIns.error.message);
     }
 
+    // "Where are they now" (lib/admin-user-lifecycle.ts). Only dates and
+    // counts leave these three queries — no amounts — so they run whatever
+    // sections the caller holds.
+    const [firstPaid, campaignsPublished, applicationsSent] = await Promise.all([
+      projectIds.length
+        ? supabase
+            .from('project_payments')
+            .select('paid_at')
+            .in('project_id', projectIds)
+            .eq('status', 'paid')
+            .order('paid_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      profile.role === 'business_owner'
+        ? supabase
+            .from('campaigns')
+            .select('id', { count: 'exact', head: true })
+            .eq('business_user_id', id)
+            .not('published_at', 'is', null)
+        : Promise.resolve({ count: 0 }),
+      profile.role === 'influencer'
+        ? supabase
+            .from('campaign_applications')
+            .select('id', { count: 'exact', head: true })
+            .eq('creator_user_id', id)
+        : Promise.resolve({ count: 0 }),
+    ]);
+
+    const lifecycle = computeLifecycle({
+      role: profile.role,
+      userId: id,
+      createdAt: profile.created_at,
+      phoneVerifiedAt: (profile as any).phone_verified_at ?? null,
+      profileComplete: enriched.profile_complete ?? null,
+      verifiedAt: profile.verified_at ?? null,
+      verifiedBadge: !!profile.verified_badge,
+      approvalStatus: enriched.approval_status ?? null,
+      // last_active_at is stamped by the app on use; last_sign_in_at only on
+      // a fresh login, so a long-lived mobile session would read as absent.
+      lastSeenAt:
+        [(profile as any).last_active_at, lastSignInAt].filter(Boolean).sort().pop() ?? null,
+      projects: (projects || []) as any[],
+      requests: (requests || []) as any[],
+      firstPaidAt: (firstPaid.data as { paid_at?: string } | null)?.paid_at ?? null,
+      campaignsPublished: (campaignsPublished as { count?: number | null }).count ?? 0,
+      applicationsSent: (applicationsSent as { count?: number | null }).count ?? 0,
+    });
+
     // Opening someone's full detail (email, phone, activity) is itself worth a
     // trace — until now it left none at all.
     await auditAdmin({
@@ -214,6 +270,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 
     return adminJson(req, {
       user: enriched,
+      lifecycle,
       projects: projects || [],
       requests: requests || [],
       activity: activityRes.data || [],
