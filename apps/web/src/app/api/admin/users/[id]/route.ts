@@ -179,6 +179,20 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         ])
       : [{ data: null }, { data: null }];
 
+    // Developer-only ('emails' is super-admin-only, never delegable — see
+    // DEVELOPER_API in lib/admin-access.ts) and matched on the CURRENT email,
+    // since email_deliveries is keyed by address, not user id. A past address
+    // change means older sends to the old address won't show here.
+    const emailLog =
+      auth.access.tier === 'super' && enriched.email
+        ? await supabase
+            .from('email_deliveries')
+            .select('id, template, category, status, error, created_at')
+            .eq('to_email', enriched.email)
+            .order('created_at', { ascending: false })
+            .limit(50)
+        : { data: null };
+
     // Migration 195. Uses the CALLER's own JWT, not the service-role client:
     // the function guards itself with is_admin() and has no auth.uid() to
     // check against a service-role call.
@@ -215,6 +229,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       broadcastDeliveries: broadcastDeliveries.data,
       notifications: notifications.data,
       signIns: signIns.data || [],
+      emailLog: emailLog.data,
     });
   } catch (error) {
     return jsonError(500, 'Could not load this user', error);
