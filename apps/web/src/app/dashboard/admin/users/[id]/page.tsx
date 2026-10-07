@@ -26,6 +26,7 @@ import {
   BadgeCheck,
   Calendar,
   History,
+  IndianRupee,
   Loader2,
   Mail,
   MapPin,
@@ -416,6 +417,7 @@ export default function AdminUserDetailPage() {
       <SegmentedTabs tabs={tabs} value={tab} onValueChange={setTab} className="w-fit" />
 
       {tab === "overview" && <OverviewTab data={data} />}
+      {tab === "money" && <MoneyTab data={data} />}
       {tab === "timeline" && <TimelineTab activity={data.activity} />}
     </div>
   );
@@ -440,6 +442,62 @@ function OverviewTab({ data }: { data: UserPageData }) {
         ))}
       </div>
     </Section>
+  );
+}
+
+function MoneyTab({ data }: { data: UserPageData }) {
+  return (
+    <>
+      {data.subscription !== null && (
+        <Card className="flex flex-col gap-3 p-5">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-content"><IndianRupee className="size-4" /> Pro subscription</h2>
+          {data.subscription ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant={data.subscription.status === "active" ? "info" : "neutral"} size="sm">
+                {data.subscription.tier} · {data.subscription.status}
+              </Badge>
+              {data.subscription.current_period_end && (
+                <span className="text-content-soft">
+                  Renews {new Date(data.subscription.current_period_end).toLocaleDateString()}
+                </span>
+              )}
+              {data.subscription.cancel_at_period_end && <Badge variant="warning" size="sm">Cancels at period end</Badge>}
+              {data.subscription.grace_until && (
+                <span className="text-content-soft">Grace until {new Date(data.subscription.grace_until).toLocaleDateString()}</span>
+              )}
+            </div>
+          ) : (
+            <EmptyState icon={<IndianRupee />} title="Free tier" description="No Pro subscription on this account." />
+          )}
+        </Card>
+      )}
+
+      <Section
+        title="Payments"
+        icon={<IndianRupee className="size-4" />}
+        data={data.payments}
+        emptyLabel="No payments across this person's projects."
+      >
+        <div className="flex flex-col divide-y divide-hairline">
+          {(data.payments || []).map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <div className="text-sm font-semibold text-content">{STAGE_LABELS[p.stage_key] || p.stage_key}</div>
+                <div className="text-xs text-content-muted">Project #{p.project_id} · {timeAgo(p.paid_at || p.created_at)}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={p.status === "paid" ? "info" : p.status === "refunded" ? "warning" : p.status === "failed" ? "danger" : "neutral"} size="sm">
+                  {p.status}
+                </Badge>
+                <span className="text-xs font-semibold text-content-soft">
+                  {p.currency} {(p.amount / 100).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </>
   );
 }
 
