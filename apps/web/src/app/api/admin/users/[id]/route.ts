@@ -107,6 +107,14 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         : Promise.resolve({ data: null }),
     ]);
 
+    const supportTickets = allows(auth.access, 'support', 'view')
+      ? await supabase
+          .from('support_tickets')
+          .select('id, subject, category, status, priority, created_at, resolved_at, last_message_at')
+          .eq('user_id', id)
+          .order('created_at', { ascending: false })
+      : { data: null };
+
     // Opening someone's full detail (email, phone, activity) is itself worth a
     // trace — until now it left none at all.
     await auditAdmin({
@@ -125,6 +133,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       activity: activityRes.data || [],
       payments: payments.data,
       subscription: subscription.data,
+      supportTickets: supportTickets.data,
     });
   } catch (error) {
     return jsonError(500, 'Could not load this user', error);
