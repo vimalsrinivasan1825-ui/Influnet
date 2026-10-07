@@ -179,6 +179,14 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
         ])
       : [{ data: null }, { data: null }];
 
+    // Migration 195. Uses the CALLER's own JWT, not the service-role client:
+    // the function guards itself with is_admin() and has no auth.uid() to
+    // check against a service-role call.
+    const signIns = await callerClient(req).rpc('admin_get_user_signins', { p_user_id: id, p_limit: 50 });
+    if (signIns.error) {
+      console.error('[admin/users/[id]] sign-in history RPC failed:', signIns.error.message);
+    }
+
     // Opening someone's full detail (email, phone, activity) is itself worth a
     // trace — until now it left none at all.
     await auditAdmin({
@@ -206,6 +214,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       otpLog: otpLog.data,
       broadcastDeliveries: broadcastDeliveries.data,
       notifications: notifications.data,
+      signIns: signIns.data || [],
     });
   } catch (error) {
     return jsonError(500, 'Could not load this user', error);
