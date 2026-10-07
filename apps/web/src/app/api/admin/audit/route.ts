@@ -20,6 +20,9 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const actionFilter = url.searchParams.get('action');
+    const actorId = url.searchParams.get('actorId');
+    const targetId = url.searchParams.get('targetId');
+    const targetType = url.searchParams.get('targetType');
     const limitRaw = Number(url.searchParams.get('limit') ?? 100);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 500) : 100;
 
@@ -29,9 +32,12 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    // Prefix match so 'support' finds support.replied / support.updated, which
+    // Prefix match so 'support' finds support_replied / support_updated, which
     // is how someone actually searches this ("what happened to tickets today").
     if (actionFilter) query = query.like('action', `${actionFilter}%`);
+    if (actorId) query = query.eq('actor_id', actorId);
+    if (targetId) query = query.eq('target_id', targetId);
+    if (targetType) query = query.eq('target_type', targetType);
 
     const { data, error } = await query;
     if (error) return jsonError(500, 'Could not load the audit log', error);
