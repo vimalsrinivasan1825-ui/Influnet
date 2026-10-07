@@ -17,6 +17,7 @@ export type AdminAction =
   | 'collab_deleted'
   | 'project_deleted'
   | 'report_resolved'
+  | 'campaign_moderated'
   | 'admin_provisioned'
   | 'admin_revoked'
   | 'user_deleted'
