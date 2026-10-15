@@ -37,8 +37,14 @@ function read(file) {
 const inbox = read(inboxFile) || { items: [], notes: [`${inboxFile} missing or unreadable.`] };
 const report = read(reportFile);
 
-// Markdown table cells: one line, no pipes.
-const cell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
+// Markdown table cells: one line, no pipes. Backslashes are escaped first so a
+// literal `\` in the text can't cancel the escape in front of a pipe.
+const cell = (s) =>
+  String(s ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\|/g, '\\|')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 const lines = [`## Autofix — ${mode} mode`, ''];
 let failed = false;
