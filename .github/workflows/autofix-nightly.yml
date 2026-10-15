@@ -1,0 +1,208 @@
+name: Nightly autofix
+
+# Every night: collect the last 24h of Sentry issues, bug feedback and bug
+# tickets from the live site (staging), let Claude triage them, and report.
+# Design: Hermes docs/ops-hub/08-autofix-loop.md. Setup: docs/operations/AUTOFIX.md.
+#
+# Two modes, chosen by the AUTOFIX_MODE repo variable (or the dispatch input):
+#   report (default) — read-only. Claude writes a plan per item; nothing is
+#                      branched, pushed or opened.
+#   pr               — Claude may open up to AUTOFIX_MAX_PRS fix PRs against
+#                      dev (label `autofix`) and `needs-human` issues. Never
+#                      merges, never deploys, never pushes to dev or staging.
+#
+# The jobs are split so Claude never holds a production credential: only
+# `collect` sees the Sentry token and the Supabase key, and it hands Claude a
+# redacted JSON file. Report and pr mode are separate jobs so the read-only run
+# never has write permissions at all.
+
+on:
+  schedule:
+    # 19:00 UTC = 00:30 IST.
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'report or pr (blank = AUTOFIX_MODE variable, else report)'
+        required: false
+        default: ''
+
+concurrency:
+  group: autofix-nightly
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  collect:
+    name: Collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Collect last 24h
+        run: node scripts/autofix/collect.mjs autofix-inbox.json
+        env:
+          AUTOFIX_SENTRY_TOKEN: ${{ secrets.AUTOFIX_SENTRY_TOKEN }}
+          AUTOFIX_SENTRY_ORG: ${{ vars.AUTOFIX_SENTRY_ORG }}
+          AUTOFIX_SENTRY_PROJECT: ${{ vars.AUTOFIX_SENTRY_PROJECT }}
+          AUTOFIX_SENTRY_URL: ${{ vars.AUTOFIX_SENTRY_URL }}
+          AUTOFIX_SENTRY_ENVIRONMENT: ${{ vars.AUTOFIX_SENTRY_ENVIRONMENT }}
+          AUTOFIX_SUPABASE_URL: ${{ vars.AUTOFIX_SUPABASE_URL }}
+          AUTOFIX_SUPABASE_KEY: ${{ secrets.AUTOFIX_SUPABASE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: autofix-inbox
+          path: autofix-inbox.json
+          retention-days: 14
+
+  triage-report:
+    name: Triage (report only)
+    needs: collect
+    if: (inputs.mode || vars.AUTOFIX_MODE || 'report') == 'report'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, so triage can tell whether an error from an older
+          # release is already fixed on dev.
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: autofix-inbox
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # The workflow's own read-only token: nothing can be pushed or opened.
+          github_token: ${{ github.token }}
+          prompt: |
+            Read .github/autofix/PROMPT.md and follow it exactly.
+            Mode: report. PR limit: 0.
+            The inbox is autofix-inbox.json in the repo root.
+          claude_args: >-
+            --model claude-sonnet-5-5
+            --max-turns 40
+            --allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"
+            --disallowedTools "Edit,MultiEdit,WebFetch,WebSearch"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: autofix-report
+          path: autofix-report.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  triage-pr:
+    name: Triage and fix (PRs)
+    needs: collect
+    if: (inputs.mode || vars.AUTOFIX_MODE || 'report') == 'pr'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure labels exist
+        run: |
+          gh label create autofix --color 1d76db --description "Opened by the nightly autofix run" --force
+          gh label create needs-human --color d93f0b --description "Autofix escalated this to the owner" --force
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: autofix-inbox
+
+      # No github_token here: the action uses the Claude GitHub App's token, so
+      # the PRs it opens trigger ci.yml (PRs opened with the workflow's own
+      # token don't run other workflows).
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Read .github/autofix/PROMPT.md and follow it exactly.
+            Mode: pr. PR limit: ${{ vars.AUTOFIX_MAX_PRS || '2' }}.
+            The inbox is autofix-inbox.json in the repo root.
+          # git push is limited to autofix/* branches; dev and staging are unreachable.
+          claude_args: >-
+            --model claude-sonnet-5-5
+            --max-turns 120
+            --allowedTools "Read,Glob,Grep,Write,Edit,MultiEdit,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(git status:*),Bash(git checkout -b autofix/:*),Bash(git checkout autofix/:*),Bash(git add:*),Bash(git commit:*),Bash(git push -u origin autofix/:*),Bash(npm run test:unit:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(gh pr create:*),Bash(gh issue create:*)"
+            --disallowedTools "WebFetch,WebSearch"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: autofix-report
+          path: autofix-report.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  report:
+    name: Report
+    needs: [collect, triage-report, triage-pr]
+    if: always() && needs.collect.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: autofix-inbox
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: autofix-report
+
+      - name: Summary and Telegram
+        run: node scripts/autofix/report.mjs autofix-inbox.json autofix-report.json
+        env:
+          AUTOFIX_MODE: ${{ inputs.mode || vars.AUTOFIX_MODE || 'report' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOFIX_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ vars.AUTOFIX_TELEGRAM_CHAT_ID }}
