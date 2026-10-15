@@ -9,6 +9,19 @@ import {
   createRazorpayOrder,
   RazorpayError,
 } from '@/lib/payments/razorpay';
+import { reconcileProjectPayments } from '@/lib/payments/project-payment';
+import { serviceRoleClient } from '@/lib/supabase/service';
+
+/**
+ * Ask Razorpay about this project's unpaid orders and settle any it captured.
+ * The webhook is the normal path; this is the backstop for when it never
+ * arrives (see lib/payments/project-payment.ts). Only call after the
+ * participant check. Returns how many payments it settled.
+ */
+async function reconcile(projectId: number): Promise<number> {
+  const admin = serviceRoleClient();
+  return admin ? reconcileProjectPayments(admin, projectId) : 0;
+}
 
 // Razorpay's Orders API can take a couple of seconds.
 export const maxDuration = 30;
@@ -22,7 +35,11 @@ const CreateOrderSchema = z.object({
   amount_rupees: z.number().positive().max(10_000_000).optional(),
 });
 
-// GET: report whether in-app payments are available (drives the UI mode).
+// GET: report whether in-app payments are available (drives the UI mode), and
+// settle any unpaid order Razorpay has in fact captured. Web and mobile both
+// call this when a project's payment stage opens, so a payment whose webhook
+// was lost is picked up just by looking at the project — the installed apps
+// get this without an update. `settled` > 0 tells the caller to refetch.
 //
 // This handler never used to read the project id at all, so it answered any
 // authenticated caller — the one project sub-route with no participation check.
@@ -51,9 +68,12 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     return jsonError(403, 'Forbidden');
   }
 
+  const settled = await reconcile(projectId);
+
   return NextResponse.json({
     configured: isRazorpayConfigured(),
     key_id: isRazorpayConfigured() ? razorpayPublicKeyId() : null,
+    settled,
   });
 }
 
@@ -120,6 +140,23 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     const rupees = stage_key === 'quick_payment'
       ? budget
       : stage_key === 'advance_payment' ? advance : budget - advance;
+
+    // A payment Razorpay captured but we never heard about must not be charged
+    // a second time — which is exactly what happened on 2026-10-15. Settle any
+    // such order first; if that (or anything earlier) opened this stage's
+    // gate, there is nothing left to pay.
+    await reconcile(projectId);
+    const { data: openGate } = await supabase
+      .from('project_stage_items')
+      .select('id, done_at')
+      .eq('project_id', projectId)
+      .eq('stage_key', stage_key)
+      .eq('is_gate', true)
+      .limit(1)
+      .maybeSingle();
+    if (openGate?.done_at) {
+      return jsonError(409, 'This payment has already been received. Refresh to see the next step.');
+    }
 
     if (!Number.isFinite(rupees) || rupees <= 0) {
       return jsonError(400, 'No agreed amount is set for this stage — agree the terms first.');

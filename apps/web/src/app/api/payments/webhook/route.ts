@@ -5,8 +5,8 @@ import { verifyWebhookSignature } from '@/lib/payments/razorpay';
 import { captureException } from '@/lib/observability';
 import { notifyUser } from '@/lib/notify';
 import { profileNames, nameOf } from '@/lib/email/context';
-import { logActivity } from '@/lib/activity';
 import { isSubscriptionEvent, handleSubscriptionEvent } from '@/lib/payments/subscription';
+import { settleCapturedProjectPayment, LEDGER_COLUMNS, type LedgerPayment } from '@/lib/payments/project-payment';
 import { invalidateEntitlements } from '@/lib/entitlements';
 import { captureServer } from '@/lib/analytics-server';
 
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     // Look up the ledger row created at checkout time.
     const { data: payment } = await admin
       .from('project_payments')
-      .select('id, project_id, stage_key, status, amount, currency, payer_id')
+      .select(LEDGER_COLUMNS)
       .eq('razorpay_order_id', orderId)
       .maybeSingle();
 
@@ -164,119 +164,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, recorded: 'failed' });
     }
 
-    // Defense in depth: the order route now derives the amount from the
-    // project's agreed terms rather than trusting the client, so this should
-    // already match — but never open a payment gate on less than the ledger
-    // row says was ordered, in case terms changed between order creation and
-    // capture or the ledger row was created out of band.
-    const capturedPaise = Number(entity?.amount);
-    if (!Number.isFinite(capturedPaise) || capturedPaise < Number(payment.amount)) {
-      captureException(new Error('Payment webhook: captured amount below ledger amount'), {
-        tags: { orderId, expected: payment.amount, captured: capturedPaise },
-      });
-      return NextResponse.json({ received: true, warning: 'amount-mismatch' });
-    }
-
-    // An amount is meaningless without its unit. The ledger records the currency
-    // the order was placed in, but nothing compared it to what actually came
-    // back — so a capture denominated in a weaker currency would clear a gate
-    // worth several times more. Compare when the event tells us; a missing
-    // currency on the event is not treated as a mismatch.
-    const capturedCurrency = (entity?.currency ?? '').toString().toUpperCase();
-    const ledgerCurrency = (payment.currency ?? 'INR').toString().toUpperCase();
-    if (capturedCurrency && capturedCurrency !== ledgerCurrency) {
-      captureException(new Error('Payment webhook: captured currency differs from ledger'), {
-        tags: { orderId, expected: ledgerCurrency, captured: capturedCurrency },
-      });
-      return NextResponse.json({ received: true, warning: 'currency-mismatch' });
-    }
-
-    await admin
-      .from('project_payments')
-      .update({ status: 'paid', razorpay_payment_id: paymentId, paid_at: new Date().toISOString() })
-      .eq('id', payment.id);
-
-    captureServer('payment_succeeded', payment.payer_id, {
-      project_id: payment.project_id, stage_key: payment.stage_key, amount_paise: payment.amount,
+    // Amount/currency checks, the paid flip, the gate and the creator's
+    // notification live in settleCapturedProjectPayment, shared with the
+    // reconcile path so the two can never apply different rules.
+    const result = await settleCapturedProjectPayment(admin, payment as LedgerPayment, {
+      orderId,
+      paymentId,
+      amountPaise: Number(entity?.amount),
+      currency: entity?.currency ?? null,
+      source: 'webhook',
     });
-
-    // Auto-complete the payment gate item for that stage so the pipeline can advance.
-    const { data: gateItem } = await admin
-      .from('project_stage_items')
-      .select('id')
-      .eq('project_id', payment.project_id)
-      .eq('stage_key', payment.stage_key)
-      .eq('is_gate', true)
-      .is('done_at', null)
-      .limit(1)
-      .maybeSingle();
-
-    if (gateItem) {
-      await admin
-        .from('project_stage_items')
-        .update({ done_at: new Date().toISOString() })
-        .eq('id', gateItem.id);
+    if (result === 'amount-mismatch' || result === 'currency-mismatch') {
+      return NextResponse.json({ received: true, warning: result });
     }
-
-    // Tell the creator the money landed, and log it to the timeline. Best-effort:
-    // a failure here must not make Razorpay retry a payment we already recorded.
-    try {
-      const rupees = Math.round((payment.amount || 0) / 100);
-      const amountLabel = `₹${rupees.toLocaleString('en-IN')}`;
-      const label = payment.stage_key === 'advance_payment' ? 'advance'
-        : payment.stage_key === 'quick_payment' ? 'payment'
-        : 'final payment';
-
-      const { data: proj } = await admin
-        .from('campaign_projects')
-        .select('title, owner_user_id, counterparty_user_id')
-        .eq('id', payment.project_id)
-        .single();
-
-      if (proj?.counterparty_user_id) {
-        const projectLabel = proj.title ? `“${proj.title}”` : 'your project';
-        const names = await profileNames([proj.counterparty_user_id]);
-        await notifyUser({
-          userId: proj.counterparty_user_id,
-          type: 'project_stage',
-          title: `${amountLabel} ${label} received`,
-          body: `The brand paid the ${label} for ${projectLabel}.`,
-          link: `/dashboard/projects/${payment.project_id}`,
-          email: {
-            templateId: 'payment_received',
-            // Razorpay retries the same event until it gets a 2xx, and this
-            // handler is reached again on every retry. The gateway payment id
-            // is the one value that is stable across those retries.
-            dedupeKey: `payment_received:${paymentId}`,
-            data: {
-              recipientName: nameOf(names, proj.counterparty_user_id),
-              projectName: proj.title || 'your project',
-              amount: rupees,
-              // The template keys off 'advance' | 'final' | 'full' — `label` is
-              // the prose form ('final payment') and would miss that lookup.
-              paymentType: payment.stage_key === 'advance_payment' ? 'advance' : payment.stage_key === 'quick_payment' ? 'full' : 'final',
-              paymentId,
-              paidOn: new Date().toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              }),
-              dashboardUrl: `/dashboard/projects/${payment.project_id}`,
-            },
-          },
-        });
-      }
-
-      await logActivity(admin, {
-        projectId: payment.project_id,
-        actorUserId: payment.payer_id ?? null,
-        type: 'payment_paid',
-        summary: `Paid the ${label}`,
-        metadata: { amount_paise: payment.amount, currency: payment.currency, stage_key: payment.stage_key, amount_rupees: rupees },
-      });
-    } catch (notifyErr: any) {
-      captureException(notifyErr, { tags: { orderId, route: 'payments/webhook', step: 'notify-log' } });
-    }
+    if (result === 'already') return NextResponse.json({ received: true, already: true });
 
     return NextResponse.json({ received: true, recorded: true });
   } catch (error: any) {

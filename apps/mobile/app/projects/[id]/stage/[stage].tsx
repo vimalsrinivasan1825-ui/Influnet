@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -187,10 +187,19 @@ export default function StageScreen() {
   // the payment stage; it isn't a permanent design, just the honest stopgap.
   //
   const { data: paymentConfig } = useFetch(
-    () => endpoints.listProjectPayments<{ configured: boolean }>(id),
+    () => endpoints.listProjectPayments<{ configured: boolean; settled?: number }>(id),
     { cacheKey: `project-payments:${id}` }
   );
   const paymentsConfigured = !!paymentConfig?.configured;
+
+  // That GET also settles a payment Razorpay captured whose webhook never
+  // arrived (the server asks Razorpay directly). It runs alongside the
+  // checklist read, so when it settled something the checklist is stale.
+  const settledNow = paymentConfig?.settled ?? 0;
+  useEffect(() => {
+    if (settledNow > 0) revalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settledNow]);
 
   // Completion is its own control, not a sign-off (NON_SIGNOFF_STAGES).
   // On the full flow, 'final_payment' is non-signoff and requires dual-confirm

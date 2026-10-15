@@ -1852,7 +1852,7 @@ export default function ProjectKanbanPage() {
         apiFetch<{ activity: any[] }>(`/api/projects/${projectId}/activity`),
         apiFetch<{ change_requests: any[] }>(`/api/projects/${projectId}/change-requests`),
         apiFetch<{ entries: any[] }>(`/api/projects/${projectId}/stage-entries`),
-        apiFetch<{ configured: boolean; key_id: string | null }>(`/api/projects/${projectId}/payments`),
+        apiFetch<{ configured: boolean; key_id: string | null; settled?: number }>(`/api/projects/${projectId}/payments`),
         apiFetch<{ documents: any[] }>(`/api/projects/${projectId}/documents`),
       ]);
       if (projRes.ok && projRes.data) { const d = projRes.data; setProject(d.project); }
@@ -1872,6 +1872,10 @@ export default function ProjectKanbanPage() {
       if (crRes.ok && crRes.data) { setChangeRequests(crRes.data.change_requests || []); }
       if (entriesRes.ok && entriesRes.data) { setStageEntries(entriesRes.data.entries || []); }
       if (payRes.ok && payRes.data) { setPaymentConfig({ configured: !!payRes.data.configured, keyId: payRes.data.key_id ?? null }); }
+      // The payments GET just settled a capture whose webhook never came, in
+      // parallel with the reads above, so they are stale. Load once more; the
+      // second GET finds nothing left to settle, so this cannot loop.
+      if (payRes.ok && (payRes.data?.settled ?? 0) > 0) { void fetchData(); return; }
       if (docsRes.ok && docsRes.data) { setDocuments(docsRes.data.documents || []); }
     } catch (e) { console.error(e); setError('Network error'); }
     finally { setLoading(false); }
