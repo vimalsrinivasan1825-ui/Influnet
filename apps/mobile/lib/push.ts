@@ -191,7 +191,14 @@ export function usePushNotificationRouting(router: ImperativeRouter, ready: bool
 /** The OS-level state, reduced to what the app's rules and Settings row need. */
 export async function getPushOsStatus(): Promise<'undetermined' | 'granted' | 'denied'> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
+    const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+    // Android 13+ has no "undetermined": expo-notifications reports `denied` for
+    // an install that was never asked, because areNotificationsEnabled() is false
+    // until POST_NOTIFICATIONS is granted. Read as denied, the explanation never
+    // showed on any modern Android phone (found on the first Play Store install,
+    // 2026-10-15). What tells "never asked" from "said no" there is canAskAgain;
+    // on iOS a real denial always comes back with canAskAgain false.
+    if (status === 'denied' && canAskAgain) return 'undetermined';
     return status === 'granted' || status === 'denied' ? status : 'undetermined';
   } catch {
     return 'undetermined';
