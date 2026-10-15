@@ -42,8 +42,9 @@ Skip items with `"already_handled": true` (decision `skip`). For the rest:
 Group items that share a root cause; list each key, but fix it once.
 
 ## Off-limits — always escalate, never change
-- **Payments:** Razorpay, the `advance_payment` / `final_payment` gates, signed webhooks,
-  amounts. (AGENTS.md: "Payment gates open only via a signed webhook".)
+- **Payments:** Razorpay, the `advance_payment` / `final_payment` / `quick_payment` gates,
+  signed webhooks, payment reconciliation, amounts. (AGENTS.md: "Payment gates open only
+  on a capture Razorpay confirms".)
 - **Auth:** login, signup, phone OTP, sessions, `withAuth`, `withAdmin`, `proxy.ts`.
 - **Database:** anything under `supabase/` — migrations, RLS, grants, triggers, RPCs.
 - **The stage machine:** `ALLOWED_TRANSITIONS`, `stage_progress`, sign-off functions.
