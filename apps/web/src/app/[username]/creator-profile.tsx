@@ -23,6 +23,7 @@ import { publicOrigin } from '@/lib/site';
 import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
 import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
 import { captureServer } from '@/lib/analytics-server';
+import { captureException } from '@/lib/observability';
 
 // Anon client for public profile reads.
 const supabaseAnon = createClient(
@@ -109,7 +110,15 @@ export async function CreatorProfile({
     // rsc.rpc()'s Database generic doesn't resolve custom Functions entries
     // cleanly through @supabase/ssr's createServerClient (same friction as
     // the get_creator_collaborations call in dashboard/profile/page.tsx).
-    (rsc.rpc as any)('record_profile_view', { p_influencer_user_id: profile.userId }).then(() => {}, () => {});
+    // supabase-js resolves (never rejects) on a database error, so the error
+    // must be read off the result. Discarding it hid a 42P10 on every call
+    // for three months (migration 199).
+    (rsc.rpc as any)('record_profile_view', { p_influencer_user_id: profile.userId }).then(
+      ({ error }: { error: unknown }) => {
+        if (error) captureException(error, { tags: { route: '[username]', step: 'record_profile_view' } });
+      },
+      (e: unknown) => captureException(e, { tags: { route: '[username]', step: 'record_profile_view' } }),
+    );
     captureServer('creator_profile_viewed', user.id, { viewer_role: viewerRole ?? null });
   }
 

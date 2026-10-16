@@ -19,6 +19,7 @@ import { canSee, subscriptionsEnabled } from '@/lib/entitlements';
 import { projectProfileForTier } from '@/lib/public-profile/tier-projection';
 import { settleAll } from '@/lib/settle';
 import { captureServer } from '@/lib/analytics-server';
+import { captureException } from '@/lib/observability';
 
 // Same view model as /c/[username] (see that page for the canonical, full-page
 // version), reshaped as JSON so the topbar search can render a creator's public
@@ -44,9 +45,13 @@ export async function GET(
   // from someone other than the creator themselves.
   if (!isOwner) {
     captureServer('creator_profile_viewed', user.id, {}, req);
+    // supabase-js resolves (never rejects) on a database error, so read it off
+    // the result. Discarding it hid a 42P10 on every call (migration 199).
     (supabase.rpc as any)('record_profile_view', { p_influencer_user_id: profile.userId }).then(
-      () => {},
-      () => {},
+      ({ error }: { error: unknown }) => {
+        if (error) captureException(error, { tags: { route: 'creators/[username]', step: 'record_profile_view' } });
+      },
+      (e: unknown) => captureException(e, { tags: { route: 'creators/[username]', step: 'record_profile_view' } }),
     );
   }
 

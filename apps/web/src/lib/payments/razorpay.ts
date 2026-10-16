@@ -108,6 +108,36 @@ async function createOrderRequest(params: {
   return (await res.json()) as RazorpayOrder;
 }
 
+export interface RazorpayPayment {
+  id: string;
+  order_id: string;
+  status: string; // created | authorized | captured | refunded | failed
+  amount: number; // paise
+  currency: string;
+}
+
+/**
+ * The payments Razorpay holds against one of OUR orders — read server-to-server
+ * with the key secret, so the answer is as trustworthy as a signed webhook.
+ * Used to reconcile when the webhook never arrived (lib/payments/project-payment.ts).
+ * A 404 (an order from a different Razorpay account, e.g. after a key rotation)
+ * returns [] rather than throwing: there is nothing to reconcile it against.
+ */
+export async function fetchOrderPayments(orderId: string): Promise<RazorpayPayment[]> {
+  if (!isRazorpayConfigured()) throw new RazorpayError(503, 'Payments are not configured');
+  const res = await fetch(`https://api.razorpay.com/v1/orders/${encodeURIComponent(orderId)}/payments`, {
+    headers: { Authorization: basicAuth() },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (res.status === 404 || res.status === 400) return [];
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new RazorpayError(res.status, `Razorpay order lookup failed (${res.status}): ${detail.slice(0, 200)}`);
+  }
+  const body = (await res.json()) as { items?: RazorpayPayment[] };
+  return body.items ?? [];
+}
+
 /**
  * Verify a checkout callback signature: HMAC_SHA256(key_secret, `${orderId}|${paymentId}`).
  * Constant-time compare. Returns false on any malformed input.

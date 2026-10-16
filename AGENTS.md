@@ -158,13 +158,30 @@ campaign**. Do not "tighten" the request rule to approved-only without asking. A
 new write path for either table needs no new check (the triggers cover it), but its
 route should still return a clear 403 rather than surface the trigger's error.
 
-## Payment gates open only via a signed webhook
+## Payment gates open only on a capture Razorpay confirms
 
-When Razorpay is configured, the gate checklist items for `advance_payment` and
-`final_payment` cannot be ticked by hand — they open when the signed capture
-webhook confirms a real payment. Amounts are derived server-side from the
+When Razorpay is configured, the gate checklist items for `advance_payment`,
+`final_payment` and `quick_payment` cannot be ticked by hand — they open when
+Razorpay confirms a real capture. Amounts are derived server-side from the
 agreed terms and never taken from the client. Don't add a bypass "for testing";
 the audit suite drives real test-mode orders and signs its own webhooks.
+
+Razorpay confirms it two ways, both through `settleCapturedProjectPayment()` in
+`lib/payments/project-payment.ts`: the signed webhook, and a server-to-server
+read of the order (`reconcileProjectPayments()`), which `GET` and `POST
+/api/projects/[id]/payments` run first. The second exists because on
+2026-10-15 the first real staging payment was captured while the webhook was
+registered on a test account nobody could find — the gate stayed shut and the
+business paid twice. Never settle from anything the client sends (checkout
+handler payloads included); only from the signed webhook or Razorpay's API.
+
+**Every Razorpay account needs a webhook per environment.** Dev and staging can
+share one test account, but each needs its own webhook URL
+(`https://<host>/api/payments/webhook`, events `payment.captured`,
+`order.paid`, `payment.failed`) whose secret matches that environment's
+`RAZORPAY_WEBHOOK_SECRET`. A webhook pointed at the wrong environment answers
+200 `no-ledger-row`, so Razorpay never retries. Pro subscriptions still rely on
+the webhook alone.
 
 ## The admin CRM can message real people
 
