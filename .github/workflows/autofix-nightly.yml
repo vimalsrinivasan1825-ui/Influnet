@@ -64,7 +64,7 @@ jobs:
           AUTOFIX_SUPABASE_KEY: ${{ secrets.AUTOFIX_SUPABASE_KEY }}
           GH_TOKEN: ${{ github.token }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: autofix-inbox
           path: autofix-inbox.json
@@ -106,7 +106,7 @@ jobs:
             --allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"
             --disallowedTools "Edit,MultiEdit,WebFetch,WebSearch"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: autofix-report
@@ -168,7 +168,7 @@ jobs:
             --allowedTools "Read,Glob,Grep,Write,Edit,MultiEdit,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(git status:*),Bash(git checkout -b autofix/:*),Bash(git checkout autofix/:*),Bash(git add:*),Bash(git commit:*),Bash(git push -u origin autofix/:*),Bash(npm run test:unit:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(gh pr create:*),Bash(gh issue create:*)"
             --disallowedTools "WebFetch,WebSearch"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: autofix-report
