@@ -43,6 +43,7 @@ const PUBLISHED: Record<'terms' | 'privacy' | 'refunds', LegalDoc> = {
         heading: '1. Introduction & Overview',
         body: [
           'Welcome to Influnet ("Platform", "we", "our", or "us"). By creating an account, connecting social profiles, or interacting with collaboration requests on Influnet, you agree to comply with and be bound by these Terms of Service.',
+          'Influnet is owned and operated by Tecstellar Solutions LLP ("Tecstellar"), India, which is the provider of the Platform and the publisher of the Influnet mobile app. References to "Influnet", "we", "our" and "us" in these Terms mean Tecstellar Solutions LLP.',
           'Influnet is a specialized collaboration and deal-management platform matching verified social media creators with businesses and brands. We provide the infrastructure for discovery, brief negotiations, stage-gated collaboration workflows, and verified milestone payments.',
         ],
       },
@@ -113,6 +114,7 @@ const PUBLISHED: Record<'terms' | 'privacy' | 'refunds', LegalDoc> = {
       {
         heading: '1. Information We Collect',
         body: [
+          'Influnet is owned and operated by Tecstellar Solutions LLP, India, which is the data controller for the personal information described in this policy.',
           'Account & Identity Data: When you register, we collect your name, email address, contact telephone number (for SMS/WhatsApp OTP verification), and account role (creator or brand representative). Passwords are encrypted using irreversible salted cryptographic hashes.',
           'Public Social Media Data: When creators connect their channels (such as Instagram, YouTube, X, Facebook), we ingest only public metrics: handle names, follower tallies, public post counts, engagement averages, and public media thumbnails.',
           'Commercial & Transactional Data: We record collaboration contracts, stage sign-offs, deliverables feedback, and transaction references. Financial details (credit/debit cards, UPI VPA, net banking credentials) are processed directly by our RBI-licensed payment aggregator (Razorpay) and never stored on Influnet servers.',
@@ -213,6 +215,13 @@ const CONTACT: LegalDoc = {
   summary: 'How to reach a person.',
   updated: 'October 2026',
   sections: [
+    {
+      heading: 'Who runs Influnet',
+      body: [
+        'Influnet is owned and operated by Tecstellar Solutions LLP, India.',
+        'Write to us at influnet@tecstellar.com.',
+      ],
+    },
     {
       heading: 'Support',
       body: [
