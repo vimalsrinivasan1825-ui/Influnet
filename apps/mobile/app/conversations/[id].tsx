@@ -37,6 +37,7 @@ import { endpoints } from '@/lib/api';
 import { getConversationChannel, getLastStreamFailureReason, isStreamConfigured } from '@/lib/stream';
 import { useNotificationSummary } from '@/lib/notification-summary';
 import { useNotificationToast } from '@/lib/notification-toast';
+import { DateField } from '@/components/date-field';
 import { useLiveRefresh, useProposalLive } from '@/lib/realtime';
 import { formatCurrency, formatDayLabel, formatMessageTime, timeAgo } from '@/lib/format';
 import {
@@ -930,7 +931,7 @@ export default function ConversationScreen() {
       // flow's separate advance/final split. Short flows pay the whole
       // budget at their one payment stage.
       advance_amount: pIsShort ? undefined : advance,
-      due_date: pIsShort && pDueDate.trim() ? pDueDate.trim() : undefined,
+      due_date: pDueDate.trim() ? pDueDate.trim() : undefined,
       deliverables: pIsShort && pDeliverables.trim() ? pDeliverables.trim() : undefined,
       is_barter: pIsShort && pIsBarter ? true : undefined,
       barter_details: pIsShort && pIsBarter ? pBarterDetails.trim() : undefined,
@@ -1875,7 +1876,7 @@ export default function ConversationScreen() {
         </Pressable>
 
         <Field
-          label={pIsShort ? 'Budget (₹) *' : 'Total budget (optional)'}
+          label={pFlowKey === 'short_pay_before' ? 'Amount paid up front (₹) *' : pIsShort ? 'Budget (₹) *' : 'Total budget (optional)'}
           placeholder={pIsBarter ? '0 (barter)' : '50000'}
           value={pIsBarter ? '0' : pBudget}
           editable={!pIsBarter}
@@ -1889,11 +1890,10 @@ export default function ConversationScreen() {
 
         {pIsShort ? (
           <>
-            <Field
+            <DateField
               label="Delivery date *"
-              placeholder="YYYY-MM-DD"
               value={pDueDate}
-              onChangeText={(v) => {
+              onChange={(v) => {
                 setPDueDate(v);
                 if (proposeError) setProposeError(null);
               }}
@@ -1939,8 +1939,10 @@ export default function ConversationScreen() {
             ) : null}
           </>
         ) : (
+          <>
+          <DateField label="Delivery date (optional)" value={pDueDate} onChange={setPDueDate} />
           <Field
-            label="Advance (optional)"
+            label="Advance payment (optional)"
             placeholder="15000"
             value={pAdvance}
             onChangeText={(v) => {
@@ -1950,6 +1952,7 @@ export default function ConversationScreen() {
             keyboardType="number-pad"
             hint="Paid up front at the deposit stage. Must not exceed the total."
           />
+          </>
         )}
 
         {proposeError ? (
