@@ -13,7 +13,7 @@
  */
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BadgeCheck, Info } from 'lucide-react-native';
 import { useTheme } from '@/lib/theme';
 import { endpoints } from '@/lib/api';
@@ -59,8 +59,9 @@ export default function AddPortfolioItemScreen() {
   const router = useRouter();
 
   const [url, setUrl] = useState('');
-  const [title, setTitle] = useState('');
-  const [brand, setBrand] = useState('');
+  const prefill = useLocalSearchParams<{ title?: string; brand?: string }>();
+  const [title, setTitle] = useState(prefill.title ?? '');
+  const [brand, setBrand] = useState(prefill.brand ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { entitlements, isPro } = useEntitlements();

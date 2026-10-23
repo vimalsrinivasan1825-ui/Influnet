@@ -1,7 +1,7 @@
 /**
  * Creator or business. The one place onboarding uses photographs: each side is
- * a real person doing that side's work — a creator filming, a shop owner with
- * his stock — so the choice reads at a glance, before any copy.
+ * a real person doing that side's work — a creator filming, a brand owner in
+ * his office — so the choice reads at a glance, before any copy.
  *
  * Tapping a card selects it; the button names the choice ("Continue as a
  * creator") so nobody lands in the wrong wizard by a stray tap.
@@ -37,7 +37,7 @@ const OPTIONS: { role: Role; title: string; body: string; photo: number; alt: st
     title: "I'm a business",
     body: 'Find creators and run every collab in one place.',
     photo: BUSINESS,
-    alt: 'A shop owner with his products',
+    alt: 'A brand owner in his office',
   },
 ];
 

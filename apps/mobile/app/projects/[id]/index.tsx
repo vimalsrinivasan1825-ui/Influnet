@@ -31,6 +31,7 @@ import { formatCurrency, formatDate, timeAgo } from '@/lib/format';
 import { type StageProgressEntry } from '@/components/stage-timeline';
 import { CurrentStageCard } from '@/components/current-stage-card';
 import { ProjectReviews } from '@/components/project-reviews';
+import { PortfolioPrompt } from '@/components/portfolio-prompt';
 import { ProjectDocuments } from '@/components/project-documents';
 import {
   Badge,
@@ -649,6 +650,10 @@ export default function ProjectDetailScreen() {
             ) : null}
 
             <ProjectDocuments projectId={id} />
+
+            {project.status === 'completed' && !isOwner ? (
+              <PortfolioPrompt projectId={id} title={project.title} brand={partner} />
+            ) : null}
 
             {project.status === 'completed' ? (
               <ProjectReviews projectId={id} partner={partner} />

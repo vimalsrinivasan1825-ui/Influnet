@@ -4,6 +4,8 @@
  * confirmations.
  */
 import {
+  createContext,
+  useContext,
   forwardRef,
   useCallback,
   useImperativeHandle,
@@ -21,6 +23,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/theme';
 import { useKeyboard } from '@/lib/use-keyboard';
 import { Txt } from './text';
+
+/** True inside a Sheet: fields there must use the sheet-aware TextInput to rise above the keyboard. */
+const InSheetContext = createContext(false);
+export const useInSheet = () => useContext(InSheetContext);
 
 /**
  * Only `expand` and `close` are exposed — the two methods every caller in the
@@ -118,7 +124,7 @@ export const Sheet = forwardRef<
             {title}
           </Txt>
         ) : null}
-        {children}
+        <InSheetContext.Provider value>{children}</InSheetContext.Provider>
       </BottomSheetScrollView>
     </BottomSheet>
   );
