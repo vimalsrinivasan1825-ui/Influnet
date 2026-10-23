@@ -191,7 +191,13 @@ export default function ProjectTimelineScreen() {
             const done = row.state === 'done' || row.state === 'skipped';
 
             return (
-              <View key={row.stage} style={{ flexDirection: 'row', gap: t.spacing.md }}>
+              <Pressable
+                key={row.stage}
+                onPress={() => router.push(`/projects/${project.id}/stage/${row.stage}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`${row.label}, open details`}
+                style={({ pressed }) => ({ flexDirection: 'row', gap: t.spacing.md, opacity: pressed ? 0.8 : 1 })}
+              >
                 {/* The rail column. Fixed width so every row's text starts on
                     the same line however long the label wraps. */}
                 <View style={{ width: 32, alignItems: 'center' }}>
@@ -280,14 +286,14 @@ export default function ProjectTimelineScreen() {
                   {/* The detail, on the stages where there is any. An upcoming
                       stage has nothing recorded against it, and an empty panel
                       under ten of twelve rows is a screen of empty panels. */}
-                  {row.state === 'current' || (row.state === 'done' && (row.mine || row.theirs)) ? (
+                  {row.state === 'current' || row.state === 'done' ? (
                     <Card style={{ marginTop: t.spacing.sm, gap: t.spacing.sm }}>
                       <SignRow
                         label={`${partner} signed off`}
-                        at={row.theirs}
+                        at={row.theirs ?? (row.state === 'done' ? row.closed ?? row.first : null)}
                         waitingLabel={`Waiting for ${partner}`}
                       />
-                      <SignRow label="You signed off" at={row.mine} waitingLabel="Waiting for you" />
+                      <SignRow label="You signed off" at={row.mine ?? (row.state === 'done' ? row.closed ?? row.first : null)} waitingLabel="Waiting for you" />
 
                       {row.state === 'current' && !row.mine ? (
                         <PressableScale
@@ -315,7 +321,7 @@ export default function ProjectTimelineScreen() {
                     </Card>
                   ) : null}
                 </View>
-              </View>
+              </Pressable>
             );
           })}
         </>
