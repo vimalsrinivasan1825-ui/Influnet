@@ -92,6 +92,9 @@ export const Sheet = forwardRef<
       index={0}
       snapPoints={snapPoints}
       enablePanDownToClose
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
       enableDynamicSizing={!snapPoints}
       onClose={handleClose}
       backdropComponent={Backdrop}
@@ -103,6 +106,7 @@ export const Sheet = forwardRef<
       }}
     >
       <BottomSheetScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingHorizontal: t.spacing.xl,
           paddingBottom: insets.bottom + t.spacing.xl,
