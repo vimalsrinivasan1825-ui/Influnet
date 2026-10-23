@@ -1,5 +1,7 @@
 import { useState, useRef, type ReactNode } from 'react';
 import { TextInput, View, Pressable, type TextInputProps, type ViewStyle } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { useInSheet } from './sheet';
 import { useTheme } from '@/lib/theme';
 import { fontFor } from '@/lib/fonts';
 import { Txt } from './text';
@@ -32,6 +34,8 @@ export function Field({
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const revealFocusedInput = useRevealFocusedInput();
+  const inSheet = useInSheet();
+  const Input = (inSheet ? BottomSheetTextInput : TextInput) as typeof TextInput;
 
   const borderColor = error
     ? t.color.danger
@@ -62,7 +66,7 @@ export function Field({
         }}
       >
         {left ? <View style={{ marginRight: t.spacing.sm }}>{left}</View> : null}
-        <TextInput
+        <Input
           ref={inputRef}
           style={[
             {
