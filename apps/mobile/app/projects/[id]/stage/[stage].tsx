@@ -172,8 +172,9 @@ export default function StageScreen() {
   const theirSignoff = isOwner ? entry?.creator_signoff_at : entry?.owner_signoff_at;
 
   const flow = project ? flowOf(project) : STAGE_FLOWS.full;
-  const isCurrent = project?.current_stage === stageKey;
-  const isPast = project && flow ? flow.stages.indexOf(stageKey) < flow.stages.indexOf(project.current_stage) : false;
+  const finishedProject = project?.status === 'completed';
+  const isCurrent = !finishedProject && project?.current_stage === stageKey;
+  const isPast = project && flow ? flow.stages.indexOf(stageKey) < flow.stages.indexOf(project.current_stage) || finishedProject : false;
   const usesSignoff = isMutualSignoffStage(stageKey, flow);
   // For short flows, the payment stage is 'quick_payment'; for full, it is 'advance_payment' or 'final_payment'.
   const isPaymentStage = flow ?
@@ -353,6 +354,43 @@ export default function StageScreen() {
                 {guide.summary}
               </Txt>
             </View>
+
+            {/* The one-line answer to "what do I do right now?" — the guidance
+                below is reference; this is the instruction. */}
+            {project ? (() => {
+              const done = project.status === 'completed' || isPast;
+              const openItems = stageItems.filter((i) => i.is_required && !i.done_at).length;
+              const line = done
+                ? 'This step is finished. Nothing more to do here.'
+                : !isCurrent
+                  ? 'Not started yet — you will be asked to act when the project reaches this step.'
+                  : usesSignoff && mySignoff && !theirSignoff
+                    ? `You have signed off. Waiting for ${partner} to confirm.`
+                    : usesSignoff && theirSignoff && !mySignoff
+                      ? `${partner} has signed off. Your confirmation moves the project on.`
+                      : openItems > 0
+                        ? `Tick the ${openItems} required checklist item${openItems === 1 ? '' : 's'}, then sign off.`
+                        : usesSignoff
+                          ? 'Everything is ready — sign off to move on.'
+                          : (myTasks[0] ?? 'Follow the steps below.');
+              return (
+                <View
+                  style={{
+                    backgroundColor: done ? t.color.okSoft : t.color.brandSoft,
+                    borderRadius: t.radii.lg,
+                    padding: t.spacing.lg,
+                    gap: 4,
+                  }}
+                >
+                  <Txt variant="caption" style={{ fontWeight: '700', color: done ? t.color.ok : t.color.brandStrong, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                    {done ? 'Completed' : 'Your next step'}
+                  </Txt>
+                  <Txt variant="bodyStrong" style={{ fontSize: 16 }}>
+                    {line}
+                  </Txt>
+                </View>
+              );
+            })() : null}
 
             <Card style={{ gap: t.spacing.sm }}>
               <Txt variant="caption" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>

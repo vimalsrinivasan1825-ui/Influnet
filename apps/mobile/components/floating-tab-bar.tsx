@@ -85,7 +85,9 @@ const BLUR = requireOptionalNativeModule('ExpoBlur') != null;
 
 const GROW = cubicBezier(0.34, 1.3, 0.64, 1);
 /** Unselected tab circle: a neutral tint that reads on glass, not a solid grey. */
-const IDLE_FILL = 'rgba(118,118,128,0.12)';
+const IDLE_FILL = 'rgba(255,255,255,0.72)';
+/** Idle icon: fully opaque so nothing scrolling underneath shows through it. */
+const IDLE_ICON = '#4b4958';
 
 // ── Blur targets (Android) ─────────────────────────────────────────────
 // One per tab screen, keyed by route. The bar re-renders when one mounts or
@@ -325,7 +327,7 @@ function TabItem({
           }}
         >
           <Animated.View style={{ position: 'absolute', opacity: 1 - on, transitionProperty: 'opacity', transitionDuration: ms(250) }}>
-            {renderIcon(t.color.contentSoft)}
+            {renderIcon(IDLE_ICON)}
           </Animated.View>
           <Animated.View style={{ position: 'absolute', opacity: on, transitionProperty: 'opacity', transitionDuration: ms(250) }}>
             {renderIcon(t.color.white)}

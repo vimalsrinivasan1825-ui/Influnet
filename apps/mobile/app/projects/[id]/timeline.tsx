@@ -127,12 +127,15 @@ export default function ProjectTimelineScreen() {
     const flow: StageFlow = flowOf(project);
     const currentIndex = flow.stages.indexOf(project.current_stage);
     const progress = project.stage_progress ?? {};
+    // A finished project has no live stage: its last card used to read "open"
+    // with nothing ticked because current_stage stays on final_payment.
+    const finished = project.status === 'completed';
 
     return flow.stages.map((stage, i) => {
       const entry: StageProgressEntry | undefined = progress[stage];
       const state: RowState = entry?.skipped
         ? 'skipped'
-        : i < currentIndex || entry?.completed
+        : finished || i < currentIndex || entry?.completed
           ? 'done'
           : i === currentIndex
             ? 'current'

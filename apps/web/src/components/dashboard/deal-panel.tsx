@@ -130,6 +130,9 @@ export function DealPanel({
   const [composing, setComposing] = useState(false);
   const [prefill, setPrefill] = useState<ProposalSummary | null>(null);
   const [declining, setDeclining] = useState(false);
+  // Set while the receiver edits the terms they were sent: the pending
+  // proposal is closed first, then the revised one goes out.
+  const [counterOf, setCounterOf] = useState<string | null>(null);
   const [declineNote, setDeclineNote] = useState("");
   const [expanded, setExpanded] = useState(true);
 
@@ -495,6 +498,18 @@ export function DealPanel({
                     <Button size="sm" variant="brand" disabled={busy} onClick={() => respondToProposal("accept")}>
                       <Check /> Accept & start project
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="surface"
+                      disabled={busy}
+                      onClick={() => {
+                        setPrefill(proposal as ProposalSummary);
+                        setCounterOf(proposal!.id);
+                        setComposing(true);
+                      }}
+                    >
+                      Edit terms & send back
+                    </Button>
                     <Button size="sm" variant="surface" disabled={busy} onClick={() => setDeclining(true)}>
                       <X /> Decline & keep talking
                     </Button>
@@ -566,19 +581,22 @@ export function DealPanel({
             </Button>
           )}
 
-          {viewer.can_propose && composing && (
+          {(viewer.can_propose || counterOf) && composing && (
             <ProposalForm
+              counterOf={counterOf}
               request={request}
               busy={busy}
               setBusy={setBusy}
               onCancel={() => {
                 setComposing(false);
                 setPrefill(null);
+                setCounterOf(null);
               }}
               conversationId={conversationId}
               prefill={prefill}
               onCreated={async () => {
                 setComposing(false);
+                setCounterOf(null);
                 await load();
                 onProjectCreated?.();
               }}
@@ -596,6 +614,7 @@ export function DealPanel({
  * budget / advance / due date can all be overridden.
  */
 function ProposalForm({
+  counterOf,
   request,
   conversationId,
   prefill,
@@ -604,6 +623,8 @@ function ProposalForm({
   onCancel,
   onCreated,
 }: {
+  /** A pending proposal to close before sending this revision. */
+  counterOf?: string | null;
   request: NonNullable<DealState["request"]>;
   conversationId: string;
   /** Terms that were turned down — start from those rather than a blank form. */
@@ -658,6 +679,13 @@ function ProposalForm({
     }
     setBusy(true);
     try {
+      if (counterOf) {
+        const closed = await apiFetch(`/api/conversations/${conversationId}/deal`, {
+          method: "PATCH",
+          body: JSON.stringify({ proposal_id: counterOf, action: "decline", note: "Counter-proposal sent" }),
+        });
+        if (!closed.ok) throw new Error(closed.error || "Could not close the earlier terms");
+      }
       const res = await apiFetch<{ proposal_id: string }>(`/api/conversations/${conversationId}/deal`, {
         method: "POST",
         body: JSON.stringify({

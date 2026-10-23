@@ -123,6 +123,9 @@ interface DealPayload {
     /** Both absent on an older backend; the banner falls back to a status line. */
     current_stage?: string | null;
     flow_key?: string | null;
+    description?: string | null;
+    advance_amount?: number | null;
+    due_date?: string | null;
   }[];
   proposal?: {
     id: string;
@@ -130,6 +133,12 @@ interface DealPayload {
     description: string | null;
     budget: number | null;
     proposed_by: string;
+    advance_amount?: number | null;
+    due_date?: string | null;
+    flow_key?: string | null;
+    deliverables?: string | null;
+    is_barter?: boolean | null;
+    barter_details?: string | null;
   } | null;
   legacy_pending?: { id: string; title: string; budget: number | null } | null;
   viewer?: {
@@ -330,6 +339,22 @@ interface DealSummary {
   projectTitle: string | null;
   currentStage: string | null;
   flowKey: string | null;
+  /** Every term on the table (or agreed), so the sheet is never a blank card. */
+  terms: DealTerms | null;
+  /** True when the project is finished or cancelled — shown as a settled record. */
+  settled: boolean;
+}
+
+interface DealTerms {
+  title: string;
+  description: string | null;
+  budget: number | null;
+  advance: number | null;
+  dueDate: string | null;
+  flowKey: string;
+  deliverables: string | null;
+  isBarter: boolean;
+  barterDetails: string | null;
 }
 
 /**
@@ -357,6 +382,18 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       projectTitle: null,
       currentStage: null,
       flowKey: null,
+      settled: false,
+      terms: {
+        title: payload.proposal.title,
+        description: payload.proposal.description ?? null,
+        budget: payload.proposal.budget ?? null,
+        advance: payload.proposal.advance_amount ?? null,
+        dueDate: payload.proposal.due_date ?? null,
+        flowKey: payload.proposal.flow_key ?? 'full',
+        deliverables: payload.proposal.deliverables ?? null,
+        isBarter: !!payload.proposal.is_barter,
+        barterDetails: payload.proposal.barter_details ?? null,
+      },
     };
   }
 
@@ -375,6 +412,8 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       projectTitle: null,
       currentStage: null,
       flowKey: null,
+      settled: false,
+      terms: null,
     };
   }
 
@@ -409,6 +448,18 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       projectTitle: live.title,
       currentStage: live.current_stage ?? null,
       flowKey: live.flow_key ?? null,
+      settled: live.status === 'completed' || live.status === 'cancelled',
+      terms: {
+        title: live.title,
+        description: live.description ?? null,
+        budget: live.budget,
+        advance: live.advance_amount ?? null,
+        dueDate: live.due_date ?? null,
+        flowKey: live.flow_key ?? 'full',
+        deliverables: null,
+        isBarter: false,
+        barterDetails: null,
+      },
     };
   }
 
@@ -427,10 +478,44 @@ function summariseDeal(payload: DealPayload | null): DealSummary | null {
       projectTitle: null,
       currentStage: null,
       flowKey: null,
+      settled: false,
+      terms: null,
     };
   }
 
   return null;
+}
+
+const FLOW_LABEL: Record<string, string> = {
+  full: 'Full 12-stage pipeline',
+  short_pay_after: 'Quick · deliver first, then pay',
+  short_pay_before: 'Quick · pay first (advance), then deliver',
+};
+
+function TermRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16 }}>
+      <Txt variant="footnote" tone="muted">
+        {label}
+      </Txt>
+      <Txt variant="footnote" style={{ flexShrink: 1, textAlign: 'right' }}>
+        {value}
+      </Txt>
+    </View>
+  );
+}
+
+function TermBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ gap: 4 }}>
+      <Txt variant="footnote" tone="muted">
+        {label}
+      </Txt>
+      <Txt variant="callout" tone="soft">
+        {value}
+      </Txt>
+    </View>
+  );
 }
 
 export default function ConversationScreen() {
@@ -500,11 +585,15 @@ export default function ConversationScreen() {
   // proposal silently landed on 'full' regardless of what the business
   // actually wanted, forcing a one-off deal through the 12-stage pipeline.
   // Found and fixed 2026-09-16.
-  const [pFlowKey, setPFlowKey] = useState<'full' | 'short_pay_after' | 'short_pay_before'>('full');
+  const [pFlowKey, setPFlowKey] = useState<'full' | 'short_pay_after' | 'short_pay_before'>('short_pay_after');
   const [pDueDate, setPDueDate] = useState('');
   const [pDeliverables, setPDeliverables] = useState('');
   const [pIsBarter, setPIsBarter] = useState(false);
   const [pBarterDetails, setPBarterDetails] = useState('');
+  // The 12-stage pipeline is for few people, so it hides behind an Advanced toggle.
+  const [pAdvanced, setPAdvanced] = useState(false);
+  // Set while a creator edits the brand's terms: the old proposal is closed first.
+  const [counterOf, setCounterOf] = useState<string | null>(null);
   const pIsShort = pFlowKey !== 'full';
   const [proposeBusy, setProposeBusy] = useState(false);
   const [proposeError, setProposeError] = useState<string | null>(null);
@@ -701,6 +790,26 @@ export default function ConversationScreen() {
     };
   }, [id]);
 
+  /** Fill the propose form from terms already on the table, so nobody retypes them. */
+  function prefillFrom(terms: DealTerms | null) {
+    if (!terms) return;
+    setPTitle(terms.title);
+    setPDescription(terms.description ?? '');
+    setPBudget(terms.budget ? String(terms.budget) : '');
+    setPAdvance(terms.advance ? String(terms.advance) : '');
+    setPFlowKey(
+      terms.flowKey === 'short_pay_after' || terms.flowKey === 'short_pay_before'
+        ? terms.flowKey
+        : 'full',
+    );
+    setPDueDate(terms.dueDate ?? '');
+    setPDeliverables(terms.deliverables ?? '');
+    setPIsBarter(terms.isBarter);
+    setPBarterDetails(terms.barterDetails ?? '');
+    setPAdvanced(terms.flowKey === 'full');
+    setProposeError(null);
+  }
+
   /**
    * Accept, decline, or withdraw the proposal currently on the table — the
    * one deal action the web app had that mobile didn't: this sheet used to
@@ -796,6 +905,21 @@ export default function ConversationScreen() {
     setProposeBusy(true);
     setProposeError(null);
 
+    // Countering: close the proposal being edited, then send the revised one.
+    if (counterOf) {
+      const closed = await endpoints.respondToDeal(id, {
+        proposal_id: counterOf,
+        action: 'decline',
+        note: 'Counter-proposal sent',
+      });
+      if (!closed.ok) {
+        setProposeBusy(false);
+        setProposeError(closed.error);
+        return;
+      }
+      setCounterOf(null);
+    }
+
     const res = await endpoints.updateDeal(id, {
       collab_request_id: deal.collabRequestId,
       title,
@@ -823,7 +947,9 @@ export default function ConversationScreen() {
     setPDescription('');
     setPBudget('');
     setPAdvance('');
-    setPFlowKey('full');
+    setPFlowKey('short_pay_after');
+    setPAdvanced(false);
+    setCounterOf(null);
     setPDueDate('');
     setPDeliverables('');
     setPIsBarter(false);
@@ -1431,28 +1557,32 @@ export default function ConversationScreen() {
         ) : null}
 
         <Card style={{ gap: t.spacing.sm }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Txt variant="footnote" tone="muted">
-              Status
-            </Txt>
-            <Txt variant="footnote">{deal?.status ?? 'Negotiating'}</Txt>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Txt variant="footnote" tone="muted">
-              Budget
-            </Txt>
-            <Txt variant="footnote">{formatCurrency(deal?.budget)}</Txt>
-          </View>
-          {deal?.deliverables ? (
-            <View style={{ gap: 4 }}>
-              <Txt variant="footnote" tone="muted">
-                Deliverables
-              </Txt>
-              <Txt variant="callout" tone="soft">
-                {deal.deliverables}
-              </Txt>
-            </View>
-          ) : null}
+          <TermRow label="Status" value={deal?.status ?? 'Negotiating'} />
+          {deal?.terms ? (
+            <>
+              <TermRow label="Title" value={deal.terms.title} />
+              <TermRow label="Type" value={FLOW_LABEL[deal.terms.flowKey] ?? 'Full pipeline'} />
+              <TermRow
+                label="Budget"
+                value={deal.terms.isBarter ? 'Barter' : formatCurrency(deal.terms.budget)}
+              />
+              {deal.terms.advance ? (
+                <TermRow label="Advance" value={formatCurrency(deal.terms.advance)} />
+              ) : null}
+              {deal.terms.dueDate ? <TermRow label="Delivery date" value={deal.terms.dueDate} /> : null}
+              {deal.terms.description ? (
+                <TermBlock label="What's involved" value={deal.terms.description} />
+              ) : null}
+              {deal.terms.deliverables ? (
+                <TermBlock label="Deliverables" value={deal.terms.deliverables} />
+              ) : null}
+              {deal.terms.isBarter && deal.terms.barterDetails ? (
+                <TermBlock label="Being exchanged" value={deal.terms.barterDetails} />
+              ) : null}
+            </>
+          ) : (
+            <TermRow label="Budget" value={formatCurrency(deal?.budget)} />
+          )}
         </Card>
 
         {respondError ? (
@@ -1469,6 +1599,16 @@ export default function ConversationScreen() {
               label="Accept these terms"
               onPress={() => respondToProposal('accept')}
               loading={respondBusy}
+            />
+            <Button
+              label="Edit terms & send back"
+              variant="secondary"
+              onPress={() => {
+                prefillFrom(deal.terms);
+                setCounterOf(deal.proposalId);
+                dealSheet.current?.close();
+                proposeSheet.current?.expand();
+              }}
             />
             <Button
               label="Decline"
@@ -1493,6 +1633,7 @@ export default function ConversationScreen() {
               label="Propose project terms"
               icon={<Handshake size={16} color={t.color.white} />}
               onPress={() => {
+                setCounterOf(null);
                 dealSheet.current?.close();
                 proposeSheet.current?.expand();
               }}
@@ -1696,28 +1837,42 @@ export default function ConversationScreen() {
         />
 
         <Txt variant="footnote" tone="muted" style={{ marginTop: 4, marginBottom: 6 }}>
-          Project type
+          How should payment work?
         </Txt>
         <SegmentedControl
           segments={[
-            { value: 'full', label: 'Full' },
             { value: 'short_pay_after', label: 'Deliver first' },
             { value: 'short_pay_before', label: 'Pay first' },
           ]}
-          value={pFlowKey}
+          value={pFlowKey === 'full' ? ('' as 'short_pay_after') : pFlowKey}
           onChange={(v) => {
             setPFlowKey(v);
-            if (v !== 'full') setPAdvance('');
+            setPAdvanced(false);
+            setPAdvance('');
             if (proposeError) setProposeError(null);
           }}
         />
         <Txt variant="caption" tone="muted" style={{ marginTop: 4 }}>
-          {pFlowKey === 'full'
-            ? 'The 12-stage guided pipeline — for an ongoing campaign.'
+          {pFlowKey === 'short_pay_before'
+            ? 'Advance payment: they are paid first, then deliver.'
             : pFlowKey === 'short_pay_after'
-              ? 'A quick one-off: agree, deliver, then get paid.'
-              : 'A quick one-off: agree, get paid, then deliver.'}
+              ? 'They deliver first, then you pay.'
+              : 'Using the advanced 12-stage pipeline.'}
         </Txt>
+        <Pressable
+          onPress={() => {
+            const next = !pAdvanced;
+            setPAdvanced(next);
+            setPFlowKey(next ? 'full' : 'short_pay_after');
+            setPIsBarter(false);
+          }}
+          style={{ paddingVertical: 8 }}
+          accessibilityRole="button"
+        >
+          <Txt variant="footnote" style={{ color: t.color.brand, fontWeight: '700' }}>
+            {pAdvanced ? '← Back to quick project' : 'Advanced: full 12-stage pipeline'}
+          </Txt>
+        </Pressable>
 
         <Field
           label={pIsShort ? 'Budget (₹) *' : 'Total budget (optional)'}
