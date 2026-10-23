@@ -29,7 +29,7 @@
  * rows below never re-derive it.
  */
 import { useMemo } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Check } from 'lucide-react-native';
 import { flowOf, otherParticipant, type StageFlow } from '@influnet/core';
