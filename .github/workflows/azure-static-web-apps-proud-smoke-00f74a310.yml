@@ -50,6 +50,11 @@ jobs:
           # ends, so its registrations and entry passes stay in one database.
           # See apps/landing/src/components/site/links.ts.
           NEXT_PUBLIC_EVENT_API_URL: "https://dev.influnet.io"
+          # Google Analytics 4 (G-XXXXXXX). A repository *variable*, not a
+          # secret — it ships in the page source anyway. Unset = GA is off.
+          # Update the privacy policy BEFORE setting it:
+          # docs/operations/GOOGLE_ANALYTICS_LANDING.md.
+          NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ vars.LANDING_GA_MEASUREMENT_ID }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

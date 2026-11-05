@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { isValidIndianPhone } from '@influnet/core';
 import { jsonError } from '@/lib/api';
 import { enforceRateLimit } from '@/lib/rate-limit';
+import { serviceRoleClient } from '@/lib/supabase/service';
 
 export async function GET(req: Request) {
   const limited = await enforceRateLimit(req, {
@@ -30,10 +30,10 @@ export async function GET(req: Request) {
   }
 
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    );
+    // Service role, not anon: check_phone_available is revoked from anon
+    // (migration 201) so the rate limit above is the only way to reach it.
+    const supabase = serviceRoleClient();
+    if (!supabase) return jsonError(503, 'Could not check phone availability');
 
     const { data, error } = await supabase.rpc('check_phone_available', {
       p_phone: phone,

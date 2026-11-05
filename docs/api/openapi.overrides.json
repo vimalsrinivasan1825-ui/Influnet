@@ -1,0 +1,995 @@
+{
+  "GET /api/health": {
+    "summary": "Liveness and database reachability for uptime monitors and the deploy smoke test.",
+    "responses": {
+      "200": {
+        "description": "Healthy.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "healthy"
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "database": {
+                  "type": "string",
+                  "example": "connected"
+                }
+              }
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Database unreachable. The error text is never returned."
+      }
+    }
+  },
+  "GET /api/auth/config": {
+    "summary": "Runtime signup configuration (served at runtime because NEXT_PUBLIC_* is frozen at build time).",
+    "responses": {
+      "200": {
+        "description": "Cached 60s.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneOtpEnabled": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "phoneOtpEnabled"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "GET /api/auth/check-email": {
+    "summary": "Whether an email address is free to register.",
+    "parameters": [
+      {
+        "name": "email",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Address to check"
+      }
+    ],
+    "notes": "Calls `check_email_available` with the service-role client; that RPC is not callable with the anon key (migration 201), so this rate limit is the only path.",
+    "responses": {
+      "200": {
+        "description": "Result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean"
+                },
+                "valid": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      },
+      "503": {
+        "description": "Service-role key missing on this deployment.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "GET /api/auth/check-phone": {
+    "summary": "Whether a mobile number is free to register.",
+    "parameters": [
+      {
+        "name": "phone",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Indian mobile number"
+      }
+    ],
+    "notes": "Service-role only RPC since migration 201.",
+    "responses": {
+      "200": {
+        "description": "Result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean"
+                },
+                "valid": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      },
+      "503": {
+        "description": "Service-role key missing on this deployment.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "GET /api/auth/check-instagram": {
+    "summary": "Whether an Instagram handle is already claimed by an account."
+  },
+  "GET /api/auth/suggest-username": {
+    "summary": "Suggest free usernames from a display name."
+  },
+  "POST /api/auth/register": {
+    "summary": "Create the profile row for a just-signed-up Supabase user (register_profile RPC).",
+    "notes": "Validation messages from `register_profile` (e.g. \"Username already taken\") are passed through on purpose so the form can show them."
+  },
+  "POST /api/auth/pending-registration": {
+    "summary": "Store the verified phone token for a signup still waiting on email confirmation.",
+    "notes": "Anonymous by design (the user has no session until the email is confirmed). Keyed by the new user id."
+  },
+  "GET /api/auth/scrape-instagram": {
+    "summary": "Signup-time Instagram profile lookup (follower count, avatar) through Apify."
+  },
+  "GET /api/discover": {
+    "summary": "Creator lookup for brands and creators. Returns `{results}`.",
+    "parameters": [
+      {
+        "name": "q",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Search text; only a username lookup resolves"
+      },
+      {
+        "name": "niche",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Niche filter"
+      },
+      {
+        "name": "industry",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Industry filter"
+      },
+      {
+        "name": "location",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Location filter"
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Pagination cursor"
+      },
+      {
+        "name": "id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Fetch one profile by id"
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Results — `{ userRole, results, nextCursor }`. Never `data`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "userRole": {
+                  "type": "string"
+                },
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "nextCursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "GET /api/collabs": {
+    "summary": "The caller's collaboration requests, sent and received. Returns `{collabs}`.",
+    "responses": {
+      "200": {
+        "description": "`{ collabs }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "collabs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "POST /api/collabs": {
+    "summary": "Send a brand → creator collaboration request.",
+    "notes": "A business awaiting review MAY send requests (creators see an unverified flag); only `rejected` is refused. Enforced by triggers (migration 164) as well as here.",
+    "responses": {
+      "201": {
+        "description": "`{ collab }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "collab": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      },
+      "403": {
+        "$ref": "#/components/responses/Forbidden"
+      }
+    }
+  },
+  "PATCH /api/collabs": {
+    "summary": "Accept, decline or cancel a request. Accepting creates the conversation.",
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "accepted",
+                  "declined",
+                  "cancelled"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "status"
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "`{ collab }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "collab": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "GET /api/blocks": {
+    "summary": "Ids the caller has blocked. Returns `{blocks}`.",
+    "responses": {
+      "200": {
+        "description": "`{ blocks }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "blocks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "GET /api/notifications": {
+    "summary": "The caller's in-app notifications. Returns a BARE ARRAY, not an envelope.",
+    "responses": {
+      "200": {
+        "description": "A bare JSON array.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "PATCH /api/notifications": {
+    "summary": "Mark notifications read (all, by id, or every message notification for one conversation)."
+  },
+  "GET /api/conversations": {
+    "summary": "The caller's conversations and their projects. Returns `{conversations, projects}`.",
+    "responses": {
+      "200": {
+        "description": "`{ conversations, projects }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "conversations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "projects": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "POST /api/conversations": {
+    "summary": "Open (or reuse) a 1:1 conversation. Returns `{conversation}`. Refused between blocked users.",
+    "responses": {
+      "200": {
+        "description": "`{ conversation: { id } }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "conversation": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "GET /api/conversations/{id}/messages": {
+    "summary": "Latest 200 messages of a conversation the caller is in, oldest first.",
+    "responses": {
+      "200": {
+        "description": "`{ messages }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "messages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      },
+      "403": {
+        "$ref": "#/components/responses/Forbidden"
+      }
+    }
+  },
+  "POST /api/conversations/{id}/messages": {
+    "summary": "Post a message (1–4000 characters; control characters are stripped).",
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              }
+            },
+            "required": [
+              "content"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "GET /api/projects": {
+    "summary": "The caller's campaign projects. Returns `{projects}`.",
+    "responses": {
+      "200": {
+        "description": "`{ projects }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "projects": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "GET /api/projects/{id}": {
+    "summary": "One project the caller takes part in: terms, stage, sign-offs."
+  },
+  "PATCH /api/projects/{id}": {
+    "summary": "Move the stage machine: `signoff`, `revoke_signoff`, `advance`, `confirm_completion`, cancellation and skip actions.",
+    "notes": "Three exits: mutual sign-off (8 of 12 stages), `advance` (sent_for_review needs `stage_key`; revisions), `confirm_completion` (final_payment only). `ALLOWED_TRANSITIONS` in packages/core is the source of truth. Payment gates open only on a Razorpay-confirmed capture."
+  },
+  "GET /api/projects/{id}/stage-items": {
+    "summary": "A project's stage checklist. Returns `{items}`.",
+    "responses": {
+      "200": {
+        "description": "`{ items }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "PATCH /api/projects/{id}/stage-items": {
+    "summary": "Tick or untick one checklist item. Payment-gate items cannot be ticked by hand when Razorpay is configured."
+  },
+  "GET /api/projects/{id}/reviews": {
+    "summary": "Reviews left on a project the caller takes part in."
+  },
+  "POST /api/projects/{id}/reviews": {
+    "summary": "Leave a permanent, public 1–5 rating for the other party on a completed project."
+  },
+  "POST /api/projects/{id}/payments": {
+    "summary": "Create a Razorpay order for a payment gate. The amount comes from the agreed terms, never from the client."
+  },
+  "DELETE /api/profile": {
+    "summary": "Delete the caller's account. The tombstone is written first; deletion fails closed."
+  },
+  "POST /api/profile/refresh": {
+    "summary": "Re-fetch the caller's social stats from Apify (slow: 15–50 s)."
+  },
+  "POST /api/stream/token": {
+    "summary": "Mint a GetStream chat token for the caller.",
+    "notes": "Tokens currently never expire (known gap — see docs/operations/SYSTEM_AUDIT_2026-11-05.md).",
+    "responses": {
+      "200": {
+        "description": "`{ token, ... }`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "$ref": "#/components/responses/Unauthorized"
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "POST /api/stream/channel": {
+    "summary": "Create the Stream channel for a conversation both users take part in.",
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "conversationId": {
+                "type": "string"
+              },
+              "otherUserId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "conversationId",
+              "otherUserId"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "POST /api/early-access": {
+    "summary": "Join the early-access waitlist from the landing site."
+  },
+  "OPTIONS /api/early-access": {
+    "summary": "CORS preflight."
+  },
+  "OPTIONS /api/event-pass": {
+    "summary": "CORS preflight."
+  },
+  "OPTIONS /api/event-survey": {
+    "summary": "CORS preflight."
+  },
+  "OPTIONS /api/auth/social-preview": {
+    "summary": "CORS preflight."
+  },
+  "POST /api/event-pass": {
+    "summary": "Register for an event and receive an entry pass (landing /join).",
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "event": {
+                "type": "string",
+                "enum": [
+                  "silicon-nexus-s2"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "instagram": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "name",
+              "phone"
+            ]
+          }
+        }
+      }
+    },
+    "notes": "⚠️ Audit 2026-11-05: re-registering an existing phone returns that person's existing pass code. The event ended 25 Sep 2026; close it (remove from `EVENTS`) or require an OTP.",
+    "responses": {
+      "200": {
+        "description": "Already registered.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                },
+                "passCode": {
+                  "type": "string",
+                  "example": "INF-AB12CD"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "alreadyRegistered": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "201": {
+        "description": "New registration, same body."
+      },
+      "400": {
+        "description": "Validation failed; `field` names the input.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "429": {
+        "$ref": "#/components/responses/RateLimited"
+      },
+      "500": {
+        "$ref": "#/components/responses/ServerError"
+      }
+    }
+  },
+  "POST /api/event-survey": {
+    "summary": "Look up a registration by phone, or submit the pre-event survey.",
+    "notes": "⚠️ Audit 2026-11-05: `lookup` returns first name, city and Instagram handle for any registered phone number, and `submit` overwrites answers, with no proof the caller owns the number."
+  },
+  "GET /api/email/unsubscribe": {
+    "summary": "One-click unsubscribe from a signed link (HTML confirmation page)."
+  },
+  "POST /api/email/unsubscribe": {
+    "summary": "RFC 8058 one-click unsubscribe (Gmail / Yahoo List-Unsubscribe-Post)."
+  },
+  "GET /api/email/test": {
+    "summary": "Send a test email. Local and dev only; needs a shared secret."
+  },
+  "POST /api/payments/webhook": {
+    "summary": "Razorpay webhook: payment.captured, order.paid, payment.failed. Settles project payments and Pro subscriptions."
+  },
+  "POST /api/stream/webhook": {
+    "summary": "GetStream webhook: message events drive notifications and email."
+  },
+  "POST /api/webhooks/resend": {
+    "summary": "Resend delivery webhook: bounces and complaints suppress the address."
+  },
+  "GET /api/admin/users": {
+    "summary": "Search and list user accounts."
+  },
+  "GET /api/admin/broadcasts": {
+    "summary": "List broadcasts."
+  },
+  "POST /api/admin/broadcasts": {
+    "summary": "Create a broadcast. Sends REAL push / in-app / email to real accounts — use BROADCAST_DRY_RUN on dev."
+  },
+  "GET /api/admin/broadcasts/{id}": {
+    "summary": "One broadcast with its runs and deliveries."
+  },
+  "PATCH /api/admin/broadcasts/{id}": {
+    "summary": "Edit, schedule, pause or cancel a broadcast."
+  },
+  "DELETE /api/admin/broadcasts/{id}": {
+    "summary": "Delete a draft broadcast."
+  },
+  "POST /api/admin/broadcasts/preview": {
+    "summary": "Count the live recipients a broadcast would reach."
+  },
+  "GET /api/admin/campaigns": {
+    "summary": "List campaigns for review."
+  },
+  "PATCH /api/admin/campaigns/{id}": {
+    "summary": "Approve, reject or remove a campaign."
+  },
+  "GET /api/admin/leads/{id}": {
+    "summary": "One CRM lead with its notes."
+  },
+  "POST /api/admin/leads/{id}": {
+    "summary": "Add a note to a lead."
+  },
+  "PATCH /api/admin/leads/{id}": {
+    "summary": "Update a lead (stage, owner, next step)."
+  },
+  "POST /api/admin/leads": {
+    "summary": "Create a CRM lead."
+  },
+  "GET /api/admin/reports/saved": {
+    "summary": "List saved report definitions."
+  },
+  "POST /api/admin/reports/saved": {
+    "summary": "Save a report definition."
+  },
+  "DELETE /api/admin/reports/saved": {
+    "summary": "Delete a saved report definition."
+  },
+  "GET /api/admin/team": {
+    "summary": "The console team: caller, members, super admins."
+  },
+  "POST /api/admin/team": {
+    "summary": "Create an admin or staff member (admins create staff only, within their own access)."
+  },
+  "PATCH /api/admin/team/{id}": {
+    "summary": "Change a member's tier, permissions or hidden fields, or disable them."
+  },
+  "GET /api/campaigns": {
+    "summary": "List campaigns. Returns `{campaigns}`."
+  },
+  "POST /api/campaigns": {
+    "summary": "Create a campaign. The business must be approved (enforced by trigger, migration 164)."
+  },
+  "GET /api/campaigns/{id}": {
+    "summary": "One campaign. Returns `{campaign}`."
+  },
+  "PATCH /api/campaigns/{id}": {
+    "summary": "Edit, publish or close a campaign the caller owns."
+  },
+  "GET /api/campaigns/{id}/applications": {
+    "summary": "Applications to a campaign (owner) or the caller's own (creator)."
+  },
+  "POST /api/campaigns/{id}/applications": {
+    "summary": "Apply to a campaign as a creator."
+  },
+  "PATCH /api/campaigns/{id}/applications/{appId}": {
+    "summary": "Shortlist, accept or reject an application."
+  },
+  "GET /api/saved-items": {
+    "summary": "The caller's saved creators/campaigns. Returns `{items}`."
+  },
+  "POST /api/saved-items": {
+    "summary": "Save an item."
+  },
+  "DELETE /api/saved-items": {
+    "summary": "Remove a saved item."
+  },
+  "GET /api/announcements": {
+    "summary": "Unseen in-app announcements for the caller."
+  },
+  "POST /api/announcements": {
+    "summary": "Mark an announcement seen."
+  },
+  "GET /api/profile/notification-preferences": {
+    "summary": "The caller's push/in-app notification preferences."
+  },
+  "PUT /api/profile/notification-preferences": {
+    "summary": "Replace the caller's notification preferences."
+  },
+  "GET /api/collabs/{id}": {
+    "summary": "One collaboration request the caller is party to."
+  },
+  "DELETE /api/conversations/{id}": {
+    "summary": "Hide a conversation for the caller."
+  },
+  "GET /api/business/dashboard": {
+    "summary": "Business dashboard counters."
+  },
+  "GET /api/influencer/dashboard": {
+    "summary": "Creator dashboard counters."
+  },
+  "GET /api/notifications/summary": {
+    "summary": "Unread counts for badges."
+  },
+  "DELETE /api/blocks": {
+    "summary": "Unblock a user."
+  },
+  "POST /api/verification/ownership": {
+    "summary": "Issue or confirm an Instagram ownership code."
+  },
+  "GET /api/projects/{id}/cards": {
+    "summary": "A project's task board cards."
+  },
+  "POST /api/projects/{id}/cards": {
+    "summary": "Add a task card."
+  },
+  "PATCH /api/projects/{id}/cards/{cardId}": {
+    "summary": "Edit one task card."
+  },
+  "DELETE /api/projects/{id}/cards/{cardId}": {
+    "summary": "Delete one task card."
+  }
+}

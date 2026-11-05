@@ -421,4 +421,7 @@ reading the reason has already cost time in this project.
 | [SUPABASE_CAPACITY_2026-08-02.md](SUPABASE_CAPACITY_2026-08-02.md) | Which Supabase limit actually binds (it isn't DB size) |
 | [FULL_FLOW_AUDIT_2026-08-08.md](FULL_FLOW_AUDIT_2026-08-08.md) | Before touching the stage machine or payment gates |
 | [LAUNCH_READINESS_AUDIT_2026-09-19.md](LAUNCH_READINESS_AUDIT_2026-09-19.md) | The current state: what passed live (302/302 E2E), what still blocks, and the exact E2E reproduction commands |
+| [SYSTEM_AUDIT_2026-11-05.md](SYSTEM_AUDIT_2026-11-05.md) | Latest full-system pass: new findings, what is still open, missing architecture, and the ordered next moves |
+| [GOOGLE_ANALYTICS_LANDING.md](GOOGLE_ANALYTICS_LANDING.md) | Turning on GA4 for influnet.io (and the privacy-policy change that must ship with it) |
+| [../api/README.md](../api/README.md) | API reference: every route, its access rule and rate limits (Swagger UI + OpenAPI) |
 | [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md) | Template ids, kill switches, tiers |
