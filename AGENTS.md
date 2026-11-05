@@ -21,6 +21,13 @@ silently yields an empty array, and empty arrays make tests pass and dashboards
 render blank. This produced two false findings in the 2026-08-08 audit before
 anyone noticed the shapes didn't match.
 
+**Every route is in [`docs/api/openapi.json`](docs/api/README.md)** (Swagger UI
+at `docs/api/index.html`) with its access rule and rate limits. After adding,
+removing or re-securing a route, run `node scripts/generate-openapi.mjs` and
+commit the output — `tests/unit/openapi-coverage.test.ts` fails otherwise.
+Document a response shape in `docs/api/openapi.overrides.json` rather than
+leaving a client to guess it.
+
 ## Table names are not the obvious ones
 
 - Projects are **`campaign_projects`**, not `projects`. Its `id` is a **bigint**,
@@ -240,10 +247,12 @@ enforced in SQL (`admin_grant_problem`, `admin_can_manage`) and mirrored in
 - **Adding a section is two changes:** a row in `ADMIN_MODULES` and a migration
   replacing `admin_delegable_modules()`. The unit test compares the two.
 - **Every member keeps `role = 'admin'`,** so `is_admin()` is still true for
-  staff, and a disabled member fails it. Section scoping is enforced by the
-  API, not by RLS: a staff member calling an `admin_*` RPC directly through
-  PostgREST reaches data outside their sections. Moving each RPC to a
-  per-section check is the known follow-up.
+  staff, and a disabled member fails it. `is_admin()` alone is therefore not
+  a guard: every `admin_*` RPC must start with
+  `admin_has_permission('<section>', 'view'|'manage')` (migrations 196, 201),
+  because staff can call RPCs directly through PostgREST. **Hidden-field
+  masking is still API-only:** an RPC returns real emails and phones to any
+  staff member holding its section.
 - **No row is not the same as no table.** An admin with no `admin_members` row
   is refused; a database where the table does not exist yet (176 unapplied)
   keeps the pre-team behaviour.
