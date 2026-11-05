@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { notifyUser } from '@/lib/notify';
 import { flag } from '@/lib/feature-flags';
 import { logger } from '@/lib/logger';
+import { cronAuthorized } from '@/lib/cron-auth';
 
 /**
  * Re-engagement nudge fan-out. Invoked by a scheduler (a GitHub Actions cron,
@@ -46,15 +47,8 @@ const COPY: Record<string, (d: any) => { title: string; body: string; link: stri
   }),
 };
 
-function authorized(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get('authorization') ?? '';
-  return header === `Bearer ${secret}`;
-}
-
 export async function POST(req: Request) {
-  if (!authorized(req)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!cronAuthorized(req)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // Reuses the notification-email master flag: staging/prod run it on, and it
   // is the switch that already gates outbound messaging in general.
