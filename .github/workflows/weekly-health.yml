@@ -73,8 +73,13 @@ jobs:
           url="${DEV_APP_URL_OVERRIDE:-${DEV_APP_URL:-}}"
           [ -n "$url" ] || url=https://dev.influnet.io
           echo "Probing $url/api/health"
-          body="$(curl -fsS --max-time 20 "$url/api/health")" || {
-            echo "::error::$url/api/health did not answer."
+          # Dev scales to zero, so the first request after a quiet spell wakes a
+          # cold container and can take longer than one 20 s attempt (seen
+          # 2026-11-10: first request timed out, the second answered in 0.4 s).
+          # One attempt failed this sweep 3 weeks out of 4 with the app healthy.
+          # Retry so a failure here means "down", not "asleep".
+          body="$(curl -fsS --max-time 45 --retry 3 --retry-delay 10 --retry-all-errors "$url/api/health")" || {
+            echo "::error::$url/api/health did not answer after 4 attempts."
             exit 1
           }
           echo "$body"
