@@ -134,6 +134,7 @@ const PUBLISHED: Record<'terms' | 'privacy' | 'refunds', LegalDoc> = {
           'Public Visibility: Creator profile metrics (handle, follower tier, niche, portfolio links, city) are displayed on your custom public influnet.io link and discovery search for prospective brand collaborations.',
           'Trusted Infrastructure Partners: We share minimal necessary data with vetted infrastructure partners: Microsoft Azure (cloud hosting & compute), Supabase (relational database & authentication), Razorpay (milestone payments & payouts), Stream (in-app messaging), and Resend (transactional notification emails).',
           'Advertising Measurement: Our event registration page (influnet.io/join) uses the Meta Pixel, provided by Meta Platforms (Facebook and Instagram), to measure which of our ads bring visitors and how many of them register. Meta receives that you viewed the page and whether you completed a registration, along with standard browser and device information and its own cookies, and may link this to your Meta account under Meta’s own privacy policy. We do not send Meta your name, phone number, email address, or any other details you type into the form.',
+          'Website Analytics: Our website (influnet.io) uses Google Analytics, provided by Google LLC, to understand how visitors use the site, such as which pages are viewed and which links are followed into the Influnet app. Google Analytics sets its own cookies and receives standard browser and device information and an approximate location derived from your IP address (Google Analytics 4 does not store IP addresses). We have turned off Google’s advertising features: this data is not used for ad personalisation or shared with Google Ads. We do not send Google your name, email, phone number or anything you type into a form.',
           'No Data Brokering: We never sell, rent, or trade your personal or contact information to third-party data brokers or advertisers.',
         ],
       },
@@ -156,6 +157,7 @@ const PUBLISHED: Record<'terms' | 'privacy' | 'refunds', LegalDoc> = {
         body: [
           'We use cookies and similar browser storage that are necessary to keep you signed in, keep the platform secure, and remember your event pass on your device.',
           'On our event registration page only, the Meta Pixel sets advertising cookies as described in section 3. You can block them with your browser’s privacy settings or an ad blocker (registration still works) and control how Meta uses this activity in your Facebook or Instagram ad settings under “Ad preferences”.',
+          'Across influnet.io, Google Analytics sets analytics cookies (_ga, _ga_*). You can opt out with Google’s browser add-on (tools.google.com/dlpage/gaoptout), your browser’s privacy settings, or an ad blocker. The site works the same without them.',
         ],
       },
       {
