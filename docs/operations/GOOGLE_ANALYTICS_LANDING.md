@@ -6,6 +6,44 @@ mounted in the root layout. With no measurement ID it renders nothing and
 loads nothing. This was checked by building the site both ways: without an ID,
 0 of 11 pages reference Google; with an ID, every page loads `gtag.js`.
 
+**Update 2026-11-10: set up and switched on.** Property "Influnet website"
+(property 563543596), stream "Influnet landing (influnet.io)", Measurement ID
+`G-H06D0SZ14G`, set as the repo variable `LANDING_GA_MEASUREMENT_ID`. Steps 1–3
+below are done, with these differences from the text:
+
+- Google now wraps the tag in a Tag Manager container (`GTM-…`). Ignore it; the
+  site uses the `G-…` ID directly. "Define internal traffic" lives in the
+  stream → Configure tag settings → Settings → Show more.
+- Internal-traffic rule "Team (Influnet office/home)" covers one IPv4 /32 and
+  one IPv6 /64. **Home and office IPs change**; if your own visits start
+  showing in reports, add the new IP there.
+- The "Internal Traffic" data filter (Admin → Data filters) must be **Active**
+  to exclude anything. Testing state only labels it. Once active it can't be
+  undone for data already processed.
+- `sign_up_click` can only be starred as a Key event after GA has received it
+  once (Admin → Events → Recent events).
+- "Run workflow" (manual) did nothing until the build job's `if:` was changed to
+  allow `workflow_dispatch`. Fixed 2026-11-10.
+
+## Reading the traffic
+
+- **Is it working right now:** Reports → **Realtime**. Visitors in the last 30
+  minutes, by page and event.
+- **How many visited:** Reports → Reports snapshot, or Reports → Acquisition →
+  *Traffic acquisition* (where they came from: Direct, Instagram, WhatsApp,
+  Google). Tag links with `?utm_source=…&utm_medium=…&utm_campaign=…` or
+  Instagram traffic shows up as plain "Direct".
+- **Which pages:** Reports → Engagement → *Pages and screens*.
+- **Did they click to sign up:** Reports → Engagement → *Events* → `sign_up_click`
+  (and `login_click`). Once starred as a Key event it also appears under Key
+  events on Home.
+- **Funnel:** Explore → Funnel exploration → `page_view` (`/`) → `page_view`
+  (`/creators` or `/business`) → `sign_up_click`.
+- **Where from:** Reports → Demographics → *Demographic details* → Country/City.
+- **Truth check:** real signups are in `/dashboard/admin/analytics` (database).
+  GA undercounts by 20–40% (ad blockers).
+- Data lands in Realtime within seconds, in standard reports after roughly a day.
+
 GA here is for the **marketing site only**. The product app (`apps/web`,
 mobile) uses PostHog plus the database funnel, for the reasons in
 [ANALYTICS.md §3](ANALYTICS.md). Don't add GA to the app: its DOM holds creator
