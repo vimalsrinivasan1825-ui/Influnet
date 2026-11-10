@@ -4348,7 +4348,7 @@
           "event-pass"
         ],
         "operationId": "post_event_pass",
-        "summary": "Register for an event and receive an entry pass (landing /join).",
+        "summary": "Register for an event and receive an entry pass (landing /join). Closed 2026-11-10: answers 410 for a finished event (lib/public-events.ts).",
         "description": "**Access:** Public: no sign-in required.\n\n**Rate limits:** `event-pass:register` 40/60s. Exceeding one answers 429.\n\n**CORS:** `Access-Control-Allow-Origin: *` (called from the landing site).\n\n**Source:** `apps/web/src/app/api/event-pass/route.ts`\n\n⚠️ Audit 2026-11-05: re-registering an existing phone returns that person's existing pass code. The event ended 25 Sep 2026; close it (remove from `EVENTS`) or require an OTP.",
         "security": [],
         "x-access": "public",
@@ -4480,7 +4480,7 @@
         ],
         "operationId": "post_event_survey",
         "summary": "Look up a registration by phone, or submit the pre-event survey.",
-        "description": "**Access:** Public: no sign-in required.\n\n**Rate limits:** `event-survey` 60/60s. Exceeding one answers 429.\n\n**CORS:** `Access-Control-Allow-Origin: *` (called from the landing site).\n\n**Source:** `apps/web/src/app/api/event-survey/route.ts`\n\n⚠️ Audit 2026-11-05: `lookup` returns first name, city and Instagram handle for any registered phone number, and `submit` overwrites answers, with no proof the caller owns the number.",
+        "description": "**Access:** Public: no sign-in required.\n\n**Rate limits:** `event-survey` 60/60s. Exceeding one answers 429.\n\n**CORS:** `Access-Control-Allow-Origin: *` (called from the landing site).\n\n**Source:** `apps/web/src/app/api/event-survey/route.ts`\n\nClosed 2026-11-10: both actions answer 410 for a finished event (lib/public-events.ts), which is every event today. Audit 2026-11-05 found that `lookup` returns first name, city and Instagram handle for any registered phone number, and `submit` overwrites answers, with no proof the caller owns the number. Put a phone OTP in front before reopening for a new event.",
         "security": [],
         "x-access": "public",
         "x-rate-limits": [

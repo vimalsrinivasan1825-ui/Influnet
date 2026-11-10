@@ -751,7 +751,7 @@
     "summary": "CORS preflight."
   },
   "POST /api/event-pass": {
-    "summary": "Register for an event and receive an entry pass (landing /join).",
+    "summary": "Register for an event and receive an entry pass (landing /join). Closed 2026-11-10: answers 410 for a finished event (lib/public-events.ts).",
     "requestBody": {
       "required": true,
       "content": {
@@ -840,7 +840,7 @@
   },
   "POST /api/event-survey": {
     "summary": "Look up a registration by phone, or submit the pre-event survey.",
-    "notes": "⚠️ Audit 2026-11-05: `lookup` returns first name, city and Instagram handle for any registered phone number, and `submit` overwrites answers, with no proof the caller owns the number."
+    "notes": "Closed 2026-11-10: both actions answer 410 for a finished event (lib/public-events.ts), which is every event today. Audit 2026-11-05 found that `lookup` returns first name, city and Instagram handle for any registered phone number, and `submit` overwrites answers, with no proof the caller owns the number. Put a phone OTP in front before reopening for a new event."
   },
   "GET /api/email/unsubscribe": {
     "summary": "One-click unsubscribe from a signed link (HTML confirmation page)."

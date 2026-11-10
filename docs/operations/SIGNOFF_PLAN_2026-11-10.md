@@ -24,6 +24,7 @@ dev → staging PR merges):
 | P1.d | Deleted `docs/APPLY_PENDING_MIGRATIONS.sql`, `test_email_rpc.sql`, `fix-hrefs.js`, `apps/web/test-stream*.ts`, `supabase/cleanup.sql` and `railway.json`. `SUPABASE.md` moved to `docs/archive/`. |
 | P1.g (part) | The weekly health sweep retries the dev probe, so a cold start no longer fails it. |
 | P1.k | HANDOVER.md Part 0 re-verified and corrected; `handover-checklist.html` carries an out-of-date banner. |
+| P0.f | Owner approved on 2026-11-10. The landing header's "Join as Creator" links go to creator signup, and `/api/event-pass` and `/api/event-survey` answer 410 for the finished event before touching the database (`apps/web/src/lib/public-events.ts`). The admin Event registrations and Event survey screens still work. The `/join` page itself still exists for old ad links; its form now shows "Registration for Silicon Nexus S2 has closed." |
 | N7 | The landing site sends `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy`. Confirm with `curl -sI https://influnet.io` after the landing deploy. |
 | N12 | The control characters in the chat-message regex are written as escapes; the file diffs as text again. |
 
@@ -31,7 +32,6 @@ dev → staging PR merges):
 
 | Item | Why it was left |
 |---|---|
-| P0.f event endpoints (N2) | **Not a one-line removal.** The landing header's "Join as Creator" button goes to `/join`, which posts to these endpoints, and the admin Event survey screen validates against the same list. Closing them breaks the public site's main creator button. Needs a product decision: what should "Join as Creator" do now that the event is over? |
 | P1.j mobile refresh tokens (N5) | It changes how every phone stores its login, cannot be tested here without a device, and would reach store users by OTA. Do it with a two-phone test, not blind. |
 | N9 `shadcn` to devDependencies | The audit's suggestion is wrong: `apps/web/src/app/globals.css` imports `shadcn/tailwind.css`, so it is a real build dependency. Leave it where it is. |
 | P1.g nightly autofix, Dependabot PRs, old branches | Switching off a workflow, merging a 66-package bump and deleting branches are the owner's calls (D5). |
@@ -163,7 +163,7 @@ Nothing below can be compressed later, so it all starts on day 1.
 | D2 | Client | **Scope of this sign-off**: section 1 table, or production included (date moves). | Written answer. |
 | D3 | Client | **Where the code lives after handover** (F4): transfer the current repo, push to the client's repo, or a new organisation. And: private or public. | Destination named. |
 | D4 | Client | **After sign-off**: maintenance retainer or none ([CLIENT_HOSTING_AND_MAINTENANCE.md](CLIENT_HOSTING_AND_MAINTENANCE.md)). Who answers when the site is down. | A name and a phone number. |
-| D5 | Client | Small decisions: paid plans on or off at launch (P0.8); what the landing's "Join as Creator" button should do now the event is over (N2); keep or switch off the nightly autofix (F6). | Three yes/no answers. |
+| D5 | Client | Small decisions: paid plans on or off at launch (P0.8); keep or switch off the nightly autofix (F6). | Two yes/no answers. |
 | L1 | Client | **Razorpay live mode**: start KYC now. It takes days. Merchant must be the entity from D1. | Application submitted. |
 | L2 | Client | **Store account ownership**: if D1 is the client, start the Apple app transfer and the Google Play app transfer, or add the client as Account Holder / Owner. | Transfer started or access granted. |
 | L3 | Client | **Mailboxes**: MX for `influnet.io` so `support@` and `grievance@` receive mail (Cloudflare Email Routing). The privacy policy and Apple both rely on them. | `dig MX influnet.io` returns records; a test mail arrives. |
@@ -181,7 +181,7 @@ Sign-off should not happen with any of these open.
 | P0.c | Dev | **Rotate the exposed super-admin password (F3)** on dev and on staging. Check the audit log for sign-ins by that account you do not recognise. | Old password refused on both. |
 | P0.d | Both | **Make the repo private**, unless the client chose public in D3. Then run a secret scanner over the full history (`gitleaks detect`) and rotate anything it finds. | Repo private; scan report clean or every hit rotated. |
 | P0.e | Both | **Admin two-factor** (OWNER_TODO B1): enable TOTP in Supabase on dev and staging, every admin enrols, then `ADMIN_REQUIRE_MFA=true` on both containers. | The "protected by a password only" banner is gone; an admin without MFA is refused. |
-| P0.f | Both | **Event endpoints (N2).** Decide what the landing's "Join as Creator" button should do now the event is over (see section 0), then either repoint it to signup and close the endpoints, or keep them and put a phone OTP in front. | `POST /api/event-survey` no longer returns a registrant's details for a bare phone number. |
+| P0.f ✅ | Dev | **Event endpoints (N2)**: closed for the finished event; "Join as Creator" goes to creator signup. | `POST /api/event-survey` with a registered phone answers 410, not the registrant's details. |
 | P0.g | Client | **Renew `SUPABASE_ACCESS_TOKEN`** (OWNER_TODO A2). Revoke every older token in Supabase, Account, Access Tokens. | `scripts/apply-migration.mjs` and `tests/e2e/lib/sql.mjs` run. |
 | P0.h | Client | **Staging database plan and backups (F8)**: confirm Pro, confirm daily backups exist. | Screenshot of the plan and the latest backup. |
 | P0.i | Client | **Email confirmation on** for staging (HANDOVER P0.5). Fix the Auth Site URL and redirect list first, then turn Confirm email on, then point Auth at Resend SMTP. | A fresh signup receives a confirmation from the Influnet domain and cannot sign in before clicking it. |
