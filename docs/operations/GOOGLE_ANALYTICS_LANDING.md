@@ -22,6 +22,19 @@ below are done, with these differences from the text:
   undone for data already processed.
 - `sign_up_click` can only be starred as a Key event after GA has received it
   once (Admin → Events → Recent events).
+- **Verified live 2026-11-10:** influnet.io, /creators and /business carry the
+  ID; Realtime showed `page_view`, `first_visit`, `sign_up_click`. The internal
+  traffic data filter was then set to **Active**.
+- **Still to do, once, after ~24h:** Admin → Events → *Recent events* → star
+  `sign_up_click` (and `login_click` if wanted) to make them Key events. GA
+  won't list an event there until its first day of data has processed.
+- Set the repo variable with an explicit repo:
+  `gh variable set LANDING_GA_MEASUREMENT_ID --body G-… --repo vimalsrinivasan1825-ui/Influnet`.
+  Without `--repo`, `gh` resolved to `christopher-ship-it/Influnet` on this
+  machine and the build silently got an empty value.
+- The landing site deploys from **`dev` only** (see the workflow's `push:`
+  filter), straight to influnet.io. A `dev → staging` merge does not change the
+  landing site.
 - "Run workflow" (manual) did nothing until the build job's `if:` was changed to
   allow `workflow_dispatch`. Fixed 2026-11-10.
 
