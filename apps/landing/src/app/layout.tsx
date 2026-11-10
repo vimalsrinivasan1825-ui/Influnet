@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, Spline_Sans_Mono } from "next/font/google";
 import Script from "next/script";
 import { BOOT_SCRIPT } from "@/lib/role";
+import GoogleAnalytics from "@/components/analytics/google-analytics";
 import "./globals.css";
 
 
@@ -24,6 +25,9 @@ const splineMono = Spline_Sans_Mono({
 });
 
 export const metadata: Metadata = {
+  // Without this, relative Open Graph images (e.g. /join's event card) are
+  // resolved against http://localhost:3000 and link previews show no image.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://influnet.io"),
   title: "Influnet — Run creator collaborations like a business",
   description:
     "Influnet is where Indian brands and verified creators find each other, agree terms, and deliver campaigns — with every step on the record.",
@@ -55,6 +59,8 @@ export default function RootLayout({
           {BOOT_SCRIPT}
         </Script>
         {children}
+        {/* Inert until NEXT_PUBLIC_GA_MEASUREMENT_ID is set at build time. */}
+        <GoogleAnalytics />
       </body>
 
     </html>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { APP_URL } from '@/lib/site';
+import { APP_URL, links } from '@/lib/site';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -52,7 +52,7 @@ export default function Header() {
               For Creators
             </Link>
             <Link
-              href="/join"
+              href={links.signupInfluencer}
               className="text-sm font-semibold text-[#ff078e] hover:text-[#ff4da6] transition-colors flex items-center gap-1"
             >
               Join as Creator
@@ -114,7 +114,7 @@ export default function Header() {
               For Creators
             </Link>
             <Link
-              href="/join"
+              href={links.signupInfluencer}
               onClick={() => setMobileMenuOpen(false)}
               className="block px-4 py-2.5 text-sm font-semibold text-[#ff078e] hover:bg-[#ff078e]/10 rounded-lg"
             >

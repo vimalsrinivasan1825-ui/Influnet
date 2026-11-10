@@ -1,5 +1,5 @@
 # This file lives at the REPO ROOT because the Docker build context is the repo
-# root (railway.json builds apps/web/Dockerfile with context "."). A .dockerignore
+# root (the deploy workflows build apps/web/Dockerfile with context "."). A .dockerignore
 # inside apps/web/ is ignored for a root-context build.
 
 # Dependency directories (restored in-image from the deps stage)

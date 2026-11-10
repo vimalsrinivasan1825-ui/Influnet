@@ -6,6 +6,7 @@ Use them when you want the *original detail* behind a summarized item — e.g. t
 
 | File | What it was | Superseded by |
 |---|---|---|
+| `SUPABASE.md` | Original Supabase setup notes. **Points at the first, Firebase-era project `hrpaqufvjcihnjrjnpej`, not dev or staging**; archived 2026-11-10 so nobody follows it | `operations/DEPLOYMENT.md`, `operations/EMAIL_SYSTEM.md`, `architecture/DATA_MODEL.md` |
 | `2026-07-12_CLOUD_DEPLOYMENT_AND_AUDIT.md` | Cloud deploy readiness + deep audit (runbook, B-list, lifecycle, build spec) | `operations/DEPLOYMENT.md`, `operations/SECURITY.md`, `product/ROADMAP.md`, `operations/QA_AND_GO_LIVE.md` |
 | `2026-07-11_USER_ACTIONS.md` | Infra action items (service key, Upstash, Sentry, Stream webhook) | `operations/DEPLOYMENT.md §5` |
 | `2026-07-11_UI_REDESIGN_PLAN.md` | UI redesign work plan (design tokens, page patterns) | done; tokens live in `globals.css` / `components/ui/` |

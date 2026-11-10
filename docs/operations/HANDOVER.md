@@ -1,14 +1,17 @@
 # Influnet — Sign-off & Handover
 
 **Living document.** Update it in place; do not date-stamp a copy.
-Last verified against the code: **2026-09-19** (branch `dev`, commit `993d1064`;
-see [`LAUNCH_READINESS_AUDIT_2026-09-19.md`](LAUNCH_READINESS_AUDIT_2026-09-19.md)
-for what was checked and how).
+Part 0 last verified: **2026-11-10** (branch `dev`). Parts 1 to 4 were last
+read against the code on 2026-09-19; see
+[`LAUNCH_READINESS_AUDIT_2026-09-19.md`](LAUNCH_READINESS_AUDIT_2026-09-19.md)
+and [`SYSTEM_AUDIT_2026-11-05.md`](SYSTEM_AUDIT_2026-11-05.md).
 
-**There is an interactive version of this document:
-[`handover-checklist.html`](handover-checklist.html)** — the same content as a
-tickable, collapsible checklist. Open it straight from the repo; no server, and
-nothing is published anywhere. Ticks are saved in the browser you open it with.
+> **Signing off this week?** The ordered work plan is
+> [`SIGNOFF_PLAN_2026-11-10.md`](SIGNOFF_PLAN_2026-11-10.md).
+
+[`handover-checklist.html`](handover-checklist.html) is a tickable version of
+this document **as it stood on 2026-08-12**. Several of its rows are now wrong
+(it carries a banner saying so); trust this file where they differ.
 
 This doc answers two questions and nothing else:
 
@@ -21,26 +24,26 @@ one links rather than repeats it — the linked doc stays canonical.
 
 ---
 
-## Part 0 — Verified state, 2026-08-12
+## Part 0 — Verified state, 2026-11-10
 
-Checked directly, not recalled:
+Checked directly on 2026-11-10 unless a row says otherwise:
 
 | Thing | State |
 |---|---|
 | `npm run typecheck` | ✅ clean, 7/7 workspaces |
-| `npm test` | ✅ 727 passed, 6 skipped (the 6 are `tests/integration/api.test.ts`, skipped without a live env). Live E2E against the dev database: 302/302 across phases 3–9 and the 161/164/165 verifiers — see the 2026-09-19 audit. |
-| `origin/dev` vs `origin/staging` | **Staging is 156 commits behind** — every fix since the 17 Sep audit is on `dev` only. Nothing reaches users until the dev → staging PR merges (blueprint Phase 1, task t14). No staging-only code exists. |
+| `npm test` | ✅ 869 passed, 6 skipped (the 6 are `tests/integration/api.test.ts`, skipped without a live env). The E2E harness was last run on 2026-09-19 (302/302 across phases 3–9); it was **not** re-run on 2026-11-10. |
+| `origin/dev` vs `origin/staging` | **Staging is behind `dev`**: last deployed 2026-10-23, and it still runs Next.js 16.3.5 (the version with remote-code-execution advisories). The fix, migration 201 and the 2026-11-10 handover fixes are on `dev` only until the dev → staging PR merges. No staging-only code exists. |
 | Local `dev` vs `origin/dev` | In sync, working tree clean |
 | dev / staging databases | **Isolated.** Separate Supabase projects (`jaajosocopoicmqcffuu` / `aokdansyqxracuwsosji`) in one Supabase account. This is done — nothing to do here. |
 | Production branch | **`main` does not exist on `origin`.** `deploy-prod.yml` has never fired. |
-| `deploy-prod.yml` | **Would fail if it did fire** — four defects, see P0.1. It was written but never exercised. |
+| `deploy-prod.yml` | Rewritten 2026-09-14 to fix the four defects in P0.1 (it now builds its own image, targets Container Apps, sets runtime env vars and has a gated migrate job). **Still never run**, so treat it as untested. |
 | Production database | **Not provisioned.** Planned as its own Supabase account, separate from the one holding dev and staging. Until then `deploy-prod.yml`'s `production` environment still points at the *staging* project. |
-| Hosting topology | dev + staging share one Azure Container App environment (separate apps and images); dev is mid-migration off Railway. Production gets its own. |
+| Hosting topology | dev + staging share one Azure Container App environment (separate apps and images). Dev is fully on Azure (`deploy-dev.yml`; `dev.influnet.io` resolves to the Container App) and `railway.json` was deleted on 2026-11-10. Dev scales to zero, so its first request after a quiet spell is slow. Production gets its own. |
 | Mobile `production` EAS profile | Points at `https://staging.influnet.io` and the **staging** Supabase project (`apps/mobile/eas.json`). |
-| Migrations in repo | 161 files, through `165_single_source_collab_notifications.sql` |
-| Migration automation | `dev` auto-applies (`migrate-dev.yml`); `staging` applies inside `deploy-staging.yml` before the app deploy. Prod has **no migrate job** by design — it needs one the day it gets its own DB. |
-| Admin health probes | ✅ Cover through migration **165** (P0.11 closed 2026-09-19), including the two-stage-signoff and approval-guard RPCs. |
-| Legal pages | **Wired but not publishable.** `/legal/[slug]` exists with real content, but `apps/web/src/app/legal/legal-content.ts` still holds **24 `[[placeholders]]`** and `TERMS_VERSION` in `packages/core` is `2026-09-draft-1`. A lawyer fills the placeholders; then the draft banner comes off. |
+| Migrations in repo | 197 files, through `201_audit_enumeration_and_admin_scope.sql` |
+| Migration automation | `dev` applies inside `deploy-dev.yml`, `staging` inside `deploy-staging.yml`, both before the app deploy. `deploy-prod.yml` has a migrate job behind the `production` environment approval; it has never run. |
+| Admin health probes | ✅ Newest probe is for migration **198**; 199–201 have none. P0.11 closed 2026-09-19. |
+| Legal pages | **Published.** No `[[placeholder]]` left in `apps/web/src/app/legal/legal-content.ts`; `TERMS_VERSION` is `2026-09`; the app's text matches the landing site's again (a unit test enforces it). They name Tecstellar Solutions LLP as owner and operator. Still missing: the licence clause for user content, and working `support@` / `grievance@` mailboxes (no MX record). |
 | Paid plans | Decision still open (blueprint t25): recommended launch is free (`SUBSCRIPTIONS_ENABLED=false` on production). Dev's local env currently has it `true` — confirm what production actually gets before users arrive. |
 
 The product code is in good shape. **Every remaining blocker below is
@@ -67,6 +70,9 @@ unrecoverable one.
 Legend: 👤 = only you can do it (needs an account/credential/dashboard) · 💻 = needs code.
 
 ### P0.1 — Fix `deploy-prod.yml`, which would fail today 💻
+
+> **Update:** the workflow was rewritten on 2026-09-14 to address all four
+> defects below. It has still never run, so the *Verify* step is what remains.
 
 **Why.** The workflow was written but never run, so nothing has exercised it.
 Read against `deploy-staging.yml`, four things are wrong:
@@ -146,10 +152,9 @@ scale threshold and confirm it scales out — and stops at 10.
 
 ### P0.3b — Finish the Railway → Azure move for dev 👤💻
 
-In-flight. Don't leave these behind: `migrate-dev.yml`'s header still says dev is
-deployed by Railway; dev needs its own deploy workflow (nothing in this repo
-deploys dev's app code today); delete `railway.json` once it's genuinely unused;
-keep dev's min-replicas at 0.
+✅ Done. Dev deploys through `deploy-dev.yml` (migrations, then the Container
+App), and `railway.json` was deleted on 2026-11-10. If a Railway project still
+exists, delete it so nobody is billed for it. Keep dev's min-replicas at 0.
 
 ### P0.4 — Create the production tier at all 👤
 
@@ -403,7 +408,7 @@ reading the reason has already cost time in this project.
 | Fail-open defaults around "the migration might not be applied" | Correct for a *missing table*, wrong for *zero rows*. That conflation opened both payment gates once. `apps/web/src/lib/stage-items-gate.ts` shows the distinction. The DB has been current since 2026-08-08, so any remaining fail-open is guarding a state that no longer exists — decide each one deliberately. |
 | Read-modify-write on `stage_progress` | Never do it from app code; two simultaneous confirmations clobber each other and the trigger then 500s with the user's click lost. Use the RPCs from migration 114. |
 | Supabase CLI not on `latest` | Pinned to 2.111.0; 2.112.0 broke `supabase link`. |
-| Mobile public profile isn't a WebView of `/c/[username]` | It's native on purpose. New native modules break already-installed builds. |
+| The mobile creator profile is a WebView of `/<username>?app=1` | Deliberate since 2026-08-31 (`components/profile-web-view.tsx`), so the public profile has one implementation. Everything else in the app is native; the business profile stayed native. |
 | The `qacreator` fixture on staging | Load-bearing for deploy smoke tests. Never purge it. |
 
 ---
@@ -421,4 +426,7 @@ reading the reason has already cost time in this project.
 | [SUPABASE_CAPACITY_2026-08-02.md](SUPABASE_CAPACITY_2026-08-02.md) | Which Supabase limit actually binds (it isn't DB size) |
 | [FULL_FLOW_AUDIT_2026-08-08.md](FULL_FLOW_AUDIT_2026-08-08.md) | Before touching the stage machine or payment gates |
 | [LAUNCH_READINESS_AUDIT_2026-09-19.md](LAUNCH_READINESS_AUDIT_2026-09-19.md) | The current state: what passed live (302/302 E2E), what still blocks, and the exact E2E reproduction commands |
+| [SYSTEM_AUDIT_2026-11-05.md](SYSTEM_AUDIT_2026-11-05.md) | Latest full-system pass: new findings, what is still open, missing architecture, and the ordered next moves |
+| [GOOGLE_ANALYTICS_LANDING.md](GOOGLE_ANALYTICS_LANDING.md) | Turning on GA4 for influnet.io (and the privacy-policy change that must ship with it) |
+| [../api/README.md](../api/README.md) | API reference: every route, its access rule and rate limits (Swagger UI + OpenAPI) |
 | [EMAIL_SYSTEM.md](EMAIL_SYSTEM.md) | Template ids, kill switches, tiers |

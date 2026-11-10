@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { enforceRateLimit } from '@/lib/rate-limit';
 import { serviceRoleClient } from '@/lib/supabase/service';
 import { logger } from '@/lib/logger';
+import { closedEventName } from '@/lib/public-events';
 
 // Public event registration for influnet.io/join (landing app, other origin).
 // Returns { ok, passCode, name, alreadyRegistered } — the pass is minted by
@@ -81,7 +82,13 @@ export async function POST(req: Request) {
       return limited;
     }
 
-    const parsed = Schema.safeParse(await req.json().catch(() => ({})));
+    const raw = await req.json().catch(() => ({}));
+
+    // No `field`: the landing form shows a field-less error under the button.
+    const closed = closedEventName((raw as { event?: unknown } | null)?.event);
+    if (closed) return fail(`Registration for ${closed} has closed.`, 410);
+
+    const parsed = Schema.safeParse(raw);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       return fail(issue?.message ?? 'Please check your details', 400, issue?.path[0]?.toString());

@@ -4,6 +4,7 @@ import { enforceRateLimit } from '@/lib/rate-limit';
 import { serviceRoleClient } from '@/lib/supabase/service';
 import { logger } from '@/lib/logger';
 import { SURVEY_EVENTS, loadSurveyForms } from '@/lib/event-survey';
+import { closedEventName } from '@/lib/public-events';
 
 // Pre-event survey for influnet.io/join/survey (landing app, other origin).
 //
@@ -91,7 +92,14 @@ export async function POST(req: Request) {
       return limited;
     }
 
-    const parsed = Schema.safeParse(await req.json().catch(() => ({})));
+    const raw = await req.json().catch(() => ({}));
+
+    // Covers lookup AND submit: neither may read or change a registration once
+    // the event is over.
+    const closed = closedEventName((raw as { event?: unknown } | null)?.event);
+    if (closed) return fail(`The ${closed} survey has closed.`, 410);
+
+    const parsed = Schema.safeParse(raw);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       return fail(issue?.message ?? 'Please check your details', 400, issue?.path[0]?.toString());

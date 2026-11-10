@@ -1,3 +1,7 @@
+// NOTE 2026-11-10: the public half of this script no longer passes. /api/event-survey
+// answers 410 for silicon-nexus-s2 (apps/web/src/lib/public-events.ts); the admin
+// half is unchanged. Update the slug when the next event opens.
+//
 // Pre-event survey (migrations 174–175): influnet.io/join/survey → admin.
 //
 // Proves through the REAL routes, with real JWTs:
